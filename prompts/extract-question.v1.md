@@ -1,6 +1,7 @@
 ---
 version: extract-question.v1
 purpose: extract_qp
+model: claude-sonnet-4-6
 output: json
 ---
 
@@ -9,10 +10,17 @@ Computer Science 9618 question paper.
 
 ## Input
 
-- Page image(s) at 200 dpi
-- Text layer extracted from the same pages
-- Paper metadata: {syllabus} {component} {year} {series} {variant}
-- Questions already extracted from the previous batch: {prior_refs}
+You receive, for the same 2–3 pages:
+
+1. **Page images** rendered at 200 dpi.
+2. **A text layer** produced by `pdftotext -layout` from the same pages.
+3. Paper metadata: `{syllabus} {component} {year} {series} {variant}`.
+4. `prior_refs` — question paths already extracted from the previous batch.
+
+**Trust the text layer for wording.** It is the publisher's own text and has no
+OCR error. Use the image for layout, mark brackets, ruled answer lines, and
+anything drawn rather than typed. Where the two disagree about a *word*, the
+text layer wins. Where they disagree about *structure*, the image wins.
 
 ## Task
 
@@ -20,29 +28,34 @@ Extract every question and sub-question as a tree.
 
 ## Rules
 
-1. Preserve the exact hierarchy: 3 → 3(b) → 3(b)(ii). Never flatten.
-2. A parent that carries no marks of its own has `"marks": null`. Only leaves carry marks.
-3. Shared scenario text (a table, a program listing, a description used by several
-   sub-parts) goes in the PARENT's `context_latex`, never duplicated into each child.
-4. `marks` comes from the bracketed number at the right margin, e.g. [3].
-5. `command_word` is the FIRST imperative verb of the question stem.
-   Use exactly one of: State, Give, Name, Identify, Define, Describe, Explain,
-   Compare, Calculate, Complete, Draw, Write, Evaluate, Justify, Suggest, Show, Other.
-6. Write `stem_latex` as LaTeX-flavoured text:
-   - Prose stays plain. Only mathematics goes inside `$...$` (inline) or `$$...$$` (display).
-   - Binary, hexadecimal and denary literals use `$\mathtt{...}_2$`, `$\mathtt{...}_{16}$`.
-   - Powers use `$2^{10}$`. Do NOT use `\text`, `\href`, `\includegraphics` or `\input`.
-   - Truth tables and matrices may use `\begin{array}{...}` inside `$$...$$`.
-   - Never emit `\begin{tikzpicture}` — a diagram belongs in `assets`, not in the stem.
-7. If the question contains a diagram, table, or code listing, do NOT transcribe it
-   into `stem_latex`. Add an entry to `assets` with a bounding box and a description.
-   Tables and code MAY be transcribed into `asset.content_md` as markdown; diagrams may not.
-8. `answer_lines`: count the ruled answer lines printed under the question.
-   Use 0 if the answer space is a box, table, or diagram.
-9. `answer_kind`: text | pseudocode | code | table | diagram | image
-10. Do not invent, complete, or correct anything. If text is unreadable, put the
-    readable part in `stem_latex` and add "unreadable" to the `issues` array.
-11. If a question continues past the last page of this batch, set `"truncated": true`.
+1. **Preserve the hierarchy exactly**: 3 → 3(b) → 3(b)(ii). Never flatten.
+   `path` uses dots and lowercase roman numerals: `3`, `3.b`, `3.b.ii`.
+2. **Only leaves carry marks.** A node that has children has `"marks": null`.
+   A node with no children must have a number.
+3. **Shared scenario text goes in the PARENT's `context_md`.** Never copy it into
+   each child. A scenario duplicated onto four children is four things to fix
+   later and four copies in an export.
+4. `marks` is the bracketed number at the right margin, e.g. `[3]`.
+5. `command_word` is the **first imperative verb of the stem**, exactly one of:
+   State, Give, Name, Identify, Define, Describe, Explain, Compare, Calculate,
+   Complete, Draw, Write, Evaluate, Justify, Suggest, Show, Other.
+   If the stem has no imperative verb, use `Other` — do not guess.
+6. **Diagrams are not transcribed.** Do not attempt to describe a figure in
+   `stem_md`. Emit an entry in `assets` with a bounding box and `alt_text`.
+   Tables and code listings **may** go into `asset.content_md` as markdown,
+   because they survive as text; diagrams may not.
+7. `answer_lines` is the count of printed ruled answer lines under the question.
+   Use `0` when the answer space is a box, a table, or a diagram frame.
+8. `answer_kind` is one of: text, pseudocode, code, image, table, diagram.
+9. **Never invent, complete, or correct anything.** If text is unreadable, put
+   the readable part in `stem_md` and add a string to `issues`. A question that
+   is 80% extracted and flagged is useful; one that is 100% invented is poison.
+10. If a question continues past the last page of this batch, set
+    `"truncated": true` and stop at the boundary. The next batch overlaps by one
+    page and will complete it.
+11. Do not re-emit anything whose `path` is in `prior_refs`.
+12. `confidence` is your own honest estimate per question, 0–1. Below 0.80 sends
+    the question to a human, which is the correct outcome when you are unsure.
 
 ## Output
 
@@ -55,8 +68,8 @@ Return ONLY a JSON object. No preamble, no markdown fences.
       "path": "3",
       "label": "3",
       "parent_path": null,
-      "stem_latex": "A company stores customer records in a relational database.",
-      "context_latex": null,
+      "stem_md": null,
+      "context_md": "A company stores customer records in a relational database.",
       "command_word": null,
       "marks": null,
       "answer_kind": "text",
@@ -65,7 +78,7 @@ Return ONLY a JSON object. No preamble, no markdown fences.
       "assets": [
         {
           "kind": "table",
-          "content_md": "| Field | Type |\n|---|---|\n",
+          "content_md": "| Field | Type |\n|---|---|\n| CustomerID | INTEGER |",
           "alt_text": "Customer table structure",
           "bbox": [120, 340, 480, 520],
           "page": 4
@@ -78,7 +91,8 @@ Return ONLY a JSON object. No preamble, no markdown fences.
       "path": "3.b",
       "label": "b",
       "parent_path": "3",
-      "stem_latex": "Explain why a primary key is required.",
+      "stem_md": "Explain why a primary key is required.",
+      "context_md": null,
       "command_word": "Explain",
       "marks": 3,
       "answer_kind": "text",
@@ -94,5 +108,6 @@ Return ONLY a JSON object. No preamble, no markdown fences.
 }
 ```
 
-`page_total_marks` is your own sum of the marks printed on these pages. It gives
-the pipeline a free cross-check (validation rule V02).
+`page_total_marks` is **your own sum** of every mark bracket printed on these
+pages. It is compared against the sum of the marks you assigned; a mismatch
+means a question was missed, and it costs nothing to check.

@@ -3,6 +3,7 @@ import { Queue, Worker, type Processor } from 'bullmq';
 import { Redis } from 'ioredis';
 import { createDb, type Database, type DbHandle } from '@campath/db';
 import { WorkerConfig } from './config.js';
+import { IngestionModule } from './ingestion/ingestion.module.js';
 
 export const DATABASE = Symbol('CAMPATH_WORKER_DATABASE');
 export const REDIS = Symbol('CAMPATH_WORKER_REDIS');
@@ -33,6 +34,7 @@ export function createQueueWorker(
 
 @Global()
 @Module({
+  imports: [IngestionModule],
   providers: [
     WorkerConfig,
     {
