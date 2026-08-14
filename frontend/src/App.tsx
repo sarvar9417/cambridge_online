@@ -7,6 +7,7 @@ import {
   type Assignment,
   type Attempt,
   type ClassItem,
+  type ContentGames,
   type ExportItem,
   type Flashcard,
   type GradingItem,
@@ -45,6 +46,12 @@ export function App() {
   const [reviewFinding, setReviewFinding] = useState("");
   const [editingReview, setEditingReview] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [games,setGames]=useState<ContentGames>({termMatch:[],sequence:[],spotTheGap:[]});
+  const [gameMode,setGameMode]=useState<'term'|'sequence'|'gap'>('term');
+  const [termAnswers,setTermAnswers]=useState<Record<string,string>>({});
+  const [sequence,setSequence]=useState<ContentGames['sequence']>([]);
+  const [gapAnswer,setGapAnswer]=useState('');
+  const [gameResult,setGameResult]=useState('');
   const [cardRevealed, setCardRevealed] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
@@ -98,12 +105,14 @@ export function App() {
     setAssignments(assignmentData.data);
     setResults(resultData.data);
     if (session.user.role === "student") {
-      const [m, c] = await Promise.all([
+      const [m, c, g] = await Promise.all([
         api<{ data: MasteryItem[] }>("/analytics/mastery"),
         api<{ data: Flashcard[] }>("/content/flashcards/due"),
+        api<{data:ContentGames}>("/content/games"),
       ]);
       setMastery(m.data);
       setFlashcards(c.data);
+      setGames(g.data);setSequence([...g.data.sequence].reverse());
     }
     if (session.user.role !== "student") {
       const [questionData, gradingData, appealData, exportData] =
@@ -767,6 +776,21 @@ export function App() {
                 </button>
               )}
             </article>
+          </section>
+        )}
+        {user.role === "student" && (games.termMatch.length>0||games.sequence.length>1) && (
+          <section>
+            <div className="section-title"><h2>Mashq o‘yinlari</h2><div className="segmented game-tabs" aria-label="O‘yin turi">
+              <button className={gameMode==='term'?'active':''} onClick={()=>{setGameMode('term');setGameResult('')}}>Term match</button>
+              <button className={gameMode==='sequence'?'active':''} onClick={()=>{setGameMode('sequence');setGameResult('')}}>Sequence</button>
+              <button className={gameMode==='gap'?'active':''} onClick={()=>{setGameMode('gap');setGameResult('')}}>Spot the gap</button>
+            </div></div>
+            <div className="learning-game">
+              {gameMode==='term'&&<>{games.termMatch.map(item=><label key={item.id}><strong>{item.term}</strong><select value={termAnswers[item.id]??''} onChange={event=>setTermAnswers(current=>({...current,[item.id]:event.target.value}))}><option value="">Ta’rifni tanlang</option>{games.termMatch.map(option=><option value={option.id} key={option.id}>{option.definition}</option>)}</select></label>)}<button onClick={()=>setGameResult(`${games.termMatch.filter(item=>termAnswers[item.id]===item.id).length}/${games.termMatch.length} to‘g‘ri`)}>Tekshirish</button></>}
+              {gameMode==='sequence'&&<>{sequence.map((item,index)=><div className="sequence-item" key={item.id}><b>{index+1}</b><span>{item.code} {item.text}</span><button title="Yuqoriga" disabled={index===0} onClick={()=>setSequence(current=>{const next=[...current];[next[index-1],next[index]]=[next[index]!,next[index-1]!];return next})}>↑</button><button title="Pastga" disabled={index===sequence.length-1} onClick={()=>setSequence(current=>{const next=[...current];[next[index],next[index+1]]=[next[index+1]!,next[index]!];return next})}>↓</button></div>)}<button onClick={()=>setGameResult(sequence.every((item,index)=>item.id===games.sequence[index]?.id)?'To‘g‘ri tartib':'Tartibni yana tekshiring')}>Tekshirish</button></>}
+              {gameMode==='gap'&&games.spotTheGap[0]&&<><p className="gap-prompt">{games.spotTheGap[0].prompt}</p><label>Atama<input value={gapAnswer} onChange={event=>setGapAnswer(event.target.value)} /></label><button onClick={()=>setGameResult(gapAnswer.trim().toLowerCase()===games.spotTheGap[0]!.answer.toLowerCase()?'To‘g‘ri':`Javob: ${games.spotTheGap[0]!.answer}`)}>Tekshirish</button></>}
+              {gameResult&&<strong className="game-result" aria-live="polite">{gameResult}</strong>}
+            </div>
           </section>
         )}
         <section>

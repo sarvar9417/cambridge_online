@@ -98,6 +98,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .flashcard { min-height:240px; display:grid; place-items:center; gap:20px; padding:30px; text-align:center; background:white; border:1px solid #e5e2dc; border-radius:8px; }
 .flashcard>strong { font:600 23px Georgia,serif; }
 .flashcard>div { display:flex; gap:8px; }
+.learning-game { display:grid; gap:12px; padding:18px; border:1px solid #e5e2dc; border-radius:6px; background:white; }
+.learning-game>label { display:grid; grid-template-columns:minmax(120px,.5fr) minmax(0,1fr); gap:12px; align-items:center; }
+.learning-game select,.learning-game input { min-width:0; height:40px; border:1px solid #cbc6bc; border-radius:6px; padding:0 10px; background:white; }
+.learning-game>button { justify-self:start; }
+.sequence-item { display:grid; grid-template-columns:24px minmax(0,1fr) 38px 38px; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid #eee; }
+.sequence-item button { width:38px; height:34px; padding:0; }
+.gap-prompt { font:600 18px Georgia,serif; }
+.game-result { color:#1f5c45; }
 .staff-assignments { margin:12px 0; }
 .staff-assignments .tr>div { display:flex; gap:6px; }
 .staff-assignments button { padding:7px 9px; font-size:12px; }
@@ -162,4 +170,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .review-item { grid-template-columns:1fr; }
   .review-actions { grid-column:1; justify-content:flex-start; }
   .quality-row { grid-template-columns:1fr 1fr; }
+  .game-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .learning-game>label { grid-template-columns:1fr; }
 }

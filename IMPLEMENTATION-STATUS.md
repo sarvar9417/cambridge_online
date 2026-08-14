@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 207 backend and 7 frontend tests pass.
+- 209 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0014 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -44,7 +44,8 @@ This file records verified implementation evidence. Requirements remain in
   answers, and deterministic 10% teacher quality sampling.
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API; released
   grading points update per-student error patterns and repeated misses schedule
-  deduplicated personal review cards after three days.
+  deduplicated personal review cards after three days. Student-scoped Term Match,
+  Sequence and Spot the Gap games are generated from approved glossary and LO data.
 - Ops: rate limits, robots block, migration lock, capability reporting,
   self-service JSON data export and owner-only student anonymization that keeps
   aggregate grading statistics while clearing identity, sessions and answers;
