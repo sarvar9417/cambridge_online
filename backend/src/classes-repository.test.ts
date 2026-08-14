@@ -41,9 +41,11 @@ describe('class resource scope',()=>{
   it('enrolls a same-school student idempotently',async()=>{
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'class-a',name:'A',grade:10,level:'AS',academic_year:'2026/2027',student_count:'0'}]})
-      .mockResolvedValueOnce({rowCount:1,rows:[{class_id:'class-a',student_id:'student-a'}]});
+      .mockResolvedValueOnce({rowCount:1,rows:[{class_id:'class-a',student_id:'student-a'}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[]});
     await expect(new PgClassesRepository({query}as unknown as Pool).enroll(owner,'class-a','student-a'))
       .resolves.toEqual({classId:'class-a',studentId:'student-a'});
     expect(query.mock.calls[1]![0]).toContain('do update set left_at=null');
+    expect(query.mock.calls[2]![0]).toContain('insert into submissions');
   });
 });

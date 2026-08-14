@@ -102,6 +102,9 @@ export class PgClassesRepository implements ClassesRepository {
       [classId,studentId],
     );
     if(!result.rowCount)throw new DomainError('cross_school_enrollment',403);
+    await this.pool.query(`insert into submissions(assignment_id,student_id)
+      select a.id,$2 from assignments a where a.class_id=$1 and a.published_at is not null and a.archived_at is null
+      on conflict do nothing`,[classId,studentId]);
     return{classId:String(result.rows[0].class_id),studentId:String(result.rows[0].student_id)};
   }
 }

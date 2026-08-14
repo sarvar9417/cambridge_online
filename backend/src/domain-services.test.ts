@@ -67,6 +67,35 @@ describe('domain authorization', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it('allows a due-only answer save during an individual late grant',async()=>{
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',started_at:new Date(),time_limit_min:null,time_extension_min:0,due_at:new Date(Date.now()-60_000),late_granted_until:new Date(Date.now()+60_000)}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[]});
+    await expect(new AssignmentsService({query}as unknown as Pool).saveAnswer(student,'submission-id','question-id','answer')).resolves.toHaveProperty('savedAt');
+    expect(query).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects student attempts to grant late access',async()=>{
+    const query=vi.fn();
+    await expect(new AssignmentsService({query}as unknown as Pool).grant(student,'submission-id')).rejects.toMatchObject({code:'staff_only',status:403});
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('grants scoped staff late access to an open submission',async()=>{
+    const until=new Date(Date.now()+60_000).toISOString();
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'submission-id'}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'submission-id',late_granted_until:until}]});
+    await expect(new AssignmentsService({query}as unknown as Pool).grant(owner,'submission-id',until)).resolves.toMatchObject({id:'submission-id',lateGrantedUntil:until});
+  });
+
+  it('precreates enrolled submissions when publishing an assignment',async()=>{
+    const query=vi.fn().mockResolvedValueOnce({rowCount:1,rows:[{id:'assignment-id'}]}).mockResolvedValueOnce({rowCount:1,rows:[]});
+    await new AssignmentsService({query}as unknown as Pool).update(owner,'assignment-id',{published:true});
+    expect(query.mock.calls[1]![0]).toContain('insert into submissions');
+  });
+
   it('result list always includes released-only and actor scope predicates', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).list(student);
