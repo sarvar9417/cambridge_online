@@ -217,9 +217,11 @@ export function App() {
     }
   };
   const start = async (id: string) => {
+    const requestId = crypto.randomUUID();
     const next = await api<Attempt>(`/assignments/${id}/attempt`, {
       method: "POST",
-      body: JSON.stringify({ clientSessionId: crypto.randomUUID() }),
+      headers: { "Idempotency-Key": requestId },
+      body: JSON.stringify({ clientSessionId: requestId }),
     });
     setAttempt(next);
     setAnswers(
@@ -307,6 +309,7 @@ export function App() {
     const data = new FormData(event.currentTarget);
     await api("/assignments", {
       method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({
         classId: data.get("classId"),
         title: data.get("title"),
@@ -388,6 +391,7 @@ export function App() {
     try {
       const created = await api<ExportItem>("/exports", {
         method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ kind, refTable: "assignments", refId: id }),
       });
       setExports((current) => [created, ...current]);

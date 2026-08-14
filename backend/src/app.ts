@@ -75,7 +75,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool)));
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
-  if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool)));
+  if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
@@ -87,7 +87,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }

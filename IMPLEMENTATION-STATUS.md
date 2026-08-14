@@ -15,9 +15,10 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 141 backend and 2 frontend tests pass.
+- 150 backend and 2 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
-- Migrations 0001-0008 and seed data are applied to Supabase.
+- Migrations 0001-0008 and seed data are applied to Supabase; migration 0011
+  is implemented and applied with the idempotency release.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
   inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
 
@@ -40,7 +41,8 @@ This file records verified implementation evidence. Requirements remain in
 - Ops: rate limits, robots block, migration lock, capability reporting,
   self-service JSON data export and owner-only student anonymization that keeps
   aggregate grading statistics while clearing identity, sessions and answers;
-  PostgreSQL pool size is serverless-aware to stay within hosted connection limits.
+  PostgreSQL pool size is serverless-aware to stay within hosted connection limits;
+  assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
 
 ## External requirements not yet satisfied
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AssignmentsService, DomainError } from '../services/assignments-service.js';
 import { GeneratorService } from '../services/generator-service.js';
 import type { Pool } from 'pg';
+import { runIdempotent } from '../lib/idempotent-request.js';
 
 const uuid = z.string().uuid();
 
@@ -16,13 +17,15 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
       dueAt: z.string().datetime().optional(), timeLimitMin: z.number().int().min(1).max(300).optional(),
       questionIds: z.array(uuid).min(1).max(100),
     }).parse(req.body);
-    res.status(201).json(await service.create(req.actor!, body));
+    const operation = async () => ({ status:201,body:await service.create(req.actor!,body) });
+    if(pool)return runIdempotent(req,res,pool,operation);
+    const result=await operation();return res.status(result.status).json(result.body);
   });
   if(pool)router.post('/generate',async(req,res)=>{const body=z.object({classId:uuid,title:z.string().min(3).max(120),targetMarks:z.number().int().min(1).max(100),aoRatio:z.object({AO1:z.number().min(0).max(100),AO2:z.number().min(0).max(100),AO3:z.number().min(0).max(100)}).optional(),excludeSeen:z.boolean().optional(),excludeDiagrams:z.boolean().optional(),seed:z.number().int().optional()}).parse(req.body);res.status(201).json(await new GeneratorService(pool).generate(req.actor!,body));});
   router.get('/submissions/:id',async(req,res)=>res.json(await service.submission(req.actor!,uuid.parse(req.params.id))));
   router.post('/submissions/:id/extend',async(req,res)=>{const body=z.object({minutes:z.number().int().min(1).max(240)}).parse(req.body);res.json(await service.extend(req.actor!,uuid.parse(req.params.id),body.minutes));});
   router.post('/:id/attempt', async (req, res) => {
-    try { res.status(201).json(await service.start(req.actor!, uuid.parse(req.params.id), req.body?.clientSessionId)); }
+    try { const assignmentId=uuid.parse(req.params.id);const operation=async()=>({status:201,body:await service.start(req.actor!,assignmentId,req.body?.clientSessionId)});if(pool)return await runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body); }
     catch (error) { send(res, error); }
   });
   router.put('/submissions/:id/answers/:questionId', async (req, res) => {
@@ -40,7 +43,7 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
     res.json(await service.heartbeat(req.actor!, uuid.parse(req.params.id), body.activeSessionId));
   });
   router.patch('/:id',async(req,res)=>{const body=z.object({title:z.string().min(3).max(120).optional(),dueAt:z.string().datetime().nullable().optional(),timeLimitMin:z.number().int().min(1).max(300).nullable().optional(),published:z.boolean().optional()}).parse(req.body);res.json(await service.update(req.actor!,uuid.parse(req.params.id),body));});
-  router.post('/:id/publish',async(req,res)=>res.json(await service.update(req.actor!,uuid.parse(req.params.id),{published:true})));
+  router.post('/:id/publish',async(req,res)=>{const assignmentId=uuid.parse(req.params.id);const operation=async()=>({status:200,body:await service.update(req.actor!,assignmentId,{published:true})});if(pool)return runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body)});
   router.post('/:id/session/open',async(req,res)=>res.json(await service.session(req.actor!,uuid.parse(req.params.id),true)));
   router.post('/:id/session/close',async(req,res)=>res.json(await service.session(req.actor!,uuid.parse(req.params.id),false)));
   return router;
