@@ -40,7 +40,7 @@ function send(path: string, init: RequestInit, token: string | null) {
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, init: RequestInit = {},options:{suppressAuthExpired?:boolean}={}): Promise<T> {
   const tokenUsed = accessToken;
   let response = await send(path, init, tokenUsed);
   const canRefresh = response.status === 401 && Boolean(tokenUsed) && path !== '/auth/refresh' && path !== '/auth/login';
@@ -54,7 +54,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
   }
   const body = await parseBody(response);
-  if (response.status === 401 && (canRefresh || path === '/auth/refresh')) expireSession();
+  if (response.status === 401 && (canRefresh || path === '/auth/refresh')&&!options.suppressAuthExpired) expireSession();
   if (!response.ok) throw new Error(body?.error?.message ?? 'So‘rov bajarilmadi.');
   return body as T;
 }

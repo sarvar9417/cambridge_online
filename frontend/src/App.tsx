@@ -102,7 +102,7 @@ export function App() {
   useEffect(() => {
     api<{ accessToken: string; user: User }>("/auth/refresh", {
       method: "POST",
-    })
+    },{suppressAuthExpired:true})
       .then(loadData)
       .catch(() => {})
       .finally(() => setLoading(false));

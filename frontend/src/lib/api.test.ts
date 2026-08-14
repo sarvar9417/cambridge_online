@@ -69,4 +69,13 @@ describe('API access token refresh', () => {
     const finalHeaders = fetchMock.mock.calls[2]![1]!.headers as Headers;
     expect(finalHeaders.has('Authorization')).toBe(false);
   });
+
+  it('does not announce expiry for an anonymous bootstrap refresh',async()=>{
+    const browserWindow=new EventTarget();let events=0;
+    browserWindow.addEventListener('campath:auth-expired',()=>{events+=1});
+    vi.stubGlobal('window',browserWindow);
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(json(401,{error:{message:'No session'}})));
+    await expect(api('/auth/refresh',{method:'POST'},{suppressAuthExpired:true})).rejects.toThrow('No session');
+    expect(events).toBe(0);
+  });
 });
