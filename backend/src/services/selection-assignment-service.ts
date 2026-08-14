@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
+import { snapshotHasStorageOnlyAsset } from '../lib/assignment-attempt-overlay.js';
 import { DomainError } from './assignments-service.js';
 
 export interface SelectionAssignmentInput {
@@ -50,6 +51,12 @@ export class SelectionAssignmentService {
     }
     if (!review.canPublish) throw new DomainError('selection_dependencies_unresolved', 409);
 
+    const publish = input.publish ?? false;
+    const mode = input.mode ?? 'online';
+    const hasStorageOnlyAsset = review.items.some((item) => snapshotHasStorageOnlyAsset(item.portable));
+    if (mode === 'pdf' && hasStorageOnlyAsset) throw new DomainError('pdf_asset_embedding_unavailable', 409);
+    if (publish && mode !== 'pdf' && hasStorageOnlyAsset) throw new DomainError('online_asset_rendering_unavailable', 409);
+
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -92,8 +99,6 @@ export class SelectionAssignmentService {
         throw new DomainError('selection_changed', 409);
       }
 
-      const publish = input.publish ?? false;
-      const mode = input.mode ?? 'online';
       const assignment = await client.query(
         `insert into assignments(
            class_id,created_by,title,instructions_md,mode,total_marks,opens_at,due_at,time_limit_min,published_at,source_selection_id
