@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool, PoolClient } from 'pg';
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
-import { DomainError } from './assignments-service.js';
 import { SelectionAssignmentService } from './selection-assignment-service.js';
 import type { SelectionReview } from './selection-review.js';
 
@@ -34,6 +33,7 @@ function harness(review: SelectionReview | null = goodReview, lockedAt = updated
     if (sql.includes('select count(*)::int count from questions')) return {rowCount:1,rows:[{count:2}]};
     if (sql.includes('insert into assignments')) return {rowCount:1,rows:[{id:'assignment-1',title:'Revision 1',mode:'online',total_marks:3,published_at:null}]};
     if (sql.includes('insert into assignment_questions')) return {rowCount:1,rows:[]};
+    if (sql.includes('insert into assignment_context_items')) return {rowCount:1,rows:[]};
     if (sql.includes('insert into submissions')) return {rowCount:1,rows:[]};
     throw new Error(`Unexpected SQL: ${sql} ${JSON.stringify(values)}`);
   });
@@ -44,17 +44,20 @@ function harness(review: SelectionReview | null = goodReview, lockedAt = updated
 }
 
 describe('SelectionAssignmentService',()=>{
-  it('persists fresh/source refs and graded/context_only roles with stable marks',async()=>{
+  it('keeps graded questions separate from context-only paper items',async()=>{
     const h=harness();
     const result=await h.service.create(actor,selectionId,{classId,title:'Revision 1'});
     expect(result).toMatchObject({id:'assignment-1',totalMarks:3,itemCount:2,gradedCount:1,contextOnlyCount:1});
-    const itemCalls=h.clientQuery.mock.calls.filter(([sql])=>String(sql).includes('insert into assignment_questions'));
-    expect(itemCalls).toHaveLength(2);
-    expect(itemCalls[0]![1]).toEqual([
-      'assignment-1','33333333-3333-4333-8333-333333333333',1,3,'graded','9618/11/M/J/23 Q1(a)','Q1(a)',
+
+    const gradedCalls=h.clientQuery.mock.calls.filter(([sql])=>String(sql).includes('insert into assignment_questions'));
+    const contextCalls=h.clientQuery.mock.calls.filter(([sql])=>String(sql).includes('insert into assignment_context_items'));
+    expect(gradedCalls).toHaveLength(1);
+    expect(contextCalls).toHaveLength(1);
+    expect(gradedCalls[0]![1]).toEqual([
+      'assignment-1','33333333-3333-4333-8333-333333333333',1,3,'9618/11/M/J/23 Q1(a)','Q1(a)',
     ]);
-    expect(itemCalls[1]![1]).toEqual([
-      'assignment-1','44444444-4444-4444-8444-444444444444',2,0,'context_only','9618/11/M/J/23 Q1(b)','Q1(b)',
+    expect(contextCalls[0]![1]).toEqual([
+      'assignment-1','44444444-4444-4444-8444-444444444444',2,'9618/11/M/J/23 Q1(b)','Q1(b)',
     ]);
     expect(h.clientQuery).toHaveBeenCalledWith('commit');
   });
@@ -63,14 +66,13 @@ describe('SelectionAssignmentService',()=>{
     const h=harness({...goodReview,canPublish:false,dependencyIssues:[{
       code:'answer_dependency_requires_graded',severity:'error',questionId:'q',questionRef:'Q2',dependsOnId:'p',dependsOnRef:'Q1',evidence:'using your answer',
     }]});
-    await expect(h.service.create(actor,selectionId,{classId,title:'Blocked'})).rejects.toMatchObject<Partial<DomainError>>({code:'selection_dependencies_unresolved',status:409});
-    expect((h.service as unknown)).toBeTruthy();
+    await expect(h.service.create(actor,selectionId,{classId,title:'Blocked'})).rejects.toMatchObject({code:'selection_dependencies_unresolved',status:409});
     expect(h.clientQuery).not.toHaveBeenCalled();
   });
 
   it('rolls back when the basket changes between review and row lock',async()=>{
     const h=harness(goodReview,new Date('2026-08-14T12:01:00Z'));
-    await expect(h.service.create(actor,selectionId,{classId,title:'Race'})).rejects.toMatchObject<Partial<DomainError>>({code:'selection_changed',status:409});
+    await expect(h.service.create(actor,selectionId,{classId,title:'Race'})).rejects.toMatchObject({code:'selection_changed',status:409});
     expect(h.clientQuery).toHaveBeenCalledWith('rollback');
   });
 
