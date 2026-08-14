@@ -63,9 +63,11 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
     const databaseUnavailable = (_req: express.Request, res: express.Response) => {
       res.status(503).json({ error: { code: 'database_unavailable', message: "Ma'lumotlar bazasi ulanmagan." } });
     };
-    app.post('/api/v1/auth/login', databaseUnavailable);
-    app.post('/api/v1/auth/refresh', databaseUnavailable);
-    app.post('/api/v1/auth/redeem-invite', databaseUnavailable);
+    const unavailableAuth = express.Router();
+    unavailableAuth.post('/login', databaseUnavailable);
+    unavailableAuth.post('/refresh', databaseUnavailable);
+    unavailableAuth.post('/redeem-invite', databaseUnavailable);
+    mountPublic('/api/v1/auth', unavailableAuth);
   }
 
   app.use('/api/v1', requireAuth(auth));

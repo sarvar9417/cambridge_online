@@ -12,7 +12,13 @@ const job=(kind:string,payload:unknown={paperId:'paper-a',previousJobId:'previou
 describe('ingestion stage pipeline',()=>{
   it('starts with a durable prepare job reference',async()=>{
     const result=await createIngestionProcessors({}as Pool)['ingest-paper']!(job('ingest-paper',{paperId:'paper-a'}));
-    expect(result).toMatchObject({next:{kind:'ingest-prepare',payload:{paperId:'paper-a',previousJobId:'job-ingest-paper'},idempotencyKey:'ingest:paper-a:prepare'}});
+    expect(result).toMatchObject({result:{paperId:'paper-a'},next:{kind:'ingest-prepare',payload:{refId:'paper-a',refTable:'source_papers',previousJobId:'job-ingest-paper'},idempotencyKey:'ingest:paper-a:prepare'}});
+  });
+
+  it('starts paired question and mark-scheme papers as one durable run',async()=>{
+    const payload={runId:'run-a',qpPaperId:'qp-a',msPaperId:'ms-a'};
+    const result=await createIngestionProcessors({}as Pool)['ingest-bundle']!(job('ingest-bundle',payload));
+    expect(result).toMatchObject({result:payload,next:{kind:'ingest-prepare',payload:{refId:'run-a',refTable:'ingestion_runs'},idempotencyKey:'ingest-run:run-a:prepare',refTable:'ingestion_runs',refId:'run-a'}});
   });
 
   it('loads the previous durable artifact and chains the next stage',async()=>{

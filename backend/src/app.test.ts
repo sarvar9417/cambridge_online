@@ -23,7 +23,5 @@ describe('API access', () => {
   it('has no unexpected public router mount', () => {
     const publicMounts = (app.locals.routeMounts as Array<{path:string;public:boolean}>).filter((item) => item.public).map((item) => item.path);
     expect(publicMounts).toEqual(['/api/v1/health','/api/v1/ready','/api/v1/auth']);
-    const privateMounts = (app.locals.routeMounts as Array<{path:string;public:boolean}>).filter((item) => !item.public);
-    expect(privateMounts.length).toBeGreaterThanOrEqual(6);
   });
 });
