@@ -1,8 +1,19 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { serializeQuestion } from '../services/question-serializer.js';
+import type {
+  DependencyKind,
+  DependencyStrength,
+  PortableAsset,
+  PortableQuestion,
+} from '../services/selection-review.js';
 
 export interface QuestionFilters { q?: string; commandWord?: string; marksMin?: number; marksMax?: number; }
+
+const normalizeDependencyKind = (value: string): DependencyKind =>
+  value === 'answer' ? 'answer_ref' : value === 'text' ? 'text_ref' : value as DependencyKind;
+const normalizeDependencyStrength = (value: string): DependencyStrength =>
+  value === 'hard' ? 'required' : value as DependencyStrength;
 
 export class PgQuestionsRepository {
   constructor(private readonly pool: Pool) {}
@@ -62,6 +73,105 @@ export class PgQuestionsRepository {
       [id, actor.role, actor.id],
     );
     return result.rows[0] ? serializeQuestion(result.rows[0]) : null;
+  }
+
+  /**
+   * Return a leaf as a portable unit for worksheet/assignment selection.
+   * Context is recursive: root -> intermediate parents -> leaf. Sibling answer
+   * dependencies are reported separately because an answer_ref cannot be made
+   * portable by copying printed context.
+   */
+  async portable(actor: Actor, id: string): Promise<PortableQuestion | null> {
+    if (actor.role === 'student' || !actor.schoolId) return null;
+
+    const result = await this.pool.query(
+      `with recursive chain as (
+         select q.*
+         from questions q
+         join source_papers sp on sp.id=q.source_paper_id
+         where q.id=$1 and q.marks is not null and q.status='approved'
+           and exists (
+             select 1 from classes visible
+             where visible.syllabus_id=sp.syllabus_id
+               and visible.school_id=$2
+               and visible.archived_at is null
+               and (
+                 $3='owner'
+                 or ($3='teacher' and (
+                   visible.owner_id=$4
+                   or exists (
+                     select 1 from class_teachers ct
+                     where ct.class_id=visible.id and ct.teacher_id=$4
+                   )
+                 ))
+               )
+           )
+         union all
+         select parent.* from chain child join questions parent on parent.id=child.parent_id
+       )
+       select c.id,c.parent_id,c.label,c.path,c.display_ref,c.depth,c.marks,c.command_word,
+         c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.context_md context,
+         coalesce((
+           select jsonb_agg(jsonb_build_object(
+             'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',qa.content_md,
+             'altText',qa.alt_text,'sortOrder',qa.sort_order,'sourcePage',qa.source_page
+           ) order by qa.sort_order,qa.id)
+           from question_assets qa where qa.question_id=c.id
+         ),'[]'::jsonb) assets
+       from chain c order by c.depth`,
+      [id, actor.schoolId, actor.role, actor.id],
+    );
+    if (!result.rowCount) return null;
+
+    const rows = result.rows;
+    const leaf = rows[rows.length - 1]!;
+    const dependencies = await this.pool.query(
+      `select qd.id,qd.question_id,qd.depends_on_id,qd.kind,qd.strength,qd.evidence,qd.confidence,
+        target.display_ref, target.stem_md stem
+       from question_dependencies qd
+       join questions target on target.id=qd.depends_on_id
+       where qd.question_id=$1
+       order by target.sort_order,target.id`,
+      [id],
+    );
+
+    return {
+      leaf: {
+        id: leaf.id,
+        rootId: rows[0]!.id,
+        label: leaf.label,
+        path: leaf.path,
+        displayRef: leaf.display_ref,
+        stem: leaf.stem,
+        commandWord: leaf.command_word,
+        marks: Number(leaf.marks),
+        answerKind: leaf.answer_kind,
+        answerLines: leaf.answer_lines,
+      },
+      chain: rows.map((row) => ({ id: row.id, label: row.label, depth: row.depth })),
+      contextBlocks: rows
+        .filter((row) => row.context || row.assets.length)
+        .map((row) => ({
+          id: row.id,
+          label: row.label,
+          displayRef: row.display_ref,
+          depth: row.depth,
+          context: row.context,
+          assets: row.assets as PortableAsset[],
+        })),
+      dependencies: dependencies.rows.map((row) => ({
+        id: row.id,
+        questionId: row.question_id,
+        dependsOnId: row.depends_on_id,
+        displayRef: row.display_ref,
+        stem: row.stem,
+        kind: normalizeDependencyKind(row.kind),
+        strength: normalizeDependencyStrength(row.strength),
+        evidence: row.evidence,
+        confidence: row.confidence === null ? null : Number(row.confidence),
+      })),
+      sourceRef: leaf.display_ref,
+    };
   }
 
   async approve(actor: Actor, id: string) {
