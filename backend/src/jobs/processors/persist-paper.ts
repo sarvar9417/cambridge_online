@@ -91,7 +91,8 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   await client.query('commit');
   const leaves=questions.filter(question=>question.marks!==null),approvedCount=paperCanAutoApprove?leaves.filter(question=>!question.issues.length&&!classificationByPath.get(question.path)?.issues.length&&!question.assets.some(asset=>!asset.contentMd)).length:0;
   const result:PersistPaperResult={questionCount:questions.length,leafCount:leaves.length,approvedCount,needsReviewCount:leaves.length-approvedCount,findingCount:findings.length,pendingAssetCount};
-  return{...input,persistResult:result};
+  const finalReviewStatus=result.needsReviewCount===0&&result.pendingAssetCount===0&&paperCanAutoApprove?'approved_candidate':'needs_review';
+  return{...input,reviewStatus:finalReviewStatus,persistResult:result};
  }catch(error){await client.query('rollback');throw error}finally{client.release()}
 }
 
