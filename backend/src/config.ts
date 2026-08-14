@@ -14,10 +14,15 @@ const configSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(32).default('local-development-secret-change-me'),
   JWT_REFRESH_SECRET: z.string().min(32).default('local-refresh-secret-change-me-now'),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).optional(),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_STORAGE_SECRET_KEY: z.string().min(1).optional(),
+  ASSET_STORAGE_BUCKET: z.string().min(1).default('question-assets'),
   CHROME_EXECUTABLE_PATH: z.string().optional(),
   CHROMIUM_PACK_URL: z.string().url().optional(),
-  PDFTOPPM_PATH: z.string().optional(),
-  PDFTOTEXT_PATH: z.string().optional(),
+  PDFTOPPM_PATH: z.string().min(1).default('pdftoppm'),
+  PDFTOTEXT_PATH: z.string().min(1).default('pdftotext'),
   EXPORT_DIR: z.string().default('storage/exports'),
 });
 

@@ -17,6 +17,14 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - name: Ensure private environment is not tracked
+        shell: bash
         run: |
-          test ! -f .env
-          ! grep -R --exclude-dir=node_modules --exclude-dir=.git --exclude='.env.example' -E 'sbp_[A-Za-z0-9_-]+|sb_publishable_[A-Za-z0-9_-]+' .
+          set -euo pipefail
+          if git ls-files | grep -Ev '(^|/)\.env\.example$' | grep -Eq '(^|/)\.env($|\.)'; then
+            echo 'A private .env file is tracked by Git.' >&2
+            exit 1
+          fi
+          if git grep -nE 'sbp_[A-Za-z0-9_-]{20,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}' -- ':!*.example' ':!*.example.*'; then
+            echo 'A Supabase credential-like token is present in a tracked file.' >&2
+            exit 1
+          fi

@@ -1,0 +1,10 @@
+import{describe,expect,it,vi}from'vitest';import type{Pool}from'pg';import{batchCount,loadCorpusPreflight}from'./corpus-preflight.js';
+function pool(rows:Record<string,unknown>[]){return{query:vi.fn().mockResolvedValue({rowCount:rows.length,rows})}as unknown as Pool}
+const base={qp_id:'qp-1',ms_id:'ms-1',year:2025,series:'MJ',variant:1,qp_path:'package.json',ms_path:'package.json',qp_pages:8,ms_pages:6,component:1,expected_marks:75,root_count:8,leaf_count:24,leaf_marks:75,approved_leaf_count:24,mark_scheme_count:24,unresolved_errors:0};
+describe('corpus preflight',()=>{
+ it('matches the ingestion overlap batching formula',()=>{expect(batchCount(1)).toBe(1);expect(batchCount(2)).toBe(1);expect(batchCount(3)).toBe(1);expect(batchCount(4)).toBe(2);expect(batchCount(8)).toBe(4)});
+ it('marks a fully approved and reconciled paper complete',async()=>{const result=await loadCorpusPreflight(pool([base]));expect(result).toMatchObject({total:1,complete:1,ready:0,sourceMissing:0,knownMinimumExtractionCalls:7});expect(result.rows[0]!).toMatchObject({key:'2025-MJ-11',paperCode:11,status:'COMPLETE',minimumExtractionCalls:7,knownClassificationCalls:24,knownDependencyCalls:8,knownCrosscheckCalls:24})});
+ it('marks a valid local QP/MS pair ready when DB coverage is incomplete',async()=>{const result=await loadCorpusPreflight(pool([{...base,leaf_marks:74,approved_leaf_count:20}]));expect(result.rows[0]!).toMatchObject({status:'READY_TO_QUEUE',leafMarks:74,expectedMarks:75});expect(result.ready).toBe(1)});
+ it('does not queue a pair whose mark scheme file is unavailable on the worker',async()=>{const result=await loadCorpusPreflight(pool([{...base,ms_path:'definitely-missing-campath-ms.pdf',leaf_count:0,leaf_marks:0,approved_leaf_count:0,mark_scheme_count:0}]));expect(result.rows[0]!).toMatchObject({status:'SOURCE_MISSING',qpExists:true,msExists:false});expect(result.sourceMissing).toBe(1)});
+ it('treats unresolved validation errors as not complete even if counts tie',async()=>{const result=await loadCorpusPreflight(pool([{...base,unresolved_errors:2}]));expect(result.rows[0]!.status).toBe('READY_TO_QUEUE')});
+});

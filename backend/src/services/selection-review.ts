@@ -6,6 +6,8 @@ export interface PortableAsset {
   id: string;
   kind: string;
   storagePath: string | null;
+  /** Short-lived browser URL; never canonical provenance. */
+  url: string | null;
   contentMd: string | null;
   altText: string;
   sortOrder: number;

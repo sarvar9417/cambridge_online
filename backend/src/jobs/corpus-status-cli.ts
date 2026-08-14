@@ -1,0 +1,2 @@
+import{pool}from'../database/client.js';import{loadCorpusStatus}from'./corpus-status.js';
+if(!pool)throw new Error('DATABASE_URL is required');const args=process.argv.slice(2),value=(name:string)=>args.find(arg=>arg.startsWith(`--${name}=`))?.slice(name.length+3),report=await loadCorpusStatus(pool,{syllabusCode:value('syllabus')??'9618',yearFrom:Number(value('year-from')??2021),yearTo:Number(value('year-to')??2025),limit:Number(value('limit')??200)});console.log(JSON.stringify(report,null,2));await pool.end();

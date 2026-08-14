@@ -31,7 +31,7 @@ const assetReview = (): SelectionReview => ({
       ...item.portable,
       contextBlocks:[{
         id:'asset-block',label:'1',displayRef:'9618/11/M/J/23 Q1',depth:0,context:null,
-        assets:[{id:'asset-1',kind:'diagram',storagePath:'private/network.png',contentMd:null,altText:'Network diagram',sortOrder:0,sourcePage:1}],
+        assets:[{id:'asset-1',kind:'diagram',storagePath:'private/network.png',url:null,contentMd:null,altText:'Network diagram',sortOrder:0,sourcePage:1}],
       }],
     },
   })),
