@@ -37,5 +37,7 @@ npm run verify
 The Vercel project must have `DATABASE_URL`, `JWT_SECRET`,
 `JWT_REFRESH_SECRET`, `FRONTEND_URL`, and `NODE_ENV=production` configured for
 Production, Preview, and Development as appropriate. Do not commit `.env`.
+Serverless deployments default to two PostgreSQL connections per function;
+`DB_POOL_MAX` can override that limit when the database plan allows it.
 
 Detailed product requirements are in `00-README.md` through `12-api.md`.

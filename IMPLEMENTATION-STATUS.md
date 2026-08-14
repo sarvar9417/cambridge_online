@@ -39,7 +39,8 @@ This file records verified implementation evidence. Requirements remain in
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API.
 - Ops: rate limits, robots block, migration lock, capability reporting,
   self-service JSON data export and owner-only student anonymization that keeps
-  aggregate grading statistics while clearing identity, sessions and answers.
+  aggregate grading statistics while clearing identity, sessions and answers;
+  PostgreSQL pool size is serverless-aware to stay within hosted connection limits.
 
 ## External requirements not yet satisfied
 
