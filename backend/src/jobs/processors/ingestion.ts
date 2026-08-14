@@ -4,11 +4,12 @@ import{join,resolve}from'node:path';
 import{promisify}from'node:util';
 import type{Pool}from'pg';
 import{config}from'../../config.js';
+import{findDependencyMentions}from'../../lib/validation/dependencies.js';
 import{validateExtraction,type ValidationInput}from'../../lib/validation/rules.js';
 import type{ChainedJobResult,Job,JobProcessor}from'../job-queue.js';
 
 const run=promisify(execFile);
-export const INGESTION_STAGES=['prepare','segment','extract-qp','extract-ms','match','assets','classify','validate','crosscheck','persist']as const;
+export const INGESTION_STAGES=['prepare','segment','extract-qp','extract-ms','match','assets','classify','depends','validate','crosscheck','persist']as const;
 export type IngestionStage=typeof INGESTION_STAGES[number];
 type Artifact=Record<string,unknown>;
 export type IngestionStageHandler=(paperId:string,input:Artifact)=>Promise<Artifact>;
@@ -17,7 +18,7 @@ export function createIngestionProcessors(pool:Pool,overrides:Partial<Record<Ing
   const handlers:Record<IngestionStage,IngestionStageHandler>={
     prepare:(_refId,input)=>prepareInput(pool,input),segment:(_refId,input)=>segmentInput(input),
     'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:(_paperId,input)=>matchExtractedArtifacts(input),
-    assets:unavailable('assets'),classify:unavailable('classify'),validate:(_paperId,input)=>validateIngestionArtifact(input),
+    assets:unavailable('assets'),classify:unavailable('classify'),depends:(_paperId,input)=>detectDependencyCandidates(input),validate:(_paperId,input)=>validateIngestionArtifact(input),
     crosscheck:unavailable('crosscheck'),persist:unavailable('persist'),...overrides,
   };
   const processors:Record<string,JobProcessor>={
@@ -80,13 +81,41 @@ export async function matchExtractedArtifacts(input:Artifact):Promise<Artifact>{
   return{...input,markSchemes:matched,matchReport:{duplicateQuestionRefs:[...new Set(duplicates)],unmatchedQuestions,unmatchedSchemes}};
 }
 
+/**
+ * DEPENDS stage 1: deterministic, deliberately broad sibling-reference scan.
+ * A provider/human override may replace this handler and add classified
+ * `dependencies` (`text_ref` / `answer_ref`). Without that classification V23
+ * keeps the paper in review instead of silently treating the leaf as portable.
+ */
+export async function detectDependencyCandidates(input:Artifact):Promise<Artifact>{
+  const questions=asRecords(input.questions);
+  const dependencyCandidates=questions.flatMap(question=>{
+    const path=stringField(question,'path');
+    const stem=stringField(question,'stemMd')||stringField(question,'stem_md')||stringField(question,'stem')||stringField(question,'stemLatex')||stringField(question,'stem_latex');
+    if(!path||!stem)return[];
+    const mentions=findDependencyMentions(stem);
+    return mentions.length?[{fromPath:path,mentions}]:[];
+  });
+  return{...input,dependencyCandidates};
+}
+
 export async function validateIngestionArtifact(input:Artifact):Promise<Artifact>{
   const candidate=input.validationInput;if(!isValidationInput(candidate))throw new Error('ingestion_validation_artifact_invalid');
-  const findings=validateExtraction(candidate);return{...input,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
+  const dependencies=normalizeValidationDependencies(input.dependencies);
+  const validationInput:ValidationInput=dependencies.length?{...candidate,dependencies}:candidate;
+  const findings=validateExtraction(validationInput);return{...input,validationInput,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
 }
 function asStrings(value:unknown){return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}
 function isArtifact(value:unknown):value is Artifact{return typeof value==='object'&&value!==null&&!Array.isArray(value)}
 function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null):[]}
 function displayRef(value:Record<string,unknown>){const ref=value.displayRef??value.display_ref;return typeof ref==='string'?ref.trim():''}
+function stringField(value:Record<string,unknown>,key:string){const field=value[key];return typeof field==='string'?field.trim():''}
+function normalizeValidationDependencies(value:unknown):NonNullable<ValidationInput['dependencies']>{
+  return asRecords(value).flatMap(dependency=>{
+    const fromPath=stringField(dependency,'fromPath')||stringField(dependency,'from_path');
+    const kind=stringField(dependency,'kind');
+    return fromPath&&kind?[{fromPath,kind}]:[];
+  });
+}
 function isValidationInput(value:unknown):value is ValidationInput{return typeof value==='object'&&value!==null&&typeof(value as any).componentTotal==='number'&&Array.isArray((value as any).questions)&&Array.isArray((value as any).schemes)&&Array.isArray((value as any).assets)}
 function pageNumber(name:string){return Number(name.match(/(\d+)/)?.[1]??0)}
