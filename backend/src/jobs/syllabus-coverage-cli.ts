@@ -1,0 +1,2 @@
+import{pool}from'../database/client.js';import{loadSyllabusCoverage}from'./syllabus-coverage.js';
+if(!pool)throw new Error('DATABASE_URL is required');const args=process.argv.slice(2),value=(name:string)=>args.find(arg=>arg.startsWith(`--${name}=`))?.slice(name.length+3),code=value('syllabus')??'9618',yearFrom=Number(value('year-from')??2021),yearTo=Number(value('year-to')??2025);const report=await loadSyllabusCoverage(pool,{code,yearFrom,yearTo});console.log(JSON.stringify(report,null,2));await pool.end();if(!report.ready)process.exitCode=2;
