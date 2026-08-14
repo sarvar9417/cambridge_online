@@ -16,6 +16,11 @@ export interface ValidationInput {
     answerLines: number | null;
     assetCount: number;
     subtopicConfidences: number[];
+    /**
+     * How one answer's marks are split across the subtopics it tests. Checked by
+     * V21; omit for questions whose classification carries no weights.
+     */
+    subtopicWeights?: number[];
     extractConfidence: number;
   }>;
   schemes: Array<{
@@ -27,7 +32,14 @@ export interface ValidationInput {
     groupMaxMarks?: number;
     levels?: number;
   }>;
-  assets: Array<{ storagePath: string; size: number }>;
+  assets: Array<{
+    storagePath: string;
+    size: number;
+    /** Question path the asset hangs off; V22 needs it to spot siblings. */
+    questionPath?: string;
+    /** sha256 of the cropped bytes, so the same figure is recognisable. */
+    contentHash?: string | null;
+  }>;
   /** Dependencies already written by the DEPENDS stage, keyed by question path. */
   dependencies?: Array<{ fromPath: string; kind: string }>;
   duplicateSimilarity?: number;
@@ -130,6 +142,38 @@ export function validateExtraction(x: ValidationInput) {
     add('V11', 'error', 'Asset is missing or too small.');
   if ((x.duplicateSimilarity ?? 0) >= 0.95)
     add('V19', 'warning', 'Question is a likely duplicate.');
+
+  // V21: weights split one answer's marks across the subtopics it tests. Summing
+  // above 1 inflates mastery for every student who answers it; below 1 quietly
+  // makes the question count for less than it is worth.
+  for (const question of x.questions) {
+    const weights = question.subtopicWeights;
+    if (!weights?.length) continue;
+    const sum = weights.reduce((total, weight) => total + weight, 0);
+    if (Math.abs(sum - 1) > 0.01)
+      add('V21', 'warning', `Subtopic weights for ${question.path} sum to ${sum.toFixed(2)}, not 1.`);
+  }
+
+  // V22: Cambridge prints one table above 3(a)-(d). If extraction copies it onto
+  // each child then cherry-picking 3(c) carries a duplicate, and editing the
+  // table later has to be done once per sibling.
+  const byParentAndHash = new Map<string, Set<string>>();
+  for (const asset of x.assets) {
+    if (!asset.contentHash || !asset.questionPath) continue;
+    if (!asset.questionPath.includes('.')) continue;
+    const parent = asset.questionPath.slice(0, asset.questionPath.lastIndexOf('.'));
+    const key = `${parent}::${asset.contentHash}`;
+    byParentAndHash.set(key, (byParentAndHash.get(key) ?? new Set()).add(asset.questionPath));
+  }
+  for (const [key, paths] of byParentAndHash) {
+    if (paths.size < 2) continue;
+    const parent = key.slice(0, key.indexOf('::'));
+    add(
+      'V22',
+      'warning',
+      `The same asset is on ${paths.size} siblings; move it to ${parent}.`,
+    );
+  }
 
   return findings;
 }
