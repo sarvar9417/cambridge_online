@@ -43,7 +43,9 @@ This file records verified implementation evidence. Requirements remain in
 - No `ANTHROPIC_API_KEY`: real model calls and four-week calibration are pending.
 - No durable private storage credentials: presigned upload/URLs are pending.
 - Poppler is absent: PDF PREPARE cannot run.
-- Vercel CLI authentication is invalid, so cloud deployment is unverified.
+- Vercel production frontend and `/api/v1/health` are deployed and verified at
+  `https://cambridge-online.vercel.app`; persistent project environment
+  variables and GitHub auto-deploy connection still require dashboard setup.
 - Data-dependent gates (150+ ground truth, agreement targets, real paper
   extraction and timed review study) remain unverified.
 - Official syllabus subtopics and learning objectives are not imported yet;
