@@ -20,7 +20,8 @@ export interface SelectionAssignmentInput {
  *
  * Graded leaves are written to assignment_questions. Printed support leaves are
  * written to assignment_context_items so the legacy attempt/grading pipeline can
- * never expose them as zero-mark answer fields.
+ * never expose them as zero-mark answer fields. Both receive a portable JSON
+ * snapshot so later question-bank edits cannot rewrite the generated paper.
  *
  * The selection timestamp is checked again under a row lock before anything is
  * written. If the basket changed while portable questions were being resolved,
@@ -95,8 +96,8 @@ export class SelectionAssignmentService {
       const mode = input.mode ?? 'online';
       const assignment = await client.query(
         `insert into assignments(
-           class_id,created_by,title,instructions_md,mode,total_marks,opens_at,due_at,time_limit_min,published_at
-         ) values($1,$2,$3,$4,$5,$6,now(),$7,$8,case when $9 then now() else null end)
+           class_id,created_by,title,instructions_md,mode,total_marks,opens_at,due_at,time_limit_min,published_at,source_selection_id
+         ) values($1,$2,$3,$4,$5,$6,now(),$7,$8,case when $9 then now() else null end,$10)
          returning id,title,mode,total_marks,published_at`,
         [
           input.classId,
@@ -108,25 +109,27 @@ export class SelectionAssignmentService {
           input.dueAt ?? null,
           input.timeLimitMin ?? null,
           publish,
+          selectionId,
         ],
       );
       const assignmentId = assignment.rows[0].id as string;
 
       for (const [index, item] of review.items.entries()) {
+        const snapshot = JSON.stringify(item.portable);
         if (item.role === 'context_only') {
           await client.query(
             `insert into assignment_context_items(
-               assignment_id,question_id,sort_order,source_ref,fresh_ref
-             ) values($1,$2,$3,$4,$5)`,
-            [assignmentId,item.portable.leaf.id,index + 1,item.sourceRef,item.freshRef],
+               assignment_id,question_id,sort_order,source_ref,fresh_ref,portable_snapshot
+             ) values($1,$2,$3,$4,$5,$6::jsonb)`,
+            [assignmentId,item.portable.leaf.id,index + 1,item.sourceRef,item.freshRef,snapshot],
           );
           continue;
         }
         await client.query(
           `insert into assignment_questions(
-             assignment_id,question_id,sort_order,marks_override,role,source_ref,fresh_ref
-           ) values($1,$2,$3,$4,'graded',$5,$6)`,
-          [assignmentId,item.portable.leaf.id,index + 1,item.effectiveMarks,item.sourceRef,item.freshRef],
+             assignment_id,question_id,sort_order,marks_override,role,source_ref,fresh_ref,portable_snapshot
+           ) values($1,$2,$3,$4,'graded',$5,$6,$7::jsonb)`,
+          [assignmentId,item.portable.leaf.id,index + 1,item.effectiveMarks,item.sourceRef,item.freshRef,snapshot],
         );
       }
 
