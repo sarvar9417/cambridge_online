@@ -22,7 +22,7 @@ export function createPersistPaperHandler(pool:Pool):IngestionStageHandler{retur
 export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Artifact>{
  const questions=asArray<ExtractedQuestion>(input.questions),schemes=asArray<ExtractedScheme>(input.markSchemes),classifications=asArray<Classification>(input.classifications),dependencies=asArray<DetectedDependency>(input.dependencies),findings=asFindings(input.validationFindings),crossChecks=asArray<CrossCheck>(input.crossChecks);
  if(!questions.length)throw new Error('ingestion_persist_no_questions');
- const meta=await sourceMeta(pool,input),classificationByPath=new Map(classifications.map(item=>[item.path,item])),schemeByPath=new Map(schemes.map(item=>[item.path,item]));
+ const meta=await sourceMeta(pool,input),classificationByPath=new Map(classifications.map(item=>[item.path,item])),qpPromptVersion=artifactPromptVersion(input,'qp','extract-question.v1');
  const globalError=findings.some(item=>item.severity==='error');
  const crossCheckReady=crossChecks.length>0&&crossChecks.every(item=>item.agrees&&item.confidence>=.8);
  const paperCanAutoApprove=input.reviewStatus==='approved_candidate'&&!globalError&&crossCheckReady;
@@ -41,7 +41,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
    const row=await client.query(`insert into questions(source_paper_id,component_id,parent_id,label,path,display_ref,depth,sort_order,stem_md,context_md,command_word,marks,ao,answer_kind,answer_lines,status,extract_confidence,prompt_version,notes)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
     on conflict(source_paper_id,path) do update set parent_id=excluded.parent_id,label=excluded.label,display_ref=excluded.display_ref,depth=excluded.depth,sort_order=excluded.sort_order,stem_md=excluded.stem_md,context_md=excluded.context_md,command_word=excluded.command_word,marks=excluded.marks,ao=excluded.ao,answer_kind=excluded.answer_kind,answer_lines=excluded.answer_lines,status=excluded.status,extract_confidence=excluded.extract_confidence,prompt_version=excluded.prompt_version,notes=excluded.notes,updated_at=now()
-    returning id`,[meta.qpPaperId,meta.componentId,parentId,question.label,question.path,displayRef,depth(question.path),index,question.stemMd,question.contextMd,question.commandWord,question.marks,classification?.ao??null,question.answerKind,question.answerLines,status,question.confidence,'extract-question.v1',localIssues.length?localIssues.join('; '):null]);
+    returning id`,[meta.qpPaperId,meta.componentId,parentId,question.label,question.path,displayRef,depth(question.path),index,question.stemMd,question.contextMd,question.commandWord,question.marks,classification?.ao??null,question.answerKind,question.answerLines,status,question.confidence,qpPromptVersion,localIssues.length?localIssues.join('; '):null]);
    idByPath.set(question.path,String(row.rows[0].id));
   }
 
@@ -105,6 +105,7 @@ async function sourceMeta(pool:Pool,input:Artifact):Promise<SourceMeta>{
  const qpPaperId=paperId(input,'qp');if(!qpPaperId)throw new Error('ingestion_persist_missing_qp');const msPaperId=paperId(input,'ms');
  const result=await pool.query(`select sp.id qp_paper_id,sp.component_id,sp.year,sp.series::text series,sp.variant,s.code syllabus_code,c.number component from source_papers sp join syllabi s on s.id=sp.syllabus_id join components c on c.id=sp.component_id where sp.id=$1`,[qpPaperId]);if(!result.rowCount)throw new Error('ingestion_paper_not_found');const row=result.rows[0];return{qpPaperId,msPaperId,componentId:String(row.component_id),syllabusCode:String(row.syllabus_code),component:Number(row.component),variant:Number(row.variant),year:Number(row.year),series:row.series};
 }
+function artifactPromptVersion(input:Artifact,side:'qp'|'ms',fallback:string){const value=input[side];if(!value||typeof value!=='object')return fallback;const extraction=(value as Record<string,unknown>).extraction;if(!extraction||typeof extraction!=='object')return fallback;const version=(extraction as Record<string,unknown>).promptVersion;return typeof version==='string'&&version.trim()?version:fallback}
 function fullDisplayRef(meta:SourceMeta,path:string){const paper=meta.variant>=10?meta.variant:meta.component*10+meta.variant,series=meta.series==='MJ'?'M/J':meta.series==='ON'?'O/N':'F/M',year=String(meta.year).slice(-2);return`${meta.syllabusCode}/${paper}/${series}/${year} Q${refFromPath(path)}`}
 function refFromPath(path:string){const[root,...rest]=path.split('.');return`${root}${rest.map(part=>`(${part})`).join('')}`}
 function depth(path:string){return path.split('.').length-1}
