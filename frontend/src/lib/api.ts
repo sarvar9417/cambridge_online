@@ -2,13 +2,59 @@ const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1
 
 let accessToken: string | null = null;
 export const setAccessToken = (token: string | null) => { accessToken = token; };
+export const AUTH_EXPIRED_EVENT = 'campath:auth-expired';
+let refreshPromise: Promise<string> | null = null;
+
+async function parseBody(response: Response) {
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function expireSession() {
+  accessToken = null;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+}
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const body = await parseBody(response);
+      if (!response.ok || typeof body?.accessToken !== 'string') {
+        throw new Error(body?.error?.message ?? 'Sessiya muddati tugagan.');
+      }
+      accessToken = body.accessToken;
+      return body.accessToken;
+    })().finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
+function send(path: string, init: RequestInit, token: string | null) {
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (init.body) headers.set('Content-Type', 'application/json');
+  return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
+}
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  if (init.body) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
-  const body = response.status === 204 ? null : await response.json();
+  const tokenUsed = accessToken;
+  let response = await send(path, init, tokenUsed);
+  const canRefresh = response.status === 401 && Boolean(tokenUsed) && path !== '/auth/refresh' && path !== '/auth/login';
+  if (canRefresh) {
+    try {
+      if (accessToken === tokenUsed) await refreshAccessToken();
+      response = await send(path, init, accessToken);
+    } catch (error) {
+      expireSession();
+      throw error;
+    }
+  }
+  const body = await parseBody(response);
+  if (response.status === 401 && (canRefresh || path === '/auth/refresh')) expireSession();
   if (!response.ok) throw new Error(body?.error?.message ?? 'So‘rov bajarilmadi.');
   return body as T;
 }

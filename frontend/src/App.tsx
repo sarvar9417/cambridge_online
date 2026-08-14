@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   api,
+  AUTH_EXPIRED_EVENT,
   setAccessToken,
   type AppealItem,
   type Assignment,
@@ -47,6 +48,17 @@ export function App() {
   const [exports, setExports] = useState<ExportItem[]>([]);
   const [appealDraft, setAppealDraft] = useState<Record<string, string>>({});
   const saveTimers = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const expired = () => {
+      setAccessToken(null);
+      setUser(null);
+      setAttempt(null);
+      setError('Sessiya muddati tugadi. Qayta kiring.');
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+  }, []);
 
   const loadData = async (session: { accessToken: string; user: User }) => {
     setAccessToken(session.accessToken);

@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 150 backend and 2 frontend tests pass.
+- 150 backend and 6 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and seed data are applied to Supabase; migration 0011
   is implemented and applied with the idempotency release.
@@ -43,6 +43,8 @@ This file records verified implementation evidence. Requirements remain in
   aggregate grading statistics while clearing identity, sessions and answers;
   PostgreSQL pool size is serverless-aware to stay within hosted connection limits;
   assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
+- Frontend API access tokens remain memory-only; concurrent 401 responses share
+  one rotating refresh request, retry once and return to login on refresh failure.
 
 ## External requirements not yet satisfied
 
