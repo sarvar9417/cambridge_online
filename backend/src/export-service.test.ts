@@ -61,4 +61,5 @@ describe("export authorization", () => {
     expect(query.mock.calls[0]![0]).toContain("requested_by=$2");
     expect(query.mock.calls[0]![1]).toEqual(["export-id", teacher.id]);
   });
+  it('downloads only an owned unexpired completed PDF',async()=>{const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{kind:'question_paper',file_data:Buffer.from('%PDF')}]});const file=await new ExportService({query}as unknown as Pool).file(teacher,'export-id');expect(file.data.toString()).toBe('%PDF');expect(query.mock.calls[0]![0]).toContain("status='succeeded'");expect(query.mock.calls[0]![0]).toContain('expires_at>now()');expect(query.mock.calls[0]![1]).toEqual(['export-id',teacher.id])});
 });

@@ -64,4 +64,6 @@ export class ExportService {
     if (!result.rowCount) throw new DomainError('not_found', 404);
     return result.rows[0];
   }
+
+  async file(actor:Actor,id:string){const result=await this.pool.query(`select kind,file_data from exports where id=$1 and requested_by=$2 and status='succeeded' and expires_at>now() and file_data is not null`,[id,actor.id]);if(!result.rowCount)throw new DomainError('not_found',404);return{kind:result.rows[0].kind,data:result.rows[0].file_data as Buffer}}
 }

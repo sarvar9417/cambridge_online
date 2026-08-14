@@ -15,9 +15,9 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 213 backend and 7 frontend tests pass.
+- 215 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
-- Migrations 0001-0008 and 0011-0014 plus seed data are applied to Supabase;
+- Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
   inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
@@ -40,6 +40,8 @@ This file records verified implementation evidence. Requirements remain in
 - Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor,
   school/date/internal-use watermark, per-user daily limit and polled statuses;
   assignment mark overrides are rendered and authoritative total mismatches fail closed.
+  Vercel uses serverless Chromium, a supported-kind job drain, 24-hour PostgreSQL
+  PDF storage, and an authenticated requester download instead of ephemeral files.
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
   budget guard, AI audit, enforced calibration gates, manual-only Evaluate/levels
   answers, deterministic 10% teacher quality sampling, and owner-triggered

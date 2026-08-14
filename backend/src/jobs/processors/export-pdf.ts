@@ -45,10 +45,11 @@ export function createExportPdfProcessor(pool: Pool) {
       questions = result.rows.map((row) => ({ displayRef:row.display_ref,stem:`${row.stem_md}\n\nStudent answer: ${row.text}`,marks:row.marks,points:row.points }));
     }
 
-    const executable = config.CHROME_EXECUTABLE_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    let executable=config.CHROME_EXECUTABLE_PATH??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',launchArgs=['--no-sandbox'];
+    if(process.env.VERCEL){const chromium=(await import('@sparticuz/chromium-min')).default;executable=await chromium.executablePath(config.CHROMIUM_PACK_URL??'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar');launchArgs=chromium.args}
     await pool.query(`update exports set status='running',error=null where id=$1`, [exportId]);
     try {
-      const browser = await puppeteer.launch({ executablePath:executable,headless:true,args:['--no-sandbox'] });
+      const browser = await puppeteer.launch({ executablePath:executable,headless:true,args:launchArgs });
       try {
         const page = await browser.newPage();
         const watermark = `${exp.school_name} · ${new Date().toISOString().slice(0,10)} · Ichki foydalanish uchun`;
@@ -58,7 +59,7 @@ export function createExportPdfProcessor(pool: Pool) {
         await mkdir(dir, { recursive:true });
         const path = resolve(dir, `${exportId}.pdf`);
         await writeFile(path, pdf);
-        await pool.query(`update exports set status='succeeded',storage_path=$2,expires_at=now()+interval '24 hours',finished_at=now()where id=$1`, [exportId, path]);
+        await pool.query(`update exports set status='succeeded',storage_path=$2,file_data=$3,expires_at=now()+interval '24 hours',finished_at=now()where id=$1`, [exportId, path,pdf]);
         return { path, size:pdf.length };
       } finally {
         await browser.close();

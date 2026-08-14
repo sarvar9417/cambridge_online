@@ -59,6 +59,8 @@ export async function api<T>(path: string, init: RequestInit = {},options:{suppr
   return body as T;
 }
 
+export async function apiBlob(path:string){const tokenUsed=accessToken;let response=await send(path,{},tokenUsed);if(response.status===401&&tokenUsed){if(accessToken===tokenUsed)await refreshAccessToken();response=await send(path,{},accessToken)}if(!response.ok){const body=await parseBody(response);throw new Error(body?.error?.message??'Fayl yuklanmadi.')}return response.blob()}
+
 export interface User { id: string; fullName: string; role: 'owner'|'teacher'|'student'; schoolId: string|null }
 export interface ClassItem { id:string; name:string; grade:number|null; level:'AS'|'A2'; academicYear:string; studentCount:number }
 export interface Question { id:string; displayRef:string; stemMd:string; commandWord:string; marks:number; ao:string; answerKind:string }

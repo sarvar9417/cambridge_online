@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   api,
+  apiBlob,
   AUTH_EXPIRED_EVENT,
   setAccessToken,
   type AppealItem,
@@ -467,12 +468,15 @@ export function App() {
         body: JSON.stringify({ kind, refTable: "assignments", refId: id }),
       });
       setExports((current) => [created, ...current]);
+      await api('/jobs/run-once',{method:'POST'});
+      setExports((await api<{data:ExportItem[]}>('/exports')).data);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "PDF tayyorlash boshlanmadi.",
       );
     }
   };
+  const downloadExport=async(item:ExportItem)=>{const blob=await apiBlob(`/exports/${item.id}/file`),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`campath-${item.kind}.pdf`;anchor.click();URL.revokeObjectURL(url)};
   const generateAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -1013,6 +1017,7 @@ export function App() {
                               ? 'Tayyor'
                               : 'Xato'}
                       </span>
+                      {item.status==='succeeded'&&<button className="secondary" onClick={()=>downloadExport(item)}>Yuklab olish</button>}
                       {item.error && <small>{item.error}</small>}
                     </div>
                   ))}
