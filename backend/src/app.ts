@@ -37,6 +37,7 @@ import { createMeRouter } from './routes/me.js';
 import { AuthService } from './services/auth-service.js';
 import { ZodError } from 'zod';
 import { DomainError } from './services/assignments-service.js';
+import { opportunisticMaintenance } from './middleware/opportunistic-maintenance.js';
 
 export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository) {
   const app = express();
@@ -71,6 +72,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   }
 
   app.use('/api/v1', requireAuth(auth));
+  const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,pool?new AssignmentsService(pool):undefined));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));

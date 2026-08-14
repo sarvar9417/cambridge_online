@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 215 backend and 7 frontend tests pass.
+- 217 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -36,6 +36,8 @@ This file records verified implementation evidence. Requirements remain in
   Canonical class-assignment, submission and grading routes are available;
   publishing precreates student submissions and staff can grant individual
   late-access deadlines without changing the whole class due date.
+  Expired attempts are closed through the local scheduler, throttled authenticated
+  request maintenance on Vercel, and a secured Hobby-compatible daily cron fallback.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.
@@ -90,6 +92,8 @@ executable tests:
 - Vercel production frontend, database readiness and owner login are verified
   at `https://cambridge-online.vercel.app`; the private GitHub repository is
   connected for automatic deployments from `main`.
+- `CRON_SECRET` is stored as a sensitive Vercel production variable; it is never
+  included in frontend code or repository files.
 - Data-dependent gates (150+ ground truth, agreement targets, real paper
   extraction and timed review study) remain unverified.
 - Official syllabus subtopics and learning objectives are not imported yet;
