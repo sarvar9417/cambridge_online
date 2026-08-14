@@ -8,7 +8,7 @@ import { WorkerConfig } from '../config.js';
 import { ClaudeExtractor } from './extractor.js';
 import { createIngestionProcessor } from './processor.js';
 import { INGEST_QUEUE } from './types.js';
-import { fetchPdfFromStorage } from './storage.js';
+import { fetchPdfFromStorage, putAssetToStorage } from './storage.js';
 
 /**
  * Consumes the ingestion queue.
@@ -42,6 +42,7 @@ export class IngestionModule implements OnModuleInit, OnApplicationShutdown {
       db: this.db.db,
       extractor: new ClaudeExtractor(client),
       fetchPdf: fetchPdfFromStorage,
+      putAsset: putAssetToStorage,
     });
 
     this.worker = new Worker(INGEST_QUEUE, processor, {

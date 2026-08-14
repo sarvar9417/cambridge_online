@@ -4,12 +4,12 @@ import {
   checkPageTotals,
   dedupeQuestions,
   dependencyCandidates,
-  flaggedRate,
   matchSchemes,
   needsCrossCheck,
   selectForCrossCheck,
   worthClassifying,
 } from './pipeline.js';
+import { flaggedRate } from '@campath/shared';
 import { buildIngestFlow, stageJobId } from './flow.js';
 import { planBatches } from './prepare.js';
 import { buildDisplayRef } from './persist.js';

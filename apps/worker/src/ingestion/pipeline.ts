@@ -1,12 +1,5 @@
 import { findDependencyMentions } from '@campath/shared';
-import type {
-  Classification,
-  CrossCheckVerdict,
-  DetectedDependency,
-  ExtractQpBatch,
-  ExtractedQuestion,
-  ExtractedScheme,
-} from './types.js';
+import type { ExtractQpBatch, ExtractedQuestion, ExtractedScheme } from './types.js';
 
 /**
  * Overlapping batches re-extract the shared page, so the same `path` arrives
@@ -167,45 +160,4 @@ export function selectForCrossCheck(
   return questions.filter((question) =>
     needsCrossCheck(question, schemeByPath.get(question.path) ?? null, sampler()),
   );
-}
-
-/**
- * A question is flagged when validation found anything about it, or the
- * cross-check disagreed. Approval requires both to be silent.
- */
-export function flaggedPaths(input: {
-  validationPaths: string[];
-  verdicts: CrossCheckVerdict[];
-  classifications: Classification[];
-  dependencies: DetectedDependency[];
-}): string[] {
-  const flagged = new Set(input.validationPaths);
-  for (const verdict of input.verdicts) {
-    if (!verdict.agrees) flagged.add(verdict.path);
-  }
-  return [...flagged];
-}
-
-export interface FlaggedRate {
-  leafCount: number;
-  flaggedCount: number;
-  percentage: number;
-  verdict: 'validation_too_soft' | 'healthy' | 'extraction_poor';
-}
-
-/**
- * The pipeline's own health check.
- *
- * Below 5% means validation is not catching what it should; above 30% means the
- * extraction is bad and the prompts need fixing before more papers are run.
- */
-export function flaggedRate(leafCount: number, flaggedCount: number): FlaggedRate {
-  const percentage = leafCount === 0 ? 0 : (flaggedCount / leafCount) * 100;
-  return {
-    leafCount,
-    flaggedCount,
-    percentage,
-    verdict:
-      percentage < 5 ? 'validation_too_soft' : percentage > 30 ? 'extraction_poor' : 'healthy',
-  };
 }

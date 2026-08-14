@@ -44,6 +44,11 @@ Extract every question and sub-question as a tree.
    `stem_md`. Emit an entry in `assets` with a bounding box and `alt_text`.
    Tables and code listings **may** go into `asset.content_md` as markdown,
    because they survive as text; diagrams may not.
+
+   `bbox` is `[x1, y1, x2, y2]` in **pixels of the 200 dpi page image you were
+   given**, origin at the top-left. Do not use PDF points or a normalised 0-1
+   range. A box a few pixels past the page edge is clamped, so err on the
+   generous side rather than cropping the figure.
 7. `answer_lines` is the count of printed ruled answer lines under the question.
    Use `0` when the answer space is a box, a table, or a diagram frame.
 8. `answer_kind` is one of: text, pseudocode, code, image, table, diagram.

@@ -89,3 +89,27 @@ export const paperLevelFindings = (report: ValidationReport) =>
   report.findings.filter((item) => !item.path);
 
 export type { RuleCode };
+
+export interface FlaggedRate {
+  leafCount: number;
+  flaggedCount: number;
+  percentage: number;
+  verdict: 'validation_too_soft' | 'healthy' | 'extraction_poor';
+}
+
+/**
+ * The pipeline's own health check.
+ *
+ * Below 5% means validation is not catching what it should; above 30% means the
+ * extraction is bad and the prompts need fixing before more papers are run.
+ */
+export function flaggedRate(leafCount: number, flaggedCount: number): FlaggedRate {
+  const percentage = leafCount === 0 ? 0 : (flaggedCount / leafCount) * 100;
+  return {
+    leafCount,
+    flaggedCount,
+    percentage,
+    verdict:
+      percentage < 5 ? 'validation_too_soft' : percentage > 30 ? 'extraction_poor' : 'healthy',
+  };
+}

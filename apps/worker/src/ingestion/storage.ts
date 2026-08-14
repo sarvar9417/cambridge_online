@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 /**
  * Downloads a source PDF to local disk.
@@ -39,4 +39,30 @@ export async function fetchPdfFromStorage(storagePath: string): Promise<string> 
   const target = join(dir, basename(storagePath));
   await pipeline(response.Body as Readable, createWriteStream(target));
   return target;
+}
+
+/**
+ * Stores a cropped asset and returns the key to record on the row.
+ *
+ * Falls back to the local key when object storage is unconfigured, so a
+ * developer run still produces crops on disk and V11 still has a size to check.
+ */
+export async function putAssetToStorage(key: string, bytes: Buffer): Promise<string> {
+  const bucket = process.env.S3_BUCKET;
+  if (!bucket) return key;
+
+  const client = new S3Client({
+    endpoint: process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION ?? 'us-east-1',
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+    },
+  });
+
+  await client.send(
+    new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: 'image/png' }),
+  );
+  return key;
 }

@@ -1,22 +1,22 @@
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull, ne } from 'drizzle-orm';
 import type { Job } from 'bullmq';
 import type { Database } from '@campath/db';
 import { schema } from '@campath/db';
-import { validateExtraction, type ValidationContext } from '@campath/shared';
+import { flaggedRate, validateExtraction, type ValidationContext } from '@campath/shared';
 import type { AiUsage } from '@campath/ai';
 import { preparePdf, planBatches, type PreparedPage } from './prepare.js';
 import {
   checkPageTotals,
   dedupeQuestions,
   dependencyCandidates,
-  flaggedRate,
   matchSchemes,
   selectForCrossCheck,
   worthClassifying,
 } from './pipeline.js';
+import { cropAssets, type CroppedAsset } from './assets.js';
 import { persistPaper } from './persist.js';
 import { StageStore } from './stage-store.js';
 import type { Extractor } from './extractor.js';
@@ -35,6 +35,8 @@ export interface IngestionDeps {
   extractor: Extractor;
   /** Resolves a `source_papers.storage_path` to a local file. */
   fetchPdf: (storagePath: string) => Promise<string>;
+  /** Persists a cropped asset and returns its storage key. */
+  putAsset: (key: string, bytes: Buffer) => Promise<string>;
   sampler?: () => number;
 }
 
@@ -99,19 +101,18 @@ export function createIngestionProcessor(deps: IngestionDeps) {
 
         const batches: ExtractQpBatch[] = [];
         const collected: ExtractedQuestion[] = [];
-        const usages: AiUsage[] = [];
 
         for (const pageNumbers of segmented.batches) {
           const pages = prepared.pages.filter((page) => pageNumbers.includes(page.page));
-          const { batch, usage } = await deps.extractor.extractQuestions({
-            pages,
-            metadata: paperMetadata(paper),
-            priorRefs: collected.map((question) => question.path),
-          });
+          const { batch } = await track('extract_qp', payload.sourcePaperId, () =>
+            deps.extractor.extractQuestions({
+              pages,
+              metadata: paperMetadata(paper),
+              priorRefs: collected.map((question) => question.path),
+            }),
+          );
           batches.push(batch);
           collected.push(...batch.questions);
-          usages.push(usage);
-          await logAiCall(usage, 'extract_qp', payload.sourcePaperId);
         }
 
         return {
@@ -122,11 +123,12 @@ export function createIngestionProcessor(deps: IngestionDeps) {
 
       case 'EXTRACT_MS': {
         const prepared = await require<{ pages: PreparedPage[] }>(payload, 'PREPARE');
-        const { schemes, usage } = await deps.extractor.extractMarkScheme({
-          pages: prepared.pages,
-          metadata: paperMetadata(paper),
-        });
-        await logAiCall(usage, 'extract_ms', payload.sourcePaperId);
+        const { schemes } = await track('extract_ms', payload.sourcePaperId, () =>
+          deps.extractor.extractMarkScheme({
+            pages: prepared.pages,
+            metadata: paperMetadata(paper),
+          }),
+        );
         return { schemes };
       }
 
@@ -137,19 +139,21 @@ export function createIngestionProcessor(deps: IngestionDeps) {
       }
 
       case 'ASSETS': {
-        // Cropping needs sharp and a storage client; both are wired in a later
-        // task. The stage records what would be cropped so ASSETS is not a
-        // silent no-op in the audit trail.
+        const prepared = await require<{ dir: string; pages: PreparedPage[] }>(payload, 'PREPARE');
         const qp = await require<{ questions: ExtractedQuestion[] }>(payload, 'EXTRACT_QP');
-        const pending = qp.questions.flatMap((question) =>
-          question.assets.map((asset) => ({
-            path: question.path,
-            kind: asset.kind,
-            bbox: asset.bbox,
-            page: asset.page,
-          })),
-        );
-        return { pending, cropped: 0, reason: 'asset cropping not implemented yet' };
+
+        const assets = await cropAssets({
+          questions: qp.questions,
+          pages: prepared.pages,
+          outputDir: join(prepared.dir, 'assets'),
+          deps: { put: deps.putAsset },
+        });
+
+        return {
+          assets,
+          cropped: assets.filter((asset) => asset.storagePath !== null).length,
+          skipped: assets.filter((asset) => asset.skipped !== null).length,
+        };
       }
 
       case 'CLASSIFY': {
@@ -165,15 +169,16 @@ export function createIngestionProcessor(deps: IngestionDeps) {
         const classifications: Classification[] = [];
         for (const question of qp.questions) {
           if (question.marks === null) continue; // parents carry context, not topics
-          const { classification, usage } = await deps.extractor.classify({
-            question,
-            scheme: schemeByPath.get(question.path) ?? null,
-            subtopics,
-            componentName: paper.componentName,
-            level: paper.level,
-          });
+          const { classification } = await track('classify', payload.sourcePaperId, () =>
+            deps.extractor.classify({
+              question,
+              scheme: schemeByPath.get(question.path) ?? null,
+              subtopics,
+              componentName: paper.componentName,
+              level: paper.level,
+            }),
+          );
           classifications.push(classification);
-          await logAiCall(usage, 'classify', payload.sourcePaperId);
         }
         return { classifications };
       }
@@ -183,11 +188,9 @@ export function createIngestionProcessor(deps: IngestionDeps) {
         const candidates = worthClassifying(dependencyCandidates(qp.questions));
         if (candidates.length === 0) return { dependencies: [], candidates: 0 };
 
-        const { dependencies, usage } = await deps.extractor.detectDependencies({
-          questions: qp.questions,
-          candidates,
-        });
-        await logAiCall(usage, 'depends', payload.sourcePaperId);
+        const { dependencies } = await track('depends', payload.sourcePaperId, () =>
+          deps.extractor.detectDependencies({ questions: qp.questions, candidates }),
+        );
         return { dependencies, candidates: candidates.length };
       }
 
@@ -217,13 +220,14 @@ export function createIngestionProcessor(deps: IngestionDeps) {
         const verdicts: CrossCheckVerdict[] = [];
         for (const question of selected) {
           const pages = prepared.pages.filter((page) => question.sourcePages.includes(page.page));
-          const { verdict, usage } = await deps.extractor.crossCheck({
-            pages,
-            question,
-            scheme: schemeByPath.get(question.path) ?? null,
-          });
+          const { verdict } = await track('crosscheck', payload.sourcePaperId, () =>
+            deps.extractor.crossCheck({
+              pages,
+              question,
+              scheme: schemeByPath.get(question.path) ?? null,
+            }),
+          );
           verdicts.push(verdict);
-          await logAiCall(usage, 'crosscheck', payload.sourcePaperId);
         }
 
         return {
@@ -289,6 +293,7 @@ export function createIngestionProcessor(deps: IngestionDeps) {
     const ms = await require<{ schemes: ExtractedScheme[] }>(payload, 'EXTRACT_MS');
     const classify = await require<{ classifications: Classification[] }>(payload, 'CLASSIFY');
     const depends = await require<{ dependencies: DetectedDependency[] }>(payload, 'DEPENDS');
+    const cropped = await require<{ assets: CroppedAsset[] }>(payload, 'ASSETS');
 
     const byPath = new Map(classify.classifications.map((item) => [item.path, item]));
 
@@ -321,13 +326,27 @@ export function createIngestionProcessor(deps: IngestionDeps) {
         levelCount: scheme.levels.length,
         confidence: scheme.confidence,
       })),
-      assets: [],
+      // Real crop results, not an empty list: V10, V11 and V22 are the only
+      // checks on whether a figure actually survived extraction, and they can
+      // only fire if the assets reach them.
+      assets: cropped.assets.map((asset, index) => ({
+        id: `${asset.questionPath}#${index}`,
+        questionPath: asset.questionPath,
+        kind: asset.kind,
+        storagePath: asset.storagePath,
+        sizeBytes: asset.sizeBytes,
+        altText: asset.altText,
+        contentHash: asset.contentHash,
+      })),
       dependencies: depends.dependencies.map((dependency) => ({
         fromPath: dependency.fromPath,
         toPath: dependency.toPath,
         kind: dependency.kind,
         strength: dependency.strength,
       })),
+      // V19 needs the rest of the bank to compare against; without it a repeat
+      // across years can never be reported.
+      knownStems: await loadKnownStems(paper.year),
     };
   }
 
@@ -354,6 +373,37 @@ export function createIngestionProcessor(deps: IngestionDeps) {
     return row as PaperRow;
   }
 
+  /**
+   * Approved stems from every other year, for V19.
+   *
+   * Restricted to leaves with a stem, because a parent carries scenario text
+   * that legitimately repeats between papers and would produce noise.
+   */
+  async function loadKnownStems(currentYear: number) {
+    const rows = await deps.db
+      .select({
+        displayRef: schema.questions.displayRef,
+        stem: schema.questions.stemMd,
+        year: schema.sourcePapers.year,
+      })
+      .from(schema.questions)
+      .innerJoin(schema.sourcePapers, eq(schema.sourcePapers.id, schema.questions.sourcePaperId))
+      .where(
+        and(
+          isNotNull(schema.questions.marks),
+          isNotNull(schema.questions.stemMd),
+          ne(schema.sourcePapers.year, currentYear),
+        ),
+      )
+      .limit(5000);
+
+    return rows.map((row) => ({
+      displayRef: row.displayRef,
+      stem: row.stem ?? '',
+      year: row.year,
+    }));
+  }
+
   async function loadSubtopics() {
     return deps.db
       .select({ code: schema.subtopics.code, title: schema.subtopics.title })
@@ -361,22 +411,48 @@ export function createIngestionProcessor(deps: IngestionDeps) {
       .orderBy(schema.subtopics.code);
   }
 
-  /** R7: every model call is recorded with its cost. */
-  async function logAiCall(usage: AiUsage, purpose: string, sourcePaperId: string) {
-    await deps.db.insert(schema.aiCalls).values({
-      purpose,
-      model: usage.model,
-      promptVersion: usage.promptVersion,
-      refTable: 'source_papers',
-      refId: sourcePaperId,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      cacheReadTokens: usage.cacheReadTokens,
-      cacheWriteTokens: usage.cacheWriteTokens,
-      costUsd: String(usage.costUsd),
-      latencyMs: usage.latencyMs,
-      ok: true,
-    });
+  /**
+   * R7: every model call is recorded, including the ones that fail.
+   *
+   * A failed call still costs tokens and still moves the monthly budget, so
+   * logging only successes would make the budget guard read low exactly when a
+   * paper is looping on retries.
+   */
+  async function track<T extends { usage: AiUsage }>(
+    purpose: string,
+    sourcePaperId: string,
+    call: () => Promise<T>,
+  ): Promise<T> {
+    const startedAt = Date.now();
+    try {
+      const result = await call();
+      await deps.db.insert(schema.aiCalls).values({
+        purpose,
+        model: result.usage.model,
+        promptVersion: result.usage.promptVersion,
+        refTable: 'source_papers',
+        refId: sourcePaperId,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        cacheReadTokens: result.usage.cacheReadTokens,
+        cacheWriteTokens: result.usage.cacheWriteTokens,
+        costUsd: String(result.usage.costUsd),
+        latencyMs: result.usage.latencyMs,
+        ok: true,
+      });
+      return result;
+    } catch (error) {
+      await deps.db.insert(schema.aiCalls).values({
+        purpose,
+        model: 'unknown',
+        refTable: 'source_papers',
+        refId: sourcePaperId,
+        latencyMs: Date.now() - startedAt,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
 
