@@ -21,6 +21,9 @@ This file records verified implementation evidence. Requirements remain in
   idempotency and per-student late grants are active in production.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
   inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
+- The production Vercel serverless drain generated and authenticated-download
+  verified a 26,531-byte `%PDF` document with a 24-hour expiry; expired database
+  file bodies are cleared by subsequent drain calls.
 
 ## Implemented domains
 
