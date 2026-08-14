@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Compare Drive/local paper inventory with the live database inventory.
+"""Compare source-paper inventory with the live database inventory.
 
-Inputs are produced by:
+Inputs:
   scripts/inventory-papers.py ... --json-out source.json
   npm run db:inventory -w backend -- --json-out db.json
 
-The comparison is read-only and reports exactly where canonical paper files are
-missing from the database, where DB extraction is incomplete, and where a DB
-paper has no matching canonical source file in the supplied corpus.
+Public statuses intentionally match Phase A product terminology:
+  COMPLETE, PARTIAL, MISSING, DUPLICATE, CONFLICT
+
+`detail_state` preserves the more precise machine-readable reason.
 """
 
 from __future__ import annotations
@@ -29,38 +30,45 @@ def paper_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for row in rows:
         key = row.get("paper_key")
-        if not key:
-            continue
-        result[str(key)] = row
+        if key:
+            result[str(key)] = row
     return result
 
 
 def classify(
     source: dict[str, Any] | None,
     database: dict[str, Any] | None,
-) -> tuple[str, list[str]]:
+) -> tuple[str, str, list[str]]:
     reasons: list[str] = []
 
     if source is None and database is not None:
         reasons.append("database paper has no canonical source entry in the supplied inventory")
-        return "DB_ONLY", reasons
+        return "CONFLICT", "DB_ONLY", reasons
+
+    if source is not None and source.get("has_canonical_duplicates"):
+        kinds = ", ".join(source.get("canonical_duplicate_kinds") or [])
+        reasons.append(f"multiple canonical source files detected for kind(s): {kinds}")
+        return "DUPLICATE", "SOURCE_DUPLICATE", reasons
 
     if source is not None and database is None:
         if not source.get("canonical_pair_complete"):
-            reasons.append("source corpus itself is missing QP or MS")
-            return "SOURCE_INCOMPLETE", reasons
+            reasons.append("source corpus itself is missing canonical QP or MS")
+            return "MISSING", "SOURCE_INCOMPLETE", reasons
         reasons.append("canonical QP/MS exists in source corpus but paper is absent from database")
-        return "SOURCE_ONLY", reasons
+        return "MISSING", "SOURCE_ONLY", reasons
 
     assert source is not None and database is not None
 
     if not source.get("canonical_pair_complete"):
-        reasons.append("source corpus is missing QP or MS")
+        reasons.append("source corpus is missing canonical QP or MS")
+        return "MISSING", "SOURCE_INCOMPLETE", reasons
 
-    if not database.get("qp_present"):
-        reasons.append("database is missing QP source_paper")
-    if not database.get("ms_present"):
-        reasons.append("database is missing MS source_paper")
+    if not database.get("qp_present") or not database.get("ms_present"):
+        if not database.get("qp_present"):
+            reasons.append("database is missing QP source_paper")
+        if not database.get("ms_present"):
+            reasons.append("database is missing MS source_paper")
+        return "MISSING", "DB_SOURCE_MISSING", reasons
 
     leaf_questions = int(database.get("leaf_questions") or 0)
     expected_marks = int(database.get("expected_marks") or 0)
@@ -72,22 +80,33 @@ def classify(
 
     if leaf_questions <= 0:
         reasons.append("no extracted leaf questions")
+        return "PARTIAL", "NO_LEAVES", reasons
+
     if expected_marks and actual_marks != expected_marks:
         reasons.append(f"leaf mark total mismatch: {actual_marks}/{expected_marks}")
-    if leaf_questions and tagged != leaf_questions:
+        return "CONFLICT", "MARK_TOTAL_MISMATCH", reasons
+
+    if tagged != leaf_questions:
         reasons.append(f"topic tagging incomplete: {tagged}/{leaf_questions}")
-    if leaf_questions and leaves_with_ms != leaf_questions:
+    if leaves_with_ms != leaf_questions:
         reasons.append(f"mark-scheme leaf coverage incomplete: {leaves_with_ms}/{leaf_questions}")
-    if leaf_questions and approved_leaves != leaf_questions:
+
+    if reasons:
+        return "PARTIAL", "EXTRACTION_INCOMPLETE", reasons
+
+    if approved_leaves != leaf_questions:
         reasons.append(f"question review incomplete: {approved_leaves}/{leaf_questions}")
-    if leaf_questions and approved_ms != leaf_questions:
+    if approved_ms != leaf_questions:
         reasons.append(f"mark-scheme review incomplete: {approved_ms}/{leaf_questions}")
 
-    if source.get("canonical_pair_complete") and database.get("review_complete"):
-        return "COMPLETE", []
-    if source.get("canonical_pair_complete") and database.get("extraction_complete"):
-        return "NEEDS_REVIEW", reasons
-    return "DB_INCOMPLETE", reasons
+    if reasons:
+        return "PARTIAL", "NEEDS_REVIEW", reasons
+
+    if database.get("review_complete"):
+        return "COMPLETE", "COMPLETE", []
+
+    reasons.append("database completion flags are inconsistent with measured coverage")
+    return "CONFLICT", "COMPLETION_FLAG_CONFLICT", reasons
 
 
 def main() -> None:
@@ -108,40 +127,56 @@ def main() -> None:
     for key in all_keys:
         source_row = source.get(key)
         db_row = database.get(key)
-        state, reasons = classify(source_row, db_row)
+        status, detail_state, reasons = classify(source_row, db_row)
         rows.append(
             {
                 "paper_key": key,
-                "state": state,
+                "status": status,
+                "detail_state": detail_state,
                 "reasons": reasons,
                 "source": source_row,
                 "database": db_row,
             }
         )
 
-    states: dict[str, int] = {}
+    statuses: dict[str, int] = {}
+    detail_states: dict[str, int] = {}
     for row in rows:
-        states[row["state"]] = states.get(row["state"], 0) + 1
+        statuses[row["status"]] = statuses.get(row["status"], 0) + 1
+        detail_states[row["detail_state"]] = detail_states.get(row["detail_state"], 0) + 1
 
     report = {
         "source_filters": source_report.get("filters"),
         "database_generated_at": db_report.get("generated_at"),
         "summary": {
             "paper_keys": len(rows),
-            "states": dict(sorted(states.items())),
+            "statuses": dict(sorted(statuses.items())),
+            "detail_states": dict(sorted(detail_states.items())),
+            "copy_suffix_candidates": len(source_report.get("copy_suffix_candidates", [])),
+        },
+        "source_diagnostics": {
+            "copy_suffix_candidates": source_report.get("copy_suffix_candidates", []),
+            "unparsed_source_files": source_report.get("unparsed_source_files", []),
         },
         "schema_gaps": db_report.get("gaps", {}),
+        "detection_limits": [
+            "incorrect QP/MS attachment cannot be proven without source hashes or provider IDs in both inventories",
+            "copy-suffix files are diagnostics and are not promoted to canonical source records automatically",
+        ],
         "rows": rows,
     }
 
     print(f"paper_keys={len(rows)}")
-    for state, count in sorted(states.items()):
-        print(f"{state}={count}")
+    for status, count in sorted(statuses.items()):
+        print(f"{status}={count}")
 
     print("\nPaper reconciliation:")
     for row in rows:
         reason = "; ".join(row["reasons"]) if row["reasons"] else "all gates satisfied"
-        print(f"{row['state'].ljust(17)} {row['paper_key']} - {reason}")
+        print(
+            f"{row['status'].ljust(10)} {row['detail_state'].ljust(24)} "
+            f"{row['paper_key']} - {reason}"
+        )
 
     if report["schema_gaps"]:
         print("\nSchema gaps:")
