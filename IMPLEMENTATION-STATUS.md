@@ -43,7 +43,8 @@ This file records verified implementation evidence. Requirements remain in
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
   budget guard, AI audit, enforced calibration gates, manual-only Evaluate/levels
   answers, deterministic 10% teacher quality sampling, and owner-triggered
-  ground-truth recomputation of agreement, error rates and score metrics.
+  ground-truth recomputation of agreement, error rates and score metrics, exposed
+  in the owner analytics UI with explicit shadow/gate-ready status.
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API; released
   grading points update per-student error patterns and repeated misses schedule
   deduplicated personal review cards after three days. Student-scoped Term Match,
