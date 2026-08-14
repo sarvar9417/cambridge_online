@@ -38,6 +38,9 @@ This file records verified implementation evidence. Requirements remain in
   late-access deadlines without changing the whole class due date.
   Expired attempts are closed through the local scheduler, throttled authenticated
   request maintenance on Vercel, and a secured Hobby-compatible daily cron fallback.
+  The 360px student attempt uses one-question navigation, answered progress,
+  online/offline state, explicit blank-answer submission review and a fixed bottom
+  tab bar with mobile access to profile data export and logout.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.

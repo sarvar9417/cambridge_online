@@ -34,6 +34,9 @@ export function App() {
   const [grading, setGrading] = useState<GradingItem[]>([]);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [attemptIndex,setAttemptIndex]=useState(0);
+  const [submitConfirm,setSubmitConfirm]=useState(false);
+  const [online,setOnline]=useState(()=>navigator.onLine);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -198,10 +201,11 @@ export function App() {
       },
     ).then(() => {});
   useEffect(() => {
-    const sync = () => void flushAnswers(localStorage, sendPending);
-    window.addEventListener("online", sync);
+    const sync = () => {setOnline(true);void flushAnswers(localStorage, sendPending)};
+    const offline=()=>setOnline(false);
+    window.addEventListener("online", sync);window.addEventListener('offline',offline);
     sync();
-    return () => window.removeEventListener("online", sync);
+    return () => {window.removeEventListener("online", sync);window.removeEventListener('offline',offline)};
   }, []);
 
   useEffect(() => {
@@ -272,6 +276,7 @@ export function App() {
       body: JSON.stringify({ clientSessionId: requestId }),
     });
     setAttempt(next);
+    setAttemptIndex(0);
     setAnswers(
       Object.fromEntries(
         next.questions.map((question) => [
@@ -299,7 +304,7 @@ export function App() {
     );
   };
   const submit = async () => {
-    if (!attempt || !confirm("Vazifani topshirishni tasdiqlaysizmi?")) return;
+    if (!attempt) return;
     await Promise.all(
       attempt.questions.map((question) =>
         api(
@@ -318,6 +323,7 @@ export function App() {
       method: "POST",
     });
     setAttempt(null);
+    setSubmitConfirm(false);
     setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
   };
   const togglePoint = async (
@@ -537,22 +543,24 @@ export function App() {
             {remainingSeconds !== null &&
               `· ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`}
           </strong>
-          <button onClick={submit} disabled={remainingSeconds === 0}>
+          <button onClick={()=>setSubmitConfirm(true)} disabled={remainingSeconds === 0}>
             Topshirish
           </button>
         </header>
+        <div className={`sync-state ${online?'online':'offline'}`}>{online?'Sinxronlandi':'Oflayn — javoblaring saqlanmoqda'}</div>
         {error && <p className="attempt-error">{error}</p>}
-        {attempt.questions.map((question, index) => (
+        <div className="attempt-progress" aria-label={`${attemptIndex+1} / ${attempt.questions.length}`}>{attempt.questions.map((question,index)=><button title={`${index+1}. ${question.displayRef}`} aria-label={`${index+1}-savol`} className={(answers[question.id]??'').trim()?'answered':''} onClick={()=>setAttemptIndex(index)} key={question.id} />)}</div>
+        {(()=>{const question=attempt.questions[attemptIndex]!;return <>
           <section className="question" key={question.id}>
             <p className="ref">
-              {index + 1}. {question.displayRef} · {question.commandWord} ·{" "}
+              {attemptIndex + 1}. {question.displayRef} · {question.commandWord} ·{" "}
               {question.marks} ball
             </p>
             {question.contextMd && (
               <p className="context">{question.contextMd}</p>
             )}
             <h2>{question.stemMd}</h2>
-            <textarea
+            <textarea className={question.answerKind==='code'||question.answerKind==='pseudocode'?'code-answer':''}
               disabled={remainingSeconds === 0}
               value={answers[question.id] ?? ""}
               onChange={(event) => change(question.id, event.target.value)}
@@ -566,7 +574,9 @@ export function App() {
               so‘z · avtomatik saqlanadi
             </small>
           </section>
-        ))}
+          <nav className="attempt-nav"><button className="secondary" disabled={attemptIndex===0} onClick={()=>setAttemptIndex(value=>value-1)}>← Oldingi</button><span>{attemptIndex+1} / {attempt.questions.length}</span><button disabled={attemptIndex===attempt.questions.length-1} onClick={()=>setAttemptIndex(value=>value+1)}>Keyingi →</button></nav>
+        </>})()}
+        {submitConfirm&&<div className="modal-backdrop" role="presentation"><section className="submit-dialog" role="dialog" aria-modal="true" aria-labelledby="submit-title"><h2 id="submit-title">Topshirishga tayyormisan?</h2><p>Javob berilgan: <strong>{attempt.questions.filter(question=>(answers[question.id]??'').trim()).length} / {attempt.questions.length}</strong></p>{attempt.questions.some(question=>!(answers[question.id]??'').trim())&&<p>Bo‘sh: {attempt.questions.filter(question=>!(answers[question.id]??'').trim()).map(question=>question.displayRef).join(', ')}</p>}<p>Topshirgandan keyin javobni o‘zgartira olmaysan.</p><div><button className="secondary" onClick={()=>setSubmitConfirm(false)}>Ortga</button><button onClick={submit}>Topshirish</button></div></section></div>}
       </main>
     );
 
@@ -589,7 +599,7 @@ export function App() {
         </button>
       </aside>
       <main>
-        <header>
+        <header id="student-home">
           <div>
             <p className="eyebrow">Cambridge 9618</p>
             <h1>Salom, {user.fullName}</h1>
@@ -604,7 +614,7 @@ export function App() {
         </header>
         {error && <p className="app-error">{error}</p>}
         {user.role === "student" && (
-          <section>
+          <section id="student-assignments">
             <h2>Vazifalar</h2>
             <div className="table">
               {assignments.map((assignment) => {
@@ -638,7 +648,7 @@ export function App() {
             </div>
           </section>
         )}
-        <section>
+        <section id="student-results">
           <div className="section-title">
             <h2>Natijalar</h2>
             <span>{results.length} ta</span>
@@ -731,7 +741,7 @@ export function App() {
           )}
         </section>
         {user.role === "student" && (
-          <section>
+          <section id="student-learning">
             <div className="section-title">
               <h2>Bilim xaritasi</h2>
               <span>{mastery.length} mavzu</span>
@@ -758,7 +768,7 @@ export function App() {
           </section>
         )}
         {user.role === "student" && flashcards[0] && (
-          <section>
+          <section id="student-flashcards">
             <div className="section-title">
               <h2>Kartochkalar</h2>
               <span>{flashcards.length} ta</span>
@@ -783,7 +793,7 @@ export function App() {
           </section>
         )}
         {user.role === "student" && (games.termMatch.length>0||games.sequence.length>1) && (
-          <section>
+          <section id="student-games">
             <div className="section-title"><h2>Mashq o‘yinlari</h2><div className="segmented game-tabs" aria-label="O‘yin turi">
               <button className={gameMode==='term'?'active':''} onClick={()=>{setGameMode('term');setGameResult('')}}>Term match</button>
               <button className={gameMode==='sequence'?'active':''} onClick={()=>{setGameMode('sequence');setGameResult('')}}>Sequence</button>
@@ -797,6 +807,7 @@ export function App() {
             </div>
           </section>
         )}
+        {user.role==='student'&&<section id="student-profile" className="student-profile"><h2>Profil</h2><p>{user.fullName}</p><div><button className="secondary" onClick={downloadOwnData}>Ma’lumotlarim</button><button className="danger" onClick={logout}>Chiqish</button></div></section>}
         <section>
           <h2>Sinflar</h2>
           <div className="table">
@@ -1174,6 +1185,7 @@ export function App() {
           </>
         )}
       </main>
+      {user.role==='student'&&<nav className="student-tabs" aria-label="Asosiy navigatsiya"><a href="#student-home">Uy</a><a href="#student-assignments">Vazifalar</a><a href="#student-learning">O‘rganish</a><a href="#student-results">Natijalar</a><a href="#student-profile">Profil</a></nav>}
     </div>
   );
 }
