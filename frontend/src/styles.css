@@ -13,7 +13,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .login-panel input { height: 44px; border: 1px solid #cbc6bc; border-radius: 6px; padding: 0 12px; }
 .login-panel button { height: 44px; width: 100%; margin-top: 10px; }
 .error { color: #a63d40; font-size: 14px; }
-.app { min-height: 100vh; display: grid; grid-template-columns: 220px 1fr; }
+.app { min-height: 100vh; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
 .app aside { border-right: 1px solid #e5e2dc; background: #fff; padding: 24px 16px; display: flex; flex-direction: column; }
 .app nav { display: grid; gap: 4px; margin-top: 32px; }
 .app nav a { padding: 10px 12px; border-radius: 6px; color: #6b655c; }
@@ -21,8 +21,9 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .ghost { margin-top: auto; border: 1px solid #cbc6bc; color: #1a1815; background: white; height: 40px; }
 .data-export { margin-top:auto; margin-bottom:8px; }
 .data-export+.ghost { margin-top:0; }
-.app > main { padding: 36px; max-width: 1200px; width: 100%; margin: auto; }
+.app > main { min-width: 0; padding: 36px; max-width: 1200px; width: 100%; margin: auto; }
 .app header, .section-title, .grading-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.section-title { flex-wrap: wrap; }
 .eyebrow { margin: 0; color: #6b655c; font-size: 13px; }
 .app h1 { font: 600 30px Georgia, serif; margin: 6px 0; }
 .role { border: 1px solid #cbc6bc; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
@@ -54,7 +55,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .grading-card { background: white; border: 1px solid #e5e2dc; border-radius: 6px; padding: 18px; }
 .grading-head > div { display: grid; gap: 4px; }
 .grading-head span { color: #6b655c; font-size: 13px; }
-.queue-tools { display: flex; align-items: center; gap: 12px; }
+.queue-tools { display: flex; align-items: center; gap: 12px; max-width: 100%; flex-wrap: wrap; }
 .queue-tools > span { color: #6b655c; font-size: 14px; white-space: nowrap; }
 .segmented { display: inline-grid; grid-auto-flow: column; border: 1px solid #cbc6bc; border-radius: 6px; overflow: hidden; }
 .segmented button { min-height: 34px; padding: 0 10px; border: 0; border-right: 1px solid #cbc6bc; border-radius: 0; background: #fff; color: #38342e; font-size: 13px; }
