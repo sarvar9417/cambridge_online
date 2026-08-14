@@ -4,6 +4,7 @@ import{join,resolve}from'node:path';
 import{promisify}from'node:util';
 import type{Pool}from'pg';
 import{config}from'../../config.js';
+import{validateExtraction,type ValidationInput}from'../../lib/validation/rules.js';
 import type{ChainedJobResult,Job,JobProcessor}from'../job-queue.js';
 
 const run=promisify(execFile);
@@ -15,8 +16,8 @@ export type IngestionStageHandler=(paperId:string,input:Artifact)=>Promise<Artif
 export function createIngestionProcessors(pool:Pool,overrides:Partial<Record<IngestionStage,IngestionStageHandler>>={}):Record<string,JobProcessor>{
   const handlers:Record<IngestionStage,IngestionStageHandler>={
     prepare:(paperId)=>preparePaper(pool,paperId),segment:(_paperId,input)=>segmentPreparedArtifact(input),
-    'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:unavailable('match'),
-    assets:unavailable('assets'),classify:unavailable('classify'),validate:unavailable('validate'),
+    'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:(_paperId,input)=>matchExtractedArtifacts(input),
+    assets:unavailable('assets'),classify:unavailable('classify'),validate:(_paperId,input)=>validateIngestionArtifact(input),
     crosscheck:unavailable('crosscheck'),persist:unavailable('persist'),...overrides,
   };
   const processors:Record<string,JobProcessor>={'ingest-paper':async(job)=>chain(job,String((job.payload as any).paperId),{},'prepare')};
@@ -55,5 +56,21 @@ export async function segmentPreparedArtifact(input:Artifact):Promise<Artifact>{
   for(let start=0;start<pageImages.length;start+=2){const end=Math.min(start+3,pageImages.length),indexes=Array.from({length:end-start},(_,i)=>start+i);batches.push({pageNumbers:indexes.map(i=>i+1),images:indexes.map(i=>pageImages[i]!),text:indexes.map(i=>pages[i]??'').join('\n\f\n')});if(end===pageImages.length)break;}
   return{...input,batches};
 }
+
+export async function matchExtractedArtifacts(input:Artifact):Promise<Artifact>{
+  const questions=asRecords(input.questions),schemes=asRecords(input.markSchemes);const refs=new Map<string,Record<string,unknown>>(),duplicates:string[]=[];
+  for(const question of questions){const ref=displayRef(question);if(!ref)continue;if(refs.has(ref))duplicates.push(ref);else refs.set(ref,question)}
+  const matched=[],unmatchedSchemes:string[]=[];for(const scheme of schemes){const ref=displayRef(scheme),question=ref?refs.get(ref):undefined;if(!ref||!question){unmatchedSchemes.push(ref||'(missing)');continue}matched.push({...scheme,questionId:question.id})}
+  const matchedRefs=new Set(matched.map(item=>displayRef(item)));const unmatchedQuestions=[...refs.keys()].filter(ref=>!matchedRefs.has(ref));
+  return{...input,markSchemes:matched,matchReport:{duplicateQuestionRefs:[...new Set(duplicates)],unmatchedQuestions,unmatchedSchemes}};
+}
+
+export async function validateIngestionArtifact(input:Artifact):Promise<Artifact>{
+  const candidate=input.validationInput;if(!isValidationInput(candidate))throw new Error('ingestion_validation_artifact_invalid');
+  const findings=validateExtraction(candidate);return{...input,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
+}
 function asStrings(value:unknown){return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}
+function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null):[]}
+function displayRef(value:Record<string,unknown>){const ref=value.displayRef??value.display_ref;return typeof ref==='string'?ref.trim():''}
+function isValidationInput(value:unknown):value is ValidationInput{return typeof value==='object'&&value!==null&&typeof(value as any).componentTotal==='number'&&Array.isArray((value as any).questions)&&Array.isArray((value as any).schemes)&&Array.isArray((value as any).assets)}
 function pageNumber(name:string){return Number(name.match(/(\d+)/)?.[1]??0)}
