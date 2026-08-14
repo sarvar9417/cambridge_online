@@ -1,14 +1,30 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
+import type { SelectionAssignmentService } from '../services/selection-assignment-service.js';
+import { runIdempotent } from '../lib/idempotent-request.js';
+import type { Pool } from 'pg';
 
 const roleSchema = z.enum(['graded', 'context_only']);
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
 const itemSchema = z.object({ questionId: z.string().uuid(), role: roleSchema.default('graded') });
 const updateItemSchema = z.object({ role: roleSchema });
+const assignmentSchema = z.object({
+  classId: z.string().uuid(),
+  title: z.string().trim().min(3).max(120),
+  instructions: z.string().max(5000).optional(),
+  dueAt: z.string().datetime().optional(),
+  timeLimitMin: z.number().int().min(1).max(300).optional(),
+  mode: z.enum(['online', 'pdf', 'mock']).default('online'),
+  publish: z.boolean().default(false),
+});
 const uuid = z.string().uuid();
 
-export function createSelectionsRouter(repository: PgSelectionsRepository) {
+export function createSelectionsRouter(
+  repository: PgSelectionsRepository,
+  assignments?: SelectionAssignmentService,
+  pool?: Pool,
+) {
   const router = Router();
 
   router.use((req, res, next) => {
@@ -38,6 +54,19 @@ export function createSelectionsRouter(repository: PgSelectionsRepository) {
     const review = await repository.review(req.actor!, uuid.parse(req.params.id));
     if (!review) { res.status(404).json({ error: { code: 'not_found', message: 'Tanlov topilmadi.' } }); return; }
     res.json(review);
+  });
+
+  router.post('/:id/assignment', async (req, res) => {
+    if (!assignments) {
+      res.status(503).json({ error: { code: 'assignment_handoff_unavailable', message: 'Assignment handoff sozlanmagan.' } });
+      return;
+    }
+    const selectionId = uuid.parse(req.params.id);
+    const body = assignmentSchema.parse(req.body);
+    const operation = async () => ({ status: 201, body: await assignments.create(req.actor!, selectionId, body) });
+    if (pool) return runIdempotent(req, res, pool, operation);
+    const result = await operation();
+    return res.status(result.status).json(result.body);
   });
 
   router.post('/:id/items', async (req, res) => {
