@@ -17,8 +17,8 @@ This file records verified implementation evidence. Requirements remain in
 - Strict typecheck and production builds pass.
 - 187 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
-- Migrations 0001-0008 and seed data are applied to Supabase; migration 0011
-  is implemented and applied with the idempotency release.
+- Migrations 0001-0008, 0011 and 0012 plus seed data are applied to Supabase;
+  idempotency and per-student late grants are active in production.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
   inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
 
@@ -30,6 +30,9 @@ This file records verified implementation evidence. Requirements remain in
   manual grading, released results, assignment result rosters, grading appeals
   and mastery. Question detail exposes mark schemes to staff and only to a
   student whose own submission has been released, through a central serializer.
+  Canonical class-assignment, submission and grading routes are available;
+  publishing precreates student submissions and staff can grant individual
+  late-access deadlines without changing the whole class due date.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.
