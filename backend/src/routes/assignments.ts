@@ -4,6 +4,7 @@ import { AssignmentsService, DomainError } from '../services/assignments-service
 import { GeneratorService } from '../services/generator-service.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
+import { overlayAssignmentAttempt } from '../lib/assignment-attempt-overlay.js';
 
 const uuid = z.string().uuid();
 
@@ -26,7 +27,16 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
   router.get('/submissions/:id',async(req,res)=>res.json(await service.submission(req.actor!,uuid.parse(req.params.id))));
   router.post('/submissions/:id/extend',async(req,res)=>{const body=z.object({minutes:z.number().int().min(1).max(240)}).parse(req.body);res.json(await service.extend(req.actor!,uuid.parse(req.params.id),body.minutes));});
   router.post('/:id/attempt', async (req, res) => {
-    try { const assignmentId=uuid.parse(req.params.id);const body=z.object({clientSessionId:uuid.optional(),studentId:uuid.optional()}).strict().parse(req.body??{});const operation=async()=>({status:201,body:await service.start(req.actor!,assignmentId,body.clientSessionId,body.studentId)});if(pool)return await runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body); }
+    try {
+      const assignmentId=uuid.parse(req.params.id);
+      const body=z.object({clientSessionId:uuid.optional(),studentId:uuid.optional()}).strict().parse(req.body??{});
+      const operation=async()=>{
+        const started=await service.start(req.actor!,assignmentId,body.clientSessionId,body.studentId);
+        return{status:201,body:pool?await overlayAssignmentAttempt(pool,assignmentId,started):started};
+      };
+      if(pool)return await runIdempotent(req,res,pool,operation);
+      const result=await operation();return res.status(result.status).json(result.body);
+    }
     catch (error) { send(res, error); }
   });
   router.put('/submissions/:id/answers/:questionId', async (req, res) => {
