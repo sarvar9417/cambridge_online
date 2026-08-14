@@ -6,18 +6,20 @@ export class PrivacyService {
   constructor(private readonly pool: Pool) {}
 
   async exportOwnData(actor: Actor) {
-    const [profile, enrollments, submissions, mastery, flashcards, appeals] = await Promise.all([
-      this.pool.query(
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin transaction isolation level repeatable read read only');
+      const profile = await client.query(
         `select id,role,full_name,email,username,locale,is_active,created_at,last_login_at
          from users where id=$1`,
         [actor.id],
-      ),
-      this.pool.query(
+      );
+      const enrollments = await client.query(
         `select c.id class_id,c.name class_name,c.level,e.joined_at,e.left_at
          from enrollments e join classes c on c.id=e.class_id where e.student_id=$1 order by e.joined_at`,
         [actor.id],
-      ),
-      this.pool.query(
+      );
+      const submissions = await client.query(
         `select s.id submission_id,a.title assignment_title,s.status,s.started_at,s.submitted_at,
                 s.time_spent_s,s.total_score,s.total_max,s.percentage,s.grade,s.released_at,
                 coalesce(json_agg(json_build_object(
@@ -29,36 +31,42 @@ export class PrivacyService {
          left join answers ans on ans.submission_id=s.id left join gradings g on g.answer_id=ans.id
          where s.student_id=$1 group by s.id,a.id order by s.created_at`,
         [actor.id],
-      ),
-      this.pool.query(
+      );
+      const mastery = await client.query(
         `select t.number topic_number,t.title topic_title,st.code subtopic_code,st.title,m.score,m.attempts,
                 m.marks_earned,m.marks_possible,m.last_activity_at
          from mastery m join subtopics st on st.id=m.subtopic_id join topics t on t.id=st.topic_id
          where m.student_id=$1 order by t.number,st.code`,
         [actor.id],
-      ),
-      this.pool.query(
+      );
+      const flashcards = await client.query(
         `select fr.flashcard_id,fr.ease_factor,fr.interval_days,fr.repetitions,fr.lapses,
                 fr.due_at,fr.last_grade,fr.last_reviewed_at
          from flashcard_reviews fr where fr.user_id=$1 order by fr.last_reviewed_at`,
         [actor.id],
-      ),
-      this.pool.query(
+      );
+      const appeals = await client.query(
         `select ga.id,ga.grading_id,ga.reason,ga.status,ga.resolution,ga.created_at,ga.resolved_at
          from grading_appeals ga where ga.student_id=$1 order by ga.created_at`,
         [actor.id],
-      ),
-    ]);
-    if (!profile.rowCount) throw new DomainError('not_found', 404);
-    return {
-      exportedAt: new Date().toISOString(),
-      profile: profile.rows[0],
-      enrollments: enrollments.rows,
-      submissions: submissions.rows,
-      mastery: mastery.rows,
-      flashcardReviews: flashcards.rows,
-      appeals: appeals.rows,
-    };
+      );
+      if (!profile.rowCount) throw new DomainError('not_found', 404);
+      await client.query('commit');
+      return {
+        exportedAt: new Date().toISOString(),
+        profile: profile.rows[0],
+        enrollments: enrollments.rows,
+        submissions: submissions.rows,
+        mastery: mastery.rows,
+        flashcardReviews: flashcards.rows,
+        appeals: appeals.rows,
+      };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async anonymizeStudent(actor: Actor, studentId: string) {

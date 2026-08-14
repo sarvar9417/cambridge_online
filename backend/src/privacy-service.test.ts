@@ -8,14 +8,19 @@ const student = { id:'student-id',role:'student' as const,schoolId:'school-id',f
 describe('privacy service', () => {
   it('exports only the authenticated user data', async () => {
     const query = vi.fn()
+      .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ rowCount:1,rows:[{ id:student.id,full_name:'Student' }] })
       .mockResolvedValue({ rowCount:0,rows:[] });
-    const result = await new PrivacyService({ query } as unknown as Pool).exportOwnData(student);
+    const release = vi.fn();
+    const connect = vi.fn().mockResolvedValue({ query,release });
+    const result = await new PrivacyService({ connect } as unknown as Pool).exportOwnData(student);
     expect(result.profile.id).toBe(student.id);
-    expect(query).toHaveBeenCalledTimes(6);
-    for (const call of query.mock.calls) expect(call[1]).toEqual([student.id]);
-    expect(query.mock.calls[3]![0]).toContain('t.number topic_number');
-    expect(query.mock.calls[3]![0]).not.toMatch(/(?:^|[^a-z])t\.code/);
+    expect(query.mock.calls[0]![0]).toContain('repeatable read read only');
+    for (const call of query.mock.calls.slice(1,7)) expect(call[1]).toEqual([student.id]);
+    expect(query.mock.calls[4]![0]).toContain('t.number topic_number');
+    expect(query.mock.calls[4]![0]).not.toMatch(/(?:^|[^a-z])t\.code/);
+    expect(query.mock.calls[7]![0]).toBe('commit');
+    expect(release).toHaveBeenCalled();
   });
 
   it('rejects anonymization by a student before querying the database', async () => {
