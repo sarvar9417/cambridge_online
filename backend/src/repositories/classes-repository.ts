@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { DomainError } from '../services/assignments-service.js';
 
 export interface ClassSummary {
   id: string;
@@ -13,6 +14,7 @@ export interface ClassSummary {
 export interface ClassesRepository {
   findVisible(actor: Actor): Promise<ClassSummary[]>;
   findOne(actor:Actor,id:string):Promise<ClassSummary|null>;
+  enroll(actor:Actor,classId:string,studentId:string):Promise<{classId:string;studentId:string}>;
 }
 
 const mapClass = (row: Record<string, unknown>): ClassSummary => ({
@@ -85,5 +87,21 @@ export class PgClassesRepository implements ClassesRepository {
       [id,value],
     );
     return result.rows[0]?mapClass(result.rows[0]):null;
+  }
+
+  async enroll(actor:Actor,classId:string,studentId:string) {
+    if(actor.role==='student')throw new DomainError('staff_only',403);
+    const visible=await this.findOne(actor,classId);
+    if(!visible)throw new DomainError('not_found',404);
+    const result=await this.pool.query(
+      `insert into enrollments(class_id,student_id)
+       select c.id,u.id from classes c join users u on u.id=$2
+       where c.id=$1 and u.role='student' and u.is_active=true and u.school_id=c.school_id
+       on conflict(class_id,student_id) do update set left_at=null
+       returning class_id,student_id`,
+      [classId,studentId],
+    );
+    if(!result.rowCount)throw new DomainError('cross_school_enrollment',403);
+    return{classId:String(result.rows[0].class_id),studentId:String(result.rows[0].student_id)};
   }
 }

@@ -14,6 +14,11 @@ export function createClassesRouter(repository: ClassesRepository) {
     if(!item){res.status(404).json({error:{code:'not_found',message:'Topilmadi.'}});return;}
     res.json({data:item});
   });
+  router.post('/:id/enrollments',async(req,res)=>{
+    const classId=z.string().uuid().parse(req.params.id);
+    const body=z.object({studentId:z.string().uuid()}).strict().parse(req.body);
+    res.status(201).json({data:await repository.enroll(req.actor!,classId,body.studentId)});
+  });
 
   return router;
 }

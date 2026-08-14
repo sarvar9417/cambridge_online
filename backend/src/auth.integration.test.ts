@@ -170,7 +170,7 @@ describe('authentication flow', () => {
           name: '10-A CS', grade: 10, level: 'AS', academicYear: '2026/2027', studentCount: 6,
         }];
       },
-      async findOne(){return null},
+      async findOne(){return null},async enroll(){throw new Error('not used')},
     };
     app = createApp(new AuthService(repository), classes);
     const login = await request(app).post('/api/v1/auth/login').send({
@@ -187,7 +187,7 @@ describe('authentication flow', () => {
 
   it('returns 404 for a class outside the teacher scope',async()=>{
     repository.user.role='teacher';
-    const classes:ClassesRepository={findVisible:async()=>[],findOne:async()=>null};
+    const classes:ClassesRepository={findVisible:async()=>[],findOne:async()=>null,enroll:async()=>{throw new Error('not used')}};
     app=createApp(new AuthService(repository),classes);
     const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
     const response=await request(app).get('/api/v1/classes/2fe20e05-75b3-43a7-ac45-a81cb52b4ca8').set('Authorization',`Bearer ${login.body.accessToken}`);
