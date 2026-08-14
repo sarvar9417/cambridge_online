@@ -14,10 +14,10 @@ export function createPersistPaperHandler(pool:Pool):IngestionStageHandler{retur
 /**
  * Persist one normalized QP/MS bundle atomically.
  *
- * Re-runs deliberately rewrite every derived child row. Keeping a stale old
- * subtopic, mark point, dependency or crop request is more dangerous than doing
- * a little extra work, because the bank would then contain a mixture of two
- * extraction revisions.
+ * Re-runs deliberately rewrite every derived child row only while the canonical
+ * questions are still unused. Once a question has entered an assignment or an
+ * answer, rewriting its mark-scheme points could cascade into historical grading
+ * evidence, so the importer fails closed and requires a revision/snapshot path.
  */
 export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Artifact>{
  const questions=asArray<ExtractedQuestion>(input.questions),schemes=asArray<ExtractedScheme>(input.markSchemes),classifications=asArray<Classification>(input.classifications),dependencies=asArray<DetectedDependency>(input.dependencies),findings=asFindings(input.validationFindings),crossChecks=asArray<CrossCheck>(input.crossChecks);
@@ -29,6 +29,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
  const client=await pool.connect();
  try{
   await client.query('begin');
+  await assertSourcePaperQuestionsUnused(client,meta.qpPaperId);
   const idByPath=new Map<string,string>();
   const ordered=[...questions].sort((a,b)=>depth(a.path)-depth(b.path)||pathOrder(a.path,b.path));
   for(const[index,question]of ordered.entries()){
@@ -96,6 +97,10 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
  }catch(error){await client.query('rollback');throw error}finally{client.release()}
 }
 
+async function assertSourcePaperQuestionsUnused(client:PoolClient,sourcePaperId:string){
+ const result=await client.query(`select count(*)::int in_use from questions q where q.source_paper_id=$1 and (exists(select 1 from assignment_questions aq where aq.question_id=q.id) or exists(select 1 from answers a where a.question_id=q.id))`,[sourcePaperId]);
+ const inUse=Number(result.rows[0]?.in_use??0);if(inUse>0)throw new Error(`ingestion_persist_question_in_use:${inUse}`);
+}
 async function sourceMeta(pool:Pool,input:Artifact):Promise<SourceMeta>{
  const qpPaperId=paperId(input,'qp');if(!qpPaperId)throw new Error('ingestion_persist_missing_qp');const msPaperId=paperId(input,'ms');
  const result=await pool.query(`select sp.id qp_paper_id,sp.component_id,sp.year,sp.series::text series,sp.variant,s.code syllabus_code,c.number component from source_papers sp join syllabi s on s.id=sp.syllabus_id join components c on c.id=sp.component_id where sp.id=$1`,[qpPaperId]);if(!result.rowCount)throw new Error('ingestion_paper_not_found');const row=result.rows[0];return{qpPaperId,msPaperId,componentId:String(row.component_id),syllabusCode:String(row.syllabus_code),component:Number(row.component),variant:Number(row.variant),year:Number(row.year),series:row.series};
