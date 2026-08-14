@@ -6,6 +6,8 @@ import type { AuthRepository, AuthUser, RefreshRecord } from './repositories/aut
 import type { ClassesRepository } from './repositories/classes-repository.js';
 import { AuthService } from './services/auth-service.js';
 import { clearRateLimits } from './middleware/rate-limit.js';
+import { SignJWT } from 'jose';
+import { config } from './config.js';
 
 class MemoryAuthRepository implements AuthRepository {
   user!: AuthUser;
@@ -108,6 +110,15 @@ describe('authentication flow', () => {
       .set('Authorization', `Bearer ${login.body.accessToken}`);
     expect(me.status).toBe(200);
     expect(me.body.user).toMatchObject({ fullName: 'Sarvar', role: 'owner' });
+  });
+
+  it('rejects an expired access token with 401',async()=>{
+    const token=await new SignJWT({role:repository.user.role,schoolId:repository.user.schoolId,tv:repository.user.tokenVersion})
+      .setProtectedHeader({alg:'HS256'}).setSubject(repository.user.id).setIssuedAt().setExpirationTime(Math.floor(Date.now()/1000)-1)
+      .sign(new TextEncoder().encode(config.JWT_SECRET));
+    const response=await request(app).get('/api/v1/auth/me').set('Authorization',`Bearer ${token}`);
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('invalid_token');
   });
 
   it('rotates refresh tokens and revokes all sessions on reuse', async () => {

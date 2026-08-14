@@ -39,6 +39,20 @@ describe('domain authorization', () => {
     await expect(new AssignmentsService({ query } as unknown as Pool).saveAnswer(student, 'submission-id', 'question-id', 'answer')).rejects.toMatchObject({ status: 404 });
   });
 
+  it('rejects answer changes after submission with 409',async()=>{
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{status:'submitted'}]});
+    await expect(new AssignmentsService({query}as unknown as Pool).saveAnswer(student,'submission-id','question-id','answer'))
+      .rejects.toMatchObject({code:'submission_closed',status:409});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects answer changes after the attempt deadline with 409',async()=>{
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',started_at:new Date(Date.now()-120_000),time_limit_min:1,time_extension_min:0,due_at:null}]});
+    await expect(new AssignmentsService({query}as unknown as Pool).saveAnswer(student,'submission-id','question-id','answer'))
+      .rejects.toMatchObject({code:'time_expired',status:409});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it('result list always includes released-only and actor scope predicates', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).list(student);

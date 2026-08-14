@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 169 backend and 6 frontend tests pass.
+- 173 backend and 6 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and seed data are applied to Supabase; migration 0011
   is implemented and applied with the idempotency release.
@@ -46,6 +46,26 @@ This file records verified implementation evidence. Requirements remain in
   assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
 - Frontend API access tokens remain memory-only; concurrent 401 responses share
   one rotating refresh request, retry once and return to login on refresh failure.
+
+## Authorization acceptance evidence
+
+All 14 mandatory cases from `02-data-model.md` section 12.6 are covered by
+executable tests:
+
+1. Cross-student answers return 404: `domain-services.test.ts`.
+2. Student mark schemes stay absent before release: `questions-repository.test.ts`.
+3. Unreleased grading detail returns 404: `results-service.test.ts`.
+4. Post-submit answer updates return 409: `domain-services.test.ts`.
+5. Expired-attempt answer updates return 409: `domain-services.test.ts`.
+6. Another teacher's class returns 404: `auth.integration.test.ts` and `classes-repository.test.ts`.
+7. Teacher question mutation returns 403: `questions-repository.test.ts`.
+8. Student access to AI calls returns 403: `admin-service.test.ts`.
+9. Profile role elevation returns 400: `auth.integration.test.ts`.
+10. Expired access tokens return 401: `auth.integration.test.ts`.
+11. Revoked refresh tokens return 401 while rotated-token reuse revokes all sessions: `auth.integration.test.ts`.
+12. Cross-school enrollment returns 403: `classes-repository.test.ts`.
+13. Cross-student attempt creation returns 403: `domain-services.test.ts`.
+14. Invalid or already-used invites return 410: `auth.integration.test.ts`.
 
 ## External requirements not yet satisfied
 
