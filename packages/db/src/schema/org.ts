@@ -10,7 +10,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { levelType, userRole } from './enums.js';
+import { levelType, userRole, userStatus } from './enums.js';
 import { syllabi } from './syllabus.js';
 
 export const schools = pgTable('schools', {
@@ -34,6 +34,10 @@ export const users = pgTable('users', {
   locale: text('locale').notNull().default('uz'),
   avatarUrl: text('avatar_url'),
   isActive: boolean('is_active').notNull().default(true),
+  /** Self-registered students start 'pending' until a teacher assigns a class. */
+  status: userStatus('status').notNull().default('active'),
+  approvedBy: uuid('approved_by'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -108,6 +112,8 @@ export const enrollments = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
     leftAt: timestamp('left_at', { withTimezone: true }),
+    /** Study group inside the class. */
+    groupId: uuid('group_id'),
   },
   (table) => ({
     classStudent: unique().on(table.classId, table.studentId),

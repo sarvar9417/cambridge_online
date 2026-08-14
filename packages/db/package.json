@@ -16,7 +16,8 @@
     "test": "vitest run --passWithNoTests",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/cli/migrate.ts",
-    "seed": "tsx src/cli/seed.ts"
+    "seed": "tsx src/cli/seed.ts",
+    "baseline": "tsx src/cli/baseline.ts"
   },
   "dependencies": {
     "@campath/shared": "workspace:*",

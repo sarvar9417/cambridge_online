@@ -29,3 +29,10 @@ export const commandWord = pgEnum('command_word', COMMAND_WORDS);
 export const answerKind = pgEnum('answer_kind', ANSWER_KINDS);
 export const jobStatus = pgEnum('job_status', JOB_STATUSES);
 export const findingSeverity = pgEnum('finding_severity', FINDING_SEVERITIES);
+
+/**
+ * Whether a question or mark scheme was authored as markdown or under the KaTeX
+ * LaTeX contract. Most of the existing bank is `latex`.
+ */
+export const contentFormat = pgEnum('content_format', ['markdown', 'latex']);
+export const userStatus = pgEnum('user_status', ['pending', 'active', 'suspended']);

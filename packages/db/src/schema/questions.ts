@@ -12,7 +12,15 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { answerKind, aoType, commandWord, examSeries, paperKind, reviewStatus } from './enums.js';
+import {
+  answerKind,
+  aoType,
+  commandWord,
+  contentFormat,
+  examSeries,
+  paperKind,
+  reviewStatus,
+} from './enums.js';
 import { components, learningObjectives, subtopics, syllabi } from './syllabus.js';
 import { users } from './org.js';
 
@@ -77,6 +85,10 @@ export const questions = pgTable(
 
     stemMd: text('stem_md'),
     contextMd: text('context_md'),
+    /** Authored under the KaTeX contract; carries the text for most of the bank. */
+    stemLatex: text('stem_latex'),
+    contextLatex: text('context_latex'),
+    bodyFormat: contentFormat('body_format').notNull().default('markdown'),
     commandWord: commandWord('command_word'),
     marks: integer('marks'),
     ao: aoType('ao'),
@@ -118,6 +130,12 @@ export const questionAssets = pgTable(
     altText: text('alt_text').notNull().default(''),
     sortOrder: integer('sort_order').notNull().default(0),
     sourcePage: integer('source_page'),
+    /** Editable TikZ master; `svgMarkup` is what renders. */
+    latexSource: text('latex_source'),
+    svgMarkup: text('svg_markup'),
+    /** V11 checks the size; V22 keys on the hash to spot a duplicated figure. */
+    sizeBytes: integer('size_bytes'),
+    contentHash: text('content_hash'),
   },
   (table) => ({ questionIdx: index('question_assets_question_idx').on(table.questionId) }),
 );

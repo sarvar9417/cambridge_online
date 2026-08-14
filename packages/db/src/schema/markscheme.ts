@@ -10,7 +10,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { reviewStatus, schemeType } from './enums.js';
+import { contentFormat, reviewStatus, schemeType } from './enums.js';
 import { questions, sourcePapers } from './questions.js';
 import { users } from './org.js';
 
@@ -29,6 +29,8 @@ export const markSchemes = pgTable('mark_schemes', {
   schemeType: schemeType('scheme_type').notNull(),
   maxMarks: integer('max_marks').notNull(),
   guidanceMd: text('guidance_md'),
+  guidanceLatex: text('guidance_latex'),
+  bodyFormat: contentFormat('body_format').notNull().default('markdown'),
   status: reviewStatus('status').notNull().default('needs_review'),
   extractConfidence: numeric('extract_confidence', { precision: 3, scale: 2 }),
   promptVersion: text('prompt_version'),
@@ -62,6 +64,7 @@ export const markSchemePoints = pgTable(
     code: text('code').notNull(),
     /** Cambridge wording, verbatim. Examiners award on specific terminology. */
     text: text('text').notNull(),
+    textLatex: text('text_latex'),
     marks: integer('marks').notNull().default(1),
     accept: jsonb('accept').notNull().default([]),
     reject: jsonb('reject').notNull().default([]),
@@ -88,6 +91,8 @@ export const markSchemeLevels = pgTable(
     maxMarks: integer('max_marks').notNull(),
     descriptorMd: text('descriptor_md').notNull(),
     indicativeContentMd: text('indicative_content_md'),
+    descriptorLatex: text('descriptor_latex'),
+    indicativeContentLatex: text('indicative_content_latex'),
   },
   (table) => ({ schemeLevel: unique().on(table.markSchemeId, table.levelNumber) }),
 );
