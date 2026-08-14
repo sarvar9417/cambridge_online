@@ -18,6 +18,10 @@ export interface SelectionAssignmentInput {
  * losing Question Bank v2 semantics (graded/context_only, source refs and fresh
  * generated numbering).
  *
+ * Graded leaves are written to assignment_questions. Printed support leaves are
+ * written to assignment_context_items so the legacy attempt/grading pipeline can
+ * never expose them as zero-mark answer fields.
+ *
  * The selection timestamp is checked again under a row lock before anything is
  * written. If the basket changed while portable questions were being resolved,
  * the handoff is rejected instead of creating a mixed-version assignment.
@@ -109,19 +113,20 @@ export class SelectionAssignmentService {
       const assignmentId = assignment.rows[0].id as string;
 
       for (const [index, item] of review.items.entries()) {
+        if (item.role === 'context_only') {
+          await client.query(
+            `insert into assignment_context_items(
+               assignment_id,question_id,sort_order,source_ref,fresh_ref
+             ) values($1,$2,$3,$4,$5)`,
+            [assignmentId,item.portable.leaf.id,index + 1,item.sourceRef,item.freshRef],
+          );
+          continue;
+        }
         await client.query(
           `insert into assignment_questions(
              assignment_id,question_id,sort_order,marks_override,role,source_ref,fresh_ref
-           ) values($1,$2,$3,$4,$5,$6,$7)`,
-          [
-            assignmentId,
-            item.portable.leaf.id,
-            index + 1,
-            item.effectiveMarks,
-            item.role,
-            item.sourceRef,
-            item.freshRef,
-          ],
+           ) values($1,$2,$3,$4,'graded',$5,$6)`,
+          [assignmentId,item.portable.leaf.id,index + 1,item.effectiveMarks,item.sourceRef,item.freshRef],
         );
       }
 
