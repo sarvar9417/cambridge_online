@@ -1,17 +1,62 @@
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-export interface ExportQuestion{displayRef:string;stem:string;context?:string;marks:number;points?:Array<{code:string;text:string;marks:number}>}
-export function assertPaperTotal(questions:ExportQuestion[],expected:number){const actual=questions.reduce((sum,question)=>sum+question.marks,0);if(actual!==expected)throw new Error(`export_total_mismatch:${actual}/${expected}`);return actual}
+
+export interface ExportAsset {
+  kind:string;
+  contentMd?:string|null;
+  storagePath?:string|null;
+  altText?:string|null;
+  sourcePage?:number|null;
+}
+export interface ExportContextBlock {
+  displayRef?:string;
+  context?:string|null;
+  assets?:ExportAsset[];
+}
+export interface ExportQuestion {
+  displayRef:string;
+  sourceRef?:string;
+  stem:string;
+  context?:string;
+  contextBlocks?:ExportContextBlock[];
+  marks:number;
+  role?:'graded'|'context_only';
+  points?:Array<{code:string;text:string;marks:number}>;
+}
+
+export function assertPaperTotal(questions:ExportQuestion[],expected:number){const actual=questions.reduce((sum,question)=>sum+(question.role==='context_only'?0:question.marks),0);if(actual!==expected)throw new Error(`export_total_mismatch:${actual}/${expected}`);return actual}
+
+/**
+ * Do not silently emit a worksheet with a missing diagram/image. Text/table/code
+ * assets with extracted markdown are renderable here; binary-only assets must be
+ * embedded by the export processor before this renderer is allowed to continue.
+ */
+export function assertPortableAssetCoverage(questions:ExportQuestion[]){
+  for(const question of questions)for(const block of question.contextBlocks??[])for(const asset of block.assets??[]){
+    if(asset.storagePath&&!asset.contentMd)throw new Error(`export_asset_unavailable:${question.sourceRef??question.displayRef}:${asset.altText??asset.kind}`);
+  }
+}
+
+const renderAsset=(asset:ExportAsset)=>`<div class="asset"><strong>${esc(asset.kind)}</strong>${asset.altText?`<span>${esc(asset.altText)}</span>`:''}${asset.sourcePage?`<small>Source page ${esc(asset.sourcePage)}</small>`:''}${asset.contentMd?`<pre>${esc(asset.contentMd)}</pre>`:''}</div>`;
+const renderContextBlocks=(question:ExportQuestion)=>{
+  const blocks=question.contextBlocks??[];
+  if(!blocks.length)return question.context?`<p class="context">${esc(question.context)}</p>`:'';
+  return `<div class="context-blocks">${blocks.map(block=>`<aside class="context-block">${block.displayRef?`<div class="context-ref">${esc(block.displayRef)}</div>`:''}${block.context?`<p class="context">${esc(block.context)}</p>`:''}${(block.assets??[]).map(renderAsset).join('')}</aside>`).join('')}</div>`;
+};
 
 export function renderPaperHtml(title:string,questions:ExportQuestion[],includeScheme=false,watermark?:string){
-  const total=questions.reduce((sum,question)=>sum+question.marks,0);
+  assertPortableAssetCoverage(questions);
+  const total=questions.reduce((sum,question)=>sum+(question.role==='context_only'?0:question.marks),0);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     @page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;color:#111;font-size:11pt}
     h1{font-size:18pt;border-bottom:2px solid #111;padding-bottom:8px}.meta{display:flex;justify-content:space-between}
-    .question{break-inside:avoid;margin:18px 0}.ref{font-weight:bold}.marks{float:right}.context{white-space:pre-wrap}
-    .scheme{margin:8px 0 0 24px}.scheme li{margin:5px 0}footer{position:fixed;bottom:0;font-size:9pt}
+    .question{break-inside:avoid;margin:18px 0}.question.context-only{border:1px solid #bbb;background:#f7f7f7;padding:10px 12px}
+    .ref{font-weight:bold}.marks{float:right}.context-label{float:right;font-size:9pt;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:.04em}
+    .context{white-space:pre-wrap}.context-blocks{display:grid;gap:6px;margin:7px 0}.context-block{border-left:3px solid #777;padding:5px 8px;background:#fafafa}.context-ref{font-size:9pt;font-weight:bold;color:#555}
+    .asset{display:grid;gap:3px;margin:6px 0;padding:7px;border:1px solid #ccc;background:#fff}.asset span,.asset small{font-size:9pt;color:#555}.asset pre{white-space:pre-wrap;font:9pt/1.4 "Courier New",monospace;margin:4px 0 0}
+    .source-ref{font-size:8.5pt;color:#666;margin-top:5px}.scheme{margin:8px 0 0 24px}.scheme li{margin:5px 0}footer{position:fixed;bottom:0;font-size:9pt}
     .watermark{position:fixed;inset:45% 0 auto;z-index:-1;text-align:center;transform:rotate(-28deg);font-size:34pt;font-weight:bold;color:rgba(50,50,50,.08);white-space:nowrap}
   </style></head><body>${watermark?`<div class="watermark">${esc(watermark)}</div>`:''}
   <h1>${esc(title)}</h1><div class="meta"><span>Cambridge International AS & A Level Computer Science</span><strong>Total: ${total}</strong></div>
-  ${questions.map(question=>`<section class="question"><div><span class="ref">${esc(question.displayRef)}</span><span class="marks">[${question.marks}]</span></div>${question.context?`<p class="context">${esc(question.context)}</p>`:''}<p>${esc(question.stem)}</p>${includeScheme?`<ol class="scheme">${(question.points??[]).map(point=>`<li>${esc(point.code)} ${esc(point.text)} [${point.marks}]</li>`).join('')}</ol>`:''}</section>`).join('')}
+  ${questions.map(question=>`<section class="question${question.role==='context_only'?' context-only':''}"><div><span class="ref">${esc(question.displayRef)}</span>${question.role==='context_only'?`<span class="context-label">Context</span>`:`<span class="marks">[${question.marks}]</span>`}</div>${renderContextBlocks(question)}<p>${esc(question.stem)}</p>${question.sourceRef?`<div class="source-ref">Source: ${esc(question.sourceRef)}</div>`:''}${includeScheme&&question.role!=='context_only'?`<ol class="scheme">${(question.points??[]).map(point=>`<li>${esc(point.code)} ${esc(point.text)} [${point.marks}]</li>`).join('')}</ol>`:''}</section>`).join('')}
   <footer>${watermark?esc(watermark):'Generated by CamPath'}</footer></body></html>`;
 }
