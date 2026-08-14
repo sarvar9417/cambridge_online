@@ -15,6 +15,7 @@ describe('privacy service', () => {
     expect(query).toHaveBeenCalledTimes(6);
     for (const call of query.mock.calls) expect(call[1]).toEqual([student.id]);
     expect(query.mock.calls[3]![0]).toContain('t.number topic_number');
+    expect(query.mock.calls[3]![0]).not.toMatch(/(?:^|[^a-z])t\.code/);
   });
 
   it('rejects anonymization by a student before querying the database', async () => {

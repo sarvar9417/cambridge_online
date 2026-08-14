@@ -34,7 +34,7 @@ export class PrivacyService {
         `select t.number topic_number,t.title topic_title,st.code subtopic_code,st.title,m.score,m.attempts,
                 m.marks_earned,m.marks_possible,m.last_activity_at
          from mastery m join subtopics st on st.id=m.subtopic_id join topics t on t.id=st.topic_id
-         where m.student_id=$1 order by t.code,st.code`,
+         where m.student_id=$1 order by t.number,st.code`,
         [actor.id],
       ),
       this.pool.query(
