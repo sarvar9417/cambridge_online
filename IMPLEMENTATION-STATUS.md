@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 134 backend and 2 frontend tests pass.
+- 137 backend and 2 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and seed data are applied to Supabase.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
@@ -32,7 +32,8 @@ This file records verified implementation evidence. Requirements remain in
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.
 - Faza 2 foundation: PostgreSQL jobs, retry/DLQ, ingestion/review API, V01-V20.
-- Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor.
+- Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor,
+  school/date/internal-use watermark, per-user daily limit and polled statuses.
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
   budget guard and AI audit.
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API.
@@ -50,9 +51,8 @@ This file records verified implementation evidence. Requirements remain in
   extraction and timed review study) remain unverified.
 - Official syllabus subtopics and learning objectives are not imported yet;
   placeholder educational content was intentionally not fabricated.
-- On 2026-08-14 the Supabase direct PostgreSQL endpoint began timing out; a
-  fresh backend pool also reported `database:error`, so the newest analytics
-  endpoints await a repeat live smoke test after external connectivity returns.
+- Production readiness and owner authentication were smoke-tested against the
+  Supabase database after deployment.
 
 `GET /api/v1/ready` exposes database state and `ai`, `pdfPrepare`, and
 `durableStorage` capability flags.

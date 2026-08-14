@@ -81,6 +81,17 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .staff-assignments { margin:12px 0; }
 .staff-assignments .tr>div { display:flex; gap:6px; }
 .staff-assignments button { padding:7px 9px; font-size:12px; }
+.app-error { margin:18px 0 0; padding:12px 14px; border:1px solid #d9a6a8; border-radius:6px; background:#fff3f3; color:#8c2f32; }
+.export-status { margin-top:12px; border:1px solid #e5e2dc; border-radius:6px; background:white; overflow:hidden; }
+.export-status>div { display:grid; grid-template-columns:1fr auto; gap:6px 16px; align-items:center; padding:10px 14px; border-bottom:1px solid #eee; }
+.export-status>div:last-child { border-bottom:0; }
+.export-status>div>div { display:grid; gap:3px; }
+.export-status small { color:#6b655c; }
+.export-status>div>small { grid-column:1/-1; color:#8c2f32; }
+.export-status span { padding:4px 7px; border-radius:4px; font-size:12px; font-weight:700; }
+.status-queued,.status-running { background:#fff4d8; color:#745512; }
+.status-succeeded { background:#d8eadf; color:#356146; }
+.status-failed { background:#f6d7d8; color:#8c2f32; }
 .actions { display:flex; gap:8px; }
 .secondary { background:white;color:#1e3a5f;border:1px solid #1e3a5f; }
 .generator-form { display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:end;padding:16px;border:1px solid #e5e2dc;background:white;border-radius:6px;margin:12px 0; }

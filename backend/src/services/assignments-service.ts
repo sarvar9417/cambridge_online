@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 
-export class DomainError extends Error { constructor(public code:string, public status:400|403|404|409) { super(code); } }
+export class DomainError extends Error { constructor(public code:string, public status:400|403|404|409|429) { super(code); } }
 
 export class AssignmentsService {
   constructor(private pool:Pool) {}

@@ -84,7 +84,8 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      res.status(error.status).json({ error: { code: error.message, message: error.message } });
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.'};
+      res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
     if (error instanceof ZodError) {
