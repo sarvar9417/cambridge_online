@@ -73,11 +73,14 @@ export async function segmentPreparedArtifact(input:Artifact):Promise<Artifact>{
   return{...input,batches};
 }
 
+/** QP/MS extraction happens before DB question ids exist, so canonical path is the primary join key. */
 export async function matchExtractedArtifacts(input:Artifact):Promise<Artifact>{
   const questions=asRecords(input.questions),schemes=asRecords(input.markSchemes);const refs=new Map<string,Record<string,unknown>>(),duplicates:string[]=[];
-  for(const question of questions){const ref=displayRef(question);if(!ref)continue;if(refs.has(ref))duplicates.push(ref);else refs.set(ref,question)}
-  const matched=[],unmatchedSchemes:string[]=[];for(const scheme of schemes){const ref=displayRef(scheme),question=ref?refs.get(ref):undefined;if(!ref||!question){unmatchedSchemes.push(ref||'(missing)');continue}matched.push({...scheme,questionId:question.id})}
-  const matchedRefs=new Set(matched.map(item=>displayRef(item)));const unmatchedQuestions=[...refs.keys()].filter(ref=>!matchedRefs.has(ref));
+  for(const question of questions){const ref=matchKey(question);if(!ref)continue;if(refs.has(ref))duplicates.push(ref);else refs.set(ref,question)}
+  const matched:Record<string,unknown>[]=[],unmatchedSchemes:string[]=[];
+  for(const scheme of schemes){const ref=matchKey(scheme),question=ref?refs.get(ref):undefined;if(!ref||!question){unmatchedSchemes.push(ref||'(missing)');continue}
+    const item:Record<string,unknown>={...scheme};const id=stringField(question,'id'),path=stringField(question,'path');if(id)item.questionId=id;if(path)item.questionPath=path;matched.push(item)}
+  const matchedRefs=new Set(matched.map(item=>matchKey(item)));const unmatchedQuestions=[...refs.keys()].filter(ref=>!matchedRefs.has(ref));
   return{...input,markSchemes:matched,matchReport:{duplicateQuestionRefs:[...new Set(duplicates)],unmatchedQuestions,unmatchedSchemes}};
 }
 
@@ -110,6 +113,7 @@ function isArtifact(value:unknown):value is Artifact{return typeof value==='obje
 function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null):[]}
 function displayRef(value:Record<string,unknown>){const ref=value.displayRef??value.display_ref;return typeof ref==='string'?ref.trim():''}
 function stringField(value:Record<string,unknown>,key:string){const field=value[key];return typeof field==='string'?field.trim():''}
+function matchKey(value:Record<string,unknown>){return stringField(value,'path')||displayRef(value)}
 function normalizeValidationDependencies(value:unknown):NonNullable<ValidationInput['dependencies']>{
   return asRecords(value).flatMap(dependency=>{
     const fromPath=stringField(dependency,'fromPath')||stringField(dependency,'from_path');
