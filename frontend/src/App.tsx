@@ -8,6 +8,7 @@ import {
   type Assignment,
   type Attempt,
   type ClassItem,
+  type CommandWordProgress,
   type ContentGames,
   type ExportItem,
   type Flashcard,
@@ -45,6 +46,7 @@ export function App() {
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
+  const [commandWords,setCommandWords]=useState<CommandWordProgress[]>([]);
   const [review, setReview] = useState<ReviewQuestion[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [reviewFinding, setReviewFinding] = useState("");
@@ -109,12 +111,14 @@ export function App() {
     setAssignments(assignmentData.data);
     setResults(resultData.data);
     if (session.user.role === "student") {
-      const [m, c, g] = await Promise.all([
+      const [m, w, c, g] = await Promise.all([
         api<{ data: MasteryItem[] }>("/analytics/mastery"),
+        api<{ data: CommandWordProgress[] }>("/analytics/command-words"),
         api<{ data: Flashcard[] }>("/content/flashcards/due"),
         api<{data:ContentGames}>("/content/games"),
       ]);
       setMastery(m.data);
+      setCommandWords(w.data);
       setFlashcards(c.data);
       setGames(g.data);setSequence([...g.data.sequence].reverse());
     }
@@ -774,6 +778,21 @@ export function App() {
                     <progress max="1" value={item.score} />
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+        )}
+        {user.role === "student" && (
+          <section id="student-command-words">
+            <div className="section-title">
+              <h2>Imtihon ko‘nikmalari</h2>
+              <span>{commandWords.length} command word</span>
+            </div>
+            {commandWords.length === 0 ? (
+              <p className="empty">Baholar chiqarilgach command word tahlili paydo bo‘ladi.</p>
+            ) : (
+              <div className="student-command-words">
+                {commandWords.map((item)=><div className="word-row" key={item.commandWord}><span>{item.commandWord}</span><progress max="100" value={item.percentage}/><b>{item.percentage}%</b><small>{item.sampleSize} javob</small></div>)}
               </div>
             )}
           </section>

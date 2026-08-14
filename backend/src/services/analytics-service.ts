@@ -94,6 +94,19 @@ export class AnalyticsService {
     return result.rows.map((row) => ({ commandWord: row.command_word, percentage: Number(row.pct), sampleSize: row.n }));
   }
 
+  async studentCommandWords(actor: Actor) {
+    if (actor.role !== 'student') throw new DomainError('students_only', 403);
+    const result = await this.pool.query(
+      `select q.command_word,round(sum(g.final_score)/nullif(sum(g.max_marks),0)*100,1) pct,count(*)::int n
+       from gradings g join answers ans on ans.id=g.answer_id join questions q on q.id=ans.question_id
+       join submissions s on s.id=ans.submission_id
+       where s.student_id=$1 and g.released_at is not null and q.command_word is not null
+       group by q.command_word order by pct,q.command_word`,
+      [actor.id],
+    );
+    return result.rows.map((row) => ({ commandWord: row.command_word, percentage: Number(row.pct), sampleSize: row.n }));
+  }
+
   async aiQuality(actor: Actor) {
     if (actor.role !== 'owner') throw new DomainError('owners_only', 403);
     const result = await this.pool.query(

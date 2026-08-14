@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 218 backend and 7 frontend tests pass.
+- 220 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -44,7 +44,8 @@ This file records verified implementation evidence. Requirements remain in
   precreated submission atomically changes it from `not_started` to `in_progress`
   and records its server-side start time; expired attempts return to the dashboard.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
-  performance, student mastery confidence and owner-only AI quality metrics,
+  performance, self-scoped student command-word progress, student mastery
+  confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.
 - Faza 2 foundation: PostgreSQL jobs, retry/DLQ, QP/MS bundle gating, ingestion run lifecycle, V01-V20, and an audited keyboard review queue with grouping, bulk approval, editing, and undo.
 - Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor,
