@@ -1,5 +1,6 @@
 import type{Pool,PoolClient}from'pg';
 import type{IngestionStageHandler}from'./ingestion.js';
+import type{StoredAssetRecord}from'./asset-crop-store.js';
 import type{Classification,DetectedDependency,ExtractedQuestion,ExtractedScheme}from'./ingestion-contract.js';
 
 type Artifact=Record<string,unknown>;
@@ -7,7 +8,7 @@ type Finding={code:string;severity:'error'|'warning';message:string;details?:unk
 type CrossCheck={path:string;agrees:boolean;disagreements?:unknown;confidence:number;promptVersion?:string};
 type SourceMeta={qpPaperId:string;msPaperId:string|null;componentId:string;syllabusCode:string;component:number;variant:number;year:number;series:'FM'|'MJ'|'ON'};
 
-export interface PersistPaperResult{questionCount:number;leafCount:number;approvedCount:number;needsReviewCount:number;findingCount:number;pendingAssetCount:number}
+export interface PersistPaperResult{questionCount:number;leafCount:number;approvedCount:number;needsReviewCount:number;findingCount:number;pendingAssetCount:number;readyAssetCount:number;failedAssetCount:number}
 
 export function createPersistPaperHandler(pool:Pool):IngestionStageHandler{return(_refId,input)=>persistPaperArtifact(pool,input)}
 
@@ -20,9 +21,9 @@ export function createPersistPaperHandler(pool:Pool):IngestionStageHandler{retur
  * evidence, so the importer fails closed and requires a revision/snapshot path.
  */
 export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Artifact>{
- const questions=asArray<ExtractedQuestion>(input.questions),schemes=asArray<ExtractedScheme>(input.markSchemes),classifications=asArray<Classification>(input.classifications),dependencies=asArray<DetectedDependency>(input.dependencies),findings=asFindings(input.validationFindings),crossChecks=asArray<CrossCheck>(input.crossChecks);
+ const questions=asArray<ExtractedQuestion>(input.questions),schemes=asArray<ExtractedScheme>(input.markSchemes),classifications=asArray<Classification>(input.classifications),dependencies=asArray<DetectedDependency>(input.dependencies),findings=asFindings(input.validationFindings),crossChecks=asArray<CrossCheck>(input.crossChecks),storedAssets=asArray<StoredAssetRecord>(input.storedAssets);
  if(!questions.length)throw new Error('ingestion_persist_no_questions');
- const meta=await sourceMeta(pool,input),classificationByPath=new Map(classifications.map(item=>[item.path,item])),qpPromptVersion=artifactPromptVersion(input,'qp','extract-question.v1');
+ const storedByKey=indexStoredAssets(questions,storedAssets),meta=await sourceMeta(pool,input),classificationByPath=new Map(classifications.map(item=>[item.path,item])),qpPromptVersion=artifactPromptVersion(input,'qp','extract-question.v1');
  const globalError=findings.some(item=>item.severity==='error');
  const crossCheckReady=crossChecks.length>0&&crossChecks.every(item=>item.agrees&&item.confidence>=.8);
  const paperCanAutoApprove=input.reviewStatus==='approved_candidate'&&!globalError&&crossCheckReady;
@@ -35,7 +36,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   for(const[index,question]of ordered.entries()){
    const parentId=question.parentPath?idByPath.get(question.parentPath)??null:null;
    if(question.parentPath&&!parentId)throw new Error(`ingestion_persist_missing_parent:${question.path}->${question.parentPath}`);
-   const classification=classificationByPath.get(question.path),assetNeedsReview=question.assets.some(asset=>!asset.contentMd),localIssues=[...question.issues,...(classification?.issues??[])];
+   const classification=classificationByPath.get(question.path),assetNeedsReview=hasUnreadyBinaryAsset(question,storedByKey),localIssues=[...question.issues,...(classification?.issues??[])];
    const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
    const displayRef=fullDisplayRef(meta,question.path);
    const row=await client.query(`insert into questions(source_paper_id,component_id,parent_id,label,path,display_ref,depth,sort_order,stem_md,context_md,command_word,marks,ao,answer_kind,answer_lines,status,extract_confidence,prompt_version,notes)
@@ -56,13 +57,14 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
    await client.query(`delete from mark_schemes where question_id=any($1::uuid[])`,[questionIds]);
   }
 
-  let pendingAssetCount=0;
+  let pendingAssetCount=0,readyAssetCount=0,failedAssetCount=0;
   for(const question of questions){
    const questionId=idByPath.get(question.path)!;
    for(const[sortOrder,asset]of question.assets.entries()){
-    const cropStatus=asset.contentMd?'not_needed':asset.bbox&&asset.page?'pending':'failed';if(cropStatus==='pending')pendingAssetCount++;
-    await client.query(`insert into question_assets(question_id,kind,storage_path,content_md,alt_text,sort_order,source_page,source_bbox,crop_status,crop_error)
-     values($1,$2,null,$3,$4,$5,$6,$7::jsonb,$8,$9)`,[questionId,asset.kind,asset.contentMd,asset.altText,sortOrder,asset.page,asset.bbox?JSON.stringify(asset.bbox):null,cropStatus,cropStatus==='failed'?'missing_source_bbox_or_content':null]);
+    const stored=storedByKey.get(assetKey(question.path,sortOrder)),cropStatus=asset.contentMd?'not_needed':stored?'ready':asset.bbox&&asset.page?'pending':'failed';if(cropStatus==='pending')pendingAssetCount++;else if(cropStatus==='ready')readyAssetCount++;else if(cropStatus==='failed')failedAssetCount++;
+    const sourcePage=stored?.sourcePage??asset.page,sourceBBox=stored?.bbox??asset.bbox;
+    await client.query(`insert into question_assets(question_id,kind,storage_path,content_md,alt_text,sort_order,source_page,source_bbox,crop_status,crop_error,size_bytes,content_hash)
+     values($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12)`,[questionId,asset.kind,stored?.storagePath??null,asset.contentMd,asset.altText,sortOrder,sourcePage,sourceBBox?JSON.stringify(sourceBBox):null,cropStatus,cropStatus==='failed'?'missing_source_bbox_or_content':null,stored?.sizeBytes??null,stored?.contentHash??null]);
    }
    const classification=classificationByPath.get(question.path);
    if(classification){
@@ -78,7 +80,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   }
 
   for(const scheme of schemes){
-   const questionId=idByPath.get(scheme.path);if(!questionId)continue;const question=questions.find(item=>item.path===scheme.path),classification=classificationByPath.get(scheme.path),assetNeedsReview=Boolean(question?.assets.some(asset=>!asset.contentMd));const localIssues=[...(scheme.issues??[]),...(question?.issues??[]),...(classification?.issues??[])];const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
+   const questionId=idByPath.get(scheme.path);if(!questionId)continue;const question=questions.find(item=>item.path===scheme.path),classification=classificationByPath.get(scheme.path),assetNeedsReview=Boolean(question&&hasUnreadyBinaryAsset(question,storedByKey));const localIssues=[...(scheme.issues??[]),...(question?.issues??[]),...(classification?.issues??[])];const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
    const inserted=await client.query(`insert into mark_schemes(question_id,source_paper_id,scheme_type,max_marks,guidance_md,status,extract_confidence,prompt_version) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,[questionId,meta.msPaperId,scheme.schemeType,scheme.maxMarks,scheme.guidanceMd,status,scheme.confidence,'extract-markscheme.v1']);
    const markSchemeId=String(inserted.rows[0].id),groupIds=new Map<string,string>();
    for(const[sortOrder,group]of scheme.groups.entries()){const insertedGroup=await client.query(`insert into mark_scheme_groups(mark_scheme_id,label,n_required,marks_per_point,max_marks,sort_order) values($1,$2,$3,$4,$5,$6) returning id`,[markSchemeId,group.label,group.nRequired,group.marksPerPoint,group.maxMarks,sortOrder]);groupIds.set(group.label,String(insertedGroup.rows[0].id))}
@@ -90,13 +92,16 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   for(const check of crossChecks){const questionId=idByPath.get(check.path);if(!questionId)continue;await client.query(`insert into cross_checks(ref_table,ref_id,checker_prompt_version,agrees,disagreement,confidence) values('questions',$1,$2,$3,$4::jsonb,$5)`,[questionId,check.promptVersion??'cross-check.v1',check.agrees,check.disagreements===undefined?null:JSON.stringify(check.disagreements),check.confidence])}
 
   await client.query('commit');
-  const leaves=questions.filter(question=>question.marks!==null),approvedCount=paperCanAutoApprove?leaves.filter(question=>!question.issues.length&&!classificationByPath.get(question.path)?.issues.length&&!question.assets.some(asset=>!asset.contentMd)).length:0;
-  const result:PersistPaperResult={questionCount:questions.length,leafCount:leaves.length,approvedCount,needsReviewCount:leaves.length-approvedCount,findingCount:findings.length,pendingAssetCount};
-  const finalReviewStatus=result.needsReviewCount===0&&result.pendingAssetCount===0&&paperCanAutoApprove?'approved_candidate':'needs_review';
+  const leaves=questions.filter(question=>question.marks!==null),approvedCount=paperCanAutoApprove?leaves.filter(question=>!question.issues.length&&!classificationByPath.get(question.path)?.issues.length&&!hasUnreadyBinaryAsset(question,storedByKey)).length:0;
+  const result:PersistPaperResult={questionCount:questions.length,leafCount:leaves.length,approvedCount,needsReviewCount:leaves.length-approvedCount,findingCount:findings.length,pendingAssetCount,readyAssetCount,failedAssetCount};
+  const finalReviewStatus=result.needsReviewCount===0&&result.pendingAssetCount===0&&result.failedAssetCount===0&&paperCanAutoApprove?'approved_candidate':'needs_review';
   return{...input,reviewStatus:finalReviewStatus,persistResult:result};
  }catch(error){await client.query('rollback');throw error}finally{client.release()}
 }
 
+function indexStoredAssets(questions:ExtractedQuestion[],storedAssets:StoredAssetRecord[]){const questionByPath=new Map(questions.map(question=>[question.path,question])),map=new Map<string,StoredAssetRecord>();for(const stored of storedAssets){const question=questionByPath.get(stored.questionPath);if(!question||!question.assets[stored.assetIndex])throw new Error(`ingestion_persist_stored_asset_orphan:${stored.questionPath}:${stored.assetIndex}`);const key=assetKey(stored.questionPath,stored.assetIndex);if(map.has(key))throw new Error(`ingestion_persist_stored_asset_duplicate:${stored.questionPath}:${stored.assetIndex}`);map.set(key,stored)}return map}
+function hasUnreadyBinaryAsset(question:ExtractedQuestion,storedByKey:Map<string,StoredAssetRecord>){return question.assets.some((asset,index)=>!asset.contentMd&&!storedByKey.has(assetKey(question.path,index)))}
+function assetKey(path:string,index:number){return`${path}#${index}`}
 async function assertSourcePaperQuestionsUnused(client:PoolClient,sourcePaperId:string){
  const result=await client.query(`select count(*)::int in_use from questions q where q.source_paper_id=$1 and (exists(select 1 from assignment_questions aq where aq.question_id=q.id) or exists(select 1 from answers a where a.question_id=q.id))`,[sourcePaperId]);
  const inUse=Number(result.rows[0]?.in_use??0);if(inUse>0)throw new Error(`ingestion_persist_question_in_use:${inUse}`);
