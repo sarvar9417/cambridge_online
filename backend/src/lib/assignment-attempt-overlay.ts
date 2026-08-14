@@ -33,14 +33,11 @@ export async function overlayAssignmentAttempt(pool:Pool,assignmentId:string,att
   const result=await pool.query(
     `select aq.question_id,aq.fresh_ref,coalesce(aq.marks_override,q.marks) marks,aq.portable_snapshot,
        coalesce((
-         select string_agg(
-           coalesce(aci.portable_snapshot->'leaf'->>'stem','') || case when aci.source_ref<>'' then E'\nSource: '||aci.source_ref else '' end,
-           E'\n\n' order by aci.sort_order
-         )
+         select jsonb_agg(aci.portable_snapshot order by aci.sort_order)
          from question_dependencies qd
          join assignment_context_items aci on aci.assignment_id=aq.assignment_id and aci.question_id=qd.depends_on_id
          where qd.question_id=aq.question_id and qd.kind::text in ('text_ref','text')
-       ),'') referenced_context
+       ),'[]'::jsonb) referenced_snapshots
      from assignment_questions aq join questions q on q.id=aq.question_id
      where aq.assignment_id=$1`,
     [assignmentId],
@@ -48,7 +45,8 @@ export async function overlayAssignmentAttempt(pool:Pool,assignmentId:string,att
   const byId=new Map(result.rows.map(row=>[String(row.question_id),row]));
   return{...attempt,questions:attempt.questions.map(question=>{
     const row=byId.get(question.id);if(!row)return question;
-    const frozen=portableText(row.portable_snapshot);const referenced=String(row.referenced_context??'').trim();
+    const frozen=portableText(row.portable_snapshot);
+    const referenced=(Array.isArray(row.referenced_snapshots)?row.referenced_snapshots:[]).map(value=>portableText(value,{includeLeaf:true})).filter(Boolean).join('\n\n');
     const contexts=[frozen,referenced,question.contextMd??''].filter((value,index,array)=>Boolean(value)&&array.indexOf(value)===index);
     return{...question,displayRef:String(row.fresh_ref??question.displayRef),marks:Number(row.marks??question.marks),contextMd:contexts.join('\n\n')||null};
   })};
