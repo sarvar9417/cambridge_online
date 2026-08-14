@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 211 backend and 7 frontend tests pass.
+- 213 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0014 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -42,7 +42,8 @@ This file records verified implementation evidence. Requirements remain in
   assignment mark overrides are rendered and authoritative total mismatches fail closed.
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
   budget guard, AI audit, enforced calibration gates, manual-only Evaluate/levels
-  answers, and deterministic 10% teacher quality sampling.
+  answers, deterministic 10% teacher quality sampling, and owner-triggered
+  ground-truth recomputation of agreement, error rates and score metrics.
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API; released
   grading points update per-student error patterns and repeated misses schedule
   deduplicated personal review cards after three days. Student-scoped Term Match,
