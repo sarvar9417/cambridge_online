@@ -136,9 +136,9 @@ export async function buildValidationInput(pool:Pool,input:Artifact):Promise<Val
     return[{questionId,type:firstText(scheme,['schemeType','scheme_type','type'])||'all_required',maxMarks:numberOr(scheme.maxMarks??scheme.max_marks,0),points:points.map(point=>numberOr(point.marks,0)),...(nRequired!==undefined?{nRequired}:{}),...(groupMaxMarks!==undefined?{groupMaxMarks}:{}),...(levels.length?{levels:levels.length}:{})}];
   });
   const dependencies=normalizeValidationDependencies(input.dependencies);
-  const assetCandidates=asRecords(input.assetCandidates);
-  const validationAssets:ValidationInput['assets']=assetCandidates.flatMap(asset=>{
-    const storagePath=firstText(asset,['storagePath','storage_path']);const size=numberOr(asset.size??asset.sizeBytes??asset.size_bytes,storagePath?4096:0);
+  const storedAssets=asRecords(input.storedAssets);
+  const validationAssets:ValidationInput['assets']=storedAssets.flatMap(asset=>{
+    const storagePath=firstText(asset,['storagePath','storage_path']),size=numberOr(asset.sizeBytes??asset.size_bytes??asset.size,0);
     return storagePath?[{storagePath,size}]:[];
   });
   return{componentTotal,questions:validationQuestions,schemes:validationSchemes,assets:validationAssets,...(dependencies.length?{dependencies}:{})};
@@ -162,7 +162,7 @@ function artifactFindings(input:Artifact):Finding[]{
   const classificationIssues=asRecords(input.classifications).flatMap(item=>asStrings(item.issues));
   if(classificationIssues.length)add('V25','error',`Classification contains ${classificationIssues.length} unresolved issue(s).`);
   const dependencyIssues=asStrings(input.dependencyIssues);if(dependencyIssues.length)add('V26','warning',`Dependency classification contains ${dependencyIssues.length} unresolved issue(s).`);
-  const assetIssues=asRecords(input.assetCandidates).filter(asset=>firstText(asset,['status','cropStatus','crop_status'])==='failed');if(assetIssues.length)add('V27','error',`Asset extraction contains ${assetIssues.length} failed candidate(s).`);
+  const assetIssues=questionIssues.filter(issue=>issue.startsWith('asset_missing_crop_coordinates:')||issue.startsWith('asset_invalid_crop_coordinates:'));if(assetIssues.length)add('V27','error',`Asset extraction contains ${assetIssues.length} invalid or missing crop coordinate issue(s).`);
   const report=isArtifact(input.matchReport)?input.matchReport:{};const unmatchedQuestions=asStrings(report.unmatchedQuestions),unmatchedSchemes=asStrings(report.unmatchedSchemes);
   if(unmatchedQuestions.length||unmatchedSchemes.length)add('V28','error',`QP/MS coverage mismatch (${unmatchedQuestions.length} question(s), ${unmatchedSchemes.length} scheme(s)).`);
   const duplicates=asStrings(report.duplicateQuestionRefs);if(duplicates.length)add('V29','error',`Duplicate extracted question reference(s): ${duplicates.join(', ')}.`);
