@@ -49,13 +49,15 @@ export async function extractMarkSchemesStage(pool:Pool,client:AiClient,input:Ar
 
 export async function classifyQuestionsStage(pool:Pool,client:AiClient,input:Artifact):Promise<Artifact>{
  const questions=asQuestions(input.questions),schemes=asSchemes(input.markSchemes),prepared=pickPrepared(input,'qp');if(!prepared||!questions.length)return input;
- const catalog=await syllabusCatalog(pool,prepared.paperId),subtopics=new Map<string,CatalogRow>(),los=new Map<string,{id:string;code:string}>();
+ const [catalog,metadata]=await Promise.all([syllabusCatalog(pool,prepared.paperId),paperMetadata(pool,prepared.paperId)]),subtopics=new Map<string,CatalogRow>(),los=new Map<string,{id:string;code:string}>();
  for(const row of catalog){if(!subtopics.has(row.subtopic_code))subtopics.set(row.subtopic_code,row);if(row.lo_id&&row.lo_code)los.set(row.lo_code,{id:row.lo_id,code:row.lo_code})}
  const catalogText=JSON.stringify(groupCatalog(catalog));const template=await loadPrompt('classify-question',1),classifications:Classification[]=[];
  for(const question of questions.filter(question=>question.marks!==null)){
-  const scheme=schemes.find(item=>item.path===question.path);const prompt:PromptFile={version:template.version,body:renderTemplate(template.body,{
-    question_stem_and_context:JSON.stringify({path:question.path,context_md:contextFor(questions,question),stem_md:question.stemMd,marks:question.marks,command_word:question.commandWord}),
-    mark_scheme:JSON.stringify(scheme??null),subtopic_list_with_learning_objectives:catalogText,
+  const scheme=schemes.find(item=>item.path===question.path),questionContext=JSON.stringify({path:question.path,context_md:contextFor(questions,question),stem_md:question.stemMd,marks:question.marks,command_word:question.commandWord});
+  const markScheme=JSON.stringify(scheme??null),msPointsText=scheme?.points.map(point=>`${point.code}: ${point.text}`).join('\n')??'';
+  const prompt:PromptFile={version:template.version,body:renderTemplate(template.body,{
+    question_stem_and_context:questionContext,mark_scheme:markScheme,subtopic_list_with_learning_objectives:catalogText,
+    stem_latex:question.stemMd??'',command_word:question.commandWord??'',marks:String(question.marks??''),component_name:metadata.component_name,level:metadata.level,ms_points_text:msPointsText,
   })};
   const response=await callAndRecord(pool,client,{purpose:'classify',prompt,content:[{type:'text',text:'Return the classification JSON only.'}],maxTokens:2048,ref:{table:'source_papers',id:prepared.paperId}});
   const parsed=classificationSchema.parse(response.data),issues:string[]=[];
@@ -122,7 +124,7 @@ function groupCatalog(rows:CatalogRow[]){
  return[...topics.values()].map(topic=>({...topic,subtopics:[...topic.subtopics.values()]}));
 }
 function contextFor(questions:ExtractedQuestion[],leaf:ExtractedQuestion){const blocks:string[]=[];let parent=leaf.parentPath;while(parent){const found=questions.find(question=>question.path===parent);if(!found)break;if(found.contextMd)blocks.unshift(found.contextMd);parent=found.parentPath}if(leaf.contextMd)blocks.push(leaf.contextMd);return blocks.join('\n\n')||null}
-function renderTemplate(template:string,values:Record<string,string>){return template.replace(/\{\{([a-z0-9_]+)\}\}/gi,(_match,key:string)=>values[key]??`{{${key}}}`)}
+function renderTemplate(template:string,values:Record<string,string>){return template.replace(/\{\{([a-z0-9_]+)\}\}|\{([a-z0-9_]+)\}/gi,(match:string,doubleKey:string|undefined,singleKey:string|undefined)=>values[doubleKey??singleKey??'']??match)}
 
 async function extractionContent(batch:Batch,header:Record<string,unknown>,imageLoader:ImageLoader):Promise<ClaudeUserBlock[]>{
  const textPages=batch.text.split('\n\f\n');const content:ClaudeUserBlock[]=[{type:'text',text:`Input metadata:\n${JSON.stringify(header)}`}];
