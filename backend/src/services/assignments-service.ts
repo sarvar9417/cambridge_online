@@ -6,6 +6,48 @@ export class DomainError extends Error { constructor(public code:string, public 
 
 export class AssignmentsService {
   constructor(private pool:Pool) {}
+  async createPractice(actor:Actor,input:{subtopicId:string;commandWord?:string}) {
+    if(actor.role!=='student')throw new DomainError('students_only',403);
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const context=await client.query(
+        `select c.id class_id,st.code,st.title from enrollments e join classes c on c.id=e.class_id
+         join topics t on t.syllabus_id=c.syllabus_id join subtopics st on st.topic_id=t.id
+         where e.student_id=$1 and e.left_at is null and c.archived_at is null and st.id=$2
+         order by c.academic_year desc,c.created_at limit 1`,
+        [actor.id,input.subtopicId],
+      );
+      if(!context.rowCount)throw new DomainError('not_found',404);
+      const questions=await client.query(
+        `select q.id,q.marks from questions q join question_subtopics qs on qs.question_id=q.id
+         join mark_schemes ms on ms.question_id=q.id and ms.status='approved'
+         where qs.subtopic_id=$1 and q.status='approved' and q.parent_id is not null
+           and q.marks is not null and q.answer_kind not in('diagram','image')
+           and($2::text is null or q.command_word::text=$2)
+         order by md5(q.id::text||$3||current_date::text) limit 5`,
+        [input.subtopicId,input.commandWord??null,actor.id],
+      );
+      if(!questions.rowCount)throw new DomainError('practice_pool_empty',409);
+      const meta=context.rows[0];
+      const total=questions.rows.reduce((sum,row)=>sum+Number(row.marks),0);
+      const assignment=await client.query(
+        `insert into assignments(class_id,created_by,title,mode,total_marks,opens_at,counts_towards_grade,mastery_weight,published_at)
+         values($1,$2,$3,'practice',$4,now(),false,0.5,now())returning id,title,total_marks`,
+        [meta.class_id,actor.id,`Mashq · ${meta.code} ${meta.title}`,total],
+      );
+      for(const [index,question]of questions.rows.entries())await client.query(
+        `insert into assignment_questions(assignment_id,question_id,sort_order)values($1,$2,$3)`,
+        [assignment.rows[0].id,question.id,index+1],
+      );
+      await client.query(
+        `insert into submissions(assignment_id,student_id)values($1,$2)`,
+        [assignment.rows[0].id,actor.id],
+      );
+      await client.query('commit');
+      return{id:assignment.rows[0].id,title:assignment.rows[0].title,totalMarks:Number(assignment.rows[0].total_marks),questionCount:questions.rowCount};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
   async create(actor:Actor,input:{classId:string;title:string;instructions?:string;dueAt?:string;timeLimitMin?:number;questionIds:string[]}) {
     if(actor.role==='student')throw new DomainError('staff_only',403);
     const client=await this.pool.connect();try{await client.query('begin');
@@ -23,7 +65,7 @@ export class AssignmentsService {
   async list(actor:Actor,classId?:string) {
     const values:unknown[]=[actor.id];
     const scope=actor.role==='student'
-      ? `exists(select 1 from enrollments e where e.class_id=a.class_id and e.student_id=$1 and e.left_at is null) and a.published_at is not null`
+      ? `exists(select 1 from enrollments e where e.class_id=a.class_id and e.student_id=$1 and e.left_at is null) and a.published_at is not null and(a.mode<>'practice' or a.created_by=$1)`
       : actor.role==='owner' ? `exists(select 1 from classes c where c.id=a.class_id and c.school_id=$2)`
       : `exists(select 1 from classes c where c.id=a.class_id and (c.owner_id=$1 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$1)))`;
     if(actor.role==='owner') values.push(actor.schoolId);

@@ -95,7 +95,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }

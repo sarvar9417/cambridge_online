@@ -317,9 +317,9 @@ export class GradingService {
         await client.query(
           `insert into mastery(student_id,subtopic_id,score,attempts,marks_earned,marks_possible,last_activity_at)
            select s.student_id,qs.subtopic_id,
-             case when sum(g.max_marks)>0 then sum(g.final_score)/sum(g.max_marks) else 0 end,
-             count(distinct g.id),sum(g.final_score),sum(g.max_marks),now()
-           from submissions s join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
+             case when sum(g.max_marks*a.mastery_weight)>0 then sum(g.final_score*a.mastery_weight)/sum(g.max_marks*a.mastery_weight) else 0 end,
+             count(distinct g.id),sum(g.final_score*a.mastery_weight),sum(g.max_marks*a.mastery_weight),now()
+           from submissions s join assignments a on a.id=s.assignment_id join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
            join question_subtopics qs on qs.question_id=ans.question_id where s.id=$1
            group by s.student_id,qs.subtopic_id
            on conflict(student_id,subtopic_id) do update set

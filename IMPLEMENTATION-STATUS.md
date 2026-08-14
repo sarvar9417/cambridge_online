@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 222 backend and 7 frontend tests pass.
+- 226 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -44,6 +44,9 @@ This file records verified implementation evidence. Requirements remain in
   tab bar with mobile access to profile data export and logout. Starting a
   precreated submission atomically changes it from `not_started` to `in_progress`
   and records its server-side start time; expired attempts return to the dashboard.
+  The weakest mastery subtopic can create a private five-question practice
+  assignment; it is excluded from the grade journal and contributes 0.5-weighted
+  evidence to mastery after grading.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, self-scoped student command-word progress, student mastery
   confidence and owner-only AI quality metrics,
@@ -68,6 +71,8 @@ This file records verified implementation evidence. Requirements remain in
   aggregate grading statistics while clearing identity, sessions and answers;
   PostgreSQL pool size is serverless-aware to stay within hosted connection limits;
   assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
+  Database readiness probes time out after two seconds and clear their timer on
+  both success and failure.
 - Frontend API access tokens remain memory-only; concurrent 401 responses share
   one rotating refresh request, retry once and return to login on refresh failure.
 

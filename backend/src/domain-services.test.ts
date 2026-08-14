@@ -66,6 +66,33 @@ describe('domain authorization', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it('creates a private five-question practice assignment for an enrolled subtopic',async()=>{
+    const questions=Array.from({length:5},(_,index)=>({id:`q${index+1}`,marks:2}));
+    const query=vi.fn()
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({rowCount:1,rows:[{class_id:'class-id',code:'8.2',title:'Normalisation'}]})
+      .mockResolvedValueOnce({rowCount:5,rows:questions})
+      .mockResolvedValueOnce({rows:[{id:'practice-id',title:'Mashq · 8.2 Normalisation',total_marks:10}]})
+      .mockResolvedValue({rowCount:1,rows:[]});
+    const release=vi.fn();
+    await expect(new AssignmentsService({connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool).createPractice(student,{subtopicId:'subtopic-id',commandWord:'Explain'}))
+      .resolves.toMatchObject({id:'practice-id',totalMarks:10,questionCount:5});
+    expect(query.mock.calls[2]![0]).toContain("q.answer_kind not in('diagram','image')");
+    expect(query.mock.calls[2]![0]).toContain('q.command_word::text=$2');
+    expect(query.mock.calls[3]![0]).toContain("'practice'");
+    expect(query.mock.calls[3]![0]).toContain('false,0.5');
+    expect(query.mock.calls[9]![0]).toContain('insert into submissions');
+    expect(query.mock.calls[10]![0]).toBe('commit');
+  });
+
+  it('does not create practice outside the student enrolled syllabus',async()=>{
+    const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:0,rows:[]}).mockResolvedValueOnce({}),release=vi.fn();
+    await expect(new AssignmentsService({connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool).createPractice(student,{subtopicId:'other'}))
+      .rejects.toMatchObject({code:'not_found',status:404});
+    expect(query.mock.calls[1]![0]).toContain('e.student_id=$1');
+    expect(query.mock.calls[2]![0]).toBe('rollback');
+  });
+
   it('answer save hides submissions owned by another student', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
     await expect(new AssignmentsService({ query } as unknown as Pool).saveAnswer(student, 'submission-id', 'question-id', 'answer')).rejects.toMatchObject({ status: 404 });
@@ -130,6 +157,12 @@ describe('domain authorization', () => {
     expect(query.mock.calls[0]![1]).toEqual(['owner-id','school-id','class-id']);
   });
 
+  it('student assignment list hides practice created by classmates',async()=>{
+    const query=vi.fn().mockResolvedValue({rows:[]});
+    await new AssignmentsService({query}as unknown as Pool).list(student);
+    expect(query.mock.calls[0]![0]).toContain("a.mode<>'practice' or a.created_by=$1");
+  });
+
   it('result detail always includes released-only and school/class scope', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).detail(owner, 'submission-id');
@@ -161,6 +194,7 @@ describe('domain authorization', () => {
   it('students cannot read the staff appeal queue',async()=>{const query=vi.fn();await expect(new GradingService({query}as unknown as Pool).appealQueue(student)).rejects.toMatchObject({status:403});expect(query).not.toHaveBeenCalled()});
   it('students cannot resolve grading appeals',async()=>{const connect=vi.fn();await expect(new GradingService({connect}as unknown as Pool).resolveAppeal(student,'appeal','accepted','Recheck')).rejects.toMatchObject({status:403});expect(connect).not.toHaveBeenCalled()});
   it('release updates error patterns and schedules repeated misses as flashcards',async()=>{const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:'g'}]});const tx=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'g',answer_id:'answer'}]}).mockResolvedValueOnce({rows:[{submission_id:'submission'}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({rows:[{count:1}]}).mockResolvedValueOnce({}),release=vi.fn();const pool={query,connect:vi.fn().mockResolvedValue({query:tx,release})}as unknown as Pool;await new GradingService(pool).release(owner,'g');expect(tx.mock.calls[3]![0]).toContain('insert into error_patterns');expect(tx.mock.calls[3]![0]).toContain('b.miss_count>=2');expect(tx.mock.calls[3]![0]).toContain("interval '3 days'")});
+  it('weights practice evidence before adding it to mastery',async()=>{const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:'g'}]});const tx=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'g',answer_id:'answer'}]}).mockResolvedValueOnce({rows:[{submission_id:'submission'}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({rows:[{count:0}]}).mockResolvedValue({}),release=vi.fn();await new GradingService({query,connect:vi.fn().mockResolvedValue({query:tx,release})}as unknown as Pool).release(owner,'g');expect(tx.mock.calls[6]![0]).toContain('a.mastery_weight');expect(tx.mock.calls[6]![0]).toContain('sum(g.final_score*a.mastery_weight)')});
   it('students cannot read assignment-wide results',async()=>{const query=vi.fn();await expect(new AssignmentsService({query}as unknown as Pool).results(student,'assignment')).rejects.toMatchObject({status:403});expect(query).not.toHaveBeenCalled()});
   it('assignment results retain class authorization scope',async()=>{const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{submission_id:null,student_name:'Student',status:null,total_score:null,total_max:null,percentage:null,released_at:null}]});const data=await new AssignmentsService({query}as unknown as Pool).results(owner,'assignment');expect(query.mock.calls[0]![0]).toContain("$2='owner' and c.school_id=$3");expect(data[0]).toMatchObject({studentName:'Student',status:'not_started',totalScore:null})});
 });

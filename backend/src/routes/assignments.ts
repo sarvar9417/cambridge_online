@@ -10,6 +10,7 @@ const uuid = z.string().uuid();
 export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool) {
   const router = Router();
   router.get('/', async (req, res) => res.json({ data: await service.list(req.actor!) }));
+  router.post('/practice',async(req,res)=>{const body=z.object({subtopicId:uuid,commandWord:z.enum(['State','Give','Name','Identify','Define','Describe','Explain','Compare','Calculate','Complete','Draw','Write','Evaluate','Justify','Suggest','Show','Other']).optional()}).parse(req.body);const operation=async()=>({status:201,body:await service.createPractice(req.actor!,body)});if(pool)return runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body)});
   router.get('/:id/results', async (req, res) => res.json({ data: await service.results(req.actor!, uuid.parse(req.params.id)) }));
   router.post('/', async (req, res) => {
     const body = z.object({

@@ -46,6 +46,7 @@ export function App() {
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
+  const [practicing,setPracticing]=useState<string|null>(null);
   const [commandWords,setCommandWords]=useState<CommandWordProgress[]>([]);
   const [review, setReview] = useState<ReviewQuestion[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
@@ -301,6 +302,16 @@ export function App() {
         ]),
       ),
     );
+  };
+  const startPractice=async(item:MasteryItem)=>{
+    setPracticing(item.subtopic_id);setError('');
+    try{
+      const created=await api<{id:string}>('/assignments/practice',{
+        method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},
+        body:JSON.stringify({subtopicId:item.subtopic_id}),
+      });
+      await start(created.id);
+    }catch(cause){setError(cause instanceof Error?cause.message:'Mashq yaratilmadi.')}finally{setPracticing(null)}
   };
   const change = (id: string, value: string) => {
     if (!attempt) return;
@@ -767,7 +778,7 @@ export function App() {
               </p>
             ) : (
               <div className="mastery-list">
-                {mastery.map((item) => (
+                {mastery.map((item,index) => (
                   <div key={item.subtopic_id}>
                     <div>
                       <strong>
@@ -776,6 +787,7 @@ export function App() {
                       <span>{Math.round(item.score * 100)}%</span>
                     </div>
                     <progress max="1" value={item.score} />
+                    {index===0&&<button className="practice-button" disabled={practicing===item.subtopic_id} onClick={()=>startPractice(item)}>{practicing===item.subtopic_id?'Tayyorlanmoqda…':'Mashq qilish'}</button>}
                   </div>
                 ))}
               </div>
