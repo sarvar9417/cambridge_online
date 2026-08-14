@@ -55,8 +55,9 @@ export class AssignmentsService {
   }
   async extend(actor:Actor,id:string,minutes:number) {if(actor.role==='student')throw new DomainError('staff_only',403);await this.submission(actor,id);return(await this.pool.query(`update submissions set time_extension_min=time_extension_min+$2 where id=$1 returning id,time_extension_min`,[id,minutes])).rows[0]}
   async session(actor:Actor,id:string,open:boolean) {if(actor.role==='student')throw new DomainError('staff_only',403);const code=open?String(Math.floor(100000+Math.random()*900000)):null;const r=await this.pool.query(`update assignments a set session_code=$2,session_opened_at=case when $3 then now()else null end where a.id=$1 and exists(select 1 from classes c where c.id=a.class_id and (($4='owner'and c.school_id=$5)or($4='teacher'and(c.owner_id=$6 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$6)))))returning id,session_code`,[id,code,open,actor.role,actor.schoolId,actor.id]);if(!r.rowCount)throw new DomainError('not_found',404);return r.rows[0]}
-  async start(actor:Actor, assignmentId:string, clientSessionId?:string) {
+  async start(actor:Actor, assignmentId:string, clientSessionId?:string, requestedStudentId?:string) {
     if(actor.role!=='student') throw new DomainError('students_only',403);
+    if(requestedStudentId&&requestedStudentId!==actor.id)throw new DomainError('student_scope_forbidden',403);
     const client=await this.pool.connect(); try { await client.query('begin');
       const ar=await client.query(`select a.* from assignments a join enrollments e on e.class_id=a.class_id
         where a.id=$1 and e.student_id=$2 and e.left_at is null and a.published_at is not null for update`,[assignmentId,actor.id]);

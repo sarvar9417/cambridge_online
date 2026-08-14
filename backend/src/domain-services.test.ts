@@ -21,6 +21,13 @@ describe('domain authorization', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it('student cannot start an attempt for another student', async () => {
+    const connect=vi.fn();
+    await expect(new AssignmentsService({connect}as unknown as Pool).start(student,'assignment-id',undefined,'other-student'))
+      .rejects.toMatchObject({code:'student_scope_forbidden',status:403});
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it('assignment creation rejects students before opening a transaction', async () => {
     const connect = vi.fn();
     await expect(new AssignmentsService({ connect } as unknown as Pool).create(student, { classId: 'class-id', title: 'Test', questionIds: ['question-id'] })).rejects.toMatchObject({ status: 403 });
