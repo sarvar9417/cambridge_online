@@ -235,6 +235,40 @@ export class GradingService {
         [result.rows[0].answer_id],
       );
       const submissionId = submission.rows[0].submission_id;
+      await client.query(
+        `with observed as (
+           select s.student_id,msp.id mark_scheme_point_id,msp.text,q.id question_id,
+                  qs.subtopic_id,coalesce(gp.final_matched,false) matched
+           from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id
+           join questions q on q.id=ans.question_id join grading_points gp on gp.grading_id=g.id
+           join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id
+           join question_subtopics qs on qs.question_id=q.id and qs.is_primary
+           where g.id=$1
+         ), bumped as (
+           insert into error_patterns(student_id,mark_scheme_point_id,miss_count,hit_count,last_seen_at)
+           select student_id,mark_scheme_point_id,case when matched then 0 else 1 end,case when matched then 1 else 0 end,now() from observed
+           on conflict(student_id,mark_scheme_point_id)do update set
+             miss_count=error_patterns.miss_count+case when excluded.miss_count=1 then 1 else 0 end,
+             hit_count=error_patterns.hit_count+case when excluded.hit_count=1 then 1 else 0 end,last_seen_at=now()
+           returning student_id,mark_scheme_point_id,miss_count
+         ), decks as (
+           insert into flashcard_decks(subtopic_id,title,status)
+           select distinct o.subtopic_id,'Xatolardan takrorlash','approved' from observed o join bumped b using(student_id,mark_scheme_point_id)
+           where not o.matched and b.miss_count>=2
+           on conflict(subtopic_id,title)do update set title=excluded.title returning id,subtopic_id
+         ), cards as (
+           insert into flashcards(deck_id,front_md,back_md,hint_md,source_question_id,source_mark_scheme_point_id)
+           select distinct d.id,'What must your answer include?',o.text,'Bu mark pointni aniq texnik ibora bilan eslang.',o.question_id,o.mark_scheme_point_id
+           from observed o join bumped b using(student_id,mark_scheme_point_id) join decks d on d.subtopic_id=o.subtopic_id
+           where not o.matched and b.miss_count>=2
+           on conflict(deck_id,source_mark_scheme_point_id)where source_mark_scheme_point_id is not null
+           do update set back_md=excluded.back_md returning id,source_mark_scheme_point_id
+         )
+         insert into flashcard_reviews(user_id,flashcard_id,interval_days,due_at)
+         select distinct b.student_id,c.id,3,now()+interval '3 days' from bumped b join cards c using(mark_scheme_point_id)
+         on conflict(user_id,flashcard_id)do nothing`,
+        [gradingId],
+      );
       const pending = await client.query(
         `select count(*)::int as count
          from gradings g join answers ans on ans.id = g.answer_id
