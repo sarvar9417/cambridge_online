@@ -1,5 +1,5 @@
-import { writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { pool } from './client.js';
 
 /**
@@ -38,6 +38,14 @@ try {
   const migrationsResult = await client.query(
     'SELECT name, applied_at FROM schema_migrations ORDER BY name',
   );
+
+  const dependenciesTableResult = await client.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'question_dependencies'
+    ) AS present
+  `);
 
   const countsResult = await client.query(`
     SELECT
@@ -111,8 +119,7 @@ try {
         array_agg(DISTINCT sp.kind::text ORDER BY sp.kind::text) AS kinds,
         bool_or(sp.kind = 'QP') AS qp_present,
         bool_or(sp.kind = 'MS') AS ms_present,
-        max(sp.id) FILTER (WHERE sp.kind = 'QP') AS qp_id,
-        max(sp.id) FILTER (WHERE sp.kind = 'MS') AS ms_id
+        (array_agg(sp.id ORDER BY sp.created_at) FILTER (WHERE sp.kind = 'QP'))[1] AS qp_id
       FROM source_papers sp
       JOIN syllabi s ON s.id = sp.syllabus_id
       JOIN components c ON c.id = sp.component_id
@@ -201,8 +208,9 @@ try {
     counts,
     papers,
     gaps: {
-      note: 'SF (Paper 4 source files) is not represented by the current paper_kind enum and is therefore not counted here.',
-      question_dependencies_table_present: false,
+      sf_paper_kind_present: false,
+      sf_note: 'SF (Paper 4 source files) is not represented by the current paper_kind enum and is therefore not counted here.',
+      question_dependencies_table_present: Boolean(dependenciesTableResult.rows[0]?.present),
     },
   };
 
@@ -235,6 +243,7 @@ try {
 
   if (jsonOut) {
     const destination = resolve(jsonOut);
+    await mkdir(dirname(destination), { recursive: true });
     await writeFile(destination, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
     console.log(`JSON report written to ${destination}`);
   }
