@@ -9,6 +9,7 @@ import type {
 } from '../services/selection-review.js';
 
 export interface QuestionFilters { q?: string; commandWord?: string; marksMin?: number; marksMax?: number; }
+interface AssetUrlSigner { signStoragePath(storagePath: string, expiresInSeconds?: number): Promise<string | null>; }
 
 const normalizeDependencyKind = (value: string): DependencyKind =>
   value === 'answer' ? 'answer_ref' : value === 'text' ? 'text_ref' : value as DependencyKind;
@@ -16,7 +17,7 @@ const normalizeDependencyStrength = (value: string): DependencyStrength =>
   value === 'hard' ? 'required' : value as DependencyStrength;
 
 export class PgQuestionsRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool, private readonly assetUrlSigner?: AssetUrlSigner) {}
 
   async findVisible(actor: Actor, filters: QuestionFilters) {
     const values: unknown[] = [];
@@ -134,6 +135,16 @@ export class PgQuestionsRepository {
        order by target.sort_order,target.id`,
       [id],
     );
+    const contextBlocks = await Promise.all(rows
+      .filter((row) => row.context || row.assets.length)
+      .map(async (row) => ({
+        id: row.id,
+        label: row.label,
+        displayRef: row.display_ref,
+        depth: row.depth,
+        context: row.context,
+        assets: await this.portableAssets(row.assets),
+      })));
 
     return {
       leaf: {
@@ -149,16 +160,7 @@ export class PgQuestionsRepository {
         answerLines: leaf.answer_lines,
       },
       chain: rows.map((row) => ({ id: row.id, label: row.label, depth: row.depth })),
-      contextBlocks: rows
-        .filter((row) => row.context || row.assets.length)
-        .map((row) => ({
-          id: row.id,
-          label: row.label,
-          displayRef: row.display_ref,
-          depth: row.depth,
-          context: row.context,
-          assets: row.assets as PortableAsset[],
-        })),
+      contextBlocks,
       dependencies: dependencies.rows.map((row) => ({
         id: row.id,
         questionId: row.question_id,
@@ -172,6 +174,18 @@ export class PgQuestionsRepository {
       })),
       sourceRef: leaf.display_ref,
     };
+  }
+
+  private async portableAssets(rawAssets: unknown): Promise<PortableAsset[]> {
+    if (!Array.isArray(rawAssets)) return [];
+    return Promise.all(rawAssets.map(async (raw) => {
+      const asset = raw as Omit<PortableAsset, 'url'>;
+      const storagePath = typeof asset.storagePath === 'string' ? asset.storagePath : null;
+      const url = storagePath && this.assetUrlSigner
+        ? await this.assetUrlSigner.signStoragePath(storagePath, 300)
+        : null;
+      return { ...asset, storagePath, url };
+    }));
   }
 
   async approve(actor: Actor, id: string) {
