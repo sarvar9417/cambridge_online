@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 220 backend and 7 frontend tests pass.
+- 222 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -30,8 +30,9 @@ This file records verified implementation evidence. Requirements remain in
 - Faza 0: auth, refresh rotation/reuse, invite redemption, authorization
   middleware, route coverage, readiness, migrations and seed data.
 - Faza 1: question bank, assignments, attempts, heartbeat/timer, offline queue,
-  manual grading, released results, assignment result rosters, grading appeals
-  and mastery. Question detail exposes mark schemes to staff and only to a
+  manual grading, released results, assignment result rosters, transaction-safe
+  grading appeals limited to three per assignment, and mastery. Question detail
+  exposes mark schemes to staff and only to a
   student whose own submission has been released, through a central serializer.
   Canonical class-assignment, submission and grading routes are available;
   publishing precreates student submissions and staff can grant individual

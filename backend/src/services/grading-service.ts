@@ -167,7 +167,35 @@ export class GradingService {
   }
 
   async confirm(actor:Actor,gradingId:string){await this.assertVisible(actor,gradingId);const r=await this.pool.query(`update gradings set status='teacher_done',final_score=coalesce(teacher_score,ai_score),graded_by=$2,graded_at=now()where id=$1 and coalesce(teacher_score,ai_score) is not null returning id,final_score`,[gradingId,actor.id]);if(!r.rowCount)throw new DomainError('score_required',409);return r.rows[0]}
-  async appeal(actor:Actor,gradingId:string,reason:string){if(actor.role!=='student')throw new DomainError('students_only',403);const r=await this.pool.query(`insert into grading_appeals(grading_id,student_id,reason)select g.id,s.student_id,$3 from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id where g.id=$1 and s.student_id=$2 and g.released_at is not null on conflict(grading_id)do nothing returning id,status`,[gradingId,actor.id,reason]);if(!r.rowCount)throw new DomainError('not_found',404);await this.pool.query(`update gradings set status='needs_teacher' where id=$1`,[gradingId]);return r.rows[0]}
+  async appeal(actor:Actor,gradingId:string,reason:string){
+    if(actor.role!=='student')throw new DomainError('students_only',403);
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const target=await client.query(
+        `select g.id,ans.submission_id from gradings g join answers ans on ans.id=g.answer_id
+         join submissions s on s.id=ans.submission_id
+         where g.id=$1 and s.student_id=$2 and g.released_at is not null for update of s`,
+        [gradingId,actor.id],
+      );
+      if(!target.rowCount)throw new DomainError('not_found',404);
+      const existing=await client.query(`select 1 from grading_appeals where grading_id=$1`,[gradingId]);
+      if(existing.rowCount)throw new DomainError('appeal_exists',409);
+      const count=await client.query(
+        `select count(*)::int count from grading_appeals ga join gradings g on g.id=ga.grading_id
+         join answers ans on ans.id=g.answer_id where ans.submission_id=$1`,
+        [target.rows[0].submission_id],
+      );
+      if(Number(count.rows[0].count)>=3)throw new DomainError('appeal_limit',409);
+      const result=await client.query(
+        `insert into grading_appeals(grading_id,student_id,reason)values($1,$2,$3)returning id,status`,
+        [gradingId,actor.id,reason],
+      );
+      await client.query(`update gradings set status='needs_teacher' where id=$1`,[gradingId]);
+      await client.query('commit');
+      return result.rows[0];
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
 
   async appealQueue(actor: Actor): Promise<AppealQueueItem[]> {
     this.assertStaff(actor);
