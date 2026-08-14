@@ -33,7 +33,7 @@ describe('domain authorization', () => {
   });
 
   it('result list always includes released-only and actor scope predicates', async () => {
-    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).list(student);
     const [sql, values] = query.mock.calls[0]!;
     expect(sql).toContain('s.released_at is not null');
@@ -42,7 +42,7 @@ describe('domain authorization', () => {
   });
 
   it('result detail always includes released-only and school/class scope', async () => {
-    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).detail(owner, 'submission-id');
     const [sql, values] = query.mock.calls[0]!;
     expect(sql).toContain('s.released_at is not null');

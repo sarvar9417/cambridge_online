@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { DomainError } from './assignments-service.js';
 
 export class ResultsService {
   constructor(private readonly pool: Pool) {}
@@ -46,6 +47,7 @@ export class ResultsService {
        ) group by q.id, ans.id, g.id, ga.status order by q.sort_order`,
       [submissionId, actor.role, actor.id, actor.schoolId],
     );
+    if (!result.rowCount) throw new DomainError('not_found', 404);
     return result.rows.map((row) => ({
       gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
       finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
