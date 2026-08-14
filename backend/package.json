@@ -11,6 +11,7 @@
     "test": "vitest run",
     "db:migrate": "tsx src/database/migrate.ts",
     "db:seed": "tsx src/database/seed.ts && tsx src/database/seed-questions.ts",
+    "db:inventory": "tsx src/database/inventory.ts",
     "jobs": "tsx src/jobs/start.ts"
   },
   "dependencies": {
