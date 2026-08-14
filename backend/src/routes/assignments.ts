@@ -5,6 +5,7 @@ import { GeneratorService } from '../services/generator-service.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import { overlayAssignmentAttempt } from '../lib/assignment-attempt-overlay.js';
+import { assertAssignmentOnlineRenderable } from '../lib/assignment-publish-guard.js';
 
 const uuid = z.string().uuid();
 
@@ -53,8 +54,18 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
     const body = z.object({ activeSessionId: uuid }).parse(req.body);
     res.json(await service.heartbeat(req.actor!, uuid.parse(req.params.id), body.activeSessionId));
   });
-  router.patch('/:id',async(req,res)=>{const body=z.object({title:z.string().min(3).max(120).optional(),dueAt:z.string().datetime().nullable().optional(),timeLimitMin:z.number().int().min(1).max(300).nullable().optional(),published:z.boolean().optional()}).parse(req.body);res.json(await service.update(req.actor!,uuid.parse(req.params.id),body));});
-  router.post('/:id/publish',async(req,res)=>{const assignmentId=uuid.parse(req.params.id);const operation=async()=>({status:200,body:await service.update(req.actor!,assignmentId,{published:true})});if(pool)return runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body)});
+  router.patch('/:id',async(req,res)=>{
+    const assignmentId=uuid.parse(req.params.id);
+    const body=z.object({title:z.string().min(3).max(120).optional(),dueAt:z.string().datetime().nullable().optional(),timeLimitMin:z.number().int().min(1).max(300).nullable().optional(),published:z.boolean().optional()}).parse(req.body);
+    if(body.published&&pool)await assertAssignmentOnlineRenderable(pool,assignmentId);
+    res.json(await service.update(req.actor!,assignmentId,body));
+  });
+  router.post('/:id/publish',async(req,res)=>{
+    const assignmentId=uuid.parse(req.params.id);
+    const operation=async()=>{if(pool)await assertAssignmentOnlineRenderable(pool,assignmentId);return{status:200,body:await service.update(req.actor!,assignmentId,{published:true})}};
+    if(pool)return runIdempotent(req,res,pool,operation);
+    const result=await operation();return res.status(result.status).json(result.body);
+  });
   router.post('/:id/session/open',async(req,res)=>res.json(await service.session(req.actor!,uuid.parse(req.params.id),true)));
   router.post('/:id/session/close',async(req,res)=>res.json(await service.session(req.actor!,uuid.parse(req.params.id),false)));
   return router;
@@ -73,5 +84,6 @@ function message(code: string) {
     session_replaced: 'Bu urinish boshqa qurilmada ochilgan.', students_only: 'Faqat o‘quvchi attempt boshlaydi.',
     student_scope_forbidden: 'Boshqa o‘quvchi nomidan attempt boshlab bo‘lmaydi.',
     assignment_not_open: 'Vazifa hali ochilmagan.', assignment_closed: 'Vazifa muddati tugagan.',
+    online_asset_rendering_unavailable:'Bu vazifada hali student oynasida ko‘rsatilmaydigan diagramma yoki rasm bor.',
   } as Record<string, string>)[code] ?? code;
 }
