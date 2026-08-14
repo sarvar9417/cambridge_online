@@ -18,8 +18,8 @@ const configSchema = z.object({
   ANTHROPIC_MODEL: z.string().min(1).optional(),
   CHROME_EXECUTABLE_PATH: z.string().optional(),
   CHROMIUM_PACK_URL: z.string().url().optional(),
-  PDFTOPPM_PATH: z.string().optional(),
-  PDFTOTEXT_PATH: z.string().optional(),
+  PDFTOPPM_PATH: z.string().min(1).default('pdftoppm'),
+  PDFTOTEXT_PATH: z.string().min(1).default('pdftotext'),
   EXPORT_DIR: z.string().default('storage/exports'),
 });
 
