@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 187 backend and 7 frontend tests pass.
+- 192 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008, 0011 and 0012 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
