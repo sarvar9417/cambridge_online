@@ -1,2 +1,0 @@
-import type{NextFunction,Request,Response}from'express';
-export function opportunisticMaintenance(closeExpired:()=>Promise<unknown>,intervalMs=30_000){let nextAt=0,running:Promise<unknown>|null=null;return async(_req:Request,_res:Response,next:NextFunction)=>{const now=Date.now();if(now<nextAt){next();return}nextAt=now+intervalMs;if(!running)running=closeExpired().catch(error=>console.error('Expired-attempt maintenance failed',error)).finally(()=>{running=null});await running;next()}}

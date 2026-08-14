@@ -1,64 +1,84 @@
 # CamPath
 
-CamPath uses one repository and one Vercel project:
+Cambridge International AS & A Level Computer Science (9618) preparation
+platform. Product rules live in `claude.md`; the requirement documents are
+`00-README.md` through `12-api.md`.
 
-- `frontend/` - React and Vite
-- `backend/` - Express and PostgreSQL
-- `api/` - Vercel adapter for the Express backend
+## Layout
 
-## Local development
-
-Install dependencies once:
-
-```bash
-npm install
+```
+apps/api        NestJS 10 — REST, JWT auth, global guards
+apps/worker     NestJS standalone — BullMQ consumers, no HTTP
+apps/web        React 18 + Vite + Tailwind + TanStack Query
+packages/db     Drizzle ORM, SQL migrations, seed
+packages/shared Zod contracts, marking.ts, srs.ts, validation rules
+packages/ai     Claude wrapper (worker-only, R9)
+prompts/        Versioned prompt files (R7)
+papers/         Source QP and MS PDFs
 ```
 
-Then start the complete frontend and backend with one command:
+## Infrastructure
+
+PostgreSQL and object storage come from **Supabase**. Redis has no Supabase
+equivalent and BullMQ needs one, so it runs locally in development and needs a
+hosted instance (Upstash or similar) in production.
+
+| Concern | Development | Production |
+| --- | --- | --- |
+| PostgreSQL | Supabase | Supabase |
+| Object storage | Supabase Storage (S3 protocol) | Supabase Storage |
+| Redis / BullMQ | `docker compose` | Hosted Redis |
+
+Two database URLs are needed. `DATABASE_URL` is the transaction pooler
+(port 6543) and carries request traffic. `DIRECT_URL` is the direct connection
+(port 5432) and is used only by migrations, which take a session-level advisory
+lock the pooler cannot honour.
+
+## Getting started
 
 ```bash
-npm run dev
+pnpm install
+cp .env.example .env          # fill in the Supabase values
+pnpm db:migrate               # uses DIRECT_URL
+pnpm db:seed                  # owner, teacher, 2 classes, 12 students
+docker compose up             # api :3001, worker, web :5173, redis :6379
 ```
 
-- Frontend: http://localhost:5173
-- Backend health: http://localhost:3001/api/v1/health
-
-Apply migrations and seed the official 9618 syllabus:
+Fully offline instead of Supabase:
 
 ```bash
-npm run db:migrate -w backend
-npm run db:seed -w backend
+docker compose --profile local up      # adds postgres :5432 and minio :9000
 ```
 
-Run all checks (format, lint, typecheck, tests, build) with:
+## Checks
 
 ```bash
-npm run verify
+pnpm verify      # format, lint, typecheck, test
 ```
 
-## Background jobs
+The two blocking tests must pass before any deploy:
 
-PDF export, ingestion and automatic attempt closing need a long-lived process.
-Vercel functions are serverless, so run the worker on any always-on host that
-can reach the same `DATABASE_URL`:
+- `apps/api/test/authz.e2e-spec.ts` — authorization scenarios against a real
+  PostgreSQL 16 started by Testcontainers. **Requires Docker.**
+- `apps/api/test/route-coverage.spec.ts` — every route is guarded unless it is
+  one of the five agreed `@Public()` endpoints.
 
-```bash
-npm run jobs -w backend
+## Endpoints
+
+```
+GET    /api/v1/health            public   liveness
+GET    /api/v1/ready             public   db, redis, s3 — 503 when degraded
+POST   /api/v1/auth/login        public   rate limited 5 / 15 min / IP+identifier
+POST   /api/v1/auth/refresh      public   rotation; replay revokes all sessions
+POST   /api/v1/auth/redeem-invite public
+POST   /api/v1/auth/logout
+GET    /api/v1/auth/me
+PATCH  /api/v1/auth/me
+GET    /api/v1/admin/ai-calls    owner
+GET    /api/v1/admin/audit-log   owner
 ```
 
-Without it the application still works — assignments, answers, manual grading
-and results are all request-scoped — but exports stay queued and expired
-attempts are not auto-submitted (writing past the deadline is refused either way).
+## Notes
 
-## Production
-
-- Application: https://cambridge-online.vercel.app
-- Repository: https://github.com/sarvar9417/cambridge_online
-
-The Vercel project must have `DATABASE_URL`, `JWT_SECRET`,
-`JWT_REFRESH_SECRET`, `FRONTEND_URL`, and `NODE_ENV=production` configured for
-Production, Preview, and Development as appropriate. Do not commit `.env`.
-Serverless deployments default to two PostgreSQL connections per function;
-`DB_POOL_MAX` can override that limit when the database plan allows it.
-
-Detailed product requirements are in `00-README.md` through `12-api.md`.
+The previous Express + `pg` implementation is preserved on the
+`archive/express-stack` branch.

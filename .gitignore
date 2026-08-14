@@ -1,18 +1,9 @@
 node_modules/
 dist/
-coverage/
 .env
-.env.*
-!.env.example
-.DS_Store
-*.log
-playwright-report/
-test-results/
-output/
-tmp/
-papers/
-**/storage/
+.env.local
 *.tsbuildinfo
-.vercel
-.env*
-!.env.example
+
+# Source PDFs are large and copyright-restricted (11-ops-and-legal.md).
+papers/
+storage/
