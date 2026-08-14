@@ -12,6 +12,7 @@ export interface ClassSummary {
 
 export interface ClassesRepository {
   findVisible(actor: Actor): Promise<ClassSummary[]>;
+  findOne(actor:Actor,id:string):Promise<ClassSummary|null>;
 }
 
 const mapClass = (row: Record<string, unknown>): ClassSummary => ({
@@ -69,5 +70,20 @@ export class PgClassesRepository implements ClassesRepository {
       [actor.id],
     );
     return result.rows.map(mapClass);
+  }
+
+  async findOne(actor:Actor,id:string) {
+    const scope=actor.role==='owner'
+      ? 'c.school_id=$2'
+      : actor.role==='teacher'
+        ? '(c.owner_id=$2 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$2))'
+        : 'exists(select 1 from enrollments own where own.class_id=c.id and own.student_id=$2 and own.left_at is null)';
+    const value=actor.role==='owner'?actor.schoolId:actor.id;
+    if(!value)return null;
+    const result=await this.pool.query(
+      `${SELECT_CLASSES} where c.id=$1 and c.archived_at is null and ${scope} group by c.id`,
+      [id,value],
+    );
+    return result.rows[0]?mapClass(result.rows[0]):null;
   }
 }

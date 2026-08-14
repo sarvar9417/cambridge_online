@@ -170,6 +170,7 @@ describe('authentication flow', () => {
           name: '10-A CS', grade: 10, level: 'AS', academicYear: '2026/2027', studentCount: 6,
         }];
       },
+      async findOne(){return null},
     };
     app = createApp(new AuthService(repository), classes);
     const login = await request(app).post('/api/v1/auth/login').send({
@@ -182,6 +183,16 @@ describe('authentication flow', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
     expect(seenActors).toEqual([repository.user.id]);
+  });
+
+  it('returns 404 for a class outside the teacher scope',async()=>{
+    repository.user.role='teacher';
+    const classes:ClassesRepository={findVisible:async()=>[],findOne:async()=>null};
+    app=createApp(new AuthService(repository),classes);
+    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
+    const response=await request(app).get('/api/v1/classes/2fe20e05-75b3-43a7-ac45-a81cb52b4ca8').set('Authorization',`Bearer ${login.body.accessToken}`);
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('not_found');
   });
 
   it('redeems an invite once and creates a session', async () => {
