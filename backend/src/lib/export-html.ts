@@ -1,5 +1,6 @@
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export interface ExportQuestion{displayRef:string;stem:string;context?:string;marks:number;points?:Array<{code:string;text:string;marks:number}>}
+export function assertPaperTotal(questions:ExportQuestion[],expected:number){const actual=questions.reduce((sum,question)=>sum+question.marks,0);if(actual!==expected)throw new Error(`export_total_mismatch:${actual}/${expected}`);return actual}
 
 export function renderPaperHtml(title:string,questions:ExportQuestion[],includeScheme=false,watermark?:string){
   const total=questions.reduce((sum,question)=>sum+question.marks,0);

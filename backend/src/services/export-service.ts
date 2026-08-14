@@ -13,6 +13,7 @@ export class ExportService {
   constructor(private readonly pool: Pool) {}
 
   async create(actor: Actor, input: ExportInput) {
+    if((input.refTable==='assignments'&&input.kind==='feedback')||(input.refTable==='submissions'&&input.kind!=='feedback'))throw new DomainError('invalid_export_kind',400);
     if (input.refTable === 'submissions' && actor.role === 'student') {
       const own = await this.pool.query(`select 1 from submissions where id=$1 and student_id=$2 and released_at is not null`, [input.refId, actor.id]);
       if (!own.rowCount) throw new DomainError('not_found', 404);

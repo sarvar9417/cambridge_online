@@ -9,6 +9,7 @@ const teacher = {
   },
   student = { ...teacher, id: "u", role: "student" as const };
 describe("export authorization", () => {
+  it("rejects incompatible export kinds before querying",async()=>{const query=vi.fn();await expect(new ExportService({query}as unknown as Pool).create(teacher,{kind:'feedback',refTable:'assignments',refId:'a'})).rejects.toMatchObject({code:'invalid_export_kind',status:400});expect(query).not.toHaveBeenCalled()});
   it("hides an assignment outside teacher classes", async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
     await expect(

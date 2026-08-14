@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import type { Pool } from 'pg';
 import { config } from '../../config.js';
-import { renderPaperHtml, type ExportQuestion } from '../../lib/export-html.js';
+import { assertPaperTotal, renderPaperHtml, type ExportQuestion } from '../../lib/export-html.js';
 import type { Job } from '../job-queue.js';
 
 export function createExportPdfProcessor(pool: Pool) {
@@ -21,15 +21,16 @@ export function createExportPdfProcessor(pool: Pool) {
 
     if (exp.ref_table === 'assignments') {
       const result = await pool.query(
-        `select a.title,q.display_ref,q.stem_md,q.context_md,q.marks,
+        `select a.title,a.total_marks,q.display_ref,q.stem_md,q.context_md,coalesce(aq.marks_override,q.marks)marks,
          coalesce(json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',msp.marks)order by msp.sort_order)filter(where msp.id is not null),'[]') points
          from assignments a join assignment_questions aq on aq.assignment_id=a.id join questions q on q.id=aq.question_id
          left join mark_schemes ms on ms.question_id=q.id left join mark_scheme_points msp on msp.mark_scheme_id=ms.id
-         where a.id=$1 group by a.id,q.id,aq.sort_order order by aq.sort_order`,
+         where a.id=$1 group by a.id,q.id,aq.sort_order,aq.marks_override order by aq.sort_order`,
         [exp.ref_id],
       );
       title = result.rows[0]?.title ?? 'CamPath Paper';
       questions = result.rows.map((row) => ({ displayRef:row.display_ref,stem:row.stem_md,context:row.context_md,marks:row.marks,points:row.points }));
+      assertPaperTotal(questions,Number(result.rows[0]?.total_marks??0));
     } else {
       const result = await pool.query(
         `select a.title,q.display_ref,q.stem_md,q.marks,ans.text,
