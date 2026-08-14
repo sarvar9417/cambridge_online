@@ -26,6 +26,8 @@ export interface AppealQueueItem {
   marks: number;
 }
 
+export interface GradingQueueFilters{classId?:string;mode?:'by_question'|'by_student';sort?:'confidence'}
+
 export class GradingService {
   constructor(private readonly pool: Pool) {}
 
@@ -53,10 +55,15 @@ export class GradingService {
     if (!result.rowCount) throw new DomainError('not_found', 404);
   }
 
-  async queue(actor: Actor): Promise<GradingQueueItem[]> {
+  async queue(actor: Actor,filters:GradingQueueFilters={}): Promise<GradingQueueItem[]> {
     this.assertStaff(actor);
+    const values:unknown[]=[actor.role,actor.schoolId,actor.id];
+    const classFilter=filters.classId?` and c.id=$${values.push(filters.classId)}`:'';
+    const order=filters.sort==='confidence'?'g.ai_confidence asc nulls first,s.submitted_at'
+      :filters.mode==='by_student'?'u.full_name,q.sort_order'
+        :filters.mode==='by_question'?'q.display_ref,s.submitted_at':'s.submitted_at';
     const result = await this.pool.query(
-      `select g.id, ans.text, q.display_ref, q.stem_md, q.marks, q.answer_kind,
+      `select g.id,g.ai_confidence,ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,
               u.full_name as student_name,
               coalesce(json_agg(json_build_object(
                 'id', gp.id, 'code', msp.code, 'text', msp.text,
@@ -76,10 +83,10 @@ export class GradingService {
          ($1 = 'teacher' and (c.owner_id = $3 or exists (
            select 1 from class_teachers ct where ct.class_id = c.id and ct.teacher_id = $3
          )))
-       )
+       )${classFilter}
        group by g.id, ans.id, q.id, u.id, s.submitted_at
-       order by s.submitted_at`,
-      [actor.role, actor.schoolId, actor.id],
+       order by ${order}`,
+      values,
     );
     return result.rows;
   }

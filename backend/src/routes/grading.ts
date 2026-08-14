@@ -6,7 +6,8 @@ export function createGradingRouter(service: GradingService) {
   const router = Router();
 
   router.get('/queue', async (req, res) => {
-    res.json({ data: await service.queue(req.actor!) });
+    const filters=z.object({classId:z.string().uuid().optional(),mode:z.enum(['by_question','by_student']).optional(),sort:z.literal('confidence').optional()}).strict().parse(req.query);
+    res.json({ data: await service.queue(req.actor!,filters) });
   });
   router.get('/appeals', async (req, res) => res.json({ data: await service.appealQueue(req.actor!) }));
   router.post('/appeals/:id/resolve', async (req, res) => {

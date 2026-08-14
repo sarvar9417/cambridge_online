@@ -47,6 +47,7 @@ export function App() {
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
   const [exports, setExports] = useState<ExportItem[]>([]);
   const [appealDraft, setAppealDraft] = useState<Record<string, string>>({});
+  const [gradingView,setGradingView]=useState<'by_question'|'by_student'|'confidence'>('by_question');
   const saveTimers = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -315,6 +316,11 @@ export function App() {
   const release = async (item: GradingItem) => {
     await api(`/gradings/${item.id}/release`, { method: "POST" });
     setGrading((current) => current.filter((entry) => entry.id !== item.id));
+  };
+  const changeGradingView=async(view:'by_question'|'by_student'|'confidence')=>{
+    setGradingView(view);
+    const query=view==='confidence'?'sort=confidence':`mode=${view}`;
+    setGrading((await api<{data:GradingItem[]}>(`/grading/queue?${query}`)).data);
   };
   const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -977,7 +983,14 @@ export function App() {
             <section>
               <div className="section-title">
                 <h2>Tekshirish navbati</h2>
-                <span>{grading.length} javob</span>
+                <div className="queue-tools">
+                  <div className="segmented" aria-label="Tekshirish tartibi">
+                    <button className={gradingView==='by_question'?'active':''} aria-pressed={gradingView==='by_question'} onClick={()=>changeGradingView('by_question')}>Savol</button>
+                    <button className={gradingView==='by_student'?'active':''} aria-pressed={gradingView==='by_student'} onClick={()=>changeGradingView('by_student')}>O‘quvchi</button>
+                    <button className={gradingView==='confidence'?'active':''} aria-pressed={gradingView==='confidence'} onClick={()=>changeGradingView('confidence')}>Ishonch past</button>
+                  </div>
+                  <span>{grading.length} javob</span>
+                </div>
               </div>
               {grading.length === 0 ? (
                 <p className="empty">Tekshiriladigan javob yo‘q.</p>

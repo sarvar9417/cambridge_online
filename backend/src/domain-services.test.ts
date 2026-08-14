@@ -15,6 +15,20 @@ describe('domain authorization', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it('grading queue applies scoped class and confidence filters',async()=>{
+    const query=vi.fn().mockResolvedValue({rows:[]});
+    await new GradingService({query}as unknown as Pool).queue(owner,{classId:'class-id',sort:'confidence'});
+    expect(query.mock.calls[0]![0]).toContain('c.id=$4');
+    expect(query.mock.calls[0]![0]).toContain('g.ai_confidence asc nulls first');
+    expect(query.mock.calls[0]![1]).toEqual(['owner','school-id','owner-id','class-id']);
+  });
+
+  it('grading queue supports deterministic student grouping',async()=>{
+    const query=vi.fn().mockResolvedValue({rows:[]});
+    await new GradingService({query}as unknown as Pool).queue(owner,{mode:'by_student'});
+    expect(query.mock.calls[0]![0]).toContain('order by u.full_name,q.sort_order');
+  });
+
   it('assignment attempt rejects staff before opening a transaction', async () => {
     const connect = vi.fn();
     await expect(new AssignmentsService({ connect } as unknown as Pool).start(owner, 'assignment-id')).rejects.toMatchObject({ status: 403 });
