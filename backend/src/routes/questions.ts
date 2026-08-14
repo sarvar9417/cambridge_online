@@ -14,6 +14,15 @@ export function createQuestionsRouter(repository: PgQuestionsRepository) {
     if (!parsed.success) { res.status(400).json({ error: { code: 'validation_error', message: 'Filtrlarni tekshiring.' } }); return; }
     res.json({ data: await repository.findVisible(req.actor!, parsed.data), nextCursor: null });
   });
+  router.get('/:id/portable', async (req, res) => {
+    if (req.actor!.role === 'student') {
+      res.status(403).json({ error: { code: 'forbidden', message: 'Bu amal faqat o‘qituvchi yoki owner uchun.' } });
+      return;
+    }
+    const portable = await repository.portable(req.actor!, z.string().uuid().parse(req.params.id));
+    if (!portable) { res.status(404).json({ error: { code: 'not_found', message: 'Topilmadi.' } }); return; }
+    res.json(portable);
+  });
   router.get('/:id', async (req, res) => {
     const question = await repository.findOne(req.actor!, z.string().uuid().parse(req.params.id));
     if (!question) { res.status(404).json({ error: { code: 'not_found', message: 'Topilmadi.' } }); return; }
