@@ -1,28 +1,35 @@
-import{describe,expect,it,vi}from'vitest';import type{Pool}from'pg';import{IngestionService}from'./services/ingestion-service.js';const student={id:'s',role:'student' as const,schoolId:'x',fullName:'S'};const owner={id:'o',role:'owner' as const,schoolId:'x',fullName:'O'};
-describe('ingestion authorization',()=>{it('student cannot list jobs',async()=>{const query=vi.fn();await expect(new IngestionService({query}as unknown as Pool).jobs(student)).rejects.toMatchObject({status:403});expect(query).not.toHaveBeenCalled()});it('student cannot register papers',async()=>{const connect=vi.fn();await expect(new IngestionService({connect}as unknown as Pool).register(student,{syllabusId:'s',componentId:'c',year:2026,series:'MJ',variant:1,kind:'QP',storagePath:'x',sha256:'a'.repeat(64)})).rejects.toMatchObject({status:403});expect(connect).not.toHaveBeenCalled()});it('owner review query is scoped to needs_review',async()=>{const query=vi.fn().mockResolvedValue({rows:[]});await new IngestionService({query}as unknown as Pool).review(owner);expect(query.mock.calls[0]![0]).toContain("q.status='needs_review'")})});
-
-describe('ingestion paper pairing',()=>{
-  const input={syllabusId:'11111111-1111-1111-1111-111111111111',componentId:'22222222-2222-2222-2222-222222222222',year:2026,series:'MJ' as const,variant:1,storagePath:'paper.pdf'};
-  it('waits without enqueueing when only the question paper exists',async()=>{
-    const client={query:vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rows:[{id:'qp',sha256:'a'}]}).mockResolvedValueOnce({rows:[{id:'run',qp_paper_id:'qp',ms_paper_id:null}]}).mockResolvedValueOnce({}),release:vi.fn()};
-    const query=vi.fn(),pool={connect:vi.fn().mockResolvedValue(client),query}as unknown as Pool;
-    await expect(new IngestionService(pool).register(owner,{...input,kind:'QP',sha256:'a'.repeat(64)})).resolves.toMatchObject({ingestionRunId:'run',waitingForPair:true});
-    expect(query).not.toHaveBeenCalled();expect(client.release).toHaveBeenCalled();
+import { describe, expect, it, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { IngestionService } from './services/ingestion-service.js';
+const student = { id: 's', role: 'student' as const, schoolId: 'x', fullName: 'S' };
+const owner = { id: 'o', role: 'owner' as const, schoolId: 'x', fullName: 'O' };
+describe('ingestion authorization', () => {
+  it('student cannot list jobs', async () => {
+    const query = vi.fn();
+    await expect(
+      new IngestionService({ query } as unknown as Pool).jobs(student),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(query).not.toHaveBeenCalled();
   });
-
-  it('enqueues one bundle when the matching mark scheme arrives',async()=>{
-    const client={query:vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rows:[{id:'ms',sha256:'b'}]}).mockResolvedValueOnce({rows:[{id:'run',qp_paper_id:'qp',ms_paper_id:'ms'}]}).mockResolvedValueOnce({}),release:vi.fn()};
-    const query=vi.fn().mockResolvedValueOnce({rows:[{id:'job'}]}).mockResolvedValueOnce({rowCount:1}),pool={connect:vi.fn().mockResolvedValue(client),query}as unknown as Pool;
-    await expect(new IngestionService(pool).register(owner,{...input,kind:'MS',sha256:'b'.repeat(64)})).resolves.toMatchObject({ingestionRunId:'run',waitingForPair:false});
-    expect(query.mock.calls[0]![1]).toEqual(expect.arrayContaining(['ingest-bundle',expect.objectContaining({runId:'run',qpPaperId:'qp',msPaperId:'ms'})]));
-    expect(query.mock.calls[1]![0]).toContain("status='queued'");
+  it('student cannot register papers', async () => {
+    const connect = vi.fn();
+    await expect(
+      new IngestionService({ connect } as unknown as Pool).register(student, {
+        syllabusId: 's',
+        componentId: 'c',
+        year: 2026,
+        series: 'MJ',
+        variant: 1,
+        kind: 'QP',
+        storagePath: 'x',
+        sha256: 'a'.repeat(64),
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(connect).not.toHaveBeenCalled();
   });
-});
-
-describe('ingestion review workflow',()=>{
-  it('filters the queue by unresolved finding code',async()=>{const query=vi.fn().mockResolvedValue({rows:[]});await new IngestionService({query}as unknown as Pool).review(owner,{findingCode:'V13',limit:20});expect(query.mock.calls[0]![0]).toContain('grouped.rule_code=$1');expect(query.mock.calls[0]![1]).toEqual(['V13',20])});
-  it('records a single review decision in the audit log',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'q',status:'needs_review'}]}).mockResolvedValueOnce({rows:[{id:'q',status:'approved'}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({}),release=vi.fn();const pool={connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool;await expect(new IngestionService(pool).decide(owner,'q','approved')).resolves.toEqual({id:'q',status:'approved'});expect(query.mock.calls[3]![0]).toContain('ingestion.review_decide');expect(query.mock.calls[4]![0]).toBe('commit')});
-  it('bulk approves matching findings and resolves them as false positives',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'q',status:'needs_review',reviewed_by:null,reviewed_at:null}]}).mockResolvedValue({}),release=vi.fn();const pool={connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool;await expect(new IngestionService(pool).bulkApprove(owner,'V14')).resolves.toEqual({updated:1});expect(query.mock.calls[3]![0]).toContain("resolution='false_positive'");expect(query.mock.calls[4]![0]).toContain('ingestion.review_bulk_approve')});
-  it('edits review fields and audits their previous values',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'q',stem_md:'Old question text',marks:2,command_word:'State',status:'needs_review'}]}).mockResolvedValueOnce({rows:[{id:'q',stem_md:'Updated question text',marks:3,command_word:'Explain',status:'needs_review'}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({}),release=vi.fn();const pool={connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool;await new IngestionService(pool).edit(owner,'q',{stemMd:'Updated question text',marks:3,commandWord:'Explain'});expect(query.mock.calls[3]![0]).toContain('ingestion.review_edit')});
-  it('undo restores the state saved by the latest review audit',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'audit',ref_id:'q',before:{status:'needs_review',reviewed_by:null,reviewed_at:null}}]}).mockResolvedValueOnce({rows:[{id:'q',status:'needs_review'}]}).mockResolvedValueOnce({}).mockResolvedValueOnce({}),release=vi.fn();const pool={connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool;await expect(new IngestionService(pool).undo(owner)).resolves.toEqual({id:'q',status:'needs_review'});expect(query.mock.calls[3]![0]).toContain('ingestion.review_undo')});
+  it('owner review query is scoped to needs_review', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await new IngestionService({ query } as unknown as Pool).review(owner);
+    expect(query.mock.calls[0]![0]).toContain("q.status='needs_review'");
+  });
 });

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 
+import type { UserStatus } from '../lib/actor.js';
+
 export interface AuthUser {
   id: string;
   schoolId: string | null;
@@ -9,6 +11,7 @@ export interface AuthUser {
   passwordHash: string;
   tokenVersion: number;
   isActive: boolean;
+  status: UserStatus;
 }
 
 export interface RefreshRecord {
@@ -23,15 +26,34 @@ export interface RefreshRecord {
 export interface AuthRepository {
   findByIdentifier(identifier: string): Promise<AuthUser | null>;
   findById(id: string): Promise<AuthUser | null>;
-  storeRefreshToken(userId: string, rawToken: string, expiresAt: Date, deviceLabel?: string): Promise<void>;
+  storeRefreshToken(
+    userId: string,
+    rawToken: string,
+    expiresAt: Date,
+    deviceLabel?: string,
+  ): Promise<void>;
   findRefreshToken(rawToken: string): Promise<RefreshRecord | null>;
-  rotateRefreshToken(recordId: string, userId: string, rawToken: string, expiresAt: Date): Promise<void>;
+  rotateRefreshToken(
+    recordId: string,
+    userId: string,
+    rawToken: string,
+    expiresAt: Date,
+  ): Promise<void>;
   revokeRefreshToken(rawToken: string): Promise<void>;
   revokeAllSessions(userId: string): Promise<void>;
   updateLastLogin(userId: string): Promise<void>;
-  redeemInvite(input: { code:string; fullName:string; username:string; passwordHash:string }): Promise<AuthUser>;
-  changePassword(userId:string,passwordHash:string):Promise<void>;
-  updateProfile(userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}):Promise<AuthUser>;
+  redeemInvite(input: {
+    code: string;
+    fullName: string;
+    username: string;
+    passwordHash: string;
+  }): Promise<AuthUser>;
+  createPendingStudent(input: {
+    fullName: string;
+    email: string;
+    passwordHash: string;
+  }): Promise<AuthUser>;
+  changePassword(userId: string, passwordHash: string): Promise<void>;
 }
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -44,6 +66,7 @@ const mapUser = (row: Record<string, unknown>): AuthUser => ({
   passwordHash: String(row.password_hash),
   tokenVersion: Number(row.token_version),
   isActive: Boolean(row.is_active),
+  status: (row.status as UserStatus) ?? 'active',
 });
 
 export class PgAuthRepository implements AuthRepository {
@@ -60,7 +83,10 @@ export class PgAuthRepository implements AuthRepository {
   }
 
   async findById(id: string) {
-    const result = await this.pool.query('select * from users where id = $1 and is_active = true limit 1', [id]);
+    const result = await this.pool.query(
+      'select * from users where id = $1 and is_active = true limit 1',
+      [id],
+    );
     return result.rows[0] ? mapUser(result.rows[0]) : null;
   }
 
@@ -112,7 +138,7 @@ export class PgAuthRepository implements AuthRepository {
 
   async revokeRefreshToken(rawToken: string) {
     await this.pool.query(
-      'delete from refresh_tokens where token_hash = $1',
+      'update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where token_hash = $1',
       [hashToken(rawToken)],
     );
   }
@@ -121,8 +147,13 @@ export class PgAuthRepository implements AuthRepository {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
-      await client.query('update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where user_id = $1', [userId]);
-      await client.query('update users set token_version = token_version + 1 where id = $1', [userId]);
+      await client.query(
+        'update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where user_id = $1',
+        [userId],
+      );
+      await client.query('update users set token_version = token_version + 1 where id = $1', [
+        userId,
+      ]);
       await client.query('commit');
     } catch (error) {
       await client.query('rollback');
@@ -136,42 +167,87 @@ export class PgAuthRepository implements AuthRepository {
     await this.pool.query('update users set last_login_at = now() where id = $1', [userId]);
   }
 
-  async redeemInvite(input: { code:string; fullName:string; username:string; passwordHash:string }) {
+  async redeemInvite(input: {
+    code: string;
+    fullName: string;
+    username: string;
+    passwordHash: string;
+  }) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const invite = await client.query(
         `select i.*, c.school_id from invites i join classes c on c.id=i.class_id
-         where i.code=$1 and i.expires_at>now() and i.used_count<i.max_uses for update`, [input.code],
+         where i.code=$1 and i.expires_at>now() and i.used_count<i.max_uses for update`,
+        [input.code],
       );
       if (!invite.rowCount) throw new Error('invite_invalid');
       const row = invite.rows[0];
       const created = await client.query(
         `insert into users(school_id,role,full_name,username,password_hash)
          values($1,$2,$3,$4,$5) returning *`,
-        [row.school_id,row.role,input.fullName,input.username,input.passwordHash],
+        [row.school_id, row.role, input.fullName, input.username, input.passwordHash],
       );
-      await client.query(`insert into enrollments(class_id,student_id) select $1,$2 where $3='student'`,[row.class_id,created.rows[0].id,row.role]);
-      await client.query(`insert into class_teachers(class_id,teacher_id) select $1,$2 where $3='teacher'`,[row.class_id,created.rows[0].id,row.role]);
-      await client.query('update invites set used_count=used_count+1 where id=$1',[row.id]);
+      await client.query(
+        `insert into enrollments(class_id,student_id) select $1,$2 where $3='student'`,
+        [row.class_id, created.rows[0].id, row.role],
+      );
+      await client.query(
+        `insert into class_teachers(class_id,teacher_id) select $1,$2 where $3='teacher'`,
+        [row.class_id, created.rows[0].id, row.role],
+      );
+      await client.query('update invites set used_count=used_count+1 where id=$1', [row.id]);
       await client.query('commit');
       return mapUser(created.rows[0]);
-    } catch(error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
-  async changePassword(userId:string,passwordHash:string){const client=await this.pool.connect();try{await client.query('begin');await client.query(`update users set password_hash=$2,token_version=token_version+1,updated_at=now()where id=$1`,[userId,passwordHash]);await client.query(`update refresh_tokens set revoked_at=coalesce(revoked_at,now())where user_id=$1`,[userId]);await client.query('commit')}catch(error){await client.query('rollback');throw error}finally{client.release()}}
-
-  async updateProfile(userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}) {
-    const result=await this.pool.query(
-      `update users set full_name=coalesce($2,full_name),locale=coalesce($3,locale),updated_at=now()
-       where id=$1 and is_active=true returning *`,
-      [userId,input.fullName??null,input.locale??null],
+  /**
+   * Self-registered students carry no school and no enrollment until a teacher
+   * assigns them, so every class-scoped query returns nothing for them meanwhile.
+   */
+  async createPendingStudent(input: { fullName: string; email: string; passwordHash: string }) {
+    const result = await this.pool.query(
+      `insert into users (role, full_name, email, password_hash, status)
+       values ('student', $1, $2, $3, 'pending')
+       returning *`,
+      [input.fullName, input.email, input.passwordHash],
     );
-    if(!result.rows[0])throw new Error('user_not_found');
     return mapUser(result.rows[0]);
   }
 
-  private async insertRefresh(client: PoolClient, userId: string, rawToken: string, expiresAt: Date) {
+  async changePassword(userId: string, passwordHash: string) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      await client.query(
+        `update users set password_hash=$2,token_version=token_version+1,updated_at=now()where id=$1`,
+        [userId, passwordHash],
+      );
+      await client.query(
+        `update refresh_tokens set revoked_at=coalesce(revoked_at,now())where user_id=$1`,
+        [userId],
+      );
+      await client.query('commit');
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async insertRefresh(
+    client: PoolClient,
+    userId: string,
+    rawToken: string,
+    expiresAt: Date,
+  ) {
     await client.query(
       'insert into refresh_tokens (user_id, token_hash, expires_at) values ($1, $2, $3)',
       [userId, hashToken(rawToken), expiresAt],

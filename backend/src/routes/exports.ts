@@ -1,1 +1,26 @@
-import{Router}from'express';import{z}from'zod';import type{Pool}from'pg';import{runIdempotent}from'../lib/idempotent-request.js';import{ExportService}from'../services/export-service.js';export function createExportsRouter(s:ExportService,pool?:Pool){const r=Router();r.post('/',async(q,p)=>{const b=z.object({kind:z.enum(['question_paper','mark_scheme','combined','feedback']),refTable:z.enum(['assignments','submissions']),refId:z.string().uuid()}).parse(q.body);const operation=async()=>({status:202,body:await s.create(q.actor!,b)});if(pool)return runIdempotent(q,p,pool,operation);const result=await operation();return p.status(result.status).json(result.body)});r.get('/',async(q,p)=>p.json({data:await s.list(q.actor!)}));r.get('/:id/file',async(q,p)=>{const file=await s.file(q.actor!,z.string().uuid().parse(q.params.id));p.setHeader('Content-Type','application/pdf');p.setHeader('Content-Disposition',`attachment; filename="campath-${file.kind}.pdf"`);p.send(file.data)});r.get('/:id',async(q,p)=>p.json(await s.get(q.actor!,z.string().uuid().parse(q.params.id))));return r}
+import { Router } from 'express';
+import { z } from 'zod';
+import { ExportService } from '../services/export-service.js';
+import type { Pool } from 'pg';
+import { runIdempotent } from '../lib/idempotent-request.js';
+export function createExportsRouter(s: ExportService, pool?: Pool) {
+  const r = Router();
+  r.post('/', async (q, p) => {
+    const b = z
+      .object({
+        kind: z.enum(['question_paper', 'mark_scheme', 'combined', 'feedback']),
+        refTable: z.enum(['assignments', 'submissions']),
+        refId: z.string().uuid(),
+      })
+      .parse(q.body);
+    const operation = async () => ({ status: 202, body: await s.create(q.actor!, b) });
+    if (pool) return runIdempotent(q, p, pool, operation);
+    const result = await operation();
+    return p.status(result.status).json(result.body);
+  });
+  r.get('/', async (q, p) => p.json({ data: await s.list(q.actor!) }));
+  r.get('/:id', async (q, p) =>
+    p.json(await s.get(q.actor!, z.string().uuid().parse(q.params.id))),
+  );
+  return r;
+}

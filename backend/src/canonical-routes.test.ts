@@ -6,7 +6,6 @@ import type{GradingService}from'./services/grading-service.js';
 import{createSubmissionsRouter}from'./routes/submissions.js';
 import{createGradingsRouter}from'./routes/gradings.js';
 import{createClassesRouter}from'./routes/classes.js';
-import{createGradingRouter}from'./routes/grading.js';
 import type{ClassesRepository}from'./repositories/classes-repository.js';
 
 const id='2fe20e05-75b3-43a7-ac45-a81cb52b4ca8';
@@ -41,13 +40,5 @@ describe('canonical phase 1 routes',()=>{
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([{id:'assignment-a'}]);
     expect(list).toHaveBeenCalledWith(actor,id);
-  });
-
-  it('ignores Vercel catch-all metadata in grading queue filters',async()=>{
-    const queue=vi.fn().mockResolvedValue([]);
-    const app=express();app.use(express.json(),actorMiddleware,createGradingRouter({queue}as unknown as GradingService));
-    const response=await request(app).get('/queue?mode=by_student&path=grading/queue');
-    expect(response.status).toBe(200);
-    expect(queue).toHaveBeenCalledWith(actor,{mode:'by_student'});
   });
 });

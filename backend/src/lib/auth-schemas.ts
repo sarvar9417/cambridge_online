@@ -9,16 +9,27 @@ export const loginSchema = z.object({
 export const redeemInviteSchema = z.object({
   code: z.string().trim().min(6).max(64),
   fullName: z.string().trim().min(2).max(120),
-  username: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9._-]+$/),
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(40)
+    .regex(/^[a-zA-Z0-9._-]+$/),
   password: z.string().min(8).max(200),
 });
 
-export const updateProfileSchema = z.object({
-  fullName: z.string().trim().min(2).max(120).optional(),
-  locale: z.enum(['uz', 'en', 'ru']).optional(),
-}).strict().refine((input) => Object.keys(input).length > 0, 'At least one profile field is required');
+/**
+ * Self-service student registration. Only students may register themselves;
+ * teacher and owner accounts are always created by the owner.
+ */
+export const registerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.email().trim().toLowerCase().max(254),
+  password: z.string().min(10).max(200),
+});
 
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export type RegisterInput = z.infer<typeof registerSchema>;

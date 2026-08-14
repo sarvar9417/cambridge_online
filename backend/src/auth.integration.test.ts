@@ -5,9 +5,6 @@ import { createApp } from './app.js';
 import type { AuthRepository, AuthUser, RefreshRecord } from './repositories/auth-repository.js';
 import type { ClassesRepository } from './repositories/classes-repository.js';
 import { AuthService } from './services/auth-service.js';
-import { clearRateLimits } from './middleware/rate-limit.js';
-import { SignJWT } from 'jose';
-import { config } from './config.js';
 
 class MemoryAuthRepository implements AuthRepository {
   user!: AuthUser;
@@ -24,8 +21,12 @@ class MemoryAuthRepository implements AuthRepository {
 
   async storeRefreshToken(userId: string, rawToken: string, expiresAt: Date) {
     this.refreshRecords.set(rawToken, {
-      id: crypto.randomUUID(), userId, tokenVersion: this.user.tokenVersion,
-      revokedAt: null, expiresAt, user: this.user,
+      id: crypto.randomUUID(),
+      userId,
+      tokenVersion: this.user.tokenVersion,
+      revokedAt: null,
+      expiresAt,
+      user: this.user,
     });
   }
 
@@ -41,7 +42,8 @@ class MemoryAuthRepository implements AuthRepository {
   }
 
   async revokeRefreshToken(rawToken: string) {
-    this.refreshRecords.delete(rawToken);
+    const record = this.refreshRecords.get(rawToken);
+    if (record) record.revokedAt ??= new Date();
   }
 
   async revokeAllSessions() {
@@ -52,13 +54,41 @@ class MemoryAuthRepository implements AuthRepository {
 
   async updateLastLogin() {}
 
-  async redeemInvite(input: { code:string; fullName:string; username:string; passwordHash:string }) {
+  async redeemInvite(input: {
+    code: string;
+    fullName: string;
+    username: string;
+    passwordHash: string;
+  }) {
     if (input.code !== 'VALID-CODE') throw new Error('invite_invalid');
-    this.user = { ...this.user, id: crypto.randomUUID(), role: 'student', fullName: input.fullName, passwordHash: input.passwordHash, tokenVersion: 1 };
+    this.user = {
+      ...this.user,
+      id: crypto.randomUUID(),
+      role: 'student',
+      fullName: input.fullName,
+      passwordHash: input.passwordHash,
+      tokenVersion: 1,
+    };
     return this.user;
   }
-  async changePassword(_userId:string,passwordHash:string){this.user.passwordHash=passwordHash;await this.revokeAllSessions()}
-  async updateProfile(_userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}){if(input.fullName)this.user.fullName=input.fullName;return this.user}
+  async createPendingStudent(input: { fullName: string; email: string; passwordHash: string }) {
+    this.user = {
+      ...this.user,
+      id: crypto.randomUUID(),
+      schoolId: null,
+      role: 'student',
+      fullName: input.fullName,
+      passwordHash: input.passwordHash,
+      tokenVersion: 1,
+      isActive: true,
+      status: 'pending',
+    };
+    return this.user;
+  }
+  async changePassword(_userId: string, passwordHash: string) {
+    this.user.passwordHash = passwordHash;
+    await this.revokeAllSessions();
+  }
 }
 
 const cookieValue = (setCookie: string[] | string | undefined) => {
@@ -73,10 +103,11 @@ describe('authentication flow', () => {
   let app: ReturnType<typeof createApp>;
   let passwordHash: string;
 
-  beforeAll(async () => { passwordHash = await argon2.hash('secure-password', { memoryCost: 4096, timeCost: 1 }); });
+  beforeAll(async () => {
+    passwordHash = await argon2.hash('secure-password', { memoryCost: 4096, timeCost: 1 });
+  });
 
   beforeEach(async () => {
-    clearRateLimits();
     repository = new MemoryAuthRepository();
     repository.user = {
       id: '22605ad7-b3df-4249-9b58-052f5d830fd8',
@@ -93,14 +124,17 @@ describe('authentication flow', () => {
   });
 
   it('rejects an invalid login body', async () => {
-    const response = await request(app).post('/api/v1/auth/login').send({ identifier: '', password: 'x' });
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ identifier: '', password: 'x' });
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('validation_error');
   });
 
   it('logs in, sets an httpOnly refresh cookie, and authorizes me', async () => {
     const login = await request(app).post('/api/v1/auth/login').send({
-      identifier: 'sarvar', password: 'secure-password',
+      identifier: 'sarvar',
+      password: 'secure-password',
     });
     expect(login.status).toBe(200);
     expect(login.headers['set-cookie']?.[0]).toContain('HttpOnly');
@@ -112,18 +146,10 @@ describe('authentication flow', () => {
     expect(me.body.user).toMatchObject({ fullName: 'Sarvar', role: 'owner' });
   });
 
-  it('rejects an expired access token with 401',async()=>{
-    const token=await new SignJWT({role:repository.user.role,schoolId:repository.user.schoolId,tv:repository.user.tokenVersion})
-      .setProtectedHeader({alg:'HS256'}).setSubject(repository.user.id).setIssuedAt().setExpirationTime(Math.floor(Date.now()/1000)-1)
-      .sign(new TextEncoder().encode(config.JWT_SECRET));
-    const response=await request(app).get('/api/v1/auth/me').set('Authorization',`Bearer ${token}`);
-    expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('invalid_token');
-  });
-
   it('rotates refresh tokens and revokes all sessions on reuse', async () => {
     const login = await request(app).post('/api/v1/auth/login').send({
-      identifier: 'sarvar@example.com', password: 'secure-password',
+      identifier: 'sarvar@example.com',
+      password: 'secure-password',
     });
     const firstCookie = cookieValue(login.headers['set-cookie']);
 
@@ -142,33 +168,6 @@ describe('authentication flow', () => {
     expect(oldAccess.status).toBe(401);
   });
 
-  it('rejects an ordinarily revoked refresh token with 401',async()=>{
-    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
-    const cookie=cookieValue(login.headers['set-cookie']);
-    const logout=await request(app).post('/api/v1/auth/logout').set('Authorization',`Bearer ${login.body.accessToken}`).set('Cookie',cookie);
-    expect(logout.status).toBe(204);
-    const refresh=await request(app).post('/api/v1/auth/refresh').set('Cookie',cookie);
-    expect(refresh.status).toBe(401);
-    expect(refresh.body.error.code).toBe('invalid_refresh');
-    expect(repository.revokedAll).toBe(0);
-  });
-
-  it('rejects role elevation in the strict profile DTO',async()=>{
-    repository.user.role='student';
-    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
-    const response=await request(app).patch('/api/v1/auth/me').set('Authorization',`Bearer ${login.body.accessToken}`).send({role:'teacher'});
-    expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('validation_error');
-    expect(repository.user.role).toBe('student');
-  });
-
-  it('updates only allowed profile fields',async()=>{
-    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
-    const response=await request(app).patch('/api/v1/auth/me').set('Authorization',`Bearer ${login.body.accessToken}`).send({fullName:'Sarvar Aliev'});
-    expect(response.status).toBe(200);
-    expect(response.body.user).toMatchObject({fullName:'Sarvar Aliev',role:'owner'});
-  });
-
   it('passes the authenticated actor to the classes repository', async () => {
     repository.user.role = 'student';
     repository.user.fullName = 'Aziz Karimov';
@@ -176,16 +175,22 @@ describe('authentication flow', () => {
     const classes: ClassesRepository = {
       async findVisible(actor) {
         seenActors.push(actor.id);
-        return [{
-          id: '2fe20e05-75b3-43a7-ac45-a81cb52b4ca8',
-          name: '10-A CS', grade: 10, level: 'AS', academicYear: '2026/2027', studentCount: 6,
-        }];
+        return [
+          {
+            id: '2fe20e05-75b3-43a7-ac45-a81cb52b4ca8',
+            name: '10-A CS',
+            grade: 10,
+            level: 'AS',
+            academicYear: '2026/2027',
+            studentCount: 6,
+          },
+        ];
       },
-      async findOne(){return null},async enroll(){throw new Error('not used')},
     };
     app = createApp(new AuthService(repository), classes);
     const login = await request(app).post('/api/v1/auth/login').send({
-      identifier: 'sarvar', password: 'secure-password',
+      identifier: 'sarvar',
+      password: 'secure-password',
     });
     const response = await request(app)
       .get('/api/v1/classes')
@@ -196,19 +201,12 @@ describe('authentication flow', () => {
     expect(seenActors).toEqual([repository.user.id]);
   });
 
-  it('returns 404 for a class outside the teacher scope',async()=>{
-    repository.user.role='teacher';
-    const classes:ClassesRepository={findVisible:async()=>[],findOne:async()=>null,enroll:async()=>{throw new Error('not used')}};
-    app=createApp(new AuthService(repository),classes);
-    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
-    const response=await request(app).get('/api/v1/classes/2fe20e05-75b3-43a7-ac45-a81cb52b4ca8').set('Authorization',`Bearer ${login.body.accessToken}`);
-    expect(response.status).toBe(404);
-    expect(response.body.error.code).toBe('not_found');
-  });
-
   it('redeems an invite once and creates a session', async () => {
     const response = await request(app).post('/api/v1/auth/redeem-invite').send({
-      code: 'VALID-CODE', fullName: 'New Student', username: 'new.student', password: 'secure-password',
+      code: 'VALID-CODE',
+      fullName: 'New Student',
+      username: 'new.student',
+      password: 'secure-password',
     });
     expect(response.status).toBe(201);
     expect(response.body.user).toMatchObject({ role: 'student', fullName: 'New Student' });
@@ -217,10 +215,30 @@ describe('authentication flow', () => {
 
   it('rejects an invalid or already-used invite with 410', async () => {
     const response = await request(app).post('/api/v1/auth/redeem-invite').send({
-      code: 'EXPIRED-CODE', fullName: 'New Student', username: 'new.student', password: 'secure-password',
+      code: 'EXPIRED-CODE',
+      fullName: 'New Student',
+      username: 'new.student',
+      password: 'secure-password',
     });
     expect(response.status).toBe(410);
     expect(response.body.error.code).toBe('invite_invalid');
   });
-  it('changes password and revokes the old access token',async()=>{const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});const changed=await request(app).post('/api/v1/auth/change-password').set('Authorization',`Bearer ${login.body.accessToken}`).send({currentPassword:'secure-password',newPassword:'new-secure-password'});expect(changed.status).toBe(204);const old=await request(app).get('/api/v1/auth/me').set('Authorization',`Bearer ${login.body.accessToken}`);expect(old.status).toBe(401);const next=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'new-secure-password'});expect(next.status).toBe(200)});
+  it('changes password and revokes the old access token', async () => {
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ identifier: 'sarvar', password: 'secure-password' });
+    const changed = await request(app)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({ currentPassword: 'secure-password', newPassword: 'new-secure-password' });
+    expect(changed.status).toBe(204);
+    const old = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`);
+    expect(old.status).toBe(401);
+    const next = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ identifier: 'sarvar', password: 'new-secure-password' });
+    expect(next.status).toBe(200);
+  });
 });

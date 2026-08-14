@@ -1,3 +1,46 @@
-import{describe,expect,it,vi}from'vitest';import{flushAnswers,pendingAnswers,queueAnswer}from'./offline-queue';
-class MemoryStorage implements Storage{data=new Map<string,string>();get length(){return this.data.size}clear(){this.data.clear()}getItem(k:string){return this.data.get(k)??null}key(i:number){return[...this.data.keys()][i]??null}removeItem(k:string){this.data.delete(k)}setItem(k:string,v:string){this.data.set(k,v)}}
-describe('offline answer queue',()=>{it('keeps the latest answer per question',()=>{const s=new MemoryStorage(),a={submissionId:'s',questionId:'q',text:'first',activeSessionId:'x'};queueAnswer(s,a);queueAnswer(s,{...a,text:'latest'});expect(pendingAnswers(s)).toEqual([{...a,text:'latest'}])});it('removes only successfully synced answers',async()=>{const s=new MemoryStorage(),a={submissionId:'s',questionId:'q1',text:'a',activeSessionId:'x'},b={...a,questionId:'q2'};queueAnswer(s,a);queueAnswer(s,b);await flushAnswers(s,vi.fn(async x=>{if(x.questionId==='q2')throw Error('offline')}));expect(pendingAnswers(s)).toEqual([b])})});
+import { describe, expect, it, vi } from 'vitest';
+import { flushAnswers, pendingAnswers, queueAnswer } from './offline-queue';
+class MemoryStorage implements Storage {
+  data = new Map<string, string>();
+  get length() {
+    return this.data.size;
+  }
+  clear() {
+    this.data.clear();
+  }
+  getItem(k: string) {
+    return this.data.get(k) ?? null;
+  }
+  key(i: number) {
+    return [...this.data.keys()][i] ?? null;
+  }
+  removeItem(k: string) {
+    this.data.delete(k);
+  }
+  setItem(k: string, v: string) {
+    this.data.set(k, v);
+  }
+}
+describe('offline answer queue', () => {
+  it('keeps the latest answer per question', () => {
+    const s = new MemoryStorage(),
+      a = { submissionId: 's', questionId: 'q', text: 'first', activeSessionId: 'x' };
+    queueAnswer(s, a);
+    queueAnswer(s, { ...a, text: 'latest' });
+    expect(pendingAnswers(s)).toEqual([{ ...a, text: 'latest' }]);
+  });
+  it('removes only successfully synced answers', async () => {
+    const s = new MemoryStorage(),
+      a = { submissionId: 's', questionId: 'q1', text: 'a', activeSessionId: 'x' },
+      b = { ...a, questionId: 'q2' };
+    queueAnswer(s, a);
+    queueAnswer(s, b);
+    await flushAnswers(
+      s,
+      vi.fn(async (x) => {
+        if (x.questionId === 'q2') throw Error('offline');
+      }),
+    );
+    expect(pendingAnswers(s)).toEqual([b]);
+  });
+});

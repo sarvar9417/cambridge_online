@@ -4,7 +4,6 @@ import{join,resolve}from'node:path';
 import{promisify}from'node:util';
 import type{Pool}from'pg';
 import{config}from'../../config.js';
-import{validateExtraction,type ValidationInput}from'../../lib/validation/rules.js';
 import type{ChainedJobResult,Job,JobProcessor}from'../job-queue.js';
 
 const run=promisify(execFile);
@@ -15,27 +14,23 @@ export type IngestionStageHandler=(paperId:string,input:Artifact)=>Promise<Artif
 
 export function createIngestionProcessors(pool:Pool,overrides:Partial<Record<IngestionStage,IngestionStageHandler>>={}):Record<string,JobProcessor>{
   const handlers:Record<IngestionStage,IngestionStageHandler>={
-    prepare:(_refId,input)=>prepareInput(pool,input),segment:(_refId,input)=>segmentInput(input),
-    'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:(_paperId,input)=>matchExtractedArtifacts(input),
-    assets:unavailable('assets'),classify:unavailable('classify'),validate:(_paperId,input)=>validateIngestionArtifact(input),
+    prepare:(paperId)=>preparePaper(pool,paperId),segment:(_paperId,input)=>segmentPreparedArtifact(input),
+    'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:unavailable('match'),
+    assets:unavailable('assets'),classify:unavailable('classify'),validate:unavailable('validate'),
     crosscheck:unavailable('crosscheck'),persist:unavailable('persist'),...overrides,
   };
-  const processors:Record<string,JobProcessor>={
-    'ingest-paper':async(job)=>{const paperId=String((job.payload as any).paperId);return chain(job,paperId,'source_papers',{paperId},'prepare')},
-    'ingest-bundle':async(job)=>{const payload=job.payload as{runId:string;qpPaperId:string;msPaperId:string};return chain(job,payload.runId,'ingestion_runs',payload,'prepare')},
-  };
+  const processors:Record<string,JobProcessor>={'ingest-paper':async(job)=>chain(job,String((job.payload as any).paperId),{},'prepare')};
   for(const [index,stage]of INGESTION_STAGES.entries())processors[`ingest-${stage}`]=async(job)=>{
-    const payload=job.payload as{refId?:string;refTable?:'source_papers'|'ingestion_runs';paperId?:string;previousJobId:string};
+    const payload=job.payload as{paperId:string;previousJobId:string};
     const input=await previousArtifact(pool,payload.previousJobId);
-    const refId=payload.refId??String(payload.paperId),refTable=payload.refTable??'source_papers';
-    const result=await handlers[stage](refId,input);
+    const result=await handlers[stage](payload.paperId,input);
     const next=INGESTION_STAGES[index+1];
-    return next?chain(job,refId,refTable,result,next):result;
+    return next?chain(job,payload.paperId,result,next):result;
   };
   return processors;
 }
 
-function chain(job:Job,refId:string,refTable:'source_papers'|'ingestion_runs',result:Artifact,next:IngestionStage):ChainedJobResult{const prefix=refTable==='ingestion_runs'?'ingest-run':'ingest';return{result,next:{kind:`ingest-${next}`,payload:{refId,refTable,previousJobId:job.id},idempotencyKey:`${prefix}:${refId}:${next}`,refTable,refId}}}
+function chain(job:Job,paperId:string,result:Artifact,next:IngestionStage):ChainedJobResult{return{result,next:{kind:`ingest-${next}`,payload:{paperId,previousJobId:job.id},idempotencyKey:`ingest:${paperId}:${next}`,refTable:'source_papers',refId:paperId}}}
 function unavailable(stage:IngestionStage):IngestionStageHandler{return async()=>{throw new Error(`ingestion_stage_unavailable:${stage}`)}}
 async function previousArtifact(pool:Pool,id:string){const result=await pool.query(`select result from jobs where id=$1 and status='succeeded'`,[id]);if(!result.rowCount)throw new Error('ingestion_previous_stage_missing');return(result.rows[0].result??{})as Artifact}
 
@@ -54,39 +49,11 @@ async function preparePaper(pool:Pool,paperId:string):Promise<Artifact>{
   return{paperId,sourcePath:source,outputDir,textPath,pageImages,pageCount:pageImages.length};
 }
 
-async function prepareInput(pool:Pool,input:Artifact):Promise<Artifact>{
-  const qpPaperId=typeof input.qpPaperId==='string'?input.qpPaperId:null,msPaperId=typeof input.msPaperId==='string'?input.msPaperId:null;
-  if(qpPaperId&&msPaperId)return{...input,qp:await preparePaper(pool,qpPaperId),ms:await preparePaper(pool,msPaperId)};
-  const paperId=typeof input.paperId==='string'?input.paperId:null;if(!paperId)throw new Error('ingestion_paper_not_found');return preparePaper(pool,paperId);
-}
-
-async function segmentInput(input:Artifact):Promise<Artifact>{
-  if(isArtifact(input.qp)&&isArtifact(input.ms))return{...input,qp:await segmentPreparedArtifact(input.qp),ms:await segmentPreparedArtifact(input.ms)};
-  return segmentPreparedArtifact(input);
-}
-
 export async function segmentPreparedArtifact(input:Artifact):Promise<Artifact>{
   const pageImages=asStrings(input.pageImages),textPath=String(input.textPath??'');if(!pageImages.length||!textPath)throw new Error('ingestion_prepare_artifact_invalid');
   const pages=(await readFile(textPath,'utf8')).split('\f');const batches=[]as Array<{pageNumbers:number[];images:string[];text:string}>;
   for(let start=0;start<pageImages.length;start+=2){const end=Math.min(start+3,pageImages.length),indexes=Array.from({length:end-start},(_,i)=>start+i);batches.push({pageNumbers:indexes.map(i=>i+1),images:indexes.map(i=>pageImages[i]!),text:indexes.map(i=>pages[i]??'').join('\n\f\n')});if(end===pageImages.length)break;}
   return{...input,batches};
 }
-
-export async function matchExtractedArtifacts(input:Artifact):Promise<Artifact>{
-  const questions=asRecords(input.questions),schemes=asRecords(input.markSchemes);const refs=new Map<string,Record<string,unknown>>(),duplicates:string[]=[];
-  for(const question of questions){const ref=displayRef(question);if(!ref)continue;if(refs.has(ref))duplicates.push(ref);else refs.set(ref,question)}
-  const matched=[],unmatchedSchemes:string[]=[];for(const scheme of schemes){const ref=displayRef(scheme),question=ref?refs.get(ref):undefined;if(!ref||!question){unmatchedSchemes.push(ref||'(missing)');continue}matched.push({...scheme,questionId:question.id})}
-  const matchedRefs=new Set(matched.map(item=>displayRef(item)));const unmatchedQuestions=[...refs.keys()].filter(ref=>!matchedRefs.has(ref));
-  return{...input,markSchemes:matched,matchReport:{duplicateQuestionRefs:[...new Set(duplicates)],unmatchedQuestions,unmatchedSchemes}};
-}
-
-export async function validateIngestionArtifact(input:Artifact):Promise<Artifact>{
-  const candidate=input.validationInput;if(!isValidationInput(candidate))throw new Error('ingestion_validation_artifact_invalid');
-  const findings=validateExtraction(candidate);return{...input,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
-}
 function asStrings(value:unknown){return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}
-function isArtifact(value:unknown):value is Artifact{return typeof value==='object'&&value!==null&&!Array.isArray(value)}
-function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null):[]}
-function displayRef(value:Record<string,unknown>){const ref=value.displayRef??value.display_ref;return typeof ref==='string'?ref.trim():''}
-function isValidationInput(value:unknown):value is ValidationInput{return typeof value==='object'&&value!==null&&typeof(value as any).componentTotal==='number'&&Array.isArray((value as any).questions)&&Array.isArray((value as any).schemes)&&Array.isArray((value as any).assets)}
 function pageNumber(name:string){return Number(name.match(/(\d+)/)?.[1]??0)}

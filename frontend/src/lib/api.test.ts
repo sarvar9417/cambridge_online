@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, setAccessToken } from './api';
 
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), {
-  status,
-  headers: { 'content-type':'application/json' },
-});
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 
 afterEach(() => {
   setAccessToken(null);
@@ -13,7 +14,7 @@ afterEach(() => {
 
 describe('API access token refresh', () => {
   it('adds the in-memory access token to requests', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(json(200, { data:[] }));
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { data: [] }));
     vi.stubGlobal('fetch', fetchMock);
     setAccessToken('access-token');
     await api('/classes');
@@ -23,13 +24,14 @@ describe('API access token refresh', () => {
   });
 
   it('refreshes once and retries a 401 request with the new token', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json(401, { error:{ message:'expired' } }))
-      .mockResolvedValueOnce(json(200, { accessToken:'new-token',user:{} }))
-      .mockResolvedValueOnce(json(200, { data:['ok'] }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(401, { error: { message: 'expired' } }))
+      .mockResolvedValueOnce(json(200, { accessToken: 'new-token', user: {} }))
+      .mockResolvedValueOnce(json(200, { data: ['ok'] }));
     vi.stubGlobal('fetch', fetchMock);
     setAccessToken('old-token');
-    await expect(api('/classes')).resolves.toEqual({ data:['ok'] });
+    await expect(api('/classes')).resolves.toEqual({ data: ['ok'] });
     expect(String(fetchMock.mock.calls[1]![0])).toContain('/auth/refresh');
     const retryHeaders = fetchMock.mock.calls[2]![1]!.headers as Headers;
     expect(retryHeaders.get('Authorization')).toBe('Bearer new-token');
@@ -42,25 +44,28 @@ describe('API access token refresh', () => {
       if (url.endsWith('/auth/refresh')) {
         refreshCalls += 1;
         await new Promise((resolve) => setTimeout(resolve, 10));
-        return json(200, { accessToken:'new-token',user:{} });
+        return json(200, { accessToken: 'new-token', user: {} });
       }
       const headers = init?.headers as Headers;
       return headers.get('Authorization') === 'Bearer new-token'
-        ? json(200, { ok:true })
-        : json(401, { error:{ message:'expired' } });
+        ? json(200, { ok: true })
+        : json(401, { error: { message: 'expired' } });
     });
     vi.stubGlobal('fetch', fetchMock);
     setAccessToken('old-token');
-    await expect(Promise.all([api('/classes'),api('/assignments')]))
-      .resolves.toEqual([{ ok:true },{ ok:true }]);
+    await expect(Promise.all([api('/classes'), api('/assignments')])).resolves.toEqual([
+      { ok: true },
+      { ok: true },
+    ]);
     expect(refreshCalls).toBe(1);
   });
 
   it('clears the token when refresh fails', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json(401, { error:{ message:'expired' } }))
-      .mockResolvedValueOnce(json(401, { error:{ message:'refresh expired' } }))
-      .mockResolvedValueOnce(json(401, { error:{ message:'unauthorized' } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(401, { error: { message: 'expired' } }))
+      .mockResolvedValueOnce(json(401, { error: { message: 'refresh expired' } }))
+      .mockResolvedValueOnce(json(401, { error: { message: 'unauthorized' } }));
     vi.stubGlobal('fetch', fetchMock);
     setAccessToken('old-token');
     await expect(api('/classes')).rejects.toThrow('refresh expired');
@@ -68,14 +73,5 @@ describe('API access token refresh', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const finalHeaders = fetchMock.mock.calls[2]![1]!.headers as Headers;
     expect(finalHeaders.has('Authorization')).toBe(false);
-  });
-
-  it('does not announce expiry for an anonymous bootstrap refresh',async()=>{
-    const browserWindow=new EventTarget();let events=0;
-    browserWindow.addEventListener('campath:auth-expired',()=>{events+=1});
-    vi.stubGlobal('window',browserWindow);
-    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(json(401,{error:{message:'No session'}})));
-    await expect(api('/auth/refresh',{method:'POST'},{suppressAuthExpired:true})).rejects.toThrow('No session');
-    expect(events).toBe(0);
   });
 });

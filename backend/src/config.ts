@@ -15,9 +15,6 @@ const configSchema = z.object({
   JWT_SECRET: z.string().min(32).default('local-development-secret-change-me'),
   JWT_REFRESH_SECRET: z.string().min(32).default('local-refresh-secret-change-me-now'),
   CHROME_EXECUTABLE_PATH: z.string().optional(),
-  CHROMIUM_PACK_URL: z.string().url().optional(),
-  PDFTOPPM_PATH: z.string().optional(),
-  PDFTOTEXT_PATH: z.string().optional(),
   EXPORT_DIR: z.string().default('storage/exports'),
 });
 

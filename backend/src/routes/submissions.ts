@@ -20,9 +20,5 @@ export function createSubmissionsRouter(service:AssignmentsService){
     const body=z.object({minutes:z.number().int().min(1).max(240)}).strict().parse(req.body);
     res.json(await service.extend(req.actor!,uuid.parse(req.params.id),body.minutes));
   });
-  router.post('/:id/grant',async(req,res)=>{
-    const body=z.object({until:z.string().datetime().optional()}).strict().parse(req.body??{});
-    res.json(await service.grant(req.actor!,uuid.parse(req.params.id),body.until));
-  });
   return router;
 }

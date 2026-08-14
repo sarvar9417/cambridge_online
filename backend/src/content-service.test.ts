@@ -1,1 +1,33 @@
-import{describe,expect,it,vi}from'vitest';import type{Pool}from'pg';import{ContentService}from'./services/content-service.js';const student={id:'s',role:'student' as const,schoolId:'x',fullName:'S'},teacher={...student,role:'teacher' as const};describe('content service',()=>{it('staff cannot access student review queue',async()=>{await expect(new ContentService({}as Pool).due(teacher)).rejects.toMatchObject({status:403})});it('student only receives due cards',async()=>{const query=vi.fn().mockResolvedValue({rows:[]});await new ContentService({query}as unknown as Pool).due(student);expect(query.mock.calls[0]![0]).toContain('fr.due_at<=now()')});it('review persists SM-2 result',async()=>{const query=vi.fn().mockResolvedValueOnce({rowCount:1,rows:[{ease_factor:2.5,interval_days:0,repetitions:0,lapses:0}]}).mockResolvedValue({});const result=await new ContentService({query}as unknown as Pool).review(student,'card',5);expect(result.intervalDays).toBe(1);expect(query).toHaveBeenCalledTimes(2)});it('builds all three games from approved enrolled syllabus content',async()=>{const query=vi.fn().mockResolvedValueOnce({rows:[{id:'term',term:'Primary key',definition:'A unique field'}]}).mockResolvedValueOnce({rows:[{id:'lo',code:'8.1.1',text:'Understand keys'}]});const games=await new ContentService({query}as unknown as Pool).games(student);expect(games).toEqual({termMatch:[{id:'term',term:'Primary key',definition:'A unique field'}],sequence:[{id:'lo',code:'8.1.1',text:'Understand keys'}],spotTheGap:[{id:'term',prompt:'_____ — A unique field',answer:'Primary key'}]});expect(query.mock.calls[0]![0]).toContain("gt.status='approved'");expect(query.mock.calls[0]![0]).toContain('e.student_id=$1')});it('staff cannot access student games',async()=>{const query=vi.fn();await expect(new ContentService({query}as unknown as Pool).games(teacher)).rejects.toMatchObject({status:403});expect(query).not.toHaveBeenCalled()})});
+import { describe, expect, it, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { ContentService } from './services/content-service.js';
+const student = { id: 's', role: 'student' as const, schoolId: 'x', fullName: 'S' },
+  teacher = { ...student, role: 'teacher' as const };
+describe('content service', () => {
+  it('staff cannot access student review queue', async () => {
+    await expect(new ContentService({} as Pool).due(teacher)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+  it('student only receives due cards', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await new ContentService({ query } as unknown as Pool).due(student);
+    expect(query.mock.calls[0]![0]).toContain('fr.due_at<=now()');
+  });
+  it('review persists SM-2 result', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ ease_factor: 2.5, interval_days: 0, repetitions: 0, lapses: 0 }],
+      })
+      .mockResolvedValue({});
+    const result = await new ContentService({ query } as unknown as Pool).review(
+      student,
+      'card',
+      5,
+    );
+    expect(result.intervalDays).toBe(1);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+});

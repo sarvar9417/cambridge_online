@@ -7,104 +7,119 @@ This file records verified implementation evidence. Requirements remain in
 
 ## Architecture
 
-- `frontend/`: React 19 + Vite.
+- `frontend/`: React 19 + Vite, KaTeX rendering, feature folders under `src/features/`.
 - `backend/`: Express 5 + TypeScript + PostgreSQL.
 - Root npm workspaces run both applications.
 - One Vercel project: static frontend plus `api/[...path].ts`.
 
 ## Verified locally
 
-- Strict typecheck and production builds pass.
-- 218 backend and 7 frontend tests pass.
+- `npm run verify` passes: Prettier check, ESLint, strict typecheck, tests, production build.
+- 245 backend and 17 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
-- Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
-  idempotency and per-student late grants are active in production.
+- Migrations 0001-0008 and 0011 plus seed data are applied to Supabase.
+  Migrations 0009 (registration and groups) and 0010 (LaTeX content) are written
+  and typechecked but **not yet applied to Supabase** — apply with
+  `npm run db:migrate -w backend` before deploying.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
   inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
-- The production Vercel serverless drain generated and authenticated-download
-  verified a 26,531-byte `%PDF` document with a 24-hour expiry; expired database
-  file bodies are cleared by subsequent drain calls.
+
+## Registration and placement
+
+- `POST /api/v1/auth/register` creates a student account in `pending`, rate
+  limited to 5 per hour per IP. Role, school and status cannot be set from the
+  request body.
+- A `pending` account authenticates and can read `/auth/me`; every other route is
+  refused by `requireActiveAccount` with `account_pending`, and the account is
+  enrolled nowhere, so class-scoped queries return nothing regardless.
+- Staff place a student with `POST /api/v1/enrolment/students/:id/assign`
+  (`classId` plus optional `groupId`), which enrols and activates in one
+  transaction and writes to `audit_log`. Only the owner may suspend, which also
+  bumps `token_version` to revoke live access tokens.
+- `groups` subdivide a class; the composite foreign key `(group_id, class_id)`
+  makes a cross-class group assignment impossible in SQL, not just in code.
+
+## Syllabus
+
+- `backend/src/database/syllabus-9618-2026.ts` carries the official structure
+  transcribed from Cambridge document `697372-2026-syllabus.pdf` (syllabus for
+  examination from 2026): 4 components, 20 topics, 44 subtopics, with the topic
+  to paper mapping (1-8 → P1, 9-12 → P2, 13-18 → P3, 19-20 → P4). Covered by tests.
+- `npm run db:seed -w backend` writes topics and subtopics; `GET /api/v1/syllabus/topics`
+  serves the tree with approved-question counts.
+- Learning objectives are deliberately not transcribed: the syllabus prints them
+  in a two-column layout that does not survive text extraction, and
+  `03-ingestion.md` section 7 requires them to be checked by hand.
+
+## LaTeX authoring
+
+- Questions, mark scheme points, guidance and level descriptors carry `*_latex`
+  columns; `question_assets` carries `latex_source` (editable TikZ master) plus
+  `svg_markup` (what actually renders).
+- `backend/src/lib/latex.ts` validates against the KaTeX contract: balanced
+  braces and `$` delimiters, no file/exec/macro-redefinition commands, diagram
+  environments routed to the SVG path, and SVG hardening against script, event
+  handlers and external references. Rejections return 422 with per-finding detail
+  so the editor can point at the offending text.
+- `frontend/src/lib/latex.ts` renders under the same contract: prose is
+  HTML-escaped, maths goes through KaTeX with `trust: false`. KaTeX fonts are
+  bundled by Vite, so the page makes no external request.
+- Owner-only authoring API (`POST`/`PUT /api/v1/questions`) writes question,
+  subtopics, assets and mark scheme in one transaction and enforces V01, V05 and
+  marks/mark-scheme agreement before writing anything.
 
 ## Implemented domains
 
-- Faza 0: auth, refresh rotation/reuse, invite redemption, authorization
-  middleware, route coverage, readiness, migrations and seed data.
-- Faza 1: question bank, assignments, attempts, heartbeat/timer, offline queue,
-  manual grading, released results, assignment result rosters, grading appeals
-  and mastery. Question detail exposes mark schemes to staff and only to a
-  student whose own submission has been released, through a central serializer.
-  Canonical class-assignment, submission and grading routes are available;
-  publishing precreates student submissions and staff can grant individual
-  late-access deadlines without changing the whole class due date.
-  Expired attempts are closed through the local scheduler, throttled authenticated
-  request maintenance on Vercel, and a secured Hobby-compatible daily cron fallback.
-  The 360px student attempt uses one-question navigation, answered progress,
-  online/offline state, explicit blank-answer submission review and a fixed bottom
-  tab bar with mobile access to profile data export and logout. Starting a
-  precreated submission atomically changes it from `not_started` to `in_progress`
-  and records its server-side start time; expired attempts return to the dashboard.
+- Faza 0: auth, refresh rotation/reuse, invite redemption, self-registration,
+  authorization middleware, route coverage, readiness, migrations and seed data.
+- Faza 1: question bank with keyset pagination and topic/subtopic/component
+  filters, assignments, attempts, heartbeat/timer, offline queue, manual grading,
+  released results, assignment result rosters, grading appeals and mastery.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.
-- Faza 2 foundation: PostgreSQL jobs, retry/DLQ, QP/MS bundle gating, ingestion run lifecycle, V01-V20, and an audited keyboard review queue with grouping, bulk approval, editing, and undo.
+- Faza 2 foundation: PostgreSQL jobs, retry/DLQ, ingestion/review API, V01-V20,
+  and an extraction pipeline (batching with page overlap, dedupe, QP↔MS match,
+  classify, validate, cross-check) fully tested against fake providers.
 - Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor,
-  school/date/internal-use watermark, per-user daily limit and polled statuses;
-  assignment mark overrides are rendered and authoritative total mismatches fail closed.
-  Vercel uses serverless Chromium, a supported-kind job drain, 24-hour PostgreSQL
-  PDF storage, and an authenticated requester download instead of ephemeral files.
+  school/date/internal-use watermark, per-user daily limit and polled statuses.
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
-  budget guard, AI audit, enforced calibration gates, manual-only Evaluate/levels
-  answers, deterministic 10% teacher quality sampling, and owner-triggered
-  ground-truth recomputation of agreement, error rates and score metrics, exposed
-  in the owner analytics UI with explicit shadow/gate-ready status.
-- Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API; released
-  grading points update per-student error patterns and repeated misses schedule
-  deduplicated personal review cards after three days. Student-scoped Term Match,
-  Sequence and Spot the Gap games are generated from approved glossary and LO data.
+  budget guard and AI audit.
+- Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API.
 - Ops: rate limits, robots block, migration lock, capability reporting,
   self-service JSON data export and owner-only student anonymization that keeps
   aggregate grading statistics while clearing identity, sessions and answers;
   PostgreSQL pool size is serverless-aware to stay within hosted connection limits;
   assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
-- Frontend API access tokens remain memory-only; concurrent 401 responses share
-  one rotating refresh request, retry once and return to login on refresh failure.
 
-## Authorization acceptance evidence
+## Prompts
 
-All 14 mandatory cases from `02-data-model.md` section 12.6 are covered by
-executable tests:
-
-1. Cross-student answers return 404: `domain-services.test.ts`.
-2. Student mark schemes stay absent before release: `questions-repository.test.ts`.
-3. Unreleased grading detail returns 404: `results-service.test.ts`.
-4. Post-submit answer updates return 409: `domain-services.test.ts`.
-5. Expired-attempt answer updates return 409: `domain-services.test.ts`.
-6. Another teacher's class returns 404: `auth.integration.test.ts` and `classes-repository.test.ts`.
-7. Teacher question mutation returns 403: `questions-repository.test.ts`.
-8. Student access to AI calls returns 403: `admin-service.test.ts`.
-9. Profile role elevation returns 400: `auth.integration.test.ts`.
-10. Expired access tokens return 401: `auth.integration.test.ts`.
-11. Revoked refresh tokens return 401 while rotated-token reuse revokes all sessions: `auth.integration.test.ts`.
-12. Cross-school enrollment returns 403: `classes-repository.test.ts`.
-13. Cross-student attempt creation returns 403: `domain-services.test.ts`.
-14. Invalid or already-used invites return 410: `auth.integration.test.ts`.
+`prompts/` holds versioned prompts as required by R13: `extract-question.v1.md`,
+`extract-markscheme.v1.md`, `classify-question.v1.md`, `cross-check.v1.md`. The
+extraction prompts state the LaTeX contract so model output matches what the
+renderer accepts.
 
 ## External requirements not yet satisfied
 
-- No `ANTHROPIC_API_KEY`: real model calls and four-week calibration are pending.
+- No `ANTHROPIC_API_KEY`: `ExtractionProvider` has no live implementation, so the
+  pipeline runs only against fakes and the four-week calibration is pending.
+- Poppler is absent: `PdfPreparer` has no live implementation, so PDF PREPARE
+  cannot run against the past papers.
 - No durable private storage credentials: presigned upload/URLs are pending.
-- Poppler is absent: PDF PREPARE cannot run.
+  Diagrams are stored inline as SVG and need no object storage.
+- **The job runner and the attempt scheduler do not run on Vercel.** Serverless
+  functions have no long-lived process, so PDF export jobs never finish and
+  expired attempts are not auto-submitted in production. Writing is still refused
+  after the deadline by the per-request window check, so no student gains time.
+  Running `npm run jobs -w backend` on any long-lived host against the same
+  database resolves both.
 - Vercel production frontend, database readiness and owner login are verified
   at `https://cambridge-online.vercel.app`; the private GitHub repository is
   connected for automatic deployments from `main`.
-- `CRON_SECRET` is stored as a sensitive Vercel production variable; it is never
-  included in frontend code or repository files.
 - Data-dependent gates (150+ ground truth, agreement targets, real paper
   extraction and timed review study) remain unverified.
-- Official syllabus subtopics and learning objectives are not imported yet;
-  placeholder educational content was intentionally not fabricated.
-- Production readiness and owner authentication were smoke-tested against the
-  Supabase database after deployment.
+- Learning objectives are not imported yet; placeholder educational content was
+  intentionally not fabricated.
 
 `GET /api/v1/ready` exposes database state and `ai`, `pdfPrepare`, and
 `durableStorage` capability flags.

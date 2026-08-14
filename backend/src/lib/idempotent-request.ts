@@ -3,7 +3,10 @@ import type { Pool } from 'pg';
 import { IdempotencyService, requestFingerprint } from '../services/idempotency-service.js';
 import { DomainError } from '../services/assignments-service.js';
 
-interface OperationResult { status:number;body:unknown }
+interface OperationResult {
+  status: number;
+  body: unknown;
+}
 
 export async function runIdempotent(
   req: Request,

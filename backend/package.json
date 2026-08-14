@@ -11,10 +11,13 @@
     "test": "vitest run",
     "db:migrate": "tsx src/database/migrate.ts",
     "db:seed": "tsx src/database/seed.ts && tsx src/database/seed-questions.ts",
+    "db:seed-paper-11": "tsx src/database/seed-paper-9618-s23-11.ts",
+    "db:seed-paper-12": "tsx src/database/seed-paper-9618-s23-12.ts",
+    "db:seed-paper-13": "tsx src/database/seed-paper-9618-s23-13.ts",
+    "db:seed-papers": "tsx src/database/seed-papers-all.ts",
     "jobs": "tsx src/jobs/start.ts"
   },
   "dependencies": {
-    "@sparticuz/chromium-min": "^149.0.0",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -23,7 +26,7 @@
     "helmet": "^8.1.0",
     "jose": "^6.1.0",
     "pg": "^8.16.3",
-    "puppeteer-core": "^25.7.0",
+    "puppeteer-core": "^24.43.1",
     "zod": "^4.1.5"
   },
   "devDependencies": {

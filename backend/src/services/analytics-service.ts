@@ -34,7 +34,14 @@ export class AnalyticsService {
        from mastery m join subtopics st on st.id=m.subtopic_id where m.student_id=$1 order by m.score,st.code`,
       [studentId],
     );
-    return result.rows.map((row) => ({ ...row, score: Number(row.score), attempts: Number(row.attempts), marksEarned: Number(row.marks_earned), marksPossible: Number(row.marks_possible), confidence: Math.min(1, Number(row.marks_possible) / 15) }));
+    return result.rows.map((row) => ({
+      ...row,
+      score: Number(row.score),
+      attempts: Number(row.attempts),
+      marksEarned: Number(row.marks_earned),
+      marksPossible: Number(row.marks_possible),
+      confidence: Math.min(1, Number(row.marks_possible) / 15),
+    }));
   }
 
   async overview(actor: Actor) {
@@ -61,7 +68,13 @@ export class AnalyticsService {
        where e.class_id=$1 and e.left_at is null group by u.id,t.id order by u.full_name,t.number`,
       [classId],
     );
-    return result.rows.map((row) => ({ studentId: row.student_id, studentName: row.full_name, topic: row.topic, mastery: row.mastery === null ? null : Number(row.mastery), evidence: Number(row.evidence) }));
+    return result.rows.map((row) => ({
+      studentId: row.student_id,
+      studentName: row.full_name,
+      topic: row.topic,
+      mastery: row.mastery === null ? null : Number(row.mastery),
+      evidence: Number(row.evidence),
+    }));
   }
 
   async markPoints(actor: Actor, classId: string) {
@@ -78,7 +91,16 @@ export class AnalyticsService {
        group by msp.id,q.id having count(*)>=8 order by miss_pct desc limit 15`,
       [classId],
     );
-    return result.rows.map((row) => ({ id: row.id, code: row.code, text: row.text, displayRef: row.display_ref, commandWord: row.command_word, missed: row.missed, total: row.total, missPct: Number(row.miss_pct) }));
+    return result.rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      text: row.text,
+      displayRef: row.display_ref,
+      commandWord: row.command_word,
+      missed: row.missed,
+      total: row.total,
+      missPct: Number(row.miss_pct),
+    }));
   }
 
   async commandWords(actor: Actor, classId: string) {
@@ -91,7 +113,11 @@ export class AnalyticsService {
        group by q.command_word having count(*)>=10 order by pct`,
       [classId],
     );
-    return result.rows.map((row) => ({ commandWord: row.command_word, percentage: Number(row.pct), sampleSize: row.n }));
+    return result.rows.map((row) => ({
+      commandWord: row.command_word,
+      percentage: Number(row.pct),
+      sampleSize: row.n,
+    }));
   }
 
   async aiQuality(actor: Actor) {
@@ -107,6 +133,12 @@ export class AnalyticsService {
        group by g.prompt_version order by max(g.graded_at) desc`,
       [actor.schoolId],
     );
-    return result.rows.map((row) => ({ promptVersion: row.prompt_version, sampleSize: row.sample_size, pointAgreement: Number(row.point_agreement), falsePositive: Number(row.false_positive), falseNegative: Number(row.false_negative) }));
+    return result.rows.map((row) => ({
+      promptVersion: row.prompt_version,
+      sampleSize: row.sample_size,
+      pointAgreement: Number(row.point_agreement),
+      falsePositive: Number(row.false_positive),
+      falseNegative: Number(row.false_negative),
+    }));
   }
 }

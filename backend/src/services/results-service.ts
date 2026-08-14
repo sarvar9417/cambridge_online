@@ -23,9 +23,15 @@ export class ResultsService {
       [actor.role, actor.id, actor.schoolId],
     );
     return result.rows.map((row) => ({
-      id: row.id, title: row.title, className: row.class_name, studentName: row.student_name,
-      totalScore: Number(row.total_score), totalMax: Number(row.total_max),
-      percentage: Number(row.percentage), grade: row.grade, releasedAt: row.released_at,
+      id: row.id,
+      title: row.title,
+      className: row.class_name,
+      studentName: row.student_name,
+      totalScore: Number(row.total_score),
+      totalMax: Number(row.total_max),
+      percentage: Number(row.percentage),
+      grade: row.grade,
+      releasedAt: row.released_at,
     }));
   }
 
@@ -47,10 +53,20 @@ export class ResultsService {
        ) group by q.id, ans.id, g.id, ga.status order by q.sort_order`,
       [submissionId, actor.role, actor.id, actor.schoolId],
     );
+    // `12-api.md` section 2.3: a result that does not exist and one the actor may
+    // not read must be indistinguishable, so both are a 404 rather than an empty
+    // list that would confirm the submission exists.
     if (!result.rowCount) throw new DomainError('not_found', 404);
     return result.rows.map((row) => ({
-      gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
-      finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
+      gradingId: row.grading_id,
+      appealStatus: row.appeal_status,
+      displayRef: row.display_ref,
+      stemMd: row.stem_md,
+      marks: row.marks,
+      answerText: row.text,
+      finalScore: Number(row.final_score),
+      feedback: row.teacher_feedback_md,
+      points: row.points,
     }));
   }
 }

@@ -1,0 +1,11 @@
+node_modules
+dist
+frontend/dist
+backend/dist
+package-lock.json
+*.md
+test-results
+output
+tmp
+storage
+.vercel

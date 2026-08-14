@@ -1,5 +1,51 @@
-import{describe,expect,it,vi}from'vitest';import type{Pool}from'pg';import{JobQueue}from'./job-queue.js';
-describe('PostgreSQL job queue',()=>{it('enqueue is idempotent in SQL',async()=>{const query=vi.fn().mockResolvedValue({rows:[{id:'j',status:'queued'}]});await new JobQueue({query}as unknown as Pool).enqueue({kind:'ingest',idempotencyKey:'sha'});expect(query.mock.calls[0]![0]).toContain('on conflict(idempotency_key)')});it('claim uses skip locked and increments attempt',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'j',kind:'ingest',payload:{},attempts:0,max_attempts:3,ref_table:'ingestion_runs',ref_id:'run'}]}).mockResolvedValue({});const release=vi.fn();const q=new JobQueue({connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool);expect(await q.claim('w')).toMatchObject({id:'j',attempts:1,refTable:'ingestion_runs',refId:'run'});expect(query.mock.calls[1]![0]).toContain('skip locked');expect(query.mock.calls[3]![0]).toContain("status='processing'");expect(release).toHaveBeenCalled()});it('requeues retryable failure',async()=>{const query=vi.fn().mockResolvedValue({});await new JobQueue({query}as unknown as Pool).fail({id:'j',kind:'x',payload:{},attempts:1,maxAttempts:3},Error('bad'));expect(query.mock.calls[0]![1][1]).toBe('queued')});it('dead-letters exhausted failure and updates its ingestion run',async()=>{const query=vi.fn().mockResolvedValue({});await new JobQueue({query}as unknown as Pool).fail({id:'j',kind:'x',payload:{},attempts:3,maxAttempts:3,refTable:'ingestion_runs',refId:'run'},Error('bad'));expect(query.mock.calls[0]![1][1]).toBe('failed');expect(query.mock.calls[0]![0]).toContain("status='failed'")});it('finishing persist assigns the validated ingestion status',async()=>{const query=vi.fn().mockResolvedValue({});await new JobQueue({query}as unknown as Pool).succeed('j',{reviewStatus:'needs_review'});expect(query.mock.calls[0]![0]).toContain("c.kind='ingest-persist'");expect(query.mock.calls[0]![0]).toContain("then 'needs_review' else 'approved'")});it('recovers stale running jobs',async()=>{const query=vi.fn().mockResolvedValue({rowCount:2});expect(await new JobQueue({query}as unknown as Pool).recoverStale()).toBe(2);expect(query.mock.calls[0]![0]).toContain("status='running'")})});
-
-it('atomically succeeds a stage and enqueues the next stage',async()=>{const query=vi.fn().mockResolvedValue({});const release=vi.fn();const queue=new JobQueue({connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool);await queue.succeedAndEnqueue('current',{result:{pages:3},next:{kind:'ingest-segment',payload:{paperId:'paper'},idempotencyKey:'ingest:paper:segment',refTable:'source_papers',refId:'paper'}});expect(query.mock.calls[0]![0]).toBe('begin');expect(query.mock.calls[1]![0]).toContain("status='succeeded'");expect(query.mock.calls[2]![0]).toContain('on conflict(idempotency_key)do nothing');expect(query.mock.calls[3]![0]).toBe('commit');expect(release).toHaveBeenCalled()});
-it('claims only processor kinds supported by a serverless drain',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:0,rows:[]}).mockResolvedValueOnce({}),release=vi.fn();await new JobQueue({connect:vi.fn().mockResolvedValue({query,release})}as unknown as Pool).claim('serverless',['export-pdf']);expect(query.mock.calls[1]![0]).toContain('kind=any($1)');expect(query.mock.calls[1]![1]).toEqual([['export-pdf']])});
+import { describe, expect, it, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { JobQueue } from './job-queue.js';
+describe('PostgreSQL job queue', () => {
+  it('enqueue is idempotent in SQL', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 'j', status: 'queued' }] });
+    await new JobQueue({ query } as unknown as Pool).enqueue({
+      kind: 'ingest',
+      idempotencyKey: 'sha',
+    });
+    expect(query.mock.calls[0]![0]).toContain('on conflict(idempotency_key)');
+  });
+  it('claim uses skip locked and increments attempt', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: 'j', kind: 'ingest', payload: {}, attempts: 0, max_attempts: 3 }],
+      })
+      .mockResolvedValue({});
+    const release = vi.fn();
+    const q = new JobQueue({
+      connect: vi.fn().mockResolvedValue({ query, release }),
+    } as unknown as Pool);
+    expect(await q.claim('w')).toMatchObject({ id: 'j', attempts: 1 });
+    expect(query.mock.calls[1]![0]).toContain('skip locked');
+    expect(release).toHaveBeenCalled();
+  });
+  it('requeues retryable failure', async () => {
+    const query = vi.fn().mockResolvedValue({});
+    await new JobQueue({ query } as unknown as Pool).fail(
+      { id: 'j', kind: 'x', payload: {}, attempts: 1, maxAttempts: 3 },
+      Error('bad'),
+    );
+    expect(query.mock.calls[0]![1][1]).toBe('queued');
+  });
+  it('dead-letters exhausted failure', async () => {
+    const query = vi.fn().mockResolvedValue({});
+    await new JobQueue({ query } as unknown as Pool).fail(
+      { id: 'j', kind: 'x', payload: {}, attempts: 3, maxAttempts: 3 },
+      Error('bad'),
+    );
+    expect(query.mock.calls[0]![1][1]).toBe('failed');
+  });
+  it('recovers stale running jobs', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 2 });
+    expect(await new JobQueue({ query } as unknown as Pool).recoverStale()).toBe(2);
+    expect(query.mock.calls[0]![0]).toContain("status='running'");
+  });
+});

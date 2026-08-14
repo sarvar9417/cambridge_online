@@ -9,13 +9,20 @@ export function startAttemptScheduler(pool: Pool) {
   const tick = async () => {
     if (running || Date.now() < nextAllowedAt) return;
     running = true;
-    try { await service.closeExpired(); failures = 0; }
-    catch (error) {
+    try {
+      await service.closeExpired();
+      failures = 0;
+    } catch (error) {
       failures += 1;
       nextAllowedAt = Date.now() + Math.min(10 * 60_000, 30_000 * 2 ** Math.min(failures - 1, 5));
-      if (failures === 1 || failures % 5 === 0) console.error(`Attempt scheduler unavailable; retry ${new Date(nextAllowedAt).toISOString()}`, error);
+      if (failures === 1 || failures % 5 === 0)
+        console.error(
+          `Attempt scheduler unavailable; retry ${new Date(nextAllowedAt).toISOString()}`,
+          error,
+        );
+    } finally {
+      running = false;
     }
-    finally { running = false; }
   };
   void tick();
   const timer = setInterval(tick, 30_000);

@@ -97,8 +97,14 @@ export class PrivacyService {
          )`,
         [studentId],
       );
-      await client.query(`update grading_appeals set reason='[anonimlashtirildi]',resolution=null where student_id=$1`, [studentId]);
-      await client.query(`update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1`, [studentId]);
+      await client.query(
+        `update grading_appeals set reason='[anonimlashtirildi]',resolution=null where student_id=$1`,
+        [studentId],
+      );
+      await client.query(
+        `update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1`,
+        [studentId],
+      );
       await client.query(
         `update users set full_name='O''chirilgan foydalanuvchi',email=null,
                 username='deleted-'||id::text,avatar_url=null,is_active=false,

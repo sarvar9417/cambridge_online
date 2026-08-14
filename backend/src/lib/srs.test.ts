@@ -1,1 +1,24 @@
-import{describe,expect,it}from'vitest';import{sm2}from'./srs.js';const s={easeFactor:2.5,intervalDays:0,repetitions:0,lapses:0},now=new Date('2026-01-01T00:00:00Z');describe('SM-2',()=>{it('first success schedules one day',()=>expect(sm2(s,5,now).intervalDays).toBe(1));it('second success schedules six days',()=>expect(sm2({...s,repetitions:1,intervalDays:1},5,now).intervalDays).toBe(6));it('later interval uses ease factor',()=>expect(sm2({...s,repetitions:2,intervalDays:6},5,now).intervalDays).toBe(15));it('failure resets repetitions and increments lapses',()=>expect(sm2({...s,repetitions:3,intervalDays:20},1,now)).toMatchObject({repetitions:0,intervalDays:1,lapses:1}));it('ease factor never falls below 1.3',()=>{let x=s;for(let i=0;i<20;i++)x=sm2(x,0,now);expect(x.easeFactor).toBe(1.3)});it('computes due date from supplied server time',()=>expect(sm2(s,5,now).dueAt.toISOString()).toBe('2026-01-02T00:00:00.000Z'))});
+import { describe, expect, it } from 'vitest';
+import { sm2 } from './srs.js';
+const s = { easeFactor: 2.5, intervalDays: 0, repetitions: 0, lapses: 0 },
+  now = new Date('2026-01-01T00:00:00Z');
+describe('SM-2', () => {
+  it('first success schedules one day', () => expect(sm2(s, 5, now).intervalDays).toBe(1));
+  it('second success schedules six days', () =>
+    expect(sm2({ ...s, repetitions: 1, intervalDays: 1 }, 5, now).intervalDays).toBe(6));
+  it('later interval uses ease factor', () =>
+    expect(sm2({ ...s, repetitions: 2, intervalDays: 6 }, 5, now).intervalDays).toBe(15));
+  it('failure resets repetitions and increments lapses', () =>
+    expect(sm2({ ...s, repetitions: 3, intervalDays: 20 }, 1, now)).toMatchObject({
+      repetitions: 0,
+      intervalDays: 1,
+      lapses: 1,
+    }));
+  it('ease factor never falls below 1.3', () => {
+    let x = s;
+    for (let i = 0; i < 20; i++) x = sm2(x, 0, now);
+    expect(x.easeFactor).toBe(1.3);
+  });
+  it('computes due date from supplied server time', () =>
+    expect(sm2(s, 5, now).dueAt.toISOString()).toBe('2026-01-02T00:00:00.000Z'));
+});

@@ -23,11 +23,32 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend health: http://localhost:3001/api/v1/health
 
-Run all checks with:
+Apply migrations and seed the official 9618 syllabus:
+
+```bash
+npm run db:migrate -w backend
+npm run db:seed -w backend
+```
+
+Run all checks (format, lint, typecheck, tests, build) with:
 
 ```bash
 npm run verify
 ```
+
+## Background jobs
+
+PDF export, ingestion and automatic attempt closing need a long-lived process.
+Vercel functions are serverless, so run the worker on any always-on host that
+can reach the same `DATABASE_URL`:
+
+```bash
+npm run jobs -w backend
+```
+
+Without it the application still works — assignments, answers, manual grading
+and results are all request-scoped — but exports stay queued and expired
+attempts are not auto-submitted (writing past the deadline is refused either way).
 
 ## Production
 

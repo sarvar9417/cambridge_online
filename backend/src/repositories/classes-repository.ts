@@ -1,6 +1,5 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
-import { DomainError } from '../services/assignments-service.js';
 
 export interface ClassSummary {
   id: string;
@@ -13,8 +12,6 @@ export interface ClassSummary {
 
 export interface ClassesRepository {
   findVisible(actor: Actor): Promise<ClassSummary[]>;
-  findOne(actor:Actor,id:string):Promise<ClassSummary|null>;
-  enroll(actor:Actor,classId:string,studentId:string):Promise<{classId:string;studentId:string}>;
 }
 
 const mapClass = (row: Record<string, unknown>): ClassSummary => ({
@@ -72,39 +69,5 @@ export class PgClassesRepository implements ClassesRepository {
       [actor.id],
     );
     return result.rows.map(mapClass);
-  }
-
-  async findOne(actor:Actor,id:string) {
-    const scope=actor.role==='owner'
-      ? 'c.school_id=$2'
-      : actor.role==='teacher'
-        ? '(c.owner_id=$2 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$2))'
-        : 'exists(select 1 from enrollments own where own.class_id=c.id and own.student_id=$2 and own.left_at is null)';
-    const value=actor.role==='owner'?actor.schoolId:actor.id;
-    if(!value)return null;
-    const result=await this.pool.query(
-      `${SELECT_CLASSES} where c.id=$1 and c.archived_at is null and ${scope} group by c.id`,
-      [id,value],
-    );
-    return result.rows[0]?mapClass(result.rows[0]):null;
-  }
-
-  async enroll(actor:Actor,classId:string,studentId:string) {
-    if(actor.role==='student')throw new DomainError('staff_only',403);
-    const visible=await this.findOne(actor,classId);
-    if(!visible)throw new DomainError('not_found',404);
-    const result=await this.pool.query(
-      `insert into enrollments(class_id,student_id)
-       select c.id,u.id from classes c join users u on u.id=$2
-       where c.id=$1 and u.role='student' and u.is_active=true and u.school_id=c.school_id
-       on conflict(class_id,student_id) do update set left_at=null
-       returning class_id,student_id`,
-      [classId,studentId],
-    );
-    if(!result.rowCount)throw new DomainError('cross_school_enrollment',403);
-    await this.pool.query(`insert into submissions(assignment_id,student_id)
-      select a.id,$2 from assignments a where a.class_id=$1 and a.published_at is not null and a.archived_at is null
-      on conflict do nothing`,[classId,studentId]);
-    return{classId:String(result.rows[0].class_id),studentId:String(result.rows[0].student_id)};
   }
 }

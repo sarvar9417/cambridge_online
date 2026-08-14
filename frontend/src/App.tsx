@@ -1,14 +1,11 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   api,
-  apiBlob,
-  AUTH_EXPIRED_EVENT,
   setAccessToken,
   type AppealItem,
   type Assignment,
   type Attempt,
   type ClassItem,
-  type ContentGames,
   type ExportItem,
   type Flashcard,
   type GradingItem,
@@ -17,16 +14,77 @@ import {
   type ResultDetail,
   type ResultItem,
   type ReviewQuestion,
+  type Topic,
   type User,
-} from "./lib/api";
-import {
-  flushAnswers,
-  queueAnswer,
-  type PendingAnswer,
-} from "./lib/offline-queue";
-import { AnalyticsPanel } from "./AnalyticsPanel";
+} from './lib/api';
+import { flushAnswers, queueAnswer, type PendingAnswer } from './lib/offline-queue';
+import { ThemeToggle, useTheme } from './lib/theme';
+import { AnalyticsPanel } from './AnalyticsPanel';
+import { AuthScreen, PendingApprovalScreen } from './features/auth/AuthScreen';
+import { EnrolmentPanel } from './features/enrolment/EnrolmentPanel';
+import { QuestionEditor } from './features/questions/QuestionEditor';
+import { Latex } from './components/Latex';
+
+function Brand() {
+  return (
+    <div className="brand">
+      <span className="brand-mark" aria-hidden="true">
+        C
+      </span>
+      <span className="brand-name">CamPath</span>
+    </div>
+  );
+}
+
+const iconProps = {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
+
+const HomeIcon = () => (
+  <svg {...iconProps}>
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9.5V21h14V9.5" />
+    <path d="M9 21v-6h6v6" />
+  </svg>
+);
+const UsersIcon = () => (
+  <svg {...iconProps}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const BankIcon = () => (
+  <svg {...iconProps}>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+const ClipboardIcon = () => (
+  <svg {...iconProps}>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+  </svg>
+);
+const ChartIcon = () => (
+  <svg {...iconProps}>
+    <path d="M18 20V10" />
+    <path d="M12 20V4" />
+    <path d="M6 20v-6" />
+  </svg>
+);
 
 export function App() {
+  const { theme, toggle } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -34,113 +92,75 @@ export function App() {
   const [grading, setGrading] = useState<GradingItem[]>([]);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
-  const [attemptIndex,setAttemptIndex]=useState(0);
-  const [submitConfirm,setSubmitConfirm]=useState(false);
-  const [online,setOnline]=useState(()=>navigator.onLine);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [questionQuery, setQuestionQuery] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
   const [review, setReview] = useState<ReviewQuestion[]>([]);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const [reviewFinding, setReviewFinding] = useState("");
-  const [editingReview, setEditingReview] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [games,setGames]=useState<ContentGames>({termMatch:[],sequence:[],spotTheGap:[]});
-  const [gameMode,setGameMode]=useState<'term'|'sequence'|'gap'>('term');
-  const [termAnswers,setTermAnswers]=useState<Record<string,string>>({});
-  const [sequence,setSequence]=useState<ContentGames['sequence']>([]);
-  const [gapAnswer,setGapAnswer]=useState('');
-  const [gameResult,setGameResult]=useState('');
   const [cardRevealed, setCardRevealed] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
   const [exports, setExports] = useState<ExportItem[]>([]);
   const [appealDraft, setAppealDraft] = useState<Record<string, string>>({});
-  const [gradingView,setGradingView]=useState<'by_question'|'by_student'|'confidence'>('by_question');
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [staffTab, setStaffTab] = useState<'work' | 'enrolment' | 'authoring'>('work');
+  const [showKeys, setShowKeys] = useState(false);
+  const [gradeFocus, setGradeFocus] = useState<number | null>(null);
+  const gradeRefs = useRef<(HTMLElement | null)[]>([]);
+  const bankSearchRef = useRef<HTMLInputElement | null>(null);
   const saveTimers = useRef<Record<string, number>>({});
-
-  useEffect(() => {
-    const expired = () => {
-      setAccessToken(null);
-      setUser(null);
-      setAttempt(null);
-      setError('Sessiya muddati tugadi. Qayta kiring.');
-    };
-    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
-    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
-  }, []);
-
-  useEffect(() => {
-    if (user?.role !== "owner" || !review.length) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const item = review[Math.min(reviewIndex, review.length - 1)];
-      if (!item) return;
-      if (event.key === "ArrowLeft") setReviewIndex((value) => Math.max(0, value - 1));
-      if (event.key === "ArrowRight" || event.key.toLowerCase() === "s") setReviewIndex((value) => Math.min(review.length - 1, value + 1));
-      if (event.key.toLowerCase() === "e") setEditingReview(true);
-      if (event.key.toLowerCase() === "a" || event.key.toLowerCase() === "r") {
-        event.preventDefault();
-        const decision = event.key.toLowerCase() === "a" ? "approved" : "rejected";
-        api(`/ingestion/review/${item.id}/${decision}`, { method: "POST" })
-          .then(() => setReview((current) => current.filter((entry) => entry.id !== item.id)))
-          .catch((cause) => setError(cause instanceof Error ? cause.message : "Qaror saqlanmadi."));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [review, reviewIndex, user]);
 
   const loadData = async (session: { accessToken: string; user: User }) => {
     setAccessToken(session.accessToken);
     setUser(session.user);
+
+    // A self-registered student is enrolled nowhere until a teacher places them,
+    // so every data endpoint below would 403. Show the waiting screen instead.
+    if (session.user.status === 'pending') return;
+
     const [classData, assignmentData, resultData] = await Promise.all([
-      api<{ data: ClassItem[] }>("/classes"),
-      api<{ data: Assignment[] }>("/assignments"),
-      api<{ data: ResultItem[] }>("/results"),
+      api<{ data: ClassItem[] }>('/classes'),
+      api<{ data: Assignment[] }>('/assignments'),
+      api<{ data: ResultItem[] }>('/results'),
     ]);
     setClasses(classData.data);
     setAssignments(assignmentData.data);
     setResults(resultData.data);
-    if (session.user.role === "student") {
-      const [m, c, g] = await Promise.all([
-        api<{ data: MasteryItem[] }>("/analytics/mastery"),
-        api<{ data: Flashcard[] }>("/content/flashcards/due"),
-        api<{data:ContentGames}>("/content/games"),
+    if (session.user.role === 'student') {
+      const [m, c] = await Promise.all([
+        api<{ data: MasteryItem[] }>('/analytics/mastery'),
+        api<{ data: Flashcard[] }>('/content/flashcards/due'),
       ]);
       setMastery(m.data);
       setFlashcards(c.data);
-      setGames(g.data);setSequence([...g.data.sequence].reverse());
     }
-    if (session.user.role !== "student") {
-      const [questionData, gradingData, appealData, exportData] =
-        await Promise.all([
-          api<{ data: Question[] }>("/questions"),
-          api<{ data: GradingItem[] }>("/grading/queue"),
-          api<{ data: AppealItem[] }>("/grading/appeals"),
-          api<{ data: ExportItem[] }>("/exports"),
-        ]);
+    if (session.user.role !== 'student') {
+      const [questionData, gradingData, appealData, exportData] = await Promise.all([
+        api<{ data: Question[] }>('/questions'),
+        api<{ data: GradingItem[] }>('/grading/queue'),
+        api<{ data: AppealItem[] }>('/grading/appeals'),
+        api<{ data: ExportItem[] }>('/exports'),
+      ]);
       setQuestions(questionData.data);
       setGrading(gradingData.data);
       setAppeals(appealData.data);
       setExports(exportData.data);
-      if (session.user.role === "owner")
-        setReview(
-          (await api<{ data: ReviewQuestion[] }>("/ingestion/review")).data,
-        );
+      if (session.user.role === 'owner')
+        setReview((await api<{ data: ReviewQuestion[] }>('/ingestion/review')).data);
+      setTopics((await api<{ data: Topic[] }>('/syllabus/topics')).data);
     }
   };
 
   useEffect(() => {
-    api<{ accessToken: string; user: User }>("/auth/refresh", {
-      method: "POST",
-    },{suppressAuthExpired:true})
+    api<{ accessToken: string; user: User }>('/auth/refresh', {
+      method: 'POST',
+    })
       .then(loadData)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -152,36 +172,23 @@ export function App() {
       ? Math.max(
           0,
           Math.floor(
-            (new Date(attempt.deadline).getTime() -
-              new Date(attempt.serverNow).getTime()) /
-              1000,
+            (new Date(attempt.deadline).getTime() - new Date(attempt.serverNow).getTime()) / 1000,
           ),
         )
       : null;
     setRemainingSeconds(initial);
     const heartbeat = async () => {
       try {
-        const state = await api<{ remainingSeconds: number | null; status:string }>(
-          `/submissions/${attempt.submissionId}/heartbeat`,
+        const state = await api<{ remainingSeconds: number | null }>(
+          `/assignments/submissions/${attempt.submissionId}/heartbeat`,
           {
-            method: "POST",
+            method: 'POST',
             body: JSON.stringify({ activeSessionId: attempt.activeSessionId }),
           },
         );
         setRemainingSeconds(state.remainingSeconds);
-        if (state.remainingSeconds === 0 || !["not_started", "in_progress"].includes(state.status)) {
-          setAttempt(null);
-          setError("Vaqt tugadi. Javoblaringiz avtomatik topshirildi.");
-          setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
-        }
       } catch (cause) {
-        setAttempt(null);
-        setError(cause instanceof Error && cause.message !== "So‘rov bajarilmadi."
-          ? cause.message
-          : "Urinish yopildi. Javoblaringiz saqlandi.");
-        void api<{ data: Assignment[] }>("/assignments")
-          .then((response) => setAssignments(response.data))
-          .catch(() => {});
+        setError(cause instanceof Error ? cause.message : 'Attempt yopildi.');
       }
     };
     const timer = window.setInterval(heartbeat, 30_000);
@@ -192,76 +199,105 @@ export function App() {
   useEffect(() => {
     if (remainingSeconds === null || remainingSeconds <= 0) return;
     const timer = window.setInterval(
-      () =>
-        setRemainingSeconds((value) =>
-          value === null ? null : Math.max(0, value - 1),
-        ),
+      () => setRemainingSeconds((value) => (value === null ? null : Math.max(0, value - 1))),
       1000,
     );
     return () => window.clearInterval(timer);
   }, [remainingSeconds === null]);
   const sendPending = (answer: PendingAnswer) =>
-    api(
-      `/submissions/${answer.submissionId}/answers/${answer.questionId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          text: answer.text,
-          activeSessionId: answer.activeSessionId,
-        }),
-      },
-    ).then(() => {});
+    api(`/assignments/submissions/${answer.submissionId}/answers/${answer.questionId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        text: answer.text,
+        activeSessionId: answer.activeSessionId,
+      }),
+    }).then(() => {});
   useEffect(() => {
-    const sync = () => {setOnline(true);void flushAnswers(localStorage, sendPending)};
-    const offline=()=>setOnline(false);
-    window.addEventListener("online", sync);window.addEventListener('offline',offline);
+    const sync = () => void flushAnswers(localStorage, sendPending);
+    window.addEventListener('online', sync);
     sync();
-    return () => {window.removeEventListener("online", sync);window.removeEventListener('offline',offline)};
+    return () => window.removeEventListener('online', sync);
   }, []);
 
   useEffect(() => {
     if (
       !user ||
-      user.role === "student" ||
-      !exports.some(
-        (item) => item.status === "queued" || item.status === "running",
-      )
+      user.role === 'student' ||
+      !exports.some((item) => item.status === 'queued' || item.status === 'running')
     )
       return;
     const refresh = () =>
-      void api<{ data: ExportItem[] }>("/exports")
+      void api<{ data: ExportItem[] }>('/exports')
         .then((response) => setExports(response.data))
         .catch(() => {});
     const timer = window.setInterval(refresh, 2_000);
     return () => window.clearInterval(timer);
   }, [user, exports]);
 
-  const login = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-    const data = new FormData(event.currentTarget);
+  // Klaviatura qisqartmalari (spec 05 §8.6)
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      const typing =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        (event.target as HTMLElement | null)?.isContentEditable;
+      const key = event.key;
+      if (key === 'Escape') setShowKeys(false);
+      if (typing) return;
+      if (key === '?') {
+        event.preventDefault();
+        setShowKeys((current) => !current);
+        return;
+      }
+      if ((key === 'k' && event.metaKey) || (key === 'k' && event.ctrlKey)) {
+        event.preventDefault();
+        if (user?.role !== 'student') {
+          setStaffTab('work');
+          window.setTimeout(() => bankSearchRef.current?.focus(), 0);
+        }
+        return;
+      }
+      if (!user) return;
+      if (user.role !== 'student' && staffTab === 'work' && grading.length > 0) {
+        if (key === 'J' || key === 'K') {
+          event.preventDefault();
+          setGradeFocus((current) => {
+            const next =
+              current === null
+                ? 0
+                : key === 'J'
+                  ? Math.min(grading.length - 1, current + 1)
+                  : Math.max(0, current - 1);
+            gradeRefs.current[next]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            return next;
+          });
+        } else if (/^[1-9]$/.test(key)) {
+          const item = grading[gradeFocus ?? 0];
+          const point = item?.points[Number(key) - 1];
+          if (point) void togglePoint(item, point.id, !point.matched);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [user, staffTab, grading, gradeFocus]);
+
+  /** Re-reads the session so an approved student leaves the waiting screen. */
+  const recheckStatus = async () => {
     try {
-      await loadData(
-        await api("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({
-            identifier: data.get("identifier"),
-            password: data.get("password"),
-          }),
-        }),
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Login amalga oshmadi.",
-      );
-    } finally {
-      setLoading(false);
+      const session = await api<{ accessToken: string; user: User }>('/auth/refresh', {
+        method: 'POST',
+      });
+      await loadData(session);
+    } catch {
+      setError('Holatni tekshirib bo‘lmadi.');
     }
   };
 
   const logout = async () => {
-    await api("/auth/logout", { method: "POST" });
+    await api('/auth/logout', { method: 'POST' });
     setAccessToken(null);
     setUser(null);
   };
@@ -269,7 +305,9 @@ export function App() {
     setError('');
     try {
       const data = await api<unknown>('/privacy/export');
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type:'application/json' }));
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+      );
       const link = document.createElement('a');
       link.href = url;
       link.download = `campath-data-${new Date().toISOString().slice(0, 10)}.json`;
@@ -282,18 +320,16 @@ export function App() {
   const start = async (id: string) => {
     const requestId = crypto.randomUUID();
     const next = await api<Attempt>(`/assignments/${id}/attempt`, {
-      method: "POST",
-      headers: { "Idempotency-Key": requestId },
+      method: 'POST',
+      headers: { 'Idempotency-Key': requestId },
       body: JSON.stringify({ clientSessionId: requestId }),
     });
     setAttempt(next);
-    setAttemptIndex(0);
     setAnswers(
       Object.fromEntries(
         next.questions.map((question) => [
           question.id,
-          localStorage.getItem(`answer:${next.submissionId}:${question.id}`) ??
-            question.answerText,
+          localStorage.getItem(`answer:${next.submissionId}:${question.id}`) ?? question.answerText,
         ]),
       ),
     );
@@ -309,41 +345,30 @@ export function App() {
       activeSessionId: attempt.activeSessionId,
     });
     window.clearTimeout(saveTimers.current[id]);
-    saveTimers.current[id] = window.setTimeout(
-      () => flushAnswers(localStorage, sendPending),
-      1000,
-    );
+    saveTimers.current[id] = window.setTimeout(() => flushAnswers(localStorage, sendPending), 1000);
   };
   const submit = async () => {
-    if (!attempt) return;
+    if (!attempt || !confirm('Vazifani topshirishni tasdiqlaysizmi?')) return;
     await Promise.all(
       attempt.questions.map((question) =>
-        api(
-          `/submissions/${attempt.submissionId}/answers/${question.id}`,
-          {
-            method: "PUT",
-            body: JSON.stringify({
-              text: answers[question.id] ?? "",
-              activeSessionId: attempt.activeSessionId,
-            }),
-          },
-        ),
+        api(`/assignments/submissions/${attempt.submissionId}/answers/${question.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            text: answers[question.id] ?? '',
+            activeSessionId: attempt.activeSessionId,
+          }),
+        }),
       ),
     );
-    await api(`/submissions/${attempt.submissionId}/submit`, {
-      method: "POST",
+    await api(`/assignments/submissions/${attempt.submissionId}/submit`, {
+      method: 'POST',
     });
     setAttempt(null);
-    setSubmitConfirm(false);
-    setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
+    setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
   };
-  const togglePoint = async (
-    item: GradingItem,
-    pointId: string,
-    matched: boolean,
-  ) => {
-    await api(`/gradings/${item.id}/points/${pointId}`, {
-      method: "PATCH",
+  const togglePoint = async (item: GradingItem, pointId: string, matched: boolean) => {
+    await api(`/grading/points/${pointId}`, {
+      method: 'PATCH',
       body: JSON.stringify({ teacherMatched: matched }),
     });
     setGrading((current) =>
@@ -361,278 +386,422 @@ export function App() {
   };
   const setScore = async (item: GradingItem, score: number) => {
     await api(`/grading/${item.id}/score`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify({ score }),
     });
   };
   const release = async (item: GradingItem) => {
-    await api(`/gradings/${item.id}/release`, { method: "POST" });
+    await api(`/grading/${item.id}/release`, { method: 'POST' });
     setGrading((current) => current.filter((entry) => entry.id !== item.id));
-  };
-  const changeGradingView=async(view:'by_question'|'by_student'|'confidence')=>{
-    setGradingView(view);
-    const query=view==='confidence'?'sort=confidence':`mode=${view}`;
-    setGrading((await api<{data:GradingItem[]}>(`/grading/queue?${query}`)).data);
   };
   const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await api("/assignments", {
-      method: "POST",
-      headers: { "Idempotency-Key": crypto.randomUUID() },
+    await api('/assignments', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
       body: JSON.stringify({
-        classId: data.get("classId"),
-        title: data.get("title"),
-        dueAt: data.get("dueAt")
-          ? new Date(String(data.get("dueAt"))).toISOString()
-          : undefined,
-        timeLimitMin: data.get("timeLimitMin")
-          ? Number(data.get("timeLimitMin"))
-          : undefined,
+        classId: data.get('classId'),
+        title: data.get('title'),
+        dueAt: data.get('dueAt') ? new Date(String(data.get('dueAt'))).toISOString() : undefined,
+        timeLimitMin: data.get('timeLimitMin') ? Number(data.get('timeLimitMin')) : undefined,
         questionIds: selectedQuestions,
       }),
     });
     setCreating(false);
     setSelectedQuestions([]);
-    setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
+    setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
   };
   const openResult = async (id: string) =>
-    setResultDetail(
-      (await api<{ data: ResultDetail[] }>(`/results/${id}`)).data,
-    );
+    setResultDetail((await api<{ data: ResultDetail[] }>(`/results/${id}`)).data);
   const submitAppeal = async (item: ResultDetail) => {
-    const reason = appealDraft[item.gradingId]?.trim() ?? "";
+    const reason = appealDraft[item.gradingId]?.trim() ?? '';
     if (reason.length < 10) {
-      setError("Apellyatsiya sababini kamida 10 belgi bilan yozing.");
+      setError('Apellyatsiya sababini kamida 10 belgi bilan yozing.');
       return;
     }
-    await api(`/gradings/${item.gradingId}/appeal`, {
-      method: "POST",
+    await api(`/grading/${item.gradingId}/appeal`, {
+      method: 'POST',
       body: JSON.stringify({ reason }),
     });
     setResultDetail(
       (current) =>
         current?.map((entry) =>
-          entry.gradingId === item.gradingId
-            ? { ...entry, appealStatus: "open" }
-            : entry,
+          entry.gradingId === item.gradingId ? { ...entry, appealStatus: 'open' } : entry,
         ) ?? null,
     );
-    setAppealDraft((current) => ({ ...current, [item.gradingId]: "" }));
+    setAppealDraft((current) => ({ ...current, [item.gradingId]: '' }));
   };
-  const resolveAppeal = async (
-    item: AppealItem,
-    decision: "accepted" | "rejected",
-  ) => {
+  const resolveAppeal = async (item: AppealItem, decision: 'accepted' | 'rejected') => {
     const resolution = prompt(
-      decision === "accepted" ? "Qayta tekshirish izohi" : "Rad etish izohi",
+      decision === 'accepted' ? 'Qayta tekshirish izohi' : 'Rad etish izohi',
     );
     if (!resolution || resolution.trim().length < 3) return;
     await api(`/grading/appeals/${item.id}/resolve`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ decision, resolution }),
     });
     setAppeals((current) => current.filter((entry) => entry.id !== item.id));
-    if (decision === "accepted")
-      setGrading((await api<{ data: GradingItem[] }>("/grading/queue")).data);
+    if (decision === 'accepted')
+      setGrading((await api<{ data: GradingItem[] }>('/grading/queue')).data);
   };
-  const reviewDecision = async (
-    id: string,
-    decision: "approved" | "rejected",
-  ) => {
-    await api(`/ingestion/review/${id}/${decision}`, { method: "POST" });
+  const reviewDecision = async (id: string, decision: 'approved' | 'rejected') => {
+    await api(`/ingestion/review/${id}/${decision}`, { method: 'POST' });
     setReview((current) => current.filter((item) => item.id !== id));
-  };
-  const filterReview = async (findingCode: string) => {
-    setReviewFinding(findingCode);
-    setReviewIndex(0);
-    const query = findingCode ? `?findingCode=${encodeURIComponent(findingCode)}` : "";
-    setReview((await api<{ data: ReviewQuestion[] }>(`/ingestion/review${query}`)).data);
-  };
-  const bulkApproveReview = async () => {
-    if (!reviewFinding || !confirm(`${reviewFinding} findingli navbatni tasdiqlaysizmi?`)) return;
-    await api("/ingestion/review/bulk-approve", {method:"POST",body:JSON.stringify({findingCode:reviewFinding})});
-    await filterReview(reviewFinding);
-  };
-  const undoReview = async () => {
-    await api("/ingestion/review/undo", {method:"POST"});
-    await filterReview(reviewFinding);
-  };
-  const editReview = async (event:FormEvent<HTMLFormElement>,item:ReviewQuestion) => {
-    event.preventDefault();const data=new FormData(event.currentTarget);
-    const updated=await api<{stem_md:string;marks:number|null;command_word:string|null}>(`/ingestion/review/${item.id}`,{method:"PATCH",body:JSON.stringify({stemMd:data.get("stemMd"),marks:data.get("marks")===""?null:Number(data.get("marks")),commandWord:data.get("commandWord")||null})});
-    setReview((current)=>current.map((entry)=>entry.id===item.id?{...entry,...updated}:entry));setEditingReview(false);
   };
   const gradeCard = async (grade: number) => {
     const card = flashcards[0];
     if (!card) return;
     await api(`/content/flashcards/${card.flashcard_id}/review`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ grade }),
     });
     setFlashcards((current) => current.slice(1));
     setCardRevealed(false);
   };
-  const exportAssignment = async (
-    id: string,
-    kind: "question_paper" | "combined",
-  ) => {
-    setError("");
+  const exportAssignment = async (id: string, kind: 'question_paper' | 'combined') => {
+    setError('');
     try {
-      const created = await api<ExportItem>("/exports", {
-        method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ kind, refTable: "assignments", refId: id }),
+      const created = await api<ExportItem>('/exports', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ kind, refTable: 'assignments', refId: id }),
       });
       setExports((current) => [created, ...current]);
-      await api('/jobs/run-once',{method:'POST'});
-      setExports((await api<{data:ExportItem[]}>('/exports')).data);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "PDF tayyorlash boshlanmadi.",
-      );
+      setError(cause instanceof Error ? cause.message : 'PDF tayyorlash boshlanmadi.');
     }
   };
-  const downloadExport=async(item:ExportItem)=>{const blob=await apiBlob(`/exports/${item.id}/file`),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`campath-${item.kind}.pdf`;anchor.click();URL.revokeObjectURL(url)};
   const generateAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await api("/assignments/generate", {
-      method: "POST",
+    await api('/assignments/generate', {
+      method: 'POST',
       body: JSON.stringify({
-        classId: data.get("classId"),
-        title: data.get("title"),
-        targetMarks: Number(data.get("targetMarks")),
-        excludeSeen: data.get("excludeSeen") === "on",
-        excludeDiagrams: data.get("excludeDiagrams") === "on",
+        classId: data.get('classId'),
+        title: data.get('title'),
+        targetMarks: Number(data.get('targetMarks')),
+        excludeSeen: data.get('excludeSeen') === 'on',
+        excludeDiagrams: data.get('excludeDiagrams') === 'on',
         seed: Date.now(),
       }),
     });
     setGenerating(false);
-    setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
+    setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
   };
 
   if (loading && !user) return <main className="center">Yuklanmoqda...</main>;
   if (!user)
     return (
       <main className="login-page">
-        <form className="login-panel" onSubmit={login}>
-          <div className="brand">CamPath</div>
-          <h1>Tizimga kirish</h1>
-          <label>
-            Username yoki email
-            <input name="identifier" autoComplete="username" required />
-          </label>
-          <label>
-            Parol
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              minLength={8}
-              required
-            />
-          </label>
-          {error && <p className="error">{error}</p>}
-          <button disabled={loading}>Kirish</button>
-        </form>
+        <ThemeToggle theme={theme} toggle={toggle} />
+        <div className="login-panel">
+          <Brand />
+          <p className="login-sub">Cambridge 9618 tayyorlov platformasi</p>
+          <AuthScreen
+            onSignedIn={(session) => {
+              setError('');
+              void loadData(session);
+            }}
+          />
+        </div>
+      </main>
+    );
+  if (user.status === 'pending')
+    return (
+      <main className="login-page">
+        <ThemeToggle theme={theme} toggle={toggle} />
+        <div className="login-panel">
+          <Brand />
+          <PendingApprovalScreen user={user} onSignOut={logout} onRecheck={recheckStatus} />
+        </div>
       </main>
     );
   if (attempt)
     return (
       <main className="attempt">
         <header>
-          <button
-            className="back"
-            title="Orqaga"
-            onClick={() => setAttempt(null)}
-          >
+          <button className="back" title="Orqaga" onClick={() => setAttempt(null)}>
             ←
           </button>
           <strong>
-            Vazifa · {attempt.questions.length} savol{" "}
-            {remainingSeconds !== null &&
-              `· ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`}
+            Vazifa · {attempt.questions.length} savol
+            {remainingSeconds !== null && (
+              <span
+                className={`timer${remainingSeconds <= 300 ? ' timer--warn' : ''}${
+                  remainingSeconds <= 0 ? ' timer--done' : ''
+                }`}
+              >
+                {Math.floor(remainingSeconds / 60)}:{String(remainingSeconds % 60).padStart(2, '0')}
+              </span>
+            )}
           </strong>
-          <button onClick={()=>setSubmitConfirm(true)} disabled={remainingSeconds === 0}>
-            Topshirish
-          </button>
+          <div className="attempt-actions">
+            <ThemeToggle theme={theme} toggle={toggle} />
+            <button onClick={submit} disabled={remainingSeconds === 0}>
+              Topshirish
+            </button>
+          </div>
         </header>
-        <div className={`sync-state ${online?'online':'offline'}`}>{online?'Sinxronlandi':'Oflayn — javoblaring saqlanmoqda'}</div>
+        <div
+          className="attempt-progress"
+          role="progressbar"
+          aria-valuenow={attempt.questions.length}
+        >
+          {attempt.questions.map((question) => (
+            <span
+              className={(answers[question.id] ?? '').trim() ? 'filled' : ''}
+              key={question.id}
+              title={question.displayRef}
+            />
+          ))}
+        </div>
         {error && <p className="attempt-error">{error}</p>}
-        <div className="attempt-progress" aria-label={`${attemptIndex+1} / ${attempt.questions.length}`}>{attempt.questions.map((question,index)=><button title={`${index+1}. ${question.displayRef}`} aria-label={`${index+1}-savol`} className={(answers[question.id]??'').trim()?'answered':''} onClick={()=>setAttemptIndex(index)} key={question.id} />)}</div>
-        {(()=>{const question=attempt.questions[attemptIndex]!;return <>
+        {attempt.questions.map((question, index) => (
           <section className="question" key={question.id}>
             <p className="ref">
-              {attemptIndex + 1}. {question.displayRef} · {question.commandWord} ·{" "}
-              {question.marks} ball
+              {index + 1}. {question.displayRef} · {question.commandWord} · {question.marks} ball
             </p>
-            {question.contextMd && (
-              <p className="context">{question.contextMd}</p>
+            {(question.contextLatex || question.contextMd) && (
+              <Latex className="context" source={question.contextLatex || question.contextMd} />
             )}
-            <h2>{question.stemMd}</h2>
-            <textarea className={question.answerKind==='code'||question.answerKind==='pseudocode'?'code-answer':''}
+            <h2>
+              <Latex source={question.stemLatex || question.stemMd} inline />
+            </h2>
+            <textarea
               disabled={remainingSeconds === 0}
-              value={answers[question.id] ?? ""}
+              value={answers[question.id] ?? ''}
               onChange={(event) => change(question.id, event.target.value)}
               placeholder="Javobingni yoz..."
             />
             <small>
-              {
-                (answers[question.id] ?? "").trim().split(/\s+/).filter(Boolean)
-                  .length
-              }{" "}
-              so‘z · avtomatik saqlanadi
+              {(answers[question.id] ?? '').trim().split(/\s+/).filter(Boolean).length} so‘z ·
+              avtomatik saqlanadi
             </small>
           </section>
-          <nav className="attempt-nav"><button className="secondary" disabled={attemptIndex===0} onClick={()=>setAttemptIndex(value=>value-1)}>← Oldingi</button><span>{attemptIndex+1} / {attempt.questions.length}</span><button disabled={attemptIndex===attempt.questions.length-1} onClick={()=>setAttemptIndex(value=>value+1)}>Keyingi →</button></nav>
-        </>})()}
-        {submitConfirm&&<div className="modal-backdrop" role="presentation"><section className="submit-dialog" role="dialog" aria-modal="true" aria-labelledby="submit-title"><h2 id="submit-title">Topshirishga tayyormisan?</h2><p>Javob berilgan: <strong>{attempt.questions.filter(question=>(answers[question.id]??'').trim()).length} / {attempt.questions.length}</strong></p>{attempt.questions.some(question=>!(answers[question.id]??'').trim())&&<p>Bo‘sh: {attempt.questions.filter(question=>!(answers[question.id]??'').trim()).map(question=>question.displayRef).join(', ')}</p>}<p>Topshirgandan keyin javobni o‘zgartira olmaysan.</p><div><button className="secondary" onClick={()=>setSubmitConfirm(false)}>Ortga</button><button onClick={submit}>Topshirish</button></div></section></div>}
+        ))}
       </main>
     );
+
+  const role =
+    user.role === 'owner' ? 'Owner' : user.role === 'teacher' ? 'O‘qituvchi' : 'O‘quvchi';
+
+  const now = Date.now();
+  const upcomingDeadlines = assignments
+    .filter((a) => a.dueAt && new Date(a.dueAt).getTime() > now)
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+    .slice(0, 4);
+  const attentionItems = [
+    ...(grading.length > 0
+      ? [
+          {
+            tone: 'tone-missed' as const,
+            title: `${grading.length} ta javob tekshirilishi kutilmoqda`,
+            hint: 'Baholash navbatiga o‘ting',
+            href: '#baholash',
+          },
+        ]
+      : []),
+    ...(appeals.length > 0
+      ? [
+          {
+            tone: 'tone-uncertain' as const,
+            title: `${appeals.length} ta apellyatsiya qaror kutilmoqda`,
+            hint: 'Talabani tekshirib ko‘ring',
+            href: '#appeals',
+          },
+        ]
+      : []),
+    ...(user.role === 'owner' && review.length > 0
+      ? [
+          {
+            tone: 'tone-uncertain' as const,
+            title: `${review.length} ta savol ingestion tekshiruvida`,
+            hint: 'Sifat nazoratidan o‘tkazing',
+            href: '#ingestion',
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="app">
       <aside>
-        <div className="brand">CamPath</div>
+        <Brand />
         <nav>
-          <a className="active">Bosh sahifa</a>
-          <a>Sinflar</a>
-          {user.role !== "student" && <a>Savol banki</a>}
-          <a>Vazifalar</a>
-          <a>Natijalar</a>
+          {user.role === 'student' ? (
+            <>
+              <div className="nav-group">Asosiy</div>
+              {[
+                { label: 'Bosh sahifa', icon: <HomeIcon />, href: '#top', active: true },
+                { label: 'Vazifalar', icon: <ClipboardIcon />, href: '#vazifalar' },
+                { label: 'Natijalar', icon: <ChartIcon />, href: '#natijalar' },
+              ].map((item) => (
+                <a className={item.active ? 'active' : ''} key={item.label} href={item.href}>
+                  <span className="nav-icon">{item.icon}</span>
+                  {item.label}
+                </a>
+              ))}
+              <div className="nav-group">O‘rganmoq</div>
+              {[
+                { label: 'Bilim xaritasi', icon: <ChartIcon />, href: '#xarita' },
+                ...(flashcards.length > 0
+                  ? [{ label: 'Kartochkalar', icon: <BankIcon />, href: '#kartochkalar' }]
+                  : []),
+              ].map((item) => (
+                <a key={item.href} href={item.href}>
+                  <span className="nav-icon">{item.icon}</span>
+                  {item.label}
+                </a>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="nav-group">Asosiy</div>
+              {[
+                { label: 'Bugungi ish', icon: <HomeIcon />, href: '#top', active: true },
+                { label: 'Vazifalar', icon: <ClipboardIcon />, href: '#vazifalar' },
+                ...(appeals.length > 0
+                  ? [
+                      {
+                        label: 'Apellyatsiyalar',
+                        icon: <ChartIcon />,
+                        href: '#appeals',
+                        count: appeals.length,
+                      },
+                    ]
+                  : []),
+              ].map((item) => (
+                <a className={item.active ? 'active' : ''} key={item.label} href={item.href}>
+                  <span className="nav-icon">{item.icon}</span>
+                  {item.label}
+                  {item.count !== undefined && <span className="nav-count">{item.count}</span>}
+                </a>
+              ))}
+              <div className="nav-group">Boshqaruv</div>
+              {[
+                { label: 'O‘quvchilar', icon: <UsersIcon />, href: '#enrolment' },
+                ...(user.role === 'owner'
+                  ? [{ label: 'Savol yaratish', icon: <BankIcon />, href: '#authoring' }]
+                  : []),
+              ].map((item) => (
+                <a key={item.label} href={item.href}>
+                  <span className="nav-icon">{item.icon}</span>
+                  {item.label}
+                </a>
+              ))}
+            </>
+          )}
         </nav>
-        <button className="ghost data-export" onClick={downloadOwnData}>
-          Ma’lumotlarim
-        </button>
-        <button className="ghost" onClick={logout}>
-          Chiqish
-        </button>
+        <div className="side-foot">
+          <button className="ghost data-export" onClick={downloadOwnData}>
+            Ma’lumotlarim
+          </button>
+          <button className="ghost" onClick={logout}>
+            Chiqish
+          </button>
+        </div>
       </aside>
-      <main>
-        <header id="student-home">
+      <main id="top">
+        <header>
           <div>
-            <p className="eyebrow">Cambridge 9618</p>
-            <h1>Salom, {user.fullName}</h1>
+            {user.role !== 'student' ? (
+              <>
+                <p className="eyebrow">
+                  Bugungi ish ·{' '}
+                  {new Date().toLocaleDateString('uz-UZ', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  })}
+                </p>
+                <h1>Salom, {user.fullName}</h1>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">Cambridge 9618</p>
+                <h1>Salom, {user.fullName}</h1>
+              </>
+            )}
           </div>
-          <span className="role">
-            {user.role === "owner"
-              ? "Owner"
-              : user.role === "teacher"
-                ? "O‘qituvchi"
-                : "O‘quvchi"}
-          </span>
+          <div className="page-head-actions">
+            <ThemeToggle theme={theme} toggle={toggle} />
+            <span className="role">{role}</span>
+          </div>
         </header>
         {error && <p className="app-error">{error}</p>}
-        {user.role === "student" && (
-          <section id="student-assignments">
-            <h2>Vazifalar</h2>
+        {user.role === 'student' && (
+          <div className="stats">
+            <div className="stat-card">
+              <span className="stat-label">Vazifalar</span>
+              <span className="stat-value">
+                {assignments.filter((a) => a.submissionStatus === 'in_progress').length}
+                <small> jurnalda</small>
+              </span>
+              <span className="stat-hint">
+                {assignments.filter((a) => a.submissionStatus === 'not_started').length} tasi
+                boshlanmagan
+              </span>
+            </div>
+            <div className="stat-card tone-awarded">
+              <span className="stat-label">O‘rtacha natija</span>
+              <span className="stat-value">
+                {results.length
+                  ? `${Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)}%`
+                  : '—'}
+              </span>
+              <span className="stat-hint">{results.length} ta natija chiqarilgan</span>
+            </div>
+            <div className="stat-card tone-uncertain">
+              <span className="stat-label">Kartochkalar</span>
+              <span className="stat-value">
+                {flashcards.length}
+                <small> ta</small>
+              </span>
+              <span className="stat-hint">Bugun takrorlash navbatida</span>
+            </div>
+          </div>
+        )}
+        {user.role !== 'student' && (
+          <div className="stats">
+            <div className="stat-card">
+              <span className="stat-label">Baholash navbati</span>
+              <span className="stat-value">
+                {grading.length}
+                <small> javob</small>
+              </span>
+              <span className="stat-hint">Tekshirilishi kerak</span>
+            </div>
+            <div className="stat-card tone-uncertain">
+              <span className="stat-label">Apellyatsiyalar</span>
+              <span className="stat-value">
+                {appeals.length}
+                <small> ta</small>
+              </span>
+              <span className="stat-hint">Qaror kutilmoqda</span>
+            </div>
+            <div className="stat-card tone-awarded">
+              <span className="stat-label">Nashr etilgan</span>
+              <span className="stat-value">
+                {results.length}
+                <small> natija</small>
+              </span>
+              <span className="stat-hint">O‘quvchilarga ko‘rsatildi</span>
+            </div>
+          </div>
+        )}
+        {user.role === 'student' && (
+          <section id="vazifalar">
+            <div className="section-title">
+              <h2>Vazifalar</h2>
+              <span>{assignments.length} ta</span>
+            </div>
             <div className="table">
               {assignments.map((assignment) => {
                 const closed = Boolean(
                   assignment.submissionStatus &&
-                    assignment.submissionStatus !== "in_progress" &&
-                    assignment.submissionStatus !== "not_started",
+                  assignment.submissionStatus !== 'in_progress' &&
+                  assignment.submissionStatus !== 'not_started',
                 );
                 return (
                   <div className="tr assignment" key={assignment.id}>
@@ -642,16 +811,15 @@ export function App() {
                         {assignment.className} · {assignment.totalMarks} ball
                       </small>
                     </div>
-                    <span>{assignment.submissionStatus ?? "Boshlanmagan"}</span>
-                    <button
-                      disabled={closed}
-                      onClick={() => start(assignment.id)}
-                    >
-                      {assignment.submissionStatus === "in_progress"
-                        ? "Davom etish"
+                    <span className={`status-pill ${assignment.submissionStatus ?? 'not_started'}`}>
+                      {assignment.submissionStatus ?? 'Boshlanmagan'}
+                    </span>
+                    <button disabled={closed} onClick={() => start(assignment.id)}>
+                      {assignment.submissionStatus === 'in_progress'
+                        ? 'Davom etish'
                         : closed
-                          ? "Yakunlangan"
-                          : "Boshlash"}
+                          ? 'Yakunlangan'
+                          : 'Boshlash'}
                     </button>
                   </div>
                 );
@@ -659,7 +827,7 @@ export function App() {
             </div>
           </section>
         )}
-        <section id="student-results">
+        <section id="natijalar">
           <div className="section-title">
             <h2>Natijalar</h2>
             <span>{results.length} ta</span>
@@ -676,11 +844,7 @@ export function App() {
                 >
                   <div>
                     <strong>{result.title}</strong>
-                    <small>
-                      {user.role === "student"
-                        ? result.className
-                        : result.studentName}
-                    </small>
+                    <small>{user.role === 'student' ? result.className : result.studentName}</small>
                   </div>
                   <strong>
                     {result.totalScore}/{result.totalMax}
@@ -704,35 +868,30 @@ export function App() {
                     {item.displayRef} · {item.finalScore}/{item.marks}
                   </strong>
                   <p>{item.stemMd}</p>
-                  <blockquote>
-                    {item.answerText || "Javob yozilmagan"}
-                  </blockquote>
+                  <blockquote>{item.answerText || 'Javob yozilmagan'}</blockquote>
                   {item.points.map((point) => (
-                    <div
-                      className={point.matched ? "point hit" : "point"}
-                      key={point.code}
-                    >
-                      <b>{point.matched ? "✓" : "×"}</b>
+                    <div className={point.matched ? 'point hit' : 'point'} key={point.code}>
+                      <b>{point.matched ? '✓' : '×'}</b>
                       <span>
                         {point.code} {point.text}
                       </span>
                       <strong>{point.marks}</strong>
                     </div>
                   ))}
-                  {user.role === "student" &&
+                  {user.role === 'student' &&
                     (item.appealStatus ? (
                       <p className="appeal-status">
-                        Apellyatsiya:{" "}
-                        {item.appealStatus === "open"
-                          ? "ko‘rib chiqilmoqda"
-                          : item.appealStatus === "accepted"
-                            ? "qabul qilindi"
-                            : "rad etildi"}
+                        Apellyatsiya:{' '}
+                        {item.appealStatus === 'open'
+                          ? 'ko‘rib chiqilmoqda'
+                          : item.appealStatus === 'accepted'
+                            ? 'qabul qilindi'
+                            : 'rad etildi'}
                       </p>
                     ) : (
                       <div className="appeal-form">
                         <textarea
-                          value={appealDraft[item.gradingId] ?? ""}
+                          value={appealDraft[item.gradingId] ?? ''}
                           onChange={(event) =>
                             setAppealDraft((current) => ({
                               ...current,
@@ -741,9 +900,7 @@ export function App() {
                           }
                           placeholder="Bahoga nima sababdan e’tiroz bildirayotganingizni yozing"
                         />
-                        <button onClick={() => submitAppeal(item)}>
-                          Apellyatsiya yuborish
-                        </button>
+                        <button onClick={() => submitAppeal(item)}>Apellyatsiya yuborish</button>
                       </div>
                     ))}
                 </article>
@@ -751,16 +908,14 @@ export function App() {
             </div>
           )}
         </section>
-        {user.role === "student" && (
-          <section id="student-learning">
+        {user.role === 'student' && (
+          <section id="xarita">
             <div className="section-title">
               <h2>Bilim xaritasi</h2>
               <span>{mastery.length} mavzu</span>
             </div>
             {mastery.length === 0 ? (
-              <p className="empty">
-                Natijalar chiqqach bilim xaritasi paydo bo‘ladi.
-              </p>
+              <p className="empty">Natijalar chiqqach bilim xaritasi paydo bo‘ladi.</p>
             ) : (
               <div className="mastery-list">
                 {mastery.map((item) => (
@@ -778,47 +933,35 @@ export function App() {
             )}
           </section>
         )}
-        {user.role === "student" && flashcards[0] && (
-          <section id="student-flashcards">
-            <div className="section-title">
-              <h2>Kartochkalar</h2>
-              <span>{flashcards.length} ta</span>
-            </div>
-            <article className="flashcard">
-              <strong>{flashcards[0].front_md}</strong>
-              {cardRevealed ? (
-                <>
-                  <p>{flashcards[0].back_md}</p>
-                  <div>
-                    <button onClick={() => gradeCard(1)}>Qiyin</button>
-                    <button onClick={() => gradeCard(3)}>O‘rta</button>
-                    <button onClick={() => gradeCard(5)}>Oson</button>
-                  </div>
-                </>
+        {user.role === 'student' && (
+          <>
+            <section id="kartochkalar">
+              <div className="section-title">
+                <h2>Kartochkalar</h2>
+                <span>{flashcards.length} ta</span>
+              </div>
+              {flashcards[0] ? (
+                <article className="flashcard">
+                  <strong>{flashcards[0].front_md}</strong>
+                  {cardRevealed ? (
+                    <>
+                      <p>{flashcards[0].back_md}</p>
+                      <div>
+                        <button onClick={() => gradeCard(1)}>Qiyin</button>
+                        <button onClick={() => gradeCard(3)}>O‘rta</button>
+                        <button onClick={() => gradeCard(5)}>Oson</button>
+                      </div>
+                    </>
+                  ) : (
+                    <button onClick={() => setCardRevealed(true)}>Javobni ko‘rsatish</button>
+                  )}
+                </article>
               ) : (
-                <button onClick={() => setCardRevealed(true)}>
-                  Javobni ko‘rsatish
-                </button>
+                <p className="empty">Bugun takrorlash kartochkalari qolmadi.</p>
               )}
-            </article>
-          </section>
+            </section>
+          </>
         )}
-        {user.role === "student" && (games.termMatch.length>0||games.sequence.length>1) && (
-          <section id="student-games">
-            <div className="section-title"><h2>Mashq o‘yinlari</h2><div className="segmented game-tabs" aria-label="O‘yin turi">
-              <button className={gameMode==='term'?'active':''} onClick={()=>{setGameMode('term');setGameResult('')}}>Term match</button>
-              <button className={gameMode==='sequence'?'active':''} onClick={()=>{setGameMode('sequence');setGameResult('')}}>Sequence</button>
-              <button className={gameMode==='gap'?'active':''} onClick={()=>{setGameMode('gap');setGameResult('')}}>Spot the gap</button>
-            </div></div>
-            <div className="learning-game">
-              {gameMode==='term'&&<>{games.termMatch.map(item=><label key={item.id}><strong>{item.term}</strong><select value={termAnswers[item.id]??''} onChange={event=>setTermAnswers(current=>({...current,[item.id]:event.target.value}))}><option value="">Ta’rifni tanlang</option>{games.termMatch.map(option=><option value={option.id} key={option.id}>{option.definition}</option>)}</select></label>)}<button onClick={()=>setGameResult(`${games.termMatch.filter(item=>termAnswers[item.id]===item.id).length}/${games.termMatch.length} to‘g‘ri`)}>Tekshirish</button></>}
-              {gameMode==='sequence'&&<>{sequence.map((item,index)=><div className="sequence-item" key={item.id}><b>{index+1}</b><span>{item.code} {item.text}</span><button title="Yuqoriga" disabled={index===0} onClick={()=>setSequence(current=>{const next=[...current];[next[index-1],next[index]]=[next[index]!,next[index-1]!];return next})}>↑</button><button title="Pastga" disabled={index===sequence.length-1} onClick={()=>setSequence(current=>{const next=[...current];[next[index],next[index+1]]=[next[index+1]!,next[index]!];return next})}>↓</button></div>)}<button onClick={()=>setGameResult(sequence.every((item,index)=>item.id===games.sequence[index]?.id)?'To‘g‘ri tartib':'Tartibni yana tekshiring')}>Tekshirish</button></>}
-              {gameMode==='gap'&&games.spotTheGap[0]&&<><p className="gap-prompt">{games.spotTheGap[0].prompt}</p><label>Atama<input value={gapAnswer} onChange={event=>setGapAnswer(event.target.value)} /></label><button onClick={()=>setGameResult(gapAnswer.trim().toLowerCase()===games.spotTheGap[0]!.answer.toLowerCase()?'To‘g‘ri':`Javob: ${games.spotTheGap[0]!.answer}`)}>Tekshirish</button></>}
-              {gameResult&&<strong className="game-result" aria-live="polite">{gameResult}</strong>}
-            </div>
-          </section>
-        )}
-        {user.role==='student'&&<section id="student-profile" className="student-profile"><h2>Profil</h2><p>{user.fullName}</p><div><button className="secondary" onClick={downloadOwnData}>Ma’lumotlarim</button><button className="danger" onClick={logout}>Chiqish</button></div></section>}
         <section>
           <h2>Sinflar</h2>
           <div className="table">
@@ -836,119 +979,139 @@ export function App() {
             ))}
           </div>
         </section>
-        {user.role !== "student" && classes.length > 0 && (
-          <AnalyticsPanel classes={classes} owner={user.role === "owner"} />
+        {user.role !== 'student' && (
+          <nav className="staff-tabs">
+            {(
+              [
+                ['work', 'Bugungi ish'],
+                ['enrolment', 'O‘quvchilar'],
+                ...(user.role === 'owner' ? [['authoring', 'Savol yaratish'] as const] : []),
+              ] as Array<[typeof staffTab, string]>
+            ).map(([value, title]) => (
+              <button
+                key={value}
+                className={staffTab === value ? 'active' : ''}
+                onClick={() => setStaffTab(value)}
+              >
+                {title}
+              </button>
+            ))}
+          </nav>
         )}
-        {user.role !== "student" && appeals.length > 0 && (
-          <section>
-            <div className="section-title">
-              <h2>Apellyatsiyalar</h2>
-              <span>{appeals.length} ta</span>
-            </div>
-            <div className="appeal-list">
-              {appeals.map((item) => (
-                <article key={item.id}>
-                  <div>
-                    <strong>
-                      {item.studentName} · {item.displayRef} · {item.finalScore}
-                      /{item.marks}
-                    </strong>
-                    <p>{item.stemMd}</p>
-                    <blockquote>
-                      {item.answerText || "Javob yozilmagan"}
-                    </blockquote>
-                    <p className="appeal-reason">{item.reason}</p>
-                  </div>
-                  <div>
-                    <button onClick={() => resolveAppeal(item, "accepted")}>
-                      Qabul qilish
-                    </button>
-                    <button
-                      className="danger"
-                      onClick={() => resolveAppeal(item, "rejected")}
-                    >
-                      Rad etish
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
+
+        {user.role !== 'student' && staffTab === 'enrolment' && (
+          <EnrolmentPanel classes={classes} canSuspend={user.role === 'owner'} />
         )}
-        {user.role !== "student" && (
+
+        {user.role === 'owner' && staffTab === 'authoring' && (
+          <QuestionEditor
+            topics={topics}
+            onSaved={() => {
+              void api<{ data: Question[] }>('/questions?status=needs_review').then((response) =>
+                setQuestions(response.data),
+              );
+            }}
+          />
+        )}
+
+        {user.role !== 'student' && staffTab === 'work' && (
           <>
-            {user.role === "owner" && (
-              <section>
-                <div className="section-title">
-                  <div>
-                    <h2>Ingestion tekshiruvi</h2>
-                    <span>{review.length ? `${reviewIndex + 1} / ${review.length}` : "Navbat bo‘sh"}</span>
-                  </div>
-                  <div className="review-tools">
-                    <select aria-label="Finding bo‘yicha guruhlash" value={reviewFinding} onChange={(event)=>filterReview(event.target.value)}>
-                      <option value="">Barcha findinglar</option>
-                      {Array.from(new Set(review.flatMap((item)=>item.findings.map((finding)=>finding.code)))).sort().map((code)=><option value={code} key={code}>{code}</option>)}
-                    </select>
-                    <button className="secondary" title="Oxirgi qarorni qaytarish" onClick={undoReview}>Qaytarish</button>
-                    <button disabled={!reviewFinding} title="Tanlangan finding bo‘yicha qolgan savollarni tasdiqlash" onClick={bulkApproveReview}>Barchasini tasdiqlash</button>
-                  </div>
-                </div>
-                {review.length > 0 && (()=>{const item=review[Math.min(reviewIndex,review.length-1)]!;return (
-                  <article className="review-item" key={item.id}>
-                    <div className="review-source">
-                      <strong>Manba</strong>
-                      <span>{item.storage_path}</span>
-                      <small>Original PDF sahifasi private storage orqali ko‘rsatiladi.</small>
+            {(attentionItems.length > 0 || upcomingDeadlines.length > 0) && (
+              <div className="today">
+                {attentionItems.length > 0 && (
+                  <section className="today-block">
+                    <div className="section-title">
+                      <h2>Diqqat talab qiladi</h2>
+                      <span>{attentionItems.length} ta</span>
                     </div>
+                    <div className="attention-list">
+                      {attentionItems.map((item) => (
+                        <a
+                          href={item.href}
+                          className={`attention-row ${item.tone}`}
+                          key={item.title}
+                        >
+                          <span className="attention-dot" aria-hidden="true" />
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.hint}</small>
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {upcomingDeadlines.length > 0 && (
+                  <section className="today-block">
+                    <div className="section-title">
+                      <h2>Yaqin muddatlar</h2>
+                      <span>{upcomingDeadlines.length} ta</span>
+                    </div>
+                    <div className="attention-list">
+                      {upcomingDeadlines.map((a) => (
+                        <div className="deadline-row" key={a.id}>
+                          <span className="deadline-date">
+                            {new Date(a.dueAt).toLocaleDateString('uz-UZ', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </span>
+                          <span>
+                            <strong>{a.title}</strong>
+                            <small>
+                              {a.className} · {a.totalMarks} ball
+                            </small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+            {user.role === 'owner' && (
+              <section id="ingestion">
+                <div className="section-title">
+                  <h2>Ingestion tekshiruvi</h2>
+                  <span>{review.length} savol</span>
+                </div>
+                {review.map((item) => (
+                  <article className="review-item" key={item.id}>
                     <div>
                       <strong>
                         {item.display_ref} · {item.marks} ball
                       </strong>
-                      <small>{item.command_word} · ishonch {Math.round(Number(item.extract_confidence)*100)}%</small>
-                      {editingReview ? <form className="review-edit" onSubmit={(event)=>editReview(event,item)}>
-                        <label>Savol matni<textarea name="stemMd" defaultValue={item.stem_md} minLength={10} required /></label>
-                        <label>Ball<input name="marks" type="number" min="0" max="100" defaultValue={item.marks ?? ""} /></label>
-                        <label>Command word<select name="commandWord" defaultValue={item.command_word ?? ""}><option value="">Tanlanmagan</option>{['State','Give','Name','Identify','Define','Describe','Explain','Compare','Calculate','Complete','Draw','Write','Evaluate','Justify','Suggest','Show','Other'].map((word)=><option key={word}>{word}</option>)}</select></label>
-                        <div><button>Saqlash</button><button type="button" className="secondary" onClick={()=>setEditingReview(false)}>Bekor qilish</button></div>
-                      </form> : <p>{item.stem_md}</p>}
+                      <p>{item.stem_md}</p>
                       {item.findings.map((f) => (
-                        <span className={`finding ${f.severity}`} key={f.id ?? `${f.code}-${f.message}`}>
+                        <span className={`finding ${f.severity}`} key={f.code}>
                           {f.code} {f.message}
                         </span>
                       ))}
                     </div>
-                    <div className="review-actions">
-                      <button className="secondary" disabled={reviewIndex===0} onClick={()=>setReviewIndex((value)=>Math.max(0,value-1))}>←</button>
-                      <button className="secondary" onClick={()=>setEditingReview(true)}>Tahrirlash (E)</button>
-                      <button
-                        onClick={() => reviewDecision(item.id, "approved")}
-                      >
-                        Tasdiqlash (A)
+                    <div>
+                      <button onClick={() => reviewDecision(item.id, 'approved')}>
+                        Tasdiqlash
                       </button>
                       <button
                         className="danger"
-                        onClick={() => reviewDecision(item.id, "rejected")}
+                        onClick={() => reviewDecision(item.id, 'rejected')}
                       >
-                        Rad etish (R)
+                        Rad etish
                       </button>
-                      <button className="secondary" disabled={reviewIndex>=review.length-1} onClick={()=>setReviewIndex((value)=>Math.min(review.length-1,value+1))}>→</button>
                     </div>
                   </article>
-                )})()}
+                ))}
               </section>
             )}
             <section>
               <div className="section-title">
                 <h2>Vazifalar</h2>
                 <div className="actions">
-                  <button
-                    className="secondary"
-                    onClick={() => setGenerating((value) => !value)}
-                  >
+                  <button className="secondary" onClick={() => setGenerating((value) => !value)}>
                     Avto yaratish
                   </button>
                   <button onClick={() => setCreating((value) => !value)}>
-                    {creating ? "Bekor qilish" : "Yangi vazifa"}
+                    {creating ? 'Bekor qilish' : 'Yangi vazifa'}
                   </button>
                 </div>
               </div>
@@ -992,28 +1155,57 @@ export function App() {
               )}
               {assignments.length > 0 && (
                 <div className="table staff-assignments">
-                  {assignments.map((a) => (
-                    <div className="tr" key={a.id}>
-                      <strong>{a.title}</strong>
-                      <span>{a.totalMarks} ball</span>
-                      <div>
-                        <button
-                          title="Savollar PDF"
-                          onClick={() =>
-                            exportAssignment(a.id, "question_paper")
-                          }
-                        >
-                          QP
-                        </button>
-                        <button
-                          title="Savol va mark scheme PDF"
-                          onClick={() => exportAssignment(a.id, "combined")}
-                        >
-                          QP+MS
-                        </button>
+                  <div className="tr head">
+                    <span>Vazifa</span>
+                    <span>Muddat</span>
+                    <span>Ball</span>
+                    <span>PDF</span>
+                  </div>
+                  {assignments.map((a) => {
+                    const due = a.dueAt ? new Date(a.dueAt).getTime() : null;
+                    const overdue = due !== null && due < now;
+                    const soon = due !== null && !overdue && due - now < 48 * 3600 * 1000;
+                    return (
+                      <div className="tr" key={a.id}>
+                        <div>
+                          <strong>{a.title}</strong>
+                          <small>{a.className}</small>
+                        </div>
+                        {a.dueAt ? (
+                          <span
+                            className={`status-pill${overdue ? ' overdue' : soon ? ' in_progress' : ''}`}
+                            title={new Date(a.dueAt).toLocaleString('uz-UZ')}
+                          >
+                            {overdue
+                              ? 'Muddat o‘tdi'
+                              : soon
+                                ? 'Yaqinda'
+                                : new Date(a.dueAt).toLocaleDateString('uz-UZ', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })}
+                          </span>
+                        ) : (
+                          <span className="muted">Muddatsiz</span>
+                        )}
+                        <strong>{a.totalMarks} ball</strong>
+                        <div>
+                          <button
+                            title="Savollar PDF"
+                            onClick={() => exportAssignment(a.id, 'question_paper')}
+                          >
+                            QP
+                          </button>
+                          <button
+                            title="Savol va mark scheme PDF"
+                            onClick={() => exportAssignment(a.id, 'combined')}
+                          >
+                            QP+MS
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {exports.length > 0 && (
@@ -1039,7 +1231,6 @@ export function App() {
                               ? 'Tayyor'
                               : 'Xato'}
                       </span>
-                      {item.status==='succeeded'&&<button className="secondary" onClick={()=>downloadExport(item)}>Yuklab olish</button>}
                       {item.error && <small>{item.error}</small>}
                     </div>
                   ))}
@@ -1067,12 +1258,7 @@ export function App() {
                   </label>
                   <label>
                     Vaqt limiti
-                    <input
-                      name="timeLimitMin"
-                      type="number"
-                      min="1"
-                      max="300"
-                    />
+                    <input name="timeLimitMin" type="number" min="1" max="300" />
                   </label>
                   <fieldset>
                     <legend>Savollar</legend>
@@ -1089,7 +1275,8 @@ export function App() {
                             )
                           }
                         />
-                        {question.displayRef} · {question.stemMd} (
+                        {question.displayRef} ·{' '}
+                        <Latex source={question.stemLatex || question.stemMd} inline /> (
                         {question.marks})
                       </label>
                     ))}
@@ -1100,24 +1287,24 @@ export function App() {
                 </form>
               )}
             </section>
-            <section>
+            <section id="baholash">
               <div className="section-title">
                 <h2>Tekshirish navbati</h2>
-                <div className="queue-tools">
-                  <div className="segmented" aria-label="Tekshirish tartibi">
-                    <button className={gradingView==='by_question'?'active':''} aria-pressed={gradingView==='by_question'} onClick={()=>changeGradingView('by_question')}>Savol</button>
-                    <button className={gradingView==='by_student'?'active':''} aria-pressed={gradingView==='by_student'} onClick={()=>changeGradingView('by_student')}>O‘quvchi</button>
-                    <button className={gradingView==='confidence'?'active':''} aria-pressed={gradingView==='confidence'} onClick={()=>changeGradingView('confidence')}>Ishonch past</button>
-                  </div>
-                  <span>{grading.length} javob</span>
-                </div>
+                <span>{grading.length} javob</span>
               </div>
               {grading.length === 0 ? (
                 <p className="empty">Tekshiriladigan javob yo‘q.</p>
               ) : (
                 <div className="grading-list">
-                  {grading.map((item) => (
-                    <article className="grading-card" key={item.id}>
+                  {grading.map((item, index) => (
+                    <article
+                      className={`grading-card${gradeFocus === index ? ' focused' : ''}`}
+                      key={item.id}
+                      ref={(node) => {
+                        gradeRefs.current[index] = node;
+                      }}
+                      onClick={() => setGradeFocus(index)}
+                    >
                       <div className="grading-head">
                         <div>
                           <strong>{item.studentName}</strong>
@@ -1125,25 +1312,33 @@ export function App() {
                             {item.displayRef} · {item.marks} ball
                           </span>
                         </div>
-                        <button onClick={() => release(item)}>
-                          Natijani chiqarish
-                        </button>
+                        <button onClick={() => release(item)}>Natijani chiqarish</button>
                       </div>
                       <h3>{item.stemMd}</h3>
-                      <blockquote>{item.text || "Javob yozilmagan"}</blockquote>
+                      <blockquote>{item.text || 'Javob yozilmagan'}</blockquote>
                       {item.points.length > 0 ? (
                         <div className="mark-points">
+                          <div className="mp-head">
+                            <span>Mark points</span>
+                            <span className="mp-live">
+                              <span className="on">
+                                {item.points
+                                  .filter((p) => p.matched)
+                                  .reduce((s, p) => s + p.marks, 0)}
+                              </span>
+                              {' / '}
+                              <span className="off">
+                                {item.points.reduce((s, p) => s + p.marks, 0)}
+                              </span>
+                            </span>
+                          </div>
                           {item.points.map((point) => (
                             <label key={point.id}>
                               <input
                                 type="checkbox"
                                 checked={Boolean(point.matched)}
                                 onChange={(event) =>
-                                  togglePoint(
-                                    item,
-                                    point.id,
-                                    event.target.checked,
-                                  )
+                                  togglePoint(item, point.id, event.target.checked)
                                 }
                               />
                               <span>
@@ -1161,10 +1356,8 @@ export function App() {
                             min="0"
                             max={item.marks}
                             defaultValue="0"
-                            onBlur={(event) =>
-                              setScore(item, Number(event.target.value))
-                            }
-                          />{" "}
+                            onBlur={(event) => setScore(item, Number(event.target.value))}
+                          />{' '}
                           / {item.marks}
                         </label>
                       )}
@@ -1178,25 +1371,144 @@ export function App() {
                 <h2>Savol banki</h2>
                 <span>{questions.length} savol</span>
               </div>
+              <div className="bank-toolbar">
+                <input
+                  ref={bankSearchRef}
+                  className="bank-search"
+                  type="search"
+                  value={questionQuery}
+                  onChange={(event) => setQuestionQuery(event.target.value)}
+                  placeholder="Qidirish… (ref yoki matn)"
+                  aria-label="Savol banki qidiruvi"
+                />
+              </div>
               <div className="table questions">
                 <div className="tr head">
                   <span>Ref</span>
                   <span>Savol</span>
                   <span>Ball</span>
                 </div>
-                {questions.slice(0, 10).map((question) => (
-                  <div className="tr" key={question.id}>
-                    <span>{question.displayRef}</span>
-                    <span>{question.stemMd}</span>
-                    <strong>{question.marks}</strong>
-                  </div>
-                ))}
+                {(() => {
+                  const q = questionQuery.trim().toLowerCase();
+                  const list = q
+                    ? questions.filter(
+                        (question) =>
+                          question.displayRef.toLowerCase().includes(q) ||
+                          (question.stemMd ?? '').toLowerCase().includes(q),
+                      )
+                    : questions;
+                  return list.slice(0, 10).map((question) => (
+                    <div className="tr" key={question.id}>
+                      <span>{question.displayRef}</span>
+                      <span>
+                        <Latex source={question.stemLatex || question.stemMd} inline />
+                      </span>
+                      <strong>{question.marks}</strong>
+                    </div>
+                  ));
+                })()}
               </div>
             </section>
+            {classes.length > 0 && (
+              <AnalyticsPanel classes={classes} owner={user.role === 'owner'} />
+            )}
+            {appeals.length > 0 && (
+              <section id="appeals">
+                <div className="section-title">
+                  <h2>Apellyatsiyalar</h2>
+                  <span>{appeals.length} ta</span>
+                </div>
+                <div className="appeal-list">
+                  {appeals.map((item) => (
+                    <article key={item.id}>
+                      <div>
+                        <strong>
+                          {item.studentName} · {item.displayRef} · {item.finalScore}/{item.marks}
+                        </strong>
+                        <p>{item.stemMd}</p>
+                        <blockquote>{item.answerText || 'Javob yozilmagan'}</blockquote>
+                        <p className="appeal-reason">{item.reason}</p>
+                      </div>
+                      <div>
+                        <button onClick={() => resolveAppeal(item, 'accepted')}>
+                          Qabul qilish
+                        </button>
+                        <button className="danger" onClick={() => resolveAppeal(item, 'rejected')}>
+                          Rad etish
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
       </main>
-      {user.role==='student'&&<nav className="student-tabs" aria-label="Asosiy navigatsiya"><a href="#student-home">Uy</a><a href="#student-assignments">Vazifalar</a><a href="#student-learning">O‘rganish</a><a href="#student-results">Natijalar</a><a href="#student-profile">Profil</a></nav>}
+      {user.role === 'student' && (
+        <nav className="mobile-nav" aria-label="Asosiy navigatsiya">
+          <a href="#top" className="active">
+            <span className="nav-icon">
+              <HomeIcon />
+            </span>
+            Bosh sahifa
+          </a>
+          <a href="#vazifalar">
+            <span className="nav-icon">
+              <ClipboardIcon />
+            </span>
+            Vazifalar
+          </a>
+          <a href="#natijalar">
+            <span className="nav-icon">
+              <ChartIcon />
+            </span>
+            Natijalar
+          </a>
+          <a href="#kartochkalar">
+            <span className="nav-icon">
+              <BankIcon />
+            </span>
+            Kartochkalar
+          </a>
+        </nav>
+      )}
+      {showKeys && (
+        <div
+          className="keysheet"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowKeys(false)}
+        >
+          <div className="keysheet-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Klaviatura</h3>
+            <div className="key-group">
+              <kbd>?</kbd>
+              <span>Bu xaritani ochish / yopish</span>
+            </div>
+            <div className="key-group">
+              <kbd>Esc</kbd>
+              <span>Oynalarni yopish</span>
+            </div>
+            {user.role !== 'student' && staffTab === 'work' && (
+              <>
+                <div className="key-group">
+                  <kbd>⌘</kbd> <kbd>K</kbd>
+                  <span>Savol bankidan qidirish</span>
+                </div>
+                <div className="key-group">
+                  <kbd>J</kbd> <kbd>K</kbd>
+                  <span>Keyingi / oldingi savolni tanlash</span>
+                </div>
+                <div className="key-group">
+                  <kbd>1</kbd>–<kbd>9</kbd>
+                  <span>Tanlangan savolning mark pointini almashtirish</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

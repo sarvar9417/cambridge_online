@@ -3,16 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["frontend", "backend"],
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
     "dev": "concurrently -n BACKEND,FRONTEND -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w backend && npm run build -w frontend",
     "test": "npm run test -w backend && npm run test -w frontend",
-    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend && tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck 'api/[...path].ts' api/maintenance.ts",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend && tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck 'api/[...path].ts'",
     "vercel-build": "npm run build -w frontend",
-    "verify": "npm run typecheck && npm test && npm run build"
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css}\"",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@eslint/js": "^9.39.5",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.67.0"
   }
 }

@@ -26,8 +26,6 @@ export interface AppealQueueItem {
   marks: number;
 }
 
-export interface GradingQueueFilters{classId?:string;mode?:'by_question'|'by_student';sort?:'confidence'}
-
 export class GradingService {
   constructor(private readonly pool: Pool) {}
 
@@ -55,15 +53,10 @@ export class GradingService {
     if (!result.rowCount) throw new DomainError('not_found', 404);
   }
 
-  async queue(actor: Actor,filters:GradingQueueFilters={}): Promise<GradingQueueItem[]> {
+  async queue(actor: Actor): Promise<GradingQueueItem[]> {
     this.assertStaff(actor);
-    const values:unknown[]=[actor.role,actor.schoolId,actor.id];
-    const classFilter=filters.classId?` and c.id=$${values.push(filters.classId)}`:'';
-    const order=filters.sort==='confidence'?'g.ai_confidence asc nulls first,s.submitted_at'
-      :filters.mode==='by_student'?'u.full_name,q.sort_order'
-        :filters.mode==='by_question'?'q.display_ref,s.submitted_at':'s.submitted_at';
     const result = await this.pool.query(
-      `select g.id,g.ai_confidence,ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,
+      `select g.id, ans.text, q.display_ref, q.stem_md, q.marks, q.answer_kind,
               u.full_name as student_name,
               coalesce(json_agg(json_build_object(
                 'id', gp.id, 'code', msp.code, 'text', msp.text,
@@ -83,39 +76,15 @@ export class GradingService {
          ($1 = 'teacher' and (c.owner_id = $3 or exists (
            select 1 from class_teachers ct where ct.class_id = c.id and ct.teacher_id = $3
          )))
-       )${classFilter}
+       )
        group by g.id, ans.id, q.id, u.id, s.submitted_at
-       order by ${order}`,
-      values,
+       order by s.submitted_at`,
+      [actor.role, actor.schoolId, actor.id],
     );
     return result.rows;
   }
 
-  async detail(actor:Actor,gradingId:string) {
-    const result=await this.pool.query(
-      `select g.id,g.status,g.final_score,g.teacher_feedback_md,g.released_at,
-              ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,u.full_name student_name,
-              coalesce(json_agg(json_build_object('id',gp.id,'code',msp.code,'text',msp.text,
-                'matched',gp.final_matched,'marks',gp.awarded_marks) order by msp.sort_order)
-                filter(where gp.id is not null),'[]')points
-       from gradings g join answers ans on ans.id=g.answer_id join questions q on q.id=ans.question_id
-       join submissions s on s.id=ans.submission_id join users u on u.id=s.student_id
-       join assignments a on a.id=s.assignment_id join classes c on c.id=a.class_id
-       left join grading_points gp on gp.grading_id=g.id left join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id
-       where g.id=$1 and (($2='student' and s.student_id=$3 and g.released_at is not null) or
-         ($2='owner' and c.school_id=$4) or ($2='teacher' and (c.owner_id=$3 or exists(
-           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))))
-       group by g.id,ans.id,q.id,u.id`,
-      [gradingId,actor.role,actor.id,actor.schoolId],
-    );
-    if(!result.rowCount)throw new DomainError('not_found',404);
-    const row=result.rows[0];
-    return{id:row.id,status:row.status,finalScore:row.final_score===null?null:Number(row.final_score),feedback:row.teacher_feedback_md,
-      releasedAt:row.released_at,answerText:row.text,displayRef:row.display_ref,stemMd:row.stem_md,marks:row.marks,
-      answerKind:row.answer_kind,studentName:row.student_name,points:row.points};
-  }
-
-  async togglePoint(actor: Actor, pointId: string, matched: boolean, gradingId?:string) {
+  async togglePoint(actor: Actor, pointId: string, matched: boolean) {
     this.assertStaff(actor);
     const visible = await this.pool.query(
       `select gp.grading_id
@@ -125,11 +94,11 @@ export class GradingService {
        join submissions s on s.id = ans.submission_id
        join assignments a on a.id = s.assignment_id
        join classes c on c.id = a.class_id
-       where gp.id = $1 and ($5::uuid is null or g.id=$5) and (($2 = 'owner' and c.school_id = $3) or
+       where gp.id = $1 and (($2 = 'owner' and c.school_id = $3) or
          ($2 = 'teacher' and (c.owner_id = $4 or exists (
            select 1 from class_teachers ct where ct.class_id = c.id and ct.teacher_id = $4
          ))))`,
-      [pointId, actor.role, actor.schoolId, actor.id,gradingId??null],
+      [pointId, actor.role, actor.schoolId, actor.id],
     );
     if (!visible.rowCount) throw new DomainError('not_found', 404);
 
@@ -142,13 +111,13 @@ export class GradingService {
        returning gp.grading_id`,
       [pointId, matched],
     );
-    const actualGradingId = result.rows[0].grading_id;
+    const gradingId = result.rows[0].grading_id;
     const score = await this.pool.query(
       `update gradings
        set teacher_score = x.score, final_score = x.score, graded_by = $2, graded_at = now()
        from (select coalesce(sum(awarded_marks), 0) as score from grading_points where grading_id = $1) x
        where id = $1 returning final_score`,
-      [actualGradingId, actor.id],
+      [gradingId, actor.id],
     );
     return { finalScore: Number(score.rows[0].final_score) };
   }
@@ -166,8 +135,25 @@ export class GradingService {
     return { finalScore: Number(result.rows[0].final_score) };
   }
 
-  async confirm(actor:Actor,gradingId:string){await this.assertVisible(actor,gradingId);const r=await this.pool.query(`update gradings set status='teacher_done',final_score=coalesce(teacher_score,ai_score),graded_by=$2,graded_at=now()where id=$1 and coalesce(teacher_score,ai_score) is not null returning id,final_score`,[gradingId,actor.id]);if(!r.rowCount)throw new DomainError('score_required',409);return r.rows[0]}
-  async appeal(actor:Actor,gradingId:string,reason:string){if(actor.role!=='student')throw new DomainError('students_only',403);const r=await this.pool.query(`insert into grading_appeals(grading_id,student_id,reason)select g.id,s.student_id,$3 from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id where g.id=$1 and s.student_id=$2 and g.released_at is not null on conflict(grading_id)do nothing returning id,status`,[gradingId,actor.id,reason]);if(!r.rowCount)throw new DomainError('not_found',404);await this.pool.query(`update gradings set status='needs_teacher' where id=$1`,[gradingId]);return r.rows[0]}
+  async confirm(actor: Actor, gradingId: string) {
+    await this.assertVisible(actor, gradingId);
+    const r = await this.pool.query(
+      `update gradings set status='teacher_done',final_score=coalesce(teacher_score,ai_score),graded_by=$2,graded_at=now()where id=$1 and coalesce(teacher_score,ai_score) is not null returning id,final_score`,
+      [gradingId, actor.id],
+    );
+    if (!r.rowCount) throw new DomainError('score_required', 409);
+    return r.rows[0];
+  }
+  async appeal(actor: Actor, gradingId: string, reason: string) {
+    if (actor.role !== 'student') throw new DomainError('students_only', 403);
+    const r = await this.pool.query(
+      `insert into grading_appeals(grading_id,student_id,reason)select g.id,s.student_id,$3 from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id where g.id=$1 and s.student_id=$2 and g.released_at is not null on conflict(grading_id)do nothing returning id,status`,
+      [gradingId, actor.id, reason],
+    );
+    if (!r.rowCount) throw new DomainError('not_found', 404);
+    await this.pool.query(`update gradings set status='needs_teacher' where id=$1`, [gradingId]);
+    return r.rows[0];
+  }
 
   async appealQueue(actor: Actor): Promise<AppealQueueItem[]> {
     this.assertStaff(actor);
@@ -185,13 +171,25 @@ export class GradingService {
       [actor.role, actor.schoolId, actor.id],
     );
     return result.rows.map((row) => ({
-      id: row.id, gradingId: row.grading_id, reason: row.reason, createdAt: row.created_at,
-      studentName: row.student_name, displayRef: row.display_ref, stemMd: row.stem_md,
-      answerText: row.answer_text, finalScore: Number(row.final_score), marks: row.marks,
+      id: row.id,
+      gradingId: row.grading_id,
+      reason: row.reason,
+      createdAt: row.created_at,
+      studentName: row.student_name,
+      displayRef: row.display_ref,
+      stemMd: row.stem_md,
+      answerText: row.answer_text,
+      finalScore: Number(row.final_score),
+      marks: row.marks,
     }));
   }
 
-  async resolveAppeal(actor: Actor, appealId: string, decision: 'accepted'|'rejected', resolution: string) {
+  async resolveAppeal(
+    actor: Actor,
+    appealId: string,
+    decision: 'accepted' | 'rejected',
+    resolution: string,
+  ) {
     this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
@@ -206,8 +204,14 @@ export class GradingService {
         [appealId, actor.role, actor.schoolId, actor.id],
       );
       if (!visible.rowCount) throw new DomainError('not_found', 404);
-      await client.query(`update grading_appeals set status=$2,resolution=$3,resolved_by=$4,resolved_at=now() where id=$1`, [appealId, decision, resolution, actor.id]);
-      await client.query(`update gradings set status=$2 where id=$1`, [visible.rows[0].grading_id, decision === 'accepted' ? 'needs_teacher' : 'released']);
+      await client.query(
+        `update grading_appeals set status=$2,resolution=$3,resolved_by=$4,resolved_at=now() where id=$1`,
+        [appealId, decision, resolution, actor.id],
+      );
+      await client.query(`update gradings set status=$2 where id=$1`, [
+        visible.rows[0].grading_id,
+        decision === 'accepted' ? 'needs_teacher' : 'released',
+      ]);
       await client.query('commit');
       return { id: appealId, status: decision };
     } catch (error) {
@@ -235,40 +239,6 @@ export class GradingService {
         [result.rows[0].answer_id],
       );
       const submissionId = submission.rows[0].submission_id;
-      await client.query(
-        `with observed as (
-           select s.student_id,msp.id mark_scheme_point_id,msp.text,q.id question_id,
-                  qs.subtopic_id,coalesce(gp.final_matched,false) matched
-           from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id
-           join questions q on q.id=ans.question_id join grading_points gp on gp.grading_id=g.id
-           join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id
-           join question_subtopics qs on qs.question_id=q.id and qs.is_primary
-           where g.id=$1
-         ), bumped as (
-           insert into error_patterns(student_id,mark_scheme_point_id,miss_count,hit_count,last_seen_at)
-           select student_id,mark_scheme_point_id,case when matched then 0 else 1 end,case when matched then 1 else 0 end,now() from observed
-           on conflict(student_id,mark_scheme_point_id)do update set
-             miss_count=error_patterns.miss_count+case when excluded.miss_count=1 then 1 else 0 end,
-             hit_count=error_patterns.hit_count+case when excluded.hit_count=1 then 1 else 0 end,last_seen_at=now()
-           returning student_id,mark_scheme_point_id,miss_count
-         ), decks as (
-           insert into flashcard_decks(subtopic_id,title,status)
-           select distinct o.subtopic_id,'Xatolardan takrorlash','approved' from observed o join bumped b using(student_id,mark_scheme_point_id)
-           where not o.matched and b.miss_count>=2
-           on conflict(subtopic_id,title)do update set title=excluded.title returning id,subtopic_id
-         ), cards as (
-           insert into flashcards(deck_id,front_md,back_md,hint_md,source_question_id,source_mark_scheme_point_id)
-           select distinct d.id,'What must your answer include?',o.text,'Bu mark pointni aniq texnik ibora bilan eslang.',o.question_id,o.mark_scheme_point_id
-           from observed o join bumped b using(student_id,mark_scheme_point_id) join decks d on d.subtopic_id=o.subtopic_id
-           where not o.matched and b.miss_count>=2
-           on conflict(deck_id,source_mark_scheme_point_id)where source_mark_scheme_point_id is not null
-           do update set back_md=excluded.back_md returning id,source_mark_scheme_point_id
-         )
-         insert into flashcard_reviews(user_id,flashcard_id,interval_days,due_at)
-         select distinct b.student_id,c.id,3,now()+interval '3 days' from bumped b join cards c using(mark_scheme_point_id)
-         on conflict(user_id,flashcard_id)do nothing`,
-        [gradingId],
-      );
       const pending = await client.query(
         `select count(*)::int as count
          from gradings g join answers ans on ans.id = g.answer_id
@@ -299,7 +269,8 @@ export class GradingService {
              marks_possible=mastery.marks_possible+excluded.marks_possible,
              attempts=mastery.attempts+excluded.attempts,
              score=(mastery.marks_earned+excluded.marks_earned)/nullif(mastery.marks_possible+excluded.marks_possible,0),
-             last_activity_at=now(),updated_at=now()`, [submissionId],
+             last_activity_at=now(),updated_at=now()`,
+          [submissionId],
         );
         await client.query(
           `insert into error_patterns(student_id,mark_scheme_point_id,miss_count,hit_count,last_seen_at)
@@ -308,10 +279,13 @@ export class GradingService {
            from submissions s join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
            join grading_points gp on gp.grading_id=g.id where s.id=$1 group by s.student_id,gp.mark_scheme_point_id
            on conflict(student_id,mark_scheme_point_id)do update set
-             miss_count=error_patterns.miss_count+excluded.miss_count,hit_count=error_patterns.hit_count+excluded.hit_count,last_seen_at=now()`, [submissionId],
+             miss_count=error_patterns.miss_count+excluded.miss_count,hit_count=error_patterns.hit_count+excluded.hit_count,last_seen_at=now()`,
+          [submissionId],
         );
       } else {
-        await client.query(`update submissions set status = 'grading' where id = $1`, [submissionId]);
+        await client.query(`update submissions set status = 'grading' where id = $1`, [
+          submissionId,
+        ]);
       }
       await client.query('commit');
       return { id: gradingId, submissionReleased: pending.rows[0].count === 0 };
