@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 217 backend and 7 frontend tests pass.
+- 218 backend and 7 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and 0011-0015 plus seed data are applied to Supabase;
   idempotency and per-student late grants are active in production.
@@ -40,7 +40,9 @@ This file records verified implementation evidence. Requirements remain in
   request maintenance on Vercel, and a secured Hobby-compatible daily cron fallback.
   The 360px student attempt uses one-question navigation, answered progress,
   online/offline state, explicit blank-answer submission review and a fixed bottom
-  tab bar with mobile access to profile data export and logout.
+  tab bar with mobile access to profile data export and logout. Starting a
+  precreated submission atomically changes it from `not_started` to `in_progress`
+  and records its server-side start time; expired attempts return to the dashboard.
 - Analytics: authorized class heatmap, mark-point miss rates, command-word
   performance, student mastery confidence and owner-only AI quality metrics,
   with a responsive staff dashboard.

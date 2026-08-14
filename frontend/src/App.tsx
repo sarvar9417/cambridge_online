@@ -161,7 +161,7 @@ export function App() {
     setRemainingSeconds(initial);
     const heartbeat = async () => {
       try {
-        const state = await api<{ remainingSeconds: number | null }>(
+        const state = await api<{ remainingSeconds: number | null; status:string }>(
           `/submissions/${attempt.submissionId}/heartbeat`,
           {
             method: "POST",
@@ -169,8 +169,19 @@ export function App() {
           },
         );
         setRemainingSeconds(state.remainingSeconds);
+        if (state.remainingSeconds === 0 || !["not_started", "in_progress"].includes(state.status)) {
+          setAttempt(null);
+          setError("Vaqt tugadi. Javoblaringiz avtomatik topshirildi.");
+          setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
+        }
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Attempt yopildi.");
+        setAttempt(null);
+        setError(cause instanceof Error && cause.message !== "So‘rov bajarilmadi."
+          ? cause.message
+          : "Urinish yopildi. Javoblaringiz saqlandi.");
+        void api<{ data: Assignment[] }>("/assignments")
+          .then((response) => setAssignments(response.data))
+          .catch(() => {});
       }
     };
     const timer = window.setInterval(heartbeat, 30_000);
