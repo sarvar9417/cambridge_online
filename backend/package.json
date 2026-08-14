@@ -14,6 +14,7 @@
     "db:inventory": "tsx src/database/inventory.ts",
     "jobs": "tsx src/jobs/start.ts",
     "jobs:corpus": "tsx src/jobs/start-corpus-worker.ts",
+    "corpus:stage": "tsx src/jobs/source-stage-cli.ts",
     "corpus:readiness": "tsx src/jobs/corpus-readiness-cli.ts",
     "corpus:preflight": "tsx src/jobs/corpus-preflight-cli.ts",
     "corpus:enqueue": "tsx src/jobs/corpus-enqueue-cli.ts",
