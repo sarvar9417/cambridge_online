@@ -3,7 +3,7 @@ import{tmpdir}from'node:os';
 import{join}from'node:path';
 import{afterEach,describe,expect,it,vi}from'vitest';
 import type{Pool}from'pg';
-import{createIngestionProcessors,matchExtractedArtifacts,segmentPreparedArtifact,validateIngestionArtifact}from'./ingestion.js';
+import{createIngestionProcessors,detectDependencyCandidates,INGESTION_STAGES,matchExtractedArtifacts,segmentPreparedArtifact,validateIngestionArtifact}from'./ingestion.js';
 
 const dirs:string[]=[];
 afterEach(async()=>{await Promise.all(dirs.splice(0).map(path=>rm(path,{recursive:true,force:true})))});
@@ -29,6 +29,15 @@ describe('ingestion stage pipeline',()=>{
     expect(result).toMatchObject({result:{pageCount:3},next:{kind:'ingest-segment'}});
   });
 
+  it('runs DEPENDS after classification and before validation',()=>{
+    const classify=INGESTION_STAGES.indexOf('classify');
+    const depends=INGESTION_STAGES.indexOf('depends');
+    const validate=INGESTION_STAGES.indexOf('validate');
+    expect(classify).toBeGreaterThanOrEqual(0);
+    expect(depends).toBe(classify+1);
+    expect(validate).toBe(depends+1);
+  });
+
   it('creates three-page batches with one-page overlap',async()=>{
     const dir=await mkdtemp(join(tmpdir(),'campath-segment-'));dirs.push(dir);const textPath=join(dir,'pages.txt');
     await writeFile(textPath,['one','two','three','four','five'].join('\f'));
@@ -50,10 +59,35 @@ describe('ingestion stage pipeline',()=>{
     expect(result.matchReport).toEqual({duplicateQuestionRefs:[],unmatchedQuestions:['2'],unmatchedSchemes:['3']});
   });
 
-  it('runs V01-V20 validation and assigns review status',async()=>{
+  it('detects sibling references for the DEPENDS classifier',async()=>{
+    const result=await detectDependencyCandidates({questions:[
+      {path:'3.a',stemMd:'State one feature.'},
+      {path:'3.b',stemMd:'Using your answer to part (a), state the final value.'},
+      {path:'4.a',stemMd:'Describe one part of the fetch-execute cycle.'},
+    ]});
+    expect(result.dependencyCandidates).toEqual([
+      expect.objectContaining({fromPath:'3.b',mentions:expect.arrayContaining([expect.objectContaining({excerpt:expect.stringMatching(/part\s*\(a\)/i)})])}),
+    ]);
+  });
+
+  it('runs validation and assigns review status',async()=>{
     const validationInput={componentTotal:2,questions:[{id:'q',path:'1',parentId:null,marks:2,stem:'Explain a valid technical reason.',commandWord:'Explain',answerKind:'text',answerLines:2,assetCount:0,subtopicConfidences:[.9],extractConfidence:.95}],schemes:[],assets:[]};
     const result=await validateIngestionArtifact({validationInput});
     expect(result.reviewStatus).toBe('needs_review');
     expect(result.validationFindings).toEqual(expect.arrayContaining([expect.objectContaining({code:'V03',severity:'error'})]));
+  });
+
+  it('passes classified dependencies into V23 validation',async()=>{
+    const validationInput={componentTotal:2,questions:[
+      {id:'root',path:'3',parentId:null,marks:null,stem:'Shared context for question three.',commandWord:null,answerKind:'text',answerLines:null,assetCount:0,subtopicConfidences:[],extractConfidence:.95},
+      {id:'a',path:'3.a',parentId:'root',marks:1,stem:'State one property.',commandWord:'State',answerKind:'text',answerLines:1,assetCount:0,subtopicConfidences:[.9],extractConfidence:.95},
+      {id:'b',path:'3.b',parentId:'root',marks:1,stem:'Using your answer to part (a), state the result.',commandWord:'State',answerKind:'text',answerLines:1,assetCount:0,subtopicConfidences:[.9],extractConfidence:.95},
+    ],schemes:[
+      {questionId:'a',type:'all_required',maxMarks:1,points:[1]},
+      {questionId:'b',type:'all_required',maxMarks:1,points:[1]},
+    ],assets:[]};
+    const result=await validateIngestionArtifact({validationInput,dependencies:[{from_path:'3.b',kind:'answer_ref'}]});
+    expect((result.validationFindings as Array<{code:string}>).some(finding=>finding.code==='V23')).toBe(false);
+    expect((result.validationInput as any).dependencies).toEqual([{fromPath:'3.b',kind:'answer_ref'}]);
   });
 });
