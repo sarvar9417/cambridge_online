@@ -1,0 +1,145 @@
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { api, setAccessToken, type AppealItem, type Assignment, type Attempt, type ClassItem, type Flashcard, type GradingItem, type MasteryItem, type Question, type ResultDetail, type ResultItem, type ReviewQuestion, type User } from './lib/api';
+import { flushAnswers, queueAnswer, type PendingAnswer } from './lib/offline-queue';
+import { AnalyticsPanel } from './AnalyticsPanel';
+
+export function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [grading, setGrading] = useState<GradingItem[]>([]);
+  const [results, setResults] = useState<ResultItem[]>([]);
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
+  const [mastery, setMastery] = useState<MasteryItem[]>([]);
+  const [review, setReview] = useState<ReviewQuestion[]>([]);
+  const [flashcards,setFlashcards]=useState<Flashcard[]>([]);
+  const [cardRevealed,setCardRevealed]=useState(false);
+  const [generating,setGenerating]=useState(false);
+  const [appeals,setAppeals]=useState<AppealItem[]>([]);
+  const [appealDraft,setAppealDraft]=useState<Record<string,string>>({});
+  const saveTimers = useRef<Record<string, number>>({});
+
+  const loadData = async (session: { accessToken: string; user: User }) => {
+    setAccessToken(session.accessToken);
+    setUser(session.user);
+    const [classData, assignmentData, resultData] = await Promise.all([
+      api<{ data: ClassItem[] }>('/classes'),
+      api<{ data: Assignment[] }>('/assignments'),
+      api<{ data: ResultItem[] }>('/results'),
+    ]);
+    setClasses(classData.data);
+    setAssignments(assignmentData.data);
+    setResults(resultData.data);
+    if(session.user.role==='student'){const [m,c]=await Promise.all([api<{data:MasteryItem[]}>('/analytics/mastery'),api<{data:Flashcard[]}>('/content/flashcards/due')]);setMastery(m.data);setFlashcards(c.data);}
+    if (session.user.role !== 'student') {
+      const [questionData, gradingData, appealData] = await Promise.all([
+        api<{ data: Question[] }>('/questions'),
+        api<{ data: GradingItem[] }>('/grading/queue'),
+        api<{ data: AppealItem[] }>('/grading/appeals'),
+      ]);
+      setQuestions(questionData.data);
+      setGrading(gradingData.data);
+      setAppeals(appealData.data);
+      if(session.user.role==='owner')setReview((await api<{data:ReviewQuestion[]}>('/ingestion/review')).data);
+    }
+  };
+
+  useEffect(() => {
+    api<{ accessToken: string; user: User }>('/auth/refresh', { method: 'POST' })
+      .then(loadData).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!attempt) return;
+    const initial = attempt.deadline ? Math.max(0, Math.floor((new Date(attempt.deadline).getTime() - new Date(attempt.serverNow).getTime()) / 1000)) : null;
+    setRemainingSeconds(initial);
+    const heartbeat = async () => {
+      try {
+        const state = await api<{remainingSeconds:number|null}>(`/assignments/submissions/${attempt.submissionId}/heartbeat`, { method:'POST', body:JSON.stringify({activeSessionId:attempt.activeSessionId}) });
+        setRemainingSeconds(state.remainingSeconds);
+      } catch (cause) { setError(cause instanceof Error ? cause.message : 'Attempt yopildi.'); }
+    };
+    const timer = window.setInterval(heartbeat, 30_000); void heartbeat();
+    return () => window.clearInterval(timer);
+  }, [attempt]);
+
+  useEffect(() => {
+    if (remainingSeconds === null || remainingSeconds <= 0) return;
+    const timer=window.setInterval(() => setRemainingSeconds((value) => value === null ? null : Math.max(0,value-1)),1000);
+    return () => window.clearInterval(timer);
+  }, [remainingSeconds === null]);
+  const sendPending = (answer:PendingAnswer) => api(`/assignments/submissions/${answer.submissionId}/answers/${answer.questionId}`,{method:'PUT',body:JSON.stringify({text:answer.text,activeSessionId:answer.activeSessionId})}).then(()=>{});
+  useEffect(()=>{const sync=()=>void flushAnswers(localStorage,sendPending);window.addEventListener('online',sync);sync();return()=>window.removeEventListener('online',sync);},[]);
+
+  const login = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError(''); setLoading(true);
+    const data = new FormData(event.currentTarget);
+    try {
+      await loadData(await api('/auth/login', { method: 'POST', body: JSON.stringify({ identifier: data.get('identifier'), password: data.get('password') }) }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Login amalga oshmadi.'); }
+    finally { setLoading(false); }
+  };
+
+  const logout = async () => { await api('/auth/logout', { method: 'POST' }); setAccessToken(null); setUser(null); };
+  const start = async (id: string) => {
+    const next = await api<Attempt>(`/assignments/${id}/attempt`, { method: 'POST', body: JSON.stringify({ clientSessionId: crypto.randomUUID() }) });
+    setAttempt(next);
+    setAnswers(Object.fromEntries(next.questions.map((question) => [question.id, localStorage.getItem(`answer:${next.submissionId}:${question.id}`) ?? question.answerText])));
+  };
+  const change = (id: string, value: string) => {
+    if (!attempt) return;
+    setAnswers((current) => ({ ...current, [id]: value }));
+    localStorage.setItem(`answer:${attempt.submissionId}:${id}`, value);
+    queueAnswer(localStorage,{submissionId:attempt.submissionId,questionId:id,text:value,activeSessionId:attempt.activeSessionId});
+    window.clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id] = window.setTimeout(() => flushAnswers(localStorage,sendPending), 1000);
+  };
+  const submit = async () => {
+    if (!attempt || !confirm('Vazifani topshirishni tasdiqlaysizmi?')) return;
+    await Promise.all(attempt.questions.map((question) => api(`/assignments/submissions/${attempt.submissionId}/answers/${question.id}`, { method: 'PUT', body: JSON.stringify({ text: answers[question.id] ?? '', activeSessionId: attempt.activeSessionId }) })));
+    await api(`/assignments/submissions/${attempt.submissionId}/submit`, { method: 'POST' });
+    setAttempt(null);
+    setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
+  };
+  const togglePoint = async (item: GradingItem, pointId: string, matched: boolean) => {
+    await api(`/grading/points/${pointId}`, { method: 'PATCH', body: JSON.stringify({ teacherMatched: matched }) });
+    setGrading((current) => current.map((entry) => entry.id === item.id ? { ...entry, points: entry.points.map((point) => point.id === pointId ? { ...point, matched } : point) } : entry));
+  };
+  const setScore = async (item: GradingItem, score: number) => { await api(`/grading/${item.id}/score`, { method: 'PATCH', body: JSON.stringify({ score }) }); };
+  const release = async (item: GradingItem) => { await api(`/grading/${item.id}/release`, { method: 'POST' }); setGrading((current) => current.filter((entry) => entry.id !== item.id)); };
+  const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); const data = new FormData(event.currentTarget);
+    await api('/assignments', { method: 'POST', body: JSON.stringify({ classId: data.get('classId'), title: data.get('title'), dueAt: data.get('dueAt') ? new Date(String(data.get('dueAt'))).toISOString() : undefined, timeLimitMin: data.get('timeLimitMin') ? Number(data.get('timeLimitMin')) : undefined, questionIds: selectedQuestions }) });
+    setCreating(false); setSelectedQuestions([]); setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
+  };
+  const openResult=async(id:string)=>setResultDetail((await api<{data:ResultDetail[]}>(`/results/${id}`)).data);
+  const submitAppeal=async(item:ResultDetail)=>{const reason=appealDraft[item.gradingId]?.trim()??'';if(reason.length<10){setError('Apellyatsiya sababini kamida 10 belgi bilan yozing.');return;}await api(`/grading/${item.gradingId}/appeal`,{method:'POST',body:JSON.stringify({reason})});setResultDetail(current=>current?.map(entry=>entry.gradingId===item.gradingId?{...entry,appealStatus:'open'}:entry)??null);setAppealDraft(current=>({...current,[item.gradingId]:''}));};
+  const resolveAppeal=async(item:AppealItem,decision:'accepted'|'rejected')=>{const resolution=prompt(decision==='accepted'?'Qayta tekshirish izohi':'Rad etish izohi');if(!resolution||resolution.trim().length<3)return;await api(`/grading/appeals/${item.id}/resolve`,{method:'POST',body:JSON.stringify({decision,resolution})});setAppeals(current=>current.filter(entry=>entry.id!==item.id));if(decision==='accepted')setGrading((await api<{data:GradingItem[]}>('/grading/queue')).data);};
+  const reviewDecision=async(id:string,decision:'approved'|'rejected')=>{await api(`/ingestion/review/${id}/${decision}`,{method:'POST'});setReview(current=>current.filter(item=>item.id!==id));};
+  const gradeCard=async(grade:number)=>{const card=flashcards[0];if(!card)return;await api(`/content/flashcards/${card.flashcard_id}/review`,{method:'POST',body:JSON.stringify({grade})});setFlashcards(current=>current.slice(1));setCardRevealed(false)};
+  const exportAssignment=async(id:string,kind:'question_paper'|'combined')=>{await api('/exports',{method:'POST',body:JSON.stringify({kind,refTable:'assignments',refId:id})});alert('PDF tayyorlash navbatga qo‘shildi.')};
+  const generateAssignment=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const data=new FormData(event.currentTarget);await api('/assignments/generate',{method:'POST',body:JSON.stringify({classId:data.get('classId'),title:data.get('title'),targetMarks:Number(data.get('targetMarks')),excludeSeen:data.get('excludeSeen')==='on',excludeDiagrams:data.get('excludeDiagrams')==='on',seed:Date.now()})});setGenerating(false);setAssignments((await api<{data:Assignment[]}>('/assignments')).data)};
+
+  if (loading && !user) return <main className="center">Yuklanmoqda...</main>;
+  if (!user) return <main className="login-page"><form className="login-panel" onSubmit={login}><div className="brand">CamPath</div><h1>Tizimga kirish</h1><label>Username yoki email<input name="identifier" autoComplete="username" required /></label><label>Parol<input name="password" type="password" autoComplete="current-password" minLength={8} required /></label>{error && <p className="error">{error}</p>}<button disabled={loading}>Kirish</button></form></main>;
+  if (attempt) return <main className="attempt"><header><button className="back" title="Orqaga" onClick={() => setAttempt(null)}>←</button><strong>Vazifa · {attempt.questions.length} savol {remainingSeconds !== null && `· ${Math.floor(remainingSeconds/60)}:${String(remainingSeconds%60).padStart(2,'0')}`}</strong><button onClick={submit} disabled={remainingSeconds===0}>Topshirish</button></header>{error&&<p className="attempt-error">{error}</p>}{attempt.questions.map((question, index) => <section className="question" key={question.id}><p className="ref">{index + 1}. {question.displayRef} · {question.commandWord} · {question.marks} ball</p>{question.contextMd && <p className="context">{question.contextMd}</p>}<h2>{question.stemMd}</h2><textarea disabled={remainingSeconds===0} value={answers[question.id] ?? ''} onChange={(event) => change(question.id, event.target.value)} placeholder="Javobingni yoz..." /><small>{(answers[question.id] ?? '').trim().split(/\s+/).filter(Boolean).length} so‘z · avtomatik saqlanadi</small></section>)}</main>;
+
+  return <div className="app"><aside><div className="brand">CamPath</div><nav><a className="active">Bosh sahifa</a><a>Sinflar</a>{user.role !== 'student' && <a>Savol banki</a>}<a>Vazifalar</a><a>Natijalar</a></nav><button className="ghost" onClick={logout}>Chiqish</button></aside><main><header><div><p className="eyebrow">Cambridge 9618</p><h1>Salom, {user.fullName}</h1></div><span className="role">{user.role === 'owner' ? 'Owner' : user.role === 'teacher' ? 'O‘qituvchi' : 'O‘quvchi'}</span></header>
+    {user.role === 'student' && <section><h2>Vazifalar</h2><div className="table">{assignments.map((assignment) => { const closed = Boolean(assignment.submissionStatus && assignment.submissionStatus !== 'in_progress' && assignment.submissionStatus !== 'not_started'); return <div className="tr assignment" key={assignment.id}><div><strong>{assignment.title}</strong><small>{assignment.className} · {assignment.totalMarks} ball</small></div><span>{assignment.submissionStatus ?? 'Boshlanmagan'}</span><button disabled={closed} onClick={() => start(assignment.id)}>{assignment.submissionStatus === 'in_progress' ? 'Davom etish' : closed ? 'Yakunlangan' : 'Boshlash'}</button></div>; })}</div></section>}
+    <section><div className="section-title"><h2>Natijalar</h2><span>{results.length} ta</span></div>{results.length === 0 ? <p className="empty">Hozircha chiqarilgan natija yo‘q.</p> : <div className="table results">{results.map((result) => <button className="tr result-row" key={result.id} onClick={()=>openResult(result.id)}><div><strong>{result.title}</strong><small>{user.role === 'student' ? result.className : result.studentName}</small></div><strong>{result.totalScore}/{result.totalMax}</strong><span>{result.percentage}%</span></button>)}</div>}{resultDetail&&<div className="result-detail"><div className="section-title"><h3>Javoblar tahlili</h3><button title="Yopish" onClick={()=>setResultDetail(null)}>×</button></div>{resultDetail.map(item=><article key={item.gradingId}><strong>{item.displayRef} · {item.finalScore}/{item.marks}</strong><p>{item.stemMd}</p><blockquote>{item.answerText||'Javob yozilmagan'}</blockquote>{item.points.map(point=><div className={point.matched?'point hit':'point'} key={point.code}><b>{point.matched?'✓':'×'}</b><span>{point.code} {point.text}</span><strong>{point.marks}</strong></div>)}{user.role==='student'&&(item.appealStatus?<p className="appeal-status">Apellyatsiya: {item.appealStatus==='open'?'ko‘rib chiqilmoqda':item.appealStatus==='accepted'?'qabul qilindi':'rad etildi'}</p>:<div className="appeal-form"><textarea value={appealDraft[item.gradingId]??''} onChange={event=>setAppealDraft(current=>({...current,[item.gradingId]:event.target.value}))} placeholder="Bahoga nima sababdan e’tiroz bildirayotganingizni yozing"/><button onClick={()=>submitAppeal(item)}>Apellyatsiya yuborish</button></div>)}</article>)}</div>}</section>
+    {user.role==='student'&&<section><div className="section-title"><h2>Bilim xaritasi</h2><span>{mastery.length} mavzu</span></div>{mastery.length===0?<p className="empty">Natijalar chiqqach bilim xaritasi paydo bo‘ladi.</p>:<div className="mastery-list">{mastery.map(item=><div key={item.subtopic_id}><div><strong>{item.code} {item.title}</strong><span>{Math.round(item.score*100)}%</span></div><progress max="1" value={item.score}/></div>)}</div>}</section>}
+    {user.role==='student'&&flashcards[0]&&<section><div className="section-title"><h2>Kartochkalar</h2><span>{flashcards.length} ta</span></div><article className="flashcard"><strong>{flashcards[0].front_md}</strong>{cardRevealed?<><p>{flashcards[0].back_md}</p><div><button onClick={()=>gradeCard(1)}>Qiyin</button><button onClick={()=>gradeCard(3)}>O‘rta</button><button onClick={()=>gradeCard(5)}>Oson</button></div></>:<button onClick={()=>setCardRevealed(true)}>Javobni ko‘rsatish</button>}</article></section>}
+    <section><h2>Sinflar</h2><div className="table"><div className="tr head"><span>Sinf</span><span>Daraja</span><span>O‘quvchilar</span></div>{classes.map((item) => <div className="tr" key={item.id}><strong>{item.name}</strong><span>{item.level}</span><span>{item.studentCount}</span></div>)}</div></section>
+    {user.role!=='student'&&classes.length>0&&<AnalyticsPanel classes={classes} owner={user.role==='owner'}/>} 
+    {user.role!=='student'&&appeals.length>0&&<section><div className="section-title"><h2>Apellyatsiyalar</h2><span>{appeals.length} ta</span></div><div className="appeal-list">{appeals.map(item=><article key={item.id}><div><strong>{item.studentName} · {item.displayRef} · {item.finalScore}/{item.marks}</strong><p>{item.stemMd}</p><blockquote>{item.answerText||'Javob yozilmagan'}</blockquote><p className="appeal-reason">{item.reason}</p></div><div><button onClick={()=>resolveAppeal(item,'accepted')}>Qabul qilish</button><button className="danger" onClick={()=>resolveAppeal(item,'rejected')}>Rad etish</button></div></article>)}</div></section>}
+    {user.role !== 'student' && <>{user.role==='owner'&&<section><div className="section-title"><h2>Ingestion tekshiruvi</h2><span>{review.length} savol</span></div>{review.map(item=><article className="review-item" key={item.id}><div><strong>{item.display_ref} · {item.marks} ball</strong><p>{item.stem_md}</p>{item.findings.map(f=><span className={`finding ${f.severity}`} key={f.code}>{f.code} {f.message}</span>)}</div><div><button onClick={()=>reviewDecision(item.id,'approved')}>Tasdiqlash</button><button className="danger" onClick={()=>reviewDecision(item.id,'rejected')}>Rad etish</button></div></article>)}</section>}<section><div className="section-title"><h2>Vazifalar</h2><div className="actions"><button className="secondary" onClick={()=>setGenerating(value=>!value)}>Avto yaratish</button><button onClick={() => setCreating((value) => !value)}>{creating ? 'Bekor qilish' : 'Yangi vazifa'}</button></div></div>{generating&&<form className="generator-form" onSubmit={generateAssignment}><label>Sinf<select name="classId">{classes.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Nomi<input name="title" minLength={3} required/></label><label>Maqsad ball<input name="targetMarks" type="number" min="1" max="100" defaultValue="25" required/></label><label><input name="excludeSeen" type="checkbox" defaultChecked/>Ko‘rilgan savollarni chiqarish</label><label><input name="excludeDiagrams" type="checkbox"/>Diagrammasiz</label><button>Yaratish</button></form>}{assignments.length>0&&<div className="table staff-assignments">{assignments.map(a=><div className="tr" key={a.id}><strong>{a.title}</strong><span>{a.totalMarks} ball</span><div><button title="Savollar PDF" onClick={()=>exportAssignment(a.id,'question_paper')}>QP</button><button title="Savol va mark scheme PDF" onClick={()=>exportAssignment(a.id,'combined')}>QP+MS</button></div></div>)}</div>}{creating && <form className="assignment-form" onSubmit={createAssignment}><label>Sinf<select name="classId" required>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Nomi<input name="title" required minLength={3} /></label><label>Muddat<input name="dueAt" type="datetime-local" /></label><label>Vaqt limiti<input name="timeLimitMin" type="number" min="1" max="300" /></label><fieldset><legend>Savollar</legend>{questions.slice(0, 20).map((question) => <label key={question.id}><input type="checkbox" checked={selectedQuestions.includes(question.id)} onChange={(event) => setSelectedQuestions((current) => event.target.checked ? [...current, question.id] : current.filter((id) => id !== question.id))} />{question.displayRef} · {question.stemMd} ({question.marks})</label>)}</fieldset><button disabled={selectedQuestions.length === 0}>Nashr qilish · {selectedQuestions.length} savol</button></form>}</section><section><div className="section-title"><h2>Tekshirish navbati</h2><span>{grading.length} javob</span></div>{grading.length === 0 ? <p className="empty">Tekshiriladigan javob yo‘q.</p> : <div className="grading-list">{grading.map((item) => <article className="grading-card" key={item.id}><div className="grading-head"><div><strong>{item.studentName}</strong><span>{item.displayRef} · {item.marks} ball</span></div><button onClick={() => release(item)}>Natijani chiqarish</button></div><h3>{item.stemMd}</h3><blockquote>{item.text || 'Javob yozilmagan'}</blockquote>{item.points.length > 0 ? <div className="mark-points">{item.points.map((point) => <label key={point.id}><input type="checkbox" checked={Boolean(point.matched)} onChange={(event) => togglePoint(item, point.id, event.target.checked)} /><span><strong>{point.code}</strong> {point.text}</span><b>{point.marks}</b></label>)}</div> : <label className="score-input">Ball<input type="number" min="0" max={item.marks} defaultValue="0" onBlur={(event) => setScore(item, Number(event.target.value))} /> / {item.marks}</label>}</article>)}</div>}</section><section><div className="section-title"><h2>Savol banki</h2><span>{questions.length} savol</span></div><div className="table questions"><div className="tr head"><span>Ref</span><span>Savol</span><span>Ball</span></div>{questions.slice(0, 10).map((question) => <div className="tr" key={question.id}><span>{question.displayRef}</span><span>{question.stemMd}</span><strong>{question.marks}</strong></div>)}</div></section></>}
+  </main></div>;
+}

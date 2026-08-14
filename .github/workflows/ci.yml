@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Ensure private environment is not tracked
+        run: |
+          test ! -f .env
+          ! grep -R --exclude-dir=node_modules --exclude-dir=.git --exclude='.env.example' -E 'sbp_[A-Za-z0-9_-]+|sb_publishable_[A-Za-z0-9_-]+' .
