@@ -46,7 +46,7 @@ export async function overlayAssignmentAttempt(pool:Pool,assignmentId:string,att
   return{...attempt,questions:attempt.questions.map(question=>{
     const row=byId.get(question.id);if(!row)return question;
     const frozen=portableText(row.portable_snapshot);
-    const referenced=(Array.isArray(row.referenced_snapshots)?row.referenced_snapshots:[]).map(value=>portableText(value,{includeLeaf:true})).filter(Boolean).join('\n\n');
+    const referenced=(Array.isArray(row.referenced_snapshots)?row.referenced_snapshots:[]).map((value:unknown)=>portableText(value,{includeLeaf:true})).filter(Boolean).join('\n\n');
     const contexts=[frozen,referenced,question.contextMd??''].filter((value,index,array)=>Boolean(value)&&array.indexOf(value)===index);
     return{...question,displayRef:String(row.fresh_ref??question.displayRef),marks:Number(row.marks??question.marks),contextMd:contexts.join('\n\n')||null};
   })};
