@@ -12,3 +12,6 @@ output/
 tmp/
 **/storage/
 *.tsbuildinfo
+.vercel
+.env*
+!.env.example
