@@ -23,20 +23,23 @@ export function createIngestionProcessors(pool:Pool,overrides:Partial<Record<Ing
   };
   const processors:Record<string,JobProcessor>={
     'ingest-paper':async(job)=>{const paperId=String((job.payload as any).paperId);return chain(job,paperId,'source_papers',{paperId},'prepare')},
-    'ingest-bundle':async(job)=>{const payload=job.payload as{runId:string;qpPaperId:string;msPaperId:string};return chain(job,payload.runId,'ingestion_runs',payload,'prepare')},
+    'ingest-bundle':async(job)=>{const payload=job.payload as{runId:string;qpPaperId:string;msPaperId:string;runKey?:string};return chain(job,payload.runId,'ingestion_runs',payload,'prepare',payload.runKey)},
   };
   for(const [index,stage]of INGESTION_STAGES.entries())processors[`ingest-${stage}`]=async(job)=>{
-    const payload=job.payload as{refId?:string;refTable?:'source_papers'|'ingestion_runs';paperId?:string;previousJobId:string};
+    const payload=job.payload as{refId?:string;refTable?:'source_papers'|'ingestion_runs';paperId?:string;previousJobId:string;runKey?:string};
     const input=await previousArtifact(pool,payload.previousJobId);
     const refId=payload.refId??String(payload.paperId),refTable=payload.refTable??'source_papers';
     const result=await handlers[stage](refId,input);
     const next=INGESTION_STAGES[index+1];
-    return next?chain(job,refId,refTable,result,next):result;
+    return next?chain(job,refId,refTable,result,next,payload.runKey):result;
   };
   return processors;
 }
 
-function chain(job:Job,refId:string,refTable:'source_papers'|'ingestion_runs',result:Artifact,next:IngestionStage):ChainedJobResult{const prefix=refTable==='ingestion_runs'?'ingest-run':'ingest';return{result,next:{kind:`ingest-${next}`,payload:{refId,refTable,previousJobId:job.id},idempotencyKey:`${prefix}:${refId}:${next}`,refTable,refId}}}
+function chain(job:Job,refId:string,refTable:'source_papers'|'ingestion_runs',result:Artifact,next:IngestionStage,runKey?:string):ChainedJobResult{
+  const prefix=refTable==='ingestion_runs'?`ingest-run:${refId}${runKey?`:${runKey}`:''}`:`ingest:${refId}`;
+  return{result,next:{kind:`ingest-${next}`,payload:{refId,refTable,previousJobId:job.id,...(runKey?{runKey}:{})},idempotencyKey:`${prefix}:${next}`,refTable,refId}}
+}
 function unavailable(stage:IngestionStage):IngestionStageHandler{return async()=>{throw new Error(`ingestion_stage_unavailable:${stage}`)}}
 async function previousArtifact(pool:Pool,id:string){const result=await pool.query(`select result from jobs where id=$1 and status='succeeded'`,[id]);if(!result.rowCount)throw new Error('ingestion_previous_stage_missing');return(result.rows[0].result??{})as Artifact}
 
@@ -142,8 +145,9 @@ export async function buildValidationInput(pool:Pool,input:Artifact):Promise<Val
 }
 
 export async function validateIngestionArtifact(input:Artifact,pool?:Pool):Promise<Artifact>{
-  let candidate=input.validationInput;
-  if(!isValidationInput(candidate)){if(!pool)throw new Error('ingestion_validation_artifact_invalid');candidate=await buildValidationInput(pool,input)}
+  let candidate:ValidationInput;
+  if(isValidationInput(input.validationInput))candidate=input.validationInput;
+  else{if(!pool)throw new Error('ingestion_validation_artifact_invalid');candidate=await buildValidationInput(pool,input)}
   const dependencies=normalizeValidationDependencies(input.dependencies);
   const validationInput:ValidationInput=dependencies.length?{...candidate,dependencies}:candidate;
   const findings:Finding[]=[...validateExtraction(validationInput),...artifactFindings(input)];
