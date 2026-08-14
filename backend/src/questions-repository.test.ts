@@ -94,8 +94,11 @@ describe('question bank v2', () => {
     expect(query).toHaveBeenCalledTimes(2);
     expect(result.view).toBe('families');
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toMatchObject({rootId:'q-root',matchCount:1,totalCount:2});
-    expect(result.data[0]!.parts).toEqual(expect.arrayContaining([
+    const family = (result.data as Array<{
+      rootId:string;matchCount:number;totalCount:number;parts:Array<{id:string;matches:boolean}>;
+    }>)[0]!;
+    expect(family).toMatchObject({rootId:'q-root',matchCount:1,totalCount:2});
+    expect(family.parts).toEqual(expect.arrayContaining([
       expect.objectContaining({id:'q-leaf',matches:true}),
       expect.objectContaining({id:'q-b',matches:false}),
     ]));
