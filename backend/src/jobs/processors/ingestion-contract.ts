@@ -29,11 +29,23 @@ const schemeSchema=z.object({
 }).strict();
 export const extractMsSchema=z.object({schemes:z.array(schemeSchema)}).strict();
 
+export const classificationSchema=z.object({
+  subtopics:z.array(z.object({code:z.string().trim().min(1),is_primary:z.boolean(),confidence:z.number().min(0).max(1),reason:z.string()}).strict()).max(3),
+  learning_objectives:z.array(z.object({code:z.string().trim().min(1),confidence:z.number().min(0).max(1)}).strict()),
+  ao:z.enum(['AO1','AO2','AO3']).nullable(),ao_confidence:z.number().min(0).max(1),
+}).strict();
+export const dependencyOutputSchema=z.object({dependencies:z.array(z.object({
+  from_path:z.string().trim().min(1),to_path:z.string().trim().min(1),kind:z.enum(['text_ref','answer_ref','none']),
+  strength:z.enum(['required','context_only']),evidence:z.string(),confidence:z.number().min(0).max(1),note:z.string().nullable(),
+}).strict())}).strict();
+
 export type ExtractedAsset={kind:typeof answerKinds[number];contentMd:string|null;altText:string;bbox:[number,number,number,number]|null;page:number|null};
 export type ExtractedQuestion={path:string;label:string;parentPath:string|null;displayRef:string;stemMd:string|null;contextMd:string|null;commandWord:typeof commandWords[number]|null;marks:number|null;answerKind:typeof answerKinds[number];answerLines:number|null;sourcePages:number[];assets:ExtractedAsset[];issues:string[];confidence:number};
 export type ExtractQpBatch={questions:ExtractedQuestion[];truncated:boolean;pageTotalMarks:number};
 export type ExtractedSchemePoint={code:string;groupLabel:string|null;marks:number;text:string;accept:string[];reject:string[];requires:string[];isBod:boolean};
 export type ExtractedScheme={path:string;displayRef:string;questionRef:string;schemeType:typeof schemeTypes[number];maxMarks:number;guidanceMd:string|null;groups:Array<{label:string;nRequired:number;marksPerPoint:number;maxMarks:number}>;points:ExtractedSchemePoint[];levels:Array<{levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string}>;confidence:number;issues:string[]};
+export type Classification={path:string;subtopics:Array<{id:string;code:string;isPrimary:boolean;confidence:number;reason:string}>;learningObjectives:Array<{id:string;code:string;confidence:number}>;ao:'AO1'|'AO2'|'AO3'|null;aoConfidence:number;issues:string[]};
+export type DetectedDependency={fromPath:string;toPath:string;kind:'text_ref'|'answer_ref';strength:'required'|'context_only';evidence:string;confidence:number;note:string|null;issues:string[]};
 
 export function refFromPath(path:string){const[root,...rest]=path.split('.');return`${root}${rest.map(part=>`(${part})`).join('')}`}
 export function normalizeQp(raw:unknown):ExtractQpBatch{
