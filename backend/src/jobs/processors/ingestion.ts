@@ -5,7 +5,7 @@ import{promisify}from'node:util';
 import type{Pool}from'pg';
 import{config}from'../../config.js';
 import{findDependencyMentions}from'../../lib/validation/dependencies.js';
-import{validateExtraction,type ValidationInput}from'../../lib/validation/rules.js';
+import{validateExtraction,type Finding,type ValidationInput}from'../../lib/validation/rules.js';
 import type{ChainedJobResult,Job,JobProcessor}from'../job-queue.js';
 
 const run=promisify(execFile);
@@ -18,7 +18,7 @@ export function createIngestionProcessors(pool:Pool,overrides:Partial<Record<Ing
   const handlers:Record<IngestionStage,IngestionStageHandler>={
     prepare:(_refId,input)=>prepareInput(pool,input),segment:(_refId,input)=>segmentInput(input),
     'extract-qp':unavailable('extract-qp'),'extract-ms':unavailable('extract-ms'),match:(_paperId,input)=>matchExtractedArtifacts(input),
-    assets:unavailable('assets'),classify:unavailable('classify'),depends:(_paperId,input)=>detectDependencyCandidates(input),validate:(_paperId,input)=>validateIngestionArtifact(input),
+    assets:unavailable('assets'),classify:unavailable('classify'),depends:(_paperId,input)=>detectDependencyCandidates(input),validate:(_paperId,input)=>validateIngestionArtifact(input,pool),
     crosscheck:unavailable('crosscheck'),persist:unavailable('persist'),...overrides,
   };
   const processors:Record<string,JobProcessor>={
@@ -102,18 +102,78 @@ export async function detectDependencyCandidates(input:Artifact):Promise<Artifac
   return{...input,dependencyCandidates};
 }
 
-export async function validateIngestionArtifact(input:Artifact):Promise<Artifact>{
-  const candidate=input.validationInput;if(!isValidationInput(candidate))throw new Error('ingestion_validation_artifact_invalid');
+/** Build the deterministic validator input directly from normalized real-paper artifacts. */
+export async function buildValidationInput(pool:Pool,input:Artifact):Promise<ValidationInput>{
+  const qp=isArtifact(input.qp)?input.qp:null;
+  const paperId=qp&&typeof qp.paperId==='string'?qp.paperId:typeof input.paperId==='string'?input.paperId:null;
+  if(!paperId)throw new Error('ingestion_validation_paper_missing');
+  const totalResult=await pool.query(`select c.total_marks from source_papers sp join components c on c.id=sp.component_id where sp.id=$1`,[paperId]);
+  if(!totalResult.rowCount)throw new Error('ingestion_validation_component_missing');
+  const componentTotal=Number(totalResult.rows[0].total_marks);
+  if(!Number.isFinite(componentTotal))throw new Error('ingestion_validation_component_total_invalid');
+
+  const questions=asRecords(input.questions);
+  const classifications=new Map<string,Record<string,unknown>>();
+  for(const item of asRecords(input.classifications)){const path=stringField(item,'path');if(path)classifications.set(path,item)}
+  const validationQuestions:ValidationInput['questions']=questions.map(question=>{
+    const path=stringField(question,'path');
+    const parentId=nullableString(question.parentPath??question.parent_path);
+    const marks=nullableNumber(question.marks);
+    const stem=firstText(question,['stemMd','stem_md','stem','stemLatex','stem_latex'])||firstText(question,['contextMd','context_md','context','contextLatex','context_latex'])||'';
+    const classification=classifications.get(path),subtopics=classification?asRecords(classification.subtopics):[];
+    const assets=Array.isArray(question.assets)?question.assets:[];
+    return{id:path,path,parentId,marks,stem,commandWord:nullableString(question.commandWord??question.command_word),answerKind:firstText(question,['answerKind','answer_kind'])||'text',answerLines:nullableNumber(question.answerLines??question.answer_lines),assetCount:assets.length,subtopicConfidences:subtopics.map(item=>Number(item.confidence)).filter(Number.isFinite),extractConfidence:numberOr(question.confidence??question.extractConfidence??question.extract_confidence,0)};
+  });
+
+  const validationSchemes:ValidationInput['schemes']=asRecords(input.markSchemes).flatMap(scheme=>{
+    const questionId=stringField(scheme,'questionPath')||stringField(scheme,'question_path')||stringField(scheme,'path');if(!questionId)return[];
+    const groups=asRecords(scheme.groups),points=asRecords(scheme.points),levels=asRecords(scheme.levels);
+    const nRequired=groups.length?Math.max(...groups.map(group=>numberOr(group.nRequired??group.n_required,0))):undefined;
+    const groupMaxMarks=groups.length?Math.max(...groups.map(group=>numberOr(group.maxMarks??group.max_marks,0))):undefined;
+    return[{questionId,type:firstText(scheme,['schemeType','scheme_type','type'])||'all_required',maxMarks:numberOr(scheme.maxMarks??scheme.max_marks,0),points:points.map(point=>numberOr(point.marks,0)),...(nRequired!==undefined?{nRequired}:{}),...(groupMaxMarks!==undefined?{groupMaxMarks}:{}),...(levels.length?{levels:levels.length}:{})}];
+  });
+  const dependencies=normalizeValidationDependencies(input.dependencies);
+  const assetCandidates=asRecords(input.assetCandidates);
+  const validationAssets:ValidationInput['assets']=assetCandidates.flatMap(asset=>{
+    const storagePath=firstText(asset,['storagePath','storage_path']);const size=numberOr(asset.size??asset.sizeBytes??asset.size_bytes,storagePath?4096:0);
+    return storagePath?[{storagePath,size}]:[];
+  });
+  return{componentTotal,questions:validationQuestions,schemes:validationSchemes,assets:validationAssets,...(dependencies.length?{dependencies}:{})};
+}
+
+export async function validateIngestionArtifact(input:Artifact,pool?:Pool):Promise<Artifact>{
+  let candidate=input.validationInput;
+  if(!isValidationInput(candidate)){if(!pool)throw new Error('ingestion_validation_artifact_invalid');candidate=await buildValidationInput(pool,input)}
   const dependencies=normalizeValidationDependencies(input.dependencies);
   const validationInput:ValidationInput=dependencies.length?{...candidate,dependencies}:candidate;
-  const findings=validateExtraction(validationInput);return{...input,validationInput,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
+  const findings:Finding[]=[...validateExtraction(validationInput),...artifactFindings(input)];
+  return{...input,validationInput,validationFindings:findings,reviewStatus:findings.length?'needs_review':'approved_candidate'};
+}
+
+function artifactFindings(input:Artifact):Finding[]{
+  const findings:Finding[]=[];const add=(code:`V${string}`,severity:'error'|'warning',message:string)=>findings.push({code,severity,message});
+  const questionIssues=asRecords(input.questions).flatMap(question=>asStrings(question.issues));
+  const schemeIssues=asRecords(input.markSchemes).flatMap(scheme=>asStrings(scheme.issues));
+  if([...questionIssues,...schemeIssues].includes('overlap_conflict'))add('V24','error','Overlapping extraction batches disagree.');
+  const classificationIssues=asRecords(input.classifications).flatMap(item=>asStrings(item.issues));
+  if(classificationIssues.length)add('V25','error',`Classification contains ${classificationIssues.length} unresolved issue(s).`);
+  const dependencyIssues=asStrings(input.dependencyIssues);if(dependencyIssues.length)add('V26','warning',`Dependency classification contains ${dependencyIssues.length} unresolved issue(s).`);
+  const assetIssues=asRecords(input.assetCandidates).filter(asset=>firstText(asset,['status','cropStatus','crop_status'])==='failed');if(assetIssues.length)add('V27','error',`Asset extraction contains ${assetIssues.length} failed candidate(s).`);
+  const report=isArtifact(input.matchReport)?input.matchReport:{};const unmatchedQuestions=asStrings(report.unmatchedQuestions),unmatchedSchemes=asStrings(report.unmatchedSchemes);
+  if(unmatchedQuestions.length||unmatchedSchemes.length)add('V28','error',`QP/MS coverage mismatch (${unmatchedQuestions.length} question(s), ${unmatchedSchemes.length} scheme(s)).`);
+  const duplicates=asStrings(report.duplicateQuestionRefs);if(duplicates.length)add('V29','error',`Duplicate extracted question reference(s): ${duplicates.join(', ')}.`);
+  return findings;
 }
 function asStrings(value:unknown){return Array.isArray(value)?value.filter((item):item is string=>typeof item==='string'):[]}
 function isArtifact(value:unknown):value is Artifact{return typeof value==='object'&&value!==null&&!Array.isArray(value)}
-function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null):[]}
+function asRecords(value:unknown){return Array.isArray(value)?value.filter((item):item is Record<string,unknown>=>typeof item==='object'&&item!==null&&!Array.isArray(item)):[]}
 function displayRef(value:Record<string,unknown>){const ref=value.displayRef??value.display_ref;return typeof ref==='string'?ref.trim():''}
 function stringField(value:Record<string,unknown>,key:string){const field=value[key];return typeof field==='string'?field.trim():''}
 function matchKey(value:Record<string,unknown>){return stringField(value,'path')||displayRef(value)}
+function nullableString(value:unknown){return typeof value==='string'&&value.trim()?value.trim():null}
+function nullableNumber(value:unknown){return typeof value==='number'&&Number.isFinite(value)?value:null}
+function numberOr(value:unknown,fallback:number){const number=typeof value==='number'?value:Number(value);return Number.isFinite(number)?number:fallback}
+function firstText(value:Record<string,unknown>,keys:string[]){for(const key of keys){const text=stringField(value,key);if(text)return text}return''}
 function normalizeValidationDependencies(value:unknown):NonNullable<ValidationInput['dependencies']>{
   return asRecords(value).flatMap(dependency=>{
     const fromPath=stringField(dependency,'fromPath')||stringField(dependency,'from_path');
