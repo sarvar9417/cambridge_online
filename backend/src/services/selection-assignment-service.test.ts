@@ -44,20 +44,23 @@ function harness(review: SelectionReview | null = goodReview, lockedAt = updated
 }
 
 describe('SelectionAssignmentService',()=>{
-  it('keeps graded questions separate from context-only paper items',async()=>{
+  it('keeps graded questions separate from context-only paper items and freezes portable snapshots',async()=>{
     const h=harness();
     const result=await h.service.create(actor,selectionId,{classId,title:'Revision 1'});
     expect(result).toMatchObject({id:'assignment-1',totalMarks:3,itemCount:2,gradedCount:1,contextOnlyCount:1});
+
+    const assignmentCall=h.clientQuery.mock.calls.find(([sql])=>String(sql).includes('insert into assignments'))!;
+    expect(assignmentCall[1]?.at(-1)).toBe(selectionId);
 
     const gradedCalls=h.clientQuery.mock.calls.filter(([sql])=>String(sql).includes('insert into assignment_questions'));
     const contextCalls=h.clientQuery.mock.calls.filter(([sql])=>String(sql).includes('insert into assignment_context_items'));
     expect(gradedCalls).toHaveLength(1);
     expect(contextCalls).toHaveLength(1);
     expect(gradedCalls[0]![1]).toEqual([
-      'assignment-1','33333333-3333-4333-8333-333333333333',1,3,'9618/11/M/J/23 Q1(a)','Q1(a)',
+      'assignment-1','33333333-3333-4333-8333-333333333333',1,3,'9618/11/M/J/23 Q1(a)','Q1(a)',JSON.stringify(goodReview.items[0]!.portable),
     ]);
     expect(contextCalls[0]![1]).toEqual([
-      'assignment-1','44444444-4444-4444-8444-444444444444',2,'9618/11/M/J/23 Q1(b)','Q1(b)',
+      'assignment-1','44444444-4444-4444-8444-444444444444',2,'9618/11/M/J/23 Q1(b)','Q1(b)',JSON.stringify(goodReview.items[1]!.portable),
     ]);
     expect(h.clientQuery).toHaveBeenCalledWith('commit');
   });
