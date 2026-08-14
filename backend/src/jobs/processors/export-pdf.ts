@@ -55,7 +55,7 @@ export function createExportPdfProcessor(pool: Pool) {
         const watermark = `${exp.school_name} · ${new Date().toISOString().slice(0,10)} · Ichki foydalanish uchun`;
         await page.setContent(renderPaperHtml(title, questions, exp.kind !== 'question_paper', watermark), { waitUntil:'load' });
         const pdf = await page.pdf({ format:'A4',printBackground:true });
-        const dir = resolve(config.EXPORT_DIR);
+        const dir = process.env.VERCEL?'/tmp/campath-exports':resolve(config.EXPORT_DIR);
         await mkdir(dir, { recursive:true });
         const path = resolve(dir, `${exportId}.pdf`);
         await writeFile(path, pdf);
