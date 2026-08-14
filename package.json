@@ -13,7 +13,7 @@
     "db:generate": "pnpm --filter @campath/db generate",
     "db:migrate": "pnpm --filter @campath/db migrate",
     "db:seed": "pnpm --filter @campath/db seed",
-    "dev": "docker compose up",
+    "dev": "pnpm --filter api --filter worker --filter web --parallel run dev",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {

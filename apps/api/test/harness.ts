@@ -34,14 +34,16 @@ export interface Harness {
  * Redis and S3 are stubbed — the authorization surface does not touch them, and
  * two more containers would double the suite's start-up for nothing.
  */
-export async function startHarness(): Promise<Harness> {
-  const container: StartedPostgreSqlContainer = await new PostgreSqlContainer('postgres:16-alpine')
-    .withDatabase('campath')
-    .withUsername('campath')
-    .withPassword('campath')
-    .start();
+export interface HarnessOptions {
+  databaseUrl?: string;
+}
 
-  const databaseUrl = container.getConnectionUri();
+export async function startHarness(options: HarnessOptions = {}): Promise<Harness> {
+  // `TEST_DATABASE_URL` lets the suite run against a provisioned Postgres when
+  // Docker is unavailable; unset, it falls back to Testcontainers. Both paths
+  // apply the same migrations and seed, so a rule is proved the same way.
+  const externalUrl = options.databaseUrl ?? process.env.TEST_DATABASE_URL;
+  const databaseUrl = externalUrl ?? (await startContainer());
   const pool = new pg.Pool({ connectionString: databaseUrl });
   await runMigrations(pool);
   const seeded = await seed(pool, SEED_CREDENTIALS);
@@ -70,9 +72,28 @@ export async function startHarness(): Promise<Harness> {
     stop: async () => {
       await app.close();
       await pool.end();
-      await container.stop();
+      if (!externalUrl) await stopContainer();
     },
   };
+}
+
+let runningContainer: StartedPostgreSqlContainer | null = null;
+
+async function startContainer(): Promise<string> {
+  const container: StartedPostgreSqlContainer = await new PostgreSqlContainer('postgres:16-alpine')
+    .withDatabase('campath')
+    .withUsername('campath')
+    .withPassword('campath')
+    .start();
+  runningContainer = container;
+  return container.getConnectionUri();
+}
+
+async function stopContainer() {
+  if (runningContainer) {
+    await runningContainer.stop();
+    runningContainer = null;
+  }
 }
 
 /** Rate limiting is process-global; a shared bucket would fail unrelated tests. */

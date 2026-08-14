@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LoginPage, type SessionUser } from './features/auth/LoginPage';
+import { QuestionBankPage } from './features/questions/QuestionBankPage';
 
 /**
  * Shell for the login page only. Everything else in the product is a later
@@ -11,14 +12,9 @@ export function App() {
 
   if (!user) return <LoginPage onSignedIn={setUser} />;
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <section className="w-full max-w-sm space-y-2 rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">Salom, {user.fullName}</h1>
-        <p className="text-sm text-slate-500">
-          Rol: {user.role}. Qolgan ekranlar keyingi vazifalarda quriladi.
-        </p>
-      </section>
-    </main>
+  return user.role === 'student' ? (
+    <p className="p-8">Savollar banki o‘qituvchilar uchun.</p>
+  ) : (
+    <QuestionBankPage fullName={user.fullName} role={user.role} />
   );
 }

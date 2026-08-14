@@ -91,22 +91,28 @@ ma'lum qilinadi. Bu texnik emas, tashkiliy ish — lekin unutilmasin.
 ## 3. Deploy
 
 ```text
-frontend/   Vercel static build (`frontend/dist`)
-backend/    Ayni Vercel project ichidagi Node.js Function (`api/index.ts`)
-postgres    Supabase PostgreSQL yoki local PostgreSQL 16
-storage     Faza 2 gacha DB metadata; keyin private S3-compatible storage
-domen       Bitta domen; `/api/*` Vercel rewrite orqali Express'ga o'tadi
+apps/web     Vite static build (`apps/web/dist`)
+apps/api     NestJS — long-lived host yoki serverless Function
+apps/worker  BullMQ consumer — long-lived host (Vercel'da ishlamaydi)
+postgres     Supabase PostgreSQL (DATABASE_URL pooler · DIRECT_URL migration)
+storage      Supabase Storage (S3 protokol) yoki local MinIO
+redis        BullMQ uchun — local docker, productionda hosted (Upstash yoki o'xshash)
+domen        Bitta domen; `/api/*` Vite proxy / rewrite orqali API'ga o'tadi
 ```
 
-MVP bitta Vercel project sifatida deploy qilinadi. `frontend/` va `backend/`
-kodda alohida qoladi, lekin deploy birga bajariladi. Alohida worker hamda Redis yo'q.
-Faza 2 job runneri backend ichida ishlaydi. Puppeteer/ingestion resursi oshsa,
-`npm run jobs -w backend` ayni backend kodidan alohida process sifatida deploy qilinadi.
+MVP `docker compose up` bilan local deploy qilinadi (`apps/api` :3001,
+`apps/worker`, `apps/web` :5173, `redis` :6379; `--profile local` — postgres + minio).
+Productionda `apps/worker` alohida har doim-yoniq host talab qiladi — Vercel
+serverless funksiyalarida uzoq ishlovchi process yo'q, shuning uchun ingestion,
+PDF export va avtomatik yopish worker'da bajariladi. API va web'ni Vercel'da
+ishlatish mumkin, lekin worker'siz uzoq job'lar tugamaydi.
 
 ### Local
 
-`npm run dev` frontend va backendni birga ishga tushiradi. Database uchun hosted
-`DATABASE_URL` ishlatish mumkin; Docker majburiy emas.
+`pnpm dev` (yoki `docker compose up`) api, worker, web va redisni birga ishga
+tushiradi. Database uchun hosted `DATABASE_URL` ishlatish mumkin; Docker majburiy
+emas — worker'ni `pnpm --filter @campath/worker dev` deb alohida ham ishga tushirsa
+bo'ladi.
 
 ### Sirlar
 

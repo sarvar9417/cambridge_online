@@ -3,7 +3,7 @@ import { Worker } from 'bullmq';
 import type { Redis } from 'ioredis';
 import { ClaudeClient } from '@campath/ai';
 import type { DbHandle } from '@campath/db';
-import { DATABASE, REDIS } from '../worker.module.js';
+import { DATABASE, REDIS } from '../tokens.js';
 import { WorkerConfig } from '../config.js';
 import { ClaudeExtractor } from './extractor.js';
 import { createIngestionProcessor } from './processor.js';

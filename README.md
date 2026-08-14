@@ -59,7 +59,9 @@ pnpm verify      # format, lint, typecheck, test
 The two blocking tests must pass before any deploy:
 
 - `apps/api/test/authz.e2e-spec.ts` — authorization scenarios against a real
-  PostgreSQL 16 started by Testcontainers. **Requires Docker.**
+  PostgreSQL 16 started by Testcontainers. **Requires Docker** — or an external
+  database via `TEST_DATABASE_URL` (the harness applies the same migrations and
+  seed either way, e.g. `TEST_DATABASE_URL=postgresql://... pnpm test`).
 - `apps/api/test/route-coverage.spec.ts` — every route is guarded unless it is
   one of the five agreed `@Public()` endpoints.
 
@@ -76,7 +78,29 @@ GET    /api/v1/auth/me
 PATCH  /api/v1/auth/me
 GET    /api/v1/admin/ai-calls    owner
 GET    /api/v1/admin/audit-log   owner
+GET    /api/v1/questions         owner/teacher  bank, parts or families view
+GET    /api/v1/questions/:id/portable        context chain + assets
+GET    /api/v1/questions/filter-options      topic tree + classes
+GET    /api/v1/selections        owner/teacher  baskets (savatcha)
+POST   /api/v1/selections        owner/teacher  create basket
+POST   /api/v1/selections/:id/items          add leaf (returns dependencies)
+GET    /api/v1/selections/:id                review: renumbered, total marks
 ```
+
+## Seeding past papers
+
+Real 9618 papers are transcribed at sub-part level and seeded from
+`packages/db/src/seed/`:
+
+```bash
+pnpm db:seed-paper-11   # 9618/11/M/J/23
+pnpm db:seed-paper-12   # 9618/12/M/J/23
+pnpm db:seed-paper-13   # 9618/13/M/J/23
+pnpm db:seed-papers     # all transcripts in one process
+```
+
+All source QP/MS PDFs live in `papers/` (git-ignored), downloaded by
+`scripts/download-papers.py` from Google Drive.
 
 ## Notes
 

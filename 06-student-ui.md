@@ -1,7 +1,8 @@
 # 06 — O'quvchi paneli
 
-> Bu hujjatdagi ekranlar `frontend/` ichida React bilan yoziladi. Attempt va vaqt
-> qoidalari `backend/` da tekshiriladi; frontend taymer faqat ko'rsatish uchun.
+> Bu hujjatdagi ekranlar `apps/web` ichida React bilan yoziladi. Attempt va vaqt
+> qoidalari `apps/api` da tekshiriladi; frontend taymer faqat ko'rsatish uchun.
+> (v4: eski `frontend/`+`backend/` nomlari talab sifatida qoladi.)
 
 ## 1. Loyihaviy cheklov: mobil birinchi
 
@@ -286,7 +287,7 @@ ochilgandan keyin:
 │  [Qiyin] [O'rta] [Oson]       │  → SM-2 grade 1 / 3 / 5
 ```
 
-`backend/src/lib/srs.ts` — EnglishPath'dan olinadi, o'zgartirilmaydi.
+`packages/shared/srs.ts` — EnglishPath'dan olinadi, o'zgartirilmaydi.
 
 **Xato qilingan savoldan kartochka:** o'quvchi Q3(b) da MP2 ni yo'qotsa,
 o'sha MP dan avtomatik kartochka yaratiladi va 3 kundan keyin navbatga tushadi.

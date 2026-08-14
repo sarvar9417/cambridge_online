@@ -2,7 +2,11 @@
 
 **Spec versiyasi:** 3.0  
 **Sana:** 2026-08-13  
-**Asosiy arxitektura qarori:** sodda `frontend/` + `backend/`
+**Asosiy arxitektura qarori:** pnpm workspaces monorepo — `apps/` + `packages/`  
+> **v4 eslatma:** joriy implementatsiya `frontend/`+`backend/` o'rniga `apps/`
+> (api, worker, web) va `packages/` (db, shared, ai) tuzilmasida. Bu hujjat
+> talablarni tasvirlaydi; haqiqiy tuzilma va dalillar
+> [`IMPLEMENTATION-STATUS.md`](./IMPLEMENTATION-STATUS.md) da.
 
 **Joriy implementatsiya dalillari:** [`IMPLEMENTATION-STATUS.md`](./IMPLEMENTATION-STATUS.md)
 
@@ -36,72 +40,67 @@ boshqaruvidagi platforma:
 ## Arxitektura
 
 ```text
-┌──────────────────┐   HTTPS/JSON   ┌──────────────────────────┐
-│ frontend/        │ ─────────────► │ backend/                 │
-│ React + Vite     │ ◄───────────── │ Node.js + Express        │
-└──────────────────┘                │ auth · API · domain · job│
-                                    └───────────┬──────────────┘
-                                                │
-                              ┌─────────────────┼──────────────┐
-                              ▼                 ▼              ▼
-                       ┌────────────┐   ┌──────────────┐  ┌─────────┐
-                       │ PostgreSQL │   │ File storage │  │ Claude  │
-                       │ data + jobs│   │ hosted later │  │ API     │
-                       └────────────┘   └──────────────┘  └─────────┘
+┌────────────┐   HTTPS/JSON   ┌──────────────────────────┐
+│ apps/web   │ ─────────────► │ apps/api                 │
+│ React+Vite │ ◄───────────── │ NestJS · auth · API      │
+└────────────┘                └───────────┬──────────────┘
+                                          │ (BullMQ / Redis)
+                                          ▼
+                                 ┌──────────────────┐
+                                 │ apps/worker      │  ingestion · grading · export
+                                 └──────────────────┘
+                                          │
+                ┌─────────────────────────┼──────────────┐
+                ▼                         ▼              ▼
+         ┌──────────────┐         ┌─────────────┐  ┌─────────┐
+         │ PostgreSQL   │         │ S3 storage  │  │ Claude  │
+         │ (Supabase)   │         │ (Supabase)  │  │ API     │
+         └──────────────┘         └─────────────┘  └─────────┘
 ```
 
-Faza 0–1 da alohida worker, Redis, BullMQ va MinIO yo'q. Faza 2 dan boshlab
-uzoq ishlar PostgreSQL `jobs` jadvaliga yoziladi va `backend/src/jobs/runner.ts`
-bajaradi. Dastlab runner backend bilan bir processda ishlashi mumkin. Yuk oshsa
-shu entrypoint alohida Node.js process qilib deploy qilinadi; repo tuzilmasi
-o'zgarmaydi.
+Uzoq ishlar (ingestion, PDF export, baholash) `apps/worker` da BullMQ
+consumer'larida bajariladi — API processida emas (R-sil). `packages/shared`
+domen qoidalarini (marking, srs, validation) API, worker va web uchun yagona
+joyda ushlaydi. `packages/db` migration va seed'ni olib yuradi.
 
-Productionda ikkala papka bitta Vercel projectdan chiqadi: React static build,
-Express esa `api/index.ts` orqali serverless Function bo'ladi. `/api/*` rewrite
-qilinadi, shu sabab foydalanuvchi uchun bitta domen va bitta deploy mavjud.
+Production: `apps/api` va `apps/worker` Supabase bilan ishlaydi; Redis hosting
+talab qiladi (Upstash yoki o'xshash). Vercel'da worker ishlamaydi — worker
+alohida har doim-yoniq host kerak (qarang `README.md`).
 
 ## Texnologiyalar
 
 ```text
-Frontend    React 19 · TypeScript · Vite · TanStack Query · React Router
-Backend     Node.js · Express 5 · TypeScript · node-postgres (pg) · Zod
-Database    PostgreSQL 16
-Jobs        PostgreSQL jobs jadvali (MVP)
-Storage     Local disk (dev) · S3-compatible hosted storage (Faza 2+)
-Auth        JWT access 15 daqiqa · refresh 30 kun · argon2id
-AI          Anthropic Claude API (faqat backend)
-PDF         Puppeteer (Faza 3)
-Test        Vitest · Supertest · Playwright
-Package     npm workspaces
+apps/api        NestJS 10 · Express 4 · TypeScript · pg · Zod · jose
+apps/worker     NestJS 10 standalone · BullMQ · Redis
+apps/web        React 18 · TypeScript · Vite · Tailwind · TanStack Query
+packages/db     Drizzle ORM · PostgreSQL 16 · SQL migrations · tsx seed
+packages/shared Zod · marking.ts · srs.ts · validation (23 qoida)
+packages/ai     Anthropic Claude wrapper (faqat worker, R9)
+Auth        JWT access 15 daqiqa · refresh 30 kun · argon2id · token rotation
+PDF         Chrome headless (apps/worker export processor)
+Test        Vitest · Supertest · Testcontainers (real Postgres)
+Package     pnpm workspaces
 ```
 
-Express va `pg` loyiha egasiga tanish, oqimi ochiq va deploy'i sodda. Migration
-oddiy SQL bo'ladi; analitik so'rovlar yashirin ORM qatlamisiz bajariladi.
+NestJS global `JwtAuthGuard` + `RolesGuard` (APP_GUARD) default DENY qiladi;
+`@Public()` faqat kelishilgan besh endpointda. Migration oddiy SQL fayllar.
 
 ## Repo strukturasi
 
 ```text
 campath/
-├─ frontend/
-│  ├─ src/
-│  │  ├─ features/
-│  │  ├─ components/
-│  │  └─ lib/api.ts
-│  └─ package.json
-├─ backend/
-│  ├─ src/
-│  │  ├─ routes/
-│  │  ├─ middleware/
-│  │  ├─ services/
-│  │  ├─ repositories/
-│  │  ├─ database/
-│  │  │  ├─ migrations/
-│  │  │  └─ seed/
-│  │  ├─ jobs/
-│  │  └─ lib/
-│  └─ package.json
-├─ prompts/
-├─ package.json
+├─ apps/
+│  ├─ api/          NestJS REST · auth · guards · routes
+│  ├─ worker/       NestJS standalone · BullMQ consumer'lar
+│  └─ web/          React + Vite · features/ · lib/api.ts
+├─ packages/
+│  ├─ db/           Drizzle schema · migrations/ · seed/
+│  ├─ shared/       Zod · marking.ts · srs.ts · validation/
+│  └─ ai/           Claude wrapper (worker-only)
+├─ prompts/         versiyalangan promptlar (R13)
+├─ papers/          manba QP/MS PDFlar (git-ignore)
+├─ scripts/         download-papers.py va boshqalar
+├─ claude.md        loyiha qoidalari
 └─ .env.example
 ```
 
@@ -136,13 +135,15 @@ Default qaror — rad etish. Ruxsat yo'q resurs ham mavjud bo'lmagan resurs kabi
 
 ### R4 — Authorization testlari deployni bloklaydi
 
-`backend/src/**/*.authz.test.ts` dagi 14 test va route-coverage testi majburiy.
-Auth middleware'dan tashqarida yopiq route topilsa test yiqiladi.
+`apps/api/test/authz.e2e-spec.ts` dagi 14 ssenariy va
+`apps/api/test/route-coverage.spec.ts` majburiy (claude.md dagi blocking testlar).
+Auth guard'dan tashqarida yopiq route topilsa test yiqiladi.
 
 ### R5 — AI ball bermaydi
 
 Model faqat mark point uchun dalil topadi. Ballni sof
-`backend/src/lib/marking.ts` funksiyasi hisoblaydi.
+`packages/shared/marking.ts` funksiyasi hisoblaydi (R5: yagona nusxa — worker,
+api, web import qiladi).
 
 ### R6 — AI chiqishi validatsiyalanadi
 
@@ -151,7 +152,7 @@ qabul qilinmaydi.
 
 ### R7 — Migration faqat oldinga
 
-`backend/src/database/migrations/NNNN_name.sql`. Qo'llangan migration tahrirlanmaydi;
+`packages/db/migrations/NNNN_name.sql`. Qo'llangan migration tahrirlanmaydi;
 yangi o'zgarish yangi raqamli fayl bilan yoziladi.
 
 ### R8 — Seed majburiy
@@ -186,14 +187,16 @@ Promptlar `prompts/` ichida versiyalanadi; ishlatilgan `prompt_version` bazaga y
 ## Ishga tushirish
 
 ```bash
-npm install
-cp .env.example .env
-npm run db:migrate -w backend
-npm run dev
+pnpm install
+cp .env.example .env        # Supabase DATABASE_URL / DIRECT_URL / JWT_SECRET
+pnpm db:migrate             # packages/db, DIRECT_URL bilan
+pnpm db:seed                # owner, teacher, 2 sinf, 12 o'quvchi
+pnpm db:seed-papers         # 9618 transkripsiyalari (ixtiyoriy)
+docker compose up           # api :3001, worker, web :5173, redis :6379
 ```
 
-- Frontend odatda `http://localhost:5173`
-- Backend `http://localhost:3001`
+- Web odatda `http://localhost:5173`
+- API `http://localhost:3001`
 - Health `http://localhost:3001/api/v1/health`
 
-Keyingi ish tartibi: `10-phases.md` → Faza 0.
+Tekshiruv: `pnpm verify` (format · lint · typecheck · test).

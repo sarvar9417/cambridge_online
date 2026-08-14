@@ -13,9 +13,3 @@ const app = await NestFactory.createApplicationContext(WorkerModule, { bufferLog
 app.enableShutdownHooks();
 
 console.log('Worker started; consuming queues');
-
-for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-  process.on(signal, () => {
-    void app.close().then(() => process.exit(0));
-  });
-}

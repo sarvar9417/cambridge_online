@@ -3,7 +3,7 @@
 PostgreSQL 16, `node-postgres` (`pg`). Barcha jadvallarda `id uuid default gen_random_uuid()`,
 `created_at timestamptz default now()`, kerak joyda `updated_at` trigger bilan.
 
-Sxemaning yagona bajariladigan nusxasi `backend/src/database/migrations/` dagi oddiy
+Sxemaning yagona bajariladigan nusxasi `packages/db/migrations/` dagi oddiy
 SQL fayllardir. Quyidagi SQL ularning aniq shartnomasi bo'lishi kerak.
 
 Migration tartibi: `0001_enums` → `0002_syllabus` → `0003_org` → `0004_questions` →

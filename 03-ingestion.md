@@ -32,7 +32,7 @@ Owner 120 ta savolni ko'radi, 900 tasini emas. Sifat ham yaxshiroq — diqqat ta
 11. PERSIST    DB ga yozish, status = approved | needs_review
 ```
 
-Har bir bosqich `jobs` jadvalida saqlanadi va `backend/src/jobs/runner.ts` navbatdagi
+Har bir bosqich `jobs` jadvalida saqlanadi va worker (`apps/worker`) navbatdagi
 bosqichni `FOR UPDATE SKIP LOCKED` bilan oladi. Biri tugagach keyingisi queued bo'ladi.
 Process to'xtasa `locked_at` timeoutidan keyin o'sha bosqich qayta olinadi.
 
@@ -218,7 +218,7 @@ Choosing manual_only costs the teacher two minutes. Choosing wrong costs a year.
 ## 5. Validatsiya qoidalari
 
 **Deterministik. AI emas. Har biri sof funksiya, unit test bilan qoplangan.**
-Fayl: `backend/src/lib/validation/rules.ts`
+Fayl: `packages/shared/validation/`
 
 | Kod | Darajа | Tekshiruv | Nega |
 |---|---|---|---|

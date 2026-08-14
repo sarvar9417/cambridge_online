@@ -8,6 +8,7 @@ import { HealthController } from './health/health.controller.js';
 import { AdminController } from './admin/admin.controller.js';
 import { JwtAuthGuard } from './common/jwt-auth.guard.js';
 import { RolesGuard } from './common/roles.guard.js';
+import { QuestionBankModule } from './questions/question-bank.module.js';
 
 /**
  * R1: both guards are registered with `APP_GUARD`, so they apply to every route
@@ -17,7 +18,7 @@ import { RolesGuard } from './common/roles.guard.js';
  * Order matters: `JwtAuthGuard` populates `request.actor`, `RolesGuard` reads it.
  */
 @Module({
-  imports: [DatabaseModule, RedisModule, StorageModule, AuthModule],
+  imports: [DatabaseModule, RedisModule, StorageModule, AuthModule, QuestionBankModule],
   controllers: [HealthController, AdminController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

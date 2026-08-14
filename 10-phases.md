@@ -13,9 +13,11 @@ Faza 0 → 1 → 2 → 3 → 4 → 5           Ground truth: 200 baholangan javo
 Ikkinchisi qisqartirilmaydi. Shuning uchun 1–2-haftada sinf platformadan
 foydalana boshlashi kerak — AI baholashsiz ham.
 
-> **v3 eslatma:** loyiha `frontend/` (React) va `backend/` (Express) ga ajratilgan.
-> Faza 0–1 da Redis va alohida worker yo'q. Faza 2+ job runner avval backend
-> ichida ishlaydi; yuk oshgandagina alohida process qilib deploy qilinadi.
+> **v4 eslatma:** amalga oshirish `apps/` (api, worker, web) + `packages/` (db,
+> shared, ai) monoreposida. Quyidagi `frontend/`+`backend/` nomlari talab
+> darajasida qoladi. Faza 0 (skelet + auth), Faza 2 (ingestion) va Prompt C
+> (savol banki + ajratib olish) bajarildi; worker `apps/worker` da BullMQ bilan
+> alohida process — Vercel'da ishlamaydi (`IMPLEMENTATION-STATUS.md`).
 
 ---
 
@@ -142,7 +144,7 @@ foydalana boshlashi kerak — AI baholashsiz ham.
 
 | Ish | Chiqish |
 |---|---|
-| `backend/src/lib/marking.ts` + 12 unit test | Deterministik ball |
+| `packages/shared/marking.ts` + 12 unit test | Deterministik ball |
 | `grade-answer` processor + prompt v1 | AI dalil topadi |
 | Chiqish validatsiyasi (`fabricated_evidence`) | Xavfsizlik |
 | Soya rejimi (natija yashirin) | Toza o'lchov |

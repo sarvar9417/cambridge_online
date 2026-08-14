@@ -24,7 +24,7 @@ Bu qaror qaytarilmaydi (`00-README.md` R4).
 answers.submitted  →  POST /submissions/:id/submit
    ↓
 PostgreSQL `jobs` navbati (`idempotency_key = grade:{answerId}:{promptVersion}`)
-   ↓  backend/src/jobs/grade-answer.processor.ts
+   ↓  apps/worker grade-answer processor
    ↓
 1. Kontekst yig'ish: savol + kontekst + MS points + command word + AO
 2. Javob tayyorlash: text | code | OCR(image)
@@ -161,9 +161,9 @@ not the answer. Two to four sentences. No praise padding.
 
 ---
 
-## 4. Ball hisoblash — `backend/src/lib/marking.ts`
+## 4. Ball hisoblash — `packages/shared/marking.ts`
 
-**`backend/src/lib/marking.ts` — sof funksiya. Tarmoq chaqiruvi yo'q.**
+**`packages/shared/marking.ts` — sof funksiya. Tarmoq chaqiruvi yo'q.**
 
 ★ Backendning ikki oqimida ishlatiladi: job runner AI natijasini hisoblaganda va
 o'qituvchi MP toggle qilganda. Frontend preview ko'rsatishi mumkin, lekin server

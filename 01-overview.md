@@ -1,8 +1,10 @@
 # 01 — Mahsulot doirasi
 
 > **Implementatsiya chegarasi:** foydalanuvchi ko'radigan barcha ekranlar
-> `frontend/` da, biznes qoidalari va ma'lumotga kirish `backend/` da. Frontend
-> PostgreSQL yoki backend ichki fayllariga bevosita ulanmaydi.
+> `apps/web` da, biznes qoidalari va ma'lumotga kirish `apps/api` + `packages/shared` da.
+> Frontend PostgreSQL yoki backend ichki fayllariga bevosita ulanmaydi.
+> (v4: eski `frontend/`+`backend/` nomlari hujjatning qolganida talab sifatida qoladi;
+> haqiqiy tuzilma `IMPLEMENTATION-STATUS.md` da.)
 
 ## 1. Muammo
 

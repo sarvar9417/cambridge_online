@@ -1,7 +1,8 @@
 # 08 — PDF eksport va paper generator
 
-> Eksport tugmasi va progress `frontend/` da; job yaratish, Puppeteer va private
-> storage `backend/` da. Frontend PDF fayl tizimiga bevosita kira olmaydi.
+> Eksport tugmasi va progress `apps/web` da; job yaratish, Chrome headless va private
+> storage `apps/worker` da. Frontend PDF fayl tizimiga bevosita kira olmaydi.
+> (v4: eski `frontend/`+`backend/` nomlari talab sifatida qoladi.)
 
 ## 1. Chiqarish turlari
 

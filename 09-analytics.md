@@ -1,7 +1,8 @@
 # 09 — Analitika
 
-> SQL hisoblash va materialized view yangilash `backend/` da; grafik va heatmaplar
-> `frontend/` da. Frontend PostgreSQL bilan bevosita gaplashmaydi.
+> SQL hisoblash `apps/api` da; grafik va heatmaplar `apps/web` da.
+> Frontend PostgreSQL bilan bevosita gaplashmaydi.
+> (v4: eski `frontend/`+`backend/` nomlari talab sifatida qoladi.)
 
 ## 1. Tamoyil
 

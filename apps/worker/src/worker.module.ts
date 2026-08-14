@@ -4,9 +4,9 @@ import { Redis } from 'ioredis';
 import { createDb, type Database, type DbHandle } from '@campath/db';
 import { WorkerConfig } from './config.js';
 import { IngestionModule } from './ingestion/ingestion.module.js';
+import { DATABASE, REDIS } from './tokens.js';
 
-export const DATABASE = Symbol('CAMPATH_WORKER_DATABASE');
-export const REDIS = Symbol('CAMPATH_WORKER_REDIS');
+export { DATABASE, REDIS } from './tokens.js';
 
 /** Every queue the system uses. Named here so api and worker cannot disagree. */
 export const QUEUES = {

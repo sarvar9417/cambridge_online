@@ -1,7 +1,9 @@
 # 07 — Kontent tizimi
 
-> Kontent UI `frontend/` da, generatsiya, validatsiya va PostgreSQL yozuvlari
-> `backend/` da bo'ladi. Frontend Claude API'ni hech qachon to'g'ridan-to'g'ri chaqirmaydi.
+> Kontent UI `apps/web` da, generatsiya, validatsiya va PostgreSQL yozuvlari
+> `apps/worker` + `packages/shared` da bo'ladi (R9: Claude API faqat worker'da).
+> Frontend Claude API'ni hech qachon to'g'ridan-to'g'ri chaqirmaydi.
+> (v4: eski `frontend/`+`backend/` nomlari talab sifatida qoladi.)
 
 ## 1. Har bir subtopic uchun to'plam
 

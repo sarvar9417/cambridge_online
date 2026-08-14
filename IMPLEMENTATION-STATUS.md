@@ -3,123 +3,136 @@
 Updated: 2026-08-14
 
 This file records verified implementation evidence. Requirements remain in
-`00-README.md` through `12-api.md`.
+`00-README.md` through `12-api.md`; product rules live in `claude.md`. The
+previous Express + `pg` implementation is preserved on the
+`archive/express-stack` branch.
 
 ## Architecture
 
-- `frontend/`: React 19 + Vite, KaTeX rendering, feature folders under `src/features/`.
-- `backend/`: Express 5 + TypeScript + PostgreSQL.
-- Root npm workspaces run both applications.
-- One Vercel project: static frontend plus `api/[...path].ts`.
+- pnpm workspaces monorepo:
+  - `apps/api` — NestJS 10, REST, JWT auth, global guards
+  - `apps/worker` — NestJS standalone, BullMQ consumers (no HTTP)
+  - `apps/web` — React 18 + Vite + Tailwind + TanStack Query
+  - `packages/db` — Drizzle ORM, SQL migrations, seed + paper transcripts
+  - `packages/shared` — Zod contracts, marking.ts, srs.ts, validation rules
+  - `packages/ai` — Claude wrapper (worker-only, R9)
+- PostgreSQL and object storage: Supabase. Redis (BullMQ): local docker,
+  hosted (Upstash or similar) in production.
+- Local dev: `docker compose up`; fully offline via `docker compose --profile local up`.
 
 ## Verified locally
 
-- `npm run verify` passes: Prettier check, ESLint, strict typecheck, tests, production build.
-- 245 backend and 17 frontend tests pass.
-- Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
-- Migrations 0001-0008 and 0011 plus seed data are applied to Supabase.
-  Migrations 0009 (registration and groups) and 0010 (LaTeX content) are written
-  and typechecked but **not yet applied to Supabase** — apply with
-  `npm run db:migrate -w backend` before deploying.
-- A real assignment export completed through PostgreSQL jobs and Chrome; the
-  inspected PDF is one page, 68 KB, contains selectable text and totals 20 marks.
+- `pnpm verify` passes: Prettier check, ESLint, strict typecheck, tests.
+- 249 tests pass: `shared` 111, `db` 57, `api` 31 (incl. e2e) + 9 todo, `worker`
+  49, `web` 1. Both blocking suites (`authz.e2e-spec.ts`, `route-coverage.spec.ts`) pass.
+- `pnpm -r typecheck` clean; `apps/api` and `apps/web` production builds pass.
+- The two blocking tests run against a real PostgreSQL:
+  - `route-coverage.spec.ts` — pure unit, always runs.
+  - `authz.e2e-spec.ts` — Testcontainers by default (**requires Docker**); an
+    externally provisioned Postgres can substitute via `TEST_DATABASE_URL` or
+    `startHarness({ databaseUrl })` (the harness applies the same migrations
+    and seed either way).
+- Question bank UI verified end-to-end in headless Chrome via CDP against the
+  live Supabase database: login, parts view (100 leaves), families view (40
+  families), subtopic filter, add-to-basket, review screen with source ref.
 
-## Registration and placement
+## Migrations and seed
 
-- `POST /api/v1/auth/register` creates a student account in `pending`, rate
-  limited to 5 per hour per IP. Role, school and status cannot be set from the
-  request body.
-- A `pending` account authenticates and can read `/auth/me`; every other route is
-  refused by `requireActiveAccount` with `account_pending`, and the account is
-  enrolled nowhere, so class-scoped queries return nothing regardless.
-- Staff place a student with `POST /api/v1/enrolment/students/:id/assign`
-  (`classId` plus optional `groupId`), which enrols and activates in one
-  transaction and writes to `audit_log`. Only the owner may suspend, which also
-  bumps `token_version` to revoke live access tokens.
-- `groups` subdivide a class; the composite foreign key `(group_id, class_id)`
-  makes a cross-class group assignment impossible in SQL, not just in code.
+- Migrations `0001`–`0008` plus `0009_question_bank_selections.sql` are the
+  current forward-only set in `packages/db/migrations/`.
+- The live Supabase database carries migrations under both the current and the
+  legacy (Express-era) names; `0009_question_bank_selections.sql` (selections
+  and selection_items) is applied there.
+- `pnpm db:seed` writes one school, the official 9618 syllabus (4 components,
+  20 topics, 44 subtopics), one owner, one teacher, two classes, twelve
+  enrolled students and one unused invite code — idempotent upserts.
+- Seed credentials come from `SEED_*` env vars; the live owner password
+  predates this seed and is not the seed password.
 
-## Syllabus
+## Real paper transcripts (Prompt: "question paperlarni latexda qo'sh")
 
-- `backend/src/database/syllabus-9618-2026.ts` carries the official structure
-  transcribed from Cambridge document `697372-2026-syllabus.pdf` (syllabus for
-  examination from 2026): 4 components, 20 topics, 44 subtopics, with the topic
-  to paper mapping (1-8 → P1, 9-12 → P2, 13-18 → P3, 19-20 → P4). Covered by tests.
-- `npm run db:seed -w backend` writes topics and subtopics; `GET /api/v1/syllabus/topics`
-  serves the tree with approved-question counts.
-- Learning objectives are deliberately not transcribed: the syllabus prints them
-  in a two-column layout that does not survive text extraction, and
-  `03-ingestion.md` section 7 requires them to be checked by hand.
+Three 2023 May/June Paper 1 papers are transcribed at sub-part level and seeded:
 
-## LaTeX authoring
+| Paper | Transcript file | Seed script | npm script |
+| --- | --- | --- | --- |
+| 9618/11/M/J/23 (v1) | `packages/db/src/seed/paper-9618-s23-11.ts` | `seed-paper-9618-s23-11.ts` | `db:seed-paper-11` |
+| 9618/12/M/J/23 (v2) | `packages/db/src/seed/paper-9618-s23-12.ts` | `seed-paper-9618-s23-12.ts` | `db:seed-paper-12` |
+| 9618/13/M/J/23 (v3) | `packages/db/src/seed/paper-9618-s23-13.ts` | `seed-paper-9618-s23-13.ts` | `db:seed-paper-13` |
 
-- Questions, mark scheme points, guidance and level descriptors carry `*_latex`
-  columns; `question_assets` carries `latex_source` (editable TikZ master) plus
-  `svg_markup` (what actually renders).
-- `backend/src/lib/latex.ts` validates against the KaTeX contract: balanced
-  braces and `$` delimiters, no file/exec/macro-redefinition commands, diagram
-  environments routed to the SVG path, and SVG hardening against script, event
-  handlers and external references. Rejections return 422 with per-finding detail
-  so the editor can point at the offending text.
-- `frontend/src/lib/latex.ts` renders under the same contract: prose is
-  HTML-escaped, maths goes through KaTeX with `trust: false`. KaTeX fonts are
-  bundled by Vite, so the page makes no external request.
-- Owner-only authoring API (`POST`/`PUT /api/v1/questions`) writes question,
-  subtopics, assets and mark scheme in one transaction and enforces V01, V05 and
-  marks/mark-scheme agreement before writing anything.
+- Each is 75 marks total, LaTeX bodies (`body_format = 'latex'`), subtopic
+  links against the 2026 syllabus, and mark schemes as
+  `all_required` / `any_n_from_m` groups from the official MS.
+- `packages/db/src/seed/seed-paper.ts` is the shared writer (one transaction,
+  idempotent, `variant`/`year`/`series` parameters);
+  `seed-papers-all.ts` seeds every transcript in one process
+  (`pnpm db:seed-papers`).
+- Transcripts are covered by contract tests (`paper-9618-s23-11/12/13.test.ts`):
+  total marks, LaTeX validity, mark-scheme sums, subtopic codes, path shape.
+- `scripts/download-papers.py` downloads every year's QP + MS from Google Drive
+  into `papers/` (git-ignored); idempotent, no API key, `--filter`, `--dry-run`.
+
+## Question bank and part-level extraction (Prompt C)
+
+- `GET /api/v1/questions` — leaves by default (`view=parts`); `view=families`
+  groups matching leaves under their root question. Filters: component, topic
+  tree to subtopic, command word, marks range, AO, year range, series,
+  has-diagram, status (owner), full-text search, `dependency=independent`.
+  `difficulty` and `unusedInClassId` are surfaced as unavailable until the
+  grading/assignment modules land.
+- `GET /api/v1/questions/:id/portable` — recursive-CTE context chain
+  (leaf → root) with each node's context and assets in ancestor order.
+- Selections (basket): `GET/POST /api/v1/selections`, `GET :id`,
+  `POST :id/items` (returns dependencies for the add-time modal),
+  `PATCH/DELETE items`. Server-side, survives filter changes and reloads.
+- Review numbering (`packages/shared`-independent pure function in
+  `apps/api/src/questions/selection-review.ts`): fresh refs `Q1(a)`, `Q1(b)(i)`
+  with `source_ref` preserved; `context_only` items contribute 0 marks.
+- Web UI `apps/web/src/features/questions/`: parts/families toggle, filters,
+  keyboard (`/` search, Space/Enter add, A add, arrows), basket panel with
+  role switch, dependency modal (`answer_ref` cannot be context-only), review
+  screen rendering the inherited context chain (`ContextChain.tsx`).
+- Tests: `question-bank.repository.test.ts` and `selection-review.test.ts`
+  (unit), `question-bank.e2e-spec.ts` (11 supertest scenarios against real
+  PostgreSQL — leaves vs families, portable chain, dependency filter, 403 for
+  students, basket CRUD, renumbering, context_only = 0),
+  `ContextChain.test.tsx` (web).
 
 ## Implemented domains
 
-- Faza 0: auth, refresh rotation/reuse, invite redemption, self-registration,
-  authorization middleware, route coverage, readiness, migrations and seed data.
-- Faza 1: question bank with keyset pagination and topic/subtopic/component
-  filters, assignments, attempts, heartbeat/timer, offline queue, manual grading,
-  released results, assignment result rosters, grading appeals and mastery.
-- Analytics: authorized class heatmap, mark-point miss rates, command-word
-  performance, student mastery confidence and owner-only AI quality metrics,
-  with a responsive staff dashboard.
-- Faza 2 foundation: PostgreSQL jobs, retry/DLQ, ingestion/review API, V01-V20,
-  and an extraction pipeline (batching with page overlap, dedupe, QP↔MS match,
-  classify, validate, cross-check) fully tested against fake providers.
-- Faza 3 foundation: paper generator, export API, HTML and Chrome PDF processor,
-  school/date/internal-use watermark, per-user daily limit and polled statuses.
-- Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
-  budget guard and AI audit.
-- Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API.
-- Ops: rate limits, robots block, migration lock, capability reporting,
-  self-service JSON data export and owner-only student anonymization that keeps
-  aggregate grading statistics while clearing identity, sessions and answers;
-  PostgreSQL pool size is serverless-aware to stay within hosted connection limits;
-  assignment create/publish, attempt and export support 24-hour Idempotency-Key replay.
-
-## Prompts
-
-`prompts/` holds versioned prompts as required by R13: `extract-question.v1.md`,
-`extract-markscheme.v1.md`, `classify-question.v1.md`, `cross-check.v1.md`. The
-extraction prompts state the LaTeX contract so model output matches what the
-renderer accepts.
+- Prompt A (auth foundation): login, refresh rotation/reuse, invite
+  redemption, self-registration, `/auth/me`, authorization middleware, route
+  coverage, readiness, migrations, seed. 14 mandatory authorization cases from
+  `02-data-model.md` §12.6 are listed in `authz.e2e-spec.ts` (those needing
+  modules not yet built remain `todo` and name their module).
+- Prompt B (ingestion): BullMQ FlowProducer chain
+  UPLOAD → PREPARE → SEGMENT → EXTRACT_QP → EXTRACT_MS → MATCH → ASSETS →
+  CLASSIFY → DEPENDS → VALIDATE → CROSSCHECK → PERSIST, running in
+  `apps/worker` only. Versioned prompts in `prompts/` (R7); 23 deterministic
+  validation rules in `packages/shared/validation`; sha256 + jobId idempotency;
+  resume-after-crash via stage store.
+- Prompt C (question bank + extraction workflow): see the section above.
+- Faza 3/4/5 foundations from the original plan (paper generator, export API,
+  deterministic marking, content schema, SM-2) were delivered in the Express
+  stack and are preserved on `archive/express-stack`; the monorepo carries the
+  schema and shared modules needed for them (`packages/shared/marking.ts`,
+  `srs.ts`, validation rules).
 
 ## External requirements not yet satisfied
 
-- No `ANTHROPIC_API_KEY`: `ExtractionProvider` has no live implementation, so the
-  pipeline runs only against fakes and the four-week calibration is pending.
-- Poppler is absent: `PdfPreparer` has no live implementation, so PDF PREPARE
-  cannot run against the past papers.
-- No durable private storage credentials: presigned upload/URLs are pending.
-  Diagrams are stored inline as SVG and need no object storage.
-- **The job runner and the attempt scheduler do not run on Vercel.** Serverless
-  functions have no long-lived process, so PDF export jobs never finish and
-  expired attempts are not auto-submitted in production. Writing is still refused
-  after the deadline by the per-request window check, so no student gains time.
-  Running `npm run jobs -w backend` on any long-lived host against the same
-  database resolves both.
-- Vercel production frontend, database readiness and owner login are verified
-  at `https://cambridge-online.vercel.app`; the private GitHub repository is
-  connected for automatic deployments from `main`.
+- No `ANTHROPIC_API_KEY`: the extraction pipeline runs only against fake
+  providers; four-week calibration is pending.
+- Poppler is absent: PDF PREPARE has no live implementation against the past
+  papers.
+- No durable private storage credentials: presigned upload/URLs are pending;
+  diagrams are stored inline as SVG and need no object storage.
+- **The job runner does not run on Vercel.** Serverless functions have no
+  long-lived process, so PDF export jobs and ingestion need `apps/worker` on a
+  long-lived host against the same database (`docker compose up` locally).
+- Redis is not hosted: BullMQ requires a hosted Redis in production.
 - Data-dependent gates (150+ ground truth, agreement targets, real paper
   extraction and timed review study) remain unverified.
-- Learning objectives are not imported yet; placeholder educational content was
-  intentionally not fabricated.
+- Learning objectives are not imported yet; placeholder educational content
+  was intentionally not fabricated.
 
 `GET /api/v1/ready` exposes database state and `ai`, `pdfPrepare`, and
 `durableStorage` capability flags.

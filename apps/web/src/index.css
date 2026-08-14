@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .field {
+    @apply w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700;
+  }
+  .segment {
+    @apply rounded px-3 py-1.5 text-sm text-slate-600;
+  }
+  .segment-active {
+    @apply bg-slate-900 text-white;
+  }
+  .icon-button {
+    @apply grid h-8 w-8 place-items-center rounded-md border border-slate-300 bg-white text-lg leading-none hover:border-teal-700 hover:text-teal-700;
+  }
+  .small-button {
+    @apply rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:border-teal-700 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+}

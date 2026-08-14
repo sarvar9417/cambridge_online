@@ -1,7 +1,9 @@
 # 05 — Admin / O'qituvchi paneli
 
-> Bu hujjatdagi ekranlar `frontend/src/features/` ichida React bilan yoziladi.
-> Ular ma'lumotni faqat `frontend/src/lib/api.ts` orqali Express backenddan oladi.
+> Bu hujjatdagi ekranlar `apps/web/src/features/` ichida React bilan yoziladi.
+> Ular ma'lumotni faqat `apps/web/src/lib/api.ts` orqali `apps/api` dan oladi.
+> (v4: eski `frontend/`+`backend/` nomlari talab sifatida qoladi; savol banki
+> ekrani `features/questions/` da amalga oshirilgan — `IMPLEMENTATION-STATUS.md`.)
 
 ## 1. Navigatsiya
 

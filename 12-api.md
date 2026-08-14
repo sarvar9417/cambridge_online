@@ -1,6 +1,8 @@
 # 12 — API shartnomasi
 
-`backend` — Express. Barcha javob va so'rovlar JSON. Prefiks: `/api/v1`.
+`apps/api` — NestJS 10. Barcha javob va so'rovlar JSON. Prefiks: `/api/v1`.
+(v4: eski `backend` — Express yozuvi talab sifatida qoladi; amalga oshirilgan
+tuzilma va dalillar `IMPLEMENTATION-STATUS.md` da.)
 
 ---
 
@@ -102,9 +104,9 @@ Aks holda hujumchi `403` orqali resurs mavjudligini bilib oladi.
 
 ### 2.4 Validatsiya
 
-Backend request va job payload Zod sxemalari `backend/src/lib/types.ts` da.
-Frontend o'z formasi va API javobini `frontend/src/lib/schemas.ts` da validatsiya qiladi;
-frontend backend ichki faylini import qilmaydi.
+Backend request va job payload Zod sxemalari `packages/shared` da.
+Frontend o'z formasi va API javobini bir xil `packages/shared` sxemalari bilan
+validatsiya qiladi; frontend backend ichki faylini import qilmaydi.
 
 ### 2.5 Idempotentlik
 
@@ -115,16 +117,43 @@ Yon ta'sirli `POST` lar `Idempotency-Key` sarlavhasini qo'llab-quvvatlaydi
 
 ## 3. Asosiy endpoint'lar
 
-### Savollar
+### Savollar (Prompt C — amalga oshirilgan)
 
 ```
-GET    /questions?componentId&subtopicIds&commandWord&marksMin&marksMax
-                  &yearFrom&yearTo&status&unusedInClassId&difficulty&q
-GET    /questions/:id
-PATCH  /questions/:id                    owner
-POST   /questions/:id/approve            owner
-GET    /questions/:id/stats
+GET    /questions?view=parts|families&component&topicIds&subtopicIds
+                  &commandWords&marksMin&marksMax&aos&yearFrom&yearTo&series
+                  &hasDiagram&status&q&unusedInClassId&dependency&limit
+GET    /questions/filter-options
+GET    /questions/:id/portable             → leaf + context chain + assets + dependencies
 ```
+
+- `view=parts` (default) — faqat leaf'lar (ball oladigan sub-part'lar);
+  `view=families` — ildiz savol ostida mos qismlar guruhlanadi.
+- `portable` — recursive CTE bilan leaf'dan ildizgacha butun kontekst zanjiri,
+  har bir tugunning `context` va `assets`lari ajdod tartibida.
+- `dependency=independent` — qardosh savolga havola qilmaydigan leaf'lar.
+- `difficulty` va `unusedInClassId` — hozircha `unavailableFilters` sifatida
+  qaytadi (baholash/topshiriq moduli kelganda ishga tushadi).
+
+### Tanlash / savatcha (Prompt C — amalga oshirilgan)
+
+```
+GET    /selections
+POST   /selections                        { name }
+GET    /selections/:id                    → ko'rib chiqish: qayta raqamlangan, jami ball
+POST   /selections/:id/items              { questionId, role } → dependencies qaytadi
+PATCH  /selections/:id/items/:itemId      { role }  graded | context_only
+DELETE /selections/:id/items/:itemId
+```
+
+- `role=context_only` element ballga qo'shilmaydi (`effectiveMarks: 0`).
+- `POST .../items` javobida `dependencies` bor — add-time modal shu yerda ochiladi;
+  `answer_ref` bog'liqlik uchun context_only taklif qilinmaydi.
+- Qayta raqamlash: `Q1`, `Q1(a)`, `Q1(b)(i)`; asl manba `source_ref` da saqlanadi.
+
+Qolgan rejalashtirilgan savol endpoint'lari (PATCH, approve, stats) hali yo'q —
+savol tahrirlash Prompt A/B darajasida ingestion bilan, tasdiqlash oqimi keyingi
+fazada.
 
 > ★ O'quvchi uchun serializer `markScheme` va `markSchemePoints` ni **olib tashlaydi**,
 > baho `released` bo'lmaguncha. Bu `backend/src/services/question-serializer.ts` da,
@@ -231,7 +260,7 @@ Job runner log'larida `jobId`, `attempt`, `promptVersion`, `costUsd`.
 
 ## 6. Frontend mijoz
 
-`frontend/src/lib/api.ts` — yagona `fetch` wrapper:
+`apps/web/src/lib/api.ts` — yagona `fetch` wrapper:
 
 - Access token'ni xotiradan qo'shadi
 - `401` kelsa avtomatik `/auth/refresh`, keyin so'rovni bir marta qaytaradi
