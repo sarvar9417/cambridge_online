@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 
-const stringList = z.preprocess(
+const listOf = (schema: z.ZodTypeAny) => z.preprocess(
   (value) => value === undefined ? [] : Array.isArray(value) ? value : [value],
-  z.array(z.string().trim().min(1).max(100)).max(100),
+  z.array(schema).max(100),
 );
+const stringList = listOf(z.string().trim().min(1).max(100));
+const uuidList = listOf(z.string().uuid());
 const booleanQuery = z.preprocess((value) => {
   if (value === undefined || value === '') return undefined;
   if (value === true || value === 'true') return true;
@@ -23,10 +25,10 @@ const querySchema = z.object({
   marksMax: z.coerce.number().int().min(0).optional(),
   yearFrom: z.coerce.number().int().min(2000).max(2100).optional(),
   yearTo: z.coerce.number().int().min(2000).max(2100).optional(),
-  series: stringList,
-  aos: stringList,
-  topicIds: stringList,
-  subtopicIds: stringList,
+  series: listOf(z.enum(['FM', 'MJ', 'ON'])),
+  aos: listOf(z.enum(['AO1', 'AO2', 'AO3'])),
+  topicIds: uuidList,
+  subtopicIds: uuidList,
   hasDiagram: booleanQuery,
   status: z.enum(['draft', 'needs_review', 'approved', 'rejected', 'archived']).optional(),
   dependency: z.enum(['any', 'independent']).default('any'),
