@@ -1,5 +1,5 @@
 import type{Pool}from'pg';
-import{imageBlock,loadPrompt,recordAiCall,type AiUsage,type ClaudeUserBlock}from'../../lib/ai/claude.js';
+import{imageBlock,loadPrompt,recordAiCall,recordAiFailure,type AiUsage,type ClaudeUserBlock}from'../../lib/ai/claude.js';
 import type{IngestionStageHandler}from'./ingestion.js';
 import{mergeQuestions,mergeSchemes,normalizeMs,normalizeQp,type ExtractedQuestion,type ExtractedScheme}from'./ingestion-contract.js';
 
@@ -23,8 +23,7 @@ export async function extractQuestionsStage(pool:Pool,client:AiClient,input:Arti
  const prompt=await loadPrompt('extract-question',1);let questions:ExtractedQuestion[]=[];const conflicts:string[]=[];const batchTotals:number[]=[];
  for(const batch of prepared.batches){
   const content=await extractionContent(batch,{metadata,prior_refs:questions.map(question=>question.path)},imageLoader);
-  const response=await client.complete<unknown>({purpose:'extract_qp',prompt,content,maxTokens:8192});
-  await recordAiCall(pool,response.usage,{table:'source_papers',id:prepared.paperId});
+  const response=await callAndRecord(pool,client,{purpose:'extract_qp',prompt,content,maxTokens:8192,ref:{table:'source_papers',id:prepared.paperId}});
   const normalized=normalizeQp(response.data),merged=mergeQuestions(questions,normalized.questions);questions=merged.questions;conflicts.push(...merged.conflicts);batchTotals.push(normalized.pageTotalMarks);
  }
  return{...input,questions,qp:{...prepared,extraction:{questionCount:questions.length,batchTotals,overlapConflicts:[...new Set(conflicts)]}}};
@@ -37,11 +36,16 @@ export async function extractMarkSchemesStage(pool:Pool,client:AiClient,input:Ar
  const prompt=await loadPrompt('extract-markscheme',1);let schemes:ExtractedScheme[]=[];const conflicts:string[]=[];
  for(const batch of prepared.batches){
   const content=await extractionContent(batch,{metadata},imageLoader);
-  const response=await client.complete<unknown>({purpose:'extract_ms',prompt,content,maxTokens:8192});
-  await recordAiCall(pool,response.usage,{table:'source_papers',id:prepared.paperId});
+  const response=await callAndRecord(pool,client,{purpose:'extract_ms',prompt,content,maxTokens:8192,ref:{table:'source_papers',id:prepared.paperId}});
   const merged=mergeSchemes(schemes,normalizeMs(response.data));schemes=merged.schemes;conflicts.push(...merged.conflicts);
  }
  return{...input,markSchemes:schemes,ms:{...prepared,extraction:{schemeCount:schemes.length,overlapConflicts:[...new Set(conflicts)]}}};
+}
+
+async function callAndRecord(pool:Pool,client:AiClient,input:{purpose:string;prompt:{version:string;body:string};content:ClaudeUserBlock[];maxTokens:number;ref:{table:string;id:string}}){
+ const started=Date.now();
+ try{const response=await client.complete<unknown>(input);await recordAiCall(pool,response.usage,input.ref);return response}
+ catch(error){await recordAiFailure(pool,{purpose:input.purpose,model:client.model,promptVersion:input.prompt.version,ref:input.ref,error,latencyMs:Date.now()-started});throw error}
 }
 
 function pickPrepared(input:Artifact,side:'qp'|'ms'):Prepared|null{
