@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import type { Pool } from 'pg';
 import { config } from '../../config.js';
+import { toAssignmentExportQuestion } from '../../lib/assignment-export.js';
 import { assertPaperTotal, renderPaperHtml, type ExportQuestion } from '../../lib/export-html.js';
 import type { Job } from '../job-queue.js';
 
@@ -21,15 +22,37 @@ export function createExportPdfProcessor(pool: Pool) {
 
     if (exp.ref_table === 'assignments') {
       const result = await pool.query(
-        `select a.title,a.total_marks,q.display_ref,q.stem_md,q.context_md,coalesce(aq.marks_override,q.marks)marks,
-         coalesce(json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',msp.marks)order by msp.sort_order)filter(where msp.id is not null),'[]') points
-         from assignments a join assignment_questions aq on aq.assignment_id=a.id join questions q on q.id=aq.question_id
-         left join mark_schemes ms on ms.question_id=q.id left join mark_scheme_points msp on msp.mark_scheme_id=ms.id
-         where a.id=$1 group by a.id,q.id,aq.sort_order,aq.marks_override order by aq.sort_order`,
+        `with items as (
+           select a.id assignment_id,a.title,a.total_marks,aq.question_id,aq.sort_order,
+             aq.role::text role,aq.fresh_ref,aq.source_ref,coalesce(aq.marks_override,q.marks) marks,
+             aq.portable_snapshot,q.display_ref,q.stem_md,q.context_md
+           from assignments a
+           join assignment_questions aq on aq.assignment_id=a.id
+           join questions q on q.id=aq.question_id
+           where a.id=$1
+           union all
+           select a.id assignment_id,a.title,a.total_marks,aci.question_id,aci.sort_order,
+             'context_only'::text role,aci.fresh_ref,aci.source_ref,0 marks,
+             aci.portable_snapshot,q.display_ref,q.stem_md,q.context_md
+           from assignments a
+           join assignment_context_items aci on aci.assignment_id=a.id
+           join questions q on q.id=aci.question_id
+           where a.id=$1
+         )
+         select i.*,
+           coalesce(mp.points,'[]'::json) points
+         from items i
+         left join lateral (
+           select json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',msp.marks) order by msp.sort_order) points
+           from mark_schemes ms
+           join mark_scheme_points msp on msp.mark_scheme_id=ms.id
+           where ms.question_id=i.question_id and ms.status='approved' and i.role='graded'
+         ) mp on true
+         order by i.sort_order,i.question_id`,
         [exp.ref_id],
       );
       title = result.rows[0]?.title ?? 'CamPath Paper';
-      questions = result.rows.map((row) => ({ displayRef:row.display_ref,stem:row.stem_md,context:row.context_md,marks:row.marks,points:row.points }));
+      questions = result.rows.map(toAssignmentExportQuestion);
       assertPaperTotal(questions,Number(result.rows[0]?.total_marks??0));
     } else {
       const result = await pool.query(
