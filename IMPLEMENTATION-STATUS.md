@@ -15,7 +15,7 @@ This file records verified implementation evidence. Requirements remain in
 ## Verified locally
 
 - Strict typecheck and production builds pass.
-- 137 backend and 2 frontend tests pass.
+- 141 backend and 2 frontend tests pass.
 - Chrome renders at 1440x900 and emulated 360x800; no 360px overflow.
 - Migrations 0001-0008 and seed data are applied to Supabase.
 - A real assignment export completed through PostgreSQL jobs and Chrome; the
@@ -37,7 +37,9 @@ This file records verified implementation evidence. Requirements remain in
 - Faza 4 foundation: deterministic marking, safe AI output, shadow processor,
   budget guard and AI audit.
 - Faza 5 foundation: content schema, C01-C10, SM-2 and flashcard API.
-- Ops: rate limits, robots block, migration lock and capability reporting.
+- Ops: rate limits, robots block, migration lock, capability reporting,
+  self-service JSON data export and owner-only student anonymization that keeps
+  aggregate grading statistics while clearing identity, sessions and answers.
 
 ## External requirements not yet satisfied
 

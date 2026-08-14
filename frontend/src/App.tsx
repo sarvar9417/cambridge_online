@@ -202,6 +202,20 @@ export function App() {
     setAccessToken(null);
     setUser(null);
   };
+  const downloadOwnData = async () => {
+    setError('');
+    try {
+      const data = await api<unknown>('/privacy/export');
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type:'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `campath-data-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ma'lumotlar yuklanmadi.");
+    }
+  };
   const start = async (id: string) => {
     const next = await api<Attempt>(`/assignments/${id}/attempt`, {
       method: "POST",
@@ -487,6 +501,9 @@ export function App() {
           <a>Vazifalar</a>
           <a>Natijalar</a>
         </nav>
+        <button className="ghost data-export" onClick={downloadOwnData}>
+          Ma’lumotlarim
+        </button>
         <button className="ghost" onClick={logout}>
           Chiqish
         </button>

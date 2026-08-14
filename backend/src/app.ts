@@ -28,6 +28,8 @@ import { ContentService } from './services/content-service.js';
 import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
+import { createPrivacyRouter } from './routes/privacy.js';
+import { PrivacyService } from './services/privacy-service.js';
 import { createReadyRouter, healthRouter } from './routes/health.js';
 import { meRouter } from './routes/me.js';
 import { AuthService } from './services/auth-service.js';
@@ -77,6 +79,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
+  if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Manzil topilmadi.' } });
