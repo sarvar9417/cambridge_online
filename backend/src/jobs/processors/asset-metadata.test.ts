@@ -1,0 +1,9 @@
+import{describe,expect,it}from'vitest';import{validateAssetMetadata}from'./asset-metadata.js';
+const question=(assets:unknown[])=>({path:'1.a',label:'a',parentPath:'1',displayRef:'1(a)',stemMd:'Study the diagram.',contextMd:null,commandWord:'Describe',marks:2,answerKind:'diagram',answerLines:0,sourcePages:[3],assets,issues:[],confidence:.95});
+const asset=(bbox:[number,number,number,number]|null,page:number|null=3,contentMd:string|null=null)=>({kind:'diagram',contentMd,altText:'Diagram',bbox,page});
+describe('asset metadata validation',()=>{
+ it('accepts [x1,y1,x2,y2] with a positive rectangle',()=>{const result=validateAssetMetadata({questions:[question([asset([10,20,110,220])])]});expect(result.assetCandidates).toEqual([{questionPath:'1.a',assetIndex:0,kind:'diagram',sourcePage:3,bbox:[10,20,110,220],altText:'Diagram'}]);expect((result.questions as any[])[0].issues).toEqual([])});
+ it('rejects reversed x/y corners even when every coordinate is positive',()=>{const result=validateAssetMetadata({questions:[question([asset([500,400,100,200])])]});expect(result.assetCandidates).toEqual([]);expect((result.questions as any[])[0].issues).toContain('asset_invalid_crop_coordinates:0')});
+ it('rejects zero-area boxes',()=>{for(const bbox of[[10,20,10,100],[10,20,100,20]]as Array<[number,number,number,number]>){const result=validateAssetMetadata({questions:[question([asset(bbox)])]});expect(result.assetCandidates).toEqual([]);expect((result.questions as any[])[0].issues).toContain('asset_invalid_crop_coordinates:0')}});
+ it('requires page and bbox only for binary assets',()=>{const result=validateAssetMetadata({questions:[question([asset(null,null,'|A|B|')])]});expect(result.assetCandidates).toEqual([]);expect((result.questions as any[])[0].issues).toEqual([])});
+});
