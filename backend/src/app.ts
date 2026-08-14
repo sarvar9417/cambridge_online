@@ -31,7 +31,7 @@ import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
 import { PrivacyService } from './services/privacy-service.js';
 import { createReadyRouter, healthRouter } from './routes/health.js';
-import { meRouter } from './routes/me.js';
+import { createMeRouter } from './routes/me.js';
 import { AuthService } from './services/auth-service.js';
 import { ZodError } from 'zod';
 import { DomainError } from './services/assignments-service.js';
@@ -67,7 +67,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   }
 
   app.use('/api/v1', requireAuth(auth));
-  mountPrivate('/api/v1/auth/me', meRouter);
+  if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool) mountPrivate('/api/v1/assignments', createAssignmentsRouter(new AssignmentsService(pool),pool));

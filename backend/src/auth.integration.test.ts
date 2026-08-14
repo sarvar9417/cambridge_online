@@ -5,6 +5,7 @@ import { createApp } from './app.js';
 import type { AuthRepository, AuthUser, RefreshRecord } from './repositories/auth-repository.js';
 import type { ClassesRepository } from './repositories/classes-repository.js';
 import { AuthService } from './services/auth-service.js';
+import { clearRateLimits } from './middleware/rate-limit.js';
 
 class MemoryAuthRepository implements AuthRepository {
   user!: AuthUser;
@@ -38,8 +39,7 @@ class MemoryAuthRepository implements AuthRepository {
   }
 
   async revokeRefreshToken(rawToken: string) {
-    const record = this.refreshRecords.get(rawToken);
-    if (record) record.revokedAt ??= new Date();
+    this.refreshRecords.delete(rawToken);
   }
 
   async revokeAllSessions() {
@@ -56,6 +56,7 @@ class MemoryAuthRepository implements AuthRepository {
     return this.user;
   }
   async changePassword(_userId:string,passwordHash:string){this.user.passwordHash=passwordHash;await this.revokeAllSessions()}
+  async updateProfile(_userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}){if(input.fullName)this.user.fullName=input.fullName;return this.user}
 }
 
 const cookieValue = (setCookie: string[] | string | undefined) => {
@@ -73,6 +74,7 @@ describe('authentication flow', () => {
   beforeAll(async () => { passwordHash = await argon2.hash('secure-password', { memoryCost: 4096, timeCost: 1 }); });
 
   beforeEach(async () => {
+    clearRateLimits();
     repository = new MemoryAuthRepository();
     repository.user = {
       id: '22605ad7-b3df-4249-9b58-052f5d830fd8',
@@ -127,6 +129,33 @@ describe('authentication flow', () => {
       .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${login.body.accessToken}`);
     expect(oldAccess.status).toBe(401);
+  });
+
+  it('rejects an ordinarily revoked refresh token with 401',async()=>{
+    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
+    const cookie=cookieValue(login.headers['set-cookie']);
+    const logout=await request(app).post('/api/v1/auth/logout').set('Authorization',`Bearer ${login.body.accessToken}`).set('Cookie',cookie);
+    expect(logout.status).toBe(204);
+    const refresh=await request(app).post('/api/v1/auth/refresh').set('Cookie',cookie);
+    expect(refresh.status).toBe(401);
+    expect(refresh.body.error.code).toBe('invalid_refresh');
+    expect(repository.revokedAll).toBe(0);
+  });
+
+  it('rejects role elevation in the strict profile DTO',async()=>{
+    repository.user.role='student';
+    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
+    const response=await request(app).patch('/api/v1/auth/me').set('Authorization',`Bearer ${login.body.accessToken}`).send({role:'teacher'});
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('validation_error');
+    expect(repository.user.role).toBe('student');
+  });
+
+  it('updates only allowed profile fields',async()=>{
+    const login=await request(app).post('/api/v1/auth/login').send({identifier:'sarvar',password:'secure-password'});
+    const response=await request(app).patch('/api/v1/auth/me').set('Authorization',`Bearer ${login.body.accessToken}`).send({fullName:'Sarvar Aliev'});
+    expect(response.status).toBe(200);
+    expect(response.body.user).toMatchObject({fullName:'Sarvar Aliev',role:'owner'});
   });
 
   it('passes the authenticated actor to the classes repository', async () => {

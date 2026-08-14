@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 import { jwtVerify, SignJWT } from 'jose';
 import { config } from '../config.js';
-import type { LoginInput, RedeemInviteInput } from '../lib/auth-schemas.js';
+import type { LoginInput, RedeemInviteInput, UpdateProfileInput } from '../lib/auth-schemas.js';
 import type { AuthRepository, AuthUser } from '../repositories/auth-repository.js';
 
 const accessSecret = new TextEncoder().encode(config.JWT_SECRET);
@@ -93,6 +93,7 @@ export class AuthService {
     }
   }
   async changePassword(userId:string,currentPassword:string,newPassword:string){const user=await this.repository.findById(userId);if(!user||!(await argon2.verify(user.passwordHash,currentPassword)))throw new AuthError('invalid_credentials',401);await this.repository.changePassword(userId,await argon2.hash(newPassword))}
+  async updateProfile(userId:string,input:UpdateProfileInput){return publicUser(await this.repository.updateProfile(userId,input))}
 
   async verifyAccessToken(token: string) {
     const { payload } = await jwtVerify(token, accessSecret);

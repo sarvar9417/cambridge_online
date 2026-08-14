@@ -31,6 +31,7 @@ export interface AuthRepository {
   updateLastLogin(userId: string): Promise<void>;
   redeemInvite(input: { code:string; fullName:string; username:string; passwordHash:string }): Promise<AuthUser>;
   changePassword(userId:string,passwordHash:string):Promise<void>;
+  updateProfile(userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}):Promise<AuthUser>;
 }
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -111,7 +112,7 @@ export class PgAuthRepository implements AuthRepository {
 
   async revokeRefreshToken(rawToken: string) {
     await this.pool.query(
-      'update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where token_hash = $1',
+      'delete from refresh_tokens where token_hash = $1',
       [hashToken(rawToken)],
     );
   }
@@ -159,6 +160,16 @@ export class PgAuthRepository implements AuthRepository {
   }
 
   async changePassword(userId:string,passwordHash:string){const client=await this.pool.connect();try{await client.query('begin');await client.query(`update users set password_hash=$2,token_version=token_version+1,updated_at=now()where id=$1`,[userId,passwordHash]);await client.query(`update refresh_tokens set revoked_at=coalesce(revoked_at,now())where user_id=$1`,[userId]);await client.query('commit')}catch(error){await client.query('rollback');throw error}finally{client.release()}}
+
+  async updateProfile(userId:string,input:{fullName?:string;locale?:'uz'|'en'|'ru'}) {
+    const result=await this.pool.query(
+      `update users set full_name=coalesce($2,full_name),locale=coalesce($3,locale),updated_at=now()
+       where id=$1 and is_active=true returning *`,
+      [userId,input.fullName??null,input.locale??null],
+    );
+    if(!result.rows[0])throw new Error('user_not_found');
+    return mapUser(result.rows[0]);
+  }
 
   private async insertRefresh(client: PoolClient, userId: string, rawToken: string, expiresAt: Date) {
     await client.query(

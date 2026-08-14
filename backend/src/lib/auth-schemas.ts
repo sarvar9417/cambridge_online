@@ -13,6 +13,12 @@ export const redeemInviteSchema = z.object({
   password: z.string().min(8).max(200),
 });
 
+export const updateProfileSchema = z.object({
+  fullName: z.string().trim().min(2).max(120).optional(),
+  locale: z.enum(['uz', 'en', 'ru']).optional(),
+}).strict().refine((input) => Object.keys(input).length > 0, 'At least one profile field is required');
+
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
