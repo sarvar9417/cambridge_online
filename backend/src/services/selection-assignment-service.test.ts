@@ -23,6 +23,20 @@ const goodReview: SelectionReview = {
   totalMarks:3,dependencyIssues:[],canPublish:true,
 };
 
+const assetReview = (): SelectionReview => ({
+  ...goodReview,
+  items: goodReview.items.map((item,index) => index ? item : ({
+    ...item,
+    portable:{
+      ...item.portable,
+      contextBlocks:[{
+        id:'asset-block',label:'1',displayRef:'9618/11/M/J/23 Q1',depth:0,context:null,
+        assets:[{id:'asset-1',kind:'diagram',storagePath:'private/network.png',contentMd:null,altText:'Network diagram',sortOrder:0,sourcePage:1}],
+      }],
+    },
+  })),
+});
+
 function harness(review: SelectionReview | null = goodReview, lockedAt = updatedAt) {
   const reviewFn = vi.fn().mockResolvedValue(review);
   const poolQuery = vi.fn().mockResolvedValue({rowCount:1,rows:[{updated_at:updatedAt}]});
@@ -38,9 +52,10 @@ function harness(review: SelectionReview | null = goodReview, lockedAt = updated
     throw new Error(`Unexpected SQL: ${sql} ${JSON.stringify(values)}`);
   });
   const client = {query:clientQuery,release:vi.fn()} as unknown as PoolClient;
-  const pool = {query:poolQuery,connect:vi.fn().mockResolvedValue(client)} as unknown as Pool;
+  const connect = vi.fn().mockResolvedValue(client);
+  const pool = {query:poolQuery,connect} as unknown as Pool;
   const selections = {review:reviewFn} as unknown as PgSelectionsRepository;
-  return {service:new SelectionAssignmentService(pool,selections),poolQuery,clientQuery,reviewFn,client};
+  return {service:new SelectionAssignmentService(pool,selections),poolQuery,clientQuery,reviewFn,client,connect};
 }
 
 describe('SelectionAssignmentService',()=>{
@@ -70,7 +85,24 @@ describe('SelectionAssignmentService',()=>{
       code:'answer_dependency_requires_graded',severity:'error',questionId:'q',questionRef:'Q2',dependsOnId:'p',dependsOnRef:'Q1',evidence:'using your answer',
     }]});
     await expect(h.service.create(actor,selectionId,{classId,title:'Blocked'})).rejects.toMatchObject({code:'selection_dependencies_unresolved',status:409});
-    expect(h.clientQuery).not.toHaveBeenCalled();
+    expect(h.connect).not.toHaveBeenCalled();
+  });
+
+  it('blocks storage-only assets before creating a PDF or publishing online',async()=>{
+    const pdf=harness(assetReview());
+    await expect(pdf.service.create(actor,selectionId,{classId,title:'PDF',mode:'pdf'})).rejects.toMatchObject({code:'pdf_asset_embedding_unavailable',status:409});
+    expect(pdf.connect).not.toHaveBeenCalled();
+
+    const online=harness(assetReview());
+    await expect(online.service.create(actor,selectionId,{classId,title:'Online',mode:'online',publish:true})).rejects.toMatchObject({code:'online_asset_rendering_unavailable',status:409});
+    expect(online.connect).not.toHaveBeenCalled();
+  });
+
+  it('still allows an online draft with a storage-only asset for later remediation',async()=>{
+    const h=harness(assetReview());
+    const result=await h.service.create(actor,selectionId,{classId,title:'Draft with diagram',mode:'online',publish:false});
+    expect(result).toMatchObject({id:'assignment-1',publishedAt:null});
+    expect(h.connect).toHaveBeenCalledOnce();
   });
 
   it('rolls back when the basket changes between review and row lock',async()=>{
@@ -89,7 +121,7 @@ describe('SelectionAssignmentService',()=>{
     expect(published.clientQuery.mock.calls.some(([sql])=>String(sql).includes('insert into submissions'))).toBe(true);
 
     const pdf=harness();
-    await pdf.service.create(actor,selectionId,{classId,title:'PDF',publish:true,mode:'pdf'});
+    await pdf.service.create(actor,selectionId,{classId,title:'PDF',publish:false,mode:'pdf'});
     expect(pdf.clientQuery.mock.calls.some(([sql])=>String(sql).includes('insert into submissions'))).toBe(false);
   });
 });
