@@ -25,13 +25,23 @@ export async function extractQuestionsStage(pool:Pool,client:AiClient,input:Arti
  const prepared=pickPrepared(input,'qp');if(!prepared)return input;
  const metadata=await paperMetadata(pool,prepared.paperId);
  if(metadata.kind!=='QP')return input;
- const prompt=await loadPrompt('extract-question',1);let questions:ExtractedQuestion[]=[];const conflicts:string[]=[];const batchTotals:number[]=[];
+ const prompt=await loadPrompt('extract-question',1);let questions:ExtractedQuestion[]=[];let carryoverPaths=new Set<string>();const conflicts:string[]=[];const batchTotals:number[]=[];
  for(const batch of prepared.batches){
-  const content=await extractionContent(batch,{metadata,prior_refs:questions.map(question=>question.path)},imageLoader);
+  const priorRefs=questions.filter(question=>!carryoverPaths.has(question.path)).map(question=>question.path);
+  const content=await extractionContent(batch,{metadata,prior_refs:priorRefs,carryover_refs:[...carryoverPaths]},imageLoader);
   const response=await callAndRecord(pool,client,{purpose:'extract_qp',prompt,content,maxTokens:8192,ref:{table:'source_papers',id:prepared.paperId}});
-  const normalized=normalizeQp(response.data),merged=mergeQuestions(questions,normalized.questions);questions=merged.questions;conflicts.push(...merged.conflicts);batchTotals.push(normalized.pageTotalMarks);
+  const normalized=normalizeQp(response.data),incomingPaths=new Set(normalized.questions.map(question=>question.path));
+  // A truncated path is intentionally allowed to be re-emitted by the overlap
+  // batch. Replace the partial copy without treating normal completion as an
+  // overlap conflict. If the model fails to re-emit it, keep it unresolved so
+  // final validation can block automatic approval.
+  const mergeBase=questions.filter(question=>!(carryoverPaths.has(question.path)&&incomingPaths.has(question.path)));
+  const merged=mergeQuestions(mergeBase,normalized.questions);questions=merged.questions;conflicts.push(...merged.conflicts);batchTotals.push(normalized.pageTotalMarks);
+  const nextCarryover=new Set<string>();for(const path of carryoverPaths)if(!incomingPaths.has(path))nextCarryover.add(path);
+  if(normalized.truncated){const boundaryPage=Math.max(...batch.pageNumbers);for(const question of normalized.questions)if(question.sourcePages.includes(boundaryPage))nextCarryover.add(question.path)}
+  carryoverPaths=nextCarryover;
  }
- return{...input,questions,qp:{...prepared,extraction:{questionCount:questions.length,batchTotals,overlapConflicts:[...new Set(conflicts)]}}};
+ return{...input,questions,qp:{...prepared,extraction:{questionCount:questions.length,batchTotals,overlapConflicts:[...new Set(conflicts)],unresolvedCarryoverPaths:[...carryoverPaths]}}};
 }
 
 export async function extractMarkSchemesStage(pool:Pool,client:AiClient,input:Artifact,imageLoader:ImageLoader=imageBlock):Promise<Artifact>{
