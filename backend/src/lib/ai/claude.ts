@@ -64,10 +64,19 @@ export async function imageBlock(path:string):Promise<ClaudeUserBlock>{
   return{type:'image',source:{type:'base64',media_type,data:(await readFile(path)).toString('base64')}};
 }
 
-export async function recordAiCall(pool:Pool,usage:AiUsage,ref?:{table:string;id:string},error?:unknown){
+export async function recordAiCall(pool:Pool,usage:AiUsage,ref?:{table:string;id:string}){
   await pool.query(`insert into ai_calls(purpose,model,prompt_version,ref_table,ref_id,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,cost_usd,latency_ms,ok,error)
-    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,[
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,null)`,[
       usage.purpose,usage.model,usage.promptVersion,ref?.table??null,ref?.id??null,usage.inputTokens,usage.outputTokens,
-      usage.cacheReadTokens,usage.cacheWriteTokens,usage.costUsd,usage.latencyMs,!error,error instanceof Error?error.message.slice(0,1000):error?String(error).slice(0,1000):null,
+      usage.cacheReadTokens,usage.cacheWriteTokens,usage.costUsd,usage.latencyMs,
+    ]);
+}
+
+/** A failed HTTP/parse call has no trustworthy usage numbers; store nulls rather than inventing zero-cost usage. */
+export async function recordAiFailure(pool:Pool,input:{purpose:string;model:string;promptVersion:string;ref?:{table:string;id:string};error:unknown;latencyMs:number}){
+  await pool.query(`insert into ai_calls(purpose,model,prompt_version,ref_table,ref_id,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,cost_usd,latency_ms,ok,error)
+    values($1,$2,$3,$4,$5,null,null,null,null,null,$6,false,$7)`,[
+      input.purpose,input.model,input.promptVersion,input.ref?.table??null,input.ref?.id??null,input.latencyMs,
+      input.error instanceof Error?input.error.message.slice(0,1000):String(input.error).slice(0,1000),
     ]);
 }
