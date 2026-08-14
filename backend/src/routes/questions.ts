@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 
-const listOf = (schema: z.ZodTypeAny) => z.preprocess(
+const listOf = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(
   (value) => value === undefined ? [] : Array.isArray(value) ? value : [value],
   z.array(schema).max(100),
-);
+) as z.ZodType<Array<z.infer<T>>>;
 const stringList = listOf(z.string().trim().min(1).max(100));
 const uuidList = listOf(z.string().uuid());
 const booleanQuery = z.preprocess((value) => {
