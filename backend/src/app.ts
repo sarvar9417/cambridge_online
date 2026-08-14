@@ -15,6 +15,7 @@ import { createQuestionsRouter } from './routes/questions.js';
 import { createSelectionsRouter } from './routes/selections.js';
 import { createAssignmentsRouter } from './routes/assignments.js';
 import { AssignmentsService } from './services/assignments-service.js';
+import { SelectionAssignmentService } from './services/selection-assignment-service.js';
 import { createGradingRouter } from './routes/grading.js';
 import { GradingService } from './services/grading-service.js';
 import { createResultsRouter } from './routes/results.js';
@@ -75,10 +76,11 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use('/api/v1', requireAuth(auth));
   const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
+  const selectionsRepository = pool && questionsRepository ? new PgSelectionsRepository(pool, questionsRepository) : undefined;
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,pool?new AssignmentsService(pool):undefined));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
-  if (pool && questionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(new PgSelectionsRepository(pool, questionsRepository)));
+  if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool));
   if (pool) mountPrivate('/api/v1/assignments', createAssignmentsRouter(new AssignmentsService(pool),pool));
   if (pool) mountPrivate('/api/v1/submissions', createSubmissionsRouter(new AssignmentsService(pool)));
   if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
@@ -98,7 +100,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
