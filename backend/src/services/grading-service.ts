@@ -84,7 +84,31 @@ export class GradingService {
     return result.rows;
   }
 
-  async togglePoint(actor: Actor, pointId: string, matched: boolean) {
+  async detail(actor:Actor,gradingId:string) {
+    const result=await this.pool.query(
+      `select g.id,g.status,g.final_score,g.teacher_feedback_md,g.released_at,
+              ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,u.full_name student_name,
+              coalesce(json_agg(json_build_object('id',gp.id,'code',msp.code,'text',msp.text,
+                'matched',gp.final_matched,'marks',gp.awarded_marks) order by msp.sort_order)
+                filter(where gp.id is not null),'[]')points
+       from gradings g join answers ans on ans.id=g.answer_id join questions q on q.id=ans.question_id
+       join submissions s on s.id=ans.submission_id join users u on u.id=s.student_id
+       join assignments a on a.id=s.assignment_id join classes c on c.id=a.class_id
+       left join grading_points gp on gp.grading_id=g.id left join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id
+       where g.id=$1 and (($2='student' and s.student_id=$3 and g.released_at is not null) or
+         ($2='owner' and c.school_id=$4) or ($2='teacher' and (c.owner_id=$3 or exists(
+           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))))
+       group by g.id,ans.id,q.id,u.id`,
+      [gradingId,actor.role,actor.id,actor.schoolId],
+    );
+    if(!result.rowCount)throw new DomainError('not_found',404);
+    const row=result.rows[0];
+    return{id:row.id,status:row.status,finalScore:row.final_score===null?null:Number(row.final_score),feedback:row.teacher_feedback_md,
+      releasedAt:row.released_at,answerText:row.text,displayRef:row.display_ref,stemMd:row.stem_md,marks:row.marks,
+      answerKind:row.answer_kind,studentName:row.student_name,points:row.points};
+  }
+
+  async togglePoint(actor: Actor, pointId: string, matched: boolean, gradingId?:string) {
     this.assertStaff(actor);
     const visible = await this.pool.query(
       `select gp.grading_id
@@ -94,11 +118,11 @@ export class GradingService {
        join submissions s on s.id = ans.submission_id
        join assignments a on a.id = s.assignment_id
        join classes c on c.id = a.class_id
-       where gp.id = $1 and (($2 = 'owner' and c.school_id = $3) or
+       where gp.id = $1 and ($5::uuid is null or g.id=$5) and (($2 = 'owner' and c.school_id = $3) or
          ($2 = 'teacher' and (c.owner_id = $4 or exists (
            select 1 from class_teachers ct where ct.class_id = c.id and ct.teacher_id = $4
          ))))`,
-      [pointId, actor.role, actor.schoolId, actor.id],
+      [pointId, actor.role, actor.schoolId, actor.id,gradingId??null],
     );
     if (!visible.rowCount) throw new DomainError('not_found', 404);
 
@@ -111,13 +135,13 @@ export class GradingService {
        returning gp.grading_id`,
       [pointId, matched],
     );
-    const gradingId = result.rows[0].grading_id;
+    const actualGradingId = result.rows[0].grading_id;
     const score = await this.pool.query(
       `update gradings
        set teacher_score = x.score, final_score = x.score, graded_by = $2, graded_at = now()
        from (select coalesce(sum(awarded_marks), 0) as score from grading_points where grading_id = $1) x
        where id = $1 returning final_score`,
-      [gradingId, actor.id],
+      [actualGradingId, actor.id],
     );
     return { finalScore: Number(score.rows[0].final_score) };
   }

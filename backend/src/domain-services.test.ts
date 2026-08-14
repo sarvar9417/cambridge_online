@@ -62,6 +62,13 @@ describe('domain authorization', () => {
     expect(values).toEqual(['student', 'student-id', 'school-id']);
   });
 
+  it('assignment list can be constrained to a visible class',async()=>{
+    const query=vi.fn().mockResolvedValue({rows:[]});
+    await new AssignmentsService({query}as unknown as Pool).list(owner,'class-id');
+    expect(query.mock.calls[0]![0]).toContain('a.class_id=$3');
+    expect(query.mock.calls[0]![1]).toEqual(['owner-id','school-id','class-id']);
+  });
+
   it('result detail always includes released-only and school/class scope', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     await new ResultsService({ query } as unknown as Pool).detail(owner, 'submission-id');

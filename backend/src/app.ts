@@ -29,6 +29,8 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
+import { createSubmissionsRouter } from './routes/submissions.js';
+import { createGradingsRouter } from './routes/gradings.js';
 import { PrivacyService } from './services/privacy-service.js';
 import { createReadyRouter, healthRouter } from './routes/health.js';
 import { createMeRouter } from './routes/me.js';
@@ -68,10 +70,12 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use('/api/v1', requireAuth(auth));
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
-  if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository));
+  if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,pool?new AssignmentsService(pool):undefined));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool) mountPrivate('/api/v1/assignments', createAssignmentsRouter(new AssignmentsService(pool),pool));
+  if (pool) mountPrivate('/api/v1/submissions', createSubmissionsRouter(new AssignmentsService(pool)));
   if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
+  if (pool) mountPrivate('/api/v1/gradings', createGradingsRouter(new GradingService(pool)));
   if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool)));
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));

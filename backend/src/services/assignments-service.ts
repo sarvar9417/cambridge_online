@@ -18,16 +18,17 @@ export class AssignmentsService {
       await client.query('commit');return assignment.rows[0];
     }catch(error){await client.query('rollback');throw error;}finally{client.release();}
   }
-  async list(actor:Actor) {
+  async list(actor:Actor,classId?:string) {
     const values:unknown[]=[actor.id];
     const scope=actor.role==='student'
       ? `exists(select 1 from enrollments e where e.class_id=a.class_id and e.student_id=$1 and e.left_at is null) and a.published_at is not null`
       : actor.role==='owner' ? `exists(select 1 from classes c where c.id=a.class_id and c.school_id=$2)`
       : `exists(select 1 from classes c where c.id=a.class_id and (c.owner_id=$1 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$1)))`;
     if(actor.role==='owner') values.push(actor.schoolId);
+    const classFilter=classId?` and a.class_id=$${values.push(classId)}`:'';
     const r=await this.pool.query(`select a.id,a.title,a.mode,a.total_marks,a.opens_at,a.due_at,a.time_limit_min,a.published_at,c.name class_name,
       s.id submission_id,s.status submission_status from assignments a join classes c on c.id=a.class_id
-      left join submissions s on s.assignment_id=a.id and s.student_id=$1 where a.archived_at is null and ${scope} order by a.due_at nulls last`,values);
+      left join submissions s on s.assignment_id=a.id and s.student_id=$1 where a.archived_at is null and ${scope}${classFilter} order by a.due_at nulls last`,values);
     return r.rows.map(x=>({id:x.id,title:x.title,mode:x.mode,totalMarks:x.total_marks,opensAt:x.opens_at,dueAt:x.due_at,timeLimitMin:x.time_limit_min,publishedAt:x.published_at,className:x.class_name,submissionId:x.submission_id,submissionStatus:x.submission_status}));
   }
   async results(actor: Actor, assignmentId: string) {

@@ -1,13 +1,20 @@
 import { Router } from 'express';
 import type { ClassesRepository } from '../repositories/classes-repository.js';
 import { z } from 'zod';
+import type{AssignmentsService}from'../services/assignments-service.js';
 
-export function createClassesRouter(repository: ClassesRepository) {
+export function createClassesRouter(repository: ClassesRepository,assignments?:AssignmentsService) {
   const router = Router();
 
   router.get('/', async (req, res) => {
     const classes = await repository.findVisible(req.actor!);
     res.json({ data: classes });
+  });
+  if(assignments)router.get('/:id/assignments',async(req,res)=>{
+    const id=z.string().uuid().parse(req.params.id);
+    const item=await repository.findOne(req.actor!,id);
+    if(!item){res.status(404).json({error:{code:'not_found',message:'Topilmadi.'}});return;}
+    res.json({data:await assignments.list(req.actor!,id)});
   });
   router.get('/:id',async(req,res)=>{
     const item=await repository.findOne(req.actor!,z.string().uuid().parse(req.params.id));

@@ -123,7 +123,7 @@ export function App() {
     const heartbeat = async () => {
       try {
         const state = await api<{ remainingSeconds: number | null }>(
-          `/assignments/submissions/${attempt.submissionId}/heartbeat`,
+          `/submissions/${attempt.submissionId}/heartbeat`,
           {
             method: "POST",
             body: JSON.stringify({ activeSessionId: attempt.activeSessionId }),
@@ -152,7 +152,7 @@ export function App() {
   }, [remainingSeconds === null]);
   const sendPending = (answer: PendingAnswer) =>
     api(
-      `/assignments/submissions/${answer.submissionId}/answers/${answer.questionId}`,
+      `/submissions/${answer.submissionId}/answers/${answer.questionId}`,
       {
         method: "PUT",
         body: JSON.stringify({
@@ -267,7 +267,7 @@ export function App() {
     await Promise.all(
       attempt.questions.map((question) =>
         api(
-          `/assignments/submissions/${attempt.submissionId}/answers/${question.id}`,
+          `/submissions/${attempt.submissionId}/answers/${question.id}`,
           {
             method: "PUT",
             body: JSON.stringify({
@@ -278,7 +278,7 @@ export function App() {
         ),
       ),
     );
-    await api(`/assignments/submissions/${attempt.submissionId}/submit`, {
+    await api(`/submissions/${attempt.submissionId}/submit`, {
       method: "POST",
     });
     setAttempt(null);
@@ -289,7 +289,7 @@ export function App() {
     pointId: string,
     matched: boolean,
   ) => {
-    await api(`/grading/points/${pointId}`, {
+    await api(`/gradings/${item.id}/points/${pointId}`, {
       method: "PATCH",
       body: JSON.stringify({ teacherMatched: matched }),
     });
@@ -313,7 +313,7 @@ export function App() {
     });
   };
   const release = async (item: GradingItem) => {
-    await api(`/grading/${item.id}/release`, { method: "POST" });
+    await api(`/gradings/${item.id}/release`, { method: "POST" });
     setGrading((current) => current.filter((entry) => entry.id !== item.id));
   };
   const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
@@ -348,7 +348,7 @@ export function App() {
       setError("Apellyatsiya sababini kamida 10 belgi bilan yozing.");
       return;
     }
-    await api(`/grading/${item.gradingId}/appeal`, {
+    await api(`/gradings/${item.gradingId}/appeal`, {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
