@@ -5,7 +5,9 @@ import helmet from 'helmet';
 import { config } from './config.js';
 import { pool } from './database/client.js';
 import { requireAuth } from './middleware/auth.js';
-import { PgAuthRepository } from './repositories/auth-repository.js';
+import { PgAuthRepository, type AuthRepository } from './repositories/auth-repository.js';
+import { createMailer } from './lib/email/mailer.js';
+import { createAdminUsersRouter } from './routes/admin-users.js';
 import { PgClassesRepository, type ClassesRepository } from './repositories/classes-repository.js';
 import { PgQuestionsRepository } from './repositories/questions-repository.js';
 import { PgSelectionsRepository } from './repositories/selections-repository.js';
@@ -42,7 +44,7 @@ import { ZodError } from 'zod';
 import { DomainError } from './services/assignments-service.js';
 import { opportunisticMaintenance } from './middleware/opportunistic-maintenance.js';
 
-export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository) {
+export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository) {
   const app = express();
   const routeMounts: Array<{ path:string; public:boolean }> = [];
   app.locals.routeMounts = routeMounts;
@@ -71,6 +73,9 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
     unavailableAuth.post('/login', databaseUnavailable);
     unavailableAuth.post('/refresh', databaseUnavailable);
     unavailableAuth.post('/redeem-invite', databaseUnavailable);
+    unavailableAuth.post('/register', databaseUnavailable);
+    unavailableAuth.post('/password/forgot', databaseUnavailable);
+    unavailableAuth.post('/password/reset', databaseUnavailable);
     mountPublic('/api/v1/auth', unavailableAuth);
   }
 
@@ -92,6 +97,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
+  if (auth && authRepository) mountPrivate('/api/v1/admin/users', createAdminUsersRouter(auth, authRepository));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
 
   app.use((_req, res) => {
@@ -115,7 +121,8 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   return app;
 }
 
-const auth = pool ? new AuthService(new PgAuthRepository(pool)) : undefined;
+const authRepository = pool ? new PgAuthRepository(pool) : undefined;
+const auth = authRepository ? new AuthService(authRepository, createMailer(config)) : undefined;
 const classesRepository = pool ? new PgClassesRepository(pool) : undefined;
 const questionsRepository = pool ? new PgQuestionsRepository(pool) : undefined;
-export const app = createApp(auth, classesRepository, questionsRepository);
+export const app = createApp(auth, classesRepository, questionsRepository, authRepository);

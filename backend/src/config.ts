@@ -24,6 +24,10 @@ const configSchema = z.object({
   PDFTOPPM_PATH: z.string().min(1).default('pdftoppm'),
   PDFTOTEXT_PATH: z.string().min(1).default('pdftotext'),
   EXPORT_DIR: z.string().default('storage/exports'),
+  // Optional on purpose. Without it password reset still works through a code a
+  // teacher issues by hand; adding it turns on the self-service email path.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).optional(),
 });
 
 const parsed = configSchema.parse(process.env);
