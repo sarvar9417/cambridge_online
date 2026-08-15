@@ -30,6 +30,8 @@ import { UserApprovalPanel } from './auth/UserApprovalPanel';
 import { AppShell, navigationFor } from './shell/AppShell';
 import { OverviewPage } from './admin/OverviewPage';
 import { CorpusPage } from './admin/CorpusPage';
+import { QualityPage } from './admin/QualityPage';
+import { SystemPage } from './admin/SystemPage';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
@@ -1074,7 +1076,9 @@ export function App() {
       : route.surface === 'boshqaruv' && route.page === 'odamlar'
         ? <UserApprovalPanel classes={classes} currentUserId={user.id} />
         : route.surface === 'boshqaruv' && route.page === 'korpus' ? <CorpusPage />
-          : legacyBody;
+          : route.surface === 'boshqaruv' && route.page === 'sifat' ? <QualityPage />
+            : route.surface === 'boshqaruv' && route.page === 'tizim' ? <SystemPage />
+              : legacyBody;
 
   return (
     <AppShell

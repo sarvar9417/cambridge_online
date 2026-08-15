@@ -1,0 +1,90 @@
+/*
+ * Sifat. Two measurements that do not substitute for each other, so they are
+ * two cards rather than one merged score.
+ *
+ * No green: theme.css keeps it for "mark point awarded". Amber is the only
+ * attention colour here, and it always comes with a border stripe.
+ */
+
+.ql { display: grid; gap: 1.1rem; max-width: 900px; }
+
+.ql-head h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.015em; }
+.ql-head p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.85rem; max-width: 64ch; }
+
+.ql-loading { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.ql-error {
+  margin: 0; color: var(--missed); background: var(--missed-bg);
+  border: 1px solid var(--missed); padding: 0.65rem 0.85rem;
+  border-radius: var(--radius); font-size: 0.86rem;
+}
+
+.ql-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 0.95rem 1rem;
+  display: grid; gap: 0.7rem;
+}
+.ql-card h2 { margin: 0; font-size: 0.88rem; letter-spacing: 0.01em; }
+.ql-card h3 { margin: 0.2rem 0 0; font-size: 0.78rem; color: var(--text-muted); }
+.ql-sub { margin: -0.5rem 0 0; font-size: 0.76rem; color: var(--text-muted); }
+
+.ql-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 0; }
+
+.ql-metric {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-soft); padding: 0.7rem 0.8rem;
+  display: grid; gap: 0.15rem;
+}
+.ql-metric--attention { border-left: 3px solid var(--uncertain); }
+.ql-metric--attention dd { color: var(--uncertain); }
+.ql-metric dt { font-size: 0.71rem; color: var(--text-muted); font-weight: 600; }
+.ql-metric dd {
+  margin: 0; font-family: var(--font-mono); font-size: 1.35rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; line-height: 1.15; letter-spacing: -0.02em;
+}
+.ql-metric small { font-size: 0.71rem; color: var(--text-muted); }
+
+.ql-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ql-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.74rem; padding: 0.15rem 0.5rem; border-radius: 999px;
+  background: var(--surface-soft); color: var(--text-muted); border: 1px solid var(--border);
+}
+.ql-chip b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.ql-chip--error { background: var(--missed-bg); color: var(--missed); border-color: var(--missed); }
+.ql-chip--warning { background: var(--uncertain-bg); color: var(--uncertain); border-color: var(--uncertain); }
+
+.ql-empty-block { display: grid; gap: 0.6rem; justify-items: start; }
+.ql-empty { margin: 0; color: var(--text-muted); font-size: 0.85rem; max-width: 60ch; }
+
+.ql-card button {
+  justify-self: start;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
+  border-radius: var(--radius); padding: 0.38rem 0.8rem;
+  font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
+}
+.ql-card button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.ql-table-wrap { overflow-x: auto; }
+.ql-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 30rem; }
+.ql-table-wrap th, .ql-table-wrap td {
+  text-align: left; padding: 0.4rem 0.5rem 0.4rem 0; border-bottom: 1px solid var(--border);
+}
+.ql-table-wrap th {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-muted); font-weight: 650;
+}
+.ql-table-wrap td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.ql-table-wrap tr:last-child td { border-bottom: 0; }
+.ql-table-wrap code { font-family: var(--font-mono); font-size: 0.75rem; }
+.ql-row--failed td:last-child { color: var(--missed); font-weight: 650; }
+
+.ql-note {
+  margin: 0; font-size: 0.76rem; color: var(--text-muted);
+  padding: 0.5rem 0.65rem; border-left: 2px solid var(--border-strong);
+  background: var(--surface-soft); border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 68ch;
+}
+
+@media (max-width: 720px) {
+  .ql-metrics { grid-template-columns: 1fr; }
+}

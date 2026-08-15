@@ -1,0 +1,182 @@
+/*
+ * Tizim. Settings and spend.
+ *
+ * The budget bar is the one place a colour changes meaning with a threshold:
+ * accent while there is room, amber past 80%, red once it is spent -- and past
+ * 100% the whole card takes a border, because at that point AI grading has
+ * stopped and a bar alone is too quiet to say so.
+ */
+
+.sy { display: grid; gap: 1.1rem; max-width: 900px; }
+
+.sy-head h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.015em; }
+.sy-head p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.85rem; }
+
+.sy-loading { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.sy-error {
+  margin: 0;
+  color: var(--missed);
+  background: var(--missed-bg);
+  border: 1px solid var(--missed);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius);
+  font-size: 0.86rem;
+}
+
+.sy-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+.sy-card--alert { border-color: var(--missed); border-left-width: 4px; }
+.sy-card h2 { margin: 0; font-size: 0.88rem; letter-spacing: 0.01em; }
+.sy-empty { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+.sy-budget { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+.sy-budget-figure {
+  font-family: var(--font-mono);
+  font-size: 1.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.sy-budget-of { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.95rem; }
+.sy-budget-pct {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--accent);
+}
+.sy-budget-pct.is-near { color: var(--uncertain); }
+.sy-budget-pct.is-over { color: var(--missed); }
+
+.sy-bar { height: 8px; border-radius: 999px; background: var(--surface-soft); overflow: hidden; }
+.sy-bar i { display: block; height: 100%; background: var(--accent); }
+.sy-bar i.is-near { background: var(--uncertain); }
+.sy-bar i.is-over { background: var(--missed); }
+
+.sy-note {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0.65rem;
+  border-left: 2px solid var(--border-strong);
+  background: var(--surface-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.sy-settings { display: grid; gap: 0.5rem; }
+
+.sy-setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.sy-setting-text { display: grid; gap: 0.1rem; min-width: 0; }
+.sy-setting-text strong { font-size: 0.86rem; }
+.sy-setting-text small { font-size: 0.75rem; color: var(--text-muted); }
+.sy-setting-key { font-family: var(--font-mono); font-size: 0.68rem !important; }
+
+.sy-setting-edit { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; justify-content: flex-end; }
+
+.sy-setting-edit input {
+  width: 8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sy-setting-edit input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.sy-setting-edit button,
+.sy-toggle {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sy-setting-edit button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Off is the resting state and should not look like a disabled control. */
+.sy-toggle {
+  background: var(--surface);
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+.sy-toggle.is-on { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+
+.sy-saved { font-size: 0.75rem; color: var(--accent); font-weight: 600; }
+
+.sy-readonly {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius);
+}
+
+.sy-table-wrap { overflow-x: auto; }
+.sy-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 26rem; }
+.sy-table-wrap th, .sy-table-wrap td {
+  text-align: left;
+  padding: 0.4rem 0.5rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.sy-table-wrap th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 650;
+}
+.sy-table-wrap td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sy-table-wrap tr:last-child td { border-bottom: 0; }
+.sy-table-wrap code { font-family: var(--font-mono); font-size: 0.75rem; }
+
+.sy-failures { display: grid; gap: 0.45rem; }
+
+.sy-failure {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--missed-bg);
+  border-left: 3px solid var(--missed);
+}
+.sy-failure strong { font-size: 0.83rem; color: var(--missed); }
+.sy-failure small { font-size: 0.72rem; color: var(--text-muted); margin-left: 0.4rem; }
+.sy-failure code {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .sy-setting { grid-template-columns: 1fr; }
+  .sy-setting-edit { justify-content: flex-start; }
+}
