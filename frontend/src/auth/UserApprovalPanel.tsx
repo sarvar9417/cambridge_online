@@ -15,6 +15,7 @@ interface ManagedUser {
   username: string | null;
   status: Status;
   statusReason: string | null;
+  emailVerified: boolean;
   note: string | null;
   createdAt: string;
 }
@@ -103,7 +104,9 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       await action();
       await load();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : 'Amal bajarilmadi.');
+      setError(cause instanceof ApiError
+        ? [cause.message, cause.detail].filter(Boolean).join(' — ')
+        : 'Amal bajarilmadi.');
     } finally {
       setBusyId(null);
     }
@@ -162,7 +165,14 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                       </span>
                       <span className="ua-meta">{formatDate(user.createdAt)}</span>
                     </div>
-                    <span className={`ua-badge ua-badge--${user.status}`}>{STATUS_LABEL[user.status]}</span>
+                    <span className="ua-badges">
+                      {!user.emailVerified ? (
+                        <span className="ua-badge ua-badge--unverified" title="Email hali tasdiqlanmagan">
+                          Email tasdiqlanmagan
+                        </span>
+                      ) : null}
+                      <span className={`ua-badge ua-badge--${user.status}`}>{STATUS_LABEL[user.status]}</span>
+                    </span>
                   </div>
 
                   {/* The applicant's own words about where they belong. */}
@@ -243,6 +253,27 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                         value={current.reason} maxLength={300}
                         onChange={(event) => setDraftFor(user.id, { reason: event.target.value })}
                       />
+                      {!user.emailVerified ? (
+                        <button
+                          className="ua-secondary" disabled={busy}
+                          title="Email kelmagan bo‘lsa, manzilni qo‘lda tasdiqlash"
+                          onClick={() => act(user.id, () => api(`/admin/users/${user.id}/verify-email`, {
+                            method: 'POST', body: JSON.stringify({}),
+                          }))}
+                        >
+                          Emailni tasdiqlash
+                        </button>
+                      ) : null}
+                      <button
+                        className="ua-danger" disabled={busy}
+                        title="Faqat hech qanday ma’lumoti bo‘lmagan hisob o‘chiriladi"
+                        onClick={() => {
+                          if (!confirm(`${user.fullName} hisobini butunlay o‘chirasizmi?`)) return;
+                          void act(user.id, () => api(`/admin/users/${user.id}`, { method: 'DELETE' }));
+                        }}
+                      >
+                        O‘chirish
+                      </button>
                     </div>
                   ) : user.id === currentUserId ? (
                     <p className="ua-self">Bu sizning hisobingiz.</p>
@@ -296,6 +327,27 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                         >
                           Qayta faollashtirish
                         </button>
+                      ) : user.status === 'rejected' ? (
+                        <>
+                          <button
+                            className="ua-approve" disabled={busy}
+                            title="Arizani qaytadan navbatga qo‘yish"
+                            onClick={() => act(user.id, () => api(`/admin/users/${user.id}/reinstate`, {
+                              method: 'POST', body: JSON.stringify({}),
+                            }))}
+                          >
+                            Navbatga qaytarish
+                          </button>
+                          <button
+                            className="ua-danger" disabled={busy}
+                            onClick={() => {
+                              if (!confirm(`${user.fullName} hisobini butunlay o‘chirasizmi?`)) return;
+                              void act(user.id, () => api(`/admin/users/${user.id}`, { method: 'DELETE' }));
+                            }}
+                          >
+                            O‘chirish
+                          </button>
+                        </>
                       ) : null}
                     </div>
                   )}

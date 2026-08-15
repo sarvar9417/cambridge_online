@@ -18,10 +18,15 @@ class RecordingMailer implements Mailer {
     this.sent.push(message);
     return { delivered: true };
   }
-  get lastResetToken() {
-    const match = this.sent.at(-1)?.text.match(/reset-password\?token=([\w-]+)/);
-    return match?.[1] ?? null;
+  private lastMatching(pattern: RegExp) {
+    for (const message of [...this.sent].reverse()) {
+      const match = message.text.match(pattern);
+      if (match) return match[1] ?? null;
+    }
+    return null;
   }
+  get lastResetToken() { return this.lastMatching(/reset-password\?token=([\w-]+)/); }
+  get lastVerificationToken() { return this.lastMatching(/verify-email\?token=([\w-]+)/); }
 }
 
 const OWNER_ID = '22605ad7-b3df-4249-9b58-052f5d830fd8';
@@ -119,10 +124,82 @@ describe('registration, approval and password recovery', () => {
     });
   });
 
-  describe('signing in before approval', () => {
-    it('says the account is waiting, and only once the password is right', async () => {
+  /** Registers and proves the address, which is where every later flow starts. */
+  const registerVerified = async (overrides: Record<string, unknown> = {}) => {
+    await request(app).post('/api/v1/auth/register').send(registerBody(overrides));
+    clearRateLimits();
+    const token = mailer.lastVerificationToken!;
+    await request(app).post('/api/v1/auth/email/verify').send({ token });
+    clearRateLimits();
+    return [...repository.users.values()].find((user) => user.username === 'aziza')!;
+  };
+
+  describe('email verification', () => {
+    it('creates the account unverified and sends a link', async () => {
+      await request(app).post('/api/v1/auth/register').send(registerBody());
+      const created = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      expect(created.emailVerifiedAt).toBeNull();
+      expect(mailer.lastVerificationToken).toBeTruthy();
+    });
+
+    it('refuses sign-in until the address is proven, before mentioning approval', async () => {
       await request(app).post('/api/v1/auth/register').send(registerBody());
       clearRateLimits();
+      const response = await request(app).post('/api/v1/auth/login')
+        .send({ identifier: 'aziza@maktab.uz', password: 'secure-password' });
+      // Proving the address is the applicant's own step. Telling them to wait
+      // for a teacher would send them asking for something they can fix.
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('email_unverified');
+    });
+
+    it('verifies through the link and burns the token', async () => {
+      await request(app).post('/api/v1/auth/register').send(registerBody());
+      clearRateLimits();
+      const token = mailer.lastVerificationToken!;
+      expect((await request(app).post('/api/v1/auth/email/verify').send({ token })).status).toBe(204);
+
+      const created = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      expect(created.emailVerifiedAt).not.toBeNull();
+
+      clearRateLimits();
+      const again = await request(app).post('/api/v1/auth/email/verify').send({ token });
+      expect(again.status).toBe(410);
+    });
+
+    it('invalidates the earlier link when a new one is sent', async () => {
+      await request(app).post('/api/v1/auth/register').send(registerBody());
+      clearRateLimits();
+      const first = mailer.lastVerificationToken!;
+      await request(app).post('/api/v1/auth/email/resend').send({ email: 'aziza@maktab.uz' });
+      clearRateLimits();
+      expect(mailer.lastVerificationToken).not.toBe(first);
+      expect((await request(app).post('/api/v1/auth/email/verify').send({ token: first })).status).toBe(410);
+    });
+
+    it('answers a resend the same way for a known and an unknown address', async () => {
+      await request(app).post('/api/v1/auth/register').send(registerBody());
+      clearRateLimits();
+      const known = await request(app).post('/api/v1/auth/email/resend').send({ email: 'aziza@maktab.uz' });
+      clearRateLimits();
+      const unknown = await request(app).post('/api/v1/auth/email/resend').send({ email: 'yoq@maktab.uz' });
+      expect(known.body).toEqual(unknown.body);
+    });
+
+    it('lets an owner verify by hand when the message never arrives', async () => {
+      await request(app).post('/api/v1/auth/register').send(registerBody());
+      clearRateLimits();
+      const pending = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/verify-email`)
+        .set('authorization', `Bearer ${await ownerToken()}`).send({});
+      expect(response.status).toBe(204);
+      expect(repository.users.get(pending.id)!.emailVerifiedAt).not.toBeNull();
+    });
+  });
+
+  describe('signing in before approval', () => {
+    it('says the account is waiting, and only once the password is right', async () => {
+      await registerVerified();
 
       const wrongPassword = await request(app).post('/api/v1/auth/login')
         .send({ identifier: 'aziza@maktab.uz', password: 'wrong-password-here' });
@@ -139,8 +216,7 @@ describe('registration, approval and password recovery', () => {
     });
 
     it('passes the rejection reason back so the applicant knows what to fix', async () => {
-      await request(app).post('/api/v1/auth/register').send(registerBody());
-      const pending = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      const pending = await registerVerified();
       await request(app).post(`/api/v1/admin/users/${pending.id}/reject`)
         .set('authorization', `Bearer ${await ownerToken()}`)
         .send({ reason: 'Bu maktab o‘quvchisi emas' });
@@ -155,11 +231,7 @@ describe('registration, approval and password recovery', () => {
   });
 
   describe('approval', () => {
-    const registerPending = async () => {
-      await request(app).post('/api/v1/auth/register').send(registerBody());
-      clearRateLimits();
-      return [...repository.users.values()].find((user) => user.username === 'aziza')!;
-    };
+    const registerPending = registerVerified;
 
     it('lets the owner approve, set the role and place the student in a class', async () => {
       const pending = await registerPending();
@@ -284,11 +356,76 @@ describe('registration, approval and password recovery', () => {
     });
   });
 
+  describe('an owner’s power over an account', () => {
+    it('deletes a registration that has done nothing', async () => {
+      const pending = await registerVerified();
+      const response = await request(app).delete(`/api/v1/admin/users/${pending.id}`)
+        .set('authorization', `Bearer ${await ownerToken()}`);
+      expect(response.status).toBe(204);
+      expect(repository.users.has(pending.id)).toBe(false);
+    });
+
+    it('refuses to delete an account with work attached, and says what', async () => {
+      const pending = await registerVerified();
+      repository.dependents.set(pending.id, [{ what: 'Topshiriqlar', count: 7 }]);
+
+      const response = await request(app).delete(`/api/v1/admin/users/${pending.id}`)
+        .set('authorization', `Bearer ${await ownerToken()}`);
+      // Submissions cascade. A plain delete would take a student's whole graded
+      // history with them and nobody would see it happen.
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('user_has_data');
+      expect(response.body.error.detail).toContain('Topshiriqlar: 7');
+      expect(repository.users.has(pending.id)).toBe(true);
+    });
+
+    it('refuses to delete the owner’s own account', async () => {
+      const response = await request(app).delete(`/api/v1/admin/users/${OWNER_ID}`)
+        .set('authorization', `Bearer ${await ownerToken()}`);
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('cannot_delete_self');
+    });
+
+    it('does not let a teacher delete anyone', async () => {
+      const pending = await registerVerified();
+      const teacher = repository.add({
+        id: randomUUID(), schoolId: SCHOOL_ID, role: 'teacher', fullName: 'Teacher',
+        passwordHash, email: 'teacher@maktab.uz',
+      });
+      const response = await request(app).delete(`/api/v1/admin/users/${pending.id}`)
+        .set('authorization', `Bearer ${await ownerToken(teacher.id, 'teacher')}`);
+      expect(response.status).toBe(403);
+      expect(repository.users.has(pending.id)).toBe(true);
+    });
+
+    it('puts a rejected application back in the queue', async () => {
+      const pending = await registerVerified();
+      const token = await ownerToken();
+      await request(app).post(`/api/v1/admin/users/${pending.id}/reject`)
+        .set('authorization', `Bearer ${token}`).send({ reason: 'Xato ariza' });
+
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/reinstate`)
+        .set('authorization', `Bearer ${token}`).send({});
+      expect(response.status).toBe(200);
+      expect(response.body.user.status).toBe('pending');
+      // Rejection used to be final: neither approve nor status could move it.
+      const approved = await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
+        .set('authorization', `Bearer ${token}`).send({ role: 'student' });
+      expect(approved.status).toBe(200);
+    });
+
+    it('refuses to reinstate an account that was never rejected', async () => {
+      const pending = await registerVerified();
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/reinstate`)
+        .set('authorization', `Bearer ${await ownerToken()}`).send({});
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('user_not_rejected');
+    });
+  });
+
   describe('password recovery', () => {
     const approvedStudent = async () => {
-      await request(app).post('/api/v1/auth/register').send(registerBody());
-      clearRateLimits();
-      const pending = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      const pending = await registerVerified();
       await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
         .set('authorization', `Bearer ${await ownerToken()}`).send({ role: 'student' });
       return pending;
@@ -301,8 +438,8 @@ describe('registration, approval and password recovery', () => {
       const unknown = await request(app).post('/api/v1/auth/password/forgot').send({ email: 'yoq@maktab.uz' });
       expect(known.status).toBe(unknown.status);
       expect(known.body).toEqual(unknown.body);
-      // Only one of them actually produced a message.
-      expect(mailer.sent).toHaveLength(1);
+      // Only one of them actually produced a reset message.
+      expect(mailer.sent.filter((message) => message.text.includes('reset-password'))).toHaveLength(1);
     });
 
     it('resets the password through the emailed link and ends every old session', async () => {
@@ -379,9 +516,7 @@ describe('registration, approval and password recovery', () => {
     });
 
     it('will not issue a reset code for an account that was never approved', async () => {
-      await request(app).post('/api/v1/auth/register').send(registerBody());
-      clearRateLimits();
-      const pending = [...repository.users.values()].find((user) => user.username === 'aziza')!;
+      const pending = await registerVerified();
       const response = await request(app).post(`/api/v1/admin/users/${pending.id}/reset-code`)
         .set('authorization', `Bearer ${await ownerToken()}`).send({});
       expect(response.status).toBe(409);

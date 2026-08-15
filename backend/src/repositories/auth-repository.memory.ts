@@ -38,6 +38,7 @@ const toPending = (user: MemoryUser): PendingUser => ({
   username: user.username,
   status: user.status,
   statusReason: user.statusReason,
+  emailVerified: user.emailVerifiedAt !== null,
   createdAt: user.createdAt,
 });
 
@@ -62,7 +63,9 @@ export class MemoryAuthRepository implements AuthRepository {
     const full: MemoryUser = {
       schoolId: null, role: 'student', fullName: 'Test User', tokenVersion: 1, isActive: true,
       status: 'active', statusReason: null, email: null, username: null, note: null,
-      createdAt: new Date(), ...user,
+      // Existing accounts got in through an invite, so their address was already
+      // accepted by a person; only a self-registration starts unverified.
+      emailVerifiedAt: new Date(), createdAt: new Date(), ...user,
     };
     this.users.set(full.id, full);
     return full;
@@ -152,7 +155,7 @@ export class MemoryAuthRepository implements AuthRepository {
     return toPending(this.add({
       id: randomUUID(), role: 'student', status: 'pending', fullName: input.fullName,
       email: input.email, username: input.username, passwordHash: input.passwordHash,
-      note: input.note ?? null,
+      note: input.note ?? null, emailVerifiedAt: null,
     }));
   }
 
@@ -199,6 +202,51 @@ export class MemoryAuthRepository implements AuthRepository {
     return [...this.groups.entries()]
       .filter(([, group]) => group.classId === classId)
       .map(([id, group]) => ({ id, name: group.name }));
+  }
+
+  verificationTokens: Array<{ tokenHash: string; userId: string; expiresAt: Date; usedAt: Date | null }> = [];
+  dependents = new Map<string, Array<{ what: string; count: number }>>();
+  deleted: string[] = [];
+
+  async createVerificationToken(input: { userId: string; tokenHash: string; expiresAt: Date }) {
+    for (const token of this.verificationTokens) {
+      if (token.userId === input.userId && !token.usedAt) token.usedAt = new Date();
+    }
+    this.verificationTokens.push({ ...input, usedAt: null });
+  }
+
+  async consumeVerificationToken(tokenHash: string) {
+    const token = this.verificationTokens.find(
+      (candidate) => candidate.tokenHash === tokenHash && !candidate.usedAt && candidate.expiresAt > new Date(),
+    );
+    if (!token) return null;
+    token.usedAt = new Date();
+    const user = this.users.get(token.userId);
+    if (user) user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+    return { userId: token.userId };
+  }
+
+  async markEmailVerified(userId: string) {
+    const user = this.users.get(userId);
+    if (!user || !user.isActive) throw new Error('user_not_found');
+    user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+  }
+
+  async countDependents(userId: string) {
+    return this.dependents.get(userId) ?? [];
+  }
+
+  async deleteUser(userId: string) {
+    if (!this.users.delete(userId)) throw new Error('user_not_found');
+    this.deleted.push(userId);
+  }
+
+  async reinstateUser(userId: string) {
+    const user = this.users.get(userId);
+    if (!user || user.status !== 'rejected') throw new Error('user_not_rejected');
+    user.status = 'pending';
+    user.statusReason = null;
+    return toPending(user);
   }
 
   async approveUser(input: {

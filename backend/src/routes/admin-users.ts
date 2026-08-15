@@ -36,6 +36,10 @@ export function createAdminUsersRouter(auth: AuthService, repository: AuthReposi
       res.status(404).json({ error: { code: message, message: 'Topilmadi.' } });
       return true;
     }
+    if (message === 'user_not_rejected') {
+      res.status(409).json({ error: { code: message, message: 'Bu foydalanuvchi rad etilganlar orasida emas.' } });
+      return true;
+    }
     if (message === 'group_not_in_class') {
       res.status(409).json({ error: { code: message, message: 'Bu guruh tanlangan sinfga tegishli emas.' } });
       return true;
@@ -102,6 +106,64 @@ export function createAdminUsersRouter(auth: AuthService, repository: AuthReposi
         return;
       }
       res.json({ user: await repository.setUserRole({ userId: targetId(req.params), role: req.body.role }) });
+    } catch (error) { if (!notFound(res, error)) throw error; }
+  });
+
+  /**
+   * Deleting an account.
+   *
+   * Refused whenever anything still points at it, and the refusal names what.
+   * The alternative is worse in both directions: submissions, enrolments and
+   * mastery cascade, so deleting a student who has answered anything would take
+   * their whole graded history with them silently; assignments and classes do
+   * not cascade, so deleting the teacher who created them fails with a
+   * constraint error nobody can read.
+   *
+   * What is left is the case this is actually for -- a mistaken or spam
+   * registration that has done nothing yet. Anything else is suspended, or
+   * anonymised through the privacy endpoint.
+   */
+  router.delete('/:id', requireRoles('owner'), async (req, res) => {
+    const id = targetId(req.params);
+    if (id === req.actor!.id) {
+      res.status(409).json({ error: { code: 'cannot_delete_self', message: 'O‘z hisobingizni o‘chira olmaysiz.' } });
+      return;
+    }
+    const blockers = await repository.countDependents(id);
+    if (blockers.length) {
+      res.status(409).json({
+        error: {
+          code: 'user_has_data',
+          message: 'Bu hisobga bog‘liq ma’lumot bor, shuning uchun o‘chirilmadi. Uni to‘xtatishingiz mumkin.',
+          detail: blockers.map((row) => `${row.what}: ${row.count}`).join(', '),
+        },
+      });
+      return;
+    }
+    try {
+      await repository.deleteUser(id);
+      res.status(204).end();
+    } catch (error) { if (!notFound(res, error)) throw error; }
+  });
+
+  /** Puts a rejected application back in the queue, which is otherwise final. */
+  router.post('/:id/reinstate', requireRoles('owner'), async (req, res) => {
+    try {
+      res.json({ user: await repository.reinstateUser(targetId(req.params)) });
+    } catch (error) { if (!notFound(res, error)) throw error; }
+  });
+
+  /**
+   * Marks the address proven without an email round trip.
+   *
+   * For the student whose message never arrived, or the account created before
+   * a provider was configured. It is a judgement the owner is making about a
+   * person they know, so it is recorded as theirs.
+   */
+  router.post('/:id/verify-email', requireRoles('owner'), async (req, res) => {
+    try {
+      await repository.markEmailVerified(targetId(req.params));
+      res.status(204).end();
     } catch (error) { if (!notFound(res, error)) throw error; }
   });
 

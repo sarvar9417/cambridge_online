@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import {
   forgotPasswordSchema, loginSchema, redeemInviteSchema, registerSchema, resetPasswordSchema,
+  verifyEmailSchema,
 } from '../lib/auth-schemas.js';
 import { validateBody } from '../lib/validation.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -31,6 +32,8 @@ const MESSAGES: Record<string, string> = {
   account_rejected: 'Ro‘yxatdan o‘tish arizangiz rad etilgan.',
   account_suspended: 'Hisobingiz vaqtincha to‘xtatilgan.',
   reset_invalid: 'Tiklash havolasi yaroqsiz yoki muddati tugagan. Yangisini so‘rang.',
+  email_unverified: 'Emailingiz hali tasdiqlanmagan. Pochtangizdagi havolani oching yoki yangisini so‘rang.',
+  verification_invalid: 'Tasdiqlash havolasi yaroqsiz yoki muddati tugagan. Yangisini so‘rang.',
   invalid_refresh: 'Refresh token yaroqsiz.',
 };
 
@@ -129,6 +132,31 @@ export function createAuthRouter(auth: AuthService) {
         res.clearCookie(COOKIE, { path: '/api/v1/auth' });
         res.status(204).end();
       } catch (error) { sendAuthError(res, error); }
+    });
+
+  router.post('/email/verify',
+    rateLimit({ windowMs: 60 * 60_000, max: 20, key: (req) => `verify:${req.ip}` }),
+    validateBody(verifyEmailSchema), async (req, res) => {
+      try {
+        await auth.verifyEmail(req.body.token);
+        res.status(204).end();
+      } catch (error) { sendAuthError(res, error); }
+    });
+
+  /**
+   * Same shape whatever the address is, for the same reason the password reset
+   * endpoint has: the response must not reveal which emails are registered.
+   */
+  router.post('/email/resend',
+    rateLimit({ windowMs: 60 * 60_000, max: 5, key: (req) => `resend:${req.ip}` }),
+    validateBody(forgotPasswordSchema), async (req, res) => {
+      const { emailConfigured } = await auth.resendVerification(req.body.email);
+      res.status(202).json({
+        emailConfigured,
+        message: emailConfigured
+          ? 'Agar bu email ro‘yxatdan o‘tgan bo‘lsa, tasdiqlash havolasi qayta yuborildi.'
+          : 'Email xizmati ulanmagan. O‘qituvchingizdan hisobingizni tasdiqlashni so‘rang.',
+      });
     });
 
   router.post('/logout', requireAuth(auth), async (req, res) => {

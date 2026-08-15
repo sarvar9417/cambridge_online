@@ -14,7 +14,8 @@ const REFRESH_DAYS = 30;
 
 export type AuthErrorCode =
   | 'invalid_credentials' | 'invalid_refresh' | 'refresh_reused' | 'invite_invalid' | 'username_taken'
-  | 'email_taken' | 'account_pending' | 'account_rejected' | 'account_suspended' | 'reset_invalid';
+  | 'email_taken' | 'account_pending' | 'account_rejected' | 'account_suspended' | 'reset_invalid'
+  | 'email_unverified' | 'verification_invalid';
 
 export class AuthError extends Error {
   constructor(
@@ -47,6 +48,7 @@ const statusError = (status: AuthUser['status'], reason: string | null) =>
       : new AuthError('account_suspended', 403, reason ?? undefined);
 
 const RESET_TTL_MINUTES = 60;
+const VERIFY_TTL_HOURS = 48;
 const hashResetToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export class AuthService {
@@ -63,13 +65,15 @@ export class AuthService {
    */
   async register(input: RegisterInput) {
     try {
-      return await this.repository.register({
+      const user = await this.repository.register({
         fullName: input.fullName,
         email: input.email,
         username: input.username,
         passwordHash: await argon2.hash(input.password),
         note: input.note,
       });
+      await this.sendVerification(user.id, input.email, input.fullName);
+      return user;
     } catch (error) {
       if (typeof error === 'object' && error && 'code' in error && error.code === '23505') {
         // Which of the two is taken matters: the applicant can fix a username
@@ -81,6 +85,52 @@ export class AuthService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Issues a verification link and tries to deliver it.
+   *
+   * Delivery failing does not fail registration: the token is stored either way,
+   * so an owner can still verify the address by hand from the People page when
+   * no provider is configured or the message never lands.
+   */
+  private async sendVerification(userId: string, email: string, fullName: string) {
+    const token = randomBytes(32).toString('base64url');
+    await this.repository.createVerificationToken({
+      userId,
+      tokenHash: hashResetToken(token),
+      expiresAt: new Date(Date.now() + VERIFY_TTL_HOURS * 3_600_000),
+    });
+    const link = `${this.frontendUrl}/verify-email?token=${token}`;
+    await this.mailer.send({
+      to: email,
+      subject: 'CamPath — emailingizni tasdiqlang',
+      text: [
+        `Assalomu alaykum, ${fullName}.`,
+        '',
+        'CamPath uchun ro‘yxatdan o‘tdingiz. Emailingizni tasdiqlash uchun quyidagi havolaga o‘ting:',
+        link,
+        '',
+        `Havola ${VERIFY_TTL_HOURS} soat amal qiladi.`,
+        'Tasdiqlaganingizdan so‘ng o‘qituvchi hisobingizni ko‘rib chiqadi.',
+        'Agar siz ro‘yxatdan o‘tmagan bo‘lsangiz, bu xatni e’tiborsiz qoldiring.',
+      ].join('\n'),
+    });
+    return { emailConfigured: this.mailer.configured };
+  }
+
+  async verifyEmail(token: string) {
+    const result = await this.repository.consumeVerificationToken(hashResetToken(token));
+    // Expired, already used or never issued -- indistinguishable on purpose.
+    if (!result) throw new AuthError('verification_invalid', 410);
+    return result;
+  }
+
+  /** Re-sends the link, for an address that was typed correctly but never arrived. */
+  async resendVerification(email: string) {
+    const user = await this.repository.findByEmail(email);
+    if (user) await this.sendVerification(user.id, email, user.fullName);
+    return { emailConfigured: this.mailer.configured };
   }
 
   /**
@@ -151,6 +201,11 @@ export class AuthService {
     }
     // Only after the password checks out. Saying "awaiting approval" to anyone
     // who types an email would confirm which addresses have accounts.
+    //
+    // Verification is reported before approval because it is the applicant's own
+    // step: telling them to wait for a decision while their address is still
+    // unproven would send them to their teacher for something they can fix.
+    if (!user.emailVerifiedAt) throw new AuthError('email_unverified', 403);
     if (user.status !== 'active') throw statusError(user.status, user.statusReason);
 
     const session = await this.createSession(user);

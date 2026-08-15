@@ -5,12 +5,12 @@ import { ratePassword } from './password-strength';
 import { readResetToken } from './reset-link';
 import './auth.css';
 
-export type AuthView = 'login' | 'register' | 'forgot' | 'reset' | 'submitted' | 'blocked';
+export type AuthView = 'login' | 'register' | 'forgot' | 'reset' | 'submitted' | 'blocked' | 'verify';
 
 interface Session { accessToken: string; user: User }
 
 /** Statuses the login endpoint refuses with, each needing its own screen. */
-const BLOCKED_CODES = new Set(['account_pending', 'account_rejected', 'account_suspended']);
+const BLOCKED_CODES = new Set(['account_pending', 'account_rejected', 'account_suspended', 'email_unverified']);
 
 function useAutoFocus<T extends HTMLElement>(active: boolean) {
   const ref = useRef<T>(null);
@@ -81,8 +81,13 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
     () => (typeof window === 'undefined' ? null : readResetToken(window.location)),
     [],
   );
+  // Both links carry ?token=; the path is what tells them apart.
+  const isVerifyLink = typeof window !== 'undefined'
+    && /verify-email/.test(window.location.pathname + window.location.hash);
 
-  const [view, setView] = useState<AuthView>(resetTokenFromUrl ? 'reset' : 'login');
+  const [view, setView] = useState<AuthView>(
+    resetTokenFromUrl ? (isVerifyLink ? 'verify' : 'reset') : 'login',
+  );
   const [error, setError] = useState<{ message: string; code?: string; detail?: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -165,6 +170,22 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
       setView('login');
     });
   };
+
+  const [verifyState, setVerifyState] = useState<'working' | 'done' | 'failed'>('working');
+  useEffect(() => {
+    if (view !== 'verify' || !resetTokenFromUrl) return;
+    api('/auth/email/verify', { method: 'POST', body: JSON.stringify({ token: resetTokenFromUrl }) })
+      .then(() => {
+        setVerifyState('done');
+        // The link is single use; leaving it in the bar invites a reload that
+        // fails for no visible reason.
+        window.history.replaceState(null, '', window.location.pathname);
+      })
+      .catch((cause) => {
+        setVerifyState('failed');
+        setError({ message: cause instanceof ApiError ? cause.message : 'Tasdiqlanmadi.' });
+      });
+  }, [view, resetTokenFromUrl]);
 
   const identifierRef = useAutoFocus<HTMLInputElement>(view === 'login');
   const nameRef = useAutoFocus<HTMLInputElement>(view === 'register');
@@ -317,12 +338,37 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
         {view === 'submitted' && (
           <div className="auth-outcome">
             <div className="auth-outcome-icon auth-outcome-icon--ok" aria-hidden="true">✓</div>
-            <h1>Ariza yuborildi</h1>
+            <h1>Emailingizni tekshiring</h1>
             <p className="auth-sub">
-              Hisobingiz yaratildi va o‘qituvchi tasdiqlashini kutmoqda. Tasdiqlangach shu email va
-              parol bilan kirasiz.
+              Hisobingiz yaratildi. <strong>{email}</strong> manziliga tasdiqlash havolasi yuborildi —
+              avval uni oching, so‘ng o‘qituvchi hisobingizni ko‘rib chiqadi.
             </p>
             <button className="auth-submit" onClick={() => go('login')}>Kirish sahifasiga</button>
+          </div>
+        )}
+
+        {view === 'verify' && (
+          <div className="auth-outcome">
+            <div
+              className={`auth-outcome-icon auth-outcome-icon--${verifyState === 'failed' ? 'stop' : verifyState === 'done' ? 'ok' : 'wait'}`}
+              aria-hidden="true"
+            >
+              {verifyState === 'failed' ? '⚠' : verifyState === 'done' ? '✓' : '⏳'}
+            </div>
+            <h1>
+              {verifyState === 'working' ? 'Tasdiqlanmoqda…'
+                : verifyState === 'done' ? 'Email tasdiqlandi' : 'Tasdiqlanmadi'}
+            </h1>
+            <p className="auth-sub">
+              {verifyState === 'done'
+                ? 'Endi o‘qituvchi hisobingizni ko‘rib chiqadi. Tasdiqlangach kira olasiz.'
+                : verifyState === 'failed'
+                  ? (error?.message ?? 'Havola yaroqsiz yoki muddati tugagan.')
+                  : 'Bir lahza…'}
+            </p>
+            {verifyState !== 'working' ? (
+              <button className="auth-submit" onClick={() => go('login')}>Kirish sahifasiga</button>
+            ) : null}
           </div>
         )}
 
@@ -334,8 +380,26 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
             >
               {blocked.code === 'account_pending' ? '⏳' : '⚠'}
             </div>
-            <h1>{blocked.code === 'account_pending' ? 'Tasdiqlash kutilmoqda' : 'Kirish yopiq'}</h1>
+            <h1>
+              {blocked.code === 'email_unverified' ? 'Emailni tasdiqlang'
+                : blocked.code === 'account_pending' ? 'Tasdiqlash kutilmoqda' : 'Kirish yopiq'}
+            </h1>
             <p className="auth-sub">{blocked.message}</p>
+            {blocked.code === 'email_unverified' ? (
+              <button
+                type="button" className="auth-submit" disabled={busy}
+                onClick={() => void run(async () => {
+                  const result = await api<{ message: string }>('/auth/email/resend', {
+                    method: 'POST', body: JSON.stringify({ email: identifier.includes('@') ? identifier : email }),
+                  });
+                  setNotice(result.message);
+                  setBlocked(null);
+                  setView('login');
+                })}
+              >
+                Havolani qayta yuborish
+              </button>
+            ) : null}
             {/* The approver's own words. Without them there is nothing to act on. */}
             {blocked.detail ? <p className="auth-reason">“{blocked.detail}”</p> : null}
             <button className="auth-submit" onClick={() => { setBlocked(null); go('login'); }}>

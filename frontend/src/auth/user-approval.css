@@ -188,3 +188,16 @@
   color: var(--missed);
   font-size: 0.86rem;
 }
+
+.ua-badges { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: flex-end; }
+.ua-badges .ua-badge { margin-left: 0; }
+
+/* An unverified address is the one thing worth seeing before approving: it is
+   the only self-service route back into a forgotten account. */
+.ua-badge--unverified { background: var(--uncertain-bg); color: var(--uncertain); }
+
+.ua-danger {
+  color: var(--missed);
+  border-color: var(--missed);
+  background: var(--surface);
+}

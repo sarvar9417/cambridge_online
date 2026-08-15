@@ -13,6 +13,9 @@ export interface AuthUser {
   isActive: boolean;
   status: UserStatus;
   statusReason: string | null;
+  /** Null until the address is proven. Sign-in refuses while it is null. */
+  emailVerifiedAt: Date | null;
+  email: string | null;
 }
 
 /** A registration waiting on a decision, as the approver needs to see it. */
@@ -23,6 +26,7 @@ export interface PendingUser {
   username: string | null;
   status: UserStatus;
   statusReason: string | null;
+  emailVerified: boolean;
   createdAt: Date;
 }
 
@@ -56,6 +60,14 @@ export interface AuthRepository {
 
   listUsers(filter: { status?: UserStatus }): Promise<PendingUser[]>;
   listGroups(classId: string): Promise<Array<{ id:string; name:string }>>;
+
+  createVerificationToken(input: { userId:string; tokenHash:string; expiresAt:Date }): Promise<void>;
+  consumeVerificationToken(tokenHash: string): Promise<{ userId:string } | null>;
+  markEmailVerified(userId: string): Promise<void>;
+  /** What still points at this account, so a delete can refuse for a stated reason. */
+  countDependents(userId: string): Promise<Array<{ what:string; count:number }>>;
+  deleteUser(userId: string): Promise<void>;
+  reinstateUser(userId: string): Promise<PendingUser>;
   approveUser(input: { userId:string; role:AuthUser['role']; classId?:string; groupId?:string; approvedBy:string }): Promise<PendingUser>;
   rejectUser(input: { userId:string; reason:string; approvedBy:string }): Promise<PendingUser>;
   setUserStatus(input: { userId:string; status:'active'|'suspended'; reason?:string }): Promise<PendingUser>;
@@ -76,6 +88,8 @@ const mapUser = (row: Record<string, unknown>): AuthUser => ({
   // they got in through an invite, which was an approval.
   status: (row.status as UserStatus | undefined) ?? 'active',
   statusReason: row.status_reason ? String(row.status_reason) : null,
+  emailVerifiedAt: row.email_verified_at ? new Date(String(row.email_verified_at)) : null,
+  email: row.email ? String(row.email) : null,
 });
 
 const mapPending = (row: Record<string, unknown>): PendingUser => ({
@@ -85,6 +99,7 @@ const mapPending = (row: Record<string, unknown>): PendingUser => ({
   username: row.username ? String(row.username) : null,
   status: (row.status as UserStatus | undefined) ?? 'active',
   statusReason: row.status_reason ? String(row.status_reason) : null,
+  emailVerified: Boolean(row.email_verified_at),
   createdAt: new Date(String(row.created_at)),
 });
 
@@ -409,6 +424,90 @@ export class PgAuthRepository implements AuthRepository {
       await client.query('commit');
       return mapPending(result.rows[0]);
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async createVerificationToken(input: { userId:string; tokenHash:string; expiresAt:Date }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      // One live link at a time, so a resend invalidates the first.
+      await client.query(
+        `update email_verification_tokens set used_at = now() where user_id = $1 and used_at is null`,
+        [input.userId]);
+      await client.query(
+        `insert into email_verification_tokens (user_id, token_hash, expires_at) values ($1, $2, $3)`,
+        [input.userId, input.tokenHash, input.expiresAt]);
+      await client.query('commit');
+    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async consumeVerificationToken(tokenHash: string) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const claimed = await client.query(
+        `update email_verification_tokens set used_at = now()
+         where token_hash = $1 and used_at is null and expires_at > now()
+         returning user_id`, [tokenHash]);
+      if (!claimed.rowCount) { await client.query('rollback'); return null; }
+      const userId = String(claimed.rows[0].user_id);
+      await client.query(
+        `update users set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
+         where id = $1`, [userId]);
+      await client.query('commit');
+      return { userId };
+    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async markEmailVerified(userId: string) {
+    const result = await this.pool.query(
+      `update users set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
+       where id = $1 and is_active = true returning id`, [userId]);
+    if (!result.rowCount) throw new Error('user_not_found');
+  }
+
+  /**
+   * Everything that would be destroyed or would block a delete.
+   *
+   * submissions, enrollments and the rest cascade, so deleting a student who has
+   * answered anything would silently take their whole graded history with them.
+   * assignments, classes and gradings do not cascade, so deleting the teacher
+   * who created them fails with a constraint error the operator cannot read.
+   * Either way the answer is the same: name what is attached and refuse.
+   */
+  async countDependents(userId: string) {
+    const result = await this.pool.query(`
+      select 'Topshiriqlar' what, count(*) n from submissions where student_id = $1
+      union all select 'Sinfga a\u2018zolik', count(*) from enrollments where student_id = $1
+      union all select 'O\u2018qituvchi sifatida sinflar', count(*) from class_teachers where teacher_id = $1
+      union all select 'Yaratgan vazifalar', count(*) from assignments where created_by = $1
+      union all select 'Egalik qilgan sinflar', count(*) from classes where owner_id = $1
+      union all select 'Qo\u2018ygan baholar', count(*) from gradings where graded_by = $1
+      union all select 'Tekshirgan savollar', count(*) from questions where reviewed_by = $1
+      union all select 'Tanlovlar', count(*) from selections where owner_id = $1
+      union all select 'Apellyatsiyalar', count(*) from grading_appeals where student_id = $1 or resolved_by = $1
+      union all select 'Yuklagan paperlar', count(*) from source_papers where uploaded_by = $1
+      union all select 'Tasdiqlagan foydalanuvchilar', count(*) from users where approved_by = $1
+      union all select 'Jurnal yozuvlari', count(*) from audit_log where actor_id = $1`,
+      [userId]);
+    return result.rows
+      .map((row) => ({ what: String(row.what), count: Number(row.n) }))
+      .filter((row) => row.count > 0);
+  }
+
+  async deleteUser(userId: string) {
+    const result = await this.pool.query('delete from users where id = $1 returning id', [userId]);
+    if (!result.rowCount) throw new Error('user_not_found');
+  }
+
+  /** Puts a rejected application back in the queue, which is otherwise a dead end. */
+  async reinstateUser(userId: string) {
+    const result = await this.pool.query(
+      `update users set status = 'pending', status_reason = null, approved_at = null,
+              approved_by = null, updated_at = now()
+       where id = $1 and status = 'rejected' returning *`, [userId]);
+    if (!result.rowCount) throw new Error('user_not_rejected');
+    return mapPending(result.rows[0]);
   }
 
   private async insertRefresh(client: PoolClient, userId: string, rawToken: string, expiresAt: Date) {
