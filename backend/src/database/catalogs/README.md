@@ -27,10 +27,14 @@ The shared taxonomy is stored once:
 - `9618-sections-13-18.json`
 - `9618-sections-19-20.json`
 
+The assembled 2021-2023 catalog contains **20 topics, 44 subtopics and 215 internal learning-objective rows**.
+
 Version descriptors reference those fragments. `9618-2024-2025.json` overrides only the affected subtopic objective lists:
 
 - **6.1 Data Security** — the official later syllabus explicitly includes biometrics among authentication/security measures and its changes page records the biometrics addition.
 - **9.2 Algorithms** — the later syllabus explicitly clarifies producing a flowchart/written description from pseudocode.
+
+After those source-backed overrides, the assembled 2024-2025 catalog contains **20 topics, 44 subtopics and 219 internal learning-objective rows**.
 
 `syllabus-catalog-loader.ts` assembles the shared fragments, applies version-specific overrides and validates the complete result before any DB write.
 
