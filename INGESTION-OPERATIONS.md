@@ -4,9 +4,10 @@ This runbook is the operational source of truth for rolling Cambridge 9618 QP/MS
 
 ## Safety invariants
 
-- Never place database passwords, Supabase secret keys, access tokens or Anthropic keys in Git, job payloads or command history committed to the repository.
+- Never place database passwords, Supabase secret keys, access tokens or Anthropic keys in Git, job payloads or committed command history.
 - Do not use a Supabase publishable key or `sbp_...` management token as the private asset uploader credential. The corpus worker requires a server-only Storage secret/service-role credential.
-- Do not bulk enqueue until `corpus:readiness` and `corpus:preflight` are both understood.
+- Do not bulk enqueue until syllabus coverage, `corpus:readiness` and `corpus:preflight` are understood.
+- Never bind an older paper to the currently active syllabus as a fallback. The paper year must match exactly one syllabus validity range.
 - Start with one reference pair, then a small limited batch, then widen the corpus.
 - Binary-only assets are not auto-approved until the crop is durably stored.
 - A source paper whose questions already appear in assignments or answers cannot be destructively re-ingested. It requires a future revision/snapshot workflow.
@@ -24,20 +25,10 @@ The worker needs:
 - optional `ASSET_STORAGE_BUCKET` (defaults to `question-assets`)
 - a **private** Supabase Storage bucket matching `ASSET_STORAGE_BUCKET`
 - Poppler commands `pdftoppm` and `pdftotext` on `PATH`, or explicit `PDFTOPPM_PATH` / `PDFTOTEXT_PATH`
-- migrations through `0020_question_asset_storage_metadata.sql`
+- migrations through `0022_component_learning_objective_coverage.sql`
 - staged QP/MS files readable from the worker filesystem
 
-The private bucket is intentionally not auto-created by the worker. Create it deliberately in the intended Supabase project, keep it private, and configure application access separately through signed/authenticated reads.
-
-Check all non-source prerequisites without mutating the database:
-
-```bash
-npm run corpus:readiness -w backend
-```
-
-Readiness verifies schema/migration state, Poppler executability, Anthropic configuration and that the private Storage bucket is reachable using the server-only credential. It never prints the secret value.
-
-A non-zero exit means at least one blocking readiness check remains.
+The private bucket is intentionally not auto-created by the worker. Create it deliberately in the intended Supabase project, keep it private, and configure application access through signed/authenticated reads.
 
 ## 2. Apply migrations deliberately
 
@@ -45,21 +36,58 @@ Only in the intended deployment environment:
 
 ```bash
 npm run db:migrate -w backend
+npm run corpus:readiness -w backend
 ```
 
-Then run readiness again. The corpus worker should not be started while readiness is blocked.
+Readiness checks schema/migration state through `0022`, Poppler executability, Anthropic configuration and private Storage reachability without printing secret values.
 
-## 3. Stage source files
+## 3. Validate and import historical syllabus catalogs
 
-Use canonical Cambridge filenames and the source-staging manifest utility. Staging validates:
+The built-in historical descriptors are:
 
-- syllabus/year/series/paper code
-- the syllabus version whose `valid_from..valid_to` range contains the exam year
-- QP vs MS kind
-- local file existence and minimum size
-- SHA-256
-- duplicate manifest keys
-- source revision safety for papers already used by students
+- `backend/src/database/catalogs/9618-2021-2023.json`
+- `backend/src/database/catalogs/9618-2024-2025.json`
+
+They resolve shared source-backed fragments into 20 topics / 44 subtopics. `component_topics` models shared Paper 3/Paper 4 topics and `component_learning_objectives` handles narrower Paper 4 exclusions inside section 20.1.
+
+Always dry-run both catalogs first:
+
+```bash
+npm run syllabus:catalog -w backend -- --file=backend/src/database/catalogs/9618-2021-2023.json
+npm run syllabus:catalog -w backend -- --file=backend/src/database/catalogs/9618-2024-2025.json
+```
+
+Import only into the intended database and only after reviewing the dry-run counts:
+
+```bash
+CONFIRM_SYLLABUS_CATALOG_IMPORT=YES \
+  npm run syllabus:catalog -w backend -- \
+  --file=backend/src/database/catalogs/9618-2021-2023.json --write
+
+CONFIRM_SYLLABUS_CATALOG_IMPORT=YES \
+  npm run syllabus:catalog -w backend -- \
+  --file=backend/src/database/catalogs/9618-2024-2025.json --write
+```
+
+Then verify exam-year coverage before staging papers:
+
+```bash
+npm run syllabus:coverage -w backend -- --year-from=2021 --year-to=2025
+```
+
+A missing, ambiguous or incomplete year is a hard blocker. Do not route it to another syllabus version.
+
+## 4. Discover and stage source files
+
+If the worker-visible source tree already contains canonical Cambridge filenames, generate the inventory first:
+
+```bash
+npm run corpus:discover -w backend -- --root=<past-paper-root>
+```
+
+Discovery recognises QP/MS filenames such as `9618_s25_qp_11.pdf` and reports complete/unpaired variants while ignoring inserts, thresholds and unrelated PDFs.
+
+Use the source-staging manifest utility. Staging validates syllabus/year/series/paper code, exact exam-year syllabus version, QP vs MS kind, file existence/size, SHA-256, duplicate keys and revision safety.
 
 Dry-run validation does not require database access:
 
@@ -67,40 +95,34 @@ Dry-run validation does not require database access:
 npm run corpus:stage -w backend -- --manifest=<manifest.json>
 ```
 
-Register the validated files only with an explicit write confirmation:
+Register only with explicit confirmation:
 
 ```bash
 CONFIRM_SOURCE_STAGE=YES \
   npm run corpus:stage -w backend -- --manifest=<manifest.json> --write
 ```
 
-Staging must happen on the same durable/private filesystem or storage mount visible to the corpus worker. A Vercel preview filesystem is not a corpus source store.
+Staging must happen on durable/private storage visible to the corpus worker. A Vercel preview filesystem is not a corpus source store.
 
-## 4. Read-only corpus preflight
+## 5. Read-only corpus preflight
 
 ```bash
 npm run corpus:preflight -w backend
 ```
 
-Rows are classified as:
+Rows are classified as `COMPLETE`, `READY_TO_QUEUE` or `SOURCE_MISSING`. Preflight compares canonical DB coverage with staged QP/MS availability and reports known minimum AI-call counts.
 
-- `COMPLETE`
-- `READY_TO_QUEUE`
-- `SOURCE_MISSING`
+## 6. Reference pair first
 
-Preflight compares canonical DB coverage with worker-local QP/MS availability and reports known minimum AI-call counts.
-
-## 5. Reference pair first
-
-Use one small, known QP/MS pair before creating durable bulk jobs.
+Use one small known QP/MS pair before durable bulk jobs:
 
 ```bash
 npm run corpus:reference -w backend -- --qp=<QP_SOURCE_PAPER_ID> --ms=<MS_SOURCE_PAPER_ID>
 ```
 
-Without `--persist`, the reference command runs extraction, leaf/MS matching, asset metadata validation, classification, dependency detection, deterministic validation and cross-check **without writing canonical questions or Storage objects**.
+Without `--persist`, extraction, matching, asset metadata, classification, dependency detection, deterministic validation and cross-check run without writing canonical questions or Storage objects.
 
-Persistence is intentionally double-gated:
+Persistence is double-gated:
 
 ```bash
 CONFIRM_REAL_PAPER_PERSIST=YES \
@@ -108,23 +130,17 @@ CONFIRM_REAL_PAPER_PERSIST=YES \
   --qp=<QP_SOURCE_PAPER_ID> --ms=<MS_SOURCE_PAPER_ID> --persist
 ```
 
-Persist mode additionally requires full readiness and performs binary asset crop/upload before validation/persistence. Crops are rendered from the source PDF at the same 200 dpi coordinate system used by extraction. Durable objects use content-addressed paths and DB rows store `supabase://<bucket>/<object>`, byte size and SHA-256.
+Persist mode additionally requires full readiness and performs binary crop/upload before validation/persistence. Inspect findings, cross-check disagreements, QP/MS coverage, classification, stored assets and persistence result before continuing.
 
-Inspect validation findings, cross-check disagreements, question/MS counts, classification, `storedAssets`, asset-store report and persistence result before proceeding.
-
-## 6. Dry-run durable queue plan
-
-The enqueue command is dry-run by default:
+## 7. Dry-run durable queue plan
 
 ```bash
 npm run corpus:enqueue -w backend -- --year-from=2021 --year-to=2025
 ```
 
-The output includes readiness, preflight totals and the exact queue count. No job is inserted.
+No job is inserted without `--apply` and confirmation.
 
-## 7. First durable batch: one pair
-
-Only after readiness is green and the reference result is acceptable:
+## 8. First durable batch
 
 ```bash
 CONFIRM_CORPUS_ENQUEUE=YES \
@@ -132,17 +148,15 @@ CONFIRM_CORPUS_ENQUEUE=YES \
   --apply --limit=1 --year-from=2021 --year-to=2025
 ```
 
-`--apply` is refused when readiness is blocked. Source-missing pairs block the rollout unless `--allow-partial` is explicitly supplied.
+Source-missing pairs block rollout unless `--allow-partial` is explicitly supplied.
 
-## 8. Start the corpus worker
+## 9. Start worker and observe
 
 ```bash
 npm run jobs:corpus -w backend
 ```
 
-Worker startup runs readiness again and refuses to start when the schema, Poppler, Anthropic or private Storage configuration is incomplete.
-
-The durable pipeline is:
+Pipeline:
 
 ```text
 PREPARE
@@ -160,45 +174,31 @@ PREPARE
 → PERSIST
 ```
 
-For binary assets the `bbox` contract is `[x1,y1,x2,y2]` in pixels of the supplied 200-dpi page image, with a top-left origin. The crop stage converts this to Poppler `x/y/width/height`, uploads a PNG to private Storage, and records `size_bytes`, `content_hash` and `crop_status='ready'`.
+After the batch, use the read-only rollout report:
 
-## 9. Retry behavior
+```bash
+npm run corpus:status -w backend -- --year-from=2021 --year-to=2025
+```
 
-Each ingestion run carries:
+Review approved/review/failed runs, failed stage, validation findings, asset state, AI call failures/tokens and known cost before increasing the batch size.
 
-- `attempt_no`
-- `run_key`
+## 10. Retry and approval behavior
 
-The durable key includes pipeline version, QP SHA, MS SHA and attempt number. `runKey` is propagated through every child job, so an old failed stage cannot suppress a legitimate retry. An already `queued` or `processing` run is not duplicated.
+Each run has `attempt_no` and a `run_key` containing pipeline version, QP SHA, MS SHA and attempt. The key propagates through child jobs so an old failed stage cannot suppress a legitimate retry. Active queued/processing runs are not duplicated.
 
-Asset object paths are content-addressed by SHA-256. Upload uses idempotent upsert semantics, so a retried stage writes the same bytes to the same object path; changed bytes produce a new path.
-
-## 10. Approval behavior
-
-A paper remains `needs_review` when any blocking condition survives, including:
-
-- deterministic validation error
-- unresolved truncated QP carry-over
-- unresolved extraction/classification mismatch
-- QP/MS leaf coverage mismatch
-- invalid/missing asset crop coordinates
-- suspiciously tiny durable crop
-- cross-check disagreement or low confidence
-- pending/failed binary asset
-
-A durably stored binary asset may become `ready`; pending/failed assets cannot be hidden by an earlier `approved_candidate` intermediate state.
-
-Final ingestion-run status is derived from persisted approval gates; it is not trusted from an earlier intermediate stage.
+Asset paths are content-addressed by SHA-256. Binary `bbox` uses `[x1,y1,x2,y2]` pixels on the 200-dpi page image. A paper remains `needs_review` for deterministic errors, unresolved carry-over, QP/MS mismatch, invalid crop metadata, suspicious assets, classification/dependency issues, cross-check disagreement or pending/failed binary assets.
 
 ## 11. Scale gradually
 
 Recommended rollout:
 
-1. reference pair, no persist
-2. reference pair with explicit persist if clean
-3. durable `--limit=1`
-4. inspect DB, private Storage and review queue
-5. small batch such as `--limit=3`
-6. larger batches only after observed failure/review rates are acceptable
+1. catalogs dry-run/import + syllabus coverage audit
+2. source discovery/staging
+3. reference pair, no persist
+4. reference pair with explicit persist if clean
+5. durable `--limit=1`
+6. inspect `corpus:status`, DB, private Storage and review queue
+7. `--limit=3`
+8. larger batches only after observed failure/review rates are acceptable
 
-Do not start with the whole corpus merely because CI is green. CI validates code behavior; it does not validate every real Cambridge PDF, crop coordinate or model response.
+Do not start with the whole corpus merely because CI is green. CI validates code behavior; it does not validate every real Cambridge PDF, crop coordinate, syllabus mapping or model response.
