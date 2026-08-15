@@ -1,0 +1,52 @@
+{
+  "topics": [
+    {
+      "number": 19,
+      "title": "Computational thinking and Problem-Solving",
+      "sortOrder": 19,
+      "componentNumbers": [3,4],
+      "subtopics": [
+        {"code":"19.1","title":"Algorithms","sortOrder":1,"learningObjectives":[
+          {"code":"19.1-lo-01","text":"Describe a linear and binary search.","sortOrder":1},
+          {"code":"19.1-lo-02","text":"Write algorithms to implement a binary and linear search.","sortOrder":2},
+          {"code":"19.1-lo-03","text":"Describe an insertion sort and a bubble sort.","sortOrder":3},
+          {"code":"19.1-lo-04","text":"Write algorithms to implement an insertion and bubble sort.","sortOrder":4},
+          {"code":"19.1-lo-05","text":"Describe linked lists, stacks, queues and binary trees.","sortOrder":5},
+          {"code":"19.1-lo-06","text":"Write algorithms to find items in a linked list and a binary tree.","sortOrder":6},
+          {"code":"19.1-lo-07","text":"Write algorithms to insert items into a stack, a queue, a linked list and a binary tree.","sortOrder":7},
+          {"code":"19.1-lo-08","text":"Write algorithms to delete an item from a stack, a queue and a linked list.","sortOrder":8},
+          {"code":"19.1-lo-09","text":"Explain how an ADT can be implemented using a built-in data type and another ADT, and write algorithms to implement this.","sortOrder":9},
+          {"code":"19.1-lo-10","text":"Explain the use of Big O notation to specify time and space complexity.","sortOrder":10},
+          {"code":"19.1-lo-11","text":"Compare algorithms on criteria such as time taken and memory used.","sortOrder":11}
+        ]},
+        {"code":"19.2","title":"Recursion","sortOrder":2,"learningObjectives":[
+          {"code":"19.2-lo-01","text":"Identify the essential features of recursion.","sortOrder":1},
+          {"code":"19.2-lo-02","text":"Write and trace recursive algorithms.","sortOrder":2},
+          {"code":"19.2-lo-03","text":"Compare the use of recursion to iteration.","sortOrder":3},
+          {"code":"19.2-lo-04","text":"Describe what a compiler has to do to translate recursive programming code.","sortOrder":4}
+        ]}
+      ]
+    },
+    {
+      "number":20,
+      "title":"Further Programming",
+      "sortOrder":20,
+      "componentNumbers":[3,4],
+      "subtopics":[
+        {"code":"20.1","title":"Programming Paradigms","sortOrder":1,"learningObjectives":[
+          {"code":"20.1-lo-01","text":"Explain what is meant by a programming paradigm.","sortOrder":1},
+          {"code":"20.1-lo-02","text":"Write low-level code that uses various addressing modes.","sortOrder":2,"componentNumbers":[3]},
+          {"code":"20.1-lo-03","text":"Write imperative programming code that uses constructs, procedures and functions.","sortOrder":3},
+          {"code":"20.1-lo-04","text":"Use the terminology associated with OOP.","sortOrder":4},
+          {"code":"20.1-lo-05","text":"Write program code to solve problems by designing appropriate classes and making use of OOP techniques.","sortOrder":5},
+          {"code":"20.1-lo-06","text":"Read and write program code to solve problems by writing appropriate facts and rules.","sortOrder":6,"componentNumbers":[3]}
+        ]},
+        {"code":"20.2","title":"File Processing and Exception Handling","sortOrder":2,"learningObjectives":[
+          {"code":"20.2-lo-01","text":"Write code to perform file-processing operations.","sortOrder":1},
+          {"code":"20.2-lo-02","text":"Explain the importance of exception handling.","sortOrder":2},
+          {"code":"20.2-lo-03","text":"Write program code to use exception handling.","sortOrder":3}
+        ]}
+      ]
+    }
+  ]
+}
