@@ -39,4 +39,14 @@ describe('parseRoute', () => {
     expect(HOME_BY_ROLE.teacher.startsWith('oqitish/')).toBe(true);
     expect(HOME_BY_ROLE.student.startsWith('oquvchi/')).toBe(true);
   });
+
+  it('keeps a uuid selection id intact through the handoff link', () => {
+    // The question bank hands the basket to the next page in the URL, so a
+    // teacher can reload it or send it to a colleague. A mangled id would fail
+    // with "selection not found" and no clue why.
+    const id = '9f1c2e77-6a4b-4d1e-8f3a-2b5c7d9e0a11';
+    const route = parseRoute(`#oqitish/tanlovlar?id=${id}`);
+    expect(route.path).toBe('oqitish/tanlovlar');
+    expect(route.params.get('id')).toBe(id);
+  });
 });

@@ -1,6 +1,6 @@
-import { ThemeToggle } from './components/ThemeToggle';
 import { FormEvent, useEffect, useState } from 'react';
-import { api, apiBlob, setAccessToken, type User } from './lib/api';
+import { api, apiBlob, type User } from './lib/api';
+import { navigate, useRoute } from './lib/router';
 import './selection-handoff.css';
 
 type Review = {
@@ -16,9 +16,11 @@ type ExportItem={id:string;status:'queued'|'running'|'succeeded'|'failed';error:
 const sleep=(ms:number)=>new Promise(resolve=>window.setTimeout(resolve,ms));
 const errorMessage=(error:unknown,fallback:string)=>error instanceof Error?error.message:fallback;
 
-export function SelectionHandoffPage(){
-  const selectionId=sessionStorage.getItem('campath:question-bank-selection')??'';
-  const [user,setUser]=useState<User|null>(null);
+export function SelectionHandoffPage({ user }: { user: User }){
+  // Carried in the URL rather than session storage: the link survives a reload,
+  // can be shared with a colleague, and does not depend on how the page was
+  // reached.
+  const selectionId=useRoute().params.get('id')??'';
   const [review,setReview]=useState<Review|null>(null);
   const [classes,setClasses]=useState<FilterOptions['classes']>([]);
   const [loading,setLoading]=useState(true);
@@ -28,14 +30,13 @@ export function SelectionHandoffPage(){
   const [exportItem,setExportItem]=useState<ExportItem|null>(null);
 
   useEffect(()=>{
-    if(!selectionId){setError('Tanlangan savatcha topilmadi. Savol bankidan qayta ko‘rib chiqing.');setLoading(false);return}
-    api<{accessToken:string;user:User}>('/auth/refresh',{method:'POST'},{suppressAuthExpired:true})
-      .then(async session=>{
-        setAccessToken(session.accessToken);setUser(session.user);
-        if(session.user.role==='student')throw new Error('Bu amal faqat o‘qituvchi yoki owner uchun.');
-        const [nextReview,options]=await Promise.all([api<Review>(`/selections/${selectionId}`),api<FilterOptions>('/questions/filter-options')]);
-        setReview(nextReview);setClasses(options.classes??[]);
-      })
+    if(!selectionId){setError('Tanlov tanlanmagan. Savol bankidan “Ko‘rib chiqish” orqali o‘ting.');setLoading(false);return}
+    // The shell already holds the session; this page only needs its data.
+    (async()=>{
+      if(user.role==='student')throw new Error('Bu amal faqat o‘qituvchi yoki owner uchun.');
+      const [nextReview,options]=await Promise.all([api<Review>(`/selections/${selectionId}`),api<FilterOptions>('/questions/filter-options')]);
+      setReview(nextReview);setClasses(options.classes??[]);
+    })()
       .catch(cause=>setError(errorMessage(cause,'Handoff ma’lumotlari yuklanmadi.')))
       .finally(()=>setLoading(false));
   },[selectionId]);
@@ -88,7 +89,7 @@ export function SelectionHandoffPage(){
   if(error&&!review)return <main className="handoff-state"><h1>Assignment / PDF</h1><p>{error}</p><button onClick={()=>{window.location.hash='question-bank'}}>Savol bankiga qaytish</button></main>;
 
   return <main className="handoff-page">
-    <header className="handoff-header"><button onClick={()=>{window.location.hash='question-bank'}}>← Savol bankiga</button><div><strong>Selection handoff</strong><span>{user?.fullName}</span></div><ThemeToggle className="handoff-theme-toggle" /><span className={review?.canPublish?'ready':'blocked'}>{review?.canPublish?'Preflight tayyor':'Dependency bloklangan'}</span></header>
+    <header className="handoff-header"><button onClick={()=>navigate('oqitish/savol-banki')}>← Savol bankiga</button><div><strong>Tanlovni yakunlash</strong></div><span className={review?.canPublish?'ready':'blocked'}>{review?.canPublish?'Preflight tayyor':'Dependency bloklangan'}</span></header>
     <div className="handoff-layout">
       <section className="handoff-summary">
         <div className="handoff-title"><span>CAMBRIDGE 9618</span><h1>Tanlangan savollar</h1><p>Fresh numbering va original Cambridge manba raqamlari assignment snapshotida saqlanadi.</p></div>

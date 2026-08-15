@@ -32,6 +32,8 @@ import { OverviewPage } from './admin/OverviewPage';
 import { CorpusPage } from './admin/CorpusPage';
 import { QualityPage } from './admin/QualityPage';
 import { SystemPage } from './admin/SystemPage';
+import { QuestionBankPage } from './QuestionBankPage';
+import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
@@ -144,7 +146,9 @@ export function App() {
   // a blank page with a working sidebar.
   useEffect(() => {
     if (!user) return;
+    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar'];
     const stranded = route.surface !== 'boshqaruv'
+      && !STANDALONE.includes(route.path)
       && sectionsFor(route.surface, route.page, user.role).length === 0;
     if (!route.surface || stranded) navigate(HOME_BY_ROLE[user.role]);
   }, [user, route.surface, route.page]);
@@ -1120,7 +1124,12 @@ export function App() {
         : route.surface === 'boshqaruv' && route.page === 'korpus' ? <CorpusPage />
           : route.surface === 'boshqaruv' && route.page === 'sifat' ? <QualityPage />
             : route.surface === 'boshqaruv' && route.page === 'tizim' ? <SystemPage />
-              : routedSections;
+              // Both keep their own dense workspace layout, but inside the
+              // shell now, so the rail stays put and they no longer each open
+              // their own session on arrival.
+              : route.path === 'oqitish/savol-banki' ? <QuestionBankPage user={user} />
+                : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
+                  : routedSections;
 
   return (
     <AppShell
