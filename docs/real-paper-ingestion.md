@@ -78,3 +78,52 @@ Do not apply new migrations or start a 118-paper bulk run until:
 3. source paths are present on the actual worker host;
 4. AI/Poppler configuration is verified on one reference QP/MS pair;
 5. that reference pair reaches review/persist with expected mark totals and no silent asset loss.
+
+## Operational setup completed 2026-08-15
+
+The corpus is staged and every readiness gate passes. What was done, in order:
+
+1. **Source discovery** — `source-discovery-cli --root=papers` found 236 files
+   forming **118 QP/MS pairs across 2021–2025**, with zero unpaired and 333
+   files correctly ignored (9608 legacy, inserts, examiner reports).
+2. **Staging** — `source-stage-cli --write` registered **230** of them. The
+   other 6 were already present; `assertSourceRevisionSafe` refused to overwrite
+   them, which is correct: the 2023 papers already carry extracted questions.
+3. **Syllabus window** — staging resolves a syllabus by
+   `valid_from <= year <= valid_to`, and only the 2026–2028 row existed.
+   Its `valid_from` was widened to 2021 so historical papers attach to the
+   subject content students are actually examined on.
+   *Reversible with* `update syllabi set valid_from = 2026 where version_label = '2026-2028';`
+   A separate historical catalogue was not created because
+   `syllabus-catalog-import` requires at least one learning objective per
+   subtopic and no verified LO source has been transcribed yet.
+4. **Migrations** — 0016–0020 applied (dependencies/selections, assignment
+   question roles, asset bbox, ingestion run attempt, asset storage metadata).
+5. **Asset storage** — private Supabase bucket `question-assets` created. The
+   ingestion client requires a *secret* key; the publishable key is rejected by
+   `validateStorageSecret` by design.
+
+Environment the worker needs beyond `DATABASE_URL`:
+
+```
+ANTHROPIC_API_KEY            model access, worker only (R9)
+ANTHROPIC_MODEL              claude-sonnet-4-6
+SUPABASE_STORAGE_SECRET_KEY  sb_secret_… — not the publishable key
+SUPABASE_STORAGE_BUCKET      question-assets
+DB_CONNECT_TIMEOUT_MS        raise above the 5000 default on a slow link
+```
+
+### Remaining step
+
+`corpus-readiness-cli` reports `ready: true`, `blocked: 0`, `warnings: 0`.
+The trial ingestion of one reference pair has **not** run yet: the network route
+to `aws-0-ap-southeast-1.pooler.supabase.com` is intermittent from the current
+host and dropped mid-session. Once it is stable:
+
+```bash
+npx tsx backend/src/jobs/corpus-enqueue-cli.ts --year-from=2021 --year-to=2021 --limit=1 --apply
+npx tsx backend/src/jobs/start-corpus-worker.ts
+```
+
+Judge that one paper against the flagged-rate target (10–20%) before enqueuing
+the remaining 114.
