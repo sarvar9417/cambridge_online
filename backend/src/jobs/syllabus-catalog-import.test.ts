@@ -18,15 +18,15 @@ const catalog = () => ({
     weightingPct: 25,
   })),
   topics: [{
-    number: 1,
-    title: 'Information Representation',
-    sortOrder: 1,
-    componentNumber: 1,
+    number: 19,
+    title: 'Computational thinking and Problem-solving',
+    sortOrder: 19,
+    componentNumbers: [3, 4],
     subtopics: [{
-      code: '1.1',
-      title: 'Data Representation',
+      code: '19.1',
+      title: 'Algorithms',
       sortOrder: 1,
-      learningObjectives: [{ code: '1.1.1', text: 'Understand the concept.', sortOrder: 1 }],
+      learningObjectives: [{ code: '19.1-lo-01', text: 'Describe a linear and binary search.', sortOrder: 1 }],
     }],
   }],
 });
@@ -59,22 +59,27 @@ function harness(options: { overlap?: Record<string, unknown>[]; exactPopulated?
 }
 
 describe('syllabus catalog import', () => {
-  it('validates four components, component references and nested uniqueness before DB mutation', () => {
+  it('validates four components, multi-component references and nested uniqueness before DB mutation', () => {
     const parsed = syllabusCatalogSchema.parse(catalog());
     expect(parsed.components).toHaveLength(4);
+    expect(parsed.topics[0]?.componentNumbers).toEqual([3, 4]);
     const duplicate = catalog();
     duplicate.topics.push({ ...duplicate.topics[0]! });
     expect(() => syllabusCatalogSchema.parse(duplicate)).toThrow(/Duplicate topic number/);
+    const duplicateCoverage = catalog();
+    duplicateCoverage.topics[0]!.componentNumbers = [3, 3];
+    expect(() => syllabusCatalogSchema.parse(duplicateCoverage)).toThrow(/Duplicate component number/);
     const badComponent = catalog();
-    badComponent.topics[0]!.componentNumber = 5;
+    badComponent.topics[0]!.componentNumbers = [5];
     expect(() => syllabusCatalogSchema.parse(badComponent)).toThrow();
   });
 
-  it('imports using the actual main-schema column names and derives topic level from its component', async () => {
+  it('imports main-schema columns and persists both Paper 3/Paper 4 coverage for topic 19', async () => {
     const h = harness();
     const result = await importSyllabusCatalog(h.pool, catalog());
     expect(result).toEqual({
-      syllabusId: 'syllabus-1', components: 4, topics: 1, subtopics: 1, learningObjectives: 1,
+      syllabusId: 'syllabus-1', components: 4, topics: 1, componentTopicLinks: 2,
+      subtopics: 1, learningObjectives: 1,
     });
     expect(h.query).toHaveBeenCalledWith('begin');
     expect(h.query).toHaveBeenCalledWith('commit');
@@ -88,7 +93,14 @@ describe('syllabus catalog import', () => {
 
     const topicInsert = h.query.mock.calls.find(([sql]) => String(sql).includes('insert into topics'))!;
     expect(String(topicInsert[0])).toContain('title,level,sort_order');
-    expect(topicInsert[1]).toEqual(['syllabus-1', 'component-1', 1, 'Information Representation', 'AS', 1]);
+    expect(topicInsert[1]).toEqual(['syllabus-1', 'component-3', 19, 'Computational thinking and Problem-solving', 'A2', 19]);
+
+    const coverageCalls = h.query.mock.calls.filter(([sql]) => String(sql).includes('insert into component_topics'));
+    expect(coverageCalls).toHaveLength(2);
+    expect(coverageCalls.map((call) => call[1])).toEqual([
+      ['component-3', 'topic-1', true],
+      ['component-4', 'topic-1', false],
+    ]);
     expect(h.query.mock.calls.some(([sql]) => String(sql).includes('insert into learning_objectives'))).toBe(true);
   });
 
