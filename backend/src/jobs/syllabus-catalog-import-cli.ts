@@ -1,13 +1,12 @@
-import { readFile } from 'node:fs/promises';
 import { pool } from '../database/client.js';
-import { importSyllabusCatalog, syllabusCatalogSchema } from './syllabus-catalog-import.js';
+import { importSyllabusCatalog } from './syllabus-catalog-import.js';
+import { loadSyllabusCatalogDocument } from './syllabus-catalog-loader.js';
 
 const file = process.argv.find((arg) => arg.startsWith('--file='))?.slice('--file='.length);
 const write = process.argv.includes('--write');
-if (!file) throw new Error('Usage: syllabus-catalog-import-cli --file=<catalog.json> [--write]');
+if (!file) throw new Error('Usage: syllabus-catalog-import-cli --file=<catalog-or-descriptor.json> [--write]');
 
-const raw = JSON.parse(await readFile(file, 'utf8'));
-const validated = syllabusCatalogSchema.parse(raw);
+const validated = await loadSyllabusCatalogDocument(file);
 const summary = {
   code: validated.code,
   subject: validated.subject,
