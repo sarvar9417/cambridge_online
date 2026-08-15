@@ -6,6 +6,7 @@ import {
   type Assignment,
   type Attempt,
   type ClassItem,
+  type CommandWordProgress,
   type ExportItem,
   type Flashcard,
   type GradingItem,
@@ -101,6 +102,7 @@ export function App() {
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
+  const [commandWords, setCommandWords] = useState<CommandWordProgress[]>([]);
   const [review, setReview] = useState<ReviewQuestion[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [cardRevealed, setCardRevealed] = useState(false);
@@ -133,11 +135,13 @@ export function App() {
     setAssignments(assignmentData.data);
     setResults(resultData.data);
     if (session.user.role === 'student') {
-      const [m, c] = await Promise.all([
+      const [m, w, c] = await Promise.all([
         api<{ data: MasteryItem[] }>('/analytics/mastery'),
+        api<{ data: CommandWordProgress[] }>('/analytics/command-words'),
         api<{ data: Flashcard[] }>('/content/flashcards/due'),
       ]);
       setMastery(m.data);
+      setCommandWords(w.data);
       setFlashcards(c.data);
     }
     if (session.user.role !== 'student') {
@@ -179,7 +183,7 @@ export function App() {
     setRemainingSeconds(initial);
     const heartbeat = async () => {
       try {
-        const state = await api<{ remainingSeconds: number | null }>(
+        const state = await api<{ remainingSeconds: number | null; status: string }>(
           `/assignments/submissions/${attempt.submissionId}/heartbeat`,
           {
             method: 'POST',
@@ -187,8 +191,24 @@ export function App() {
           },
         );
         setRemainingSeconds(state.remainingSeconds);
+        if (
+          state.remainingSeconds === 0 ||
+          !['not_started', 'in_progress'].includes(state.status)
+        ) {
+          setAttempt(null);
+          setError('Vaqt tugadi. Javoblaringiz avtomatik topshirildi.');
+          setAssignments((await api<{ data: Assignment[] }>('/assignments')).data);
+        }
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Attempt yopildi.');
+        setAttempt(null);
+        setError(
+          cause instanceof Error && cause.message !== 'So‘rov bajarilmadi.'
+            ? cause.message
+            : 'Urinish yopildi. Javoblaringiz saqlandi.',
+        );
+        void api<{ data: Assignment[] }>('/assignments')
+          .then((response) => setAssignments(response.data))
+          .catch(() => {});
       }
     };
     const timer = window.setInterval(heartbeat, 30_000);
@@ -927,6 +947,28 @@ export function App() {
                       <span>{Math.round(item.score * 100)}%</span>
                     </div>
                     <progress max="1" value={item.score} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+        {user.role === 'student' && (
+          <section id="imtihon-konikmalari">
+            <div className="section-title">
+              <h2>Imtihon ko‘nikmalari</h2>
+              <span>{commandWords.length} command word</span>
+            </div>
+            {commandWords.length === 0 ? (
+              <p className="empty">Baholar chiqarilgach command word tahlili paydo bo‘ladi.</p>
+            ) : (
+              <div className="student-command-words">
+                {commandWords.map((item) => (
+                  <div className="word-row" key={item.commandWord}>
+                    <span>{item.commandWord}</span>
+                    <progress max="100" value={item.percentage} />
+                    <b>{item.percentage}%</b>
+                    <small>{item.sampleSize} javob</small>
                   </div>
                 ))}
               </div>

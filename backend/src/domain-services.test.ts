@@ -30,6 +30,43 @@ describe('domain authorization', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it('starts a precreated not-started submission with a server timestamp', async () => {
+    const startedAt = new Date();
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-id', time_limit_min: 30, due_at: null }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'submission-id',
+            status: 'in_progress',
+            started_at: startedAt,
+            time_extension_min: 0,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({});
+    const release = vi.fn();
+    const pool = { connect: vi.fn().mockResolvedValue({ query, release }) } as unknown as Pool;
+
+    await expect(
+      new AssignmentsService(pool).start(student, 'assignment-id', 'session-id'),
+    ).resolves.toMatchObject({
+      submissionId: 'submission-id',
+      activeSessionId: 'session-id',
+      startedAt,
+    });
+    expect(query.mock.calls[2]![0]).toContain(
+      "status=case when submissions.status='not_started' then 'in_progress'",
+    );
+    expect(query.mock.calls[2]![0]).toContain(
+      "started_at=case when submissions.status='not_started' then now()",
+    );
+    expect(query.mock.calls[4]![0]).toBe('commit');
+  });
+
   it('assignment creation rejects students before opening a transaction', async () => {
     const connect = vi.fn();
     await expect(

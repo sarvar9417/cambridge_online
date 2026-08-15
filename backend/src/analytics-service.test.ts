@@ -31,6 +31,26 @@ describe('analytics authorization and calculations', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it('student command-word analytics only use the authenticated student and released grades', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ rows: [{ command_word: 'Explain', pct: '58.3', n: 6 }] });
+    await expect(
+      new AnalyticsService({ query } as unknown as Pool).studentCommandWords(student),
+    ).resolves.toEqual([{ commandWord: 'Explain', percentage: 58.3, sampleSize: 6 }]);
+    expect(query.mock.calls[0]![0]).toContain('s.student_id=$1');
+    expect(query.mock.calls[0]![0]).toContain('g.released_at is not null');
+    expect(query.mock.calls[0]![1]).toEqual([student.id]);
+  });
+
+  it('staff cannot use the self-scoped student command-word endpoint', async () => {
+    const query = vi.fn();
+    await expect(
+      new AnalyticsService({ query } as unknown as Pool).studentCommandWords(owner),
+    ).rejects.toMatchObject({ code: 'students_only', status: 403 });
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('heatmap exposes evidence and numeric mastery', async () => {
     const query = vi
       .fn()

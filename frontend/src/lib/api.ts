@@ -312,6 +312,11 @@ export interface MasteryItem {
   marksEarned: number;
   marksPossible: number;
 }
+export interface CommandWordProgress {
+  commandWord: string;
+  percentage: number;
+  sampleSize: number;
+}
 export interface ReviewQuestion {
   id: string;
   display_ref: string;

@@ -199,6 +199,8 @@ export class AssignmentsService {
       const sr = await client.query(
         `insert into submissions(assignment_id,student_id,status,started_at,active_session_id)
         values($1,$2,'in_progress',now(),$3) on conflict(assignment_id,student_id) do update set
+        status=case when submissions.status='not_started' then 'in_progress'::submission_status else submissions.status end,
+        started_at=case when submissions.status='not_started' then now() else submissions.started_at end,
         active_session_id=case when submissions.status in ('not_started','in_progress') then excluded.active_session_id else submissions.active_session_id end
         returning *`,
         [assignmentId, actor.id, sid],

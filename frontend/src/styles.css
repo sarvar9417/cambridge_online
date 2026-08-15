@@ -1297,6 +1297,17 @@ button.theme-toggle:hover:not(:disabled) {
   accent-color: var(--accent);
   border-radius: 999px;
 }
+.student-command-words {
+  display: grid;
+  gap: 10px;
+}
+.student-command-words .word-row {
+  grid-template-columns: minmax(74px, auto) minmax(100px, 1fr) 48px 62px;
+}
+.student-command-words small {
+  color: var(--text-muted);
+  text-align: right;
+}
 
 /* ---------- Ingestion review ---------- */
 
