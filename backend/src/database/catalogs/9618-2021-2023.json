@@ -1,0 +1,21 @@
+{
+  "code":"9618",
+  "subject":"Computer Science",
+  "versionLabel":"2021-2023",
+  "validFrom":2021,
+  "validTo":2023,
+  "isActive":false,
+  "components":[
+    {"number":1,"name":"Theory Fundamentals","level":"AS","durationMinutes":90,"totalMarks":75,"weightingPct":25},
+    {"number":2,"name":"Fundamental Problem-solving and Programming Skills","level":"AS","durationMinutes":120,"totalMarks":75,"weightingPct":25},
+    {"number":3,"name":"Advanced Theory","level":"A2","durationMinutes":90,"totalMarks":75,"weightingPct":25},
+    {"number":4,"name":"Practical","level":"A2","durationMinutes":150,"totalMarks":75,"weightingPct":25}
+  ],
+  "fragments":[
+    "9618-sections-01-08.json",
+    "9618-sections-09-12.json",
+    "9618-sections-13-18.json",
+    "9618-sections-19-20.json"
+  ],
+  "learningObjectiveOverrides":{}
+}
