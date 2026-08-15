@@ -58,14 +58,15 @@ export class OverviewService {
       // The papers the operator most recently touched, ingested or not, so a
       // run that stopped is visible next to the ones that finished.
       this.pool.query(`
-        select sp.year, sp.series::text series, sp.variant,
+        select sp.year, sp.series::text series, c.number component, sp.variant,
                count(q.id)::int questions,
                coalesce(sum(q.marks), 0)::int marks,
                count(*) filter (where q.status = 'needs_review')::int needs_review
         from source_papers sp
+        join components c on c.id = sp.component_id
         left join questions q on q.source_paper_id = sp.id
         where sp.kind = 'QP'
-        group by sp.id, sp.year, sp.series, sp.variant
+        group by sp.id, sp.year, sp.series, c.number, sp.variant
         having count(q.id) > 0
         order by max(q.created_at) desc nulls last
         limit 5`),
@@ -170,7 +171,8 @@ export class OverviewService {
         markSchemes: Number(c.mark_schemes),
         markPoints: Number(c.mark_points),
         recent: recent.rows.map((row) => ({
-          label: `${row.year} ${row.series} ${row.variant}`,
+          // Cambridge paper code: 2023 MJ 11 is component 1, variant 1.
+          label: `${row.year} ${row.series} ${row.component}${row.variant}`,
           questions: Number(row.questions),
           marks: Number(row.marks),
           status: Number(row.needs_review) > 0 ? 'needs_review' : 'reviewed',

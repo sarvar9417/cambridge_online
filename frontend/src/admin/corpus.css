@@ -1,0 +1,197 @@
+/*
+ * Korpus. Same restraint as the rest of the management surface.
+ *
+ * Green stays reserved for "mark point awarded" as theme.css requires, so a
+ * finished paper is marked by the accent, not by green. Amber is "waiting on
+ * you", red only for a run that stopped.
+ */
+
+.cp { display: grid; gap: 1.1rem; max-width: 1100px; }
+
+.cp-head h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.015em; }
+.cp-head p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.85rem; max-width: 62ch; }
+
+.cp-loading { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+.cp-error {
+  margin: 0;
+  color: var(--missed);
+  background: var(--missed-bg);
+  border: 1px solid var(--missed);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius);
+  font-size: 0.86rem;
+}
+
+.cp-totals { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.cp-totals button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.cp-totals button b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+.cp-totals button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+/* A stopped run is worth noticing even when the tab is not selected. */
+.cp-totals button.cp-state--failed:not(.is-active) { border-color: var(--missed); color: var(--missed); }
+.cp-totals button.cp-state--needs_review:not(.is-active) { border-color: var(--uncertain); color: var(--uncertain); }
+
+.cp-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+.cp-card h2 { margin: 0; font-size: 0.88rem; letter-spacing: 0.01em; }
+.cp-sub { margin: -0.5rem 0 0; font-size: 0.76rem; color: var(--text-muted); }
+.cp-empty { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+.cp-review-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.cp-counter {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+.cp-review-tools select,
+.cp-review-edit input,
+.cp-review-edit select,
+.cp-review-edit textarea {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.cp-review-tools button,
+.cp-review-actions button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cp-secondary {
+  background: var(--surface) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border) !important;
+}
+.cp-danger {
+  background: var(--surface) !important;
+  color: var(--missed) !important;
+  border-color: var(--missed) !important;
+}
+.cp-review-tools button:disabled,
+.cp-review-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cp-review {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.cp-review-meta { display: grid; gap: 0.1rem; }
+.cp-review-meta strong { font-size: 0.92rem; }
+.cp-review-meta small { font-size: 0.75rem; color: var(--text-muted); }
+.cp-source { font-family: var(--font-mono); font-size: 0.7rem !important; overflow-wrap: anywhere; }
+
+/* Question text is reading matter, not interface. */
+.cp-stem {
+  margin: 0;
+  font-family: var(--font-read);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.cp-review-edit { display: grid; gap: 0.5rem; }
+.cp-review-edit label { display: grid; gap: 0.2rem; font-size: 0.76rem; color: var(--text-muted); }
+.cp-review-edit textarea { min-height: 6rem; resize: vertical; font-family: var(--font-read); }
+
+.cp-review-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.cp-hint { margin: 0; font-size: 0.72rem; color: var(--text-muted); }
+
+.cp-findings { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.cp-finding {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.cp-finding b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cp-finding--error { background: var(--missed-bg); color: var(--missed); border-color: var(--missed); }
+.cp-finding--warning { background: var(--uncertain-bg); color: var(--uncertain); border-color: var(--uncertain); }
+
+.cp-table-wrap { overflow-x: auto; }
+.cp-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 34rem; }
+.cp-table-wrap th, .cp-table-wrap td {
+  text-align: left;
+  padding: 0.42rem 0.5rem 0.42rem 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.cp-table-wrap th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 650;
+}
+.cp-table-wrap td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cp-table-wrap tr:last-child td { border-bottom: 0; }
+
+.cp-pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+.cp-pill--reviewed { background: var(--accent-soft); color: var(--accent); }
+.cp-pill--needs_review { background: var(--uncertain-bg); color: var(--uncertain); }
+.cp-pill--failed { background: var(--missed-bg); color: var(--missed); }
+.cp-pill--running { background: var(--accent-soft); color: var(--accent); }
+
+.cp-row-error {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--missed);
+  overflow-wrap: anywhere;
+  max-width: 32ch;
+}

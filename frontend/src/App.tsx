@@ -17,7 +17,6 @@ import {
   type Question,
   type ResultDetail,
   type ResultItem,
-  type ReviewQuestion,
   type User,
 } from "./lib/api";
 import {
@@ -30,6 +29,7 @@ import { AuthScreens } from './auth/AuthScreens';
 import { UserApprovalPanel } from './auth/UserApprovalPanel';
 import { AppShell, navigationFor } from './shell/AppShell';
 import { OverviewPage } from './admin/OverviewPage';
+import { CorpusPage } from './admin/CorpusPage';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
@@ -60,10 +60,6 @@ export function App() {
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
   const [practicing,setPracticing]=useState<string|null>(null);
   const [commandWords,setCommandWords]=useState<CommandWordProgress[]>([]);
-  const [review, setReview] = useState<ReviewQuestion[]>([]);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const [reviewFinding, setReviewFinding] = useState("");
-  const [editingReview, setEditingReview] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [games,setGames]=useState<ContentGames>({termMatch:[],sequence:[],spotTheGap:[]});
   const [gameMode,setGameMode]=useState<'term'|'sequence'|'gap'>('term');
@@ -89,28 +85,6 @@ export function App() {
     window.addEventListener(AUTH_EXPIRED_EVENT, expired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
   }, []);
-
-  useEffect(() => {
-    if (user?.role !== "owner" || !review.length) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const item = review[Math.min(reviewIndex, review.length - 1)];
-      if (!item) return;
-      if (event.key === "ArrowLeft") setReviewIndex((value) => Math.max(0, value - 1));
-      if (event.key === "ArrowRight" || event.key.toLowerCase() === "s") setReviewIndex((value) => Math.min(review.length - 1, value + 1));
-      if (event.key.toLowerCase() === "e") setEditingReview(true);
-      if (event.key.toLowerCase() === "a" || event.key.toLowerCase() === "r") {
-        event.preventDefault();
-        const decision = event.key.toLowerCase() === "a" ? "approved" : "rejected";
-        api(`/ingestion/review/${item.id}/${decision}`, { method: "POST" })
-          .then(() => setReview((current) => current.filter((entry) => entry.id !== item.id)))
-          .catch((cause) => setError(cause instanceof Error ? cause.message : "Qaror saqlanmadi."));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [review, reviewIndex, user]);
 
   const loadData = async (session: { accessToken: string; user: User }) => {
     setAccessToken(session.accessToken);
@@ -147,10 +121,6 @@ export function App() {
       setGrading(gradingData.data);
       setAppeals(appealData.data);
       setExports(exportData.data);
-      if (session.user.role === "owner")
-        setReview(
-          (await api<{ data: ReviewQuestion[] }>("/ingestion/review")).data,
-        );
     }
   };
 
@@ -452,33 +422,6 @@ export function App() {
     setAppeals((current) => current.filter((entry) => entry.id !== item.id));
     if (decision === "accepted")
       setGrading((await api<{ data: GradingItem[] }>("/grading/queue")).data);
-  };
-  const reviewDecision = async (
-    id: string,
-    decision: "approved" | "rejected",
-  ) => {
-    await api(`/ingestion/review/${id}/${decision}`, { method: "POST" });
-    setReview((current) => current.filter((item) => item.id !== id));
-  };
-  const filterReview = async (findingCode: string) => {
-    setReviewFinding(findingCode);
-    setReviewIndex(0);
-    const query = findingCode ? `?findingCode=${encodeURIComponent(findingCode)}` : "";
-    setReview((await api<{ data: ReviewQuestion[] }>(`/ingestion/review${query}`)).data);
-  };
-  const bulkApproveReview = async () => {
-    if (!reviewFinding || !confirm(`${reviewFinding} findingli navbatni tasdiqlaysizmi?`)) return;
-    await api("/ingestion/review/bulk-approve", {method:"POST",body:JSON.stringify({findingCode:reviewFinding})});
-    await filterReview(reviewFinding);
-  };
-  const undoReview = async () => {
-    await api("/ingestion/review/undo", {method:"POST"});
-    await filterReview(reviewFinding);
-  };
-  const editReview = async (event:FormEvent<HTMLFormElement>,item:ReviewQuestion) => {
-    event.preventDefault();const data=new FormData(event.currentTarget);
-    const updated=await api<{stem_md:string;marks:number|null;command_word:string|null}>(`/ingestion/review/${item.id}`,{method:"PATCH",body:JSON.stringify({stemMd:data.get("stemMd"),marks:data.get("marks")===""?null:Number(data.get("marks")),commandWord:data.get("commandWord")||null})});
-    setReview((current)=>current.map((entry)=>entry.id===item.id?{...entry,...updated}:entry));setEditingReview(false);
   };
   const gradeCard = async (grade: number) => {
     const card = flashcards[0];
@@ -865,66 +808,6 @@ export function App() {
                 <UserApprovalPanel classes={classes} currentUserId={user.id} />
               </section>
             )}
-            {user.role === "owner" && (
-              <section>
-                <div className="section-title">
-                  <div>
-                    <h2>Ingestion tekshiruvi</h2>
-                    <span>{review.length ? `${reviewIndex + 1} / ${review.length}` : "Navbat bo‘sh"}</span>
-                  </div>
-                  <div className="review-tools">
-                    <select aria-label="Finding bo‘yicha guruhlash" value={reviewFinding} onChange={(event)=>filterReview(event.target.value)}>
-                      <option value="">Barcha findinglar</option>
-                      {Array.from(new Set(review.flatMap((item)=>item.findings.map((finding)=>finding.code)))).sort().map((code)=><option value={code} key={code}>{code}</option>)}
-                    </select>
-                    <button className="secondary" title="Oxirgi qarorni qaytarish" onClick={undoReview}>Qaytarish</button>
-                    <button disabled={!reviewFinding} title="Tanlangan finding bo‘yicha qolgan savollarni tasdiqlash" onClick={bulkApproveReview}>Barchasini tasdiqlash</button>
-                  </div>
-                </div>
-                {review.length > 0 && (()=>{const item=review[Math.min(reviewIndex,review.length-1)]!;return (
-                  <article className="review-item" key={item.id}>
-                    <div className="review-source">
-                      <strong>Manba</strong>
-                      <span>{item.storage_path}</span>
-                      <small>Original PDF sahifasi private storage orqali ko‘rsatiladi.</small>
-                    </div>
-                    <div>
-                      <strong>
-                        {item.display_ref} · {item.marks} ball
-                      </strong>
-                      <small>{item.command_word} · ishonch {Math.round(Number(item.extract_confidence)*100)}%</small>
-                      {editingReview ? <form className="review-edit" onSubmit={(event)=>editReview(event,item)}>
-                        <label>Savol matni<textarea name="stemMd" defaultValue={item.stem_md} minLength={10} required /></label>
-                        <label>Ball<input name="marks" type="number" min="0" max="100" defaultValue={item.marks ?? ""} /></label>
-                        <label>Command word<select name="commandWord" defaultValue={item.command_word ?? ""}><option value="">Tanlanmagan</option>{['State','Give','Name','Identify','Define','Describe','Explain','Compare','Calculate','Complete','Draw','Write','Evaluate','Justify','Suggest','Show','Other'].map((word)=><option key={word}>{word}</option>)}</select></label>
-                        <div><button>Saqlash</button><button type="button" className="secondary" onClick={()=>setEditingReview(false)}>Bekor qilish</button></div>
-                      </form> : <p>{item.stem_md}</p>}
-                      {item.findings.map((f) => (
-                        <span className={`finding ${f.severity}`} key={f.id ?? `${f.code}-${f.message}`}>
-                          {f.code} {f.message}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="review-actions">
-                      <button className="secondary" disabled={reviewIndex===0} onClick={()=>setReviewIndex((value)=>Math.max(0,value-1))}>←</button>
-                      <button className="secondary" onClick={()=>setEditingReview(true)}>Tahrirlash (E)</button>
-                      <button
-                        onClick={() => reviewDecision(item.id, "approved")}
-                      >
-                        Tasdiqlash (A)
-                      </button>
-                      <button
-                        className="danger"
-                        onClick={() => reviewDecision(item.id, "rejected")}
-                      >
-                        Rad etish (R)
-                      </button>
-                      <button className="secondary" disabled={reviewIndex>=review.length-1} onClick={()=>setReviewIndex((value)=>Math.min(review.length-1,value+1))}>→</button>
-                    </div>
-                  </article>
-                )})()}
-              </section>
-            )}
             <section>
               <div className="section-title">
                 <h2>Vazifalar</h2>
@@ -1190,7 +1073,8 @@ export function App() {
     route.surface === 'boshqaruv' && route.page === 'holat' ? <OverviewPage />
       : route.surface === 'boshqaruv' && route.page === 'odamlar'
         ? <UserApprovalPanel classes={classes} currentUserId={user.id} />
-        : legacyBody;
+        : route.surface === 'boshqaruv' && route.page === 'korpus' ? <CorpusPage />
+          : legacyBody;
 
   return (
     <AppShell

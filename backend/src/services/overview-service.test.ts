@@ -24,7 +24,7 @@ function poolReturning(rows: Array<Array<Record<string, unknown>>>) {
 const HEALTHY: Array<Array<Record<string, unknown>>> = [
   [{ pending_users: '2', review_queue: '0', open_appeals: '0' }],
   [{ ingested_papers: '4', total_papers: '119', questions: '159', mark_schemes: '104', mark_points: '395' }],
-  [{ year: 2023, series: 'MJ', variant: 1, questions: 42, marks: 97, needs_review: 0 }],
+  [{ year: 2023, series: 'MJ', component: 1, variant: 1, questions: 42, marks: 75, needs_review: 0 }],
   [{ topics: '20', subtopics: '44', objectives: '203' }],
   [{ band: '1–4', percent: 89, subtopics: 9 }, { band: '9–12', percent: 0, subtopics: 12 }],
   [{ month_usd: '1.0585', calls: 36, unpriced: 0 }],
@@ -91,11 +91,25 @@ describe('overview', () => {
 
   it('marks a paper with open findings as needing review', async () => {
     const rows = [...HEALTHY];
-    rows[2] = [{ year: 2021, series: 'MJ', variant: 1, questions: 40, marks: 75, needs_review: 6 }];
+    rows[2] = [{ year: 2021, series: 'MJ', component: 1, variant: 1, questions: 40, marks: 75, needs_review: 6 }];
     const result = await new OverviewService(poolReturning(rows).pool).load(owner);
     expect(result.corpus.recent[0]).toEqual({
-      label: '2021 MJ 1', questions: 40, marks: 75, status: 'needs_review',
+      label: '2021 MJ 11', questions: 40, marks: 75, status: 'needs_review',
     });
+  });
+
+  it('names a paper by its Cambridge code, component and variant together', async () => {
+    // Four components share every variant number, so "2025 MJ 1" appears four
+    // times over and identifies nothing. 9618/21 is Paper 2 Variant 1.
+    const rows = [...HEALTHY];
+    rows[2] = [
+      { year: 2025, series: 'MJ', component: 1, variant: 1, questions: 40, marks: 75, needs_review: 0 },
+      { year: 2025, series: 'MJ', component: 2, variant: 1, questions: 12, marks: 75, needs_review: 0 },
+      { year: 2025, series: 'ON', component: 4, variant: 3, questions: 8, marks: 75, needs_review: 0 },
+    ];
+    const result = await new OverviewService(poolReturning(rows).pool).load(owner);
+    expect(result.corpus.recent.map((paper) => paper.label))
+      .toEqual(['2025 MJ 11', '2025 MJ 21', '2025 ON 43']);
   });
 
   it('carries the subtopic count, so a bare 0% is not ambiguous', async () => {

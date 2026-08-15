@@ -9,6 +9,8 @@ import { PgAuthRepository, type AuthRepository } from './repositories/auth-repos
 import { createMailer } from './lib/email/mailer.js';
 import { createAdminUsersRouter } from './routes/admin-users.js';
 import { createOverviewRouter } from './routes/overview.js';
+import { createCorpusRouter } from './routes/corpus.js';
+import { CorpusService } from './services/corpus-service.js';
 import { OverviewService } from './services/overview-service.js';
 import { PgClassesRepository, type ClassesRepository } from './repositories/classes-repository.js';
 import { PgQuestionsRepository } from './repositories/questions-repository.js';
@@ -104,6 +106,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   // otherwise swallow /admin/users and /admin/overview.
   if (auth && authRepository) mountPrivate('/api/v1/admin/users', createAdminUsersRouter(auth, authRepository));
   if (pool) mountPrivate('/api/v1/admin/overview', createOverviewRouter(new OverviewService(pool)));
+  if (pool) mountPrivate('/api/v1/admin/corpus', createCorpusRouter(new CorpusService(pool)));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
 
