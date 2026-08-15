@@ -19,7 +19,7 @@ export interface Overview {
     markPoints: number;
     recent: Array<{ label: string; questions: number; marks: number; status: string }>;
   };
-  syllabus: { topics: number; subtopics: number; objectives: number; coverage: Array<{ band: string; percent: number }> };
+  syllabus: { topics: number; subtopics: number; objectives: number; coverage: Array<{ band: string; percent: number; subtopics: number }> };
   spend: { monthUsd: number; calls: number; unpriced: number };
   blockers: OverviewBlocker[];
 }
@@ -79,28 +79,41 @@ export class OverviewService {
              join topics t on t.id = st.topic_id join syllabi s on s.id = t.syllabus_id
              where s.is_active) objectives`),
 
-      // Coverage is "how many of this band's subtopics have at least one
-      // question", grouped four topics at a time so twenty rows fit a card.
+      /*
+       * Coverage is "how many of this band's subtopics have at least one
+       * question", four topics to a row so twenty fit a card.
+       *
+       * Matched on subtopic *code*, not id. The database holds three 9618
+       * versions -- 2021-2023, 2024-2025 and the active 2026-2028 -- and every
+       * classified question so far hangs off one of the older two. Joining on id
+       * against the active version reported 0% across the board, which read as
+       * "nothing is classified" when in fact 84 questions are. Subtopic 1.1 is
+       * 1.1 in any version, so the code is what the reader means.
+       */
       this.pool.query(`
-        with banded as (
-          select st.id,
-                 case
-                   when t.number between 1 and 4 then '1–4'
-                   when t.number between 5 and 8 then '5–8'
-                   when t.number between 9 and 12 then '9–12'
-                   when t.number between 13 and 16 then '13–16'
-                   else '17–20'
-                 end band,
-                 t.number topic_number,
-                 exists (select 1 from question_subtopics qs where qs.subtopic_id = st.id) covered
+        with active_subtopics as (
+          select st.code, t.number topic_number
           from subtopics st
           join topics t on t.id = st.topic_id
           join syllabi s on s.id = t.syllabus_id and s.is_active
+        ),
+        covered as (
+          select distinct st.code
+          from question_subtopics qs
+          join subtopics st on st.id = qs.subtopic_id
         )
-        select band,
-               round(count(*) filter (where covered) * 100.0 / nullif(count(*), 0))::int percent
-        from banded
-        group by band
+        select case
+                 when topic_number between 1 and 4 then '1–4'
+                 when topic_number between 5 and 8 then '5–8'
+                 when topic_number between 9 and 12 then '9–12'
+                 when topic_number between 13 and 16 then '13–16'
+                 else '17–20'
+               end band,
+               round(count(*) filter (where code in (select code from covered)) * 100.0
+                     / nullif(count(*), 0))::int percent,
+               count(*)::int subtopics
+        from active_subtopics
+        group by 1
         order by min(topic_number)`),
 
       this.pool.query(`
@@ -167,7 +180,11 @@ export class OverviewService {
         topics: Number(s.topics),
         subtopics: Number(s.subtopics),
         objectives: Number(s.objectives),
-        coverage: coverage.rows.map((row) => ({ band: String(row.band), percent: Number(row.percent ?? 0) })),
+        coverage: coverage.rows.map((row) => ({
+          band: String(row.band),
+          percent: Number(row.percent ?? 0),
+          subtopics: Number(row.subtopics ?? 0),
+        })),
       },
       spend: { monthUsd: Number(p.month_usd), calls: Number(p.calls), unpriced: Number(p.unpriced) },
       blockers,

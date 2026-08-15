@@ -26,7 +26,7 @@ const HEALTHY: Array<Array<Record<string, unknown>>> = [
   [{ ingested_papers: '4', total_papers: '119', questions: '159', mark_schemes: '104', mark_points: '395' }],
   [{ year: 2023, series: 'MJ', variant: 1, questions: 42, marks: 97, needs_review: 0 }],
   [{ topics: '20', subtopics: '44', objectives: '203' }],
-  [{ band: '1–4', percent: 62 }, { band: '5–8', percent: 48 }],
+  [{ band: '1–4', percent: 89, subtopics: 9 }, { band: '9–12', percent: 0, subtopics: 12 }],
   [{ month_usd: '1.0585', calls: 36, unpriced: 0 }],
   [],
 ];
@@ -96,6 +96,16 @@ describe('overview', () => {
     expect(result.corpus.recent[0]).toEqual({
       label: '2021 MJ 1', questions: 40, marks: 75, status: 'needs_review',
     });
+  });
+
+  it('carries the subtopic count, so a bare 0% is not ambiguous', async () => {
+    // "0%" alone hides whether it is 0 of 2 or 0 of 12, and the second is the
+    // one that decides which paper to ingest next.
+    const result = await new OverviewService(poolReturning(HEALTHY).pool).load(owner);
+    expect(result.syllabus.coverage).toEqual([
+      { band: '1–4', percent: 89, subtopics: 9 },
+      { band: '9–12', percent: 0, subtopics: 12 },
+    ]);
   });
 
   it('survives an empty database rather than dividing by zero', async () => {

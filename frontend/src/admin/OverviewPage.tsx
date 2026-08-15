@@ -10,7 +10,7 @@ export interface Overview {
     questions: number; markSchemes: number; markPoints: number;
     recent: Array<{ label: string; questions: number; marks: number; status: string }>;
   };
-  syllabus: { topics: number; subtopics: number; objectives: number; coverage: Array<{ band: string; percent: number }> };
+  syllabus: { topics: number; subtopics: number; objectives: number; coverage: Array<{ band: string; percent: number; subtopics: number }> };
   spend: { monthUsd: number; calls: number; unpriced: number };
   blockers: Array<{ code: string; title: string; detail: string }>;
 }
@@ -156,7 +156,10 @@ export function OverviewPage() {
             </p>
             <div className="ov-coverage">
               {syllabus.coverage.map((band) => (
-                <div className="ov-cov-row" key={band.band}>
+                <div
+                  className="ov-cov-row" key={band.band}
+                  title={`${band.band}-mavzular: ${band.subtopics} ta kichik mavzudan ${Math.round((band.percent / 100) * band.subtopics)} tasida savol bor`}
+                >
                   <span>{band.band}</span>
                   <div className="ov-cov-track"><i style={{ width: `${band.percent}%` }} /></div>
                   <span>{band.percent}%</span>
