@@ -1,20 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { databaseSslOptions } from './ssl.js';
+import { databaseSslOptions, databaseSslUsesVerifiedIdentity } from './ssl.js';
 
 const pem = '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----';
+const remote = 'postgresql://u:p@db.project.supabase.co:5432/postgres';
 
 describe('database SSL configuration', () => {
   it('does not force TLS for a local postgres connection', () => {
     expect(databaseSslOptions('postgresql://postgres:x@localhost:5432/postgres')).toBeUndefined();
   });
 
-  it('defaults remote databases to certificate and hostname verification', () => {
-    expect(databaseSslOptions('postgresql://u:p@db.project.supabase.co:5432/postgres', { caPem: pem }))
+  it('uses verified TLS automatically when a CA is configured', () => {
+    expect(databaseSslOptions(remote, { caPem: pem }))
       .toEqual({ rejectUnauthorized: true, ca: pem });
+    expect(databaseSslUsesVerifiedIdentity(remote, { caPem: pem })).toBe(true);
   });
 
-  it('refuses verify-full without a CA instead of silently disabling verification', () => {
-    expect(() => databaseSslOptions('postgresql://u:p@db.project.supabase.co:5432/postgres'))
+  it('keeps encrypted compatibility in auto mode until the CA is installed', () => {
+    expect(databaseSslOptions(remote)).toEqual({ rejectUnauthorized: false });
+    expect(databaseSslUsesVerifiedIdentity(remote)).toBe(false);
+  });
+
+  it('refuses explicit verify-full without a CA', () => {
+    expect(() => databaseSslOptions(remote, { mode: 'verify-full' }))
       .toThrow(/DB_SSL_CA/);
   });
 
@@ -23,7 +30,7 @@ describe('database SSL configuration', () => {
       .toEqual({ rejectUnauthorized: true, ca: pem });
   });
 
-  it('keeps unverified TLS only as an explicit compatibility mode', () => {
+  it('keeps unverified TLS as an explicit compatibility mode too', () => {
     expect(databaseSslOptions('postgresql://u:p@pooler.supabase.com:5432/postgres', { mode: 'require' }))
       .toEqual({ rejectUnauthorized: false });
   });
