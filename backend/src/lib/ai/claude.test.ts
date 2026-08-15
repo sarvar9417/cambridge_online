@@ -33,8 +33,22 @@ describe('Claude ingestion client',()=>{
     }),{status:200,headers:{'content-type':'application/json'}}));
     const result=await new ClaudeIngestionClient({apiKey:'test',fetchImpl:fetchImpl as typeof fetch}).complete<{ok:boolean}>({purpose:'extract_qp',prompt:{version:'v1',body:'p'},content:[{type:'text',text:'x'}]});
     expect(result.data).toEqual({ok:true});
-    expect(result.usage).toMatchObject({model:'claude-sonnet-4-20250514',inputTokens:1_000_000,outputTokens:100_000,cacheReadTokens:50,cacheWriteTokens:25,costUsd:4.5});
+    // 1M in at $3 + 100k out at $15, plus cached input: reads bill at a tenth of
+    // the input rate and writes at 1.25x, so they are not free and not full price.
+    expect(result.usage).toMatchObject({model:'claude-sonnet-4-20250514',inputTokens:1_000_000,outputTokens:100_000,cacheReadTokens:50,cacheWriteTokens:25,costUsd:3+1.5+50*3*.1/1e6+25*3*1.25/1e6});
     expect(estimateCostUsd('future-model-with-unknown-price',1000,1000)).toBeNull();
+    // The model the corpus actually runs on must be priced, or a 115-paper run
+    // reports its whole spend as zero.
+    expect(estimateCostUsd('claude-sonnet-4-6',1_000_000,0)).toBe(3);
+  });
+
+  it('names the output budget when the model is cut off, instead of a JSON syntax error',async()=>{
+    const fetchImpl=vi.fn(async()=>new Response(JSON.stringify({
+      content:[{type:'text',text:'{"questions":[{"stem_md":"Explain why'}],model:'claude-sonnet-4-20250514',
+      stop_reason:'max_tokens',usage:{input_tokens:10,output_tokens:8192},
+    }),{status:200,headers:{'content-type':'application/json'}}));
+    const promise=new ClaudeIngestionClient({apiKey:'test',fetchImpl:fetchImpl as typeof fetch}).complete({purpose:'extract_qp',prompt:{version:'v1',body:'p'},content:[{type:'text',text:'x'}],maxTokens:8192});
+    await expect(promise).rejects.toThrow(/8192 output token limit for extract_qp/);
   });
 
   it('surfaces non-2xx API responses as explicit extraction errors',async()=>{

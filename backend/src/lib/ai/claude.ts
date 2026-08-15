@@ -28,16 +28,23 @@ export function parseJsonResponse<T>(text:string):T{
 }
 
 type AnthropicResponse={
-  content:Array<{type:string;text?:string}>;model?:string;
+  content:Array<{type:string;text?:string}>;model?:string;stop_reason?:string|null;
   usage?:{input_tokens?:number;output_tokens?:number;cache_read_input_tokens?:number;cache_creation_input_tokens?:number};
 };
 
 const PRICING:Record<string,{input:number;output:number}>={
   // Keep pricing explicit. Unknown/future model IDs intentionally produce null cost.
   'claude-sonnet-4-20250514':{input:3,output:15},
+  'claude-sonnet-4-6':{input:3,output:15},
 };
-export function estimateCostUsd(model:string,inputTokens:number,outputTokens:number):number|null{
-  const price=PRICING[model];return price?(inputTokens*price.input+outputTokens*price.output)/1_000_000:null;
+// Cache reads bill at a tenth of the input rate and cache writes at 1.25x.
+const CACHE_READ_RATE=.1,CACHE_WRITE_RATE=1.25;
+export function estimateCostUsd(model:string,inputTokens:number,outputTokens:number,cacheReadTokens=0,cacheWriteTokens=0):number|null{
+  const price=PRICING[model];if(!price)return null;
+  // The API reports cached input separately from input_tokens, so they are
+  // additive here rather than a subset that would be double counted.
+  return(inputTokens*price.input+outputTokens*price.output
+    +cacheReadTokens*price.input*CACHE_READ_RATE+cacheWriteTokens*price.input*CACHE_WRITE_RATE)/1_000_000;
 }
 
 export class ClaudeIngestionClient{
@@ -52,9 +59,15 @@ export class ClaudeIngestionClient{
     if(!response.ok)throw new AiOutputError(`Anthropic API ${response.status}`,await response.text());
     const body=await response.json()as AnthropicResponse,text=body.content.map(block=>block.text??'').join('');
     const inputTokens=body.usage?.input_tokens??0,outputTokens=body.usage?.output_tokens??0,model=body.model??this.model;
+    const cacheReadTokens=body.usage?.cache_read_input_tokens??0,cacheWriteTokens=body.usage?.cache_creation_input_tokens??0;
     const usage:AiUsage={purpose:input.purpose,model,promptVersion:input.prompt.version,inputTokens,outputTokens,
-      cacheReadTokens:body.usage?.cache_read_input_tokens??0,cacheWriteTokens:body.usage?.cache_creation_input_tokens??0,
-      costUsd:estimateCostUsd(model,inputTokens,outputTokens),latencyMs:Date.now()-started};
+      cacheReadTokens,cacheWriteTokens,
+      costUsd:estimateCostUsd(model,inputTokens,outputTokens,cacheReadTokens,cacheWriteTokens),latencyMs:Date.now()-started};
+    // Running out of output budget leaves valid JSON cut mid-string, which the
+    // parser reports as a syntax error at some offset -- true, but it sends the
+    // reader looking for a malformed model instead of a budget that is too small.
+    if(body.stop_reason==='max_tokens')throw new AiOutputError(
+      `Model hit the ${input.maxTokens??4096} output token limit for ${input.purpose} and the JSON is incomplete. Reduce the batch or raise maxTokens.`,text);
     return{data:parseJsonResponse<T>(text),usage,raw:body};
   }
 }

@@ -48,8 +48,29 @@ export type Classification={path:string;subtopics:Array<{id:string;code:string;i
 export type DetectedDependency={fromPath:string;toPath:string;kind:'text_ref'|'answer_ref';strength:'required'|'context_only';evidence:string;confidence:number;note:string|null;issues:string[]};
 
 export function refFromPath(path:string){const[root,...rest]=path.split('.');return`${root}${rest.map(part=>`(${part})`).join('')}`}
+
+/**
+ * Parse, and on failure say what the model actually sent.
+ *
+ * Zod reports the path and the permitted values but not the received one, so a
+ * rejected enum reads as "expected one of text|code|…" with no clue whether the
+ * model sent `null`, a synonym or a typo. Diagnosing that costs another paid run
+ * over the same pages. Quoting the offending value turns the log line into the
+ * whole diagnosis.
+ */
+function parseContract<T>(schema:z.ZodType<T>,raw:unknown,what:string):T{
+  const result=schema.safeParse(raw);if(result.success)return result.data;
+  const detail=result.error.issues.slice(0,10).map(issue=>{
+    let value:unknown=raw;
+    for(const key of issue.path)value=typeof value==='object'&&value!==null?(value as Record<string,unknown>)[String(key)]:undefined;
+    return`  ${issue.path.join('.')||'(root)'}: ${issue.message} — received ${JSON.stringify(value)}`;
+  }).join('\n');
+  const more=result.error.issues.length>10?`\n  …and ${result.error.issues.length-10} more`:'';
+  throw new Error(`${what} did not match the contract:\n${detail}${more}`);
+}
+
 export function normalizeQp(raw:unknown):ExtractQpBatch{
-  const parsed=extractQpSchema.parse(raw);return{
+  const parsed=parseContract(extractQpSchema,raw,'extract_qp output');return{
     truncated:parsed.truncated,pageTotalMarks:parsed.page_total_marks,
     questions:parsed.questions.map(question=>({
       path:question.path,label:question.label,parentPath:question.parent_path,displayRef:refFromPath(question.path),stemMd:question.stem_md,
@@ -60,7 +81,7 @@ export function normalizeQp(raw:unknown):ExtractQpBatch{
   };
 }
 export function normalizeMs(raw:unknown):ExtractedScheme[]{
-  const parsed=extractMsSchema.parse(raw);return parsed.schemes.map(scheme=>({
+  const parsed=parseContract(extractMsSchema,raw,'extract_ms output');return parsed.schemes.map(scheme=>({
     path:scheme.path,displayRef:refFromPath(scheme.path),questionRef:scheme.question_ref,schemeType:scheme.scheme_type,maxMarks:scheme.max_marks,guidanceMd:scheme.guidance_md,
     groups:scheme.groups.map(group=>({label:group.label,nRequired:group.n_required,marksPerPoint:group.marks_per_point,maxMarks:group.max_marks})),
     points:scheme.points.map(point=>({code:point.code,groupLabel:point.group_label,marks:point.marks,text:point.text,accept:point.accept,reject:point.reject,requires:point.requires,isBod:point.is_bod})),
