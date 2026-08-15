@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import type { AuthService } from '../services/auth-service.js';
 import type { Actor } from '../lib/actor.js';
 import type { Pool } from 'pg';
+import { isDatabaseUnavailable } from '../lib/database-unavailable.js';
 
 export function requireAuth(auth?: AuthService) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -19,7 +20,20 @@ export function requireAuth(auth?: AuthService) {
     try {
       req.actor = await auth.verifyAccessToken(token);
       next();
-    } catch {
+    } catch (error) {
+      // Verifying a token reads the user row, so an unreachable database looks
+      // exactly like a bad token from here. Answering 401 would make the client
+      // try to refresh, fail again, and sign the user out -- a database blip
+      // would log out everyone who happened to be working.
+      if (isDatabaseUnavailable(error)) {
+        res.status(503).json({
+          error: {
+            code: 'database_unavailable',
+            message: 'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.',
+          },
+        });
+        return;
+      }
       res.status(401).json({ error: { code: 'invalid_token', message: 'Sessiya muddati tugagan.' } });
     }
   };

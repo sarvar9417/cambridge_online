@@ -43,6 +43,7 @@ import { AuthService } from './services/auth-service.js';
 import { ZodError } from 'zod';
 import { DomainError } from './services/assignments-service.js';
 import { opportunisticMaintenance } from './middleware/opportunistic-maintenance.js';
+import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 
 export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository) {
   const app = express();
@@ -112,6 +113,19 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
     }
     if (error instanceof ZodError) {
       res.status(400).json({ error: { code: 'validation_error', message: 'Kiritilgan ma\'lumot noto\'g\'ri.', details: error.flatten() } });
+      return;
+    }
+    // An unreachable database is not a bug in the request. Telling the user the
+    // platform broke sends them to report a fault, when the useful instruction
+    // is to try again shortly.
+    if (isDatabaseUnavailable(error)) {
+      console.error('Database unavailable', error);
+      res.status(503).json({
+        error: {
+          code: 'database_unavailable',
+          message: 'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.',
+        },
+      });
       return;
     }
     console.error(error);
