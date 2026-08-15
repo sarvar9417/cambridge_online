@@ -1,0 +1,221 @@
+/*
+ * One palette for the whole product.
+ *
+ * Three stylesheets had grown three different systems: styles.css was hardcoded
+ * ink blue with no dark mode at all, while question-bank.css and
+ * selection-handoff.css each defined their own teal tokens. The screens looked
+ * like different products. Everything now aliases the tokens below.
+ *
+ * Theme resolution has three states. No `data-theme` attribute means follow the
+ * operating system; `data-theme="light"` and `data-theme="dark"` are explicit
+ * user choices and win over it.
+ *
+ * Colour rules that are not decoration:
+ *   - Green and red mean mark point awarded / not awarded. They appear nowhere
+ *     else, so a teacher's eye learns one meaning per colour.
+ *   - The accent is a deep ink blue, kept away from green so it never reads as
+ *     "awarded". That is why this is not the teal the newer screens drifted to.
+ *   - Every text colour below clears 4.5:1 against its background, and body text
+ *     clears 7:1.
+ */
+
+:root {
+  /* Surfaces. The page is off-white rather than pure white: a teacher spends
+     hours here and pure white at full brightness is tiring. */
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --surface-soft: #f7f7f6;
+  --border: #e5e2dc;
+  --border-strong: #cbc6bc;
+
+  --text: #1a1815;
+  --text-muted: #6b655c;
+
+  --accent: #1e3a5f;
+  --accent-strong: #162c48;
+  --accent-soft: #ebf0f6;
+  /* Text drawn on top of --accent. */
+  --accent-contrast: #ffffff;
+
+  /* Mark point states. */
+  --awarded: #2d7d5a;
+  --awarded-bg: #eaf5ef;
+  --missed: #a63d40;
+  --missed-bg: #fbeeee;
+  /* Darker than the classic #b8860b, which only reaches 3.3:1 on this
+     background and fails as text. */
+  --uncertain: #8a6508;
+  --uncertain-bg: #fbf4e4;
+
+  --focus-ring: #1e3a5f;
+  --shadow: 0 12px 32px rgb(26 24 21 / 8%);
+  --shadow-lg: 0 20px 48px rgb(26 24 21 / 12%);
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --font-ui: Inter, system-ui, -apple-system, sans-serif;
+  /* Question and answer text is reading matter, not interface: serif separates
+     it from the controls around it and is easier over long passages. */
+  --font-read: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  color-scheme: light;
+}
+
+/* Dark values live in one place and are applied by either trigger below. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #10141a;
+    --surface: #171c24;
+    --surface-soft: #1d232c;
+    --border: #2a313b;
+    --border-strong: #3b4552;
+
+    --text: #e9e9e7;
+    --text-muted: #a0a6af;
+
+    /* The light accent is unreadable on a dark ground, so it is lightened
+       rather than reused, and the button text flips to dark. */
+    --accent: #8fb4e0;
+    --accent-strong: #a9c6e9;
+    --accent-soft: #1b2735;
+    --accent-contrast: #10141a;
+
+    --awarded: #6fc79a;
+    --awarded-bg: #16281f;
+    --missed: #f08a8d;
+    --missed-bg: #2b1a1b;
+    --uncertain: #e0b24b;
+    --uncertain-bg: #2a2314;
+
+    --focus-ring: #8fb4e0;
+    --shadow: 0 12px 32px rgb(0 0 0 / 40%);
+    --shadow-lg: 0 20px 48px rgb(0 0 0 / 52%);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #10141a;
+  --surface: #171c24;
+  --surface-soft: #1d232c;
+  --border: #2a313b;
+  --border-strong: #3b4552;
+
+  --text: #e9e9e7;
+  --text-muted: #a0a6af;
+
+  --accent: #8fb4e0;
+  --accent-strong: #a9c6e9;
+  --accent-soft: #1b2735;
+  --accent-contrast: #10141a;
+
+  --awarded: #6fc79a;
+  --awarded-bg: #16281f;
+  --missed: #f08a8d;
+  --missed-bg: #2b1a1b;
+  --uncertain: #e0b24b;
+  --uncertain-bg: #2a2314;
+
+  --focus-ring: #8fb4e0;
+  --shadow: 0 12px 32px rgb(0 0 0 / 40%);
+  --shadow-lg: 0 20px 48px rgb(0 0 0 / 52%);
+
+  color-scheme: dark;
+}
+
+/*
+ * The Question Bank and Selection screens keep their own token names so their
+ * rules did not have to be rewritten; the names now point at the shared palette
+ * instead of a second, competing one.
+ */
+:root {
+  --qb-bg: var(--bg);
+  --qb-panel: var(--surface);
+  --qb-panel-soft: var(--surface-soft);
+  --qb-border: var(--border);
+  --qb-border-strong: var(--border-strong);
+  --qb-text: var(--text);
+  --qb-muted: var(--text-muted);
+  --qb-primary: var(--accent);
+  --qb-primary-strong: var(--accent-strong);
+  --qb-primary-soft: var(--accent-soft);
+  --qb-warning: var(--uncertain);
+  --qb-warning-soft: var(--uncertain-bg);
+  --qb-danger: var(--missed);
+  --qb-danger-soft: var(--missed-bg);
+  --qb-success: var(--awarded);
+  --qb-success-soft: var(--awarded-bg);
+  --qb-shadow: var(--shadow);
+
+  --ho-bg: var(--bg);
+  --ho-panel: var(--surface);
+  --ho-soft: var(--surface-soft);
+  --ho-border: var(--border);
+  --ho-text: var(--text);
+  --ho-muted: var(--text-muted);
+  --ho-primary: var(--accent);
+  --ho-primary-soft: var(--accent-soft);
+  --ho-danger: var(--missed);
+  --ho-danger-soft: var(--missed-bg);
+  --ho-warning: var(--uncertain);
+  --ho-warning-soft: var(--uncertain-bg);
+  --ho-success: var(--awarded);
+  --ho-success-soft: var(--awarded-bg);
+}
+
+/* Keyboard focus must stay visible everywhere; this is a work tool. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Theme control. Compact enough to sit in a dense header without competing
+   with the work on the page. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* On a narrow header the icon carries the meaning; the word is the first thing
+   that can go. */
+@media (max-width: 640px) {
+  .theme-toggle-label {
+    display: none;
+  }
+  .theme-toggle {
+    padding: 0 8px;
+  }
+}

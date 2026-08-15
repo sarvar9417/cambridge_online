@@ -25,6 +25,7 @@ import {
   queueAnswer,
   type PendingAnswer,
 } from "./lib/offline-queue";
+import { ThemeToggle } from './components/ThemeToggle';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
 export function App() {
@@ -630,6 +631,7 @@ export function App() {
             <p className="eyebrow">Cambridge 9618</p>
             <h1>Salom, {user.fullName}</h1>
           </div>
+          <ThemeToggle />
           <span className="role">
             {user.role === "owner"
               ? "Owner"

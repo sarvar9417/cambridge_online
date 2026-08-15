@@ -1,3 +1,4 @@
+import { ThemeToggle } from './components/ThemeToggle';
 import { FormEvent, useEffect, useState } from 'react';
 import { api, apiBlob, setAccessToken, type User } from './lib/api';
 import './selection-handoff.css';
@@ -87,7 +88,7 @@ export function SelectionHandoffPage(){
   if(error&&!review)return <main className="handoff-state"><h1>Assignment / PDF</h1><p>{error}</p><button onClick={()=>{window.location.hash='question-bank'}}>Savol bankiga qaytish</button></main>;
 
   return <main className="handoff-page">
-    <header className="handoff-header"><button onClick={()=>{window.location.hash='question-bank'}}>← Savol bankiga</button><div><strong>Selection handoff</strong><span>{user?.fullName}</span></div><span className={review?.canPublish?'ready':'blocked'}>{review?.canPublish?'Preflight tayyor':'Dependency bloklangan'}</span></header>
+    <header className="handoff-header"><button onClick={()=>{window.location.hash='question-bank'}}>← Savol bankiga</button><div><strong>Selection handoff</strong><span>{user?.fullName}</span></div><ThemeToggle className="handoff-theme-toggle" /><span className={review?.canPublish?'ready':'blocked'}>{review?.canPublish?'Preflight tayyor':'Dependency bloklangan'}</span></header>
     <div className="handoff-layout">
       <section className="handoff-summary">
         <div className="handoff-title"><span>CAMBRIDGE 9618</span><h1>Tanlangan savollar</h1><p>Fresh numbering va original Cambridge manba raqamlari assignment snapshotida saqlanadi.</p></div>

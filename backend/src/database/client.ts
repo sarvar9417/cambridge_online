@@ -20,9 +20,10 @@ export const pool = config.DATABASE_URL
       connectionString: config.DATABASE_URL,
       ssl: sslFor(config.DATABASE_URL),
       max: config.DB_POOL_MAX,
-      // The pooler can be slow to hand out a backend under load; 5s was short
-      // enough to time out before the first connection was ever established.
-      connectionTimeoutMillis: 15000,
+      // Kept short on purpose: a request that cannot reach the database should
+      // fail quickly rather than hold a serverless invocation open, and the
+      // integration tests rely on the pool giving up fast.
+      connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 5000),
       idleTimeoutMillis: process.env.VERCEL ? 5000 : 30000,
       allowExitOnIdle: true,
     })

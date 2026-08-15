@@ -1,3 +1,4 @@
+import { ThemeToggle } from './components/ThemeToggle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, setAccessToken, type User } from './lib/api';
 import './question-bank.css';
@@ -391,7 +392,7 @@ export function QuestionBankPage() {
           <span className="qb-badge qb-badge-primary">Cambridge 9618</span>
           <span className="qb-badge">Leaf-first</span>
         </div>
-        <div className="qb-user"><span>{user.fullName}</span><small>{user.role === 'owner' ? 'Owner' : 'O‘qituvchi'}</small></div>
+        <ThemeToggle className="qb-theme-toggle" /><div className="qb-user"><span>{user.fullName}</span><small>{user.role === 'owner' ? 'Owner' : 'O‘qituvchi'}</small></div>
       </header>
 
       <div className="qb-layout">

@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
+import { applyStoredTheme } from './lib/theme';
+import './theme.css';
 import './styles.css';
 
 function Root() {
@@ -51,6 +53,9 @@ function Root() {
   if (hash.startsWith('#question-bank')) return <QuestionBankPage />;
   return <App />;
 }
+
+// Before the first paint: a dark-mode user must not see a white flash.
+applyStoredTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
