@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { navigationFor } from './AppShell';
+import { sectionsFor } from '../lib/sections';
 import type { ClassItem } from '../lib/api';
 
 const classes: ClassItem[] = [
@@ -58,4 +59,24 @@ describe('badges', () => {
     const groups = navigationFor('owner', classes, { reviewQueue: 7 });
     expect(groups[0]!.items.find((item) => item.path === 'boshqaruv/korpus')!.badge).toBe(7);
   });
+});
+
+describe('every rail link leads somewhere', () => {
+  /** Standalone pages with their own chrome, routed in main.tsx, not by sectionsFor. */
+  const STANDALONE = new Set(['oqitish/savol-banki', 'oqitish/tanlovlar']);
+
+  for (const role of ['owner', 'teacher', 'student'] as const) {
+    it(`resolves every ${role} link to a page with content`, () => {
+      const items = navigationFor(role, classes).flatMap((group) => group.items);
+      expect(items.length).toBeGreaterThan(0);
+
+      for (const item of items) {
+        const [surface, page = ''] = item.path.split('?')[0]!.split('/');
+        // The management pages are components, not section lists.
+        if (surface === 'boshqaruv' || STANDALONE.has(item.path)) continue;
+        expect({ path: item.path, sections: sectionsFor(surface!, page, role).length })
+          .not.toEqual({ path: item.path, sections: 0 });
+      }
+    });
+  }
 });

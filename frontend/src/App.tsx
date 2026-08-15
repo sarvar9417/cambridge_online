@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { Fragment, FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import {
   api,
   apiBlob,
@@ -33,6 +33,7 @@ import { CorpusPage } from './admin/CorpusPage';
 import { QualityPage } from './admin/QualityPage';
 import { SystemPage } from './admin/SystemPage';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
+import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
 export function App() {
@@ -137,9 +138,16 @@ export function App() {
 
   // A bare URL has no route. Each role gets a home it is allowed to open --
   // sending a student to the owner dashboard would greet them with a 403.
+  //
+  // A URL that resolves to nothing for this role goes the same way: a teacher
+  // following a shared student link should land somewhere they can work, not on
+  // a blank page with a working sidebar.
   useEffect(() => {
-    if (user && !route.surface) navigate(HOME_BY_ROLE[user.role]);
-  }, [user, route.surface]);
+    if (!user) return;
+    const stranded = route.surface !== 'boshqaruv'
+      && sectionsFor(route.surface, route.page, user.role).length === 0;
+    if (!route.surface || stranded) navigate(HOME_BY_ROLE[user.role]);
+  }, [user, route.surface, route.page]);
 
   useEffect(() => {
     if (user?.role !== 'owner') return;
@@ -531,11 +539,20 @@ export function App() {
       </main>
     );
 
-  // The legacy single-page body. Sections are peeled out of it onto their own
-  // routes one at a time; until then it is what every non-admin route renders.
-  const legacyBody = (
-      <>
-        {error && <p className="app-error">{error}</p>}
+  /*
+   * The sections, named and routed.
+   *
+   * Every one of these used to render on every screen: choosing "Vazifalar" in
+   * the rail showed the class list, the appeals, the grading queue and the
+   * question bank underneath it. A section that appears everywhere is a section
+   * that answers nothing, so each now belongs to one route.
+   *
+   * The role guards stay even though the navigation already keeps roles apart:
+   * a teacher who types a student URL should get nothing, not an empty
+   * student screen.
+   */
+  const studentAssignments = (
+    <>
         {user.role === "student" && (
           <section id="student-assignments">
             <h2>Vazifalar</h2>
@@ -571,6 +588,11 @@ export function App() {
             </div>
           </section>
         )}
+    </>
+  );
+
+  const studentResults = (
+    <>
         <section id="student-results">
           <div className="section-title">
             <h2>Natijalar</h2>
@@ -663,6 +685,11 @@ export function App() {
             </div>
           )}
         </section>
+    </>
+  );
+
+  const studentLearning = (
+    <>
         {user.role === "student" && (
           <section id="student-learning">
             <div className="section-title">
@@ -746,7 +773,17 @@ export function App() {
             </div>
           </section>
         )}
+    </>
+  );
+
+  const studentProfile = (
+    <>
         {user.role==='student'&&<section id="student-profile" className="student-profile"><h2>Profil</h2><p>{user.fullName}</p><div><button className="secondary" onClick={downloadOwnData}>Ma’lumotlarim</button><button className="danger" onClick={logout}>Chiqish</button></div></section>}
+    </>
+  );
+
+  const classesSection = (
+    <>
         <section>
           <h2>Sinflar</h2>
           <div className="table">
@@ -764,9 +801,19 @@ export function App() {
             ))}
           </div>
         </section>
+    </>
+  );
+
+  const analyticsPanel = (
+    <>
         {user.role !== "student" && classes.length > 0 && (
           <AnalyticsPanel classes={classes} owner={user.role === "owner"} />
         )}
+    </>
+  );
+
+  const appealsSection = (
+    <>
         {user.role !== "student" && appeals.length > 0 && (
           <section>
             <div className="section-title">
@@ -803,13 +850,11 @@ export function App() {
             </div>
           </section>
         )}
-        {user.role !== "student" && (
-          <>
-            {user.role === "owner" && (
-              <section>
-                <UserApprovalPanel classes={classes} currentUserId={user.id} />
-              </section>
-            )}
+    </>
+  );
+
+  const teacherAssignments = (
+    <>
             <section>
               <div className="section-title">
                 <h2>Vazifalar</h2>
@@ -973,6 +1018,11 @@ export function App() {
                 </form>
               )}
             </section>
+    </>
+  );
+
+  const gradingQueue = (
+    <>
             <section>
               <div className="section-title">
                 <h2>Tekshirish navbati</h2>
@@ -1046,30 +1096,22 @@ export function App() {
                 </div>
               )}
             </section>
-            <section>
-              <div className="section-title">
-                <h2>Savol banki</h2>
-                <span>{questions.length} savol</span>
-              </div>
-              <div className="table questions">
-                <div className="tr head">
-                  <span>Ref</span>
-                  <span>Savol</span>
-                  <span>Ball</span>
-                </div>
-                {questions.slice(0, 10).map((question) => (
-                  <div className="tr" key={question.id}>
-                    <span>{question.displayRef}</span>
-                    <span>{question.stemMd}</span>
-                    <strong>{question.marks}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
-      </>
+    </>
   );
+
+  // The rule for which section belongs on which page is a pure function, so it
+  // can be read and tested without rendering anything.
+  const bySection: Record<SectionName, ReactNode> = {
+    studentAssignments, studentResults, studentLearning, studentProfile,
+    classes: classesSection,
+    analytics: analyticsPanel,
+    appeals: appealsSection,
+    teacherAssignments,
+    gradingQueue,
+  };
+
+  const routedSections = sectionsFor(route.surface, route.page, user.role)
+    .map((name) => <Fragment key={name}>{bySection[name]}</Fragment>);
 
   const page =
     route.surface === 'boshqaruv' && route.page === 'holat' ? <OverviewPage />
@@ -1078,7 +1120,7 @@ export function App() {
         : route.surface === 'boshqaruv' && route.page === 'korpus' ? <CorpusPage />
           : route.surface === 'boshqaruv' && route.page === 'sifat' ? <QualityPage />
             : route.surface === 'boshqaruv' && route.page === 'tizim' ? <SystemPage />
-              : legacyBody;
+              : routedSections;
 
   return (
     <AppShell
@@ -1087,7 +1129,9 @@ export function App() {
       groups={navigationFor(user.role, classes, badges)}
       onLogout={logout}
     >
+      {error && <p className="app-error">{error}</p>}
       {page}
     </AppShell>
   );
 }
+
