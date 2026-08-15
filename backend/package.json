@@ -14,11 +14,15 @@
     "db:inventory": "tsx src/database/inventory.ts",
     "jobs": "tsx src/jobs/start.ts",
     "jobs:corpus": "tsx src/jobs/start-corpus-worker.ts",
+    "corpus:discover": "tsx src/jobs/source-discovery-cli.ts",
     "corpus:stage": "tsx src/jobs/source-stage-cli.ts",
     "corpus:readiness": "tsx src/jobs/corpus-readiness-cli.ts",
     "corpus:preflight": "tsx src/jobs/corpus-preflight-cli.ts",
     "corpus:enqueue": "tsx src/jobs/corpus-enqueue-cli.ts",
-    "corpus:reference": "tsx src/jobs/reference-ingest-cli.ts"
+    "corpus:reference": "tsx src/jobs/reference-ingest-cli.ts",
+    "corpus:status": "tsx src/jobs/corpus-status-cli.ts",
+    "syllabus:catalog": "tsx src/jobs/syllabus-catalog-import-cli.ts",
+    "syllabus:coverage": "tsx src/jobs/syllabus-coverage-cli.ts"
   },
   "dependencies": {
     "@sparticuz/chromium-min": "^149.0.0",
