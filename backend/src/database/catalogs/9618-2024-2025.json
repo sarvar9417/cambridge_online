@@ -1,0 +1,31 @@
+{
+  "code":"9618",
+  "subject":"Computer Science",
+  "versionLabel":"2024-2025",
+  "validFrom":2024,
+  "validTo":2025,
+  "isActive":false,
+  "components":[
+    {"number":1,"name":"Theory Fundamentals","level":"AS","durationMinutes":90,"totalMarks":75,"weightingPct":25},
+    {"number":2,"name":"Fundamental Problem-solving and Programming Skills","level":"AS","durationMinutes":120,"totalMarks":75,"weightingPct":25},
+    {"number":3,"name":"Advanced Theory","level":"A2","durationMinutes":90,"totalMarks":75,"weightingPct":25},
+    {"number":4,"name":"Practical","level":"A2","durationMinutes":150,"totalMarks":75,"weightingPct":25}
+  ],
+  "fragments":[
+    "9618-sections-01-08.json",
+    "9618-sections-09-12.json",
+    "9618-sections-13-18.json",
+    "9618-sections-19-20.json"
+  ],
+  "learningObjectiveOverrides":{
+    "9.2":[
+      "Select appropriate identifier names.",
+      "Write programs in pseudocode using input, process and output.",
+      "Write pseudocode using assignment, sequence, selection and repetition (including logic statements).",
+      "Write pseudocode from a structured English description and from a flowchart.",
+      "Draw a flowchart from a structured English description or pseudocode.",
+      "Use logic statements to define parts of an algorithm solution.",
+      "Explain how stepwise refinement can be used to express an algorithm to a level of detail from which the task may be programmed."
+    ]
+  }
+}
