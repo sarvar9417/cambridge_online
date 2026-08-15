@@ -15,3 +15,9 @@ tmp/
 .vercel
 .env*
 !.env.example
+
+# Cambridge past papers. 413 MB of source PDFs that the ingestion reads from
+# disk -- source-discovery-cli takes the location as --root=, so nothing in the
+# code depends on them living here. They are inputs to the corpus, not part of
+# the product, and they are third-party exam material.
+papers/
