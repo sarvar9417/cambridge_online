@@ -1,0 +1,54 @@
+name: Corpus runner probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/corpus-runner-probe.yml
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_STORAGE_SECRET_KEY: ${{ secrets.SUPABASE_STORAGE_SECRET_KEY }}
+      DB_SSL_MODE: ${{ secrets.DB_SSL_MODE }}
+      DB_SSL_CA_BASE64: ${{ secrets.DB_SSL_CA_BASE64 }}
+      ASSET_STORAGE_BUCKET: question-assets
+      PDFTOPPM_PATH: /usr/bin/pdftoppm
+      PDFTOTEXT_PATH: /usr/bin/pdftotext
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check required secret presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in DATABASE_URL ANTHROPIC_API_KEY SUPABASE_URL SUPABASE_STORAGE_SECRET_KEY; do
+            if [ -n "${!key:-}" ]; then
+              echo "$key=present"
+            else
+              echo "$key=missing"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Corpus runner secrets are incomplete; no ingestion was attempted."
+            exit 2
+          fi
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install dependencies
+        run: npm ci
+      - name: Run corpus readiness only
+        working-directory: backend
+        run: npm run corpus:readiness
