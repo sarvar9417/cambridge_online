@@ -11,7 +11,7 @@ const configSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().min(1).optional(),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(20).optional(),
-  DB_SSL_MODE: z.enum(['disable', 'require', 'verify-full']).default('verify-full'),
+  DB_SSL_MODE: z.enum(['auto', 'disable', 'require', 'verify-full']).default('auto'),
   DB_SSL_CA: z.string().min(1).optional(),
   DB_SSL_CA_BASE64: z.string().min(1).optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
