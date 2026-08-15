@@ -1,0 +1,190 @@
+/*
+ * The approval queue. Same tokens as the rest of the product; this is a working
+ * screen for the teacher rather than a first impression, so it is quiet where
+ * the sign-in surface is lively.
+ */
+
+.ua { display: grid; gap: 1rem; }
+
+.ua-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ua-header h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.01em; }
+.ua-sub { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.86rem; }
+
+.ua-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.ua-filters button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ua-filters button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.ua-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+.ua-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+/* A waiting row is the only one that needs attention, so it is the only one
+   that draws any. */
+.ua-row--pending { border-left: 3px solid var(--uncertain); }
+.ua-row--suspended,
+.ua-row--rejected { opacity: 0.75; }
+
+.ua-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.ua-identity > div { display: grid; min-width: 0; }
+.ua-identity strong { font-size: 0.95rem; }
+
+.ua-avatar {
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.ua-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ua-badge {
+  margin-left: auto;
+  flex: none;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.ua-badge--pending { background: var(--uncertain-bg); color: var(--uncertain); }
+.ua-badge--active { background: var(--awarded-bg); color: var(--awarded); }
+.ua-badge--rejected,
+.ua-badge--suspended { background: var(--missed-bg); color: var(--missed); }
+
+.ua-note,
+.ua-reason {
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.ua-note { background: var(--surface-soft); color: var(--text); font-style: italic; }
+.ua-reason { background: var(--missed-bg); color: var(--missed); }
+
+.ua-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.ua-control { display: grid; gap: 0.2rem; font-size: 0.78rem; color: var(--text-muted); }
+
+.ua-control select,
+.ua-reason-input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.ua-reason-input { flex: 1 1 12rem; min-width: 0; }
+
+.ua-actions button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.42rem 0.85rem;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ua-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ua-approve {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.ua-reject { color: var(--missed); border-color: var(--missed); }
+.ua-secondary { color: var(--text-muted); }
+
+.ua-self { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
+
+.ua-code {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.ua-code p { margin: 0; font-size: 0.82rem; }
+
+.ua-code code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  /* The link is long and must stay copyable in one piece. */
+  word-break: break-all;
+  background: var(--bg);
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+}
+
+.ua-code button { justify-self: start; }
+
+.ua-empty { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
+
+.ua-error {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--missed-bg);
+  color: var(--missed);
+  font-size: 0.86rem;
+}

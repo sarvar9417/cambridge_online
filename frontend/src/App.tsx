@@ -26,6 +26,8 @@ import {
   type PendingAnswer,
 } from "./lib/offline-queue";
 import { ThemeToggle } from './components/ThemeToggle';
+import { AuthScreens } from './auth/AuthScreens';
+import { UserApprovalPanel } from './auth/UserApprovalPanel';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
 export function App() {
@@ -241,30 +243,6 @@ export function App() {
     const timer = window.setInterval(refresh, 2_000);
     return () => window.clearInterval(timer);
   }, [user, exports]);
-
-  const login = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-    const data = new FormData(event.currentTarget);
-    try {
-      await loadData(
-        await api("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({
-            identifier: data.get("identifier"),
-            password: data.get("password"),
-          }),
-        }),
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Login amalga oshmadi.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const logout = async () => {
     await api("/auth/logout", { method: "POST" });
@@ -529,31 +507,9 @@ export function App() {
   };
 
   if (loading && !user) return <main className="center">Yuklanmoqda...</main>;
-  if (!user)
-    return (
-      <main className="login-page">
-        <form className="login-panel" onSubmit={login}>
-          <div className="brand">CamPath</div>
-          <h1>Tizimga kirish</h1>
-          <label>
-            Username yoki email
-            <input name="identifier" autoComplete="username" required />
-          </label>
-          <label>
-            Parol
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              minLength={8}
-              required
-            />
-          </label>
-          {error && <p className="error">{error}</p>}
-          <button disabled={loading}>Kirish</button>
-        </form>
-      </main>
-    );
+  // The whole signed-out surface -- sign in, register, recover a password --
+  // lives in AuthScreens, which owns its own errors and loading state.
+  if (!user) return <AuthScreens onSignedIn={loadData} />;
   if (attempt)
     return (
       <main className="attempt">
@@ -910,6 +866,11 @@ export function App() {
         )}
         {user.role !== "student" && (
           <>
+            {user.role === "owner" && (
+              <section>
+                <UserApprovalPanel classes={classes} currentUserId={user.id} />
+              </section>
+            )}
             {user.role === "owner" && (
               <section>
                 <div className="section-title">

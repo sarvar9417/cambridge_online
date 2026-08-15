@@ -5,9 +5,24 @@ export const setAccessToken = (token: string | null) => { accessToken = token; }
 export const AUTH_EXPIRED_EVENT = 'campath:auth-expired';
 let refreshPromise: Promise<string> | null = null;
 
+/**
+ * Carries the server's error code, not just its sentence.
+ *
+ * The auth screens branch on the code -- `account_pending` shows the waiting
+ * screen, `email_taken` marks that one field -- and matching on translated
+ * message text would break the first time a word changed.
+ */
+export class ApiError extends Error {
+  constructor(message: string, readonly code: string, readonly detail?: string, readonly status?: number) {
+    super(message);
+  }
+}
+
 async function parseBody(response: Response) {
   if (response.status === 204) return null;
-  return response.json();
+  // A 502 from a proxy or an empty error body is not JSON; a parse failure here
+  // would replace the real status with a confusing SyntaxError.
+  try { return await response.json(); } catch { return null; }
 }
 
 function expireSession() {
@@ -55,7 +70,14 @@ export async function api<T>(path: string, init: RequestInit = {},options:{suppr
   }
   const body = await parseBody(response);
   if (response.status === 401 && (canRefresh || path === '/auth/refresh')&&!options.suppressAuthExpired) expireSession();
-  if (!response.ok) throw new Error(body?.error?.message ?? 'So‘rov bajarilmadi.');
+  if (!response.ok) {
+    throw new ApiError(
+      body?.error?.message ?? 'So‘rov bajarilmadi.',
+      body?.error?.code ?? 'request_failed',
+      body?.error?.detail,
+      response.status,
+    );
+  }
   return body as T;
 }
 
