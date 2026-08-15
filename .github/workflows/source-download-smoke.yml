@@ -1,0 +1,29 @@
+name: Corpus source download smoke
+
+on:
+  push:
+    branches: [agent/source-download-smoke]
+    paths:
+      - .github/workflows/source-download-smoke.yml
+  workflow_dispatch:
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify 2025 M/J Paper 11 QP and MS
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --silent --show-error \
+            'https://drive.usercontent.google.com/download?id=127vAyTBB-ZB3X__WSiTJ8N6V5iQ8KUKi&export=download&confirm=t' \
+            -o qp.pdf
+          curl -L --fail --silent --show-error \
+            'https://drive.usercontent.google.com/download?id=1A0Cq7PM-d6QyXpyDHbS4zvq4Q1Sje6uy&export=download&confirm=t' \
+            -o ms.pdf
+          test "$(head -c 5 qp.pdf)" = '%PDF-'
+          test "$(head -c 5 ms.pdf)" = '%PDF-'
+          echo 'bdf74d4f15c620bde7e6fe65f17828bc85c89490ebb9a1a337e2cd0596f4b39a  qp.pdf' | sha256sum -c -
+          echo '8bf543ddd26e74224f40fd909152e300b9b711eb3644d7e8d07c1d5c3f07521b  ms.pdf' | sha256sum -c -
+          echo '2025 M/J Paper 11 remote QP/MS source verified.'
