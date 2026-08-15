@@ -28,6 +28,9 @@ import {
 import { ThemeToggle } from './components/ThemeToggle';
 import { AuthScreens } from './auth/AuthScreens';
 import { UserApprovalPanel } from './auth/UserApprovalPanel';
+import { AppShell, navigationFor } from './shell/AppShell';
+import { OverviewPage } from './admin/OverviewPage';
+import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 
 export function App() {
@@ -37,6 +40,12 @@ export function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [grading, setGrading] = useState<GradingItem[]>([]);
   const [results, setResults] = useState<ResultItem[]>([]);
+  const route = useRoute();
+  // The rail badges come from the same endpoint the dashboard reads, so a count
+  // in the sidebar can never disagree with the number on the page.
+  const [badges, setBadges] = useState<{ pendingUsers: number; reviewQueue: number; openAppeals: number }>(
+    { pendingUsers: 0, reviewQueue: 0, openAppeals: 0 },
+  );
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [attemptIndex,setAttemptIndex]=useState(0);
   const [submitConfirm,setSubmitConfirm]=useState(false);
@@ -153,6 +162,20 @@ export function App() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // A bare URL has no route. Each role gets a home it is allowed to open --
+  // sending a student to the owner dashboard would greet them with a 403.
+  useEffect(() => {
+    if (user && !route.surface) navigate(HOME_BY_ROLE[user.role]);
+  }, [user, route.surface]);
+
+  useEffect(() => {
+    if (user?.role !== 'owner') return;
+    api<{ waiting: { pendingUsers: number; reviewQueue: number; openAppeals: number } }>('/admin/overview')
+      .then((result) => setBadges(result.waiting))
+      // A failed badge fetch must not break the page it decorates.
+      .catch(() => {});
+  }, [user, route.path]);
 
   useEffect(() => {
     if (!attempt) return;
@@ -563,39 +586,10 @@ export function App() {
       </main>
     );
 
-  return (
-    <div className="app">
-      <aside>
-        <div className="brand">CamPath</div>
-        <nav>
-          <a className="active">Bosh sahifa</a>
-          <a>Sinflar</a>
-          {user.role !== "student" && <a>Savol banki</a>}
-          <a>Vazifalar</a>
-          <a>Natijalar</a>
-        </nav>
-        <button className="ghost data-export" onClick={downloadOwnData}>
-          Ma’lumotlarim
-        </button>
-        <button className="ghost" onClick={logout}>
-          Chiqish
-        </button>
-      </aside>
-      <main>
-        <header id="student-home">
-          <div>
-            <p className="eyebrow">Cambridge 9618</p>
-            <h1>Salom, {user.fullName}</h1>
-          </div>
-          <ThemeToggle />
-          <span className="role">
-            {user.role === "owner"
-              ? "Owner"
-              : user.role === "teacher"
-                ? "O‘qituvchi"
-                : "O‘quvchi"}
-          </span>
-        </header>
+  // The legacy single-page body. Sections are peeled out of it onto their own
+  // routes one at a time; until then it is what every non-admin route renders.
+  const legacyBody = (
+      <>
         {error && <p className="app-error">{error}</p>}
         {user.role === "student" && (
           <section id="student-assignments">
@@ -1189,8 +1183,23 @@ export function App() {
             </section>
           </>
         )}
-      </main>
-      {user.role==='student'&&<nav className="student-tabs" aria-label="Asosiy navigatsiya"><a href="#student-home">Uy</a><a href="#student-assignments">Vazifalar</a><a href="#student-learning">O‘rganish</a><a href="#student-results">Natijalar</a><a href="#student-profile">Profil</a></nav>}
-    </div>
+      </>
+  );
+
+  const page =
+    route.surface === 'boshqaruv' && route.page === 'holat' ? <OverviewPage />
+      : route.surface === 'boshqaruv' && route.page === 'odamlar'
+        ? <UserApprovalPanel classes={classes} currentUserId={user.id} />
+        : legacyBody;
+
+  return (
+    <AppShell
+      user={user}
+      route={route}
+      groups={navigationFor(user.role, classes, badges)}
+      onLogout={logout}
+    >
+      {page}
+    </AppShell>
   );
 }

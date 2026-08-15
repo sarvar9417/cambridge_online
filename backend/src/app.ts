@@ -8,6 +8,8 @@ import { requireAuth } from './middleware/auth.js';
 import { PgAuthRepository, type AuthRepository } from './repositories/auth-repository.js';
 import { createMailer } from './lib/email/mailer.js';
 import { createAdminUsersRouter } from './routes/admin-users.js';
+import { createOverviewRouter } from './routes/overview.js';
+import { OverviewService } from './services/overview-service.js';
 import { PgClassesRepository, type ClassesRepository } from './repositories/classes-repository.js';
 import { PgQuestionsRepository } from './repositories/questions-repository.js';
 import { PgSelectionsRepository } from './repositories/selections-repository.js';
@@ -97,8 +99,12 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
-  if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
+  // The specific admin paths mount before the general one. Express tries
+  // prefixes in order, so a future '/:id' route inside createAdminRouter would
+  // otherwise swallow /admin/users and /admin/overview.
   if (auth && authRepository) mountPrivate('/api/v1/admin/users', createAdminUsersRouter(auth, authRepository));
+  if (pool) mountPrivate('/api/v1/admin/overview', createOverviewRouter(new OverviewService(pool)));
+  if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
 
   app.use((_req, res) => {

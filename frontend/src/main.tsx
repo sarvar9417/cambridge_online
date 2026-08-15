@@ -1,56 +1,57 @@
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { applyStoredTheme } from './lib/theme';
+import { useRoute } from './lib/router';
 import './theme.css';
 import './styles.css';
 
 function Root() {
-  const [hash, setHash] = useState(() => window.location.hash);
+  const route = useRoute();
 
   useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash);
-    const onNavigationClick = (event: MouseEvent) => {
+    /*
+     * Two bridges remain while the question bank is still a standalone page
+     * with its own chrome. Both live inside QuestionBankPage's markup, so they
+     * cannot be replaced by a real link until that page joins the shell.
+     *
+     * The third bridge -- matching a sidebar link by its text content -- is
+     * gone: the rail now renders real hrefs.
+     */
+    const onClick = (event: MouseEvent) => {
       const element = event.target as HTMLElement | null;
-      const anchor = element?.closest('a');
       const button = element?.closest('button');
+      if (!button) return;
 
-      // The legacy monolithic App renders this sidebar item without an href.
-      // Keep App untouched while Question Bank v2 is developed in isolation.
-      if (anchor?.textContent?.trim() === 'Savol banki' && !anchor.getAttribute('href')) {
-        event.preventDefault();
-        window.location.hash = 'question-bank';
-        return;
-      }
-
-      // Temporary bridge while QuestionBankPage remains an isolated feature.
-      // Capture the active server-side basket before React switches to review.
-      if (button?.textContent?.trim() === 'Ko‘rib chiqish') {
+      // Capture the active basket before React switches to the review step.
+      if (button.textContent?.trim() === 'Ko‘rib chiqish') {
         const selected = document.querySelector<HTMLSelectElement>('.qb-basket-select')?.value;
         if (selected) sessionStorage.setItem('campath:question-bank-selection', selected);
         return;
       }
 
-      if (button?.textContent?.trim() === 'Assignment/PDF ga tayyor' && !button.disabled) {
-        const selectionId = sessionStorage.getItem('campath:question-bank-selection');
-        if (selectionId) {
+      if (button.textContent?.trim() === 'Assignment/PDF ga tayyor' && !button.disabled) {
+        if (sessionStorage.getItem('campath:question-bank-selection')) {
           event.preventDefault();
-          window.location.hash = 'question-bank-handoff';
+          window.location.hash = 'oqitish/tanlovlar';
         }
       }
     };
-    window.addEventListener('hashchange', onHashChange);
-    document.addEventListener('click', onNavigationClick);
-    return () => {
-      window.removeEventListener('hashchange', onHashChange);
-      document.removeEventListener('click', onNavigationClick);
-    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
   }, []);
 
-  if (hash.startsWith('#question-bank-handoff')) return <SelectionHandoffPage />;
-  if (hash.startsWith('#question-bank')) return <QuestionBankPage />;
+  // The two hyphenated forms are the old bookmarks. They still work, because a
+  // teacher who saved one should not meet a blank page after a rename.
+  const path = route.path;
+  if (path === 'oqitish/tanlovlar' || path.startsWith('question-bank-handoff')) {
+    return <SelectionHandoffPage />;
+  }
+  if (path === 'oqitish/savol-banki' || path.startsWith('question-bank')) {
+    return <QuestionBankPage />;
+  }
   return <App />;
 }
 

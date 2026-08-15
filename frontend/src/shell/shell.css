@@ -1,0 +1,169 @@
+/*
+ * The application chrome: a rail on the left, a thin top bar, and the page.
+ * Every colour comes from theme.css, so this follows light and dark with the
+ * rest of the product.
+ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 208px 1fr;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.shell-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  padding: 0.6rem 0.9rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 0 0 var(--radius) 0;
+}
+.shell-skip:focus { left: 0; }
+
+.shell-rail {
+  background: var(--surface-soft);
+  border-right: 1px solid var(--border);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  padding: 0 0.3rem;
+}
+.shell-mark { color: var(--accent); line-height: 1; }
+
+.shell-group { display: grid; gap: 0.1rem; }
+
+.shell-group-label {
+  font-size: 0.63rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.shell-rail a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.36rem 0.5rem;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.845rem;
+}
+.shell-rail a:hover { background: var(--surface); }
+.shell-rail a[aria-current='page'] {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+.shell-rail a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.shell-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--uncertain-bg);
+  color: var(--uncertain);
+}
+.shell-rail a[aria-current='page'] .shell-badge {
+  background: var(--accent-contrast);
+  color: var(--accent);
+}
+
+.shell-rail-foot { margin-top: auto; }
+
+.shell-ghost {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.shell-ghost:hover { background: var(--surface); color: var(--text); }
+
+.shell-body { display: flex; flex-direction: column; min-width: 0; }
+
+.shell-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.shell-who { margin-right: auto; display: grid; line-height: 1.25; }
+.shell-who strong { font-size: 0.88rem; font-weight: 600; }
+.shell-who span { font-size: 0.74rem; color: var(--text-muted); }
+
+.shell-burger {
+  display: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.55rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.shell-main { padding: 1.5rem; min-width: 0; flex: 1; }
+
+.shell-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 35%);
+  z-index: 8;
+}
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .shell-burger { display: block; }
+  .shell-scrim { display: block; }
+  .shell-rail {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 232px;
+    z-index: 9;
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
+  }
+  .shell-rail.is-open { transform: none; }
+  .shell-main { padding: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-rail { transition: none; }
+}
