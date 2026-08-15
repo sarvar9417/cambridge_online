@@ -25,7 +25,7 @@ import {
  */
 const PROMPTS: Array<{ file: string; schema: ZodType }> = [
   { file: 'extract-question.v4.md', schema: extractQpSchema },
-  { file: 'extract-markscheme.v1.md', schema: extractMsSchema },
+  { file: 'extract-markscheme.v2.md', schema: extractMsSchema },
   { file: 'classify-question.v2.md', schema: classificationSchema },
   { file: 'detect-dependencies.v1.md', schema: dependencyOutputSchema },
   { file: 'cross-check.v2.md', schema: crossCheckSchema },
@@ -86,17 +86,67 @@ describe('prompt worked examples satisfy the contract they feed', () => {
     });
   }
 
-  it('shows the asset keys, since an empty array teaches the model nothing', () => {
+  /**
+   * Collections of objects that must be demonstrated at least once somewhere in
+   * a prompt's examples. An empty array shows the key exists and nothing about
+   * what goes in it, which is precisely how the asset shape came to be invented.
+   */
+  const MUST_BE_POPULATED: Array<{ file: string; paths: string[] }> = [
+    { file: 'extract-question.v4.md', paths: ['questions[].assets'] },
+    // A banded scheme is a different shape entirely, and it is the one that
+    // decides how an Evaluate answer is marked.
+    { file: 'extract-markscheme.v2.md', paths: ['schemes[].groups', 'schemes[].points', 'schemes[].levels'] },
+    { file: 'cross-check.v2.md', paths: ['disagreements'] },
+  ];
+
+  function collect(node: unknown, path: string, into: Map<string, number>) {
+    if (Array.isArray(node)) {
+      into.set(path, (into.get(path) ?? 0) + node.length);
+      for (const item of node) collect(item, `${path}[]`, into);
+    } else if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node))
+        collect(value, path ? `${path}.${key}` : key, into);
+    }
+  }
+
+  for (const { file, paths } of MUST_BE_POPULATED) {
+    it(`${file} demonstrates every collection it asks for`, () => {
+      const counts = new Map<string, number>();
+      for (const example of jsonExamples(readFileSync(join(promptsDir, file), 'utf8')))
+        collect(JSON.parse(example), '', counts);
+      // Report the path alongside the count so a failure names the collection
+      // that was left empty rather than just "expected 0 to be greater than 0".
+      const populated = paths.filter((path) => (counts.get(path) ?? 0) > 0);
+      expect(populated).toEqual(paths);
+    });
+  }
+
+  it('gives every drawn asset a bbox, since the crop is its only copy', () => {
     const [example] = jsonExamples(
       readFileSync(join(promptsDir, 'extract-question.v4.md'), 'utf8'),
     );
     const parsed = extractQpSchema.parse(JSON.parse(example!));
-    const assets = parsed.questions.flatMap((question) => question.assets);
-    expect(assets.length).toBeGreaterThan(0);
-    // A drawn asset has no transcription, so the crop is the only copy of it and
-    // the bbox has to be there.
-    const drawn = assets.filter((asset) => asset.content_md === null);
+    const drawn = parsed.questions
+      .flatMap((question) => question.assets)
+      .filter((asset) => asset.content_md === null);
     expect(drawn.length).toBeGreaterThan(0);
     for (const asset of drawn) expect(asset.bbox).not.toBeNull();
+  });
+
+  it('shows a parent node, which has no answer of its own', () => {
+    const [example] = jsonExamples(
+      readFileSync(join(promptsDir, 'extract-question.v4.md'), 'utf8'),
+    );
+    const parsed = extractQpSchema.parse(JSON.parse(example!));
+    const parents = parsed.questions.filter((question) =>
+      parsed.questions.some((child) => child.parent_path === question.path),
+    );
+    expect(parents.length).toBeGreaterThan(0);
+    // Left undemonstrated, the model sent answer_kind: null against a
+    // non-nullable enum and lost the batch three times over.
+    for (const parent of parents) {
+      expect(parent.marks).toBeNull();
+      expect(parent.answer_kind).toBeNull();
+    }
   });
 });

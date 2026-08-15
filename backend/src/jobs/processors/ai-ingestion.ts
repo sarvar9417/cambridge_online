@@ -48,7 +48,7 @@ export async function extractMarkSchemesStage(pool:Pool,client:AiClient,input:Ar
  const prepared=pickPrepared(input,'ms');if(!prepared)return input;
  const metadata=await paperMetadata(pool,prepared.paperId);
  if(metadata.kind!=='MS')return input;
- const prompt=await loadPrompt('extract-markscheme',1);let schemes:ExtractedScheme[]=[];const conflicts:string[]=[];
+ const prompt=await loadPrompt('extract-markscheme',2);let schemes:ExtractedScheme[]=[];const conflicts:string[]=[];
  for(const batch of prepared.batches){
   const content=await extractionContent(batch,{metadata},imageLoader);
   const response=await callAndRecord(pool,client,{purpose:'extract_ms',prompt,content,maxTokens:8192,ref:{table:'source_papers',id:prepared.paperId}});
