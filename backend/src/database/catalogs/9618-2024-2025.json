@@ -18,6 +18,14 @@
     "9618-sections-19-20.json"
   ],
   "learningObjectiveOverrides":{
+    "6.1":[
+      "Explain the difference between data security, privacy and integrity.",
+      "Explain why both data and computer systems need protection.",
+      "Describe computer-system security measures, including accounts, passwords, authentication such as digital signatures and biometrics, firewalls, anti-virus, anti-spyware and encryption.",
+      "Explain security threats from networks and the internet, including malware, hackers, phishing and pharming.",
+      "Describe methods used to reduce the risks posed by security threats.",
+      "Describe methods used to protect data, including encryption and access rights."
+    ],
     "9.2":[
       "Select appropriate identifier names.",
       "Write programs in pseudocode using input, process and output.",
