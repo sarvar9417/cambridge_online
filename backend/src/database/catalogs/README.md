@@ -13,12 +13,12 @@ The version split follows Cambridge International's 9618 syllabus page, which st
 ## Source hierarchy
 
 1. **Cambridge International AS & A Level Computer Science 9618 Scheme of Work, Version 2, for examination from 2021** supplies the 20-unit structure and learning-objective wording used by the shared fragments.
-2. **Official Cambridge 9618 syllabus for 2024-2025** supplies the examination-period boundary, canonical syllabus references/content structure, assessment scope and documented 2024-2025 clarification to section 9.2.
+2. **Official Cambridge 9618 syllabus for 2024-2025** supplies the examination-period boundary, canonical syllabus references/content structure, assessment scope and documented later-content updates.
 3. Real Cambridge 2021 question-paper front pages were used to cross-check component duration and total marks.
 
-The Scheme of Work itself says it is one possible teaching approach and that the syllabus should be checked for course content. For that reason these catalogs use the official syllabus for version/scope rules while retaining Scheme-of-Work learning-objective wording.
+The Scheme of Work itself says it is one possible teaching approach and that the syllabus should be checked for course content. For that reason these catalogs use the official syllabus for version/scope rules while retaining Scheme-of-Work learning-objective wording where the later syllabus did not change the content.
 
-## Fragment model
+## Fragment model and later overrides
 
 The shared taxonomy is stored once:
 
@@ -27,7 +27,12 @@ The shared taxonomy is stored once:
 - `9618-sections-13-18.json`
 - `9618-sections-19-20.json`
 
-Version descriptors reference those fragments. `9618-2024-2025.json` replaces only the learning-objective list for 9.2 where the later syllabus explicitly clarifies flowchart/logic-statement requirements. `syllabus-catalog-loader.ts` assembles and validates the final catalog before any DB write.
+Version descriptors reference those fragments. `9618-2024-2025.json` overrides only the affected subtopic objective lists:
+
+- **6.1 Data Security** — the official later syllabus explicitly includes biometrics among authentication/security measures and its changes page records the biometrics addition.
+- **9.2 Algorithms** — the later syllabus explicitly clarifies producing a flowchart/written description from pseudocode.
+
+`syllabus-catalog-loader.ts` assembles the shared fragments, applies version-specific overrides and validates the complete result before any DB write.
 
 ## Internal learning-objective IDs
 
