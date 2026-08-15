@@ -1,0 +1,1526 @@
+{
+ "code": "9618",
+ "title": "Cambridge International AS & A Level Computer Science (for examination from 2026)",
+ "validFrom": 2021,
+ "validTo": 2028,
+ "isActive": true,
+ "components": [
+  {
+   "number": 1,
+   "name": "Theory Fundamentals",
+   "level": "AS",
+   "durationMinutes": 90,
+   "totalMarks": 75,
+   "weightingPct": 25
+  },
+  {
+   "number": 2,
+   "name": "Fundamental Problem-solving and Programming Skills",
+   "level": "AS",
+   "durationMinutes": 120,
+   "totalMarks": 75,
+   "weightingPct": 25
+  },
+  {
+   "number": 3,
+   "name": "Advanced Theory",
+   "level": "A2",
+   "durationMinutes": 90,
+   "totalMarks": 75,
+   "weightingPct": 25
+  },
+  {
+   "number": 4,
+   "name": "Practical",
+   "level": "A2",
+   "durationMinutes": 150,
+   "totalMarks": 75,
+   "weightingPct": 25
+  }
+ ],
+ "topics": [
+  {
+   "number": 1,
+   "title": "Information representation",
+   "sortOrder": 0,
+   "subtopics": [
+    {
+     "code": "1.1",
+     "title": "Data Representation",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "1.1.1",
+       "text": "Show understanding of binary magnitudes and the difference between binary prefixes and decimal prefixes",
+       "sortOrder": 0
+      },
+      {
+       "code": "1.1.2",
+       "text": "Show understanding of different number systems",
+       "sortOrder": 1
+      },
+      {
+       "code": "1.1.3",
+       "text": "Convert an integer value from one number base/ representation to another",
+       "sortOrder": 2
+      },
+      {
+       "code": "1.1.4",
+       "text": "Perform binary addition and subtraction",
+       "sortOrder": 3
+      },
+      {
+       "code": "1.1.5",
+       "text": "Show understanding of how overflow can occur",
+       "sortOrder": 4
+      },
+      {
+       "code": "1.1.6",
+       "text": "Describe practical applications where Binary Coded Decimal (BCD) and Hexadecimal are used",
+       "sortOrder": 5
+      },
+      {
+       "code": "1.1.7",
+       "text": "Show understanding of and be able to represent character data in its internal binary form, depending on the character set used",
+       "sortOrder": 6
+      }
+     ]
+    },
+    {
+     "code": "1.2",
+     "title": "Multimedia Graphics",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "1.2.1",
+       "text": "Show understanding of how data for a bitmapped image are encoded",
+       "sortOrder": 0
+      },
+      {
+       "code": "1.2.2",
+       "text": "Perform calculations to estimate the file size for a bitmap image",
+       "sortOrder": 1
+      },
+      {
+       "code": "1.2.3",
+       "text": "Show understanding of the effects of changing elements of a bitmap image on the image quality and file size",
+       "sortOrder": 2
+      },
+      {
+       "code": "1.2.4",
+       "text": "Show understanding of how data for a vector graphic are encoded",
+       "sortOrder": 3
+      },
+      {
+       "code": "1.2.5",
+       "text": "Justify the use of a bitmap image or a vector graphic for a given task",
+       "sortOrder": 4
+      },
+      {
+       "code": "1.2.6",
+       "text": "Show understanding of how sound is represented and encoded",
+       "sortOrder": 5
+      },
+      {
+       "code": "1.2.7",
+       "text": "Show understanding of the impact of changing the sampling rate and resolution",
+       "sortOrder": 6
+      }
+     ]
+    },
+    {
+     "code": "1.3",
+     "title": "Compression",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "1.3.1",
+       "text": "Show understanding of the need for and examples of the use of compression",
+       "sortOrder": 0
+      },
+      {
+       "code": "1.3.2",
+       "text": "Show understanding of lossy and lossless compression and justify the use of a method in a given situation",
+       "sortOrder": 1
+      },
+      {
+       "code": "1.3.3",
+       "text": "Show understanding of how a text file, bitmap image, vector graphic and sound file can be compressed",
+       "sortOrder": 2
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 2,
+   "title": "Communication",
+   "sortOrder": 1,
+   "subtopics": [
+    {
+     "code": "2.1",
+     "title": "Networks including the internet",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "2.1.1",
+       "text": "Show understanding of the purpose and benefits of networking devices",
+       "sortOrder": 0
+      },
+      {
+       "code": "2.1.2",
+       "text": "Show understanding of the characteristics of a LAN (local area network) and a WAN (wide area network)",
+       "sortOrder": 1
+      },
+      {
+       "code": "2.1.3",
+       "text": "Explain the client-server and peer-to-peer models of networked computers",
+       "sortOrder": 2
+      },
+      {
+       "code": "2.1.4",
+       "text": "Show understanding of thin-client and thick-client and the differences between them",
+       "sortOrder": 3
+      },
+      {
+       "code": "2.1.5",
+       "text": "Show understanding of the bus, star, mesh and hybrid topologies",
+       "sortOrder": 4
+      },
+      {
+       "code": "2.1.6",
+       "text": "Show understanding of cloud computing",
+       "sortOrder": 5
+      },
+      {
+       "code": "2.1.7",
+       "text": "Show understanding of the differences between and implications of the use of wireless and wired networks",
+       "sortOrder": 6
+      },
+      {
+       "code": "2.1.8",
+       "text": "Describe the hardware that is used to support a LAN",
+       "sortOrder": 7
+      },
+      {
+       "code": "2.1.9",
+       "text": "Describe the role and function of a router in a network",
+       "sortOrder": 8
+      },
+      {
+       "code": "2.1.10",
+       "text": "Show understanding of Ethernet and how collisions are detected and avoided",
+       "sortOrder": 9
+      },
+      {
+       "code": "2.1.11",
+       "text": "Show understanding of bit streaming",
+       "sortOrder": 10
+      },
+      {
+       "code": "2.1.12",
+       "text": "Show understanding of the differences between the World Wide Web (WWW) and the internet",
+       "sortOrder": 11
+      },
+      {
+       "code": "2.1.13",
+       "text": "Describe the hardware that is used to support the internet",
+       "sortOrder": 12
+      },
+      {
+       "code": "2.1.14",
+       "text": "Explain the use of IP addresses in the transmission of data over the internet",
+       "sortOrder": 13
+      },
+      {
+       "code": "2.1.15",
+       "text": "Explain how a Uniform Resource Locator (URL) is used to locate a resource on the World Wide Web (WWW) and the role of the Domain Name Service (DNS)",
+       "sortOrder": 14
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 3,
+   "title": "Hardware",
+   "sortOrder": 2,
+   "subtopics": [
+    {
+     "code": "3.1",
+     "title": "Computers and their components",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "3.1.1",
+       "text": "Show understanding of the need for input, output, primary memory and secondary (including removable) storage",
+       "sortOrder": 0
+      },
+      {
+       "code": "3.1.2",
+       "text": "Show understanding of embedded systems",
+       "sortOrder": 1
+      },
+      {
+       "code": "3.1.3",
+       "text": "Describe the principal operations of hardware devices",
+       "sortOrder": 2
+      },
+      {
+       "code": "3.1.4",
+       "text": "Show understanding of the use of buffers",
+       "sortOrder": 3
+      },
+      {
+       "code": "3.1.5",
+       "text": "Explain the differences between Random Access Memory (RAM) and Read Only Memory (ROM)",
+       "sortOrder": 4
+      },
+      {
+       "code": "3.1.6",
+       "text": "Explain the differences between Static RAM (SRAM) and Dynamic RAM (DRAM)",
+       "sortOrder": 5
+      },
+      {
+       "code": "3.1.7",
+       "text": "Explain the difference between Programmable ROM (PROM), Erasable Programmable ROM (EPROM) and Electrically Erasable Programmable ROM (EEPROM)",
+       "sortOrder": 6
+      },
+      {
+       "code": "3.1.8",
+       "text": "Show an understanding of monitoring and control systems",
+       "sortOrder": 7
+      }
+     ]
+    },
+    {
+     "code": "3.2",
+     "title": "Logic Gates and Logic Circuits",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "3.2.1",
+       "text": "Use the following logic gate symbols: NOT AND OR NAND NOR XOR",
+       "sortOrder": 0
+      },
+      {
+       "code": "3.2.2",
+       "text": "Construct the truth table for each of the logic gates above",
+       "sortOrder": 1
+      },
+      {
+       "code": "3.2.3",
+       "text": "Construct a logic circuit",
+       "sortOrder": 2
+      },
+      {
+       "code": "3.2.4",
+       "text": "Construct a truth table",
+       "sortOrder": 3
+      },
+      {
+       "code": "3.2.5",
+       "text": "Construct a logic expression",
+       "sortOrder": 4
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 4,
+   "title": "Processor Fundamentals",
+   "sortOrder": 3,
+   "subtopics": [
+    {
+     "code": "4.1",
+     "title": "Central Processing Unit (CPU) Architecture",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "4.1.1",
+       "text": "Show understanding of the basic Von Neumann model for a computer system and the stored program concept",
+       "sortOrder": 0
+      },
+      {
+       "code": "4.1.2",
+       "text": "Show understanding of the purpose and role of registers, including the difference between general purpose and special purpose registers",
+       "sortOrder": 1
+      },
+      {
+       "code": "4.1.3",
+       "text": "Show understanding of the purpose and roles of the Arithmetic and Logic Unit (ALU), Control Unit (CU) and system clock, Immediate Access Store (IAS)",
+       "sortOrder": 2
+      },
+      {
+       "code": "4.1.4",
+       "text": "Show understanding of how data are transferred between various components of the computer system using the address bus, data bus and control bus",
+       "sortOrder": 3
+      },
+      {
+       "code": "4.1.5",
+       "text": "Show understanding of how factors contribute to the performance of the computer system",
+       "sortOrder": 4
+      },
+      {
+       "code": "4.1.6",
+       "text": "Understand how different ports provide connection to peripheral devices",
+       "sortOrder": 5
+      },
+      {
+       "code": "4.1.7",
+       "text": "Describe the stages of the Fetch-Execute (F-E) cycle",
+       "sortOrder": 6
+      },
+      {
+       "code": "4.1.8",
+       "text": "Show understanding of the purpose of interrupts",
+       "sortOrder": 7
+      }
+     ]
+    },
+    {
+     "code": "4.2",
+     "title": "Assembly Language",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "4.2.1",
+       "text": "Show understanding of the relationship between assembly language and machine code",
+       "sortOrder": 0
+      },
+      {
+       "code": "4.2.2",
+       "text": "Describe the different stages of the assembly process for a two-pass assembler",
+       "sortOrder": 1
+      },
+      {
+       "code": "4.2.3",
+       "text": "Apply the two-pass assembler process to a given simple assembly language program",
+       "sortOrder": 2
+      },
+      {
+       "code": "4.2.4",
+       "text": "Trace a given simple assembly language program",
+       "sortOrder": 3
+      },
+      {
+       "code": "4.2.5",
+       "text": "Show understanding that a set of instructions are grouped",
+       "sortOrder": 4
+      },
+      {
+       "code": "4.2.6",
+       "text": "Show understanding of and be able to use different modes of addressing",
+       "sortOrder": 5
+      }
+     ]
+    },
+    {
+     "code": "4.3",
+     "title": "Bit manipulation",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "4.3.1",
+       "text": "Show understanding of and perform binary shifts",
+       "sortOrder": 0
+      },
+      {
+       "code": "4.3.2",
+       "text": "Show understanding of how bit manipulation can be used to monitor/control a device",
+       "sortOrder": 1
+      },
+      {
+       "code": "4.3.3",
+       "text": "Carry out bit manipulation operations",
+       "sortOrder": 2
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 5,
+   "title": "System Software",
+   "sortOrder": 4,
+   "subtopics": [
+    {
+     "code": "5.1",
+     "title": "Operating Systems",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "5.1.1",
+       "text": "Explain why a computer system requires an Operating System (OS)",
+       "sortOrder": 0
+      },
+      {
+       "code": "5.1.2",
+       "text": "Explain the key management tasks carried out by the Operating System",
+       "sortOrder": 1
+      },
+      {
+       "code": "5.1.3",
+       "text": "Show understanding of the need for typical utility software provided with an Operating System",
+       "sortOrder": 2
+      },
+      {
+       "code": "5.1.4",
+       "text": "Show understanding of program libraries",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "5.2",
+     "title": "Language Translators",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "5.2.1",
+       "text": "Show understanding of the need for:\n\u2022 assembler software for the translation of an assembly language program\n\u2022 a compiler for the translation of a high-level language program\n\u2022 an interpreter for translation and execution of a high-level language program",
+       "sortOrder": 0
+      },
+      {
+       "code": "5.2.2",
+       "text": "Explain the benefits and drawbacks of using either a compiler or interpreter and justify the use of each",
+       "sortOrder": 1
+      },
+      {
+       "code": "5.2.3",
+       "text": "Show awareness that high-level language programs may be partially compiled and partially interpreted, such as Java (console mode)",
+       "sortOrder": 2
+      },
+      {
+       "code": "5.2.4",
+       "text": "Describe features found in a typical Integrated Development Environment (IDE)",
+       "sortOrder": 3
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 6,
+   "title": "Security, privacy and data integrity",
+   "sortOrder": 5,
+   "subtopics": [
+    {
+     "code": "6.1",
+     "title": "Data Security",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "6.1.1",
+       "text": "Explain the difference between the terms security, privacy and integrity of data",
+       "sortOrder": 0
+      },
+      {
+       "code": "6.1.2",
+       "text": "Describe security measures designed to protect computer systems, ranging from the stand-alone PC to a network of computers",
+       "sortOrder": 1
+      },
+      {
+       "code": "6.1.3",
+       "text": "Show understanding of the threats to computer and data security posed by networks and the internet",
+       "sortOrder": 2
+      },
+      {
+       "code": "6.1.4",
+       "text": "Describe methods that can be used to restrict the risks posed by threats",
+       "sortOrder": 3
+      },
+      {
+       "code": "6.1.5",
+       "text": "Describe security methods designed to protect the security of data",
+       "sortOrder": 4
+      }
+     ]
+    },
+    {
+     "code": "6.2",
+     "title": "Data Integrity",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "6.2.1",
+       "text": "Describe how data validation and data verification help protect the integrity of data",
+       "sortOrder": 0
+      },
+      {
+       "code": "6.2.2",
+       "text": "Describe and use methods of data validation",
+       "sortOrder": 1
+      },
+      {
+       "code": "6.2.3",
+       "text": "Describe and use methods of data verification during data entry and data transfer",
+       "sortOrder": 2
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 7,
+   "title": "Ethics and Ownership",
+   "sortOrder": 6,
+   "subtopics": [
+    {
+     "code": "7.1",
+     "title": "Ethics and Ownership",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "7.1.1",
+       "text": "Show understanding of the need for and purpose of ethics as a computing professional",
+       "sortOrder": 0
+      },
+      {
+       "code": "7.1.2",
+       "text": "Show understanding of the need to act ethically and the impact of acting ethically or unethically for a given situation",
+       "sortOrder": 1
+      },
+      {
+       "code": "7.1.3",
+       "text": "Show understanding of the need for copyright legislation",
+       "sortOrder": 2
+      },
+      {
+       "code": "7.1.4",
+       "text": "Show understanding of the different types of software licencing and justify the use of a licence for a given situation",
+       "sortOrder": 3
+      },
+      {
+       "code": "7.1.5",
+       "text": "Show understanding of Artificial Intelligence (AI)",
+       "sortOrder": 4
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 8,
+   "title": "Databases",
+   "sortOrder": 7,
+   "subtopics": [
+    {
+     "code": "8.1",
+     "title": "Database Concepts",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "8.1.1",
+       "text": "Show understanding of the limitations of using a file-based approach for the storage and retrieval of data",
+       "sortOrder": 0
+      },
+      {
+       "code": "8.1.2",
+       "text": "Describe the features of a relational database that address the limitations of a file-based approach",
+       "sortOrder": 1
+      },
+      {
+       "code": "8.1.3",
+       "text": "Show understanding of and use the terminology associated with a relational database model",
+       "sortOrder": 2
+      },
+      {
+       "code": "8.1.4",
+       "text": "Use an entity-relationship (E-R) diagram to document a database design",
+       "sortOrder": 3
+      },
+      {
+       "code": "8.1.5",
+       "text": "Show understanding of the normalisation process First Normal Form (1NF), Second Normal Form (2NF) and Third Normal Form (3NF)",
+       "sortOrder": 4
+      },
+      {
+       "code": "8.1.6",
+       "text": "Explain why a given set of database tables are, or are not, in 3NF",
+       "sortOrder": 5
+      },
+      {
+       "code": "8.1.7",
+       "text": "Produce a normalised database design for a description of a database, a given set of data, or a given set of tables",
+       "sortOrder": 6
+      }
+     ]
+    },
+    {
+     "code": "8.2",
+     "title": "Database Management Systems (DBMS)",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "8.2.1",
+       "text": "Show understanding of the features provided by a Database Management System (DBMS) that address the issues of a file based approach",
+       "sortOrder": 0
+      },
+      {
+       "code": "8.2.2",
+       "text": "Show understanding of how software tools found within a DBMS are used in practice",
+       "sortOrder": 1
+      }
+     ]
+    },
+    {
+     "code": "8.3",
+     "title": "Data Definition Language (DDL) and Data Manipulation Language (DML)",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "8.3.1",
+       "text": "Show understanding that the DBMS carries out all creation / modification of the database structure using its Data Definition Language (DDL)",
+       "sortOrder": 0
+      },
+      {
+       "code": "8.3.2",
+       "text": "Show understanding that the DBMS carries out all queries and maintenance of data using its DML",
+       "sortOrder": 1
+      },
+      {
+       "code": "8.3.3",
+       "text": "Show understanding that the industry standard for both DDL and DML is Structured Query Language (SQL)",
+       "sortOrder": 2
+      },
+      {
+       "code": "8.3.4",
+       "text": "Understand a given SQL statement",
+       "sortOrder": 3
+      },
+      {
+       "code": "8.3.5",
+       "text": "Understand given SQL (DDL) statements and be able to write simple SQL (DDL) statements using a sub-set of statements",
+       "sortOrder": 4
+      },
+      {
+       "code": "8.3.6",
+       "text": "Write an SQL script to query or modify data (DML) which are stored in (at most two) database tables",
+       "sortOrder": 5
+      }
+     ]
+    }
+   ],
+   "componentNumber": 1
+  },
+  {
+   "number": 9,
+   "title": "Algorithm Design and Problem-solving",
+   "sortOrder": 8,
+   "subtopics": [
+    {
+     "code": "9.1",
+     "title": "Computational Thinking Skills",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "9.1.1",
+       "text": "Show an understanding of abstraction",
+       "sortOrder": 0
+      },
+      {
+       "code": "9.1.2",
+       "text": "Describe the purpose of abstraction",
+       "sortOrder": 1
+      },
+      {
+       "code": "9.1.3",
+       "text": "Describe and use decomposition",
+       "sortOrder": 2
+      }
+     ]
+    },
+    {
+     "code": "9.2",
+     "title": "Algorithms",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "9.2.1",
+       "text": "Show understanding that an algorithm is a solution to a problem expressed as a sequence of defined steps",
+       "sortOrder": 0
+      },
+      {
+       "code": "9.2.2",
+       "text": "Use suitable identifier names for the representation of data used by a problem and represent these using an identifier table",
+       "sortOrder": 1
+      },
+      {
+       "code": "9.2.3",
+       "text": "Write pseudocode that contains input, process and output",
+       "sortOrder": 2
+      },
+      {
+       "code": "9.2.4",
+       "text": "Write pseudocode using the three basic constructs of sequence, selection and iteration (repetition)",
+       "sortOrder": 3
+      },
+      {
+       "code": "9.2.5",
+       "text": "Document a simple algorithm using a structured English description, a flowchart or pseudocode",
+       "sortOrder": 4
+      },
+      {
+       "code": "9.2.6",
+       "text": "Write pseudocode from:",
+       "sortOrder": 5
+      },
+      {
+       "code": "9.2.7",
+       "text": "Draw a flowchart from:",
+       "sortOrder": 6
+      },
+      {
+       "code": "9.2.8",
+       "text": "Describe and use the process of stepwise refinement to express an algorithm to a level of detail from which the task may be programmed",
+       "sortOrder": 7
+      },
+      {
+       "code": "9.2.9",
+       "text": "Use logic statements to define parts of an algorithm solution",
+       "sortOrder": 8
+      }
+     ]
+    }
+   ],
+   "componentNumber": 2
+  },
+  {
+   "number": 10,
+   "title": "Data Types and Structures",
+   "sortOrder": 9,
+   "subtopics": [
+    {
+     "code": "10.1",
+     "title": "Data Types and Records",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "10.1.1",
+       "text": "Select and use appropriate data types for a problem solution",
+       "sortOrder": 0
+      },
+      {
+       "code": "10.1.2",
+       "text": "Show understanding of the purpose of a record structure to hold a set of data of different data types under one identifier",
+       "sortOrder": 1
+      },
+      {
+       "code": "10.1.3",
+       "text": "Write pseudocode to define a record structure",
+       "sortOrder": 2
+      },
+      {
+       "code": "10.1.4",
+       "text": "Write pseudocode to read data from a record structure and save data to a record structure",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "10.2",
+     "title": "Arrays",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "10.2.1",
+       "text": "Use the technical terms associated with arrays",
+       "sortOrder": 0
+      },
+      {
+       "code": "10.2.2",
+       "text": "Select a suitable data structure (1D or 2D array) to use for a given task",
+       "sortOrder": 1
+      },
+      {
+       "code": "10.2.3",
+       "text": "Write pseudocode for 1D and 2D arrays",
+       "sortOrder": 2
+      },
+      {
+       "code": "10.2.4",
+       "text": "Write pseudocode to process array data",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "10.3",
+     "title": "Files",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "10.3.1",
+       "text": "Show understanding of why files are needed",
+       "sortOrder": 0
+      },
+      {
+       "code": "10.3.2",
+       "text": "Write pseudocode to handle text files that consist of one or more lines",
+       "sortOrder": 1
+      }
+     ]
+    },
+    {
+     "code": "10.4",
+     "title": "Introduction to Abstract Data Types (ADT)",
+     "sortOrder": 3,
+     "learningObjectives": [
+      {
+       "code": "10.4.1",
+       "text": "Show understanding that an ADT is a collection of data and a set of operations on those data",
+       "sortOrder": 0
+      },
+      {
+       "code": "10.4.2",
+       "text": "Show understanding that a stack, queue and linked list are examples of ADTs",
+       "sortOrder": 1
+      },
+      {
+       "code": "10.4.3",
+       "text": "Describe the key features of a stack, queue and linked list and justify their use for a given situation",
+       "sortOrder": 2
+      },
+      {
+       "code": "10.4.4",
+       "text": "Use a stack, queue and linked list to store data",
+       "sortOrder": 3
+      },
+      {
+       "code": "10.4.5",
+       "text": "Describe how a queue, stack and linked list can be implemented using arrays",
+       "sortOrder": 4
+      }
+     ]
+    }
+   ],
+   "componentNumber": 2
+  },
+  {
+   "number": 11,
+   "title": "Programming",
+   "sortOrder": 10,
+   "subtopics": [
+    {
+     "code": "11.1",
+     "title": "Programming Basics",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "11.1.1",
+       "text": "Implement and write pseudocode from a given design presented as either a program flowchart or structured English",
+       "sortOrder": 0
+      }
+     ]
+    },
+    {
+     "code": "11.2",
+     "title": "Constructs",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "11.2.1",
+       "text": "Use pseudocode to write:\n\u2022 an 'IF' statement including the 'ELSE' clause and nested IF statements\n\u2022 a 'CASE' structure\n\u2022 a 'count-controlled' loop\n\u2022 a 'post-condition' loop\n\u2022 a 'pre-condition' loop",
+       "sortOrder": 0
+      }
+     ]
+    },
+    {
+     "code": "11.3",
+     "title": "Structured Programming",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "11.3.1",
+       "text": "Define and use a procedure",
+       "sortOrder": 0
+      },
+      {
+       "code": "11.3.2",
+       "text": "Define and use a function",
+       "sortOrder": 1
+      },
+      {
+       "code": "11.3.3",
+       "text": "Use the terminology associated with procedures and functions",
+       "sortOrder": 2
+      },
+      {
+       "code": "11.3.4",
+       "text": "Write efficient pseudocode",
+       "sortOrder": 3
+      }
+     ]
+    }
+   ],
+   "componentNumber": 2
+  },
+  {
+   "number": 12,
+   "title": "Software Development",
+   "sortOrder": 11,
+   "subtopics": [
+    {
+     "code": "12.1",
+     "title": "Program Development Life Cycle",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "12.1.1",
+       "text": "Show understanding of the purpose of a development life cycle",
+       "sortOrder": 0
+      },
+      {
+       "code": "12.1.2",
+       "text": "Show understanding of the need for different development life cycles depending on the program being developed",
+       "sortOrder": 1
+      },
+      {
+       "code": "12.1.3",
+       "text": "Describe the principles, benefits and drawbacks of each type of life cycle",
+       "sortOrder": 2
+      },
+      {
+       "code": "12.1.4",
+       "text": "Show understanding of the analysis, design, coding, testing and maintenance stages in the program development life cycle",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "12.2",
+     "title": "Program Design",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "12.2.1",
+       "text": "Use a structure chart to decompose a problem into sub-tasks and express the parameters passed between the various modules / procedures / functions which are part of the algorithm design",
+       "sortOrder": 0
+      },
+      {
+       "code": "12.2.2",
+       "text": "Show understanding of the purpose of state-transition diagrams to document an algorithm",
+       "sortOrder": 1
+      }
+     ]
+    },
+    {
+     "code": "12.3",
+     "title": "Program Testing and Maintenance",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "12.3.1",
+       "text": "Show understanding of ways of exposing and avoiding faults in programs",
+       "sortOrder": 0
+      },
+      {
+       "code": "12.3.2",
+       "text": "Show understanding of the methods of testing available and select appropriate data for a given method",
+       "sortOrder": 1
+      },
+      {
+       "code": "12.3.3",
+       "text": "Show understanding of the need for a test strategy and test plan and their likely contents",
+       "sortOrder": 2
+      },
+      {
+       "code": "12.3.4",
+       "text": "Choose appropriate test data for a test plan",
+       "sortOrder": 3
+      },
+      {
+       "code": "12.3.5",
+       "text": "Show understanding of the need for continuing maintenance of a system and the differences between each type of maintenance",
+       "sortOrder": 4
+      },
+      {
+       "code": "12.3.6",
+       "text": "Analyse an existing program and make amendments to enhance functionality",
+       "sortOrder": 5
+      }
+     ]
+    }
+   ],
+   "componentNumber": 2
+  },
+  {
+   "number": 13,
+   "title": "Data Representation",
+   "sortOrder": 12,
+   "subtopics": [
+    {
+     "code": "13.1",
+     "title": "User-defined data types",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "13.1.1",
+       "text": "Show understanding of why user-defined types are necessary",
+       "sortOrder": 0
+      },
+      {
+       "code": "13.1.2",
+       "text": "Define and use non-composite types",
+       "sortOrder": 1
+      },
+      {
+       "code": "13.1.3",
+       "text": "Define and use composite data types",
+       "sortOrder": 2
+      },
+      {
+       "code": "13.1.4",
+       "text": "Choose and design an appropriate user-defined data type for a given problem",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "13.2",
+     "title": "File organisation and access",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "13.2.1",
+       "text": "Show understanding of the methods of file organisation and select an appropriate method of file organisation and file access for a given problem",
+       "sortOrder": 0
+      },
+      {
+       "code": "13.2.2",
+       "text": "Show understanding of methods of file access",
+       "sortOrder": 1
+      },
+      {
+       "code": "13.2.3",
+       "text": "Show understanding of hashing algorithms",
+       "sortOrder": 2
+      }
+     ]
+    },
+    {
+     "code": "13.3",
+     "title": "Floating-point numbers, representation and manipulation",
+     "sortOrder": 2,
+     "learningObjectives": [
+      {
+       "code": "13.3.1",
+       "text": "Describe the format of binary floating-point real numbers",
+       "sortOrder": 0
+      },
+      {
+       "code": "13.3.2",
+       "text": "Convert binary floating-point real numbers into denary and vice versa",
+       "sortOrder": 1
+      },
+      {
+       "code": "13.3.3",
+       "text": "Normalise floating-point numbers",
+       "sortOrder": 2
+      },
+      {
+       "code": "13.3.4",
+       "text": "Show understanding of the consequences of a binary representation only being an approximation to the real number it represents (in certain cases)",
+       "sortOrder": 3
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 14,
+   "title": "Communication and internet technologies",
+   "sortOrder": 13,
+   "subtopics": [
+    {
+     "code": "14.1",
+     "title": "Protocols",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "14.1.1",
+       "text": "Show understanding of why a protocol is essential for communication between computers",
+       "sortOrder": 0
+      },
+      {
+       "code": "14.1.2",
+       "text": "Show understanding of how protocol implementation can be viewed as a stack, where each layer has its own functionality",
+       "sortOrder": 1
+      },
+      {
+       "code": "14.1.3",
+       "text": "Show understanding of the TCP / IP protocol suite",
+       "sortOrder": 2
+      },
+      {
+       "code": "14.1.4",
+       "text": "Show understanding of protocols (HTTP, FTP, POP3, IMAP, SMTP, BitTorrent) and their purposes",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "14.2",
+     "title": "Circuit switching, packet switching",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "14.2.1",
+       "text": "Show understanding of circuit switching",
+       "sortOrder": 0
+      },
+      {
+       "code": "14.2.2",
+       "text": "Show understanding of packet switching",
+       "sortOrder": 1
+      },
+      {
+       "code": "14.2.3",
+       "text": "Show understanding of the function of a router in packet switching",
+       "sortOrder": 2
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 15,
+   "title": "Hardware and Virtual Machines",
+   "sortOrder": 14,
+   "subtopics": [
+    {
+     "code": "15.1",
+     "title": "Processors, Parallel Processing and Virtual Machines",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "15.1.1",
+       "text": "Show understanding of Reduced Instruction Set Computers (RISC) and Complex Instruction Set Computers (CISC) processors",
+       "sortOrder": 0
+      },
+      {
+       "code": "15.1.2",
+       "text": "Show understanding of the importance / use of pipelining and registers in RISC processors",
+       "sortOrder": 1
+      },
+      {
+       "code": "15.1.3",
+       "text": "Show understanding of the four basic computer architectures",
+       "sortOrder": 2
+      },
+      {
+       "code": "15.1.4",
+       "text": "Show understanding of the characteristics of massively parallel computers",
+       "sortOrder": 3
+      },
+      {
+       "code": "15.1.5",
+       "text": "Show understanding of the concept of a virtual machine",
+       "sortOrder": 4
+      },
+      {
+       "code": "15.1.6",
+       "text": "Give examples of the role of virtual machines",
+       "sortOrder": 5
+      }
+     ]
+    },
+    {
+     "code": "15.2",
+     "title": "Boolean Algebra and Logic Circuits",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "15.2.1",
+       "text": "Produce truth tables for logic circuits including half adders and full adders",
+       "sortOrder": 0
+      },
+      {
+       "code": "15.2.2",
+       "text": "Show understanding of a flip-flop (SR, JK)",
+       "sortOrder": 1
+      },
+      {
+       "code": "15.2.3",
+       "text": "Draw a logic circuit and derive a truth table for a flip-flop",
+       "sortOrder": 2
+      },
+      {
+       "code": "15.2.4",
+       "text": "Show understanding of Boolean algebra",
+       "sortOrder": 3
+      },
+      {
+       "code": "15.2.5",
+       "text": "Perform Boolean algebra using De Morgan's laws",
+       "sortOrder": 4
+      },
+      {
+       "code": "15.2.6",
+       "text": "Simplify a logic circuit/expression using Boolean algebra",
+       "sortOrder": 5
+      },
+      {
+       "code": "15.2.7",
+       "text": "Show understanding of Karnaugh maps (K-map)",
+       "sortOrder": 6
+      },
+      {
+       "code": "15.2.8",
+       "text": "Solve logic problems using Karnaugh maps",
+       "sortOrder": 7
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 16,
+   "title": "System Software",
+   "sortOrder": 15,
+   "subtopics": [
+    {
+     "code": "16.1",
+     "title": "Purposes of an Operating System (OS)",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "16.1.1",
+       "text": "Show understanding of how an OS can maximise the use of resources",
+       "sortOrder": 0
+      },
+      {
+       "code": "16.1.2",
+       "text": "Describe the ways in which the user interface hides the complexities of the hardware from the user",
+       "sortOrder": 1
+      },
+      {
+       "code": "16.1.3",
+       "text": "Show understanding of process management",
+       "sortOrder": 2
+      },
+      {
+       "code": "16.1.4",
+       "text": "Show understanding of virtual memory, paging and segmentation for memory management",
+       "sortOrder": 3
+      }
+     ]
+    },
+    {
+     "code": "16.2",
+     "title": "Translation Software",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "16.2.1",
+       "text": "Show understanding of how an interpreter can execute programs without producing a translated version",
+       "sortOrder": 0
+      },
+      {
+       "code": "16.2.2",
+       "text": "Show understanding of the various stages in the compilation of a program",
+       "sortOrder": 1
+      },
+      {
+       "code": "16.2.3",
+       "text": "Show understanding of how the grammar of a language can be expressed using syntax diagrams or Backus-Naur Form (BNF) notation",
+       "sortOrder": 2
+      },
+      {
+       "code": "16.2.4",
+       "text": "Show understanding of how Reverse Polish Notation (RPN) can be used to carry out the evaluation of expressions",
+       "sortOrder": 3
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 17,
+   "title": "Security",
+   "sortOrder": 16,
+   "subtopics": [
+    {
+     "code": "17.1",
+     "title": "Encryption, Encryption Protocols and Digital Certificates",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "17.1.1",
+       "text": "Show understanding of how encryption works",
+       "sortOrder": 0
+      },
+      {
+       "code": "17.1.2",
+       "text": "Show awareness of the Secure Socket Layer (SSL)/ Transport Layer Security (TLS)",
+       "sortOrder": 1
+      },
+      {
+       "code": "17.1.3",
+       "text": "Show understanding of digital certification",
+       "sortOrder": 2
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 18,
+   "title": "Artificial Intelligence (AI)",
+   "sortOrder": 17,
+   "subtopics": [
+    {
+     "code": "18.1",
+     "title": "Artificial Intelligence (AI)",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "18.1.1",
+       "text": "Show understanding of how graphs can be used to aid Artificial Intelligence (AI)",
+       "sortOrder": 0
+      },
+      {
+       "code": "18.1.2",
+       "text": "Show understanding of how artificial neural networks have helped with machine learning",
+       "sortOrder": 1
+      },
+      {
+       "code": "18.1.3",
+       "text": "Show understanding of Deep Learning, Machine Learning and Reinforcement Learning and the reasons for using these methods.",
+       "sortOrder": 2
+      },
+      {
+       "code": "18.1.4",
+       "text": "Understand machine learning categories, including supervised learning, unsupervised learning",
+       "sortOrder": 3
+      },
+      {
+       "code": "18.1.5",
+       "text": "Show understanding of back propagation of errors and regression methods in machine learning",
+       "sortOrder": 4
+      }
+     ]
+    }
+   ],
+   "componentNumber": 3
+  },
+  {
+   "number": 19,
+   "title": "Computational thinking and Problem-solving",
+   "sortOrder": 18,
+   "subtopics": [
+    {
+     "code": "19.1",
+     "title": "Algorithms",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "19.1.1",
+       "text": "Show understanding of linear and binary searching methods",
+       "sortOrder": 0
+      },
+      {
+       "code": "19.1.2",
+       "text": "Show understanding of insertion sort and bubble sort methods",
+       "sortOrder": 1
+      },
+      {
+       "code": "19.1.3",
+       "text": "Show understanding of and use Abstract Data Types (ADT)",
+       "sortOrder": 2
+      },
+      {
+       "code": "19.1.4",
+       "text": "Show how it is possible for ADTs to be implemented from another ADT",
+       "sortOrder": 3
+      },
+      {
+       "code": "19.1.5",
+       "text": "Show understanding that different algorithms which perform the same task can be compared by using criteria (e.g. time taken to complete the task and memory used)",
+       "sortOrder": 4
+      }
+     ]
+    },
+    {
+     "code": "19.2",
+     "title": "Recursion",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "19.2.1",
+       "text": "Show understanding of recursion",
+       "sortOrder": 0
+      },
+      {
+       "code": "19.2.2",
+       "text": "Show awareness of what a compiler has to do to translate recursive programming code",
+       "sortOrder": 1
+      }
+     ]
+    }
+   ],
+   "componentNumber": 4
+  },
+  {
+   "number": 20,
+   "title": "Further Programming",
+   "sortOrder": 19,
+   "subtopics": [
+    {
+     "code": "20.1",
+     "title": "Programming Paradigms",
+     "sortOrder": 0,
+     "learningObjectives": [
+      {
+       "code": "20.1.1",
+       "text": "Show understanding of the characteristics of a number of programming paradigms",
+       "sortOrder": 0
+      }
+     ]
+    },
+    {
+     "code": "20.2",
+     "title": "File Processing and Exception Handling",
+     "sortOrder": 1,
+     "learningObjectives": [
+      {
+       "code": "20.2.1",
+       "text": "Write code to perform file-processing operations",
+       "sortOrder": 0
+      },
+      {
+       "code": "20.2.2",
+       "text": "Show understanding of an exception and the importance of exception handling",
+       "sortOrder": 1
+      },
+      {
+       "code": "20.2.3",
+       "text": "Know when it is appropriate to use exception handling",
+       "sortOrder": 2
+      },
+      {
+       "code": "20.2.4",
+       "text": "Write program code to use exception handling",
+       "sortOrder": 3
+      }
+     ]
+    }
+   ],
+   "componentNumber": 4
+  }
+ ]
+}
