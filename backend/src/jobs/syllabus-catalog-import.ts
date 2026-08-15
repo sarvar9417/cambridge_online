@@ -18,7 +18,7 @@ const topicSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().trim().min(1),
   sortOrder: z.number().int().min(0),
-  componentNumber: z.number().int().min(1).max(4),
+  componentNumbers: z.array(z.number().int().min(1).max(4)).min(1),
   subtopics: z.array(subtopicSchema).min(1),
 }).strict();
 
@@ -46,13 +46,27 @@ export const syllabusCatalogSchema = z.object({
   }
   unique(value.components.map((item) => String(item.number)), ctx, ['components'], 'component number');
   unique(value.topics.map((item) => String(item.number)), ctx, ['topics'], 'topic number');
-  const componentNumbers = new Set(value.components.map((item) => item.number));
+  const components = new Map(value.components.map((item) => [item.number, item] as const));
   for (const [topicIndex, topic] of value.topics.entries()) {
-    if (!componentNumbers.has(topic.componentNumber)) {
+    unique(topic.componentNumbers.map(String), ctx, ['topics', topicIndex, 'componentNumbers'], 'component number');
+    const levels = new Set<'AS' | 'A2'>();
+    for (const [componentIndex, componentNumber] of topic.componentNumbers.entries()) {
+      const component = components.get(componentNumber);
+      if (!component) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Unknown component number: ${componentNumber}`,
+          path: ['topics', topicIndex, 'componentNumbers', componentIndex],
+        });
+      } else {
+        levels.add(component.level);
+      }
+    }
+    if (levels.size > 1) {
       ctx.addIssue({
         code: 'custom',
-        message: `Unknown component number: ${topic.componentNumber}`,
-        path: ['topics', topicIndex, 'componentNumber'],
+        message: 'A topic cannot span AS and A2 components.',
+        path: ['topics', topicIndex, 'componentNumbers'],
       });
     }
     unique(topic.subtopics.map((item) => item.code), ctx, ['topics', topicIndex, 'subtopics'], 'subtopic code');
@@ -73,6 +87,7 @@ export interface SyllabusCatalogImportResult {
   syllabusId: string;
   components: number;
   topics: number;
+  componentTopicLinks: number;
   subtopics: number;
   learningObjectives: number;
 }
@@ -147,13 +162,16 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
       componentLevels.set(component.number, component.level);
     }
 
+    let componentTopicLinks = 0;
     let subtopics = 0;
     let learningObjectives = 0;
     for (const topic of [...catalog.topics].sort((a, b) => a.sortOrder - b.sortOrder || a.number - b.number)) {
-      const componentId = componentIds.get(topic.componentNumber);
-      const level = componentLevels.get(topic.componentNumber);
+      const coverage = [...topic.componentNumbers].sort((a, b) => a - b);
+      const primaryComponentNumber = coverage[0]!;
+      const componentId = componentIds.get(primaryComponentNumber);
+      const level = componentLevels.get(primaryComponentNumber);
       if (!componentId || !level) {
-        throw new Error(`syllabus_catalog_component_reference_missing:${topic.number}:${topic.componentNumber}`);
+        throw new Error(`syllabus_catalog_component_reference_missing:${topic.number}:${primaryComponentNumber}`);
       }
       const insertedTopic = await client.query(
         `insert into topics(syllabus_id,component_id,number,title,level,sort_order)
@@ -162,6 +180,18 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
         [syllabusId, componentId, topic.number, topic.title, level, topic.sortOrder],
       );
       const topicId = String(insertedTopic.rows[0].id);
+      for (const componentNumber of coverage) {
+        const coveredComponentId = componentIds.get(componentNumber);
+        if (!coveredComponentId) {
+          throw new Error(`syllabus_catalog_component_reference_missing:${topic.number}:${componentNumber}`);
+        }
+        await client.query(
+          `insert into component_topics(component_id,topic_id,is_primary)
+           values($1,$2,$3)`,
+          [coveredComponentId, topicId, componentNumber === primaryComponentNumber],
+        );
+        componentTopicLinks += 1;
+      }
       for (const sub of [...topic.subtopics].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))) {
         const insertedSub = await client.query(
           `insert into subtopics(topic_id,code,title,sort_order)
@@ -187,6 +217,7 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
       syllabusId,
       components: catalog.components.length,
       topics: catalog.topics.length,
+      componentTopicLinks,
       subtopics,
       learningObjectives,
     };
