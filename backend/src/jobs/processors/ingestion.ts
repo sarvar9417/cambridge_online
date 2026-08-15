@@ -1,11 +1,12 @@
 import{execFile}from'node:child_process';
-import{mkdir,readFile,readdir,stat}from'node:fs/promises';
+import{mkdir,readFile,readdir}from'node:fs/promises';
 import{join,resolve}from'node:path';
 import{promisify}from'node:util';
 import type{Pool}from'pg';
 import{config}from'../../config.js';
 import{findDependencyMentions}from'../../lib/validation/dependencies.js';
 import{validateExtraction,type Finding,type ValidationInput}from'../../lib/validation/rules.js';
+import{materializeSourcePdf}from'../source-paper-file.js';
 import type{ChainedJobResult,Job,JobProcessor}from'../job-queue.js';
 
 const run=promisify(execFile);
@@ -46,16 +47,17 @@ async function previousArtifact(pool:Pool,id:string){const result=await pool.que
 async function preparePaper(pool:Pool,paperId:string):Promise<Artifact>{
   const pdftoppm=config.PDFTOPPM_PATH,pdftotext=config.PDFTOTEXT_PATH;
   if(!pdftoppm||!pdftotext)throw new Error('ingestion_prepare_unavailable:poppler');
-  const paper=await pool.query(`select storage_path from source_papers where id=$1`,[paperId]);if(!paper.rowCount)throw new Error('ingestion_paper_not_found');
-  const source=resolve(String(paper.rows[0].storage_path));await stat(source);
-  const outputDir=resolve(config.EXPORT_DIR,'..','ingestion',paperId,'prepared');await mkdir(outputDir,{recursive:true});
+  const paper=await pool.query(`select storage_path,source_url,sha256 from source_papers where id=$1`,[paperId]);if(!paper.rowCount)throw new Error('ingestion_paper_not_found');
+  const baseDir=resolve(config.EXPORT_DIR,'..','ingestion',paperId);
+  const materialized=await materializeSourcePdf({storagePath:paper.rows[0].storage_path,sourceUrl:paper.rows[0].source_url,sha256:String(paper.rows[0].sha256)},join(baseDir,'source'));
+  const source=materialized.sourcePath,outputDir=join(baseDir,'prepared');await mkdir(outputDir,{recursive:true});
   const imagePrefix=join(outputDir,'page'),textPath=join(outputDir,'pages.txt');
   await run(pdftoppm,['-png','-r','200',source,imagePrefix],{maxBuffer:10*1024*1024});
   await run(pdftotext,['-layout',source,textPath],{maxBuffer:10*1024*1024});
   const pageImages=(await readdir(outputDir)).filter(name=>/^page-\d+\.png$/.test(name)).sort((a,b)=>pageNumber(a)-pageNumber(b)).map(name=>join(outputDir,name));
   if(!pageImages.length)throw new Error('ingestion_prepare_no_pages');
   await pool.query(`update source_papers set page_count=$2 where id=$1`,[paperId,pageImages.length]);
-  return{paperId,sourcePath:source,outputDir,textPath,pageImages,pageCount:pageImages.length};
+  return{paperId,sourcePath:source,sourceMode:materialized.mode,outputDir,textPath,pageImages,pageCount:pageImages.length};
 }
 
 async function prepareInput(pool:Pool,input:Artifact):Promise<Artifact>{
