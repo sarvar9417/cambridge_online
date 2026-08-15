@@ -51,9 +51,22 @@ describe('Claude ingestion client',()=>{
     await expect(promise).rejects.toThrow(/8192 output token limit for extract_qp/);
   });
 
+  it('marks a request the server will keep rejecting as fatal, and a rate limit as retryable',async()=>{
+    const respond=(status:number)=>vi.fn(async()=>new Response('{"error":{"message":"credit balance is too low"}}',{status}));
+    const call=(status:number)=>new ClaudeIngestionClient({apiKey:'test',fetchImpl:respond(status) as unknown as typeof fetch})
+      .complete({purpose:'classify',prompt:{version:'v1',body:'p'},content:[{type:'text',text:'x'}]});
+    // An exhausted balance returns the same 400 every time; two more attempts
+    // only delay the message and triple it across a corpus run.
+    await expect(call(400)).rejects.toMatchObject({fatal:true});
+    await expect(call(401)).rejects.toMatchObject({fatal:true});
+    await expect(call(429)).rejects.toMatchObject({fatal:false});
+    await expect(call(529)).rejects.toMatchObject({fatal:false});
+  });
+
   it('surfaces non-2xx API responses as explicit extraction errors',async()=>{
     const fetchImpl=vi.fn(async()=>new Response('{"error":"bad"}',{status:429}));
     const promise=new ClaudeIngestionClient({apiKey:'test',fetchImpl:fetchImpl as typeof fetch}).complete({purpose:'extract_qp',prompt:{version:'v1',body:'p'},content:[{type:'text',text:'x'}]});
-    await expect(promise).rejects.toMatchObject({message:'Anthropic API 429',rawText:'{"error":"bad"}'});
+    // The body says which field was rejected; the status alone does not.
+    await expect(promise).rejects.toMatchObject({message:'Anthropic API 429 for extract_qp: {"error":"bad"}',rawText:'{"error":"bad"}'});
   });
 });

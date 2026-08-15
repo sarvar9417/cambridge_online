@@ -1,4 +1,4 @@
-import type{Pool,PoolClient}from'pg';
+import type{Pool,PoolClient}from'pg';import{isFatalAiError}from'../lib/ai/claude.js';
 export interface Job{id:string;kind:string;payload:unknown;attempts:number;maxAttempts:number;refTable?:string;refId?:string}
 export interface NextJob{kind:string;payload?:unknown;idempotencyKey:string;priority?:number;refTable?:string;refId?:string}
 export interface ChainedJobResult{result:unknown;next:NextJob}
@@ -35,6 +35,6 @@ async enqueue(input:EnqueueJobInput){return enqueueJob(this.pool,input)}
 async claim(workerId:string,kinds?:string[]):Promise<Job|null>{const c=await this.pool.connect();try{await c.query('begin');const r=await c.query(JOB_QUEUE_SQL.claimSelect,[kinds?.length?kinds:null]);if(!r.rowCount){await c.query('commit');return null}const row=r.rows[0];await c.query(JOB_QUEUE_SQL.claimMark,[row.id,workerId]);if(row.ref_table==='ingestion_runs')await c.query(JOB_QUEUE_SQL.claimRun,[row.ref_id]);await c.query('commit');return{id:row.id,kind:row.kind,payload:row.payload,attempts:row.attempts+1,maxAttempts:row.max_attempts,refTable:row.ref_table??undefined,refId:row.ref_id??undefined}}catch(e){await c.query('rollback');throw e}finally{c.release()}}
 async succeed(id:string,result:unknown){await this.pool.query(JOB_QUEUE_SQL.succeed,[id,result])}
 async succeedAndEnqueue(id:string,completion:ChainedJobResult){const c=await this.pool.connect();try{await c.query('begin');await c.query(JOB_QUEUE_SQL.succeedChained,[id,completion.result]);const n=completion.next;await c.query(JOB_QUEUE_SQL.enqueueChained,[n.kind,n.payload??{},n.idempotencyKey,n.priority??100,n.refTable??null,n.refId??null]);await c.query('commit')}catch(error){await c.query('rollback');throw error}finally{c.release()}}
-async fail(job:Job,error:unknown){const terminal=job.attempts>=job.maxAttempts;await this.pool.query(JOB_QUEUE_SQL.fail,[job.id,terminal?'failed':'queued',error instanceof Error?error.message:String(error),job.attempts])}
+async fail(job:Job,error:unknown){const terminal=job.attempts>=job.maxAttempts||isFatalAiError(error);await this.pool.query(JOB_QUEUE_SQL.fail,[job.id,terminal?'failed':'queued',error instanceof Error?error.message:String(error),job.attempts])}
 async recoverStale(minutes=10){const r=await this.pool.query(JOB_QUEUE_SQL.recoverStale,[minutes]);return r.rowCount??0}}
 export type JobProcessor=(job:Job,client?:PoolClient)=>Promise<unknown>;

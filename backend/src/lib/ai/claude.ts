@@ -21,7 +21,17 @@ export async function loadPrompt(name:string,version=1):Promise<PromptFile>{
   const body=await readFile(resolve(PROMPTS_DIR,`${key}.md`),'utf8');const prompt={version:key,body};promptCache.set(key,prompt);return prompt;
 }
 
-export class AiOutputError extends Error{constructor(message:string,readonly rawText:string){super(message)}}
+/**
+ * `fatal` means retrying cannot help. An exhausted credit balance, a bad key or
+ * a malformed request returns the same 400 on every attempt, so burning the
+ * remaining tries only delays the real message and, across a 115-paper run,
+ * multiplies it by three. Rate limits and 5xx are the opposite and stay
+ * retryable.
+ */
+export class AiOutputError extends Error{
+  constructor(message:string,readonly rawText:string,readonly fatal=false){super(message)}
+}
+export const isFatalAiError=(error:unknown)=>error instanceof AiOutputError&&error.fatal;
 export function parseJsonResponse<T>(text:string):T{
   const fenced=text.match(/```(?:json)?\s*([\s\S]*?)```/),candidate=(fenced?.[1]??text).trim();
   try{return JSON.parse(candidate)as T}catch(error){throw new AiOutputError(`Model did not return JSON: ${(error as Error).message}`,text)}
@@ -56,7 +66,14 @@ export class ClaudeIngestionClient{
       method:'POST',headers:{'content-type':'application/json','x-api-key':this.options.apiKey,'anthropic-version':'2023-06-01'},
       body:JSON.stringify({model:this.model,max_tokens:input.maxTokens??4096,system:input.prompt.body,messages:[{role:'user',content:input.content}]})
     });
-    if(!response.ok)throw new AiOutputError(`Anthropic API ${response.status}`,await response.text());
+    // The body is the whole diagnosis for a 4xx -- which field was rejected and
+    // why. It used to live only in rawText, which nothing prints and nothing
+    // stores, so a 400 reached the log as the bare status three times over.
+    if(!response.ok){const body=await response.text();
+      // 429 and 5xx are transient. Everything else in the 4xx range is a
+      // request the server will keep rejecting: credit, key, model, shape.
+      const fatal=response.status>=400&&response.status<500&&response.status!==429;
+      throw new AiOutputError(`Anthropic API ${response.status} for ${input.purpose}: ${body.slice(0,600)}`,body,fatal)}
     const body=await response.json()as AnthropicResponse,text=body.content.map(block=>block.text??'').join('');
     const inputTokens=body.usage?.input_tokens??0,outputTokens=body.usage?.output_tokens??0,model=body.model??this.model;
     const cacheReadTokens=body.usage?.cache_read_input_tokens??0,cacheWriteTokens=body.usage?.cache_creation_input_tokens??0;
