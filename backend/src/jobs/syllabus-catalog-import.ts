@@ -1,10 +1,12 @@
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
+const componentNumberSchema = z.number().int().min(1).max(4);
 const loSchema = z.object({
   code: z.string().trim().min(1),
   text: z.string().trim().min(1),
   sortOrder: z.number().int().min(0),
+  componentNumbers: z.array(componentNumberSchema).min(1).optional(),
 }).strict();
 
 const subtopicSchema = z.object({
@@ -18,12 +20,12 @@ const topicSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().trim().min(1),
   sortOrder: z.number().int().min(0),
-  componentNumbers: z.array(z.number().int().min(1).max(4)).min(1),
+  componentNumbers: z.array(componentNumberSchema).min(1),
   subtopics: z.array(subtopicSchema).min(1),
 }).strict();
 
 const componentSchema = z.object({
-  number: z.number().int().min(1).max(4),
+  number: componentNumberSchema,
   name: z.string().trim().min(1),
   level: z.enum(['AS', 'A2']),
   durationMinutes: z.number().int().positive(),
@@ -49,6 +51,7 @@ export const syllabusCatalogSchema = z.object({
   const components = new Map(value.components.map((item) => [item.number, item] as const));
   for (const [topicIndex, topic] of value.topics.entries()) {
     unique(topic.componentNumbers.map(String), ctx, ['topics', topicIndex, 'componentNumbers'], 'component number');
+    const topicComponentSet = new Set(topic.componentNumbers);
     const levels = new Set<'AS' | 'A2'>();
     for (const [componentIndex, componentNumber] of topic.componentNumbers.entries()) {
       const component = components.get(componentNumber);
@@ -77,6 +80,24 @@ export const syllabusCatalogSchema = z.object({
         ['topics', topicIndex, 'subtopics', subIndex, 'learningObjectives'],
         'learning objective code',
       );
+      for (const [loIndex, lo] of sub.learningObjectives.entries()) {
+        const coverage = lo.componentNumbers ?? topic.componentNumbers;
+        unique(
+          coverage.map(String),
+          ctx,
+          ['topics', topicIndex, 'subtopics', subIndex, 'learningObjectives', loIndex, 'componentNumbers'],
+          'component number',
+        );
+        for (const [componentIndex, componentNumber] of coverage.entries()) {
+          if (!topicComponentSet.has(componentNumber)) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `Learning objective component ${componentNumber} is outside topic coverage.`,
+              path: ['topics', topicIndex, 'subtopics', subIndex, 'learningObjectives', loIndex, 'componentNumbers', componentIndex],
+            });
+          }
+        }
+      }
     }
   }
 });
@@ -90,6 +111,7 @@ export interface SyllabusCatalogImportResult {
   componentTopicLinks: number;
   subtopics: number;
   learningObjectives: number;
+  componentLearningObjectiveLinks: number;
 }
 
 export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<SyllabusCatalogImportResult> {
@@ -165,6 +187,7 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
     let componentTopicLinks = 0;
     let subtopics = 0;
     let learningObjectives = 0;
+    let componentLearningObjectiveLinks = 0;
     for (const topic of [...catalog.topics].sort((a, b) => a.sortOrder - b.sortOrder || a.number - b.number)) {
       const coverage = [...topic.componentNumbers].sort((a, b) => a - b);
       const primaryComponentNumber = coverage[0]!;
@@ -202,12 +225,27 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
         const subtopicId = String(insertedSub.rows[0].id);
         subtopics += 1;
         for (const lo of [...sub.learningObjectives].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))) {
-          await client.query(
+          const insertedLo = await client.query(
             `insert into learning_objectives(subtopic_id,code,text,sort_order)
-             values($1,$2,$3,$4)`,
+             values($1,$2,$3,$4)
+             returning id`,
             [subtopicId, lo.code, lo.text, lo.sortOrder],
           );
+          const learningObjectiveId = String(insertedLo.rows[0].id);
           learningObjectives += 1;
+          const loCoverage = [...(lo.componentNumbers ?? coverage)].sort((a, b) => a - b);
+          for (const componentNumber of loCoverage) {
+            const coveredComponentId = componentIds.get(componentNumber);
+            if (!coveredComponentId) {
+              throw new Error(`syllabus_catalog_component_reference_missing:${lo.code}:${componentNumber}`);
+            }
+            await client.query(
+              `insert into component_learning_objectives(component_id,learning_objective_id)
+               values($1,$2)`,
+              [coveredComponentId, learningObjectiveId],
+            );
+            componentLearningObjectiveLinks += 1;
+          }
         }
       }
     }
@@ -220,6 +258,7 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
       componentTopicLinks,
       subtopics,
       learningObjectives,
+      componentLearningObjectiveLinks,
     };
   } catch (error) {
     await client.query('rollback');
