@@ -1,7 +1,7 @@
 import{z}from'zod';import type{Pool}from'pg';import{loadPrompt,recordAiCall,recordAiFailure,type AiUsage,type ClaudeUserBlock}from'../../lib/ai/claude.js';import type{IngestionStageHandler}from'./ingestion.js';import type{Classification,DetectedDependency,ExtractedQuestion,ExtractedScheme}from'./ingestion-contract.js';
 
 type Artifact=Record<string,unknown>;type AiClient={model:string;complete<T>(input:{purpose:string;prompt:{version:string;body:string};content:ClaudeUserBlock[];maxTokens?:number}):Promise<{data:T;usage:AiUsage;raw:unknown}>};
-const crossCheckSchema=z.object({agrees:z.boolean(),confidence:z.number().min(0).max(1),disagreements:z.array(z.object({field:z.string(),severity:z.enum(['error','warning']),message:z.string()}).strict())}).strict();
+export const crossCheckSchema=z.object({agrees:z.boolean(),confidence:z.number().min(0).max(1),disagreements:z.array(z.object({field:z.string(),severity:z.enum(['error','warning']),message:z.string()}).strict())}).strict();
 export type CrossCheckVerdict={path:string;agrees:boolean;confidence:number;disagreements:Array<{field:string;severity:'error'|'warning';message:string}>;promptVersion:string};
 
 export function createAiCrossCheckHandler(pool:Pool,client:AiClient):IngestionStageHandler{return(_refId,input)=>crossCheckStage(pool,client,input)}
