@@ -24,7 +24,7 @@ import {
  * the extraction example to populate one.
  */
 const PROMPTS: Array<{ file: string; schema: ZodType }> = [
-  { file: 'extract-question.v3.md', schema: extractQpSchema },
+  { file: 'extract-question.v4.md', schema: extractQpSchema },
   { file: 'extract-markscheme.v1.md', schema: extractMsSchema },
   { file: 'classify-question.v2.md', schema: classificationSchema },
   { file: 'detect-dependencies.v1.md', schema: dependencyOutputSchema },
@@ -88,7 +88,7 @@ describe('prompt worked examples satisfy the contract they feed', () => {
 
   it('shows the asset keys, since an empty array teaches the model nothing', () => {
     const [example] = jsonExamples(
-      readFileSync(join(promptsDir, 'extract-question.v3.md'), 'utf8'),
+      readFileSync(join(promptsDir, 'extract-question.v4.md'), 'utf8'),
     );
     const parsed = extractQpSchema.parse(JSON.parse(example!));
     const assets = parsed.questions.flatMap((question) => question.assets);

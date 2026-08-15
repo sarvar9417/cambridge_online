@@ -11,7 +11,7 @@ const assetSchema=z.object({
 const questionSchema=z.object({
   path:z.string().trim().min(1),label:z.string().trim().min(1),parent_path:z.string().trim().min(1).nullable(),
   stem_md:z.string().nullable(),context_md:z.string().nullable(),command_word:z.enum(commandWords).nullable(),
-  marks:z.number().int().min(0).nullable(),answer_kind:z.enum(answerKinds),answer_lines:z.number().int().min(0).nullable(),
+  marks:z.number().int().min(0).nullable(),answer_kind:z.enum(answerKinds).nullable(),answer_lines:z.number().int().min(0).nullable(),
   source_pages:z.array(z.number().int().positive()).min(1),assets:z.array(assetSchema),issues:z.array(z.string()),confidence:z.number().min(0).max(1),
 }).strict();
 export const extractQpSchema=z.object({questions:z.array(questionSchema),truncated:z.boolean(),page_total_marks:z.number().int().min(0)}).strict();
@@ -69,12 +69,20 @@ function parseContract<T>(schema:z.ZodType<T>,raw:unknown,what:string):T{
   throw new Error(`${what} did not match the contract:\n${detail}${more}`);
 }
 
+/**
+ * A node with children carries context, not marks, so it has no answer of its
+ * own and the model correctly reports `answer_kind: null` for it. The column is
+ * NOT NULL and defaults to 'text', which is what a parent effectively is, so the
+ * null is folded here rather than pushed back onto the model as a lie it has to
+ * tell. Nothing is lost: only leaves are searched or answered, and a leaf always
+ * names its kind.
+ */
 export function normalizeQp(raw:unknown):ExtractQpBatch{
   const parsed=parseContract(extractQpSchema,raw,'extract_qp output');return{
     truncated:parsed.truncated,pageTotalMarks:parsed.page_total_marks,
     questions:parsed.questions.map(question=>({
       path:question.path,label:question.label,parentPath:question.parent_path,displayRef:refFromPath(question.path),stemMd:question.stem_md,
-      contextMd:question.context_md,commandWord:question.command_word,marks:question.marks,answerKind:question.answer_kind,answerLines:question.answer_lines,
+      contextMd:question.context_md,commandWord:question.command_word,marks:question.marks,answerKind:question.answer_kind??'text',answerLines:question.answer_lines,
       sourcePages:question.source_pages,assets:question.assets.map(asset=>({kind:asset.kind,contentMd:asset.content_md,altText:asset.alt_text,bbox:asset.bbox,page:asset.page})),
       issues:question.issues,confidence:question.confidence,
     })),
