@@ -11,6 +11,9 @@ const configSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().min(1).optional(),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(20).optional(),
+  DB_SSL_MODE: z.enum(['disable', 'require', 'verify-full']).default('verify-full'),
+  DB_SSL_CA: z.string().min(1).optional(),
+  DB_SSL_CA_BASE64: z.string().min(1).optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(32).default('local-development-secret-change-me'),
   JWT_REFRESH_SECRET: z.string().min(32).default('local-refresh-secret-change-me-now'),
@@ -24,8 +27,6 @@ const configSchema = z.object({
   PDFTOPPM_PATH: z.string().min(1).default('pdftoppm'),
   PDFTOTEXT_PATH: z.string().min(1).default('pdftotext'),
   EXPORT_DIR: z.string().default('storage/exports'),
-  // Optional on purpose. Without it password reset still works through a code a
-  // teacher issues by hand; adding it turns on the self-service email path.
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).optional(),
 });
