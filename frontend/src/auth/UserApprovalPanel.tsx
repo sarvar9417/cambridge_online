@@ -6,7 +6,7 @@ type Status = 'pending' | 'active' | 'rejected' | 'suspended';
 type Role = 'owner' | 'teacher' | 'student';
 
 /** One row's in-progress approval decision. */
-interface Draft { role: Role; classId: string; reason: string }
+interface Draft { role: Role; classId: string; groupId: string; reason: string }
 
 interface ManagedUser {
   id: string;
@@ -55,6 +55,21 @@ export function UserApprovalPanel({ classes, currentUserId }: {
   /** Per-row draft, so two rows open at once do not share a role choice. */
   const [draft, setDraft] = useState<Record<string, Draft>>({});
   const [issuedCode, setIssuedCode] = useState<{ userId: string; link: string; minutes: number } | null>(null);
+  /** Groups by class id. Fetched on demand; a class with none maps to []. */
+  const [groups, setGroups] = useState<Record<string, Array<{ id: string; name: string }>>>({});
+
+  const loadGroups = useCallback(async (classId: string) => {
+    if (!classId || groups[classId]) return;
+    try {
+      const result = await api<{ groups: Array<{ id: string; name: string }> }>(
+        `/admin/users/groups/${classId}`);
+      setGroups((current) => ({ ...current, [classId]: result.groups }));
+    } catch {
+      // A class whose groups cannot be listed still gets approved without one;
+      // failing the whole row over an optional placement would be worse.
+      setGroups((current) => ({ ...current, [classId]: [] }));
+    }
+  }, [groups]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,7 +87,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
 
   useEffect(() => { void load(); }, [load]);
 
-  const emptyDraft = (): Draft => ({ role: 'student', classId: '', reason: '' });
+  const emptyDraft = (): Draft => ({ role: 'student', classId: '', groupId: '', reason: '' });
   const draftFor = (user: ManagedUser) => draft[user.id] ?? emptyDraft();
 
   const setDraftFor = (id: string, patch: Partial<Draft>) =>
@@ -171,7 +186,13 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                         <span>Sinf</span>
                         <select
                           value={current.classId}
-                          onChange={(event) => setDraftFor(user.id, { classId: event.target.value })}
+                          onChange={(event) => {
+                            const classId = event.target.value;
+                            // Changing the class invalidates the group: a group
+                            // only exists inside its own class.
+                            setDraftFor(user.id, { classId, groupId: '' });
+                            void loadGroups(classId);
+                          }}
                         >
                           <option value="">— tanlanmagan —</option>
                           {classes.map((item) => (
@@ -179,6 +200,20 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                           ))}
                         </select>
                       </label>
+                      {current.classId && (groups[current.classId]?.length ?? 0) > 0 ? (
+                        <label className="ua-control">
+                          <span>Guruh</span>
+                          <select
+                            value={current.groupId}
+                            onChange={(event) => setDraftFor(user.id, { groupId: event.target.value })}
+                          >
+                            <option value="">— tanlanmagan —</option>
+                            {groups[current.classId]!.map((group) => (
+                              <option key={group.id} value={group.id}>{group.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
                       <button
                         className="ua-approve" disabled={busy}
                         onClick={() => act(user.id, () => api(`/admin/users/${user.id}/approve`, {
@@ -186,6 +221,9 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                           body: JSON.stringify({
                             role: current.role,
                             ...(current.classId ? { classId: current.classId } : {}),
+                            // Only meaningful for a student, and only with a class.
+                            ...(current.classId && current.groupId && current.role === 'student'
+                              ? { groupId: current.groupId } : {}),
                           }),
                         }))}
                       >

@@ -55,7 +55,8 @@ export interface AuthRepository {
   consumeResetToken(tokenHash: string, passwordHash: string): Promise<{ userId:string } | null>;
 
   listUsers(filter: { status?: UserStatus }): Promise<PendingUser[]>;
-  approveUser(input: { userId:string; role:AuthUser['role']; classId?:string; approvedBy:string }): Promise<PendingUser>;
+  listGroups(classId: string): Promise<Array<{ id:string; name:string }>>;
+  approveUser(input: { userId:string; role:AuthUser['role']; classId?:string; groupId?:string; approvedBy:string }): Promise<PendingUser>;
   rejectUser(input: { userId:string; reason:string; approvedBy:string }): Promise<PendingUser>;
   setUserStatus(input: { userId:string; status:'active'|'suspended'; reason?:string }): Promise<PendingUser>;
   setUserRole(input: { userId:string; role:AuthUser['role'] }): Promise<PendingUser>;
@@ -306,7 +307,15 @@ export class PgAuthRepository implements AuthRepository {
     }));
   }
 
-  async approveUser(input: { userId:string; role:AuthUser['role']; classId?:string; approvedBy:string }) {
+  async listGroups(classId: string) {
+    const result = await this.pool.query(
+      `select id, name from groups
+       where class_id = $1 and archived_at is null
+       order by sort_order, name`, [classId]);
+    return result.rows.map((row) => ({ id: String(row.id), name: String(row.name) }));
+  }
+
+  async approveUser(input: { userId:string; role:AuthUser['role']; classId?:string; groupId?:string; approvedBy:string }) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -328,10 +337,19 @@ export class PgAuthRepository implements AuthRepository {
         await client.query('update users set school_id = $2 where id = $1',
           [input.userId, klass.rows[0].school_id]);
         if (input.role === 'student') {
+          if (input.groupId) {
+            // The composite foreign key would reject a group from another class,
+            // but as a constraint violation rather than something the approver
+            // can read. Checked here so the answer names the problem.
+            const group = await client.query(
+              'select 1 from groups where id = $1 and class_id = $2 and archived_at is null',
+              [input.groupId, input.classId]);
+            if (!group.rowCount) throw new Error('group_not_in_class');
+          }
           await client.query(
-            `insert into enrollments (class_id, student_id) values ($1, $2)
-             on conflict (class_id, student_id) do update set left_at = null`,
-            [input.classId, input.userId]);
+            `insert into enrollments (class_id, student_id, group_id) values ($1, $2, $3)
+             on conflict (class_id, student_id) do update set left_at = null, group_id = excluded.group_id`,
+            [input.classId, input.userId, input.groupId ?? null]);
         } else {
           await client.query(
             `insert into class_teachers (class_id, teacher_id) values ($1, $2)

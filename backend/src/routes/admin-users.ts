@@ -36,6 +36,10 @@ export function createAdminUsersRouter(auth: AuthService, repository: AuthReposi
       res.status(404).json({ error: { code: message, message: 'Topilmadi.' } });
       return true;
     }
+    if (message === 'group_not_in_class') {
+      res.status(409).json({ error: { code: message, message: 'Bu guruh tanlangan sinfga tegishli emas.' } });
+      return true;
+    }
     return false;
   };
 
@@ -46,12 +50,21 @@ export function createAdminUsersRouter(auth: AuthService, repository: AuthReposi
     res.json({ users: await repository.listUsers({ status: query.status }) });
   });
 
+  /**
+   * The groups of one class, so the approval form can offer a placement rather
+   * than leaving the approver to remember which groups exist.
+   */
+  router.get('/groups/:id', requireRoles('owner'), async (req, res) => {
+    res.json({ groups: await repository.listGroups(targetId(req.params)) });
+  });
+
   router.post('/:id/approve', requireRoles('owner'), validateBody(approveUserSchema), async (req, res) => {
     try {
       const user = await repository.approveUser({
         userId: targetId(req.params),
         role: req.body.role,
         classId: req.body.classId,
+        groupId: req.body.groupId,
         approvedBy: req.actor!.id,
       });
       res.json({ user });

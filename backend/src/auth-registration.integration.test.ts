@@ -27,6 +27,9 @@ class RecordingMailer implements Mailer {
 const OWNER_ID = '22605ad7-b3df-4249-9b58-052f5d830fd8';
 const SCHOOL_ID = '3b55a939-fba8-48f3-b54a-68949aa6e898';
 const CLASS_ID = 'f0c8f1cb-9a5c-4f5b-9a45-3f9b0f4b2d11';
+const OTHER_CLASS_ID = 'b1d4e2a7-0c6e-4a3f-8c1d-5e2f7a9b3c44';
+const GROUP_ID = 'c2e5f3b8-1d7f-4b4a-9d2e-6f3a8b0c4d55';
+const OTHER_GROUP_ID = 'd3f6a4c9-2e80-4c5b-8e3f-7a4b9c1d5e66';
 
 describe('registration, approval and password recovery', () => {
   let repository: MemoryAuthRepository;
@@ -60,6 +63,9 @@ describe('registration, approval and password recovery', () => {
       passwordHash, email: 'sarvar@maktab.uz', username: 'sarvar',
     });
     repository.classes.set(CLASS_ID, { schoolId: SCHOOL_ID });
+    repository.classes.set(OTHER_CLASS_ID, { schoolId: SCHOOL_ID });
+    repository.groups.set(GROUP_ID, { classId: CLASS_ID, name: '2-guruh' });
+    repository.groups.set(OTHER_GROUP_ID, { classId: OTHER_CLASS_ID, name: '1-guruh' });
     mailer = new RecordingMailer();
     app = createApp(new AuthService(repository, mailer, 'https://campath.uz'), undefined, undefined, repository);
   });
@@ -163,7 +169,8 @@ describe('registration, approval and password recovery', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.user.status).toBe('active');
-      expect(repository.enrollments).toContainEqual({ classId: CLASS_ID, userId: pending.id, as: 'student' });
+      expect(repository.enrollments).toContainEqual(
+        { classId: CLASS_ID, userId: pending.id, groupId: null, as: 'student' });
       // The class decides the school; a self-registered account had none.
       expect(repository.users.get(pending.id)!.schoolId).toBe(SCHOOL_ID);
 
@@ -177,7 +184,46 @@ describe('registration, approval and password recovery', () => {
       await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
         .set('authorization', `Bearer ${await ownerToken()}`)
         .send({ role: 'teacher', classId: CLASS_ID });
-      expect(repository.enrollments).toContainEqual({ classId: CLASS_ID, userId: pending.id, as: 'teacher' });
+      expect(repository.enrollments).toContainEqual(
+        { classId: CLASS_ID, userId: pending.id, groupId: null, as: 'teacher' });
+    });
+
+    it('places the student in a group of the chosen class', async () => {
+      const pending = await registerPending();
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
+        .set('authorization', `Bearer ${await ownerToken()}`)
+        .send({ role: 'student', classId: CLASS_ID, groupId: GROUP_ID });
+      expect(response.status).toBe(200);
+      expect(repository.enrollments).toContainEqual(
+        { classId: CLASS_ID, userId: pending.id, groupId: GROUP_ID, as: 'student' });
+    });
+
+    it('refuses a group that belongs to a different class', async () => {
+      const pending = await registerPending();
+      // The composite foreign key would catch this in the database, but as a
+      // constraint violation the approver cannot read.
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
+        .set('authorization', `Bearer ${await ownerToken()}`)
+        .send({ role: 'student', classId: CLASS_ID, groupId: OTHER_GROUP_ID });
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('group_not_in_class');
+      expect(repository.users.get(pending.id)!.status).toBe('pending');
+    });
+
+    it('refuses a group with no class, which would silently do nothing', async () => {
+      const pending = await registerPending();
+      const response = await request(app).post(`/api/v1/admin/users/${pending.id}/approve`)
+        .set('authorization', `Bearer ${await ownerToken()}`)
+        .send({ role: 'student', groupId: GROUP_ID });
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('validation_error');
+    });
+
+    it('lists only the groups of the class being asked about', async () => {
+      const response = await request(app).get(`/api/v1/admin/users/groups/${CLASS_ID}`)
+        .set('authorization', `Bearer ${await ownerToken()}`);
+      expect(response.status).toBe(200);
+      expect(response.body.groups).toEqual([{ id: GROUP_ID, name: '2-guruh' }]);
     });
 
     it('refuses a second approval of the same row', async () => {

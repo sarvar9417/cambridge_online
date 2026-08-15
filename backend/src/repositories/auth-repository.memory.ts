@@ -45,8 +45,9 @@ export class MemoryAuthRepository implements AuthRepository {
   users = new Map<string, MemoryUser>();
   refreshRecords = new Map<string, RefreshRecord>();
   resetTokens: ResetToken[] = [];
-  enrollments: Array<{ classId: string; userId: string; as: 'student' | 'teacher' }> = [];
+  enrollments: Array<{ classId: string; userId: string; groupId: string | null; as: 'student' | 'teacher' }> = [];
   classes = new Map<string, { schoolId: string }>();
+  groups = new Map<string, { classId: string; name: string }>();
   revokedAll = 0;
 
   /** The account the login tests act as. Kept for readability at call sites. */
@@ -194,16 +195,32 @@ export class MemoryAuthRepository implements AuthRepository {
       .map((user) => ({ ...toPending(user), note: user.note }));
   }
 
-  async approveUser(input: { userId: string; role: AuthUser['role']; classId?: string; approvedBy: string }) {
+  async listGroups(classId: string) {
+    return [...this.groups.entries()]
+      .filter(([, group]) => group.classId === classId)
+      .map(([id, group]) => ({ id, name: group.name }));
+  }
+
+  async approveUser(input: {
+    userId: string; role: AuthUser['role']; classId?: string; groupId?: string; approvedBy: string;
+  }) {
     const user = this.users.get(input.userId);
     if (!user || user.status !== 'pending') throw new Error('user_not_pending');
     if (input.classId) {
       const klass = this.classes.get(input.classId);
       if (!klass) throw new Error('class_not_found');
+      const isStudent = input.role === 'student';
+      if (isStudent && input.groupId) {
+        // Mirrors the composite foreign key: a group only counts inside its own
+        // class.
+        const group = this.groups.get(input.groupId);
+        if (!group || group.classId !== input.classId) throw new Error('group_not_in_class');
+      }
       user.schoolId = klass.schoolId;
       this.enrollments.push({
         classId: input.classId, userId: user.id,
-        as: input.role === 'student' ? 'student' : 'teacher',
+        groupId: isStudent ? input.groupId ?? null : null,
+        as: isStudent ? 'student' : 'teacher',
       });
     }
     user.status = 'active';

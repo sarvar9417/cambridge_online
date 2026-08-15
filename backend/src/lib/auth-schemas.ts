@@ -40,14 +40,18 @@ export const resetPasswordSchema = z.object({
 }).strict();
 
 /**
- * Approving decides the role and, for anyone who belongs in one, the class. The
- * schema has no level below a class, so there is no group field here rather than
- * a field that would quietly do nothing.
+ * Approving decides the role and, for anyone who belongs in one, the class and
+ * the group within it. A group without a class is meaningless, so it is refused
+ * here rather than reaching a query that would silently ignore it.
  */
 export const approveUserSchema = z.object({
   role: z.enum(['owner', 'teacher', 'student']),
   classId: z.string().uuid().optional(),
-}).strict();
+  groupId: z.string().uuid().optional(),
+}).strict().refine(
+  (input) => !input.groupId || Boolean(input.classId),
+  { message: 'A group can only be chosen together with its class', path: ['groupId'] },
+);
 
 export const rejectUserSchema = z.object({
   reason: z.string().trim().min(1).max(300),
