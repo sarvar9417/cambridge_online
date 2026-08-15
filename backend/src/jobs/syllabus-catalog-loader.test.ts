@@ -35,12 +35,14 @@ describe('historical 9618 catalog descriptors', () => {
     expect(programming.learningObjectives.find((lo) => lo.code === '20.1-lo-05')?.componentNumbers).toBeUndefined();
   });
 
-  it('applies the 2024-2025 9.2 clarification without duplicating the shared taxonomy', async () => {
+  it('applies both documented 2024-2025 content updates without duplicating the shared taxonomy', async () => {
     const catalog = await loadSyllabusCatalogDocument(catalogPath('9618-2024-2025.json'));
     expect([catalog.validFrom, catalog.validTo]).toEqual([2024, 2025]);
     expect(catalog.topics).toHaveLength(20);
     expect(subtopicCount(catalog)).toBe(44);
-    expect(objectiveCount(catalog)).toBe(217);
+    expect(objectiveCount(catalog)).toBe(219);
+    const security = subtopic(catalog, '6.1');
+    expect(security.learningObjectives.some((lo) => /biometrics/i.test(lo.text))).toBe(true);
     const algorithms = subtopic(catalog, '9.2');
     expect(algorithms.learningObjectives.map((lo) => lo.text)).toEqual(expect.arrayContaining([
       'Draw a flowchart from a structured English description or pseudocode.',
