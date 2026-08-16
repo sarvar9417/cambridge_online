@@ -8,6 +8,7 @@ import type { User } from './api';
  * conditions that are only observable by clicking.
  */
 export type SectionName =
+  | 'studentHome'
   | 'studentAssignments'
   | 'studentResults'
   | 'studentLearning'
@@ -19,7 +20,7 @@ export type SectionName =
   | 'gradingQueue';
 
 const STUDENT_SECTIONS = new Set<SectionName>([
-  'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile',
+  'studentHome', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile',
 ]);
 
 /**
@@ -51,8 +52,12 @@ function pick(surface: string, page: string, role: User['role']): SectionName[] 
       case 'vazifalar': return ['studentAssignments'];
       case 'natijalar': return ['studentResults'];
       case 'organish': return ['studentLearning'];
-      // Home is what a student sees on the way in: what is due, and who they are.
-      default: return ['studentAssignments', 'studentProfile'];
+      /*
+       * Home answers the two questions a student actually arrives with: what do
+       * I have to do, and am I getting better. It used to be the assignment
+       * table with a profile block under it, which answers neither.
+       */
+      default: return ['studentHome', 'studentProfile'];
     }
   }
 

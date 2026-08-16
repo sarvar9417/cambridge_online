@@ -44,7 +44,7 @@ describe('which sections a page shows', () => {
     const reachable = new Set(
       ['vazifalar', 'natijalar', 'organish', ''].flatMap((page) => student(page)),
     );
-    for (const section of ['studentAssignments', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
+    for (const section of ['studentHome', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
       expect(reachable.has(section)).toBe(true);
     }
   });
@@ -71,7 +71,7 @@ describe('which sections a page shows', () => {
 
   it('falls back to the student home for a page only teachers have', () => {
     expect(sectionsFor('oqitish', 'tekshirish', 'student'))
-      .toEqual(['studentAssignments', 'studentProfile']);
+      .toEqual(['studentHome', 'studentProfile']);
   });
 
   it('lets an owner work as a teacher, since they do both jobs', () => {

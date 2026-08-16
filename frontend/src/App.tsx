@@ -34,6 +34,7 @@ import { QualityPage } from './admin/QualityPage';
 import { SystemPage } from './admin/SystemPage';
 import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
+import { StudentHome } from './student/StudentHome';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
@@ -1106,7 +1107,20 @@ export function App() {
   // The rule for which section belongs on which page is a pure function, so it
   // can be read and tested without rendering anything.
   const bySection: Record<SectionName, ReactNode> = {
-    studentAssignments, studentResults, studentLearning, studentProfile,
+    studentAssignments, studentResults, studentLearning,
+    studentHome: (
+      <StudentHome
+        user={user}
+        assignments={assignments}
+        results={results}
+        mastery={mastery}
+        flashcards={flashcards}
+        onStart={start}
+        onPractice={startPractice}
+        practicing={practicing}
+      />
+    ),
+    studentProfile,
     classes: classesSection,
     analytics: analyticsPanel,
     appeals: appealsSection,
