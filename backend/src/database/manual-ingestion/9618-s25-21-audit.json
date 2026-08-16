@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "paper": {
+    "syllabusCode": "9618",
+    "syllabusVersion": "2024-2025",
+    "year": 2025,
+    "series": "MJ",
+    "component": 2,
+    "variant": 1,
+    "qpDriveFileId": "1Po8la8reZISgGIobKNkIbu-o6-myDcy7",
+    "msDriveFileId": "1xSlJ94k5saUc7OlNx-RpCMhD_GjHugO9",
+    "qpSourcePaperId": "8710fdb8-b577-4ed1-a343-aa3b1fc0a06f",
+    "msSourcePaperId": "341cf989-181f-4430-9193-12921862a34c"
+  },
+  "method": "source-backed audit of the already-persisted QP/MS pair against the official Cambridge PDFs, followed by atomic mark-point repair where persisted composite points had collapsed distinct published MPs",
+  "promptVersion": "chatgpt-source-review-v1",
+  "status": "approved",
+  "counts": {
+    "questionNodes": 26,
+    "markBearingLeaves": 18,
+    "questionMarks": 75,
+    "markSchemes": 18,
+    "markSchemeMaxMarks": 75,
+    "markSchemeGroups": 18,
+    "markSchemePoints": 88,
+    "subtopicRows": 29,
+    "learningObjectiveRows": 39,
+    "leavesWithSubtopic": 18,
+    "leavesWithLearningObjective": 18,
+    "leavesWithExactlyOnePrimarySubtopic": 18,
+    "approvedQuestionLeaves": 18,
+    "approvedMarkSchemes": 18
+  },
+  "markPointRepairs": [
+    {
+      "path": "2.a.i",
+      "before": 1,
+      "after": 2,
+      "maxMarks": 1,
+      "reason": "The persisted point combined the two published alternative marking points. They were restored as two atomic MPs with any-1-of-2 semantics."
+    },
+    {
+      "path": "2.a.ii",
+      "before": 1,
+      "after": 2,
+      "maxMarks": 1,
+      "reason": "The two published alternative correction points were restored separately with any-1-of-2 semantics."
+    },
+    {
+      "path": "2.b.iii",
+      "before": 1,
+      "after": 2,
+      "maxMarks": 1,
+      "reason": "The two published benefits of library routines were restored as separate alternative MPs."
+    },
+    {
+      "path": "5",
+      "before": 9,
+      "after": 10,
+      "maxMarks": 7,
+      "reason": "The published scheme has MP1-MP10, Max 7. Persisted M8 had combined pushing onto the stack with updating the stack pointer; these were separated and the queue-empty repetition point became M10."
+    },
+    {
+      "path": "7.b.ii",
+      "before": 4,
+      "after": 5,
+      "maxMarks": 4,
+      "reason": "The persisted final point combined writing the first record with reusing the existing logic. Published MP4 and MP5 were restored separately with any-4-of-5 semantics."
+    }
+  ],
+  "repairSafety": {
+    "questionsCheckedForPriorUse": ["2.a.i", "2.a.ii", "2.b.iii", "5", "7.b.ii"],
+    "assignmentUses": 0,
+    "answers": 0,
+    "gradings": 0,
+    "historicalResultsAffected": false
+  },
+  "taxonomy": {
+    "rule": "Persist only against the source paper's 2024-2025 syllabus tree and Paper 2 component coverage.",
+    "mapping": {
+      "1.a": {"primary": "10.1", "secondary": ["9.2"], "los": ["10.1-lo-01", "9.2-lo-01"]},
+      "1.b": {"primary": "9.2", "secondary": ["11.2"], "los": ["9.2-lo-03", "11.2-lo-01", "11.2-lo-03", "11.2-lo-04", "11.2-lo-05"]},
+      "1.c": {"primary": "9.1", "los": ["9.1-lo-03", "9.1-lo-04"]},
+      "2.a.i": {"primary": "12.3", "secondary": ["9.2"], "los": ["12.3-lo-02"]},
+      "2.a.ii": {"primary": "12.3", "secondary": ["9.2"], "los": ["12.3-lo-03"]},
+      "2.b.i": {"primary": "11.1", "los": ["11.1-lo-02"]},
+      "2.b.ii": {"primary": "12.3", "secondary": ["11.1"], "los": ["12.3-lo-01", "11.1-lo-02"]},
+      "2.b.iii": {"primary": "12.3", "los": ["12.3-lo-01"]},
+      "2.c": {"primary": "12.3", "los": ["12.3-lo-02"]},
+      "3": {"primary": "11.1", "secondary": ["9.2"], "los": ["11.1-lo-01", "9.2-lo-03", "9.2-lo-04"]},
+      "4.a": {"primary": "11.2", "los": ["11.2-lo-06"]},
+      "4.b": {"primary": "10.2", "secondary": ["9.2"], "los": ["10.2-lo-04", "9.2-lo-03"]},
+      "5": {"primary": "10.4", "los": ["10.4-lo-02", "10.4-lo-03"]},
+      "6.a": {"primary": "12.3", "los": ["12.3-lo-04", "12.3-lo-05", "12.3-lo-06"]},
+      "6.b": {"primary": "10.2", "secondary": ["11.3"], "los": ["10.2-lo-03", "10.2-lo-04", "11.3-lo-05"]},
+      "7.a": {"primary": "11.3", "secondary": ["11.2"], "los": ["11.3-lo-01", "11.3-lo-03", "11.3-lo-05", "11.2-lo-05"]},
+      "7.b.i": {"primary": "10.3", "secondary": ["11.3"], "los": ["10.3-lo-02", "11.3-lo-01", "11.3-lo-03"]},
+      "7.b.ii": {"primary": "12.3", "secondary": ["10.3"], "los": ["12.3-lo-08", "10.3-lo-02"]}
+    }
+  },
+  "validation": {
+    "questionToSchemeMarkMismatches": 0,
+    "leavesWithoutMarkScheme": 0,
+    "leavesWithoutSubtopic": 0,
+    "leavesWithoutLearningObjective": 0,
+    "badPrimarySubtopicCounts": 0,
+    "crossVersionMappings": 0,
+    "outOfComponentMappings": 0,
+    "learningObjectivesWithoutSelectedOwningSubtopic": 0,
+    "sourceBackedTaxonomyAuditIssuesAfterRepair": 0
+  }
+}
