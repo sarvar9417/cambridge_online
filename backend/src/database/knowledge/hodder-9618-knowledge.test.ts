@@ -32,10 +32,15 @@ describe('Hodder 9618 knowledge crosswalk', () => {
   const catalogSubtopics = catalog.topics.flatMap((topic) => topic.subtopics);
   const canonicalSubtopicCodes = new Set(catalogSubtopics.map((subtopic) => subtopic.code));
   const additionSubtopics = additions.topics.flatMap((topic) => topic.subtopics);
-  const canonicalLoCodes = new Set([
-    ...catalogSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)),
-    ...additionSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)),
-  ]);
+  const allCanonicalSubtopics = [...catalogSubtopics, ...additionSubtopics];
+  const canonicalLoCodes = new Set(
+    allCanonicalSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)),
+  );
+  const loSubtopicByCode = new Map(
+    allCanonicalSubtopics.flatMap((subtopic) =>
+      subtopic.learningObjectives.map((lo) => [lo.code, subtopic.code] as const),
+    ),
+  );
   const unitByCode = new Map(source.units.map((unit) => [unit[0], unit]));
   const sectionByCode = new Map(source.sections.map((section) => [section[0], section]));
 
@@ -57,6 +62,19 @@ describe('Hodder 9618 knowledge crosswalk', () => {
         const sourceRef = unitByCode.get(sourceCode) ?? sectionByCode.get(sourceCode);
         expect(sourceRef, `${loCode} -> ${sourceCode}`).toBeDefined();
         expect(sourceRef?.[5], `${loCode} -> ${sourceCode}`).toBe('mapped');
+      }
+    }
+  });
+
+  it('keeps every supporting Hodder reference inside the LO canonical subtopic', () => {
+    for (const [loCode, sourceCodes] of Object.entries(crosswalk.mapping)) {
+      const expectedSubtopic = loSubtopicByCode.get(loCode);
+      expect(expectedSubtopic, loCode).toBeDefined();
+
+      for (const sourceCode of sourceCodes) {
+        const sourceRef = unitByCode.get(sourceCode) ?? sectionByCode.get(sourceCode);
+        expect(sourceRef, `${loCode} -> ${sourceCode}`).toBeDefined();
+        expect(sourceRef?.[4], `${loCode} -> ${sourceCode}; expected ${expectedSubtopic}`).toContain(expectedSubtopic);
       }
     }
   });
