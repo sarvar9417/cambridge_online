@@ -31,7 +31,7 @@ def drive_id(url: str) -> str:
 
 
 def download(url: str, path: Path) -> None:
-    result = gdown.download(id=drive_id(url), output=str(path), quiet=True, fuzzy=True)
+    result = gdown.download(id=drive_id(url), output=str(path), quiet=True)
     if not result or not path.exists() or path.stat().st_size < 1000:
         raise RuntimeError("download_failed")
 
