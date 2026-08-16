@@ -1,0 +1,35 @@
+name: Full 9618 corpus backfill
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/hodder-knowledge-map]
+    paths:
+      - backend/scripts/full-corpus-backfill.py
+      - .github/workflows/full-corpus-backfill.yml
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_SSL_MODE: ${{ secrets.DB_SSL_MODE }}
+      BACKFILL_LIMIT: '500'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check database secret
+        shell: bash
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo 'DATABASE_URL missing'; exit 2; }
+      - name: Install extraction dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --upgrade pip
+          pip install gdown psycopg2-binary scikit-learn
+      - name: Backfill un-ingested 9618 QP/MS corpus
+        run: python backend/scripts/full-corpus-backfill.py
