@@ -6,6 +6,7 @@ on:
     branches: [agent/hodder-knowledge-map]
     paths:
       - backend/scripts/full-corpus-backfill.py
+      - backend/scripts/full-corpus-backfill-safe.py
       - .github/workflows/full-corpus-backfill.yml
 
 permissions:
@@ -31,4 +32,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install gdown scikit-learn
       - name: Backfill all remaining un-ingested 9618 QP/MS corpus
-        run: python backend/scripts/full-corpus-backfill.py
+        run: python backend/scripts/full-corpus-backfill-safe.py
