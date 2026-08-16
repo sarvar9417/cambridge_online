@@ -8,6 +8,7 @@ on:
       - backend/scripts/full-corpus-backfill.py
       - backend/scripts/full-corpus-backfill-safe.py
       - backend/scripts/full-corpus-backfill-edge.py
+      - backend/scripts/full-corpus-backfill-layout.py
       - .github/workflows/full-corpus-backfill.yml
 
 permissions:
@@ -26,9 +27,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install classifier dependencies
+      - name: Install extraction and classifier dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
           python -m pip install --upgrade pip
           pip install gdown scikit-learn
       - name: Backfill all remaining un-ingested 9618 QP/MS corpus
-        run: python backend/scripts/full-corpus-backfill-edge.py
+        run: python backend/scripts/full-corpus-backfill-layout.py
