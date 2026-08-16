@@ -78,7 +78,7 @@ Questions are never persisted against Hodder IDs. Hodder IDs are evidence/contex
 
 Affected subtopics are `3.2`, `6.1`, `11.1`, `11.2`, `11.3`, `12.3`, `13.3` and `20.1`.
 
-Each overlay objective has explicit `componentNumbers`. The additive importer writes `component_learning_objectives` only when this field is present; it does not guess coverage for older/general catalog files.
+Each overlay objective has explicit `componentNumbers`. The additive importer writes `component_learning_objectives` only when this field is present; it does not guess coverage for older/general catalog files. The importer is idempotent: existing codes are reused, their source metadata can be refreshed to the supplied catalog text/sort order, and missing explicit coverage rows are added.
 
 Dry-run from the repository root:
 
