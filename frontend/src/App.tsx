@@ -36,6 +36,7 @@ import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
 import { StudentResults } from './student/StudentResults';
+import { ClassesPage } from './teaching/ClassesPage';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
@@ -706,27 +707,6 @@ export function App() {
     </>
   );
 
-  const classesSection = (
-    <>
-        <section>
-          <h2>Sinflar</h2>
-          <div className="table">
-            <div className="tr head">
-              <span>Sinf</span>
-              <span>Daraja</span>
-              <span>O‘quvchilar</span>
-            </div>
-            {classes.map((item) => (
-              <div className="tr" key={item.id}>
-                <strong>{item.name}</strong>
-                <span>{item.level}</span>
-                <span>{item.studentCount}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-    </>
-  );
 
   const analyticsPanel = (
     <>
@@ -1040,7 +1020,13 @@ export function App() {
       />
     ),
     studentProfile,
-    classes: classesSection,
+    classes: (
+      <ClassesPage
+        user={user}
+        classes={classes}
+        onChanged={() => { void api<{ data: ClassItem[] }>('/classes').then((r) => setClasses(r.data)); }}
+      />
+    ),
     analytics: analyticsPanel,
     appeals: appealsSection,
     teacherAssignments,

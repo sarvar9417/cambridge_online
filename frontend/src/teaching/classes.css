@@ -1,0 +1,147 @@
+/*
+ * Classes: the list, and one class as a place a teacher keeps their register.
+ *
+ * Same tokens and the same colour discipline as the rest: green and red belong
+ * to marks, so nothing here is green and red appears only on a control that
+ * removes something.
+ */
+
+.cl { display: grid; gap: 1rem; max-width: 900px; }
+
+.cl-head, .cl-detail-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.cl-detail-head { align-items: center; }
+.cl-head h1, .cl-detail-head h1 {
+  margin: 0; font-size: 1.3rem; letter-spacing: -0.015em;
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.cl-head p, .cl-detail-head p { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.84rem; }
+
+.cl-archived {
+  font-size: 0.68rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.12rem 0.45rem; border-radius: 999px;
+  background: var(--surface-soft); color: var(--text-muted);
+}
+
+.cl-back {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  border-radius: var(--radius); padding: 0.35rem 0.7rem;
+  font: inherit; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
+}
+.cl-back:hover { color: var(--text); }
+
+.cl-loading { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.cl-error {
+  margin: 0; color: var(--missed); background: var(--missed-bg);
+  border: 1px solid var(--missed); padding: 0.65rem 0.85rem;
+  border-radius: var(--radius); font-size: 0.86rem;
+}
+.cl-empty { margin: 0; color: var(--text-muted); font-size: 0.85rem; max-width: 56ch; line-height: 1.55; }
+.cl-muted { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono); }
+
+.cl-primary, .cl-form button, .cl-manage button, .cl-add button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.42rem 0.85rem;
+  font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.cl-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.cl-danger { color: var(--missed) !important; border-color: var(--missed) !important; background: var(--surface) !important; }
+.cl-form button:disabled, .cl-manage button:disabled, .cl-add button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- list ---------- */
+
+.cl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.cl-row {
+  width: 100%; display: grid; grid-template-columns: 1fr auto auto;
+  gap: 0.85rem; align-items: center; text-align: left;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.8rem 0.95rem;
+  font: inherit; color: var(--text); cursor: pointer;
+  transition: border-color 130ms ease, transform 130ms ease;
+}
+.cl-row:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.cl-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.cl-row-text { display: grid; gap: 0.1rem; min-width: 0; }
+.cl-row-text strong { font-size: 0.95rem; }
+.cl-row-text small { font-size: 0.75rem; color: var(--text-muted); }
+
+.cl-count { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+.cl-count b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.cl-chevron { color: var(--text-muted); }
+
+/* ---------- forms and cards ---------- */
+
+.cl-form, .cl-rollover {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.9rem 1rem;
+}
+.cl-rollover { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+.cl-rollover .cl-note, .cl-rollover .cl-manage { grid-column: 1 / -1; }
+
+.cl-form label, .cl-rollover label {
+  display: grid; gap: 0.2rem; font-size: 0.76rem; color: var(--text-muted);
+}
+.cl-form input, .cl-form select,
+.cl-rollover input, .cl-add select {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text);
+  padding: 0.4rem 0.55rem; font: inherit; font-size: 0.86rem;
+}
+.cl-form input:focus-visible, .cl-form select:focus-visible,
+.cl-rollover input:focus-visible, .cl-add select:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.cl-card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.95rem 1.05rem;
+  display: grid; gap: 0.7rem;
+}
+.cl-card h2 { margin: 0; font-size: 0.9rem; letter-spacing: -0.005em; }
+.cl-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+
+.cl-add { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cl-add select { flex: 1 1 16rem; min-width: 0; }
+
+.cl-manage { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.cl-note {
+  margin: 0; font-size: 0.78rem; color: var(--text-muted);
+  padding: 0.5rem 0.65rem; border-left: 2px solid var(--border-strong);
+  background: var(--surface-soft); border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 68ch;
+}
+
+/* ---------- roster ---------- */
+
+.cl-table-wrap { overflow-x: auto; }
+.cl-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 28rem; }
+.cl-table-wrap th, .cl-table-wrap td {
+  text-align: left; padding: 0.5rem 0.6rem 0.5rem 0;
+  border-bottom: 1px solid var(--border); vertical-align: top;
+}
+.cl-table-wrap th {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-muted); font-weight: 650;
+}
+.cl-table-wrap tr:last-child td { border-bottom: 0; }
+.cl-table-wrap td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cl-table-wrap td strong { display: block; font-size: 0.87rem; }
+.cl-table-wrap td small { display: block; font-size: 0.73rem; color: var(--text-muted); }
+.cl-row-actions { text-align: right; }
+.cl-row-actions button {
+  border: 1px solid var(--border); background: var(--surface);
+  border-radius: var(--radius); padding: 0.28rem 0.6rem;
+  font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cl-row { transition: none; }
+  .cl-row:hover { transform: none; }
+}
