@@ -25,12 +25,17 @@ const readJson = <T>(path: string): T => JSON.parse(readFileSync(resolve(here, p
 
 describe('Hodder 9618 knowledge crosswalk', () => {
   const catalog = readJson<Catalog>('../syllabus/9618-catalog.json');
+  const additions = readJson<Catalog>('../syllabus/9618-2026-lo-additions.json');
   const source = readJson<SourceIndex>('./hodder-9618-source-index.json');
   const crosswalk = readJson<Crosswalk>('./hodder-9618-lo-crosswalk.json');
 
   const catalogSubtopics = catalog.topics.flatMap((topic) => topic.subtopics);
   const canonicalSubtopicCodes = new Set(catalogSubtopics.map((subtopic) => subtopic.code));
-  const canonicalLoCodes = new Set(catalogSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)));
+  const additionSubtopics = additions.topics.flatMap((topic) => topic.subtopics);
+  const canonicalLoCodes = new Set([
+    ...catalogSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)),
+    ...additionSubtopics.flatMap((subtopic) => subtopic.learningObjectives.map((lo) => lo.code)),
+  ]);
   const unitByCode = new Map(source.units.map((unit) => [unit[0], unit]));
   const sectionByCode = new Map(source.sections.map((section) => [section[0], section]));
 
@@ -41,12 +46,12 @@ describe('Hodder 9618 knowledge crosswalk', () => {
     expect(canonicalSubtopicCodes.size).toBe(44);
   });
 
-  it('maps every current internal learning-objective code exactly once', () => {
+  it('maps every base and additive 2026 learning-objective code exactly once', () => {
     expect(new Set(Object.keys(crosswalk.mapping))).toEqual(canonicalLoCodes);
     expect(crosswalk.stats.canonicalLearningObjectivesMapped).toBe(canonicalLoCodes.size);
   });
 
-  it('never points an LO at an unknown or out-of-scope Hodder unit', () => {
+  it('never points an LO at an unknown or out-of-scope Hodder source', () => {
     for (const [loCode, sourceCodes] of Object.entries(crosswalk.mapping)) {
       for (const sourceCode of sourceCodes) {
         const sourceRef = unitByCode.get(sourceCode) ?? sectionByCode.get(sourceCode);
