@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 120
     env:
       CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
+      # Smoke batch after production bootstrap/coverage validation.
       BACKFILL_YEAR: '2024'
       BACKFILL_SERIES: 'ON'
       BACKFILL_LIMIT: '20'
