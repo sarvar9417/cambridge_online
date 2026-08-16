@@ -8,28 +8,29 @@ on:
       - backend/scripts/full-corpus-backfill.py
       - .github/workflows/full-corpus-backfill.yml
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   backfill:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DB_SSL_MODE: ${{ secrets.DB_SSL_MODE }}
-      BACKFILL_LIMIT: '500'
+      CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
+      BACKFILL_YEAR: '2024'
+      BACKFILL_SERIES: 'ON'
+      BACKFILL_LIMIT: '20'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check database secret
-        shell: bash
-        run: |
-          test -n "${DATABASE_URL:-}" || { echo 'DATABASE_URL missing'; exit 2; }
       - name: Install extraction dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
           python -m pip install --upgrade pip
-          pip install gdown psycopg2-binary scikit-learn
+          pip install gdown scikit-learn
       - name: Backfill un-ingested 9618 QP/MS corpus
         run: python backend/scripts/full-corpus-backfill.py
