@@ -14,6 +14,7 @@ describe('question taxonomy audit', () => {
     expect(sql).toContain('component_topics');
     expect(sql).toContain('component_learning_objectives');
     expect(sql).toContain('lo_without_selected_subtopic');
+    expect(sql).toContain('sp0.source_url is not null');
   });
 
   it('groups returned issue rows by invariant', async () => {
