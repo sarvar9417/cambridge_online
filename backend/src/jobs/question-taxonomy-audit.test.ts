@@ -4,7 +4,7 @@ import { runQuestionTaxonomyAudit } from './question-taxonomy-audit.js';
 
 describe('question taxonomy audit', () => {
   it('returns a clean audit when no source-backed structural taxonomy issues exist', async () => {
-    const query = vi.fn(async () => ({ rowCount: 0, rows: [] }));
+    const query = vi.fn(async (_queryText: string) => ({ rowCount: 0, rows: [] }));
     const result = await runQuestionTaxonomyAudit({ query } as unknown as Pool);
     expect(result.ok).toBe(true);
     expect(result.totalIssues).toBe(0);
@@ -18,7 +18,7 @@ describe('question taxonomy audit', () => {
   });
 
   it('groups returned issue rows by invariant', async () => {
-    const query = vi.fn(async () => ({
+    const query = vi.fn(async (_queryText: string) => ({
       rowCount: 2,
       rows: [
         { issue: 'cross_version_subtopic', question_id: 'q1', display_ref: 'Q1', detail: 'subtopic=3.2' },
