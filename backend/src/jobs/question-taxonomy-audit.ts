@@ -43,7 +43,9 @@ export async function runQuestionTaxonomyAudit(pool: Pool): Promise<TaxonomyAudi
     with mark_bearing as (
       select q.id, q.display_ref, q.source_paper_id
       from questions q
+      join source_papers sp0 on sp0.id=q.source_paper_id
       where q.marks is not null
+        and sp0.source_url is not null
     ),
     issue_rows as (
       select 'missing_subtopic'::text issue, q.id question_id, q.display_ref,
