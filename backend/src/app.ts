@@ -21,6 +21,8 @@ import { PgQuestionsRepository } from './repositories/questions-repository.js';
 import { PgSelectionsRepository } from './repositories/selections-repository.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createClassesRouter } from './routes/classes.js';
+import { createClassesAdminRouter } from './routes/classes-admin.js';
+import { ClassesService } from './services/classes-service.js';
 import { createQuestionsRouter } from './routes/questions.js';
 import { createSelectionsRouter } from './routes/selections.js';
 import { createAssignmentsRouter } from './routes/assignments.js';
@@ -92,6 +94,9 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
   const selectionsRepository = pool && questionsRepository ? new PgSelectionsRepository(pool, questionsRepository) : undefined;
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
+  // Managing classes mounts before reading them: the read router owns '/:id',
+  // which would otherwise swallow paths like '/unassigned-students'.
+  if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,pool?new AssignmentsService(pool):undefined));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool));
