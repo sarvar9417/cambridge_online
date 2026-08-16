@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import { runQuestionTaxonomyAudit } from './question-taxonomy-audit.js';
 
 describe('question taxonomy audit', () => {
-  it('returns a clean audit when no structural taxonomy issues exist', async () => {
+  it('returns a clean audit when no source-backed structural taxonomy issues exist', async () => {
     const query = vi.fn(async () => ({ rowCount: 0, rows: [] }));
     const result = await runQuestionTaxonomyAudit({ query } as unknown as Pool);
     expect(result.ok).toBe(true);
