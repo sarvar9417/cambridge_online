@@ -1,0 +1,28 @@
+{
+  "code": "9618",
+  "versionLabel": "2026-2028-additive-audit",
+  "authority": "Cambridge International AS & A Level Computer Science 9618 syllabus for exams in 2026, Version 2",
+  "rule": "Additive only. Existing internal LO codes are not renumbered or rewritten.",
+  "topics": [
+    {"number":3,"subtopics":[{"code":"3.2","learningObjectives":[{"code":"3.2.6","text":"Understand and define the functions of NOT, AND, OR, NAND, NOR and XOR (EOR) gates","sortOrder":5}]}]},
+    {"number":6,"subtopics":[{"code":"6.1","learningObjectives":[{"code":"6.1.6","text":"Show appreciation of the need for both the security of data and the security of the computer system","sortOrder":5}]}]},
+    {"number":11,"subtopics":[
+      {"code":"11.1","learningObjectives":[
+        {"code":"11.1.2","text":"Write pseudocode statements for: the declaration and initialisation of constants; the declaration of variables; the assignment of values to variables; expressions involving arithmetic or logical operators; input from the keyboard; output to the console","sortOrder":1},
+        {"code":"11.1.3","text":"Use built-in functions and library routines","sortOrder":2}
+      ]},
+      {"code":"11.2","learningObjectives":[{"code":"11.2.2","text":"Justify why one loop structure may be better suited to solve a problem than the others","sortOrder":1}]},
+      {"code":"11.3","learningObjectives":[
+        {"code":"11.3.5","text":"Explain where in the construction of an algorithm it would be appropriate to use a procedure","sortOrder":4},
+        {"code":"11.3.6","text":"Use parameters","sortOrder":5},
+        {"code":"11.3.7","text":"Explain where in the construction of an algorithm it is appropriate to use a function","sortOrder":6}
+      ]}
+    ]},
+    {"number":12,"subtopics":[{"code":"12.3","learningObjectives":[
+      {"code":"12.3.7","text":"Locate and identify the different types of errors","sortOrder":6},
+      {"code":"12.3.8","text":"Correct identified errors","sortOrder":7}
+    ]}]},
+    {"number":13,"subtopics":[{"code":"13.3","learningObjectives":[{"code":"13.3.5","text":"Show understanding that binary representations can give rise to rounding errors","sortOrder":4}]}]},
+    {"number":20,"subtopics":[{"code":"20.1","learningObjectives":[{"code":"20.1.2","text":"Understanding what is meant by a programming paradigm","sortOrder":1}]}]}
+  ]
+}
