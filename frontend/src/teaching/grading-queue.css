@@ -1,0 +1,129 @@
+/*
+ * Marking, one answer at a time.
+ *
+ * Built around a single answer rather than a list: a teacher works this queue in
+ * a sitting, and a wall of cards makes them scroll instead of mark. The question
+ * and the answer are reading matter and take the serif face; the mark scheme is
+ * a control surface and stays in the interface face.
+ *
+ * Green and red mean mark awarded and mark not awarded, exactly as they do on
+ * the student's results page -- this is the screen where those marks are
+ * decided, so the two agree.
+ */
+
+.gq { display: grid; gap: 1rem; max-width: 780px; }
+
+.gq-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.gq-head h1 { margin: 0; font-size: 1.3rem; letter-spacing: -0.015em; }
+.gq-head p { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.84rem; }
+
+.gq-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.gq-tools select {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text);
+  padding: 0.34rem 0.5rem; font: inherit; font-size: 0.83rem;
+}
+
+.gq-segmented { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.gq-segmented button {
+  border: 0; border-right: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  padding: 0.34rem 0.7rem; font: inherit; font-size: 0.82rem; cursor: pointer;
+}
+.gq-segmented button:last-child { border-right: 0; }
+.gq-segmented button.is-active { background: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+
+.gq-empty { margin: 0; color: var(--text-muted); font-size: 0.86rem; max-width: 52ch; line-height: 1.55; }
+
+.gq-progress { display: flex; align-items: center; gap: 0.7rem; }
+.gq-bar { flex: 1; height: 5px; border-radius: 999px; background: var(--surface-soft); overflow: hidden; }
+.gq-bar i { display: block; height: 100%; background: var(--accent); transition: width 180ms ease; }
+.gq-progress span {
+  font-family: var(--font-mono); font-size: 0.78rem;
+  font-variant-numeric: tabular-nums; color: var(--text-muted);
+}
+
+.gq-card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 1rem 1.1rem;
+  display: grid; gap: 0.75rem;
+}
+
+.gq-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.gq-card-head > div { display: grid; gap: 0.1rem; }
+.gq-card-head strong { font-size: 0.95rem; }
+.gq-card-head small { font-size: 0.75rem; color: var(--text-muted); }
+
+.gq-score {
+  font-family: var(--font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums;
+  color: var(--text-muted); padding: 0.15rem 0.55rem;
+  border-radius: var(--radius); background: var(--surface-soft);
+}
+.gq-score b { font-size: 1.05rem; color: var(--text); }
+
+.gq-label {
+  font-size: 0.7rem; font-weight: 650; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+
+.gq-stem {
+  margin: 0; font-family: var(--font-read);
+  font-size: 1rem; line-height: 1.6; max-width: 62ch;
+}
+
+.gq-answer { display: grid; gap: 0.25rem; }
+.gq-answer blockquote {
+  margin: 0; padding: 0.65rem 0.85rem;
+  border-left: 3px solid var(--border-strong); border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-soft); font-family: var(--font-read);
+  font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.gq-points { display: grid; gap: 0.3rem; }
+
+.gq-point {
+  display: grid; grid-template-columns: auto auto 1fr auto;
+  gap: 0.55rem; align-items: baseline;
+  padding: 0.45rem 0.6rem; border-radius: var(--radius);
+  background: var(--missed-bg); cursor: pointer;
+  font-size: 0.87rem; line-height: 1.5;
+}
+.gq-point.is-awarded { background: var(--awarded-bg); }
+.gq-point input { margin: 0; align-self: center; }
+
+.gq-point kbd {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  padding: 0.05rem 0.32rem; border-radius: 3px;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-muted);
+}
+
+.gq-point-text { min-width: 0; overflow-wrap: anywhere; }
+.gq-point-marks {
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 650;
+  font-variant-numeric: tabular-nums; color: var(--text-muted);
+}
+.gq-point.is-awarded .gq-point-marks { color: var(--awarded); }
+
+.gq-manual { display: grid; gap: 0.25rem; }
+.gq-manual input {
+  width: 4.5rem; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); padding: 0.35rem 0.5rem;
+  font: inherit; font-family: var(--font-mono);
+}
+.gq-manual small { font-size: 0.74rem; color: var(--text-muted); }
+
+.gq-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+.gq-actions button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.42rem 0.85rem;
+  font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+}
+.gq-primary { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-contrast) !important; margin-right: auto; }
+.gq-secondary { color: var(--text-muted) !important; }
+.gq-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.gq-hint { margin: 0; font-size: 0.73rem; color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gq-bar i { transition: none; }
+}

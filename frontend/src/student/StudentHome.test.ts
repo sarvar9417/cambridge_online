@@ -6,8 +6,10 @@ const NOW = new Date('2026-08-16T09:00:00Z').getTime();
 const inHours = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString();
 
 const assignment = (over: Partial<Assignment> = {}): Assignment => ({
-  id: 'a1', title: 'Topic 4 test', className: '11-A', totalMarks: 20,
-  dueAt: inHours(48), timeLimitMin: 45, submissionStatus: null, ...over,
+  id: 'a1', classId: 'c1', title: 'Topic 4 test', mode: 'online', className: '11-A',
+  totalMarks: 20, opensAt: null, dueAt: inHours(48), timeLimitMin: 45,
+  publishedAt: null, submissionStatus: null,
+  classSize: 12, submittedCount: 0, pendingGrading: 0, ...over,
 });
 
 describe('deadline urgency', () => {

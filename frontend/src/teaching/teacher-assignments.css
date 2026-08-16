@@ -1,0 +1,112 @@
+/*
+ * The teacher's assignments.
+ *
+ * A working list, so the design is information density rather than warmth: the
+ * state of each assignment readable at a glance, and the one with people waiting
+ * on it at the top.
+ *
+ * Green and red stay reserved for marks, so "open" is the accent and "closed" is
+ * simply quiet. Amber marks the one thing that needs the teacher: answers
+ * waiting to be checked.
+ */
+
+.ta { display: grid; gap: 1rem; max-width: 900px; }
+
+.ta-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.ta-head h1 { margin: 0; font-size: 1.3rem; letter-spacing: -0.015em; }
+.ta-head p { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.84rem; }
+.ta-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.ta-actions button, .ta-form button, .ta-row-actions button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.4rem 0.8rem;
+  font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.ta-primary { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-contrast) !important; }
+
+.ta-empty { margin: 0; color: var(--text-muted); font-size: 0.86rem; max-width: 56ch; line-height: 1.55; }
+
+.ta-link {
+  justify-self: start; border: 0; background: none; padding: 0;
+  color: var(--accent); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.ta-link:hover { text-decoration: underline; }
+
+.ta-form {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.6rem; align-items: end;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.95rem 1.05rem;
+}
+.ta-form .ta-note { grid-column: 1 / -1; }
+.ta-form label { display: grid; gap: 0.2rem; font-size: 0.76rem; color: var(--text-muted); }
+.ta-check { display: flex !important; align-items: center; gap: 0.4rem; font-size: 0.8rem !important; }
+.ta-form input, .ta-form select {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text);
+  padding: 0.4rem 0.55rem; font: inherit; font-size: 0.86rem;
+}
+.ta-check input { width: auto; }
+
+.ta-note {
+  margin: 0; font-size: 0.78rem; color: var(--text-muted);
+  padding: 0.5rem 0.65rem; border-left: 2px solid var(--border-strong);
+  background: var(--surface-soft); border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* ---------- the list ---------- */
+
+.ta-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+.ta-row {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.85rem 1rem;
+  display: grid; gap: 0.6rem;
+  border-left: 3px solid transparent;
+}
+.ta-row--open { border-left-color: var(--accent); }
+.ta-row--closed { opacity: 0.72; }
+
+.ta-row-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.ta-row-text { display: grid; gap: 0.1rem; min-width: 0; }
+.ta-row-text strong { font-size: 0.95rem; }
+.ta-row-text small { font-size: 0.75rem; color: var(--text-muted); }
+
+.ta-state {
+  font-size: 0.71rem; font-weight: 650; padding: 0.12rem 0.5rem;
+  border-radius: 999px; white-space: nowrap;
+  background: var(--surface-soft); color: var(--text-muted);
+}
+.ta-state--open { background: var(--accent-soft); color: var(--accent); }
+
+.ta-progress { display: grid; gap: 0.3rem; }
+.ta-bar { height: 6px; border-radius: 999px; background: var(--surface-soft); overflow: hidden; }
+.ta-bar i { display: block; height: 100%; background: var(--accent); }
+.ta-figures { font-size: 0.76rem; color: var(--text-muted); }
+.ta-figures b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+
+.ta-row-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ta-row-actions button { font-size: 0.79rem; padding: 0.32rem 0.65rem; }
+
+/* ---------- exports ---------- */
+
+.ta-exports {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 0.9rem 1rem; display: grid; gap: 0.5rem;
+}
+.ta-exports h2 { margin: 0; font-size: 0.86rem; }
+
+.ta-export {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.6rem; border-radius: var(--radius); background: var(--surface-soft);
+}
+.ta-export > div { display: grid; gap: 0.05rem; margin-right: auto; min-width: 0; }
+.ta-export strong { font-size: 0.83rem; }
+.ta-export small { font-size: 0.72rem; color: var(--text-muted); }
+.ta-export button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.3rem 0.6rem;
+  font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.ta-export-status { font-size: 0.76rem; font-weight: 600; }
+.ta-export-error { width: 100%; color: var(--missed); }

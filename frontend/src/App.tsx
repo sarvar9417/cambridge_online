@@ -37,6 +37,8 @@ import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
 import { StudentResults } from './student/StudentResults';
 import { ClassesPage } from './teaching/ClassesPage';
+import { TeacherAssignments } from './teaching/TeacherAssignments';
+import { GradingQueue } from './teaching/GradingQueue';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
@@ -61,8 +63,6 @@ export function App() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [openResultId, setOpenResultId] = useState<string | null>(null);
@@ -408,28 +408,6 @@ export function App() {
   const changeGradingClass=async(classId:string)=>{
     setGradingClass(classId);
     await loadGrading(gradingView,classId);
-  };
-  const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    await api("/assignments", {
-      method: "POST",
-      headers: { "Idempotency-Key": crypto.randomUUID() },
-      body: JSON.stringify({
-        classId: data.get("classId"),
-        title: data.get("title"),
-        dueAt: data.get("dueAt")
-          ? new Date(String(data.get("dueAt"))).toISOString()
-          : undefined,
-        timeLimitMin: data.get("timeLimitMin")
-          ? Number(data.get("timeLimitMin"))
-          : undefined,
-        questionIds: selectedQuestions,
-      }),
-    });
-    setCreating(false);
-    setSelectedQuestions([]);
-    setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
   };
   const openResult = async (id: string) => {
     setOpenResultId(id);
@@ -788,256 +766,31 @@ export function App() {
   );
 
   const teacherAssignments = (
-    <>
-            <section>
-              <div className="section-title">
-                <h2>Vazifalar</h2>
-                <div className="actions">
-                  <button
-                    className="secondary"
-                    onClick={() => setGenerating((value) => !value)}
-                  >
-                    Avto yaratish
-                  </button>
-                  <button onClick={() => setCreating((value) => !value)}>
-                    {creating ? "Bekor qilish" : "Yangi vazifa"}
-                  </button>
-                </div>
-              </div>
-              {generating && (
-                <form className="generator-form" onSubmit={generateAssignment}>
-                  <label>
-                    Sinf
-                    <select name="classId">
-                      {classes.map((item) => (
-                        <option value={item.id} key={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Nomi
-                    <input name="title" minLength={3} required />
-                  </label>
-                  <label>
-                    Maqsad ball
-                    <input
-                      name="targetMarks"
-                      type="number"
-                      min="1"
-                      max="100"
-                      defaultValue="25"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <input name="excludeSeen" type="checkbox" defaultChecked />
-                    Ko‘rilgan savollarni chiqarish
-                  </label>
-                  <label>
-                    <input name="excludeDiagrams" type="checkbox" />
-                    Diagrammasiz
-                  </label>
-                  <button>Yaratish</button>
-                </form>
-              )}
-              {assignments.length > 0 && (
-                <div className="table staff-assignments">
-                  {assignments.map((a) => (
-                    <div className="tr" key={a.id}>
-                      <strong>{a.title}</strong>
-                      <span>{a.totalMarks} ball</span>
-                      <div>
-                        <button
-                          title="Savollar PDF"
-                          onClick={() =>
-                            exportAssignment(a.id, "question_paper")
-                          }
-                        >
-                          QP
-                        </button>
-                        <button
-                          title="Savol va mark scheme PDF"
-                          onClick={() => exportAssignment(a.id, "combined")}
-                        >
-                          QP+MS
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {exports.length > 0 && (
-                <div className="export-status" aria-live="polite">
-                  {exports.slice(0, 5).map((item) => (
-                    <div key={item.id}>
-                      <div>
-                        <strong>
-                          {item.kind === 'combined'
-                            ? 'Savollar va mark scheme'
-                            : item.kind === 'question_paper'
-                              ? 'Savollar PDF'
-                              : 'Natija PDF'}
-                        </strong>
-                        <small>{new Date(item.created_at).toLocaleString('uz-UZ')}</small>
-                      </div>
-                      <span className={`status-${item.status}`}>
-                        {item.status === 'queued'
-                          ? 'Navbatda'
-                          : item.status === 'running'
-                            ? 'Tayyorlanmoqda'
-                            : item.status === 'succeeded'
-                              ? 'Tayyor'
-                              : 'Xato'}
-                      </span>
-                      {item.status==='succeeded'&&<button className="secondary" onClick={()=>downloadExport(item)}>Yuklab olish</button>}
-                      {item.error && <small>{item.error}</small>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {creating && (
-                <form className="assignment-form" onSubmit={createAssignment}>
-                  <label>
-                    Sinf
-                    <select name="classId" required>
-                      {classes.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Nomi
-                    <input name="title" required minLength={3} />
-                  </label>
-                  <label>
-                    Muddat
-                    <input name="dueAt" type="datetime-local" />
-                  </label>
-                  <label>
-                    Vaqt limiti
-                    <input
-                      name="timeLimitMin"
-                      type="number"
-                      min="1"
-                      max="300"
-                    />
-                  </label>
-                  <fieldset>
-                    <legend>Savollar</legend>
-                    {questions.slice(0, 20).map((question) => (
-                      <label key={question.id}>
-                        <input
-                          type="checkbox"
-                          checked={selectedQuestions.includes(question.id)}
-                          onChange={(event) =>
-                            setSelectedQuestions((current) =>
-                              event.target.checked
-                                ? [...current, question.id]
-                                : current.filter((id) => id !== question.id),
-                            )
-                          }
-                        />
-                        {question.displayRef} · {question.stemMd} (
-                        {question.marks})
-                      </label>
-                    ))}
-                  </fieldset>
-                  <button disabled={selectedQuestions.length === 0}>
-                    Nashr qilish · {selectedQuestions.length} savol
-                  </button>
-                </form>
-              )}
-            </section>
-    </>
+    <TeacherAssignments
+      assignments={assignments}
+      classes={classes}
+      exports={exports}
+      filterClassId={route.params.get('sinf') ?? ''}
+      generating={generating}
+      onToggleGenerate={() => setGenerating((value) => !value)}
+      onGenerate={generateAssignment}
+      onExport={exportAssignment}
+      onDownload={downloadExport}
+    />
   );
 
   const gradingQueue = (
-    <>
-            <section>
-              <div className="section-title">
-                <h2>Tekshirish navbati</h2>
-                <div className="queue-tools">
-                  <select
-                    className="queue-class" aria-label="Sinf bo‘yicha filtr"
-                    value={gradingClass} onChange={(event)=>changeGradingClass(event.target.value)}
-                  >
-                    <option value="">Barcha sinflar</option>
-                    {classes.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}
-                  </select>
-                  <div className="segmented" aria-label="Tekshirish tartibi">
-                    <button className={gradingView==='by_question'?'active':''} aria-pressed={gradingView==='by_question'} onClick={()=>changeGradingView('by_question')}>Savol</button>
-                    <button className={gradingView==='by_student'?'active':''} aria-pressed={gradingView==='by_student'} onClick={()=>changeGradingView('by_student')}>O‘quvchi</button>
-                    <button className={gradingView==='confidence'?'active':''} aria-pressed={gradingView==='confidence'} onClick={()=>changeGradingView('confidence')}>Ishonch past</button>
-                  </div>
-                  <span>{grading.length} javob</span>
-                </div>
-              </div>
-              {grading.length === 0 ? (
-                <p className="empty">Tekshiriladigan javob yo‘q.</p>
-              ) : (
-                <div className="grading-list">
-                  {grading.map((item) => (
-                    <article className="grading-card" key={item.id}>
-                      <div className="grading-head">
-                        <div>
-                          <strong>{item.studentName}</strong>
-                          <span>
-                            {item.displayRef} · {item.marks} ball
-                          </span>
-                        </div>
-                        <button onClick={() => release(item)}>
-                          Natijani chiqarish
-                        </button>
-                      </div>
-                      <h3>{item.stemMd}</h3>
-                      <blockquote>{item.text || "Javob yozilmagan"}</blockquote>
-                      {item.points.length > 0 ? (
-                        <div className="mark-points">
-                          {item.points.map((point) => (
-                            <label key={point.id}>
-                              <input
-                                type="checkbox"
-                                checked={Boolean(point.matched)}
-                                onChange={(event) =>
-                                  togglePoint(
-                                    item,
-                                    point.id,
-                                    event.target.checked,
-                                  )
-                                }
-                              />
-                              <span>
-                                <strong>{point.code}</strong> {point.text}
-                              </span>
-                              <b>{point.marks}</b>
-                            </label>
-                          ))}
-                        </div>
-                      ) : (
-                        <label className="score-input">
-                          Ball
-                          <input
-                            type="number"
-                            min="0"
-                            max={item.marks}
-                            defaultValue="0"
-                            onBlur={(event) =>
-                              setScore(item, Number(event.target.value))
-                            }
-                          />{" "}
-                          / {item.marks}
-                        </label>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-    </>
+    <GradingQueue
+      items={grading}
+      classes={classes}
+      classId={gradingClass}
+      view={gradingView}
+      onClassChange={changeGradingClass}
+      onViewChange={changeGradingView}
+      onTogglePoint={togglePoint}
+      onSetScore={setScore}
+      onRelease={release}
+    />
   );
 
   // The rule for which section belongs on which page is a pure function, so it
