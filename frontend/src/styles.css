@@ -10,14 +10,8 @@ input, textarea, select { background: var(--surface); color: var(--text);
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 button { cursor: pointer; border: 0; border-radius: 6px; background: var(--accent); color: var(--surface); padding: 9px 14px; font-weight: 700; }
 button:disabled { cursor: not-allowed; opacity: .5; }
-.center, .login-page { min-height: 100vh; display: grid; place-items: center; }
-.login-page { background: var(--bg); }
-.login-panel { width: min(400px, calc(100% - 32px)); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 32px; box-shadow: var(--shadow); }
+.center { min-height: 100vh; display: grid; place-items: center; }
 .brand { font-size: 20px; font-weight: 800; color: var(--accent); }
-.login-panel h1 { font: 600 26px Georgia, serif; margin: 30px 0 24px; }
-.login-panel label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; margin: 16px 0; }
-.login-panel input { height: 44px; border: 1px solid var(--border-strong); border-radius: 6px; padding: 0 12px; }
-.login-panel button { height: 44px; width: 100%; margin-top: 10px; }
 .error { color: var(--missed); font-size: 14px; }
 .app { min-height: 100vh; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
 .app aside { border-right: 1px solid var(--border); background: var(--surface); padding: 24px 16px; display: flex; flex-direction: column; }
@@ -25,8 +19,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .app nav a { padding: 10px 12px; border-radius: 6px; color: var(--text-muted); }
 .app nav .active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .ghost { margin-top: auto; border: 1px solid var(--border-strong); color: var(--text); background: var(--surface); height: 40px; }
-.data-export { margin-top:auto; margin-bottom:8px; }
-.data-export+.ghost { margin-top:0; }
 .app > main { min-width: 0; padding: 36px; max-width: 1200px; width: 100%; margin: auto; }
 .app header, .section-title, .grading-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .section-title { flex-wrap: wrap; }
@@ -41,14 +33,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .tr.head { min-height: 36px; background: var(--surface-soft); color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
 .assignment small { display: block; color: var(--text-muted); margin-top: 4px; }
 .results small { display: block; color: var(--text-muted); margin-top: 4px; }
-.result-row { width:100%; color:inherit; text-align:left; background:var(--surface); border-radius:0; font-weight:400; }
-.result-detail { margin-top:16px; border:1px solid var(--border); background:var(--surface); padding:18px; border-radius:6px; }
-.result-detail article { padding:16px 0; border-top:1px solid var(--border); }
-.result-detail blockquote { margin:10px 0; padding:10px; background:var(--surface-soft); border-left:3px solid var(--border-strong); }
-.result-detail .point { display:grid; grid-template-columns:24px 1fr 30px; gap:8px; padding:7px 0; color:var(--missed); }
-.result-detail .point.hit { color:var(--awarded); }
-.appeal-form { display:grid; grid-template-columns:1fr auto; gap:10px; margin-top:14px; }
-.appeal-form textarea { min-height:70px; resize:vertical; border:1px solid var(--border-strong); border-radius:6px; padding:10px; }
 .appeal-status,.appeal-reason { padding:10px; border-left:3px solid var(--uncertain); background:var(--uncertain-bg); }
 .appeal-list { display:grid; gap:12px; }
 .appeal-list article { display:grid; grid-template-columns:1fr auto; gap:18px; padding:16px; border:1px solid var(--border); border-radius:6px; background:var(--surface); }
@@ -91,10 +75,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .student-command-words small { color:var(--text-muted); text-align:right; }
 .review-tools,.review-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .review-tools select { height:38px; border:1px solid var(--border-strong); border-radius:6px; padding:0 10px; background:var(--surface); }
-.review-item { display:grid; grid-template-columns:minmax(220px,.8fr) minmax(0,1.4fr); gap:18px; padding:16px; border:1px solid var(--border); border-radius:6px; background:var(--surface); margin-bottom:10px; }
-.review-item>div:nth-child(2)>small { display:block; margin-top:5px; color:var(--text-muted); }
-.review-source { min-height:220px; display:grid; align-content:center; gap:8px; padding:18px; background:var(--bg); border:1px solid var(--border); overflow-wrap:anywhere; }
-.review-source span,.review-source small { color:var(--text-muted); font-size:12px; }
 .review-edit { display:grid; grid-template-columns:100px minmax(150px,1fr); gap:10px; margin:12px 0; }
 .review-edit label { display:grid; gap:5px; font-size:12px; font-weight:700; }
 .review-edit label:first-child,.review-edit>div { grid-column:1/-1; }
@@ -168,12 +148,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .modal-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:16px; background:color-mix(in srgb, var(--text) 60%, transparent); }
 .submit-dialog { width:min(440px,100%); margin:0; padding:22px; border-radius:8px; background:var(--surface); box-shadow:var(--shadow-lg); }.submit-dialog>div { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
 .student-profile>div { display:flex; gap:8px; }
-.student-tabs { display:none; }
 @media (max-width: 720px) {
   .app { display: block; }
   .app aside { display: none; }
   .app > main { padding: 24px 16px; }
-  .app:has(.student-tabs)>main { padding-bottom:86px; }
   .questions .tr { grid-template-columns: 1fr 44px; }
   .questions .tr span:first-child { display: none; }
   .tr { grid-template-columns: 1fr 70px 90px; gap: 8px; }
@@ -185,15 +163,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .segmented button { padding: 0 6px; }
   .assignment-form { grid-template-columns: 1fr; }
   .generator-form { grid-template-columns:1fr; }
-  .appeal-form,.appeal-list article { grid-template-columns:1fr; }
-  .appeal-form button { justify-self:start; }
+  .appeal-list article { grid-template-columns:1fr; }
   .analytics-columns { grid-template-columns:1fr; }
-  .review-item { grid-template-columns:1fr; }
   .review-actions { grid-column:1; justify-content:flex-start; }
   .quality-row { grid-template-columns:1fr 1fr; }
   .game-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .learning-game>label { grid-template-columns:1fr; }
-  .student-tabs { position:fixed; left:0; right:0; bottom:0; z-index:10; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border-top:1px solid var(--border); background:var(--surface); padding-bottom:env(safe-area-inset-bottom); }
-  .student-tabs a { min-width:0; min-height:52px; display:grid; place-items:center; padding:4px 2px; color:var(--text); font-size:11px; font-weight:700; text-align:center; }
   .attempt button,.student-profile button { min-height:44px; }
 }

@@ -1,0 +1,267 @@
+/*
+ * Results, and the mark-by-mark walkthrough behind each one.
+ *
+ * The detail view is set as reading matter: question and answer in the serif
+ * face at a comfortable measure, the mark scheme in the interface face beside
+ * them. A student reads this to find out why, which is a different act from
+ * scanning a dashboard.
+ *
+ * Green and red do their one job here -- mark awarded, mark not awarded. Every
+ * other screen in the product avoids them precisely so that they mean this.
+ */
+
+.sr { display: grid; gap: 1rem; max-width: 780px; }
+
+.sr-head,
+.sr-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.sr-head h1, .sr-detail-head h1 { margin: 0; font-size: 1.3rem; letter-spacing: -0.015em; }
+.sr-head p, .sr-detail-head p { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.84rem; }
+
+.sr-detail-head { align-items: center; gap: 0.85rem; }
+
+.sr-back {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sr-back:hover { color: var(--text); }
+
+.sr-average { display: grid; justify-items: end; line-height: 1.1; }
+.sr-average-value {
+  font-family: var(--font-mono);
+  font-size: 1.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+.sr-average-label { font-size: 0.72rem; color: var(--text-muted); }
+
+.sr-empty { margin: 0; color: var(--text-muted); font-size: 0.86rem; max-width: 52ch; line-height: 1.55; }
+
+/* ---------- the list ---------- */
+
+.sr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.sr-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem auto auto;
+  gap: 0.85rem;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 130ms ease, transform 130ms ease;
+}
+.sr-row:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.sr-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.sr-row-text { display: grid; gap: 0.1rem; min-width: 0; }
+.sr-row-text strong { font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-row-text small { font-size: 0.74rem; color: var(--text-muted); }
+
+.sr-row-bar { height: 6px; border-radius: 999px; background: var(--surface-soft); overflow: hidden; }
+.sr-row-bar i { display: block; height: 100%; }
+.sr-row-bar i.is-good { background: var(--awarded); }
+.sr-row-bar i.is-low { background: var(--missed); }
+
+.sr-row-score { display: grid; justify-items: end; line-height: 1.15; }
+.sr-row-score span {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.sr-row-score span.is-good { color: var(--awarded); }
+.sr-row-score span.is-low { color: var(--missed); }
+.sr-row-score small { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+.sr-grade {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 650;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- the walkthrough ---------- */
+
+.sr-questions { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; counter-reset: q; }
+
+.sr-question {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sr-question-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+.sr-ref { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); }
+
+.sr-mark {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius);
+}
+.sr-mark.is-full { background: var(--awarded-bg); color: var(--awarded); }
+.sr-mark.is-zero { background: var(--missed-bg); color: var(--missed); }
+.sr-mark.is-part { background: var(--surface-soft); color: var(--text); }
+
+/* Question text is reading matter, not interface. */
+.sr-stem {
+  margin: 0;
+  font-family: var(--font-read);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 62ch;
+}
+
+.sr-answer, .sr-feedback { display: grid; gap: 0.25rem; }
+
+.sr-answer-label, .sr-feedback-label, .sr-points-label {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sr-answer blockquote {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-soft);
+  font-family: var(--font-read);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sr-feedback p {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.sr-points { display: grid; gap: 0.3rem; }
+
+.sr-point {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr auto;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius);
+  background: var(--missed-bg);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.sr-point.is-awarded { background: var(--awarded-bg); }
+
+.sr-point-mark { font-weight: 700; color: var(--missed); }
+.sr-point.is-awarded .sr-point-mark { color: var(--awarded); }
+
+.sr-point-text { min-width: 0; overflow-wrap: anywhere; }
+
+.sr-point-marks {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.sr-point.is-awarded .sr-point-marks { color: var(--awarded); }
+
+.sr-appeal-status {
+  margin: 0;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+.sr-appeal-status--open { background: var(--uncertain-bg); color: var(--uncertain); }
+
+.sr-appeal summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 600;
+  width: fit-content;
+}
+.sr-appeal summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+
+.sr-appeal textarea {
+  width: 100%;
+  margin-top: 0.5rem;
+  min-height: 5rem;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.sr-appeal textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.sr-appeal button {
+  margin-top: 0.4rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius);
+  padding: 0.38rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sr-appeal button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 700px) {
+  .sr-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-row-bar { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-row { transition: none; }
+  .sr-row:hover { transform: none; }
+}

@@ -35,6 +35,7 @@ import { SystemPage } from './admin/SystemPage';
 import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
+import { StudentResults } from './student/StudentResults';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
@@ -63,6 +64,7 @@ export function App() {
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
+  const [openResultId, setOpenResultId] = useState<string | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
   const [practicing,setPracticing]=useState<string|null>(null);
   const [commandWords,setCommandWords]=useState<CommandWordProgress[]>([]);
@@ -398,10 +400,10 @@ export function App() {
     setSelectedQuestions([]);
     setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
   };
-  const openResult = async (id: string) =>
-    setResultDetail(
-      (await api<{ data: ResultDetail[] }>(`/results/${id}`)).data,
-    );
+  const openResult = async (id: string) => {
+    setOpenResultId(id);
+    setResultDetail((await api<{ data: ResultDetail[] }>(`/results/${id}`)).data);
+  };
   const submitAppeal = async (item: ResultDetail) => {
     const reason = appealDraft[item.gradingId]?.trim() ?? "";
     if (reason.length < 10) {
@@ -597,100 +599,17 @@ export function App() {
   );
 
   const studentResults = (
-    <>
-        <section id="student-results">
-          <div className="section-title">
-            <h2>Natijalar</h2>
-            <span>{results.length} ta</span>
-          </div>
-          {results.length === 0 ? (
-            <p className="empty">Hozircha chiqarilgan natija yo‘q.</p>
-          ) : (
-            <div className="table results">
-              {results.map((result) => (
-                <button
-                  className="tr result-row"
-                  key={result.id}
-                  onClick={() => openResult(result.id)}
-                >
-                  <div>
-                    <strong>{result.title}</strong>
-                    <small>
-                      {user.role === "student"
-                        ? result.className
-                        : result.studentName}
-                    </small>
-                  </div>
-                  <strong>
-                    {result.totalScore}/{result.totalMax}
-                  </strong>
-                  <span>{result.percentage}%</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {resultDetail && (
-            <div className="result-detail">
-              <div className="section-title">
-                <h3>Javoblar tahlili</h3>
-                <button title="Yopish" onClick={() => setResultDetail(null)}>
-                  ×
-                </button>
-              </div>
-              {resultDetail.map((item) => (
-                <article key={item.gradingId}>
-                  <strong>
-                    {item.displayRef} · {item.finalScore}/{item.marks}
-                  </strong>
-                  <p>{item.stemMd}</p>
-                  <blockquote>
-                    {item.answerText || "Javob yozilmagan"}
-                  </blockquote>
-                  {item.points.map((point) => (
-                    <div
-                      className={point.matched ? "point hit" : "point"}
-                      key={point.code}
-                    >
-                      <b>{point.matched ? "✓" : "×"}</b>
-                      <span>
-                        {point.code} {point.text}
-                      </span>
-                      <strong>{point.marks}</strong>
-                    </div>
-                  ))}
-                  {user.role === "student" &&
-                    (item.appealStatus ? (
-                      <p className="appeal-status">
-                        Apellyatsiya:{" "}
-                        {item.appealStatus === "open"
-                          ? "ko‘rib chiqilmoqda"
-                          : item.appealStatus === "accepted"
-                            ? "qabul qilindi"
-                            : "rad etildi"}
-                      </p>
-                    ) : (
-                      <div className="appeal-form">
-                        <textarea
-                          value={appealDraft[item.gradingId] ?? ""}
-                          onChange={(event) =>
-                            setAppealDraft((current) => ({
-                              ...current,
-                              [item.gradingId]: event.target.value,
-                            }))
-                          }
-                          placeholder="Bahoga nima sababdan e’tiroz bildirayotganingizni yozing"
-                        />
-                        <button onClick={() => submitAppeal(item)}>
-                          Apellyatsiya yuborish
-                        </button>
-                      </div>
-                    ))}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-    </>
+    <StudentResults
+      user={user}
+      results={results}
+      detail={resultDetail}
+      openResultId={openResultId}
+      appealDraft={appealDraft}
+      onOpen={openResult}
+      onClose={() => { setResultDetail(null); setOpenResultId(null); }}
+      onAppealDraft={(gradingId, value) => setAppealDraft((current) => ({ ...current, [gradingId]: value }))}
+      onAppeal={submitAppeal}
+    />
   );
 
   const studentLearning = (
