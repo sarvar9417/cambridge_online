@@ -40,13 +40,15 @@ Important moves/consolidations include:
 
 ## Learning-objective crosswalk
 
-`backend/src/database/knowledge/hodder-9618-lo-crosswalk.json` maps **every LO currently present in `9618-catalog.json`** to one or more Hodder unit codes from the verified source index:
+`backend/src/database/knowledge/hodder-9618-lo-crosswalk.json` maps the current internal syllabus LOs plus the audited additive 2026 overlay to supporting Hodder unit/section codes:
 
-- 203 current internal LO codes mapped
+- 203 existing internal LO codes preserved unchanged
+- 12 audited 2026 syllabus statements added in `backend/src/database/syllabus/9618-2026-lo-additions.json`
+- 215 total LO codes mapped to Hodder references
 - 44 canonical subtopics covered
 - 167 Hodder fine units available
 
-The older `hodder-9618-knowledge-map.json` remains only as a compatibility artifact while the source index is introduced; new validation and LO mapping use the verified source index.
+The older `hodder-9618-knowledge-map.json` remains only as a compatibility artifact while the verified source index is introduced; new validation and LO mapping use `hodder-9618-source-index.json`.
 
 The crosswalk is deliberately one-way:
 
@@ -54,22 +56,25 @@ The crosswalk is deliberately one-way:
 
 Questions are never persisted against Hodder IDs. Hodder IDs are evidence/context only.
 
-## Catalog audit finding
+## Additive 2026 LO overlay
 
-The current internal `backend/src/database/syllabus/9618-catalog.json` is usable but is not yet a lossless transcription of every 2026 syllabus candidate statement. The audit recorded confirmed omissions without renumbering existing LO codes.
+The audit found 12 syllabus statements that were not explicitly preserved in the current internal catalog. They are kept in a separate overlay so existing LO codes are never silently renumbered.
 
-Examples include:
+Affected subtopics include `3.2`, `6.1`, `11.1`, `11.2`, `11.3`, `12.3`, `13.3` and `20.1`.
 
-- `3.2`: defining the functions of NOT/AND/OR/NAND/NOR/XOR gates
-- `6.1`: appreciation of the need for data/system security
-- `11.1`: pseudocode declarations/assignment/input/output and built-in/library routines
-- `11.2`: justifying loop-structure choice
-- `11.3`: appropriate procedure/function use and parameters
-- `12.3`: locating/identifying/correcting errors
-- `13.3`: binary representation rounding errors
-- `20.1`: meaning of a programming paradigm
+Examples include gate functions, pseudocode declarations/input/output, library routines, loop-choice justification, procedure/function usage and parameters, error identification/correction, floating-point rounding errors and the meaning of a programming paradigm.
 
-These are stored under `catalogAudit` in the crosswalk. **Do not silently renumber existing LO codes**, because question mappings may depend on them. Any repair should be additive and reviewed before broad corpus classification.
+The existing additive/idempotent LO importer can apply the overlay. Dry-run first:
+
+```bash
+npm run syllabus:lo-apply --workspace=backend -- --file=backend/src/database/syllabus/9618-2026-lo-additions.json
+```
+
+Write only after the dry-run matches every subtopic:
+
+```bash
+CONFIRM_SYLLABUS_LO_APPLY=YES npm run syllabus:lo-apply --workspace=backend -- --file=backend/src/database/syllabus/9618-2026-lo-additions.json --write
+```
 
 ## Question-bank ingestion rule
 
@@ -90,7 +95,7 @@ For every mark-bearing question leaf:
 `backend/src/database/knowledge/hodder-9618-knowledge.test.ts` verifies that:
 
 - the 20/52/167/44 source inventory stays intact
-- every current canonical LO is mapped exactly once
+- every base + additive 2026 LO is mapped exactly once
 - no LO points at an unknown or out-of-scope Hodder source
 - the important 2026 structural moves remain explicit
 
@@ -102,12 +107,13 @@ This prevents later catalog/map edits from silently breaking ingestion classific
 - Cambridge 2026 syllabus Drive file ID: `1JzFMyhPaSvfyvlII1yXF1Av2uDHGtx6p`
 - Canonical structure: `backend/src/database/syllabus/9618-structure.ts`
 - Current internal LO catalog: `backend/src/database/syllabus/9618-catalog.json`
+- Audited additive LO overlay: `backend/src/database/syllabus/9618-2026-lo-additions.json`
 
 ## Next gate
 
 Before mass ingestion:
 
-1. repair/approve the audited LO-catalog gaps additively
+1. dry-run and then apply/approve the additive LO overlay
 2. run one real 2025 QP/MS reference pair through extraction -> matching -> classification -> validation -> persist
 3. manually inspect question -> subtopic -> LO results
 4. only then widen the corpus incrementally
