@@ -20,6 +20,7 @@
     "corpus:enqueue": "tsx src/jobs/corpus-enqueue-cli.ts",
     "corpus:resume": "tsx src/jobs/corpus-resume-cli.ts",
     "corpus:reference": "tsx src/jobs/reference-ingest-cli.ts",
+    "corpus:taxonomy-audit": "tsx src/jobs/question-taxonomy-audit-cli.ts",
     "syllabus:catalog": "tsx src/jobs/syllabus-catalog-import-cli.ts",
     "syllabus:coverage": "tsx src/jobs/syllabus-coverage-cli.ts",
     "syllabus:repair": "tsx src/jobs/historical-syllabus-repair-cli.ts",
