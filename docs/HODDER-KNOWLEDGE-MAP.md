@@ -129,7 +129,7 @@ The audit blocks source-backed real corpus (`source_papers.source_url IS NOT NUL
 - out-of-component LO
 - LO whose owning subtopic was not selected
 
-The Phase-0 synthetic 2026 seed is intentionally excluded from this blocking corpus audit because it has no source URL and is still referenced by demo assignments/answers.
+The Phase-0 synthetic 2026 seed is intentionally excluded from this blocking corpus audit because it has no source URL and is still referenced by demo assignments/answers. This is a deliberate compatibility boundary, not a claim that synthetic questions are equivalent to source-backed Cambridge material.
 
 ## Production taxonomy repair performed on 2026-08-16
 
@@ -174,7 +174,7 @@ This means the next bottleneck is no longer taxonomy integrity. It is controlled
 ## Automated tests
 
 - `backend/src/database/knowledge/hodder-9618-knowledge.test.ts` protects the 20/52/167/44 source inventory, LO crosswalk and structural moves.
-- `backend/src/jobs/question-taxonomy-audit.test.ts` protects the source-backed taxonomy audit contract.
+- `backend/src/jobs/question-taxonomy-audit.test.ts` protects the source-backed taxonomy audit contract, including the `source_url` boundary for real corpus.
 
 ## Source references
 
