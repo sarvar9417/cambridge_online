@@ -10,7 +10,7 @@ import { pool } from '../database/client.js';
  * only gap was the objectives — so this writes just those, matched to existing
  * subtopics by code.
  *
- * Additive and idempotent: an objective that is already present is left alone.
+ * Additive and idempotent: an objective that is already present is reused.
  * When an objective explicitly declares `componentNumbers`, this command also
  * writes the matching `component_learning_objectives` rows. Coverage is never
  * inferred here: omitted componentNumbers mean "leave coverage unchanged".
@@ -94,7 +94,7 @@ const requestedComponentNumbers = new Set(
 const unmatchedComponentNumbers = [...requestedComponentNumbers].filter(
   (number) => !componentIdByNumber.has(number),
 );
-const collisions = wantedObjectives.flatMap((objective) => {
+const metadataDifferences = wantedObjectives.flatMap((objective) => {
   const found = existingObjectiveByKey.get(`${objective.subtopicCode}:${objective.code}`);
   if (!found) return [];
   if (found.text === objective.text && found.sort_order === objective.sortOrder) return [];
@@ -118,7 +118,9 @@ if (unmatched.length) console.log(`unmatched codes      : ${unmatched.join(', ')
 if (unmatchedComponentNumbers.length) {
   console.log(`unknown components   : ${unmatchedComponentNumbers.join(', ')}`);
 }
-if (collisions.length) console.log(`objective collisions : ${collisions.join(', ')}`);
+if (metadataDifferences.length) {
+  console.log(`metadata to refresh  : ${metadataDifferences.join(', ')}`);
+}
 
 if (!write) {
   console.log('\nDry run. Pass --write to apply.');
@@ -134,30 +136,34 @@ if (unmatched.length) {
 if (unmatchedComponentNumbers.length) {
   throw new Error(`refusing to write: unknown component numbers ${unmatchedComponentNumbers.join(', ')}`);
 }
-if (collisions.length) {
-  throw new Error(`refusing to write: existing objective differs ${collisions.join(', ')}`);
-}
 
 const client = await pool.connect();
 let inserted = 0;
+let refreshed = 0;
 let coverageInserted = 0;
 try {
   await client.query('begin');
   for (const subtopic of wanted) {
     const subtopicId = idByCode.get(subtopic.code)!;
     for (const objective of subtopic.learningObjectives) {
-      const result = await client.query(
+      const prior = existingObjectiveByKey.get(`${subtopic.code}:${objective.code}`);
+      const result = await client.query<{ id: string }>(
         `insert into learning_objectives (subtopic_id, code, text, sort_order)
          values ($1, $2, $3, $4)
-         on conflict (subtopic_id, code) do nothing
+         on conflict (subtopic_id, code) do update
+           set text=excluded.text,
+               sort_order=excluded.sort_order
          returning id`,
         [subtopicId, objective.code, objective.text, objective.sortOrder],
       );
-      inserted += result.rowCount ?? 0;
-
-      const objectiveId = result.rows[0]?.id ?? existingObjectiveByKey.get(`${subtopic.code}:${objective.code}`)?.id;
+      const objectiveId = result.rows[0]?.id;
       if (!objectiveId) {
         throw new Error(`failed to resolve learning objective ${subtopic.code}:${objective.code}`);
+      }
+      if (prior) {
+        if (prior.text !== objective.text || prior.sort_order !== objective.sortOrder) refreshed += 1;
+      } else {
+        inserted += 1;
       }
 
       for (const componentNumber of objective.componentNumbers ?? []) {
@@ -188,5 +194,5 @@ const total = await pool.query<{ n: string }>(
    where s.code = $1 and s.is_active`,
   [catalog.code],
 );
-console.log(`\ninserted ${inserted}; coverage inserted ${coverageInserted}; syllabus now has ${total.rows[0]!.n} learning objectives`);
+console.log(`\ninserted ${inserted}; refreshed ${refreshed}; coverage inserted ${coverageInserted}; syllabus now has ${total.rows[0]!.n} learning objectives`);
 await pool.end();
