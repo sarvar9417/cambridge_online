@@ -22,7 +22,8 @@
     "corpus:reference": "tsx src/jobs/reference-ingest-cli.ts",
     "syllabus:catalog": "tsx src/jobs/syllabus-catalog-import-cli.ts",
     "syllabus:coverage": "tsx src/jobs/syllabus-coverage-cli.ts",
-    "syllabus:repair": "tsx src/jobs/historical-syllabus-repair-cli.ts"
+    "syllabus:repair": "tsx src/jobs/historical-syllabus-repair-cli.ts",
+    "syllabus:lo-apply": "tsx src/jobs/syllabus-lo-apply-cli.ts"
   },
   "dependencies": {
     "@sparticuz/chromium-min": "^149.0.0",
@@ -32,14 +33,13 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
-    "jose": "^6.1.0",
+    "jose": "^6.1.5",
     "pg": "^8.16.3",
     "puppeteer-core": "^25.7.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.9",
-    "@types/cors": "^2.8.5",
     "@types/node": "^24.3.0",
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.3",
