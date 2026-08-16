@@ -36,6 +36,7 @@ import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
 import { StudentResults } from './student/StudentResults';
+import { StudentLearning } from './student/StudentLearning';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
@@ -622,75 +623,16 @@ export function App() {
   );
 
   const studentLearning = (
-    <>
-        {user.role === "student" && (
-          <section id="student-learning">
-            <div className="section-title">
-              <h2>Bilim xaritasi</h2>
-              <span>{mastery.length} mavzu</span>
-            </div>
-            {mastery.length === 0 ? (
-              <p className="empty">
-                Natijalar chiqqach bilim xaritasi paydo bo‘ladi.
-              </p>
-            ) : (
-              <div className="mastery-list">
-                {mastery.map((item,index) => (
-                  <div key={item.subtopic_id}>
-                    <div>
-                      <strong>
-                        {item.code} {item.title}
-                      </strong>
-                      <span>{Math.round(item.score * 100)}%</span>
-                    </div>
-                    <progress max="1" value={item.score} />
-                    {index===0&&<button className="practice-button" disabled={practicing===item.subtopic_id} onClick={()=>startPractice(item)}>{practicing===item.subtopic_id?'Tayyorlanmoqda…':'Mashq qilish'}</button>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-        {user.role === "student" && (
-          <section id="student-command-words">
-            <div className="section-title">
-              <h2>Imtihon ko‘nikmalari</h2>
-              <span>{commandWords.length} command word</span>
-            </div>
-            {commandWords.length === 0 ? (
-              <p className="empty">Baholar chiqarilgach command word tahlili paydo bo‘ladi.</p>
-            ) : (
-              <div className="student-command-words">
-                {commandWords.map((item)=><div className="word-row" key={item.commandWord}><span>{item.commandWord}</span><progress max="100" value={item.percentage}/><b>{item.percentage}%</b><small>{item.sampleSize} javob</small></div>)}
-              </div>
-            )}
-          </section>
-        )}
-        {user.role === "student" && flashcards[0] && (
-          <section id="student-flashcards">
-            <div className="section-title">
-              <h2>Kartochkalar</h2>
-              <span>{flashcards.length} ta</span>
-            </div>
-            <article className="flashcard">
-              <strong>{flashcards[0].front_md}</strong>
-              {cardRevealed ? (
-                <>
-                  <p>{flashcards[0].back_md}</p>
-                  <div>
-                    <button onClick={() => gradeCard(1)}>Qiyin</button>
-                    <button onClick={() => gradeCard(3)}>O‘rta</button>
-                    <button onClick={() => gradeCard(5)}>Oson</button>
-                  </div>
-                </>
-              ) : (
-                <button onClick={() => setCardRevealed(true)}>
-                  Javobni ko‘rsatish
-                </button>
-              )}
-            </article>
-          </section>
-        )}
+    <StudentLearning
+      mastery={mastery}
+      commandWords={commandWords}
+      flashcards={flashcards}
+      cardRevealed={cardRevealed}
+      practicing={practicing}
+      onReveal={() => setCardRevealed(true)}
+      onGrade={gradeCard}
+      onPractice={startPractice}
+      games={<>
         {user.role === "student" && (games.termMatch.length>0||games.sequence.length>1) && (
           <section id="student-games">
             <div className="section-title"><h2>Mashq o‘yinlari</h2><div className="segmented game-tabs" aria-label="O‘yin turi">
@@ -706,7 +648,8 @@ export function App() {
             </div>
           </section>
         )}
-    </>
+      </>}
+    />
   );
 
   const studentProfile = (

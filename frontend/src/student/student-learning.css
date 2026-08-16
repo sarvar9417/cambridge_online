@@ -1,0 +1,142 @@
+/*
+ * The study page.
+ *
+ * The one screen a student chooses to open rather than has to, so it leads with
+ * the single next action instead of four stacked blocks in the order they were
+ * written.
+ *
+ * Colour discipline holds: green and red mean marks awarded and lost, so a
+ * strong topic is the accent and a weak one is amber. A student is not failing
+ * a topic, they have not finished learning it, and red would say the wrong
+ * thing.
+ */
+
+.sl { display: grid; gap: 1rem; max-width: 860px; }
+
+.sl-hero {
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 140% at 100% 0%, var(--accent-soft), transparent 62%),
+    var(--surface);
+}
+.sl-eyebrow {
+  margin: 0 0 0.25rem; font-size: 0.72rem; font-weight: 650;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+}
+.sl-hero h1 {
+  margin: 0; font-family: var(--font-read);
+  font-size: clamp(1.15rem, 3vw, 1.5rem); line-height: 1.3;
+  letter-spacing: -0.015em; text-wrap: balance; max-width: 30ch;
+}
+
+.sl-card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 1rem 1.1rem;
+  display: grid; gap: 0.7rem; align-content: start;
+}
+.sl-card h2 { margin: 0; font-size: 0.92rem; letter-spacing: -0.005em; }
+.sl-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.sl-counter { font-size: 0.76rem; color: var(--text-muted); font-family: var(--font-mono); }
+.sl-empty { margin: 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; max-width: 54ch; }
+
+.sl-link {
+  justify-self: start; border: 0; background: none; padding: 0;
+  color: var(--accent); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.sl-link:hover { text-decoration: underline; }
+
+.sl-primary {
+  justify-self: start;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
+  border-radius: var(--radius); padding: 0.45rem 0.95rem;
+  font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer;
+}
+
+/* ---------- flashcards ---------- */
+
+.sl-flash-face {
+  display: grid; gap: 0.6rem;
+  padding: 1.1rem 1.15rem; border-radius: var(--radius);
+  background: var(--surface-soft); min-height: 7rem; align-content: center;
+}
+/* Card text is reading matter, and the front is the question being asked. */
+.sl-flash-front { margin: 0; font-family: var(--font-read); font-size: 1.1rem; line-height: 1.5; }
+.sl-flash-back {
+  margin: 0; font-family: var(--font-read); font-size: 1rem; line-height: 1.6;
+  padding-top: 0.6rem; border-top: 1px solid var(--border);
+}
+.sl-flash-hint { margin: 0; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+
+.sl-grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.sl-grade {
+  display: grid; gap: 0.1rem; text-align: center;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.55rem 0.5rem;
+  font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer;
+}
+.sl-grade small { font-size: 0.68rem; font-weight: 400; color: var(--text-muted); }
+.sl-grade:hover { border-color: var(--border-strong); }
+/* The two ends of the scale are worth distinguishing at a glance; amber for the
+   one that comes back soon, accent for the one that goes away. */
+.sl-grade--hard { border-color: var(--uncertain); color: var(--uncertain); }
+.sl-grade--easy { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- knowledge map ---------- */
+
+.sl-mastery, .sl-words { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.sl-topic {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem 2.8rem auto;
+  gap: 0.7rem; align-items: center;
+  padding: 0.55rem 0.65rem; border-radius: var(--radius);
+  background: var(--surface-soft); border-left: 3px solid transparent;
+}
+.sl-topic--weak { border-left-color: var(--uncertain); }
+.sl-topic--strong { border-left-color: var(--accent); }
+
+.sl-topic-text { display: grid; gap: 0.05rem; min-width: 0; }
+.sl-topic-text strong { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-topic-text small { font-size: 0.72rem; color: var(--text-muted); }
+
+.sl-topic-track { height: 6px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.sl-topic-track i { display: block; height: 100%; background: var(--accent); }
+.sl-topic--weak .sl-topic-track i { background: var(--uncertain); }
+
+.sl-topic-score {
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 650;
+  font-variant-numeric: tabular-nums; text-align: right; color: var(--text-muted);
+}
+
+.sl-topic button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: var(--radius); padding: 0.3rem 0.65rem;
+  font: inherit; font-size: 0.79rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.sl-topic button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- command words ---------- */
+
+.sl-words li {
+  display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) 2.8rem auto;
+  gap: 0.7rem; align-items: center; font-size: 0.84rem;
+}
+.sl-word { font-weight: 600; }
+.sl-words small { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+
+.sl-note {
+  margin: 0; font-size: 0.77rem; color: var(--text-muted);
+  padding: 0.5rem 0.65rem; border-left: 2px solid var(--border-strong);
+  background: var(--surface-soft); border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 68ch; line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .sl-topic { grid-template-columns: minmax(0, 1fr) 2.8rem auto; }
+  .sl-topic .sl-topic-track { display: none; }
+  .sl-words li { grid-template-columns: 5.5rem minmax(0, 1fr) 2.8rem; }
+  .sl-words small { display: none; }
+  .sl-grades { grid-template-columns: 1fr; }
+}
