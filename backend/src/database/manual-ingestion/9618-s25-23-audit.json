@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "paper": {
+    "syllabusCode": "9618",
+    "syllabusVersion": "2024-2025",
+    "year": 2025,
+    "series": "MJ",
+    "component": 2,
+    "variant": 3,
+    "qpDriveFileId": "12NVktwpGifm_C3FVWsFVbHHrTxPeN0yL",
+    "msDriveFileId": "1X1NtUGGY0v8dFfsVs7zT_-3L9bg31H4y",
+    "qpSourcePaperId": "ba712918-dff3-4551-87b6-27f4f658e8bd",
+    "msSourcePaperId": "07469c55-587c-49d0-a6f1-8db0b5f774e2"
+  },
+  "method": "source-backed manual QP/MS extraction from rendered official PDFs, atomic mark-point modelling, historical-version taxonomy mapping, then live structural audit",
+  "promptVersion": "chatgpt-source-review-v1",
+  "status": "approved",
+  "counts": {
+    "questionNodes": 31,
+    "markBearingLeaves": 21,
+    "questionMarks": 75,
+    "markSchemes": 21,
+    "markSchemeMaxMarks": 75,
+    "markSchemeGroups": 21,
+    "markSchemePoints": 89,
+    "subtopicRows": 27,
+    "learningObjectiveRows": 41,
+    "portableContentAssets": 6,
+    "leavesWithSubtopic": 21,
+    "leavesWithLearningObjective": 21,
+    "leavesWithExactlyOnePrimarySubtopic": 21
+  },
+  "taxonomy": {
+    "rule": "All mappings use the source paper's 2024-2025 syllabus tree and Paper 2 component coverage; no 2026 UUIDs are used.",
+    "primaryByLeaf": {
+      "1.a.i": "11.3",
+      "1.a.ii": "11.3",
+      "1.a.iii": "11.3",
+      "1.b": "11.1",
+      "1.c": "10.1",
+      "2.a.i": "10.4",
+      "2.a.ii": "10.4",
+      "2.b.i": "10.4",
+      "2.b.ii": "10.4",
+      "2.c": "10.4",
+      "3": "11.3",
+      "4.a": "10.3",
+      "4.b": "12.3",
+      "5": "11.3",
+      "6.a": "11.3",
+      "6.b": "11.3",
+      "6.c": "12.2",
+      "7.a.i": "11.3",
+      "7.a.ii": "11.1",
+      "7.b.i": "11.3",
+      "7.b.ii": "11.1"
+    },
+    "secondaryByLeaf": {
+      "3": ["11.2"],
+      "5": ["11.2"],
+      "6.b": ["12.2"],
+      "7.a.i": ["11.2"],
+      "7.b.i": ["11.1", "11.2"]
+    }
+  },
+  "validation": {
+    "brokenQuestionParents": 0,
+    "leavesWithoutMarkScheme": 0,
+    "questionToSchemeMarkMismatches": 0,
+    "badMarkSchemeGroups": 0,
+    "leavesWithoutSubtopic": 0,
+    "badPrimarySubtopicCounts": 0,
+    "leavesWithoutLearningObjective": 0,
+    "crossVersionMappings": 0,
+    "outOfComponentMappings": 0,
+    "learningObjectivesWithoutSelectedOwningSubtopic": 0,
+    "sourceBackedTaxonomyAuditIssuesAfterInsert": 0
+  },
+  "liveCorpusAfterInsert": {
+    "sourceBackedQpRecords2021To2025": 118,
+    "qpsWithPersistedMarkBearingLeaves": 10,
+    "sourceBackedMarkBearingLeaves": 260,
+    "leavesWithSubtopic": 260,
+    "leavesWithLearningObjective": 142
+  }
+}
