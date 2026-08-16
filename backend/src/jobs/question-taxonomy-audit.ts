@@ -33,6 +33,14 @@ const ISSUE_TYPES: TaxonomyIssueType[] = [
   'lo_without_selected_subtopic',
 ];
 
+/**
+ * Structural gate for the real imported corpus only.
+ *
+ * `source_url IS NOT NULL` is the current durable boundary between source-backed
+ * Cambridge papers (2021–2025) and the Phase-0 synthetic seed paper. The seed is
+ * still referenced by demo assignments/answers, so it must not be deleted or
+ * allowed to block real-corpus ingestion quality checks.
+ */
 export async function runQuestionTaxonomyAudit(pool: Pool): Promise<TaxonomyAudit> {
   const result = await pool.query<{
     issue: TaxonomyIssueType;
