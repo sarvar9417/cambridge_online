@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "paper": {
+    "syllabusCode": "9618",
+    "syllabusVersion": "2024-2025",
+    "year": 2025,
+    "series": "MJ",
+    "component": 2,
+    "variant": 2,
+    "qpDriveFileId": "1AOuGMmsRc6nBfsWzJ5QgREGAC7bzroWE",
+    "msDriveFileId": "1FbB0P1ynkw63m6TPlKW97Au2jyda7KYZ",
+    "qpSourcePaperId": "926b9560-6375-4a66-9834-e5173801d09d",
+    "msSourcePaperId": "279a225f-d9d1-4f29-8754-02aa53ae35e4"
+  },
+  "method": "source-backed manual extraction and QP/MS cross-check by ChatGPT; Anthropic worker not used",
+  "promptVersion": "chatgpt-source-review-v1",
+  "status": "approved",
+  "counts": {
+    "questionNodes": 34,
+    "markBearingLeaves": 23,
+    "questionMarks": 75,
+    "markSchemes": 23,
+    "markSchemeMaxMarks": 75,
+    "markSchemeGroups": 23,
+    "markSchemePoints": 85,
+    "subtopicRows": 29,
+    "learningObjectiveRows": 35,
+    "leavesWithSubtopic": 23,
+    "leavesWithLearningObjective": 23,
+    "leavesWithExactlyOnePrimarySubtopic": 23
+  },
+  "seriesSpecificExceptions": [
+    {
+      "path": "1.a.ii",
+      "schemeType": "manual_only",
+      "reason": "Cambridge states that all candidates were awarded full marks for this question in the live series and the published mark scheme was not used."
+    },
+    {
+      "path": "1.b.ii",
+      "schemeType": "manual_only",
+      "reason": "Cambridge states that all candidates were awarded full marks for this question in the live series and the published mark scheme was not used."
+    }
+  ],
+  "taxonomy": {
+    "rule": "Persist only against the source paper's 2024-2025 syllabus tree and Paper 2 component coverage.",
+    "mapping": {
+      "1.a.i": {"primary": "12.1", "los": ["12.1-lo-02"]},
+      "1.a.ii": {"primary": "12.1", "los": ["12.1-lo-04"]},
+      "1.b.i": {"primary": "12.3", "los": ["12.3-lo-07"]},
+      "1.b.ii": {"primary": "12.3", "los": ["12.3-lo-07"]},
+      "1.c": {"primary": "10.1", "los": ["10.1-lo-01"]},
+      "1.d.i": {"primary": "10.2", "los": ["10.2-lo-01"]},
+      "1.d.ii": {"primary": "10.2", "los": ["10.2-lo-01"]},
+      "1.d.iii": {"primary": "10.2", "los": ["10.2-lo-03"]},
+      "2.a": {"primary": "9.2", "los": ["9.2-lo-07"]},
+      "2.b.i": {"primary": "12.3", "los": ["12.3-lo-04", "12.3-lo-06"]},
+      "2.b.ii": {"primary": "12.3", "los": ["12.3-lo-04"]},
+      "2.b.iii": {"primary": "12.3", "los": ["12.3-lo-02"]},
+      "3": {"primary": "11.1", "secondary": ["9.2"], "los": ["11.1-lo-01", "9.2-lo-03", "9.2-lo-04"]},
+      "4": {"primary": "9.2", "los": ["9.2-lo-05"]},
+      "5.a": {"primary": "12.2", "los": ["12.2-lo-02"]},
+      "5.b": {"primary": "10.3", "los": ["10.3-lo-02"]},
+      "6.a.i": {"primary": "10.4", "secondary": ["10.2"], "los": ["10.4-lo-04", "10.2-lo-04"]},
+      "6.a.ii": {"primary": "10.4", "secondary": ["10.2"], "los": ["10.4-lo-04", "10.2-lo-04"]},
+      "6.b": {"primary": "10.4", "los": ["10.4-lo-02", "10.4-lo-03"]},
+      "7.a": {"primary": "11.3", "secondary": ["10.2"], "los": ["11.3-lo-01", "11.3-lo-03", "11.3-lo-05", "10.2-lo-04"]},
+      "7.b": {"primary": "11.3", "secondary": ["10.2"], "los": ["11.3-lo-01", "11.3-lo-05", "10.2-lo-04"]},
+      "7.c.i": {"primary": "10.1", "los": ["10.1-lo-01"]},
+      "7.c.ii": {"primary": "10.1", "secondary": ["10.2"], "los": ["10.1-lo-02", "10.2-lo-02"]}
+    }
+  },
+  "validation": {
+    "questionToSchemeMarkMismatches": 0,
+    "schemesWithoutPoints": 0,
+    "groupCountMismatches": 0,
+    "crossVersionMappings": 0,
+    "outOfComponentMappings": 0,
+    "sourceBackedTaxonomyAuditIssuesAfterIngestion": 0
+  }
+}
