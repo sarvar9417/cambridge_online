@@ -1,67 +1,113 @@
 # Hodder 9618 knowledge map
 
-This reference map connects the Hodder Education coursebook to CamPath's canonical Cambridge 9618 syllabus taxonomy.
+This reference layer connects the Hodder Education coursebook to CamPath's canonical Cambridge International AS & A Level Computer Science 9618 taxonomy.
 
-## Authority and scope
+## Authority
 
-- Canonical assessment taxonomy: Cambridge International AS & A Level Computer Science 9618 syllabus for 2026-2028.
-- Supporting knowledge source: David Watson and Helen Williams, *Cambridge International AS & A Level Computer Science*, Hodder Education (2019), ISBN 9781510457591.
-- The textbook is not treated as the canonical assessment taxonomy. It is used as supporting context for classification, content authoring and review.
-- The repository stores structural metadata, headings and source page references only. It does not reproduce textbook body text.
+The source-of-truth order is:
 
-## Why a crosswalk is required
+1. Cambridge 9618 syllabus/specimen/official mark schemes.
+2. CamPath canonical syllabus/subtopic records.
+3. Hodder Education as a supporting knowledge source.
 
-The endorsed Hodder book follows the syllabus order, but its older section boundaries are not identical to the 2026 syllabus. Examples:
+The Hodder book is useful for concept context and review, but its 2019 section boundaries are **not** used as the database assessment taxonomy. The repository stores structural metadata, headings and page references only; it does not copy textbook body text.
 
-- Hodder `2.1 Networking` and `2.2 The internet` both map to canonical `2.1 Networks including the internet`.
-- Hodder `7.1`, `7.2` and `7.3` map to canonical `7.1 Ethics and Ownership`.
-- Hodder `16.2 Virtual machines (VMs)` maps to canonical `15.1 Processors, Parallel Processing and Virtual Machines`.
-- Hodder `16.3 Translation software` maps to canonical `16.2 Translation Software`.
-- Hodder `17.1` through `17.4` map to canonical `17.1 Encryption, Encryption Protocols and Digital Certificates`.
-- Hodder `18.1` and `18.2` map to canonical `18.1 Artificial Intelligence`.
+## Extracted source structure
 
-`backend/src/database/knowledge/hodder-9618-knowledge-map.json` records the complete crosswalk.
+`backend/src/database/knowledge/hodder-9618-source-index.json` is the verified compact source index and records:
 
-## Extracted structure
+- 20 Hodder chapters
+- 52 Hodder sections
+- 167 numbered Hodder fine-grained units
+- coverage of all 44 current Cambridge 2026 canonical subtopics
+- printed-book page and 1-based PDF page references
+- explicit unit/section scope status where older Hodder material is moved or outside 2026 scope
 
-The map contains:
+The extraction was checked against the rendered textbook pages, not only plain-text extraction, because several headings wrap across lines in the PDF.
 
-- 20 textbook chapters
-- 52 textbook sections
-- 167 numbered fine-grained textbook units
-- mappings covering all 44 canonical 2026 syllabus subtopics
+## 2026 structural crosswalk
 
-Each fine-grained unit stores only:
+Important moves/consolidations include:
 
-- its Hodder heading code and title
-- printed textbook page
-- 1-based PDF page
-- its parent Hodder section
-- the section's canonical Cambridge subtopic code
+- Hodder `2.1 Networking` + `2.2 The internet` -> canonical `2.1 Networks including the internet`.
+- Hodder `7.1`, `7.2`, `7.3` -> canonical `7.1 Ethics and Ownership`.
+- Hodder `16.2 Virtual machines (VMs)` -> canonical `15.1 Processors, Parallel Processing and Virtual Machines`.
+- Hodder `16.3 Translation software` -> canonical `16.2 Translation Software`.
+- Hodder `17.1`, `17.3`, `17.4` -> canonical `17.1 Encryption, Encryption Protocols and Digital Certificates`.
+- Hodder `18.1 Shortest path algorithms` + `18.2 AI/ML/DL` -> canonical `18.1 Artificial Intelligence (AI)`.
+- Hodder `10.2.3`/`10.2.4` search/sort material is conceptually assessed under canonical `19.1` in 2026.
+- Hodder `17.2 Quantum cryptography` is marked outside the 2026 canonical subject-content scope.
+
+## Learning-objective crosswalk
+
+`backend/src/database/knowledge/hodder-9618-lo-crosswalk.json` maps **every LO currently present in `9618-catalog.json`** to one or more Hodder unit codes from the verified source index:
+
+- 203 current internal LO codes mapped
+- 44 canonical subtopics covered
+- 167 Hodder fine units available
+
+The older `hodder-9618-knowledge-map.json` remains only as a compatibility artifact while the source index is introduced; new validation and LO mapping use the verified source index.
+
+The crosswalk is deliberately one-way:
+
+`canonical LO -> supporting Hodder references`
+
+Questions are never persisted against Hodder IDs. Hodder IDs are evidence/context only.
+
+## Catalog audit finding
+
+The current internal `backend/src/database/syllabus/9618-catalog.json` is usable but is not yet a lossless transcription of every 2026 syllabus candidate statement. The audit recorded confirmed omissions without renumbering existing LO codes.
+
+Examples include:
+
+- `3.2`: defining the functions of NOT/AND/OR/NAND/NOR/XOR gates
+- `6.1`: appreciation of the need for data/system security
+- `11.1`: pseudocode declarations/assignment/input/output and built-in/library routines
+- `11.2`: justifying loop-structure choice
+- `11.3`: appropriate procedure/function use and parameters
+- `12.3`: locating/identifying/correcting errors
+- `13.3`: binary representation rounding errors
+- `20.1`: meaning of a programming paradigm
+
+These are stored under `catalogAudit` in the crosswalk. **Do not silently renumber existing LO codes**, because question mappings may depend on them. Any repair should be additive and reviewed before broad corpus classification.
 
 ## Question-bank ingestion rule
 
-Question classification must persist against the canonical database taxonomy, never against Hodder-only identifiers.
-
 For every mark-bearing question leaf:
 
-1. Extract the question and matching mark scheme.
-2. Classify using question context + mark-scheme points + the canonical syllabus catalog.
-3. Persist one or more `question_subtopics`, with one primary mapping where appropriate.
-4. Persist `question_learning_objectives` when the evidence is sufficiently specific.
-5. Keep classification confidence and route ambiguous mappings to review.
-6. Use the Hodder map only as additional supporting context for classification/review.
-7. Never derive marks from the textbook; the official mark scheme remains authoritative for marking.
+1. Extract the full question tree and matching official mark scheme.
+2. Match QP leaf to MS entry.
+3. Classify against canonical Cambridge subtopics first.
+4. Use mark-scheme points as strong evidence for classification.
+5. Use Hodder unit headings/page references only as additional concept context.
+6. Persist `question_subtopics`; one may be primary and others secondary.
+7. Persist `question_learning_objectives` only when the evidence is sufficiently specific.
+8. Keep confidence and route ambiguity to review.
+9. Official mark scheme remains authoritative for grading; Hodder never determines marks.
 
-This matches the current database model (`question_subtopics`, `question_learning_objectives`, `mark_schemes`, and `mark_scheme_points`) and the existing ingestion classifier.
+## Automated integrity check
 
-## Source files
+`backend/src/database/knowledge/hodder-9618-knowledge.test.ts` verifies that:
+
+- the 20/52/167/44 source inventory stays intact
+- every current canonical LO is mapped exactly once
+- no LO points at an unknown or out-of-scope Hodder source
+- the important 2026 structural moves remain explicit
+
+This prevents later catalog/map edits from silently breaking ingestion classification.
+
+## Source references
 
 - Hodder Drive file ID: `17qXAmcDsvLV96ytM5w75MWYNsGw9Buf-`
 - Cambridge 2026 syllabus Drive file ID: `1JzFMyhPaSvfyvlII1yXF1Av2uDHGtx6p`
-- Canonical repo taxonomy: `backend/src/database/syllabus/9618-structure.ts`
-- Canonical LO catalog: `backend/src/database/syllabus/9618-catalog.json`
+- Canonical structure: `backend/src/database/syllabus/9618-structure.ts`
+- Current internal LO catalog: `backend/src/database/syllabus/9618-catalog.json`
 
-## Next implementation stage
+## Next gate
 
-Before mass past-paper ingestion, validate the canonical 2026 learning-objective catalog against the official syllabus. Then run one reference QP/MS pair through the existing ingestion pipeline and inspect its question -> subtopic -> LO mappings. After that pilot passes, widen the corpus incrementally.
+Before mass ingestion:
+
+1. repair/approve the audited LO-catalog gaps additively
+2. run one real 2025 QP/MS reference pair through extraction -> matching -> classification -> validation -> persist
+3. manually inspect question -> subtopic -> LO results
+4. only then widen the corpus incrementally
