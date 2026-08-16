@@ -81,6 +81,9 @@ export function App() {
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
   const [exports, setExports] = useState<ExportItem[]>([]);
   const [appealDraft, setAppealDraft] = useState<Record<string, string>>({});
+  // Empty means every class. The queue opens filtered when it is reached from
+  // a class page, which carries ?sinf=.
+  const [gradingClass,setGradingClass]=useState('');
   const [gradingView,setGradingView]=useState<'by_question'|'by_student'|'confidence'>('by_question');
   const saveTimers = useRef<Record<string, number>>({});
 
@@ -156,6 +159,25 @@ export function App() {
       && sectionsFor(route.surface, route.page, user.role).length === 0;
     if (!route.surface || stranded) navigate(HOME_BY_ROLE[user.role]);
   }, [user, route.surface, route.page]);
+
+  useEffect(() => {
+    if (!user || user.role === 'student') return;
+    const fromRoute = route.params.get('sinf') ?? '';
+    if (route.path !== 'oqitish/tekshirish' || fromRoute === gradingClass) return;
+    setGradingClass(fromRoute);
+    void loadGrading(gradingView, fromRoute).catch(() => {});
+  }, [user, route.path, route.params.get('sinf')]);
+
+  // The class page links to its own assignments; without this the link would
+  // arrive on a list of every class's work and quietly mean nothing.
+  useEffect(() => {
+    if (!user || user.role === 'student' || route.path !== 'oqitish/vazifalar') return;
+    const classId = route.params.get('sinf') ?? '';
+    const query = classId ? `?classId=${encodeURIComponent(classId)}` : '';
+    void api<{ data: Assignment[] }>(`/assignments${query}`)
+      .then((result) => setAssignments(result.data))
+      .catch(() => {});
+  }, [user, route.path, route.params.get('sinf')]);
 
   useEffect(() => {
     if (user?.role !== 'owner') return;
@@ -374,10 +396,18 @@ export function App() {
     await api(`/gradings/${item.id}/release`, { method: "POST" });
     setGrading((current) => current.filter((entry) => entry.id !== item.id));
   };
+  const loadGrading=async(view:'by_question'|'by_student'|'confidence',classId:string)=>{
+    const query=new URLSearchParams(view==='confidence'?{sort:'confidence'}:{mode:view});
+    if(classId)query.set('classId',classId);
+    setGrading((await api<{data:GradingItem[]}>(`/grading/queue?${query}`)).data);
+  };
   const changeGradingView=async(view:'by_question'|'by_student'|'confidence')=>{
     setGradingView(view);
-    const query=view==='confidence'?'sort=confidence':`mode=${view}`;
-    setGrading((await api<{data:GradingItem[]}>(`/grading/queue?${query}`)).data);
+    await loadGrading(view,gradingClass);
+  };
+  const changeGradingClass=async(classId:string)=>{
+    setGradingClass(classId);
+    await loadGrading(gradingView,classId);
   };
   const createAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -931,6 +961,13 @@ export function App() {
               <div className="section-title">
                 <h2>Tekshirish navbati</h2>
                 <div className="queue-tools">
+                  <select
+                    className="queue-class" aria-label="Sinf bo‘yicha filtr"
+                    value={gradingClass} onChange={(event)=>changeGradingClass(event.target.value)}
+                  >
+                    <option value="">Barcha sinflar</option>
+                    {classes.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
                   <div className="segmented" aria-label="Tekshirish tartibi">
                     <button className={gradingView==='by_question'?'active':''} aria-pressed={gradingView==='by_question'} onClick={()=>changeGradingView('by_question')}>Savol</button>
                     <button className={gradingView==='by_student'?'active':''} aria-pressed={gradingView==='by_student'} onClick={()=>changeGradingView('by_student')}>O‘quvchi</button>

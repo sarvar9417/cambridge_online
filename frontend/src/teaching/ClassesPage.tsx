@@ -290,6 +290,30 @@ function ClassDetail({ user, classId, onChanged }: { user: User; classId: string
         )}
       </section>
 
+      {!archived ? (
+        <section className="cl-card">
+          <h2>Ish</h2>
+          <p className="cl-note">
+            Savol bankidan savol tanlab, shu sinfga vazifa berasiz — sinf oldindan tanlangan
+            bo‘ladi. Javoblar kelgach tekshirish navbati ham shu sinfga filtrlangan ochiladi.
+          </p>
+          <div className="cl-manage">
+            <button
+              type="button" className="cl-primary"
+              onClick={() => navigate(`oqitish/savol-banki?sinf=${classId}`)}
+            >
+              Vazifa berish
+            </button>
+            <button type="button" onClick={() => navigate(`oqitish/tekshirish?sinf=${classId}`)}>
+              Tekshirish navbati
+            </button>
+            <button type="button" onClick={() => navigate(`oqitish/vazifalar?sinf=${classId}`)}>
+              Sinf vazifalari
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="cl-card">
         <h2>Sinfni boshqarish</h2>
         <div className="cl-manage">

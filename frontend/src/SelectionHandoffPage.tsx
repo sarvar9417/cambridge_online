@@ -20,7 +20,10 @@ export function SelectionHandoffPage({ user }: { user: User }){
   // Carried in the URL rather than session storage: the link survives a reload,
   // can be shared with a colleague, and does not depend on how the page was
   // reached.
-  const selectionId=useRoute().params.get('id')??'';
+  const params=useRoute().params;
+  const selectionId=params.get('id')??'';
+  // Pre-chosen when the basket was built from a class page.
+  const forClass=params.get('sinf')??'';
   const [review,setReview]=useState<Review|null>(null);
   const [classes,setClasses]=useState<FilterOptions['classes']>([]);
   const [loading,setLoading]=useState(true);
@@ -101,7 +104,7 @@ export function SelectionHandoffPage({ user }: { user: User }){
       <aside className="handoff-form-card">
         <h2>Natija turi</h2>
         <form onSubmit={submit}>
-          <label>Sinf<select name="classId" required defaultValue=""><option value="" disabled>Tanlang</option>{classes.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
+          <label>Sinf<select name="classId" required defaultValue={forClass}><option value="" disabled>Tanlang</option>{classes.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
           <label>Nomi<input name="title" required minLength={3} maxLength={120} defaultValue="Cambridge 9618 practice"/></label>
           <label>Turi<select name="mode" defaultValue="online"><option value="online">Online assignment</option><option value="mock">Mock exam</option><option value="pdf">PDF worksheet</option></select></label>
           <label>Ko‘rsatma<textarea name="instructions" rows={3} maxLength={5000} placeholder="Ixtiyoriy"/></label>

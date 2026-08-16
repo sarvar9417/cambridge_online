@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type User } from './lib/api';
-import { navigate } from './lib/router';
+import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
 type SelectionRole = 'graded' | 'context_only';
@@ -152,6 +152,9 @@ function message(error: unknown, fallback: string) {
 }
 
 export function QuestionBankPage({ user }: { user: User }) {
+  // Set when the bank was opened from a class, so the handoff knows which
+  // class this basket is being built for and does not ask again.
+  const forClass = useRoute().params.get('sinf') ?? '';
   const searchRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -365,7 +368,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   }
 
   if (reviewing && review) {
-    return <ReviewScreen review={review} selectionId={selectionId} onBack={() => setReviewing(false)} />;
+    return <ReviewScreen review={review} selectionId={selectionId} forClass={forClass} onBack={() => setReviewing(false)} />;
   }
 
   return (
@@ -640,7 +643,7 @@ function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Depen
   </div>;
 }
 
-function ReviewScreen({ review, selectionId, onBack }: { review: SelectionReview; selectionId: string; onBack: () => void }) {
+function ReviewScreen({ review, selectionId, forClass, onBack }: { review: SelectionReview; selectionId: string; forClass: string; onBack: () => void }) {
   return <main className="qb-review-page">
     <header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{review.items.length} qism</strong><span>{review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Nashrga tayyor' : 'Dependency bloklangan'}</span></header>
     <div className="qb-review-layout">
@@ -653,7 +656,7 @@ function ReviewScreen({ review, selectionId, onBack }: { review: SelectionReview
           <footer>Manba: {item.sourceRef}</footer>
         </article>)}
       </section>
-      <aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}`)}>Vazifa yoki PDF ga o‘tish →</button><small className="qb-muted">Keyingi qadamda sinf, muddat va rejim tanlanadi.</small></aside>
+      <aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Vazifa yoki PDF ga o‘tish →</button><small className="qb-muted">Keyingi qadamda sinf, muddat va rejim tanlanadi.</small></aside>
     </div>
   </main>;
 }
