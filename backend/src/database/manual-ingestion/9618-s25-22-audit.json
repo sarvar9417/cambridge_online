@@ -27,7 +27,8 @@
     "learningObjectiveRows": 35,
     "leavesWithSubtopic": 23,
     "leavesWithLearningObjective": 23,
-    "leavesWithExactlyOnePrimarySubtopic": 23
+    "leavesWithExactlyOnePrimarySubtopic": 23,
+    "portableQuestionAssets": 5
   },
   "seriesSpecificExceptions": [
     {
@@ -41,6 +42,21 @@
       "reason": "Cambridge states that all candidates were awarded full marks for this question in the live series and the published mark scheme was not used."
     }
   ],
+  "portableContext": {
+    "parentContextAdded": [
+      "Q2 bonus-pay decision table",
+      "Q5 state/event transition table and HHMMSS file format",
+      "Q6 initial Data/Pointer table"
+    ],
+    "assets": [
+      {"path": "4", "kind": "diagram", "sourcePage": 7, "purpose": "START-to-END flowchart completion template"},
+      {"path": "5.a", "kind": "diagram", "sourcePage": 9, "purpose": "initial start-to-standby state diagram"},
+      {"path": "6", "kind": "pseudocode", "sourcePage": 12, "purpose": "source Place() procedure"},
+      {"path": "6.a.i", "kind": "table", "sourcePage": 13, "purpose": "trace-table headings"},
+      {"path": "6.a.ii", "kind": "table", "sourcePage": 13, "purpose": "final Data/Pointer answer template"}
+    ],
+    "note": "Portable content_md assets make the question usable before private-storage binary crops are available. Binary source crops can later replace/augment these through the corpus storage worker."
+  },
   "taxonomy": {
     "rule": "Persist only against the source paper's 2024-2025 syllabus tree and Paper 2 component coverage.",
     "mapping": {
@@ -75,6 +91,7 @@
     "groupCountMismatches": 0,
     "crossVersionMappings": 0,
     "outOfComponentMappings": 0,
-    "sourceBackedTaxonomyAuditIssuesAfterIngestion": 0
+    "sourceBackedTaxonomyAuditIssuesAfterIngestion": 0,
+    "portableAssetsWithContentMd": 5
   }
 }
