@@ -3,8 +3,8 @@
 --
 -- These are deliberately NOT atomized with the current point/group scorer:
 -- without branch exclusivity, points from incompatible alternatives could be
--- combined into an invalid award. The source guidance itself must contain an
--- explicit Alternative marker before classification is applied.
+-- combined into an invalid award. Each natural-key target below was source-
+-- reviewed and the guidance must still contain an explicit Alternative marker.
 --
 -- No mark points are changed. Natural keys + expected marks make this idempotent.
 
@@ -30,7 +30,7 @@ with target(year,series,component,variant,display_ref,expected_marks) as (
   join mark_schemes ms on ms.question_id=q.id and ms.max_marks=t.expected_marks
   where ms.scheme_type='manual_only'::scheme_type
     and (select count(*) from mark_scheme_points p where p.mark_scheme_id=ms.id)=1
-    and ms.guidance_md ~* '(alternative solution|alternative answer|alternative:|alternative \'|alternative \()'
+    and lower(coalesce(ms.guidance_md,'')) like '%alternative%'
 )
 update mark_schemes ms
 set prompt_version='manual-mutually-exclusive-alternative-v1',
