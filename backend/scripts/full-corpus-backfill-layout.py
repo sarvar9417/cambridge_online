@@ -41,14 +41,16 @@ def norm_path(raw: str) -> str:
     m = re.match(r'^(\d+)(.*)$', raw)
     if not m:
         return raw
-    return '.'.join([m.group(1), *re.findall(r'\(([^)]+)\)', m.group(2))])
+    # Some published legacy mark schemes contain malformed references such as
+    # "5(b(iii)". The opening parentheses still unambiguously encode b.iii.
+    return '.'.join([m.group(1), *re.findall(r'\(([a-z]+)', m.group(2), re.I)])
 
 
 def robust_parse_ms(path: Path) -> list[dict]:
     lines = path.read_text(errors='ignore').splitlines()
     hits: list[dict] = []
     for i, line in enumerate(lines):
-        m = re.match(r'^(\s*)(\d+(?:\([a-z]\))?(?:\([ivx]+\))?)\s+(.*?)\s+(\d{1,2})\s*$', line, re.I)
+        m = re.match(r'^(\s*)(\d+(?:\([a-z]+\)?){0,2})\s+(.*?)\s+(\d{1,2})\s*$', line, re.I)
         if not m:
             continue
         indent = len(m.group(1))
