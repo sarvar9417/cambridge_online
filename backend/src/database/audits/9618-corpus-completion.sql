@@ -1,5 +1,7 @@
 -- Final blocking audit for the source-backed Cambridge 9618 corpus.
 -- Read-only: raises on structural/taxonomy/manual-boundary/scorer integrity failures.
+-- Scorer checks mirror recompute_grading_point_awards(): group caps are local and the
+-- mark-scheme max is a separate global cap, so aggregate rubric capacity may exceed max_marks.
 
 do $$
 declare
@@ -67,44 +69,79 @@ begin
     and (q.status::text<>'needs_review' or coalesce(q.notes,'') not like '%taxonomy-review: low-confidence%');
 
   select count(*) into c13_manual
-  from mark_schemes ms join questions q on q.id=ms.question_id join components c on c.id=q.component_id
-  where q.marks>0 and c.number<=3 and ms.max_marks>1
+  from mark_schemes ms
+  join questions q on q.id=ms.question_id
+  join source_papers sp on sp.id=q.source_paper_id
+  join components c on c.id=q.component_id
+  where q.marks>0 and sp.source_url is not null and c.number<=3 and ms.max_marks>1
     and (select count(*) from mark_scheme_points p where p.mark_scheme_id=ms.id)=1
     and coalesce(ms.prompt_version,'') !~ '^manual-';
 
   select count(*) into c4_manual
-  from mark_schemes ms join questions q on q.id=ms.question_id join components c on c.id=q.component_id
-  where q.marks>0 and c.number=4 and ms.max_marks>1
+  from mark_schemes ms
+  join questions q on q.id=ms.question_id
+  join source_papers sp on sp.id=q.source_paper_id
+  join components c on c.id=q.component_id
+  where q.marks>0 and sp.source_url is not null and c.number=4 and ms.max_marks>1
     and (select count(*) from mark_scheme_points p where p.mark_scheme_id=ms.id)=1
     and coalesce(ms.prompt_version,'') !~ '^manual-practical';
 
+  -- For all_required/any_n_from_m the rubric must be able to reach scheme max.
+  -- It may legitimately exceed it because recompute_grading_point_awards applies v_scheme_max globally.
   select count(*) into bad_capacity
   from (
     select ms.id,ms.max_marks,
       coalesce((select sum(p.marks) from mark_scheme_points p where p.mark_scheme_id=ms.id and p.group_id is null),0)
       + coalesce((select sum(g.max_marks) from mark_scheme_groups g where g.mark_scheme_id=ms.id),0) capacity
-    from mark_schemes ms join questions q on q.id=ms.question_id
-    where q.marks>0 and ms.scheme_type<>'manual_only'::scheme_type
-  ) x where x.capacity<>x.max_marks;
+    from mark_schemes ms
+    join questions q on q.id=ms.question_id
+    join source_papers sp on sp.id=q.source_paper_id
+    where q.marks>0 and sp.source_url is not null
+      and ms.scheme_type in ('all_required'::scheme_type,'any_n_from_m'::scheme_type)
+  ) x where x.capacity<x.max_marks;
 
+  -- Group metadata affects deterministic awards only for any_n_from_m.
   select count(*) into bad_group
   from mark_scheme_groups g
-  where not exists(select 1 from mark_scheme_points p where p.group_id=g.id)
-    or (g.award_mode='fixed' and ((select count(*) from mark_scheme_points p where p.group_id=g.id)<g.n_required or g.max_marks<>g.n_required*g.marks_per_point))
-    or (g.award_mode='point_marks' and (select coalesce(max(p.marks),0) from mark_scheme_points p where p.group_id=g.id)>g.max_marks);
+  join mark_schemes ms on ms.id=g.mark_scheme_id
+  join questions q on q.id=ms.question_id
+  join source_papers sp on sp.id=q.source_paper_id
+  where q.marks>0 and sp.source_url is not null
+    and ms.scheme_type='any_n_from_m'::scheme_type
+    and (
+      not exists(select 1 from mark_scheme_points p where p.group_id=g.id)
+      or (g.award_mode='fixed' and (
+        (select count(*) from mark_scheme_points p where p.group_id=g.id)<g.n_required
+        or g.max_marks<>g.n_required*g.marks_per_point
+      ))
+      or (g.award_mode='point_marks' and (select coalesce(max(p.marks),0) from mark_scheme_points p where p.group_id=g.id)>g.max_marks)
+    );
 
   select count(*) into missing_dep
   from mark_scheme_points p
+  join mark_schemes ms on ms.id=p.mark_scheme_id
+  join questions q on q.id=ms.question_id
+  join source_papers sp on sp.id=q.source_paper_id
   cross join lateral jsonb_array_elements_text(coalesce(p.requires,'[]'::jsonb)) r(code)
-  where not exists(select 1 from mark_scheme_points p2 where p2.mark_scheme_id=p.mark_scheme_id and p2.code=r.code);
+  where q.marks>0 and sp.source_url is not null
+    and not exists(select 1 from mark_scheme_points p2 where p2.mark_scheme_id=p.mark_scheme_id and p2.code=r.code);
 
   select count(*) into self_dep
   from mark_scheme_points p
-  where p.code in (select value from jsonb_array_elements_text(coalesce(p.requires,'[]'::jsonb)));
+  join mark_schemes ms on ms.id=p.mark_scheme_id
+  join questions q on q.id=ms.question_id
+  join source_papers sp on sp.id=q.source_paper_id
+  where q.marks>0 and sp.source_url is not null
+    and p.code in (select value from jsonb_array_elements_text(coalesce(p.requires,'[]'::jsonb)));
 
   with recursive edges as (
     select p.mark_scheme_id,p.code src,r.value dst
-    from mark_scheme_points p cross join lateral jsonb_array_elements_text(coalesce(p.requires,'[]'::jsonb)) r(value)
+    from mark_scheme_points p
+    join mark_schemes ms on ms.id=p.mark_scheme_id
+    join questions q on q.id=ms.question_id
+    join source_papers sp on sp.id=q.source_paper_id
+    cross join lateral jsonb_array_elements_text(coalesce(p.requires,'[]'::jsonb)) r(value)
+    where q.marks>0 and sp.source_url is not null
   ), walk as (
     select e.mark_scheme_id,e.src start,e.dst node,array[e.src,e.dst]::text[] path from edges e
     union all
