@@ -48,16 +48,19 @@ def robust_parse_ms(path: Path) -> list[dict]:
     lines = path.read_text(errors='ignore').splitlines()
     hits: list[dict] = []
     for i, line in enumerate(lines):
-        m = re.match(r'^\s*(\d+(?:\([a-z]\))?(?:\([ivx]+\))?)\s+(.*?)\s+(\d{1,2})\s*$', line, re.I)
+        m = re.match(r'^(\s*)(\d+(?:\([a-z]\))?(?:\([ivx]+\))?)\s+(.*?)\s+(\d{1,2})\s*$', line, re.I)
         if not m:
             continue
-        raw, middle, marks = m.group(1), m.group(2), int(m.group(3))
+        indent = len(m.group(1))
+        raw, middle, marks = m.group(2), m.group(3), int(m.group(4))
         main = int(re.match(r'\d+', raw).group())
         if not 1 <= main <= 20 or not 1 <= marks <= 20:
             continue
-        # Legacy MS tables can contain numeric data rows such as "9  b  7".
-        # A bare main-question row must contain a real word/marking phrase.
-        if '(' not in raw and not re.search(r'[A-Za-z]{3,}|mark', middle, re.I):
+        # Cambridge legacy mark schemes sometimes use a bare row such as
+        # "7 ... 5" for a whole-question mark allocation. Numeric data rows
+        # inside worked tables are substantially more indented in -layout
+        # extraction, so use column position rather than requiring answer text.
+        if indent > 8:
             continue
         hits.append({'raw_path': raw, 'path': norm_path(raw), 'marks': marks, 'line': i})
 
