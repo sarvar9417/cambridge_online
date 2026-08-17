@@ -1,4 +1,4 @@
-import type { Pool } from '../database/client.js';
+import type { Pool } from 'pg';
 
 export type TaxonomyIssueType =
   | 'missing_subtopic'
