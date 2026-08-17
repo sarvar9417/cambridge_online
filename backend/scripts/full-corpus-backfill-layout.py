@@ -146,9 +146,9 @@ def robust_parse_qp(path: Path, ms_rows: list[dict]) -> dict[str, dict]:
     current_q: str | None = None
     current_part: str | None = None
 
-    # Critical legacy fix: real top-level Cambridge question numbers are at the
-    # left margin in pdftotext -layout output. Indented numeric table/data rows
-    # must never advance question state.
+    # Real top-level Cambridge question numbers are at the left margin in
+    # pdftotext -layout output. Indented numeric table/data rows must never
+    # advance question state.
     main_re = re.compile(r'^(\d{1,2})\s+(.+)$')
     part_re = re.compile(r'^\s*\(([a-z])\)\s*(.*)$', re.I)
     roman_re = re.compile(r'^\s*\(([ivx]+)\)\s*(.*)$', re.I)
@@ -230,11 +230,48 @@ def robust_parse_qp(path: Path, ms_rows: list[dict]) -> dict[str, dict]:
     return result
 
 
+_original_strong_subtopic_rule = impl['main'].__globals__['strong_subtopic_rule']
+
+
+def leaf_tail_strong_subtopic_rule(component: int, text: str, allowed: set[str]) -> tuple[str | None, float]:
+    """High-precision rules using the leaf tail, not inherited parent context.
+
+    Component 2 is especially vulnerable to parent-context keywords because the
+    stored stem intentionally carries inherited question context. Only explicit
+    task wording should override the statistical classifier.
+    """
+    if component != 2:
+        return _original_strong_subtopic_rule(component, text, allowed)
+
+    tail = re.sub(r'\s+', ' ', text).lower()[-700:]
+    rules: list[tuple[str, str, float]] = [
+        (r'apply the process of stepwise refinement|using stepwise refinement|outline, using stepwise refinement', '9.2', .99),
+        (r'program flowchart.{0,500}write (?:the )?(?:equivalent )?pseudocode|write pseudocode.{0,300}flowchart', '9.2', .99),
+        (r'draw (?:a |the )?program flowchart|draw .{0,120}flowchart', '9.2', .98),
+        (r'decomposition will be used.{0,350}(?:module|sub-problem)|decompose .{0,250}(?:problem|sub-problem)', '9.1', .98),
+        (r'explain (?:the process of |the purpose of |why )?abstraction', '9.1', .97),
+        (r'complete (?:the )?trace table|dry running|dry run', '12.3', .98),
+        (r'black[- ]box|integration testing|test plan|test data sequence|identify this method of testing|describe (?:a )?testing method', '12.3', .98),
+        (r'give the appropriate data types|state (?:the )?data type|give (?:the )?data type', '10.1', .98),
+        (r'state the error in the record declaration|benefits of using the single array of the user-defined data type', '10.1', .98),
+        (r'write pseudocode to declare the array|write the declaration for the single array|declare a 1d array|declare a 2d array', '10.2', .98),
+        (r'write pseudocode statements to declare .{0,180} assign', '11.1', .99),
+    ]
+    for pattern, code, confidence in rules:
+        if code in allowed and re.search(pattern, tail, re.I):
+            return code, confidence
+
+    # Existing Component 2 rules are still useful, but run them on the leaf
+    # tail so words inherited from a parent question do not dominate.
+    return _original_strong_subtopic_rule(component, tail, allowed)
+
+
 # runpy.run_path() returns a result mapping that is not the same object as the
 # globals dictionary captured by the loaded functions. Mutate main.__globals__
-# so the shared main() really calls the legacy-safe extraction functions.
+# so the shared main() really calls the legacy-safe extraction and classifier.
 shared_globals = impl['main'].__globals__
 shared_globals['download'] = direct_download
 shared_globals['parse_ms'] = robust_parse_ms
 shared_globals['parse_qp'] = robust_parse_qp
+shared_globals['strong_subtopic_rule'] = leaf_tail_strong_subtopic_rule
 raise SystemExit(impl['main']())
