@@ -27,8 +27,10 @@ begin
 
   select count(*) into cross_sub
   from question_subtopics qs join questions q on q.id=qs.question_id
-  join source_papers sp on sp.id=q.source_paper_id join subtopics st on st.id=qs.subtopic_id
-  where q.marks>0 and sp.source_url is not null and st.syllabus_id<>sp.syllabus_id;
+  join source_papers sp on sp.id=q.source_paper_id
+  join subtopics st on st.id=qs.subtopic_id
+  join topics t on t.id=st.topic_id
+  where q.marks>0 and sp.source_url is not null and t.syllabus_id<>sp.syllabus_id;
 
   select count(*) into out_sub
   from question_subtopics qs join questions q on q.id=qs.question_id
@@ -40,7 +42,8 @@ begin
   from question_learning_objectives qlo join questions q on q.id=qlo.question_id
   join source_papers sp on sp.id=q.source_paper_id join learning_objectives lo on lo.id=qlo.lo_id
   join subtopics st on st.id=lo.subtopic_id
-  where q.marks>0 and sp.source_url is not null and st.syllabus_id<>sp.syllabus_id;
+  join topics t on t.id=st.topic_id
+  where q.marks>0 and sp.source_url is not null and t.syllabus_id<>sp.syllabus_id;
 
   select count(*) into out_lo
   from question_learning_objectives qlo join questions q on q.id=qlo.question_id
