@@ -17,6 +17,10 @@
 --   * refuse schemes with pre-existing groups
 --   * validate point/group definitions before deleting the wrapper
 --   * idempotent: already-normalized schemes are not eligible
+--
+-- Note: 0037 performs the post-insert metadata transition after validating the
+-- committed point/group shape. Keeping that finalization separate avoids relying
+-- on same-statement visibility of data-modifying CTE writes.
 
 with target(year, series, component, variant, display_ref, expected_marks, scheme_kind) as (
   values

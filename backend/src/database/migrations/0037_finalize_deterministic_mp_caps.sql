@@ -1,11 +1,9 @@
--- Finalize metadata for the deterministic 2023-2024 normalization in 0035.
---
--- 0035 inserts the source-backed points/groups correctly, but its final update
--- intentionally gets a separate follow-up here so the metadata transition is
--- validated against the committed post-insert structure rather than relying on
--- same-statement visibility of data-modifying CTE writes.
---
--- This migration is idempotent and performs no destructive point/group writes.
+-- Finalize metadata for the deterministic 2023-2024 normalization in 0036.
+-- PostgreSQL data-modifying CTEs share the command snapshot, so the post-insert
+-- base-table point-count guard in 0036 does not observe those new rows in the
+-- same statement. This separate idempotent migration validates the committed
+-- point/group structure before changing scheme metadata. It performs no
+-- destructive point/group writes.
 
 with target(year, series, component, variant, display_ref, expected_marks, scheme_kind, expected_points, expected_groups, expected_group_cap) as (
   values
