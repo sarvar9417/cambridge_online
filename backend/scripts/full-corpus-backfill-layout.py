@@ -230,9 +230,11 @@ def robust_parse_qp(path: Path, ms_rows: list[dict]) -> dict[str, dict]:
     return result
 
 
-# Patch only extraction; classifier, coverage checks, OIDC and transactional apply
-# stay centralized in the shared implementation.
-impl['download'] = direct_download
-impl['parse_ms'] = robust_parse_ms
-impl['parse_qp'] = robust_parse_qp
+# runpy.run_path() returns a result mapping that is not the same object as the
+# globals dictionary captured by the loaded functions. Mutate main.__globals__
+# so the shared main() really calls the legacy-safe extraction functions.
+shared_globals = impl['main'].__globals__
+shared_globals['download'] = direct_download
+shared_globals['parse_ms'] = robust_parse_ms
+shared_globals['parse_qp'] = robust_parse_qp
 raise SystemExit(impl['main']())
