@@ -1,0 +1,35 @@
+name: Full 9618 corpus backfill
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/hodder-knowledge-map]
+    paths:
+      - backend/scripts/full-corpus-backfill.py
+      - backend/scripts/full-corpus-backfill-layout.py
+      - .github/workflows/full-corpus-backfill.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
+      BACKFILL_LIMIT: '500'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install extraction and classifier dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --upgrade pip
+          pip install gdown scikit-learn
+      - name: Backfill all remaining un-ingested 9618 QP/MS corpus
+        run: python backend/scripts/full-corpus-backfill-layout.py
