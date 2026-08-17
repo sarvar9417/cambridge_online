@@ -6,8 +6,6 @@ on:
     branches: [agent/hodder-knowledge-map]
     paths:
       - backend/scripts/full-corpus-backfill.py
-      - backend/scripts/full-corpus-backfill-safe.py
-      - backend/scripts/full-corpus-backfill-edge.py
       - backend/scripts/full-corpus-backfill-layout.py
       - .github/workflows/full-corpus-backfill.yml
 
