@@ -12,6 +12,7 @@ on:
     branches: [fix/source-backed-topic-review]
     paths:
       - backend/scripts/source-backed-topic-review.py
+      - backend/scripts/source-backed-topic-review-v2.py
       - backend/src/database/migrations/0085_source_backed_taxonomy_review.sql
       - supabase/functions/topic-review-runner/index.ts
       - docs/TOPIC-REVIEW-SOURCE-PROVENANCE.md
@@ -42,7 +43,7 @@ jobs:
       - name: Run source-backed taxonomy review
         id: review
         continue-on-error: true
-        run: python backend/scripts/source-backed-topic-review.py
+        run: python backend/scripts/source-backed-topic-review-v2.py
       - name: Upload review evidence
         if: always()
         uses: actions/upload-artifact@v4
