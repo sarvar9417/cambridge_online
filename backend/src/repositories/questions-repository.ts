@@ -91,10 +91,15 @@ export class PgQuestionsRepository {
     const values: QueryValues = [];
     const conditions = [`q.marks is not null`];
 
-    if (actor.role === 'owner' && filters.status) {
+    // A taxonomy review flag must not make a source-backed Cambridge question
+    // disappear from the staff Question Bank. Students remain approved-only;
+    // staff can search approved + needs_review while the review flag is kept.
+    if (actor.role === 'student') {
+      conditions.push(`q.status='approved'`);
+    } else if (actor.role === 'owner' && filters.status) {
       conditions.push(`q.status::text=${add(values, filters.status)}`);
     } else {
-      conditions.push(`q.status='approved'`);
+      conditions.push(`q.status in ('approved','needs_review')`);
     }
 
     if (filters.component !== undefined) {
@@ -244,7 +249,7 @@ export class PgQuestionsRepository {
          from descendants d join questions q on q.parent_id=d.id
        )
        select * from descendants
-       where marks is not null and status='approved'
+       where marks is not null and status in ('approved','needs_review')
        order by root_id,sort_order`,
       [rootIds],
     );
@@ -347,7 +352,9 @@ export class PgQuestionsRepository {
           ) order by msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
         ) from mark_schemes ms where ms.question_id=q.id and ms.status='approved' limit 1) mark_scheme
        from questions q left join questions p on p.id=q.parent_id
-       where q.id=$1 and q.status='approved' and ($2<>'student' or exists(
+       where q.id=$1
+         and (($2='student' and q.status='approved') or ($2<>'student' and q.status in ('approved','needs_review')))
+         and ($2<>'student' or exists(
          select 1 from assignment_questions aq join assignments a on a.id=aq.assignment_id
          join enrollments e on e.class_id=a.class_id
          where aq.question_id=q.id and e.student_id=$3 and e.left_at is null and a.published_at is not null
@@ -371,7 +378,7 @@ export class PgQuestionsRepository {
          select q.*
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
-         where q.id=$1 and q.marks is not null and q.status='approved'
+         where q.id=$1 and q.marks is not null and q.status in ('approved','needs_review')
            and exists (
              select 1 from classes visible
              where visible.syllabus_id=sp.syllabus_id
