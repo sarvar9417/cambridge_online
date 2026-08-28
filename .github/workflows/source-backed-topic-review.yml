@@ -13,7 +13,7 @@ on:
     paths:
       - backend/scripts/source-backed-topic-review.py
       - backend/src/database/migrations/0085_source_backed_taxonomy_review.sql
-      - backend/src/edge-functions/topic-review-runner.ts
+      - supabase/functions/topic-review-runner/index.ts
       - docs/TOPIC-REVIEW-SOURCE-PROVENANCE.md
       - .github/workflows/source-backed-topic-review.yml
 
