@@ -9,7 +9,7 @@ interface ExportInput {
   kind: 'question_paper'|'mark_scheme'|'combined'|'feedback';
   refTable: 'assignments'|'submissions'|'selections';
   refId: string;
-  format?: 'pdf';
+  format?: 'pdf'|'docx';
   title?: string;
 }
 
