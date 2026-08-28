@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 from typing import Iterable
 
-PARSER_VERSION = "qp-source-repair-v1"
+PARSER_VERSION = "qp-source-repair-v2"
 PAGE_REF_RE = re.compile(r"9618/\d+/(?:M/J|O/N|F/M)/\d+", re.IGNORECASE)
 FOOTER_STARTS = (
     "Permission to reproduce items",
@@ -33,6 +33,11 @@ FOOTER_STARTS = (
     "Cambridge Assessment International Education is part of",
     "reasonable effort has been made by the publisher",
     "Assessment International Education Copyright Acknowledgements Booklet",
+    "The publisher has made every effort",
+    "The publisher will be pleased",
+    "publisher will be pleased",
+    "at www.cambridgeinternational.org after the live examination series",
+    "Cambridge Local Examinations Syndicate (UCLES)",
 )
 SERIES_LABELS = {"FM": "F/M", "MJ": "M/J", "ON": "O/N"}
 
@@ -74,6 +79,23 @@ def normalize_line(raw: str) -> str:
     return raw.rstrip()
 
 
+def footer_noise(stripped: str) -> bool:
+    """Recognise source-page legal/footer prose, including older UCLES wording."""
+    lowered = re.sub(r"\s+", " ", stripped).strip().lower()
+    signatures = (
+        "publisher will be pleased to make amends",
+        "make amends at the earliest possible opportunity",
+        "after the live examination series",
+        "cambridge local examinations syndicate (ucles)",
+        "which itself is a department of the university of cambridge",
+        "which is a department of the university of cambridge",
+        "copyright acknowledgements booklet",
+        "permission to reproduce items",
+        "reasonable effort has been made by the publisher",
+    )
+    return any(signature in lowered for signature in signatures)
+
+
 def is_noise_line(raw: str, idx_in_page: int | None = None, page_len: int | None = None) -> bool:
     stripped = raw.strip()
     if not stripped:
@@ -84,7 +106,7 @@ def is_noise_line(raw: str, idx_in_page: int | None = None, page_len: int | None
         return True
     if stripped in ("[Turn over", "[Turn over]", "BLANK PAGE"):
         return True
-    if any(stripped.startswith(prefix) for prefix in FOOTER_STARTS):
+    if any(stripped.startswith(prefix) for prefix in FOOTER_STARTS) or footer_noise(stripped):
         return True
     if re.fullmatch(r"\*[\d ]+\*", stripped):
         return True
@@ -127,9 +149,6 @@ def main_candidate(raw: str, expected_number: int):
     rest = match.group(3).strip()
     if number != expected_number:
         return None
-    # Real Cambridge question starts in the layouts audited for 2021-2024 are
-    # either at the left edge or shifted into the question column (~24-36 chars).
-    # This gate avoids treating numbered pseudocode/table rows as question starts.
     if not (indent <= 1 or 24 <= indent <= 36):
         return None
     if re.match(r"^hours?\b", rest, re.IGNORECASE):
@@ -144,20 +163,17 @@ def detect_events(lines: list[str], valid: set[str]) -> list[dict[str, object]]:
     mains = sorted({int(path.split(".")[0]) for path in valid})
     if not mains:
         return []
-
     max_main = max(mains)
     next_main = min(mains)
     current_q: str | None = None
     current_part: str | None = None
     events: list[dict[str, object]] = []
-
     part_re = re.compile(r"^\s*\(([a-z])\)\s*(.*)$", re.IGNORECASE)
     roman_re = re.compile(r"^\s*\(([ivx]+)\)\s*(.*)$", re.IGNORECASE)
 
     for line_number, raw in enumerate(lines):
         if not raw.strip():
             continue
-
         candidate = main_candidate(raw, next_main) if next_main <= max_main else None
         if candidate:
             _, number, rest = candidate
@@ -165,12 +181,7 @@ def detect_events(lines: list[str], valid: set[str]) -> list[dict[str, object]]:
             current_part = None
             larger = [value for value in mains if value > number]
             next_main = larger[0] if larger else max_main + 1
-
-            embedded = re.match(
-                r"^\s*\(([a-z])\)\s*(?:\(([ivx]+)\)\s*)?(.*)$",
-                rest,
-                re.IGNORECASE,
-            )
+            embedded = re.match(r"^\s*\(([a-z])\)\s*(?:\(([ivx]+)\)\s*)?(.*)$", rest, re.IGNORECASE)
             if embedded:
                 part = embedded.group(1).lower()
                 roman = embedded.group(2).lower() if embedded.group(2) else None
@@ -206,11 +217,7 @@ def detect_events(lines: list[str], valid: set[str]) -> list[dict[str, object]]:
 
     deduped: list[dict[str, object]] = []
     for event in events:
-        if (
-            deduped
-            and event["path"] == deduped[-1]["path"]
-            and int(event["line"]) - int(deduped[-1]["line"]) < 3
-        ):
+        if deduped and event["path"] == deduped[-1]["path"] and int(event["line"]) - int(deduped[-1]["line"]) < 3:
             continue
         deduped.append(event)
     return deduped
@@ -233,8 +240,7 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
             if cleaned and cleaned[-1] != "":
                 cleaned.append("")
             continue
-
-        if any(stripped.startswith(prefix) for prefix in FOOTER_STARTS):
+        if any(stripped.startswith(prefix) for prefix in FOOTER_STARTS) or footer_noise(stripped):
             break
         if stripped.startswith("© UCLES") or stripped.startswith("© Cambridge"):
             continue
@@ -246,17 +252,11 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
             continue
         if dense_font_garbage(stripped):
             continue
-
-        # A pure run of dots/underscores is candidate answer space and not prompt
-        # content. Inline dotted blanks are semantic and are preserved below.
         without_terminal_mark = re.sub(r"\s*\[\d+\]\s*$", "", stripped).strip()
         if re.fullmatch(r"[\s._…]+", without_terminal_mark) and len(without_terminal_mark) >= 8:
             continue
-
         stripped = re.sub(r"\.{8,}", " __________ ", stripped)
         stripped = re.sub(r"…{4,}", " __________ ", stripped)
-
-        # Preserve layout in table/pseudocode rows. Collapse ordinary prose only.
         if not re.search(r"\s{3,}", stripped):
             stripped = re.sub(r"\s+", " ", stripped).strip()
         else:
@@ -268,10 +268,7 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
         cleaned.pop(0)
     while cleaned and cleaned[-1] == "":
         cleaned.pop()
-
     text = "\n".join(cleaned).strip()
-    # Remove a terminal published mark annotation only when it exactly agrees
-    # with the database manifest. Array syntax such as [1:100000] is untouched.
     if expected_mark is not None:
         text = re.sub(rf"\s*\[{expected_mark}\]\s*$", "", text).rstrip()
     return re.sub(r"\n{3,}", "\n\n", text)
@@ -281,12 +278,7 @@ def pdftotext_layout(pdf_path: Path, executable: str = "pdftotext") -> str:
     with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as handle:
         output_path = Path(handle.name)
     try:
-        subprocess.run(
-            [executable, "-layout", str(pdf_path), str(output_path)],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        subprocess.run([executable, "-layout", str(pdf_path), str(output_path)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return output_path.read_text(encoding="utf-8", errors="ignore")
     finally:
         output_path.unlink(missing_ok=True)
@@ -296,22 +288,15 @@ def parse_text(text: str, expected: dict[str, int]) -> tuple[dict[str, dict[str,
     lines = preprocess_text(text)
     events = detect_events(lines, set(expected))
     nodes: dict[str, str] = {}
-
     for index, event in enumerate(events):
         end = int(events[index + 1]["line"]) if index + 1 < len(events) else len(lines)
         path = str(event["path"])
         if path in nodes:
             continue
-        mark = expected.get(path)
-        nodes[path] = clean_segment(
-            [str(event["head"]), *lines[int(event["line"]) + 1 : end]],
-            mark,
-        )
-
+        nodes[path] = clean_segment([str(event["head"]), *lines[int(event["line"]) + 1 : end]], expected.get(path))
     missing = sorted(set(expected) - set(nodes))
     if missing:
         raise ValueError(f"missing_paths:{','.join(missing)}")
-
     rows: dict[str, dict[str, object]] = {}
     for path, marks in expected.items():
         stem = nodes[path]
@@ -320,16 +305,10 @@ def parse_text(text: str, expected: dict[str, int]) -> tuple[dict[str, dict[str,
         bits = path.split(".")
         ancestors: list[str] = []
         for depth in range(1, len(bits)):
-            ancestor_path = ".".join(bits[:depth])
-            ancestor = nodes.get(ancestor_path)
+            ancestor = nodes.get(".".join(bits[:depth]))
             if ancestor:
                 ancestors.append(ancestor)
-        rows[path] = {
-            "path": path,
-            "marks": marks,
-            "stem": stem,
-            "context": "\n\n".join(ancestors).strip() or None,
-        }
+        rows[path] = {"path": path, "marks": marks, "stem": stem, "context": "\n\n".join(ancestors).strip() or None}
     return rows, events
 
 
@@ -341,11 +320,12 @@ def quality_gate(rows: dict[str, dict[str, object]]) -> None:
         text = f"{context}\n{stem}"
         if not stem.strip():
             issues.append(f"{path}:empty")
-        if "DO NOT WRITE IN THIS MARGIN" in text:
+        squashed = re.sub(r"\s+", "", text).upper()
+        if "DONOTWRITEINTHISMARGIN" in squashed:
             issues.append(f"{path}:margin")
         if PAGE_REF_RE.search(text):
             issues.append(f"{path}:paper_ref")
-        if re.search(r"© UCLES|Copyright Acknowledgements|reasonable effort has been made", text, re.IGNORECASE):
+        if re.search(r"© UCLES|Copyright Acknowledgements|reasonable effort has been made", text, re.IGNORECASE) or any(footer_noise(line) for line in text.splitlines()):
             issues.append(f"{path}:footer")
         if re.search(rf"\[\s*{row['marks']}\s*\]\s*$", stem):
             issues.append(f"{path}:trailing_mark")
@@ -361,7 +341,6 @@ def load_manifest(path: Path) -> dict[str, object]:
     missing = [key for key in required if key not in data]
     if missing:
         raise ValueError("manifest_missing:" + ",".join(missing))
-
     leaves = data["leaves"]
     if not isinstance(leaves, list) or not leaves:
         raise ValueError("manifest_leaves_empty")
@@ -384,23 +363,13 @@ def build_repair(pdf_path: Path, manifest: dict[str, object], pdftotext: str = "
     text = pdftotext_layout(pdf_path, pdftotext)
     rows, events = parse_text(text, expected)
     quality_gate(rows)
-
     aliases = {str(k): str(v) for k, v in dict(manifest.get("aliases", {})).items()}
     ordered_rows: list[dict[str, object]] = []
     for leaf in manifest["leaves"]:
         path = str(leaf["path"])
         row = dict(rows[path])
-        row["displayRef"] = canonical_ref(
-            str(manifest["syllabusCode"]),
-            int(manifest["component"]),
-            int(manifest["variant"]),
-            str(manifest["series"]),
-            int(manifest["year"]),
-            path,
-            aliases,
-        )
+        row["displayRef"] = canonical_ref(str(manifest["syllabusCode"]), int(manifest["component"]), int(manifest["variant"]), str(manifest["series"]), int(manifest["year"]), path, aliases)
         ordered_rows.append(row)
-
     return {
         "parserVersion": PARSER_VERSION,
         "sourcePaperId": manifest["sourcePaperId"],
@@ -425,7 +394,6 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--pdftotext", default="pdftotext")
     args = parser.parse_args()
-
     manifest = load_manifest(args.manifest)
     result = build_repair(args.pdf, manifest, args.pdftotext)
     rendered = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
