@@ -19,7 +19,7 @@ function contextXml(question:ExportQuestion){
   if(!blocks.length)return question.context?para(question.context):'';
   return blocks.map(block=>`${block.displayRef?para(block.displayRef,{bold:true}):''}${block.context?para(block.context):''}${(block.assets??[]).map(asset=>asset.contentMd?assetXml(asset.contentMd,asset.kind,asset.altText):'').join('')}`).join('');
 }
-function schemeXml(question:ExportQuestion){return (question.points??[]).map(point=>para(`${point.code}  ${point.text}  [${point.marks}]`)).join('')||para('No atomic mark-scheme points are available for this item.')}
+function schemeXml(question:ExportQuestion){const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';return warning+((question.points??[]).map(point=>para(`${point.code}  ${point.text}  [${point.marks}]`)).join('')||para('No atomic mark-scheme points are available for this item.'))}
 function answerSpace(question:ExportQuestion){const count=Math.max(0,Math.min(12,question.answerLines??Math.max(2,question.marks*2)));return Array.from({length:count},()=>para('________________________________________________________________________________')).join('')}
 
 function documentXml(title:string,questions:ExportQuestion[],mode:ExportMode){
