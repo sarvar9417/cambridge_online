@@ -98,7 +98,7 @@ export function createExportPdfProcessor(pool: Pool) {
           )
         : { rows: [] as Array<{ question_id:string; points:ExportQuestion['points'] }> };
       const pointsByQuestion = new Map<string, ExportQuestion['points']>(
-        pointsResult.rows.map((row: { question_id:string; points:ExportQuestion['points'] }) => [row.question_id, row.points]),
+        pointsResult.rows.map((row: { question_id:string; points:ExportQuestion['points'] }): [string, ExportQuestion['points']] => [row.question_id, row.points]),
       );
       title = payload.title || 'Cambridge 9618 practice';
       questions = review.items.map((item) => ({
