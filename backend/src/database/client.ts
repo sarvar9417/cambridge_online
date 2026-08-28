@@ -1,9 +1,14 @@
 import pg from 'pg';
 import { config } from '../config.js';
 import { databaseSslOptions, isLocalDatabase } from './ssl.js';
+import { serverlessDatabaseUrl } from './serverless-url.js';
 
-const ssl = config.DATABASE_URL
-  ? databaseSslOptions(config.DATABASE_URL, {
+const connectionString = config.DATABASE_URL
+  ? serverlessDatabaseUrl(config.DATABASE_URL)
+  : undefined;
+
+const ssl = connectionString
+  ? databaseSslOptions(connectionString, {
       mode: config.DB_SSL_MODE,
       caPem: config.DB_SSL_CA,
       caBase64: config.DB_SSL_CA_BASE64,
@@ -12,23 +17,26 @@ const ssl = config.DATABASE_URL
 
 if (
   config.NODE_ENV === 'production' &&
-  config.DATABASE_URL &&
-  !isLocalDatabase(config.DATABASE_URL) &&
+  connectionString &&
+  !isLocalDatabase(connectionString) &&
   ssl && ssl.rejectUnauthorized === false
 ) {
   console.warn('Database TLS is encrypted but server identity is not verified. Configure DB_SSL_CA/DB_SSL_CA_BASE64 and use DB_SSL_MODE=verify-full.');
 }
 
-export const pool = config.DATABASE_URL
+const isVercel = Boolean(process.env.VERCEL);
+
+export const pool = connectionString
   ? new pg.Pool({
-      connectionString: config.DATABASE_URL,
+      connectionString,
       ssl,
-      max: config.DB_POOL_MAX,
-      // Kept short on purpose: a request that cannot reach the database should
-      // fail quickly rather than hold a serverless invocation open, and the
-      // integration tests rely on the pool giving up fast.
-      connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 5000),
-      idleTimeoutMillis: process.env.VERCEL ? 5000 : 30000,
+      // Vercel fans one route across multiple warm function instances. Keep
+      // each instance to one client; Supabase transaction mode multiplexes the
+      // short queries safely across the upstream database pool.
+      max: isVercel ? 1 : config.DB_POOL_MAX,
+      // A serverless instance must not pin an idle session between bursts.
+      connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? (isVercel ? 3000 : 5000)),
+      idleTimeoutMillis: isVercel ? 1000 : 30000,
       allowExitOnIdle: true,
     })
   : null;
