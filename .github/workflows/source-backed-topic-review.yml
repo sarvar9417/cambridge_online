@@ -1,0 +1,56 @@
+name: Source-backed 9618 Topic Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply reviewed taxonomy to production (only possible when ambiguous=0)
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: [fix/source-backed-topic-review]
+    paths:
+      - backend/scripts/source-backed-topic-review.py
+      - backend/src/database/migrations/0085_source_backed_taxonomy_review.sql
+      - backend/src/edge-functions/topic-review-runner.ts
+      - docs/TOPIC-REVIEW-SOURCE-PROVENANCE.md
+      - .github/workflows/source-backed-topic-review.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TOPIC_REVIEW_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/topic-review-runner
+      TOPIC_REVIEW_APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply && '1' || '0' }}
+      TOPIC_REVIEW_REPORT_DIR: artifacts/topic-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install review dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --disable-pip-version-check --no-cache-dir 'numpy>=2,<3' 'scikit-learn>=1.7,<1.9'
+      - name: Run source-backed taxonomy review
+        id: review
+        continue-on-error: true
+        run: python backend/scripts/source-backed-topic-review.py
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-backed-topic-review-${{ github.run_id }}
+          path: artifacts/topic-review
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce review result
+        if: steps.review.outcome != 'success'
+        run: exit 1
