@@ -55,6 +55,12 @@ export function createQuestionsRouter(repository: PgQuestionsRepository) {
     }
     const filters = {
       ...parsed.data,
+      // The supplied 2021-2025 corpus has 2,985 mark-bearing leaves. Staff
+      // searches must never silently truncate a topic/subtopic result because
+      // the old UI requested only 120 rows. Student endpoints retain the
+      // caller-controlled limit; the staff Question Bank receives the whole
+      // current corpus in one deterministic result set.
+      limit: req.actor!.role === 'student' ? parsed.data.limit : 5000,
       commandWords: parsed.data.commandWords.length
         ? parsed.data.commandWords
         : parsed.data.commandWord
