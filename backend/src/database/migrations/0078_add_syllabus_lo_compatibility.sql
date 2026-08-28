@@ -33,19 +33,39 @@ comment on column syllabus_lo_compatibility.compatibility_kind is
 comment on column syllabus_lo_compatibility.evidence is
   'Concise source-backed rationale for the cross-version compatibility decision.';
 
-do $$
+create or replace function enforce_syllabus_lo_compatibility_cross_version()
+returns trigger
+language plpgsql
+as $$
+declare
+  source_syllabus uuid;
+  target_syllabus uuid;
 begin
-  if exists (
-    select 1
-    from syllabus_lo_compatibility c
-    join learning_objectives slo on slo.id = c.source_lo_id
-    join subtopics sst on sst.id = slo.subtopic_id
-    join topics st on st.id = sst.topic_id
-    join learning_objectives tlo on tlo.id = c.target_lo_id
-    join subtopics tst on tst.id = tlo.subtopic_id
-    join topics tt on tt.id = tst.topic_id
-    where st.syllabus_id = tt.syllabus_id
-  ) then
+  select t.syllabus_id into source_syllabus
+  from learning_objectives lo
+  join subtopics st on st.id = lo.subtopic_id
+  join topics t on t.id = st.topic_id
+  where lo.id = new.source_lo_id;
+
+  select t.syllabus_id into target_syllabus
+  from learning_objectives lo
+  join subtopics st on st.id = lo.subtopic_id
+  join topics t on t.id = st.topic_id
+  where lo.id = new.target_lo_id;
+
+  if source_syllabus is null or target_syllabus is null then
+    raise exception 'syllabus_lo_compatibility references unresolved learning objectives';
+  end if;
+
+  if source_syllabus = target_syllabus then
     raise exception 'syllabus_lo_compatibility must only connect different syllabus versions';
   end if;
-end $$;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists syllabus_lo_compatibility_cross_version on syllabus_lo_compatibility;
+create trigger syllabus_lo_compatibility_cross_version
+before insert or update of source_lo_id, target_lo_id on syllabus_lo_compatibility
+for each row execute function enforce_syllabus_lo_compatibility_cross_version();
