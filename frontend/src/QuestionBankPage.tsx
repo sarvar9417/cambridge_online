@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, type User } from './lib/api';
+import { api, apiBlob, type User } from './lib/api';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -138,22 +138,28 @@ type SelectionReview = {
   canPublish: boolean;
 };
 
+type ExportItem = {
+  id: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  error: string | null;
+  kind: string;
+  file_format?: 'pdf' | 'docx';
+};
+
 const COMMAND_WORDS = [
   'State', 'Give', 'Name', 'Identify', 'Define', 'Describe', 'Explain', 'Compare',
   'Calculate', 'Complete', 'Draw', 'Write', 'Evaluate', 'Justify', 'Suggest', 'Show', 'Other',
 ];
 
 const seriesLabels: Record<string, string> = { FM: 'Feb / Mar', MJ: 'May / Jun', ON: 'Oct / Nov' };
-
 const seriesLabel = (series: string) => seriesLabels[series] ?? series;
+const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 function message(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
 export function QuestionBankPage({ user }: { user: User }) {
-  // Set when the bank was opened from a class, so the handoff knows which
-  // class this basket is being built for and does not ask again.
   const forClass = useRoute().params.get('sinf') ?? '';
   const searchRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -183,7 +189,6 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [hasDiagram, setHasDiagram] = useState('');
   const [dependency, setDependency] = useState<'any' | 'independent'>('any');
   const [status, setStatus] = useState('');
-
 
   const loadOptions = async () => {
     const [filterData, basketData] = await Promise.all([
@@ -362,7 +367,6 @@ export function QuestionBankPage({ user }: { user: User }) {
     setStatus('');
   };
 
-  // The rail never offers this to a student, but a URL can be shared.
   if (user.role === 'student') {
     return <main className="qb-auth-state"><h1>Savol banki</h1><p>Bu ish maydoni o‘qituvchi va owner uchun.</p></main>;
   }
@@ -376,289 +380,116 @@ export function QuestionBankPage({ user }: { user: User }) {
       <header className="qb-topbar">
         <div className="qb-topbar-left">
           <button className="qb-icon-button" title="Dashboardga qaytish" onClick={() => { window.location.hash = ''; }}>←</button>
-          <div>
-            <strong>CamPath</strong>
-            <span>Question Bank v2</span>
-          </div>
+          <div><strong>CamPath</strong><span>Question Bank v2</span></div>
         </div>
-        <div className="qb-topbar-center">
-          <span className="qb-badge qb-badge-primary">Cambridge 9618</span>
-          <span className="qb-badge">Leaf-first</span>
-        </div>
+        <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge 9618</span><span className="qb-badge">Leaf-first</span></div>
       </header>
 
       <div className="qb-layout">
         <aside className="qb-filters">
-          <div className="qb-panel-title">
-            <div><strong>Filtrlar</strong><small>Imtihon bankini toraytiring</small></div>
-            <button className="qb-link-button" onClick={resetFilters}>Tozalash</button>
-          </div>
-
-          <Filter label="Komponent">
-            <select value={component} onChange={(event) => setComponent(event.target.value)}>
-              <option value="">Barchasi</option>
-              {[1, 2, 3, 4].map((item) => <option key={item} value={item}>Paper {item}</option>)}
-            </select>
-          </Filter>
-
-          <CheckGroup
-            label="Mavzu"
-            options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])}
-            value={topicIds}
-            onChange={(next) => {
-              setTopicIds(next);
-              setSubtopicIds((current) => current.filter((id) => options.topics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id)))));
-            }}
-            maxHeight
-          />
-
-          <CheckGroup
-            label="Kichik mavzu"
-            options={visibleSubtopics.map((item) => [item.subtopic_id, `${item.code} ${item.subtopic_title}`])}
-            value={subtopicIds}
-            onChange={setSubtopicIds}
-            maxHeight
-          />
-
-          <Filter label="Ball">
-            <div className="qb-two-fields">
-              <input type="number" min="0" placeholder="dan" value={marksMin} onChange={(event) => setMarksMin(event.target.value)} />
-              <input type="number" min="0" placeholder="gacha" value={marksMax} onChange={(event) => setMarksMax(event.target.value)} />
-            </div>
-          </Filter>
-
-          <Filter label="Yil">
-            <div className="qb-two-fields">
-              <input type="number" min="2000" placeholder="dan" value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} />
-              <input type="number" min="2000" placeholder="gacha" value={yearTo} onChange={(event) => setYearTo(event.target.value)} />
-            </div>
-          </Filter>
-
+          <div className="qb-panel-title"><div><strong>Filtrlar</strong><small>Imtihon bankini toraytiring</small></div><button className="qb-link-button" onClick={resetFilters}>Tozalash</button></div>
+          <Filter label="Komponent"><select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Barchasi</option>{[1, 2, 3, 4].map((item) => <option key={item} value={item}>Paper {item}</option>)}</select></Filter>
+          <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => options.topics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
+          <CheckGroup label="Kichik mavzu" options={visibleSubtopics.map((item) => [item.subtopic_id, `${item.code} ${item.subtopic_title}`])} value={subtopicIds} onChange={setSubtopicIds} maxHeight />
+          <Filter label="Ball"><div className="qb-two-fields"><input type="number" min="0" placeholder="dan" value={marksMin} onChange={(event) => setMarksMin(event.target.value)} /><input type="number" min="0" placeholder="gacha" value={marksMax} onChange={(event) => setMarksMax(event.target.value)} /></div></Filter>
+          <Filter label="Yil"><div className="qb-two-fields"><input type="number" min="2000" placeholder="dan" value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} /><input type="number" min="2000" placeholder="gacha" value={yearTo} onChange={(event) => setYearTo(event.target.value)} /></div></Filter>
           <CheckGroup label="Sessiya" options={Object.entries(seriesLabels)} value={series} onChange={setSeries} />
           <CheckGroup label="Assessment Objective" options={['AO1', 'AO2', 'AO3'].map((item) => [item, item])} value={aos} onChange={setAos} />
-
-          <Filter label="Diagramma / rasm">
-            <select value={hasDiagram} onChange={(event) => setHasDiagram(event.target.value)}>
-              <option value="">Barchasi</option><option value="true">Bor</option><option value="false">Yo‘q</option>
-            </select>
-          </Filter>
-
-          <Filter label="Bog‘liqlik">
-            <select value={dependency} onChange={(event) => setDependency(event.target.value as 'any' | 'independent')}>
-              <option value="any">Barchasi</option><option value="independent">Mustaqil savollar</option>
-            </select>
-          </Filter>
-
-          {user.role === 'owner' && <Filter label="Review holati">
-            <select value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="">Tasdiqlangan</option>
-              <option value="approved">Tasdiqlangan</option>
-              <option value="needs_review">Tekshiruvda</option>
-              <option value="draft">Qoralama</option>
-              <option value="rejected">Rad etilgan</option>
-              <option value="archived">Arxivlangan</option>
-            </select>
-          </Filter>}
+          <Filter label="Diagramma / rasm"><select value={hasDiagram} onChange={(event) => setHasDiagram(event.target.value)}><option value="">Barchasi</option><option value="true">Bor</option><option value="false">Yo‘q</option></select></Filter>
+          <Filter label="Bog‘liqlik"><select value={dependency} onChange={(event) => setDependency(event.target.value as 'any' | 'independent')}><option value="any">Barchasi</option><option value="independent">Mustaqil savollar</option></select></Filter>
+          {user.role === 'owner' && <Filter label="Review holati"><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Barchasi (approved + review)</option><option value="approved">Tasdiqlangan</option><option value="needs_review">Topic tekshiruvda</option><option value="draft">Qoralama</option><option value="rejected">Rad etilgan</option><option value="archived">Arxivlangan</option></select></Filter>}
         </aside>
 
         <section className="qb-results">
-          <div className="qb-search-row">
-            <label className="qb-search">
-              <span>⌕</span>
-              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Savol matnidan qidiring…  /" />
-            </label>
-            <div className="qb-segments" aria-label="Savol ko‘rinishi">
-              <button className={view === 'parts' ? 'active' : ''} onClick={() => setView('parts')}>Qismlar</button>
-              <button className={view === 'families' ? 'active' : ''} onClick={() => setView('families')}>Oilalar</button>
-            </div>
-          </div>
-
-          <div className="qb-result-meta">
-            <div><strong>{view === 'parts' ? (questions.data as Part[]).length : (questions.data as Family[]).length}</strong><span>{view === 'parts' ? ' mos subpart' : ' savol oilasi'}</span></div>
-            <small>↑↓ tanlash · Enter savatchaga qo‘shish</small>
-          </div>
-
+          <div className="qb-search-row"><label className="qb-search"><span>⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Savol matnidan qidiring…  /" /></label><div className="qb-segments" aria-label="Savol ko‘rinishi"><button className={view === 'parts' ? 'active' : ''} onClick={() => setView('parts')}>Qismlar</button><button className={view === 'families' ? 'active' : ''} onClick={() => setView('families')}>Oilalar</button></div></div>
+          <div className="qb-result-meta"><div><strong>{view === 'parts' ? (questions.data as Part[]).length : (questions.data as Family[]).length}</strong><span>{view === 'parts' ? ' mos subpart' : ' savol oilasi'}</span></div><small>↑↓ tanlash · Enter savatchaga qo‘shish</small></div>
           {questions.unavailableFilters.length > 0 && <div className="qb-notice">Hozircha ishlamaydigan filtrlar: {questions.unavailableFilters.join(', ')}</div>}
           {error && <div className="qb-error">{error}</div>}
           {loading && <div className="qb-loading">Savollar yuklanmoqda…</div>}
-          {!loading && view === 'parts' && <div className="qb-card-list">
-            {(questions.data as Part[]).map((part, index) => <PartCard
-              key={part.id}
-              part={part}
-              focused={focused === index}
-              onAdd={() => void addQuestion(part.id)}
-              onPreview={() => void openPreview(part.id)}
-            />)}
-          </div>}
-          {!loading && view === 'families' && <div className="qb-card-list">
-            {(questions.data as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}
-          </div>}
+          {!loading && view === 'parts' && <div className="qb-card-list">{(questions.data as Part[]).map((part, index) => <PartCard key={part.id} part={part} focused={focused === index} onAdd={() => void addQuestion(part.id)} onPreview={() => void openPreview(part.id)} />)}</div>}
+          {!loading && view === 'families' && <div className="qb-card-list">{(questions.data as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}</div>}
           {!loading && questions.data.length === 0 && <div className="qb-empty"><strong>Savol topilmadi</strong><span>Filtrlarni yumshatib ko‘ring.</span></div>}
         </section>
 
         <aside className="qb-basket">
-          <div className="qb-panel-title">
-            <div><strong>Savatcha</strong><small>Serverda saqlanadi</small></div>
-            <button className="qb-icon-button" title="Yangi savatcha" onClick={() => void createSelection()}>+</button>
-          </div>
-          <select className="qb-basket-select" value={selectionId} onChange={(event) => setSelectionId(event.target.value)}>
-            <option value="">Savatchani tanlang</option>
-            {selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}
-          </select>
-
+          <div className="qb-panel-title"><div><strong>Savatcha</strong><small>Serverda saqlanadi</small></div><button className="qb-icon-button" title="Yangi savatcha" onClick={() => void createSelection()}>+</button></div>
+          <select className="qb-basket-select" value={selectionId} onChange={(event) => setSelectionId(event.target.value)}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
           <div className="qb-basket-items">
-            {review?.items.map((item) => <article className="qb-basket-item" key={item.id}>
-              <div className="qb-basket-item-head"><strong>{item.freshRef}</strong><button title="Olib tashlash" onClick={() => void removeItem(item.id)}>×</button></div>
-              <small>{item.sourceRef}</small>
-              <p>{item.portable.leaf.stem}</p>
-              <div className="qb-basket-item-footer">
-                <select value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}>
-                  <option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option>
-                  <option value="context_only">Faqat kontekst · 0 ball</option>
-                </select>
-                <button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button>
-              </div>
-            </article>)}
+            {review?.items.map((item) => <article className="qb-basket-item" key={item.id}><div className="qb-basket-item-head"><strong>{item.freshRef}</strong><button title="Olib tashlash" onClick={() => void removeItem(item.id)}>×</button></div><small>{item.sourceRef}</small><p>{item.portable.leaf.stem}</p><div className="qb-basket-item-footer"><select value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}><option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option><option value="context_only">Faqat kontekst · 0 ball</option></select><button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button></div></article>)}
             {selectionId && !review?.items.length && <div className="qb-empty small"><span>Savollarni + bilan qo‘shing.</span></div>}
             {!selectionId && <div className="qb-empty small"><span>Avval savatcha yarating.</span></div>}
           </div>
-
-          {review?.dependencyIssues.length ? <div className="qb-issues">
-            {review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}>
-              <strong>{issue.severity === 'error' ? '!' : 'i'} {issue.dependsOnRef}</strong>
-              <span>{issueLabel(issue)}</span>
-            </div>)}
-          </div> : null}
-
-          <div className="qb-basket-summary">
-            <div><span>Tanlangan</span><strong>{review?.items.length ?? 0} ta</strong></div>
-            <div><span>Jami</span><strong>{review?.totalMarks ?? 0} ball</strong></div>
-            <div><span>Dependency</span><strong className={review?.canPublish === false ? 'qb-danger-text' : 'qb-success-text'}>{review?.canPublish === false ? 'Bloklangan' : 'Tayyor'}</strong></div>
-            <button disabled={!review?.items.length} onClick={() => setReviewing(true)}>Ko‘rib chiqish</button>
-          </div>
+          {review?.dependencyIssues.length ? <div className="qb-issues">{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.severity === 'error' ? '!' : 'i'} {issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span></div>)}</div> : null}
+          <div className="qb-basket-summary"><div><span>Tanlangan</span><strong>{review?.items.length ?? 0} ta</strong></div><div><span>Jami</span><strong>{review?.totalMarks ?? 0} ball</strong></div><div><span>Dependency</span><strong className={review?.canPublish === false ? 'qb-danger-text' : 'qb-success-text'}>{review?.canPublish === false ? 'Bloklangan' : 'Tayyor'}</strong></div><button disabled={!review?.items.length} onClick={() => setReviewing(true)}>Ko‘rib chiqish</button></div>
         </aside>
       </div>
-
       {preview && <PortableModal portable={preview} onClose={() => setPreview(null)} />}
       {dependencyDialog && <DependencyModal dependencies={dependencyDialog} onClose={() => setDependencyDialog(null)} onAdd={(id, role) => void addQuestion(id, role)} />}
     </main>
   );
 }
 
-function Filter({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="qb-filter"><span>{label}</span>{children}</label>;
-}
+function Filter({ label, children }: { label: string; children: React.ReactNode }) { return <label className="qb-filter"><span>{label}</span>{children}</label>; }
 
-function CheckGroup({ label, options, value, onChange, maxHeight = false }: {
-  label: string;
-  options: Array<[string, string]>;
-  value: string[];
-  onChange: (value: string[]) => void;
-  maxHeight?: boolean;
-}) {
-  return <fieldset className={`qb-check-group ${maxHeight ? 'scroll' : ''}`}>
-    <legend>{label}</legend>
-    <div>{options.map(([id, text]) => <label key={id}>
-      <input type="checkbox" checked={value.includes(id)} onChange={(event) => onChange(event.target.checked ? [...value, id] : value.filter((item) => item !== id))} />
-      <span>{text}</span>
-    </label>)}</div>
-  </fieldset>;
+function CheckGroup({ label, options, value, onChange, maxHeight = false }: { label: string; options: Array<[string, string]>; value: string[]; onChange: (value: string[]) => void; maxHeight?: boolean; }) {
+  return <fieldset className={`qb-check-group ${maxHeight ? 'scroll' : ''}`}><legend>{label}</legend><div>{options.map(([id, text]) => <label key={id}><input type="checkbox" checked={value.includes(id)} onChange={(event) => onChange(event.target.checked ? [...value, id] : value.filter((item) => item !== id))} /><span>{text}</span></label>)}</div></fieldset>;
 }
 
 function PartCard({ part, focused, onAdd, onPreview }: { part: Part; focused: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''}`}>
-    <div className="qb-question-main">
-      <div className="qb-meta-line">
-        <strong>{part.displayRef}</strong>
-        <span>{part.year} {seriesLabel(part.series)}</span>
-        <span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>
-        {part.ao && <span>{part.ao}</span>}
-        {part.commandWord && <span>{part.commandWord}</span>}
-        {part.hasDiagram && <span className="qb-chip">Diagramma</span>}
-        {part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}
-      </div>
-      <p>{part.stem}</p>
-      {part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}
-    </div>
-    <div className="qb-question-actions">
-      <strong>{part.marks} ball</strong>
-      <button className="qb-secondary-button" onClick={onPreview}>Kontekst</button>
-      <button className="qb-add-button" title="Savatchaga qo‘shish" onClick={onAdd}>+</button>
-    </div>
-  </article>;
+  return <article className={`qb-question-card ${focused ? 'focused' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className="qb-add-button" title="Savatchaga qo‘shish" onClick={onAdd}>+</button></div></article>;
 }
 
 function FamilyCard({ family, onAdd, onPreview }: { family: Family; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
-  return <details className="qb-family" open>
-    <summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><span>⌄</span></summary>
-    <div className="qb-family-parts">{family.parts.map((part) => <article className={part.matches ? 'match' : ''} key={part.id}>
-      <div><strong>{part.displayRef}</strong><p>{part.stem}</p></div>
-      <span>{part.marks} ball</span>
-      <button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button>
-      <button className="qb-add-button" onClick={() => onAdd(part.id)}>+</button>
-    </article>)}</div>
-  </details>;
+  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><span>⌄</span></summary><div className="qb-family-parts">{family.parts.map((part) => <article className={part.matches ? 'match' : ''} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<p>{part.stem}</p></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className="qb-add-button" onClick={() => onAdd(part.id)}>+</button></article>)}</div></details>;
 }
 
 function ContextBlocks({ portable }: { portable: PortableQuestion }) {
   if (!portable.contextBlocks.length) return <div className="qb-no-context">Alohida shared context talab qilinmaydi.</div>;
-  return <div className="qb-context-list">{portable.contextBlocks.map((block) => <section key={block.id}>
-    <div className="qb-context-head"><strong>{block.displayRef}</strong><span>Context</span></div>
-    {block.context && <p>{block.context}</p>}
-    {block.assets.map((asset) => <div className="qb-asset" key={asset.id}>
-      <strong>{asset.kind}</strong>
-      <span>{asset.altText || 'Savol asseti'}{asset.sourcePage ? ` · source page ${asset.sourcePage}` : ''}</span>
-      {asset.contentMd && <pre>{asset.contentMd}</pre>}
-      {!asset.contentMd && asset.storagePath && <small>Private storage asset: {asset.storagePath.split('/').pop()}</small>}
-    </div>)}
-  </section>)}</div>;
+  return <div className="qb-context-list">{portable.contextBlocks.map((block) => <section key={block.id}><div className="qb-context-head"><strong>{block.displayRef}</strong><span>Context</span></div>{block.context && <p>{block.context}</p>}{block.assets.map((asset) => <div className="qb-asset" key={asset.id}><strong>{asset.kind}</strong><span>{asset.altText || 'Savol asseti'}{asset.sourcePage ? ` · source page ${asset.sourcePage}` : ''}</span>{asset.contentMd && <pre>{asset.contentMd}</pre>}{!asset.contentMd && asset.storagePath && <small>Private storage asset: {asset.storagePath.split('/').pop()}</small>}</div>)}</section>)}</div>;
 }
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
-    <section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title">
-      <header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" onClick={onClose}>×</button></header>
-      <div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div>
-      <ContextBlocks portable={portable} />
-      <article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><p>{portable.leaf.stem}</p></article>
-      {portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}
-      <footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer>
-    </section>
-  </div>;
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" onClick={onClose}>×</button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><p>{portable.leaf.stem}</p></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
-  return <div className="qb-modal-backdrop" role="presentation">
-    <section className="qb-modal qb-dependency-modal" role="dialog" aria-modal="true" aria-labelledby="dependency-title">
-      <header><div><span className="qb-eyebrow">Dependency check</span><h2 id="dependency-title">Oldingi qism kerak</h2></div><button className="qb-icon-button" onClick={onClose}>×</button></header>
-      <p className="qb-modal-intro">Tanlangan subpart boshqa qismdagi material yoki candidate javobiga tayanadi. To‘g‘ri prerequisite’ni qo‘shing.</p>
-      <div className="qb-dependency-list">{dependencies.map((item) => <article key={item.id}>
-        <div className="qb-meta-line"><strong>{item.displayRef}</strong><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><span>{item.strength}</span></div>
-        <p>{item.stem || item.evidence || 'Referenced part'}</p>
-        {item.evidence && <blockquote>{item.evidence}</blockquote>}
-        <div className="qb-modal-actions"><button onClick={() => onAdd(item.dependsOnId, 'graded')}>Baholanadigan qilib qo‘shish</button><button className="qb-secondary-button" disabled={item.kind === 'answer_ref'} title={item.kind === 'answer_ref' ? 'Candidate javobi kerak: prerequisite baholanadigan bo‘lishi shart.' : ''} onClick={() => onAdd(item.dependsOnId, 'context_only')}>Faqat kontekst</button></div>
-      </article>)}</div>
-      <footer><small>`answer_ref` faqat graded prerequisite bilan qondiriladi.</small><button className="qb-secondary-button" onClick={onClose}>Keyin hal qilaman</button></footer>
-    </section>
-  </div>;
+  return <div className="qb-modal-backdrop" role="presentation"><section className="qb-modal qb-dependency-modal" role="dialog" aria-modal="true" aria-labelledby="dependency-title"><header><div><span className="qb-eyebrow">Dependency check</span><h2 id="dependency-title">Oldingi qism kerak</h2></div><button className="qb-icon-button" onClick={onClose}>×</button></header><p className="qb-modal-intro">Tanlangan subpart boshqa qismdagi material yoki candidate javobiga tayanadi. To‘g‘ri prerequisite’ni qo‘shing.</p><div className="qb-dependency-list">{dependencies.map((item) => <article key={item.id}><div className="qb-meta-line"><strong>{item.displayRef}</strong><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><span>{item.strength}</span></div><p>{item.stem || item.evidence || 'Referenced part'}</p>{item.evidence && <blockquote>{item.evidence}</blockquote>}<div className="qb-modal-actions"><button onClick={() => onAdd(item.dependsOnId, 'graded')}>Baholanadigan qilib qo‘shish</button><button className="qb-secondary-button" disabled={item.kind === 'answer_ref'} title={item.kind === 'answer_ref' ? 'Candidate javobi kerak: prerequisite baholanadigan bo‘lishi shart.' : ''} onClick={() => onAdd(item.dependsOnId, 'context_only')}>Faqat kontekst</button></div></article>)}</div><footer><small>`answer_ref` faqat graded prerequisite bilan qondiriladi.</small><button className="qb-secondary-button" onClick={onClose}>Keyin hal qilaman</button></footer></section></div>;
 }
 
 function ReviewScreen({ review, selectionId, forClass, onBack }: { review: SelectionReview; selectionId: string; forClass: string; onBack: () => void }) {
-  return <main className="qb-review-page">
-    <header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{review.items.length} qism</strong><span>{review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Nashrga tayyor' : 'Dependency bloklangan'}</span></header>
-    <div className="qb-review-layout">
-      <section className="qb-review-paper">
-        <div className="qb-paper-title"><span>CAMBRIDGE 9618 · GENERATED PRACTICE</span><h1>Savollar to‘plami</h1><small>Fresh numbering · original source references retained</small></div>
-        {review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}>
-          <div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Context only · 0 ball'}</span></div>
-          <ContextBlocks portable={item.portable} />
-          <p className="qb-review-stem">{item.portable.leaf.stem}</p>
-          <footer>Manba: {item.sourceRef}</footer>
-        </article>)}
-      </section>
-      <aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Vazifa yoki PDF ga o‘tish →</button><small className="qb-muted">Keyingi qadamda sinf, muddat va rejim tanlanadi.</small></aside>
-    </div>
-  </main>;
+  const [exporting, setExporting] = useState<'pdf' | 'docx' | ''>('');
+  const [exportError, setExportError] = useState('');
+
+  const exportSelection = async (format: 'pdf' | 'docx') => {
+    if (!selectionId || !review.canPublish || exporting) return;
+    setExporting(format);
+    setExportError('');
+    try {
+      const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: 'Cambridge 9618 practice' }) });
+      await api('/jobs/run-once', { method: 'POST' }).catch(() => null);
+      let complete: ExportItem | null = null;
+      for (let attempt = 0; attempt < 25; attempt++) {
+        const current = await api<ExportItem>(`/exports/${exp.id}`);
+        if (current.status === 'failed') throw new Error(current.error ?? 'Hujjat eksportida xato yuz berdi.');
+        if (current.status === 'succeeded') { complete = current; break; }
+        await sleep(1200);
+      }
+      if (!complete) throw new Error('Hujjat navbatda qoldi. Export sahifasidan holatini tekshiring.');
+      const blob = await apiBlob(`/exports/${complete.id}/file`);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `cambridge-9618-practice.${format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setExportError(message(cause, 'Hujjat yuklanmadi.'));
+    } finally {
+      setExporting('');
+    }
+  };
+
+  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{review.items.length} qism</strong><span>{review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>CAMBRIDGE 9618 · GENERATED PRACTICE</span><h1>Savollar to‘plami</h1><small>Fresh numbering · original source references retained</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Context only · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><p className="qb-review-stem">{item.portable.leaf.stem}</p><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'Download PDF'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Download Word (.docx)'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Mark Scheme / Assignment →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word assignment yaratmasdan to‘g‘ridan-to‘g‘ri shu selection’dan olinadi.</small></aside></div></main>;
 }
 
 function issueLabel(issue: SelectionIssue) {
