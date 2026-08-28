@@ -7,6 +7,30 @@ import { toAssignmentExportQuestion } from '../../lib/assignment-export.js';
 import { assertPaperTotal, renderPaperHtml, type ExportQuestion } from '../../lib/export-html.js';
 import type { Job } from '../job-queue.js';
 
+type FrozenSelectionReview = {
+  totalMarks: number;
+  items: Array<{
+    role: 'graded' | 'context_only';
+    freshRef: string;
+    sourceRef: string;
+    effectiveMarks: number;
+    portable: {
+      leaf: { id: string; stem: string; marks: number };
+      contextBlocks: Array<{
+        displayRef?: string;
+        context?: string | null;
+        assets?: Array<{
+          kind: string;
+          contentMd?: string | null;
+          storagePath?: string | null;
+          altText?: string | null;
+          sourcePage?: number | null;
+        }>;
+      }>;
+    };
+  }>;
+};
+
 export function createExportPdfProcessor(pool: Pool) {
   return async (job: Job) => {
     const exportId = String((job.payload as {exportId?:unknown}).exportId);
@@ -17,6 +41,7 @@ export function createExportPdfProcessor(pool: Pool) {
     );
     if (!exportResult.rowCount) throw Error('export_not_found');
     const exp = exportResult.rows[0];
+    if ((exp.file_format ?? 'pdf') !== 'pdf') throw Error(`unsupported_export_format:${exp.file_format}`);
     let title = '';
     let questions: ExportQuestion[] = [];
 
@@ -54,6 +79,38 @@ export function createExportPdfProcessor(pool: Pool) {
       title = result.rows[0]?.title ?? 'CamPath Paper';
       questions = result.rows.map(toAssignmentExportQuestion);
       assertPaperTotal(questions,Number(result.rows[0]?.total_marks??0));
+    } else if (exp.ref_table === 'selections') {
+      const payload = (exp.request_payload ?? {}) as { title?: string; review?: FrozenSelectionReview };
+      const review = payload.review;
+      if (!review || !Array.isArray(review.items) || !review.items.length) throw Error('selection_export_snapshot_missing');
+      const questionIds = review.items
+        .filter((item) => item.role === 'graded')
+        .map((item) => item.portable.leaf.id);
+      const pointsResult = questionIds.length
+        ? await pool.query(
+            `select ms.question_id,
+               json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',msp.marks) order by msp.sort_order) points
+             from mark_schemes ms
+             join mark_scheme_points msp on msp.mark_scheme_id=ms.id
+             where ms.question_id=any($1::uuid[]) and ms.status='approved'
+             group by ms.question_id`,
+            [questionIds],
+          )
+        : { rows: [] as Array<{ question_id:string; points:ExportQuestion['points'] }> };
+      const pointsByQuestion = new Map<string, ExportQuestion['points']>(
+        pointsResult.rows.map((row: { question_id:string; points:ExportQuestion['points'] }) => [row.question_id, row.points]),
+      );
+      title = payload.title || 'Cambridge 9618 practice';
+      questions = review.items.map((item) => ({
+        displayRef: item.freshRef,
+        sourceRef: item.sourceRef,
+        stem: item.portable.leaf.stem,
+        contextBlocks: item.portable.contextBlocks,
+        marks: item.role === 'context_only' ? 0 : item.effectiveMarks,
+        role: item.role,
+        points: item.role === 'graded' ? (pointsByQuestion.get(item.portable.leaf.id) ?? []) : [],
+      }));
+      assertPaperTotal(questions, Number(review.totalMarks));
     } else {
       const result = await pool.query(
         `select a.title,q.display_ref,q.stem_md,q.marks,ans.text,
