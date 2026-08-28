@@ -106,19 +106,46 @@ export class PgQuestionsRepository {
       conditions.push(`component.number=${add(values, filters.component)}`);
     }
     if (filters.topicIds?.length) {
+      const selectedTopics = add(values, filters.topicIds);
       conditions.push(
         `exists(
-          select 1 from question_subtopics qst
-          join subtopics st on st.id=qst.subtopic_id
-          where qst.question_id=q.id and st.topic_id=any(${add(values, filters.topicIds)}::uuid[])
+          select 1
+          from question_subtopics qst
+          join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+          join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+          join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+          where qst.question_id=q.id
+            and exists(
+              select 1
+              from topics selected_topic
+              join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+              where selected_topic.id=any(${selectedTopics}::uuid[])
+                and selected_syllabus.code=mapped_syllabus.code
+                and selected_topic.number=mapped_topic.number
+            )
         )`,
       );
     }
     if (filters.subtopicIds?.length) {
+      const selectedSubtopics = add(values, filters.subtopicIds);
       conditions.push(
         `exists(
-          select 1 from question_subtopics qst
-          where qst.question_id=q.id and qst.subtopic_id=any(${add(values, filters.subtopicIds)}::uuid[])
+          select 1
+          from question_subtopics qst
+          join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+          join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+          join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+          where qst.question_id=q.id
+            and exists(
+              select 1
+              from subtopics selected_subtopic
+              join topics selected_topic on selected_topic.id=selected_subtopic.topic_id
+              join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+              where selected_subtopic.id=any(${selectedSubtopics}::uuid[])
+                and selected_syllabus.code=mapped_syllabus.code
+                and selected_topic.number=mapped_topic.number
+                and selected_subtopic.code=mapped_subtopic.code
+            )
         )`,
       );
     }
@@ -380,8 +407,11 @@ export class PgQuestionsRepository {
          join source_papers sp on sp.id=q.source_paper_id
          where q.id=$1 and q.marks is not null and q.status in ('approved','needs_review')
            and exists (
-             select 1 from classes visible
-             where visible.syllabus_id=sp.syllabus_id
+             select 1
+             from classes visible
+             join syllabi visible_syllabus on visible_syllabus.id=visible.syllabus_id
+             join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
+             where visible_syllabus.code=source_syllabus.code
                and visible.school_id=$2
                and visible.archived_at is null
                and (
