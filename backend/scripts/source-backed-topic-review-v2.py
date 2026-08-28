@@ -82,13 +82,9 @@ def _catalog_grounding(rows: list[dict], sections: dict[str, str]) -> tuple[list
         for lo in item.get("los") or []:
             lo_tokens = {t for t in _norm_heading(str(lo.get("text") or "")).split() if len(t) >= 3 and t not in generic}
             distinctive = lo_tokens & section_tokens
-            # A synthetic objective may paraphrase verbs, but it must retain at least one
-            # substantive source term (DBMS, binary, router, recursion, etc.).
             if lo_tokens and not distinctive:
                 low_los.append(str(lo.get("code")))
 
-        # The own-section score is intentionally moderate: synthetic objectives are concise
-        # paraphrases, not quotations. Title/code structure plus semantic score are combined.
         ok = own >= 0.045 and title_overlap >= 0.40 and len(low_los) <= max(1, len(item.get("los") or []) // 4)
         report.append({
             "code": code,
@@ -141,6 +137,6 @@ def source_catalog_gate_v2(taxonomy: list[dict]) -> dict:
     return report
 
 
-# runpy returns the implementation globals used by main(); replace only the provenance gate.
-impl["source_catalog_gate"] = source_catalog_gate_v2
+# Patch the actual global namespace used by main(), not only runpy's returned mapping.
+impl["main"].__globals__["source_catalog_gate"] = source_catalog_gate_v2
 raise SystemExit(impl["main"]())
