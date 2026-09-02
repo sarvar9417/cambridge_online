@@ -20,8 +20,6 @@ BEGIN
   ) ON COMMIT DROP;
 
   INSERT INTO _taxonomy_fix(display_ref, target_subtopic, target_lo, move_primary, reason) VALUES
-    -- AS Artificial Intelligence belongs to Topic 7 Ethics and Ownership in the
-    -- 2021-2025 syllabus.  Applications/use -> LO 05; social/economic impact -> LO 06.
     ('9618/12/M/J/21 Q2(b)',       '7.1',  '7.1-lo-05', false, 'AI application/use'),
     ('9618/12/M/J/22 Q8',          '7.1',  '7.1-lo-05', true,  'AI application was incorrectly primary 6.1 Data Security'),
     ('9618/12/O/N/22 Q9',          '7.1',  '7.1-lo-06', false, 'social impact of facial-recognition AI'),
@@ -32,8 +30,6 @@ BEGIN
     ('9618/11/M/J/24 Q5(c)(ii)',   '7.1',  '7.1-lo-05', true,  'AI facial recognition was incorrectly primary 6.1 Data Security'),
     ('9618/11/O/N/24 Q6',          '7.1',  '7.1-lo-05', true,  'AI number-plate recognition was incorrectly primary 6.1 Data Security'),
     ('9618/11/M/J/25 Q4(a)',       '7.1',  '7.1-lo-05', true,  'AI customer recognition was incorrectly primary 6.1 Data Security'),
-
-    -- Exact syllabus learning-objective corrections.
     ('9618/23/M/J/22 Q2',          '12.3', '12.3-lo-07', false, 'types of program maintenance'),
     ('9618/13/M/J/21 Q5(c)',       '3.1',  '3.1-lo-10', false, 'same refrigerator control-v-monitoring item as 9618/11/M/J/21 Q5(c)'),
     ('9618/13/O/N/24 Q3',          '3.1',  '3.1-lo-10', false, 'automatic braking: identify/justify control rather than monitoring'),
@@ -43,7 +39,6 @@ BEGIN
     ('9618/31/O/N/22 Q10(a)',      '15.1', '15.1-lo-01', false, 'RISC/CISC characteristics, not pipelining/registers'),
     ('9618/33/O/N/22 Q10(a)',      '15.1', '15.1-lo-01', false, 'RISC/CISC characteristics');
 
-  -- Every curated reference must resolve to exactly one historical QP leaf.
   SELECT count(*) INTO v_count
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
@@ -54,20 +49,19 @@ BEGIN
     RAISE EXCEPTION '0095 expected 18 source-backed question leaves, found %', v_count;
   END IF;
 
-  -- Target subtopic and LO must exist in the *same historical syllabus version*
-  -- as the source paper; never map a historical question directly to 2026 UUIDs.
+  -- Resolve taxonomy through topics so the target stays in the source paper's
+  -- historical syllabus version rather than a same-code subtopic from 2026.
   SELECT count(*) INTO v_count
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
   JOIN source_papers sp ON sp.id = q.source_paper_id
-  JOIN subtopics st ON st.syllabus_id = sp.syllabus_id AND st.code = f.target_subtopic
+  JOIN topics t ON t.syllabus_id = sp.syllabus_id
+  JOIN subtopics st ON st.topic_id = t.id AND st.code = f.target_subtopic
   JOIN learning_objectives lo ON lo.subtopic_id = st.id AND lo.code = f.target_lo;
   IF v_count <> 18 THEN
     RAISE EXCEPTION '0095 could not resolve all 18 target historical subtopic/LO pairs (found %)', v_count;
   END IF;
 
-  -- The four AI primary moves are intentionally exact. Fail closed if production
-  -- has already diverged rather than overwriting an unexpected manual correction.
   SELECT count(*) INTO v_count
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
@@ -78,7 +72,6 @@ BEGIN
     RAISE EXCEPTION '0095 expected four AI leaves still primary 6.1 before repair, found %', v_count;
   END IF;
 
-  -- Move only the explicitly wrong AI primary mappings.
   UPDATE question_subtopics qs
   SET subtopic_id = target.id,
       weight = 1.00,
@@ -87,11 +80,10 @@ BEGIN
   FROM questions q
   JOIN _taxonomy_fix f ON f.display_ref = q.display_ref AND f.move_primary
   JOIN source_papers sp ON sp.id = q.source_paper_id
-  JOIN subtopics target ON target.syllabus_id = sp.syllabus_id AND target.code = f.target_subtopic
+  JOIN topics t ON t.syllabus_id = sp.syllabus_id
+  JOIN subtopics target ON target.topic_id = t.id AND target.code = f.target_subtopic
   WHERE qs.question_id = q.id AND qs.is_primary;
 
-  -- Replace the single incorrect LO on each curated leaf with the reviewed one.
-  -- These leaves each had one classifier-selected LO before this migration.
   SELECT count(*) INTO v_count
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
@@ -109,19 +101,20 @@ BEGIN
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
   JOIN source_papers sp ON sp.id = q.source_paper_id
-  JOIN subtopics st ON st.syllabus_id = sp.syllabus_id AND st.code = f.target_subtopic
+  JOIN topics t ON t.syllabus_id = sp.syllabus_id
+  JOIN subtopics st ON st.topic_id = t.id AND st.code = f.target_subtopic
   JOIN learning_objectives lo ON lo.subtopic_id = st.id AND lo.code = f.target_lo;
 
-  -- Raise confidence only where the primary subtopic itself was source-reviewed.
   UPDATE question_subtopics qs
   SET confidence = GREATEST(COALESCE(qs.confidence, 0), 0.99),
       set_by = 'manual-source-audit-0095'
-  FROM questions q
-  JOIN _taxonomy_fix f ON f.display_ref = q.display_ref
-  JOIN subtopics st ON st.id = qs.subtopic_id AND st.code = f.target_subtopic
-  WHERE qs.question_id = q.id AND qs.is_primary;
+  FROM questions q, _taxonomy_fix f, subtopics st
+  WHERE q.display_ref = f.display_ref
+    AND qs.question_id = q.id
+    AND qs.is_primary
+    AND st.id = qs.subtopic_id
+    AND st.code = f.target_subtopic;
 
-  -- Postconditions: exact primary subtopic + exact LO for every curated leaf.
   SELECT count(*) INTO v_count
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
