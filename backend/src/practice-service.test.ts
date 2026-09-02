@@ -79,8 +79,8 @@ describe('version-safe personalized practice', () => {
     expect(selectionSql).toContain("compat.relation in('equivalent','subtopic_compatible')");
     expect(selectionSql).toContain('target_component.number=source_component.number');
     expect(selectionSql).toContain('question_dependencies');
-    expect(selectionSql).toContain('asset.storage_path is not null');
-    expect(selectionSql).toContain("coalesce(asset.content_md,'')");
+    expect(selectionSql).toContain("where nullif(btrim(coalesce(asset.content_md,'')),'') is null");
+    expect(selectionSql).not.toContain('asset.storage_path is not null');
     expect(selectionSql).not.toContain('qs.subtopic_id=$1');
 
     const itemInserts = query.mock.calls.filter(([sql]) => String(sql).includes('insert into assignment_questions('));
@@ -96,7 +96,7 @@ describe('version-safe personalized practice', () => {
     expect(release).toHaveBeenCalled();
   });
 
-  it('fails closed if an asset becomes storage-only after selection', async () => {
+  it('fails closed if an asset loses portable content after selection', async () => {
     const query = vi.fn(async (sqlValue: unknown, values?: unknown[]) => {
       const sql = String(sqlValue);
       if (sql === 'begin' || sql === 'rollback') return {};
