@@ -19,7 +19,6 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('1.3.2','1.3-lo-02','subtopic_compatible','Current LO combines lossy/lossless distinction with choice/justification.'),
     ('1.3.2','1.3-lo-03','subtopic_compatible','Current LO combines lossy/lossless distinction with choice/justification.'),
     ('1.3.3','1.3-lo-04','subtopic_compatible','RLE is a historical compression method inside the current file-compression LO.'),
-
     ('3.1.3','3.1-lo-06','equivalent','Principal operations of hardware devices retained.'),
     ('3.1.4','3.1-lo-07','equivalent','Purpose and use of buffers retained.'),
     ('4.1.2','4.1-lo-02','equivalent','Von Neumann register roles retained.'),
@@ -29,7 +28,6 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('5.1.4','5.1-lo-05','equivalent','Program-library purpose and benefits retained.'),
     ('5.2.1','5.2-lo-01','equivalent','Assembler/compiler/interpreter purpose retained.'),
     ('5.2.2','5.2-lo-02','equivalent','Compiler/interpreter choice and benefits retained.'),
-
     ('6.1.2','6.1-lo-03','subtopic_compatible','Historical LO enumerates the security measures covered by the current broader LO.'),
     ('6.1.3','6.1-lo-04','equivalent','Network/internet security threats retained.'),
     ('6.1.4','6.1-lo-05','equivalent','Risk-reduction methods retained.'),
@@ -39,21 +37,18 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('7.1.1','7.1-lo-01','subtopic_compatible','Historical LO combines need for ethics and acting ethically.'),
     ('7.1.2','7.1-lo-01','subtopic_compatible','Historical LO combines need for ethics and acting ethically.'),
     ('7.1.4','7.1-lo-04','subtopic_compatible','Historical licensing LO supplies the licence features inside the current broader judgement LO.'),
-
     ('8.1.2','8.1-lo-02','equivalent','Relational-database features addressing file limitations retained.'),
     ('8.1.5','8.1-lo-04','subtopic_compatible','Historical normalisation process maps to current 1NF/2NF/3NF understanding.'),
     ('8.1.7','8.1-lo-05','equivalent','Producing a normalised design retained.'),
     ('8.2.2','8.2-lo-02','equivalent','DBMS features/software tools retained.'),
     ('8.3.5','8.3-lo-02','subtopic_compatible','Historical LO combines DDL and DML scripting; current syllabus splits them.'),
     ('8.3.6','8.3-lo-02','subtopic_compatible','Historical LO combines DDL and DML scripting; current syllabus splits them.'),
-
     ('9.1.1','9.1-lo-01','subtopic_compatible','Historical LO combines understanding, purpose and need for abstraction.'),
     ('9.1.2','9.1-lo-01','subtopic_compatible','Historical LO combines understanding, purpose and need for abstraction.'),
     ('9.1.3','9.1-lo-03','subtopic_compatible','Historical decomposition purpose is compatible with current decomposition use.'),
     ('9.2.3','9.2-lo-02','equivalent','Input/process/output pseudocode retained.'),
     ('9.2.4','9.2-lo-03','subtopic_compatible','Historical LO combines assignment, sequence, selection, repetition and logic.'),
     ('9.2.8','9.2-lo-07','equivalent','Stepwise refinement retained.'),
-
     ('10.4.1','10.4-lo-01','equivalent','ADT definition retained.'),
     ('10.4.2','10.4-lo-02','equivalent','Stack/queue/linked-list examples retained.'),
     ('10.4.4','10.4-lo-03','equivalent','Using stack/queue/linked-list to store data retained.'),
@@ -62,14 +57,12 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('11.3.1','11.3-lo-01','subtopic_compatible','Historical LO combines procedure and function; current syllabus splits them.'),
     ('11.3.2','11.3-lo-01','subtopic_compatible','Historical LO combines procedure and function; current syllabus splits them.'),
     ('11.3.6','11.3-lo-03','equivalent','Parameter use retained.'),
-
     ('12.1.1','12.1-lo-01','equivalent','Purpose of development life cycle retained.'),
     ('12.1.4','12.1-lo-04','equivalent','Program-development stages retained.'),
     ('12.2.1','12.2-lo-01','equivalent','Structure-chart decomposition and parameters retained.'),
     ('12.2.2','12.2-lo-02','subtopic_compatible','Historical LO requires creating/using state-transition diagrams; current LO asks understanding of their purpose.'),
     ('12.3.1','12.3-lo-01','equivalent','Exposing/avoiding program faults retained.'),
     ('12.3.2','12.3-lo-04','subtopic_compatible','Historical testing-method LO is inside the current broader testing-method/data LO.'),
-
     ('13.2.1','13.2-lo-01','subtopic_compatible','Current LO combines file organisation understanding with selection.'),
     ('13.2.1','13.2-lo-03','subtopic_compatible','Current LO combines file organisation/access selection in one statement.'),
     ('13.2.2','13.2-lo-02','equivalent','File-access methods retained.'),
@@ -77,7 +70,6 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('14.1.4','14.1-lo-04','equivalent','Named application protocols and purposes retained.'),
     ('14.2.1','14.2-lo-01','subtopic_compatible','Historical LO combines circuit and packet switching in one statement.'),
     ('14.2.2','14.2-lo-01','subtopic_compatible','Historical LO combines circuit and packet switching in one statement.'),
-
     ('15.1.1','15.1-lo-01','equivalent','RISC/CISC retained.'),
     ('15.1.2','15.1-lo-02','equivalent','RISC pipelining/registers retained.'),
     ('15.1.3','15.1-lo-03','equivalent','Four processor architectures retained.'),
@@ -90,7 +82,6 @@ WITH curated(target_code,source_code,relation,rationale) AS (
     ('16.2.2','16.2-lo-02','equivalent','Compilation stages retained.'),
     ('16.2.3','16.2-lo-03','subtopic_compatible','Historical LO applies BNF/syntax diagrams; current LO asks understanding of the same grammar representation.'),
     ('16.2.4','16.2-lo-04','subtopic_compatible','Historical LO applies RPN; current LO asks understanding of its evaluation use.'),
-
     ('17.1.1','17.1-lo-02','subtopic_compatible','Symmetric/asymmetric encryption is the historical concrete scope of current encryption understanding.'),
     ('17.1.2','17.1-lo-03','equivalent','SSL/TLS purpose and use retained.'),
     ('17.1.3','17.1-lo-04','equivalent','Digital certificates retained.'),
@@ -121,8 +112,7 @@ WITH curated(target_code,source_code,relation,rationale) AS (
 )
 INSERT INTO public.learning_objective_compatibility(target_lo_id,source_lo_id,relation,evidence)
 SELECT target_lo_id,source_lo_id,relation,evidence FROM resolved
-ON CONFLICT (target_lo_id,source_lo_id) DO UPDATE
-SET relation=EXCLUDED.relation,evidence=EXCLUDED.evidence;
+ON CONFLICT (target_lo_id,source_lo_id) DO NOTHING;
 
 -- Compatibility coverage is a taxonomy invariant. Practice readiness remains a
 -- separate corpus/renderability metric and is intentionally not asserted here.
