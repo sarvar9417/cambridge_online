@@ -11,6 +11,7 @@ DECLARE
   bad_versions int;
   historical_quantum int;
   mapped_subtopics int;
+  ready_subtopics int;
 BEGIN
   SELECT count(*) INTO bad_scope
   FROM public.learning_objective_compatibility c
@@ -61,10 +62,48 @@ BEGIN
   WHERE s.code='9618' AND s.version_label='2026-2028'
     AND c.relation IN ('equivalent','subtopic_compatible');
 
-  IF bad_scope<>0 OR bad_versions<>0 OR historical_quantum<>0 OR mapped_subtopics<>44 THEN
+  WITH current_subtopics AS (
+    SELECT st.id
+    FROM public.subtopics st
+    JOIN public.topics t ON t.id=st.topic_id
+    JOIN public.syllabi s ON s.id=t.syllabus_id
+    WHERE s.code='9618' AND s.version_label='2026-2028'
+  ), eligible AS (
+    SELECT DISTINCT target_lo.subtopic_id,q.id question_id
+    FROM public.learning_objective_compatibility compat
+    JOIN public.learning_objectives target_lo ON target_lo.id=compat.target_lo_id
+    JOIN public.question_learning_objectives qlo ON qlo.lo_id=compat.source_lo_id
+    JOIN public.questions q ON q.id=qlo.question_id
+    JOIN public.mark_schemes ms ON ms.question_id=q.id AND ms.status='approved'
+    JOIN public.components source_component ON source_component.id=q.component_id
+    WHERE compat.relation IN ('equivalent','subtopic_compatible')
+      AND q.status='approved' AND q.parent_id IS NOT NULL AND q.marks IS NOT NULL
+      AND q.answer_kind NOT IN ('diagram','image')
+      AND NOT EXISTS (SELECT 1 FROM public.question_dependencies dep WHERE dep.question_id=q.id)
+      AND NOT EXISTS (
+        WITH RECURSIVE context_chain AS (
+          SELECT q.id,q.parent_id
+          UNION ALL
+          SELECT parent.id,parent.parent_id FROM public.questions parent JOIN context_chain chain ON parent.id=chain.parent_id
+        )
+        SELECT 1 FROM context_chain chain JOIN public.question_assets asset ON asset.question_id=chain.id
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.component_learning_objectives tc
+        JOIN public.components target_component ON target_component.id=tc.component_id
+        WHERE tc.learning_objective_id=target_lo.id AND target_component.number=source_component.number
+      )
+  ), coverage AS (
+    SELECT cs.id,count(DISTINCT e.question_id)::int eligible_questions
+    FROM current_subtopics cs LEFT JOIN eligible e ON e.subtopic_id=cs.id
+    GROUP BY cs.id
+  )
+  SELECT count(*) FILTER (WHERE eligible_questions>=5)::int INTO ready_subtopics FROM coverage;
+
+  IF bad_scope<>0 OR bad_versions<>0 OR historical_quantum<>0 OR mapped_subtopics<>44 OR ready_subtopics<38 THEN
     RAISE EXCEPTION
-      '9618 practice compatibility audit failed bad_scope=% bad_versions=% historical_quantum=% mapped_subtopics=%',
-      bad_scope,bad_versions,historical_quantum,mapped_subtopics;
+      '9618 practice compatibility audit failed bad_scope=% bad_versions=% historical_quantum=% mapped_subtopics=% ready_subtopics=%',
+      bad_scope,bad_versions,historical_quantum,mapped_subtopics,ready_subtopics;
   END IF;
 END $$;
 
@@ -86,59 +125,6 @@ WITH current_subtopics AS (
     AND q.status='approved'
     AND q.parent_id IS NOT NULL
     AND q.marks IS NOT NULL
-    AND q.answer_kind NOT IN ('diagram','image')
-    AND NOT EXISTS (
-      SELECT 1 FROM public.question_dependencies dep WHERE dep.question_id=q.id
-    )
-    AND NOT EXISTS (
-      WITH RECURSIVE context_chain AS (
-        SELECT q.id, q.parent_id
-        UNION ALL
-        SELECT parent.id,parent.parent_id
-        FROM public.questions parent
-        JOIN context_chain chain ON parent.id=chain.parent_id
-      )
-      SELECT 1
-      FROM context_chain chain
-      JOIN public.question_assets asset ON asset.question_id=chain.id
-    )
-    AND EXISTS (
-      SELECT 1
-      FROM public.component_learning_objectives target_coverage
-      JOIN public.components target_component ON target_component.id=target_coverage.component_id
-      WHERE target_coverage.learning_objective_id=target_lo.id
-        AND target_component.number=source_component.number
-    )
-), coverage AS (
-  SELECT cs.id,cs.code,cs.title,count(DISTINCT e.question_id)::int eligible_questions
-  FROM current_subtopics cs
-  LEFT JOIN eligible e ON e.subtopic_id=cs.id
-  GROUP BY cs.id,cs.code,cs.title
-), floor_check AS (
-  SELECT count(*) FILTER (WHERE eligible_questions>=5)::int ready_subtopics FROM coverage
-)
-SELECT CASE WHEN ready_subtopics<38
-  THEN pg_catalog.pg_sleep(0)::text || (1/0)::text
-  ELSE ready_subtopics::text
-END AS ready_subtopics_release_floor
-FROM floor_check;
-
-WITH current_subtopics AS (
-  SELECT st.id, st.code, st.title
-  FROM public.subtopics st
-  JOIN public.topics t ON t.id=st.topic_id
-  JOIN public.syllabi s ON s.id=t.syllabus_id
-  WHERE s.code='9618' AND s.version_label='2026-2028'
-), eligible AS (
-  SELECT DISTINCT target_lo.subtopic_id, q.id question_id
-  FROM public.learning_objective_compatibility compat
-  JOIN public.learning_objectives target_lo ON target_lo.id=compat.target_lo_id
-  JOIN public.question_learning_objectives qlo ON qlo.lo_id=compat.source_lo_id
-  JOIN public.questions q ON q.id=qlo.question_id
-  JOIN public.mark_schemes ms ON ms.question_id=q.id AND ms.status='approved'
-  JOIN public.components source_component ON source_component.id=q.component_id
-  WHERE compat.relation IN ('equivalent','subtopic_compatible')
-    AND q.status='approved' AND q.parent_id IS NOT NULL AND q.marks IS NOT NULL
     AND q.answer_kind NOT IN ('diagram','image')
     AND NOT EXISTS (SELECT 1 FROM public.question_dependencies dep WHERE dep.question_id=q.id)
     AND NOT EXISTS (
