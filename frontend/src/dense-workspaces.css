@@ -1,5 +1,31 @@
 /* Dense teacher workspaces inside the shared application shell. */
 
+/* Keep compact shell controls from inheriting the global primary-button hover. */
+.shell .shell-ghost {
+  background: rgb(255 255 255 / 3%);
+  color: #94a3b8;
+  border-color: rgb(255 255 255 / 10%);
+  box-shadow: none;
+}
+.shell .shell-ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 7%);
+  color: #fff;
+  border-color: rgb(255 255 255 / 15%);
+  box-shadow: none;
+}
+.shell .shell-burger:hover:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.theme-toggle:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: none;
+}
+
 /* Question Bank no longer needs a second product header inside AppShell. */
 .qb-page,
 .qb-review-page,
@@ -69,6 +95,18 @@
 .qb-question-main > p,
 .qb-family-parts p { font-size: 13.5px; line-height: 1.6; }
 .qb-topic-tags span { border-radius: 999px; padding: 3px 7px; }
+.qb-icon-button {
+  min-height: 34px;
+  padding: 0;
+  box-shadow: none;
+}
+.qb-icon-button:hover:not(:disabled) { box-shadow: none; }
+.qb-link-button {
+  min-height: 28px;
+  padding: 3px 5px;
+  box-shadow: none;
+}
+.qb-link-button:hover:not(:disabled) { background: transparent; box-shadow: none; }
 .qb-add-button {
   width: 36px;
   height: 36px;
@@ -79,6 +117,12 @@
 }
 .qb-secondary-button { min-height: 34px; border-radius: 9px; }
 .qb-basket-item { border-radius: 12px; padding: 11px; }
+.qb-basket-item-head button {
+  min-height: 28px;
+  padding: 0 4px;
+  box-shadow: none;
+}
+.qb-basket-item-head button:hover:not(:disabled) { background: transparent; box-shadow: none; }
 .qb-basket-summary > button { min-height: 40px; border-radius: 10px; }
 .qb-modal { border-radius: 20px; box-shadow: var(--shadow-lg); }
 
