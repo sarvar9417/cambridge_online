@@ -43,6 +43,7 @@ import { GradingQueue } from './teaching/GradingQueue';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
+import { AttemptContext } from './AttemptContext';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -532,9 +533,7 @@ export function App() {
               {attemptIndex + 1}. {question.displayRef} · {question.commandWord} ·{" "}
               {question.marks} ball
             </p>
-            {question.contextMd && (
-              <p className="context">{question.contextMd}</p>
-            )}
+            {question.contextMd && <AttemptContext value={question.contextMd} />}
             <h2>{question.stemMd}</h2>
             <textarea className={question.answerKind==='code'||question.answerKind==='pseudocode'?'code-answer':''}
               disabled={remainingSeconds === 0}
@@ -795,4 +794,3 @@ export function App() {
     </AppShell>
   );
 }
-
