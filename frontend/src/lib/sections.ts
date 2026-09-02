@@ -62,6 +62,7 @@ function pick(surface: string, page: string, role: User['role']): SectionName[] 
   }
 
   switch (page) {
+    case 'darslar': return ['analytics'];
     case 'vazifalar': return ['teacherAssignments'];
     // An appeal is a student disputing a mark, which is the same sitting as
     // working through the grading queue.
