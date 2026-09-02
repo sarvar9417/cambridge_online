@@ -30,6 +30,7 @@ BEGIN
     ('9618/11/M/J/24 Q5(c)(ii)',   '7.1',  '7.1-lo-05', true,  'AI facial recognition was incorrectly primary 6.1 Data Security'),
     ('9618/11/O/N/24 Q6',          '7.1',  '7.1-lo-05', true,  'AI number-plate recognition was incorrectly primary 6.1 Data Security'),
     ('9618/11/M/J/25 Q4(a)',       '7.1',  '7.1-lo-05', true,  'AI customer recognition was incorrectly primary 6.1 Data Security'),
+    ('9618/12/O/N/21 Q1',          '6.1',  '6.1-lo-01', false, 'distinguishes data security from data integrity'),
     ('9618/23/M/J/22 Q2',          '12.3', '12.3-lo-07', false, 'types of program maintenance'),
     ('9618/13/M/J/21 Q5(c)',       '3.1',  '3.1-lo-10', false, 'same refrigerator control-v-monitoring item as 9618/11/M/J/21 Q5(c)'),
     ('9618/13/O/N/24 Q3',          '3.1',  '3.1-lo-10', false, 'automatic braking: identify/justify control rather than monitoring'),
@@ -45,8 +46,8 @@ BEGIN
   JOIN source_papers sp ON sp.id = q.source_paper_id AND sp.kind = 'QP'
   JOIN syllabi sy ON sy.id = sp.syllabus_id AND sy.code = '9618'
   WHERE sp.year BETWEEN 2021 AND 2025 AND q.marks > 0;
-  IF v_count <> 18 THEN
-    RAISE EXCEPTION '0095 expected 18 source-backed question leaves, found %', v_count;
+  IF v_count <> 19 THEN
+    RAISE EXCEPTION '0095 expected 19 source-backed question leaves, found %', v_count;
   END IF;
 
   -- Resolve taxonomy through topics so the target stays in the source paper's
@@ -58,8 +59,8 @@ BEGIN
   JOIN topics t ON t.syllabus_id = sp.syllabus_id
   JOIN subtopics st ON st.topic_id = t.id AND st.code = f.target_subtopic
   JOIN learning_objectives lo ON lo.subtopic_id = st.id AND lo.code = f.target_lo;
-  IF v_count <> 18 THEN
-    RAISE EXCEPTION '0095 could not resolve all 18 target historical subtopic/LO pairs (found %)', v_count;
+  IF v_count <> 19 THEN
+    RAISE EXCEPTION '0095 could not resolve all 19 target historical subtopic/LO pairs (found %)', v_count;
   END IF;
 
   SELECT count(*) INTO v_count
@@ -88,8 +89,8 @@ BEGIN
   FROM _taxonomy_fix f
   JOIN questions q ON q.display_ref = f.display_ref
   JOIN question_learning_objectives qlo ON qlo.question_id = q.id;
-  IF v_count <> 18 THEN
-    RAISE EXCEPTION '0095 expected one existing LO per curated leaf (18 rows), found %', v_count;
+  IF v_count <> 19 THEN
+    RAISE EXCEPTION '0095 expected one existing LO per curated leaf (19 rows), found %', v_count;
   END IF;
 
   DELETE FROM question_learning_objectives qlo
@@ -123,7 +124,7 @@ BEGIN
   JOIN question_learning_objectives qlo ON qlo.question_id = q.id
   JOIN learning_objectives lo ON lo.id = qlo.lo_id AND lo.code = f.target_lo
   WHERE qlo.confidence >= 0.99;
-  IF v_count <> 18 THEN
-    RAISE EXCEPTION '0095 postcondition expected 18 corrected primary+LO mappings, found %', v_count;
+  IF v_count <> 19 THEN
+    RAISE EXCEPTION '0095 postcondition expected 19 corrected primary+LO mappings, found %', v_count;
   END IF;
 END $$;
