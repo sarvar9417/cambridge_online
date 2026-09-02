@@ -1,6 +1,5 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
-import { snapshotHasStorageOnlyAsset } from '../lib/assignment-attempt-overlay.js';
 import { DomainError } from './assignments-service.js';
 
 type PortableRow = {
@@ -62,6 +61,12 @@ function practiceSnapshot(rows: PortableRow[]) {
   };
 }
 
+function snapshotHasUnrenderableAsset(snapshot: ReturnType<typeof practiceSnapshot>) {
+  return snapshot.contextBlocks.some((block) =>
+    block.assets.some((asset) => !asset.contentMd?.trim()),
+  );
+}
+
 /**
  * Creates private remediation practice without rewriting historical question
  * taxonomy to the student's current syllabus. A historical question is eligible
@@ -72,11 +77,11 @@ function practiceSnapshot(rows: PortableRow[]) {
  * curated split/merge/subset relation that is safe for subtopic-level practice
  * but deliberately does not claim LO-level mastery equivalence.
  *
- * Practice remains dependency-free and rejects binary-only assets. Textual
- * assets (for example a Markdown table or pseudocode block) are frozen into the
- * assignment's portable snapshot and the normal attempt overlay renders them as
- * context. This reuses the same portability contract as Question Bank v2 rather
- * than silently dropping printed information from the source question.
+ * Practice remains dependency-free and accepts an asset only when the complete
+ * printed content is already available as Markdown/text. Those assets (for
+ * example a table or pseudocode block) are frozen into the assignment's portable
+ * snapshot and the normal attempt overlay renders them as context. Any asset
+ * without portable content fails closed instead of silently losing source data.
  */
 export class PracticeService {
   constructor(private readonly pool: Pool) {}
@@ -142,8 +147,7 @@ export class PracticeService {
              select 1
              from context_chain chain
              join question_assets asset on asset.question_id=chain.id
-             where asset.storage_path is not null
-               and nullif(btrim(coalesce(asset.content_md,'')),'') is null
+             where nullif(btrim(coalesce(asset.content_md,'')),'') is null
            )
          order by md5(q.id::text||$3||current_date::text)
          limit 5`,
@@ -185,7 +189,7 @@ export class PracticeService {
         );
         const snapshot = practiceSnapshot(chain.rows as PortableRow[]);
         // Defend against a concurrent asset edit between selection and snapshot.
-        if (snapshotHasStorageOnlyAsset(snapshot)) {
+        if (snapshotHasUnrenderableAsset(snapshot)) {
           throw new DomainError('online_asset_rendering_unavailable', 409);
         }
         portable.push({ question, snapshot });
