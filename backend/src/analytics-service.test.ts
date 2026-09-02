@@ -19,7 +19,7 @@ describe('analytics authorization and calculations', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
-  it('counts Markdown-backed context as practice-ready but still gates storage-only assets', async () => {
+  it('counts Markdown-backed context as practice-ready but gates assets without portable content', async () => {
     const query = vi.fn().mockResolvedValue({
       rows: [{
         subtopic_id: 'st', code: '10.4', title: 'ADT', score: '0.4', attempts: '2',
@@ -29,8 +29,8 @@ describe('analytics authorization and calculations', () => {
     const data = await new AnalyticsService({ query } as unknown as Pool).mastery(student);
     expect(data[0]).toMatchObject({ compatibilityMapped: true, practiceQuestionCount: 5, practiceReady: true });
     const sql = String(query.mock.calls[0]![0]);
-    expect(sql).toContain('asset.storage_path is not null');
-    expect(sql).toContain("coalesce(asset.content_md,'')");
+    expect(sql).toContain("where nullif(btrim(coalesce(asset.content_md,'')),'') is null");
+    expect(sql).not.toContain('asset.storage_path is not null');
     expect(sql).toContain("q.answer_kind not in('diagram','image')");
   });
 
