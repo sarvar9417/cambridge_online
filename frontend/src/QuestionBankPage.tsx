@@ -201,7 +201,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [commandWords, setCommandWords] = useState<string[]>([]);
   const [hasDiagram, setHasDiagram] = useState('');
   const [dependency, setDependency] = useState<'any' | 'independent'>('any');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('approved');
 
   const loadOptions = async () => {
     const [filterResult, basketResult] = await Promise.allSettled([
@@ -385,7 +385,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     setCommandWords([]);
     setHasDiagram('');
     setDependency('any');
-    setStatus('');
+    setStatus('approved');
   };
 
   if (user.role === 'student') {
