@@ -27,6 +27,13 @@ describe('who sees which surface', () => {
     expect(paths('teacher').some((path) => path.startsWith('boshqaruv/'))).toBe(false);
   });
 
+  it('gives staff a lesson studio before worksheet-building tools', () => {
+    const teaching = navigationFor('owner', classes).find((group) => group.label === 'O‘qitish')!;
+    expect(teaching.items[0]?.path).toBe('oqitish/darslar');
+    expect(sectionsFor('oqitish', 'darslar', 'owner')).toEqual(['analytics']);
+    expect(sectionsFor('oqitish', 'darslar', 'teacher')).toEqual(['analytics']);
+  });
+
   it('gives a student only their own surface, with no class list', () => {
     expect(labels('student')).toEqual(['O‘rganish']);
     expect(paths('student').every((path) => path.startsWith('oquvchi/'))).toBe(true);
