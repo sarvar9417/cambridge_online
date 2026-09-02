@@ -2,6 +2,71 @@ import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 
+type PortableRow = {
+  id: string;
+  parent_id: string | null;
+  label: string;
+  path: string;
+  display_ref: string;
+  depth: number;
+  marks: number | null;
+  command_word: string | null;
+  answer_kind: string;
+  answer_lines: number | null;
+  stem: string;
+  context: string | null;
+  assets: Array<{
+    id: string;
+    kind: string;
+    storagePath: string | null;
+    url: null;
+    contentMd: string | null;
+    altText: string;
+    sortOrder: number;
+    sourcePage: number | null;
+  }>;
+};
+
+function practiceSnapshot(rows: PortableRow[]) {
+  const leaf = rows[rows.length - 1];
+  const root = rows[0];
+  if (!leaf || !root || leaf.marks === null) throw new DomainError('invalid_questions', 409);
+
+  return {
+    leaf: {
+      id: leaf.id,
+      rootId: root.id,
+      label: leaf.label,
+      path: leaf.path,
+      displayRef: leaf.display_ref,
+      stem: leaf.stem,
+      commandWord: leaf.command_word,
+      marks: Number(leaf.marks),
+      answerKind: leaf.answer_kind,
+      answerLines: leaf.answer_lines,
+    },
+    chain: rows.map((row) => ({ id: row.id, label: row.label, depth: Number(row.depth) })),
+    contextBlocks: rows
+      .filter((row) => Boolean(row.context) || row.assets.length > 0)
+      .map((row) => ({
+        id: row.id,
+        label: row.label,
+        displayRef: row.display_ref,
+        depth: Number(row.depth),
+        context: row.context,
+        assets: row.assets,
+      })),
+    dependencies: [],
+    sourceRef: leaf.display_ref,
+  };
+}
+
+function snapshotHasUnrenderableAsset(snapshot: ReturnType<typeof practiceSnapshot>) {
+  return snapshot.contextBlocks.some((block) =>
+    block.assets.some((asset) => !asset.contentMd?.trim()),
+  );
+}
+
 /**
  * Creates private remediation practice without rewriting historical question
  * taxonomy to the student's current syllabus. A historical question is eligible
@@ -12,10 +77,11 @@ import { DomainError } from './assignments-service.js';
  * curated split/merge/subset relation that is safe for subtopic-level practice
  * but deliberately does not claim LO-level mastery equivalence.
  *
- * Practice deliberately uses only standalone, asset-free questions. The legacy
- * attempt payload does not carry selection dependency/context-asset snapshots,
- * so dependent or asset-backed questions fail closed instead of becoming
- * incomplete student tasks.
+ * Practice remains dependency-free and accepts an asset only when the complete
+ * printed content is already available as Markdown/text. Those assets (for
+ * example a table or pseudocode block) are frozen into the assignment's portable
+ * snapshot and the normal attempt overlay renders them as context. Any asset
+ * without portable content fails closed instead of silently losing source data.
  */
 export class PracticeService {
   constructor(private readonly pool: Pool) {}
@@ -81,6 +147,7 @@ export class PracticeService {
              select 1
              from context_chain chain
              join question_assets asset on asset.question_id=chain.id
+             where nullif(btrim(coalesce(asset.content_md,'')),'') is null
            )
          order by md5(q.id::text||$3||current_date::text)
          limit 5`,
@@ -96,6 +163,38 @@ export class PracticeService {
 
       const meta = context.rows[0];
       const selected = questions.rows.slice(0, 5);
+      const portable = [] as Array<{ question: Record<string, unknown>; snapshot: ReturnType<typeof practiceSnapshot> }>;
+      for (const question of selected) {
+        const chain = await client.query(
+          `with recursive chain as (
+             select q.id,q.parent_id,q.label,q.path,q.display_ref,q.depth,q.marks,q.command_word,
+                    q.answer_kind,q.answer_lines,coalesce(q.stem_md,'') stem,q.context_md context
+             from questions q where q.id=$1
+             union all
+             select parent.id,parent.parent_id,parent.label,parent.path,parent.display_ref,parent.depth,parent.marks,parent.command_word,
+                    parent.answer_kind,parent.answer_lines,coalesce(parent.stem_md,'') stem,parent.context_md context
+             from chain child join questions parent on parent.id=child.parent_id
+           )
+           select c.*,
+             coalesce((
+               select jsonb_agg(jsonb_build_object(
+                 'id',asset.id,'kind',asset.kind,'storagePath',asset.storage_path,'url',null,
+                 'contentMd',asset.content_md,'altText',coalesce(asset.alt_text,''),
+                 'sortOrder',asset.sort_order,'sourcePage',asset.source_page
+               ) order by asset.sort_order,asset.id)
+               from question_assets asset where asset.question_id=c.id
+             ),'[]'::jsonb) assets
+           from chain c order by c.depth`,
+          [question.id],
+        );
+        const snapshot = practiceSnapshot(chain.rows as PortableRow[]);
+        // Defend against a concurrent asset edit between selection and snapshot.
+        if (snapshotHasUnrenderableAsset(snapshot)) {
+          throw new DomainError('online_asset_rendering_unavailable', 409);
+        }
+        portable.push({ question, snapshot });
+      }
+
       const total = selected.reduce((sum, row) => sum + Number(row.marks), 0);
       const assignment = await client.query(
         `insert into assignments(
@@ -106,11 +205,19 @@ export class PracticeService {
         [meta.class_id, actor.id, `Mashq · ${meta.code} ${meta.title}`, total],
       );
 
-      for (const [index, question] of selected.entries()) {
+      for (const [index, item] of portable.entries()) {
         await client.query(
-          `insert into assignment_questions(assignment_id,question_id,sort_order)
-           values($1,$2,$3)`,
-          [assignment.rows[0].id, question.id, index + 1],
+          `insert into assignment_questions(
+             assignment_id,question_id,sort_order,role,source_ref,fresh_ref,portable_snapshot
+           ) values($1,$2,$3,'graded',$4,$5,$6::jsonb)`,
+          [
+            assignment.rows[0].id,
+            item.question.id,
+            index + 1,
+            item.snapshot.sourceRef,
+            `Q${index + 1}`,
+            JSON.stringify(item.snapshot),
+          ],
         );
       }
 

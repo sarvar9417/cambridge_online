@@ -69,6 +69,7 @@ export class AnalyticsService {
              select 1
              from context_chain chain
              join question_assets asset on asset.question_id=chain.id
+             where nullif(btrim(coalesce(asset.content_md,'')),'') is null
            )
          group by target_lo.subtopic_id
        )

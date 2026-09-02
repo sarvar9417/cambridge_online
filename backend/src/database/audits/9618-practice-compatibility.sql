@@ -4,6 +4,8 @@
 -- Compatibility coverage and integrity are release invariants. Practice
 -- readiness is measured separately because approved question supply and online
 -- renderability can legitimately leave a mapped subtopic below five questions.
+-- Textual/Markdown assets are online-portable; any asset without non-empty
+-- portable content fails closed instead of losing source information.
 
 DO $$
 DECLARE
@@ -86,7 +88,10 @@ BEGIN
           UNION ALL
           SELECT parent.id,parent.parent_id FROM public.questions parent JOIN context_chain chain ON parent.id=chain.parent_id
         )
-        SELECT 1 FROM context_chain chain JOIN public.question_assets asset ON asset.question_id=chain.id
+        SELECT 1
+        FROM context_chain chain
+        JOIN public.question_assets asset ON asset.question_id=chain.id
+        WHERE nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
       )
       AND EXISTS (
         SELECT 1 FROM public.component_learning_objectives tc
@@ -100,7 +105,7 @@ BEGIN
   )
   SELECT count(*) FILTER (WHERE eligible_questions>=5)::int INTO ready_subtopics FROM coverage;
 
-  IF bad_scope<>0 OR bad_versions<>0 OR historical_quantum<>0 OR mapped_subtopics<>44 OR ready_subtopics<38 THEN
+  IF bad_scope<>0 OR bad_versions<>0 OR historical_quantum<>0 OR mapped_subtopics<>44 OR ready_subtopics<39 THEN
     RAISE EXCEPTION
       '9618 practice compatibility audit failed bad_scope=% bad_versions=% historical_quantum=% mapped_subtopics=% ready_subtopics=%',
       bad_scope,bad_versions,historical_quantum,mapped_subtopics,ready_subtopics;
@@ -133,7 +138,10 @@ WITH current_subtopics AS (
         UNION ALL
         SELECT parent.id,parent.parent_id FROM public.questions parent JOIN context_chain chain ON parent.id=chain.parent_id
       )
-      SELECT 1 FROM context_chain chain JOIN public.question_assets asset ON asset.question_id=chain.id
+      SELECT 1
+      FROM context_chain chain
+      JOIN public.question_assets asset ON asset.question_id=chain.id
+      WHERE nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
     )
     AND EXISTS (
       SELECT 1 FROM public.component_learning_objectives tc
