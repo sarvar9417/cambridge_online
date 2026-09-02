@@ -5,7 +5,7 @@ import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } f
 import './lesson-studio.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
-type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number };
+type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
 type QuestionResponse = { data: ExamPart[]; view:'parts'; unavailableFilters:string[]; nextCursor:null };
 
 function Visual({ kind }: { kind?: LessonVisual }) {
@@ -28,10 +28,13 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
         const options=await api<FilterOptions>('/questions/filter-options');
         const ids=options.topics.filter(item=>item.code===subtopicCode).map(item=>item.subtopic_id);
         if(!ids.length) throw new Error('Subtopic topilmadi.');
-        const qs=new URLSearchParams({view:'parts',status:'approved',yearFrom:'2021',yearTo:'2025',hasDiagram:'false',dependency:'independent',limit:'6'});
+        // Staff question search intentionally exposes needs_review rows as well as
+        // approved rows. A board lesson must be stricter, so fetch a wider pool
+        // and filter approved explicitly before showing anything to learners.
+        const qs=new URLSearchParams({view:'parts',status:'approved',yearFrom:'2021',yearTo:'2025',hasDiagram:'false',dependency:'independent',limit:'24'});
         ids.forEach(id=>qs.append('subtopicIds',id));
         const result=await api<QuestionResponse>(`/questions?${qs}`);
-        if(!cancelled)setQuestions(result.data.slice(0,6));
+        if(!cancelled)setQuestions(result.data.filter(question=>question.status==='approved').slice(0,6));
       }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Savollar yuklanmadi.');}
       finally{if(!cancelled)setLoading(false);}
     })();
@@ -73,6 +76,9 @@ export function LessonStudio({ user }: { user:User }) {
   const sections=useMemo(()=>chosen?[...new Set(chosen.slides.map(item=>item.section))]:[],[chosen]);
 
   useEffect(()=>{setIndex(0)},[chapterNo]);
+  const leavePresenter=async()=>{setPresenting(false);document.documentElement.classList.remove('lesson-presenting');try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}};
+  const enterPresenter=async()=>{setPresenting(true);document.documentElement.classList.add('lesson-presenting');try{await document.documentElement.requestFullscreen?.()}catch{}};
+
   useEffect(()=>{
     if(!chosen)return;
     const onKey=(event:KeyboardEvent)=>{
@@ -83,9 +89,6 @@ export function LessonStudio({ user }: { user:User }) {
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[chosen,presenting]);
   useEffect(()=>()=>{document.documentElement.classList.remove('lesson-presenting')},[]);
-
-  const enterPresenter=async()=>{setPresenting(true);document.documentElement.classList.add('lesson-presenting');try{await document.documentElement.requestFullscreen?.()}catch{}};
-  const leavePresenter=async()=>{setPresenting(false);document.documentElement.classList.remove('lesson-presenting');try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}};
 
   if(user.role==='student')return null;
   if(!chosen)return <section className="lesson-library">
