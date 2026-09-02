@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { AssignmentsService, DomainError } from '../services/assignments-service.js';
+import { PracticeService } from '../services/practice-service.js';
 import { GeneratorService } from '../services/generator-service.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
@@ -17,7 +18,7 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
     const query = z.object({ classId: uuid.optional() }).parse(req.query);
     res.json({ data: await service.list(req.actor!, query.classId) });
   });
-  router.post('/practice',async(req,res)=>{const body=z.object({subtopicId:uuid,commandWord:z.enum(['State','Give','Name','Identify','Define','Describe','Explain','Compare','Calculate','Complete','Draw','Write','Evaluate','Justify','Suggest','Show','Other']).optional()}).parse(req.body);const operation=async()=>({status:201,body:await service.createPractice(req.actor!,body)});if(pool)return runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body)});
+  router.post('/practice',async(req,res)=>{const body=z.object({subtopicId:uuid,commandWord:z.enum(['State','Give','Name','Identify','Define','Describe','Explain','Compare','Calculate','Complete','Draw','Write','Evaluate','Justify','Suggest','Show','Other']).optional()}).parse(req.body);const operation=async()=>({status:201,body:pool?await new PracticeService(pool).create(req.actor!,body):await service.createPractice(req.actor!,body)});if(pool)return runIdempotent(req,res,pool,operation);const result=await operation();return res.status(result.status).json(result.body)});
   router.get('/:id/results', async (req, res) => res.json({ data: await service.results(req.actor!, uuid.parse(req.params.id)) }));
   router.post('/', async (req, res) => {
     const body = z.object({
