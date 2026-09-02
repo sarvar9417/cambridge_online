@@ -6,6 +6,15 @@ CamPath uses one repository and one Vercel project:
 - `backend/` - Express and PostgreSQL
 - `api/` - Vercel adapter for the Express backend
 
+## Primary product workflow
+
+The current P0 release contract is the daily teacher path:
+
+**Topic/Subtopic → approved Cambridge questions → portable context/dependency preflight → PDF/DOCX**
+
+See [`docs/DAILY-TEACHER-WORKFLOW.md`](./docs/DAILY-TEACHER-WORKFLOW.md) for the
+required integrity gates and release checklist.
+
 ## Local development
 
 Install dependencies once:
