@@ -5,6 +5,8 @@ import { applyStoredTheme } from './lib/theme';
 import { parseRoute } from './lib/router';
 import './theme.css';
 import './styles.css';
+import './modern-ui.css';
+import './dense-workspaces.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {

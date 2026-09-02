@@ -1,0 +1,202 @@
+/* Dense teacher workspaces inside the shared application shell. */
+
+/* Keep compact shell controls from inheriting the global primary-button hover. */
+.shell .shell-ghost {
+  background: rgb(255 255 255 / 3%);
+  color: #94a3b8;
+  border-color: rgb(255 255 255 / 10%);
+  box-shadow: none;
+}
+.shell .shell-ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 7%);
+  color: #fff;
+  border-color: rgb(255 255 255 / 15%);
+  box-shadow: none;
+}
+.shell .shell-burger:hover:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.theme-toggle:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: none;
+}
+
+/* Question Bank no longer needs a second product header inside AppShell. */
+.qb-page,
+.qb-review-page,
+.qb-auth-state {
+  min-height: auto;
+  background: transparent;
+}
+.qb-topbar { display: none; }
+.qb-layout {
+  grid-template-columns: 228px minmax(0, 1fr) 306px;
+  min-height: calc(100dvh - 132px);
+  border: 1px solid var(--qb-border);
+  border-radius: 18px;
+  background: var(--qb-panel);
+  box-shadow: var(--shadow);
+}
+.qb-filters,
+.qb-basket {
+  top: 88px;
+  height: calc(100dvh - 112px);
+  padding: 18px;
+  background: var(--qb-panel);
+}
+.qb-filters { border-radius: 18px 0 0 18px; }
+.qb-basket { border-radius: 0 18px 18px 0; }
+.qb-results {
+  padding: 18px 20px 32px;
+  background: color-mix(in srgb, var(--qb-bg) 72%, var(--qb-panel));
+}
+.qb-search-row {
+  top: 88px;
+  padding: 2px 0 14px;
+  background: linear-gradient(color-mix(in srgb, var(--qb-bg) 88%, transparent) 78%, transparent);
+}
+.qb-search {
+  height: 46px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+}
+.qb-segments { border-radius: 12px; background: var(--qb-panel-soft); }
+.qb-segments button { min-height: 36px; border-radius: 8px; }
+.qb-segments button.active { background: var(--qb-panel); box-shadow: 0 1px 3px rgb(15 23 42 / 9%); }
+.qb-panel-title strong { font-size: 13px; font-weight: 730; letter-spacing: -.015em; }
+.qb-panel-title small { margin-top: 3px; }
+.qb-filter > span,
+.qb-check-group legend {
+  font-size: 10.5px;
+  font-weight: 730;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.qb-filter input,
+.qb-filter select,
+.qb-basket-select,
+.qb-basket-item select { height: 38px; border-radius: 9px; }
+.qb-card-list { gap: 11px; }
+.qb-question-card {
+  padding: 16px 17px;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+}
+.qb-question-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--qb-primary) 22%, var(--qb-border-strong));
+  box-shadow: 0 10px 24px rgb(15 23 42 / 8%);
+}
+.qb-question-main > p,
+.qb-family-parts p { font-size: 13.5px; line-height: 1.6; }
+.qb-topic-tags span { border-radius: 999px; padding: 3px 7px; }
+.qb-icon-button {
+  min-height: 34px;
+  padding: 0;
+  box-shadow: none;
+}
+.qb-icon-button:hover:not(:disabled) { box-shadow: none; }
+.qb-link-button {
+  min-height: 28px;
+  padding: 3px 5px;
+  box-shadow: none;
+}
+.qb-link-button:hover:not(:disabled) { background: transparent; box-shadow: none; }
+.qb-add-button {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgb(79 70 229 / 18%);
+}
+.qb-secondary-button { min-height: 34px; border-radius: 9px; }
+.qb-basket-item { border-radius: 12px; padding: 11px; }
+.qb-basket-item-head button {
+  min-height: 28px;
+  padding: 0 4px;
+  box-shadow: none;
+}
+.qb-basket-item-head button:hover:not(:disabled) { background: transparent; box-shadow: none; }
+.qb-basket-summary > button { min-height: 40px; border-radius: 10px; }
+.qb-modal { border-radius: 20px; box-shadow: var(--shadow-lg); }
+
+/* Review screen reads like a professional document workspace rather than a nested app. */
+.qb-review-header {
+  top: 88px;
+  border: 1px solid var(--qb-border);
+  border-radius: 14px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+}
+.qb-review-layout { padding-top: 0; }
+.qb-review-paper,
+.qb-review-side { border-radius: 18px; box-shadow: var(--shadow); }
+
+/* Selection handoff also sits inside AppShell: remove duplicate header chrome. */
+.handoff-page,
+.handoff-state { min-height: auto; background: transparent; }
+.handoff-header { display: none; }
+.handoff-layout {
+  max-width: 1240px;
+  padding: 0 0 48px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+}
+.handoff-summary,
+.handoff-form-card {
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.handoff-summary { padding: 30px 32px; }
+.handoff-title { border-bottom-color: var(--border-strong); }
+.handoff-title h1 { font-size: clamp(24px, 3vw, 30px); letter-spacing: -.035em; }
+.handoff-stats { gap: 10px; }
+.handoff-stats > div { border-radius: 11px; padding: 12px; }
+.handoff-items { gap: 9px; }
+.handoff-items article { border-radius: 11px; padding: 12px 13px; }
+.handoff-form-card { top: 92px; padding: 20px; }
+.handoff-form-card h2 { font-size: 16px; letter-spacing: -.02em; }
+.handoff-form-card input,
+.handoff-form-card select { height: 40px; }
+.handoff-form-card input,
+.handoff-form-card select,
+.handoff-form-card textarea { border-radius: 10px; padding: 9px 10px; }
+.handoff-form-card form > button { height: 42px; border-radius: 10px; }
+
+@media (max-width: 1180px) {
+  .qb-layout { grid-template-columns: 214px minmax(0, 1fr) 280px; }
+  .handoff-layout { grid-template-columns: minmax(0, 1fr) 330px; }
+}
+
+@media (max-width: 980px) {
+  .qb-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+    border-radius: 16px;
+  }
+  .qb-basket {
+    grid-column: 1 / -1;
+    position: static;
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--qb-border);
+    border-radius: 0 0 16px 16px;
+  }
+  .qb-filters { border-radius: 16px 0 0 0; }
+}
+
+@media (max-width: 860px) {
+  .qb-layout { display: block; border-radius: 14px; }
+  .qb-filters,
+  .qb-basket { position: static; height: auto; border-radius: 0; }
+  .qb-filters { border-right: 0; border-bottom: 1px solid var(--qb-border); }
+  .qb-results { padding: 16px; }
+  .qb-search-row { position: static; }
+  .handoff-layout { grid-template-columns: 1fr; padding-bottom: 32px; }
+  .handoff-form-card { position: static; }
+}
