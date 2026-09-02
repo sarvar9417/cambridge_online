@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ClassItem } from './lib/api';
+import { useRoute } from './lib/router';
+import { LessonStudio } from './teaching/LessonStudio';
 
 interface HeatCell { studentId:string;studentName:string;topic:number;mastery:number|null;evidence:number }
 interface MarkPoint { id:string;code:string;text:string;displayRef:string;commandWord:string|null;missed:number;total:number;missPct:number }
@@ -7,6 +9,7 @@ interface CommandWord { commandWord:string;percentage:number;sampleSize:number }
 interface AiQuality { promptVersion:string;sampleSize:number;pointAgreement:number;falsePositive:number;falseNegative:number }
 
 export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:boolean }) {
+  const route=useRoute();
   const [classId,setClassId]=useState(classes[0]?.id??'');
   const [heat,setHeat]=useState<HeatCell[]>([]);
   const [points,setPoints]=useState<MarkPoint[]>([]);
@@ -15,12 +18,14 @@ export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:b
   const [computing,setComputing]=useState(false);
   const [error,setError]=useState('');
 
-  useEffect(()=>{if(!classId)return;setError('');Promise.all([
+  useEffect(()=>{if(!classId||route.page==='darslar')return;setError('');Promise.all([
     api<{data:HeatCell[]}>(`/analytics/classes/${classId}/heatmap`),
     api<{data:MarkPoint[]}>(`/analytics/classes/${classId}/mark-points`),
     api<{data:CommandWord[]}>(`/analytics/classes/${classId}/command-words`),
     owner?api<{data:AiQuality[]}>('/analytics/ai-quality'):Promise.resolve({data:[]}),
-  ]).then(([h,p,w,q])=>{setHeat(h.data);setPoints(p.data);setWords(w.data);setQuality(q.data)}).catch(cause=>setError(cause instanceof Error?cause.message:'Analitika yuklanmadi.'))},[classId,owner]);
+  ]).then(([h,p,w,q])=>{setHeat(h.data);setPoints(p.data);setWords(w.data);setQuality(q.data)}).catch(cause=>setError(cause instanceof Error?cause.message:'Analitika yuklanmadi.'))},[classId,owner,route.page]);
+
+  if(route.page==='darslar')return <LessonStudio user={{id:'lesson-studio',fullName:'',role:owner?'owner':'teacher',schoolId:null}}/>;
 
   const students=[...new Map(heat.map(cell=>[cell.studentId,cell.studentName])).entries()];
   const topics=[...new Set(heat.map(cell=>cell.topic))];

@@ -48,6 +48,7 @@ export function navigationFor(
     groups.push({
       label: 'O‘qitish',
       items: [
+        { path: 'oqitish/darslar', label: 'Darslar' },
         { path: 'oqitish/savol-banki', label: 'Savol banki' },
         { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' },
         { path: 'oqitish/vazifalar', label: 'Vazifalar' },
