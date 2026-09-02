@@ -13,7 +13,7 @@ export const DEPENDENCY_PATTERNS: RegExp[] = [
   // A test/evidence task consumes the program produced immediately beforehand, while
   // amend/extend/edit tasks consume previously written program state or modules.
   /\b(?:test|run)\s+(?:your|the)\s+program\b/i,
-  /\b(?:take|provide)\s+(?:one\s+or\s+more\s+)?screenshots?\b/i,
+  /\b(?:take|provide)\s+(?:a\s+|one\s+or\s+more\s+)?screenshots?\b/i,
   /\b(?:amend|extend|edit)\s+(?:the\s+|your\s+)?(?:main\s+)?program\b/i,
   /\bafter\s+the\s+(?:code|program code)\s+you\s+wrote\b/i,
 ];
