@@ -30,11 +30,70 @@ export class AnalyticsService {
       if (!visible.rowCount) throw new DomainError('not_found', 404);
     }
     const result = await this.pool.query(
-      `select m.subtopic_id,st.code,st.title,m.score,m.attempts,m.marks_earned,m.marks_possible,m.updated_at
-       from mastery m join subtopics st on st.id=m.subtopic_id where m.student_id=$1 order by m.score,st.code`,
+      `with mapped as (
+         select target_lo.subtopic_id,count(*)::int compatibility_count
+         from learning_objective_compatibility compat
+         join learning_objectives target_lo on target_lo.id=compat.target_lo_id
+         where compat.relation in('equivalent','subtopic_compatible')
+         group by target_lo.subtopic_id
+       ), practice_pool as (
+         select target_lo.subtopic_id,count(distinct q.id)::int question_count
+         from questions q
+         join question_learning_objectives qlo on qlo.question_id=q.id
+         join learning_objective_compatibility compat
+           on compat.source_lo_id=qlo.lo_id
+          and compat.relation in('equivalent','subtopic_compatible')
+         join learning_objectives target_lo on target_lo.id=compat.target_lo_id
+         join mark_schemes ms on ms.question_id=q.id and ms.status='approved'
+         join components source_component on source_component.id=q.component_id
+         where q.status='approved'
+           and q.parent_id is not null
+           and q.marks is not null
+           and q.answer_kind not in('diagram','image')
+           and exists (
+             select 1
+             from component_learning_objectives target_coverage
+             join components target_component on target_component.id=target_coverage.component_id
+             where target_coverage.learning_objective_id=target_lo.id
+               and target_component.number=source_component.number
+           )
+           and not exists(select 1 from question_dependencies dep where dep.question_id=q.id)
+           and not exists (
+             with recursive context_chain as (
+               select q.id,q.parent_id
+               union all
+               select parent.id,parent.parent_id
+               from questions parent
+               join context_chain chain on parent.id=chain.parent_id
+             )
+             select 1
+             from context_chain chain
+             join question_assets asset on asset.question_id=chain.id
+           )
+         group by target_lo.subtopic_id
+       )
+       select m.subtopic_id,st.code,st.title,m.score,m.attempts,m.marks_earned,m.marks_possible,m.updated_at,
+              coalesce(mapped.compatibility_count,0)::int compatibility_count,
+              coalesce(practice_pool.question_count,0)::int practice_question_count
+       from mastery m
+       join subtopics st on st.id=m.subtopic_id
+       left join mapped on mapped.subtopic_id=m.subtopic_id
+       left join practice_pool on practice_pool.subtopic_id=m.subtopic_id
+       where m.student_id=$1
+       order by m.score,st.code`,
       [studentId],
     );
-    return result.rows.map((row) => ({ ...row, score: Number(row.score), attempts: Number(row.attempts), marksEarned: Number(row.marks_earned), marksPossible: Number(row.marks_possible), confidence: Math.min(1, Number(row.marks_possible) / 15) }));
+    return result.rows.map((row) => ({
+      ...row,
+      score: Number(row.score),
+      attempts: Number(row.attempts),
+      marksEarned: Number(row.marks_earned),
+      marksPossible: Number(row.marks_possible),
+      confidence: Math.min(1, Number(row.marks_possible) / 15),
+      compatibilityMapped: Number(row.compatibility_count) > 0,
+      practiceQuestionCount: Number(row.practice_question_count),
+      practiceReady: Number(row.practice_question_count) >= 5,
+    }));
   }
 
   async overview(actor: Actor) {
