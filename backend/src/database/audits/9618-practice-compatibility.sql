@@ -4,8 +4,8 @@
 -- Compatibility coverage and integrity are release invariants. Practice
 -- readiness is measured separately because approved question supply and online
 -- renderability can legitimately leave a mapped subtopic below five questions.
--- Textual/Markdown assets are online-portable; storage-only assets still fail
--- closed because the attempt payload cannot safely embed their binary content.
+-- Textual/Markdown assets are online-portable; any asset without non-empty
+-- portable content fails closed instead of losing source information.
 
 DO $$
 DECLARE
@@ -91,8 +91,7 @@ BEGIN
         SELECT 1
         FROM context_chain chain
         JOIN public.question_assets asset ON asset.question_id=chain.id
-        WHERE asset.storage_path IS NOT NULL
-          AND nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
+        WHERE nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
       )
       AND EXISTS (
         SELECT 1 FROM public.component_learning_objectives tc
@@ -142,8 +141,7 @@ WITH current_subtopics AS (
       SELECT 1
       FROM context_chain chain
       JOIN public.question_assets asset ON asset.question_id=chain.id
-      WHERE asset.storage_path IS NOT NULL
-        AND nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
+      WHERE nullif(btrim(coalesce(asset.content_md,'')),'') IS NULL
     )
     AND EXISTS (
       SELECT 1 FROM public.component_learning_objectives tc
