@@ -26,7 +26,7 @@ describe('version-safe personalized practice', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it('selects five standalone questions only through explicit LO compatibility', async () => {
+  it('selects five standalone questions only through curated LO compatibility', async () => {
     const questions = Array.from({ length: 5 }, (_, index) => ({ id: `q${index + 1}`, marks: 2 }));
     const query = vi.fn()
       .mockResolvedValueOnce({})
@@ -44,7 +44,7 @@ describe('version-safe personalized practice', () => {
     const selectionSql = String(query.mock.calls[2]![0]);
     expect(selectionSql).toContain('question_learning_objectives');
     expect(selectionSql).toContain('learning_objective_compatibility');
-    expect(selectionSql).toContain("compat.relation='equivalent'");
+    expect(selectionSql).toContain("compat.relation in('equivalent','subtopic_compatible')");
     expect(selectionSql).toContain('target_lo.subtopic_id=$1');
     expect(selectionSql).toContain('target_component.number=source_component.number');
     expect(selectionSql).toContain('not exists (\n             select 1 from question_dependencies');

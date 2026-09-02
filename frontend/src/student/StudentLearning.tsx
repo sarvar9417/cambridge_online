@@ -27,12 +27,9 @@ export function bandOf(score: number) {
 /**
  * Where a student works on what they are weak at.
  *
- * The four blocks used to stack in the order they were written -- knowledge map,
- * command words, one flashcard, games -- with nothing saying which to do. It
- * now opens with the single next action, and the knowledge map lets any
- * subtopic be practised rather than only the first in the list, which is what it
- * did before and which left a student unable to practise their third weakest
- * topic.
+ * Practice availability is deliberately server-authoritative. A topic only
+ * receives an active CTA when the historical Cambridge pool contains five
+ * approved, standalone, render-safe questions mapped to the current syllabus.
  */
 export function StudentLearning({
   mastery, commandWords, flashcards, cardRevealed, practicing,
@@ -46,6 +43,7 @@ export function StudentLearning({
   );
   const untouched = useMemo(() => mastery.filter((item) => item.attempts === 0), [mastery]);
   const shown = showAll ? [...attempted, ...untouched] : attempted.slice(0, WEAK_LIMIT);
+  const readyTopics = mastery.filter((item) => item.practiceReady).length;
 
   const card = flashcards[0];
   const weakest = attempted[0];
@@ -63,6 +61,13 @@ export function StudentLearning({
       <header className="sl-hero">
         <p className="sl-eyebrow">O‘rganish</p>
         <h1>{headline}</h1>
+        {mastery.length ? (
+          <div className="sl-practice-summary" aria-label={`${readyTopics} ta mavzuda mashq tayyor`}>
+            <span className="sl-practice-summary-dot" aria-hidden="true" />
+            <strong>{readyTopics}/{mastery.length}</strong>
+            <span>bilim xaritasidagi mavzularda 5 ta source-backed savol tayyor</span>
+          </div>
+        ) : null}
       </header>
 
       {card ? (
@@ -80,8 +85,6 @@ export function StudentLearning({
 
           {cardRevealed ? (
             <div className="sl-grades">
-              {/* The three answers a person can honestly give about a card they
-                  just saw the back of. The interval follows from this. */}
               <button type="button" className="sl-grade sl-grade--hard" onClick={() => onGrade(1)}>
                 Qiyin<small>tez orada qaytadi</small>
               </button>
@@ -105,7 +108,10 @@ export function StudentLearning({
 
       <section className="sl-card">
         <div className="sl-card-head">
-          <h2>Bilim xaritasi</h2>
+          <div>
+            <h2>Bilim xaritasi</h2>
+            <p className="sl-card-subtitle">Mashq faqat yetarli va to‘liq Cambridge savol pooli bo‘lsa ochiladi.</p>
+          </div>
           <span className="sl-counter">{mastery.length} mavzu</span>
         </div>
 
@@ -116,6 +122,15 @@ export function StudentLearning({
             <ul className="sl-mastery">
               {shown.map((item) => {
                 const band = bandOf(item.score);
+                const questionCount = item.practiceQuestionCount ?? 0;
+                const mapped = item.compatibilityMapped ?? false;
+                const ready = item.practiceReady ?? false;
+                const statusText = ready
+                  ? `Mashq tayyor · ${questionCount} savol`
+                  : mapped
+                    ? `${questionCount}/5 savol · pool yetarli emas`
+                    : 'Syllabus mosligi tekshirilmoqda';
+                const statusClass = ready ? 'ready' : mapped ? 'limited' : 'pending';
                 return (
                   <li key={item.subtopic_id} className={`sl-topic sl-topic--${band}`}>
                     <div className="sl-topic-text">
@@ -130,14 +145,20 @@ export function StudentLearning({
                       <i style={{ width: `${Math.round(item.score * 100)}%` }} />
                     </div>
                     <span className="sl-topic-score">{Math.round(item.score * 100)}%</span>
-                    {/* Practice was offered on the first row only, so a student
-                        could not work on their third weakest topic. */}
-                    <button
-                      type="button" disabled={practicing === item.subtopic_id}
-                      onClick={() => onPractice(item)}
-                    >
-                      {practicing === item.subtopic_id ? '…' : 'Mashq'}
-                    </button>
+                    <div className="sl-practice-action">
+                      <span className={`sl-practice-badge sl-practice-badge--${statusClass}`}>
+                        {statusText}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={!ready || practicing === item.subtopic_id}
+                        aria-label={`${item.code} ${item.title} mavzusida mashq boshlash`}
+                        title={ready ? '5 ta source-backed savol bilan mashq boshlash' : statusText}
+                        onClick={() => onPractice(item)}
+                      >
+                        {practicing === item.subtopic_id ? 'Tayyorlanmoqda…' : ready ? 'Mashq' : 'Hali tayyor emas'}
+                      </button>
+                    </div>
                   </li>
                 );
               })}

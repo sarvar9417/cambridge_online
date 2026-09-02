@@ -20,8 +20,6 @@ export class ApiError extends Error {
 
 async function parseBody(response: Response) {
   if (response.status === 204) return null;
-  // A 502 from a proxy or an empty error body is not JSON; a parse failure here
-  // would replace the real status with a confusing SyntaxError.
   try { return await response.json(); } catch { return null; }
 }
 
@@ -94,7 +92,7 @@ export interface GradingItem {id:string;text:string;displayRef:string;stemMd:str
 export interface ResultItem {id:string;title:string;className:string;studentName:string;totalScore:number;totalMax:number;percentage:number;grade:string|null;releasedAt:string}
 export interface ResultDetail {gradingId:string;appealStatus:'open'|'accepted'|'rejected'|null;displayRef:string;stemMd:string;marks:number;answerText:string;finalScore:number;feedback:string|null;points:Array<{code:string;text:string;matched:boolean;marks:number}>}
 export interface AppealItem {id:string;gradingId:string;reason:string;createdAt:string;studentName:string;displayRef:string;stemMd:string;answerText:string;finalScore:number;marks:number}
-export interface MasteryItem {subtopic_id:string;code:string;title:string;score:number;attempts:number;marksEarned:number;marksPossible:number}
+export interface MasteryItem {subtopic_id:string;code:string;title:string;score:number;attempts:number;marksEarned:number;marksPossible:number;compatibilityMapped?:boolean;practiceQuestionCount?:number;practiceReady?:boolean}
 export interface CommandWordProgress {commandWord:string;percentage:number;sampleSize:number}
 export interface ReviewQuestion {id:string;display_ref:string;stem_md:string;context_md:string|null;marks:number|null;command_word:string|null;answer_kind:string;answer_lines:number;extract_confidence:number;storage_path:string;findings:Array<{id?:string;code:string;severity:string;message:string}>}
 export interface Flashcard {flashcard_id:string;front_md:string;back_md:string;hint_md:string|null}

@@ -8,6 +8,10 @@ import { DomainError } from './assignments-service.js';
  * only when one of its source LOs has an explicit reviewed-safe compatibility
  * row to an LO in the selected current subtopic.
  *
+ * `equivalent` means LO scope is interchangeable. `subtopic_compatible` is a
+ * curated split/merge/subset relation that is safe for subtopic-level practice
+ * but deliberately does not claim LO-level mastery equivalence.
+ *
  * Practice deliberately uses only standalone, asset-free questions. The legacy
  * attempt payload does not carry selection dependency/context-asset snapshots,
  * so dependent or asset-backed questions fail closed instead of becoming
@@ -45,7 +49,7 @@ export class PracticeService {
          join question_learning_objectives qlo on qlo.question_id=q.id
          join learning_objective_compatibility compat
            on compat.source_lo_id=qlo.lo_id
-          and compat.relation='equivalent'
+          and compat.relation in('equivalent','subtopic_compatible')
          join learning_objectives target_lo
            on target_lo.id=compat.target_lo_id
           and target_lo.subtopic_id=$1
