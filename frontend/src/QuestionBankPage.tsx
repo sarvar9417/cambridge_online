@@ -155,6 +155,19 @@ const seriesLabels: Record<string, string> = { FM: 'Feb / Mar', MJ: 'May / Jun',
 const seriesLabel = (series: string) => seriesLabels[series] ?? series;
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+async function retry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) await sleep(400 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
 function message(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -188,16 +201,24 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [commandWords, setCommandWords] = useState<string[]>([]);
   const [hasDiagram, setHasDiagram] = useState('');
   const [dependency, setDependency] = useState<'any' | 'independent'>('any');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('approved');
 
   const loadOptions = async () => {
-    const [filterData, basketData] = await Promise.all([
-      api<FilterOptions>('/questions/filter-options'),
-      api<SelectionSummary[]>('/selections'),
+    const [filterResult, basketResult] = await Promise.allSettled([
+      retry(() => api<FilterOptions>('/questions/filter-options')),
+      retry(() => api<SelectionSummary[]>('/selections')),
     ]);
-    setOptions(filterData);
-    setSelections(basketData);
-    setSelectionId((current) => current || basketData[0]?.id || '');
+
+    if (filterResult.status === 'fulfilled') setOptions(filterResult.value);
+    if (basketResult.status === 'fulfilled') {
+      setSelections(basketResult.value);
+      setSelectionId((current) => current || basketResult.value[0]?.id || '');
+    }
+
+    const failed = [filterResult, basketResult].find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failed) throw failed.reason;
   };
 
   useEffect(() => {
@@ -364,7 +385,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     setCommandWords([]);
     setHasDiagram('');
     setDependency('any');
-    setStatus('');
+    setStatus('approved');
   };
 
   if (user.role === 'student') {
