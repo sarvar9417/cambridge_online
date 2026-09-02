@@ -23,7 +23,7 @@ BEGIN
     RAISE EXCEPTION 'semantic taxonomy audit: % AS AI leaves are not primary 7.1', v_count;
   END IF;
 
-  -- Curated exact-reference LO invariants.  These are backed by syllabus wording
+  -- Curated exact-reference LO invariants. These are backed by syllabus wording
   -- or by exact duplicate Cambridge items in another variant.
   WITH expected(display_ref, subtopic_code, lo_code) AS (VALUES
     ('9618/12/M/J/21 Q2(b)',       '7.1',  '7.1-lo-05'),
@@ -36,6 +36,7 @@ BEGIN
     ('9618/11/M/J/24 Q5(c)(ii)',   '7.1',  '7.1-lo-05'),
     ('9618/11/O/N/24 Q6',          '7.1',  '7.1-lo-05'),
     ('9618/11/M/J/25 Q4(a)',       '7.1',  '7.1-lo-05'),
+    ('9618/12/O/N/21 Q1',          '6.1',  '6.1-lo-01'),
     ('9618/23/M/J/22 Q2',          '12.3', '12.3-lo-07'),
     ('9618/13/M/J/21 Q5(c)',       '3.1',  '3.1-lo-10'),
     ('9618/13/O/N/24 Q3',          '3.1',  '3.1-lo-10'),
@@ -54,7 +55,7 @@ BEGIN
     JOIN learning_objectives lo ON lo.id = qlo.lo_id AND lo.code = e.lo_code
     GROUP BY e.display_ref
   )
-  SELECT 18 - count(*) INTO v_count FROM matched;
+  SELECT 19 - count(*) INTO v_count FROM matched;
   IF v_count <> 0 THEN
     RAISE EXCEPTION 'semantic taxonomy audit: % curated exact-reference mappings do not match', v_count;
   END IF;
