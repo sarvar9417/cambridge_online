@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
+import './attempt-context.css';
 
 type ContextBlock =
   | { type: 'source'; text: string }
