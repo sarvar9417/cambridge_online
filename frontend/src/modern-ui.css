@@ -1,0 +1,318 @@
+/* Modern product layer: professional EdTech shell + shared component polish. */
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #e6e9f0;
+  --border-strong: #d5dae5;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-contrast: #ffffff;
+  --awarded: #047857;
+  --awarded-bg: #ecfdf5;
+  --missed: #dc2626;
+  --missed-bg: #fef2f2;
+  --uncertain: #a16207;
+  --uncertain-bg: #fffbeb;
+  --focus-ring: #6366f1;
+  --shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 8px 24px rgb(15 23 42 / 6%);
+  --shadow-lg: 0 22px 55px -22px rgb(15 23 42 / 28%);
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0b1020;
+    --surface: #111827;
+    --surface-soft: #172033;
+    --border: #253047;
+    --border-strong: #33415c;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --accent: #818cf8;
+    --accent-strong: #a5b4fc;
+    --accent-soft: #20284b;
+    --accent-contrast: #0b1020;
+    --awarded: #34d399;
+    --awarded-bg: #0f2e26;
+    --missed: #f87171;
+    --missed-bg: #35191f;
+    --uncertain: #fbbf24;
+    --uncertain-bg: #342810;
+    --focus-ring: #818cf8;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0b1020;
+  --surface: #111827;
+  --surface-soft: #172033;
+  --border: #253047;
+  --border-strong: #33415c;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #818cf8;
+  --accent-strong: #a5b4fc;
+  --accent-soft: #20284b;
+  --accent-contrast: #0b1020;
+  --awarded: #34d399;
+  --awarded-bg: #0f2e26;
+  --missed: #f87171;
+  --missed-bg: #35191f;
+  --uncertain: #fbbf24;
+  --uncertain-bg: #342810;
+  --focus-ring: #818cf8;
+}
+
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select { font: inherit; }
+
+button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+button:hover:not(:disabled) { background: var(--accent-strong); box-shadow: 0 6px 18px rgb(79 70 229 / 18%); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: .46; }
+
+.secondary,
+.ghost,
+.shell-ghost {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+.secondary:hover:not(:disabled),
+.ghost:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--border-strong); }
+.danger { background: var(--missed); color: #fff; }
+
+input,
+textarea,
+select {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 16%, transparent);
+}
+
+.shell-main > :first-child { margin-top: 0; }
+.shell-main h1,
+.app h1 {
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  font-weight: 750;
+}
+.shell-main h2,
+.app h2 {
+  color: var(--text);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.section-title { margin-bottom: 14px; }
+.section-title > span,
+.empty { color: var(--text-muted); }
+
+/* Shared cards and data surfaces */
+.table,
+.flashcard,
+.learning-game,
+.heatmap,
+.export-status,
+.appeal-list article,
+.question,
+.submit-dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.table { overflow: clip; }
+.tr {
+  min-height: 56px;
+  padding: 11px 18px;
+  border-bottom-color: var(--border);
+  transition: background 120ms ease;
+}
+.tr:not(.head):hover { background: var(--surface-soft); }
+.tr.head {
+  min-height: 42px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .07em;
+}
+
+.segmented {
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  overflow: visible;
+}
+.segmented button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.segmented button:hover:not(:disabled) { background: var(--surface); color: var(--text); box-shadow: none; }
+.segmented button.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+}
+
+.role,
+.finding,
+.export-status span,
+.sync-state {
+  border-radius: 999px;
+}
+.role {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.appeal-list { gap: 16px; }
+.appeal-list article { padding: 20px; }
+.appeal-list blockquote {
+  border-left: 0;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 14px 16px;
+}
+.appeal-status,
+.appeal-reason { border-radius: 10px; }
+
+.flashcard { border-radius: 20px; padding: 36px; }
+.flashcard > strong { font-family: var(--font-ui); font-size: 22px; letter-spacing: -0.02em; }
+.learning-game { padding: 22px; }
+.sequence-item { min-height: 52px; }
+
+.heatmap { padding: 18px; }
+.heat-cell { border-radius: 8px; }
+.metric-row,
+.word-row,
+.quality-row { min-height: 54px; }
+
+/* Student attempt: calm exam workspace, not a generic form. */
+.attempt { background: var(--bg); }
+.attempt > header {
+  height: 72px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+}
+.attempt > header strong { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.attempt .back { border-radius: 10px; }
+.sync-state { top: 80px; padding: 6px 10px; box-shadow: 0 1px 2px rgb(15 23 42 / 6%); }
+.attempt-progress { margin-top: 22px; gap: 5px; }
+.attempt-progress button { height: 6px; border-radius: 999px; box-shadow: none; }
+.question {
+  margin-top: 18px;
+  padding: clamp(22px, 4vw, 34px);
+  border-radius: 20px;
+}
+.question .ref {
+  margin-top: 0;
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.question h2 {
+  font-family: var(--font-read);
+  font-size: clamp(19px, 2.3vw, 23px);
+  line-height: 1.55;
+  letter-spacing: -0.015em;
+}
+.question textarea {
+  min-height: 190px;
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 75%, var(--surface-soft));
+}
+.attempt-nav { margin-top: 18px; }
+.submit-dialog { border-radius: 20px; padding: 26px; }
+.modal-backdrop { backdrop-filter: blur(5px); }
+
+/* Auth: restrained, premium and professional. */
+.auth { background: var(--bg); }
+.auth-aurora { opacity: .18; filter: blur(110px); }
+.auth-wave { display: none; }
+.auth-card {
+  border-radius: 22px;
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
+}
+.auth-card h1 { font-weight: 760; letter-spacing: -.035em; }
+.auth-card input { min-height: 46px; border-radius: 11px; background: var(--surface); }
+.auth-mark { color: var(--accent); }
+
+.theme-toggle {
+  height: 38px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+.theme-toggle:hover { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+
+@media (max-width: 720px) {
+  button { min-height: 44px; }
+  .table { border-radius: 14px; }
+  .tr { padding: 11px 13px; }
+  .question { border-radius: 16px; }
+  .flashcard { padding: 24px; }
+}
