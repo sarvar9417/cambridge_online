@@ -1,0 +1,85 @@
+/* Prevent chapter-card content/footer collisions in the lesson library.
+   Cards may grow with their source-audit metadata; the footer participates in
+   normal flow instead of being absolutely positioned over the content. */
+.lesson-library-grid {
+  align-items: stretch;
+}
+
+.lesson-chapter-card {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 470px;
+  overflow: hidden;
+}
+
+.lesson-chapter-card > p {
+  margin: 0;
+}
+
+.lesson-chapter-card > div {
+  align-content: flex-start;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.lesson-chapter-card > div span {
+  line-height: 1.25;
+}
+
+.lesson-chapter-card footer {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #e1e6ef;
+  font-size: 12px;
+}
+
+.lesson-chapter-card footer b {
+  min-width: 0;
+  color: var(--lesson-ink, #172033);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.lesson-chapter-card footer span {
+  flex: 0 0 auto;
+  align-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 1050px) {
+  .lesson-chapter-card {
+    min-height: 500px;
+  }
+}
+
+@media (max-width: 720px) {
+  .lesson-chapter-card {
+    min-height: 0;
+  }
+
+  .lesson-chapter-card h2 {
+    margin-top: 58px;
+  }
+
+  .lesson-chapter-card footer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .lesson-chapter-card footer span {
+    justify-self: start;
+  }
+}
