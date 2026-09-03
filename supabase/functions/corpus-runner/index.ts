@@ -7,6 +7,7 @@ import {
   parseMsV3,
   parseQpV3,
 } from './parser-v3-adapter.ts'
+import { canonical0478SourceUrl } from './source-overrides.ts'
 
 const GITHUB_JWKS = createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'))
 const EXPECTED_REPO = 'sarvar9417/cambridge_online'
@@ -21,7 +22,7 @@ function adminHeaders(): Record<string,string> {
   if (!raw) throw new Error('supabase_secret_key_missing')
   const key = JSON.parse(raw).default
   if (!key) throw new Error('default_secret_key_missing')
-  return {'Content-Type':'application/json','apikey':key}
+  return {'Content-Type':'application/json','apikey':key,'Authorization':`Bearer ${key}`}
 }
 
 function driveId(u:string){
@@ -130,12 +131,14 @@ Deno.serve(async(req:Request)=>{
       if(!Array.isArray(sources)||sources.length===0||sources.length>12)return Response.json({error:'invalid_stage_payload'},{status:400})
       const results=[]
       for(const src of sources){
-        const sourceUrl=String(src?.source_url||''),filename=String(src?.filename||'')
-        if(!sourceUrl||!filename)return Response.json({error:'invalid_stage_item'},{status:400})
+        const requestedSourceUrl=String(src?.source_url||''),filename=String(src?.filename||'')
+        if(!requestedSourceUrl||!filename)return Response.json({error:'invalid_stage_item'},{status:400})
+        const year=Number(src.year),series=String(src.series),component=Number(src.component),variant=Number(src.variant),kind=String(src.kind)
+        const sourceUrl=canonical0478SourceUrl({year,series,component,variant,kind,sourceUrl:requestedSourceUrl})
         const bytes=await fetchPdf(sourceUrl),sha=await sha256Hex(bytes),pdf=await getDocumentProxy(bytes)
         results.push(await rpc('stage_0478_remote_source_v1',{
-          p_year:Number(src.year),p_series:String(src.series),p_component:Number(src.component),
-          p_variant:Number(src.variant),p_kind:String(src.kind),p_filename:filename,
+          p_year:year,p_series:series,p_component:component,
+          p_variant:variant,p_kind:kind,p_filename:filename,
           p_source_url:sourceUrl,p_sha256:sha,p_page_count:pdf.numPages
         }))
       }
