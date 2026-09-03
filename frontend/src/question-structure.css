@@ -1,0 +1,121 @@
+.qtext-host {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.qtext-host > .qtext-block {
+  display: block;
+  white-space: normal;
+}
+
+.qtext-host > .qtext-block + .qtext-block {
+  margin-top: 0.8em;
+}
+
+.qtext-paragraph {
+  line-height: 1.62;
+}
+
+.qtext-code,
+.qtext-table {
+  padding: 0.75em 0.9em;
+  border: 1px solid color-mix(in srgb, var(--border-strong, #8b95a7) 72%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-soft, #f4f6f9) 92%, transparent);
+  color: var(--text, #172033);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88em;
+  font-weight: 500;
+  line-height: 1.58;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.qtext-code code {
+  display: block;
+  white-space: pre;
+  font: inherit;
+  color: inherit;
+}
+
+.qtext-list {
+  display: grid !important;
+  gap: 0.42em;
+  padding-left: 0.15em;
+}
+
+.qtext-list-item {
+  display: grid;
+  grid-template-columns: 1.15em minmax(0, 1fr);
+  align-items: start;
+  line-height: 1.55;
+}
+
+.qtext-list-bullet {
+  font-weight: 800;
+  color: var(--accent, #4f46e5);
+}
+
+.qtext-task {
+  padding: 0.7em 0.85em;
+  border-left: 4px solid var(--accent, #4f46e5);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent, #4f46e5) 7%, transparent);
+  font-weight: 650;
+  line-height: 1.58;
+}
+
+.qtext-task::before {
+  content: "TASK";
+  display: block;
+  margin-bottom: 0.3em;
+  color: var(--accent, #4f46e5);
+  font-family: var(--font-ui, system-ui, sans-serif);
+  font-size: 0.64em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.qtext-table {
+  display: grid !important;
+  gap: 0.28em;
+}
+
+.qtext-table-row {
+  display: block;
+  white-space: pre;
+}
+
+/* The attempt screen historically used an h2 for the whole raw stem. Once a
+   stem contains code/table/task blocks, let those blocks use readable body
+   sizing instead of inheriting an oversized heading weight. */
+.question > h2.qtext-host:has(.qtext-block) {
+  font-family: var(--font-read, Georgia, serif);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.question > h2.qtext-host .qtext-paragraph {
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.lesson-exam-card > .qtext-host,
+.qb-question-main > .qtext-host,
+.qb-family-parts .qtext-host,
+.qb-basket-item > .qtext-host,
+.qb-leaf-preview > .qtext-host,
+.qb-review-stem.qtext-host,
+.gq-stem.qtext-host,
+.sr-stem.qtext-host {
+  margin-block: 0.45rem;
+}
+
+@media (max-width: 720px) {
+  .qtext-code,
+  .qtext-table,
+  .qtext-task {
+    padding: 0.65em 0.7em;
+    border-radius: 8px;
+  }
+}
