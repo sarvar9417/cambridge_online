@@ -19,6 +19,8 @@ on:
       - 'backend/src/database/migrations/0103_extend_0478_sources_to_2028.sql'
       - 'supabase/functions/corpus-runner/index.ts'
       - 'supabase/functions/corpus-runner/parser.ts'
+      - 'supabase/functions/corpus-runner/parser-v3.ts'
+      - 'supabase/functions/corpus-runner/parser-v3-adapter.ts'
 
 permissions:
   contents: read
