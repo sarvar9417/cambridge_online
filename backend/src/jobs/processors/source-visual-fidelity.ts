@@ -4,7 +4,7 @@ export const SOURCE_VISUAL_MISSING_ISSUE = 'source_visual_required_but_missing';
 
 const SOURCE_VISUAL_PATTERNS = [
   /\bfollowing\s+(?:logic\s+)?circuit\b/i,
-  /\blogic\s+circuit\s+(?:is\s+)?shown\b/i,
+  /(?:^|[.!?]\s+|\n)\s*(?:a|the)\s+logic\s+circuit\s+(?:is\s+)?shown\b/im,
   /\bcircuit\s+shown\s+(?:below|above)\b/i,
   /\bfollowing\s+diagram\b/i,
   /\bdiagram\s+(?:is\s+)?shown\b/i,
