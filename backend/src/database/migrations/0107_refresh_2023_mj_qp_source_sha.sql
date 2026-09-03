@@ -24,8 +24,7 @@ BEGIN
        'b53ac2c6e575164af41410a1f4620a102aa2de42ed51fd9bfb586e24221f0d90')
   )
   UPDATE public.source_papers sp
-  SET sha256 = e.new_sha,
-      updated_at = now()
+  SET sha256 = e.new_sha
   FROM expected e
   WHERE sp.id = e.id
     AND sp.source_url = e.source_url
