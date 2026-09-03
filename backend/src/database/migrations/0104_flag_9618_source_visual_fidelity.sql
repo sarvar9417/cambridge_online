@@ -85,7 +85,7 @@ BEGIN
   );
 
   UPDATE questions q
-  SET status=CASE WHEN q.status='approved' THEN 'needs_review'::question_status ELSE q.status END,
+  SET status=CASE WHEN q.status='approved' THEN 'needs_review'::review_status ELSE q.status END,
       notes=CASE
         WHEN coalesce(q.notes,'') LIKE '%source-visual-fidelity:%' THEN q.notes
         ELSE concat_ws(E'\n',nullif(q.notes,''),'source-visual-fidelity: original QP visual required; asset/context must be restored and verified before approval.')
