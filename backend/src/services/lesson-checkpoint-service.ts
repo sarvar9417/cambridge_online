@@ -19,7 +19,12 @@ export type LessonCheckpointQuestion = {
 export class LessonCheckpointService {
   constructor(private readonly pool: Pool) {}
 
-  async list(learningObjectiveCodes: string[], yearFrom = 2021, yearTo = 2025) {
+  async list(
+    learningObjectiveCodes: string[],
+    yearFrom = 2021,
+    yearTo = 2025,
+    syllabusCode: '9618' | '0478' = '9618',
+  ) {
     const result = await this.pool.query(
       `select
          q.id,
@@ -44,17 +49,19 @@ export class LessonCheckpointService {
          ) has_dependency
        from questions q
        join source_papers sp on sp.id=q.source_paper_id
+       join syllabi syllabus on syllabus.id=sp.syllabus_id
        join components component on component.id=q.component_id
        join question_learning_objectives qlo on qlo.question_id=q.id
        join learning_objectives lo on lo.id=qlo.lo_id
        left join questions parent on parent.id=q.parent_id
        where q.marks is not null
          and q.status='approved'
+         and syllabus.code=$4
          and sp.year between $2 and $3
          and lo.code=any($1::text[])
        group by q.id,parent.id,sp.year,sp.series,sp.variant,component.number
        order by sp.year,sp.series,component.number,sp.variant,q.sort_order,q.display_ref`,
-      [learningObjectiveCodes, yearFrom, yearTo],
+      [learningObjectiveCodes, yearFrom, yearTo, syllabusCode],
     );
 
     return {
@@ -74,6 +81,7 @@ export class LessonCheckpointService {
         matchedLearningObjectiveCodes: (row.matched_lo_codes ?? []).map(String),
       })) satisfies LessonCheckpointQuestion[],
       learningObjectiveCodes,
+      syllabusCode,
       yearFrom,
       yearTo,
     };

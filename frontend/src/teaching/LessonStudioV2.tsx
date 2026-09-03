@@ -88,6 +88,10 @@ function SourceTrace({ slide }: { slide:LessonSlide }) {
 
 function ExamPractice({ slide }: { slide:LessonSlide }) {
   const codes=slide.learningObjectiveCodes??[];
+  const syllabusCode=slide.checkpointSyllabusCode??'9618';
+  const yearFrom=slide.checkpointYearFrom??2021;
+  const yearTo=slide.checkpointYearTo??2025;
+  const is0478=syllabusCode==='0478';
   const [questions,setQuestions]=useState<ExamPart[]>([]),[loading,setLoading]=useState(Boolean(codes.length)),[error,setError]=useState('');
 
   useEffect(()=>{
@@ -96,33 +100,34 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
     (async()=>{
       setLoading(true);setError('');
       try{
-        const qs=new URLSearchParams({yearFrom:'2021',yearTo:'2025'});
+        const qs=new URLSearchParams({yearFrom:String(yearFrom),yearTo:String(yearTo),syllabusCode});
         codes.forEach(code=>qs.append('loCodes',code));
         const result=await api<CheckpointResponse>(`/lesson-checkpoints?${qs}`);
         if(!cancelled)setQuestions(result.data);
-      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Savollar yuklanmadi.');}
+      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:(is0478?'Questions could not be loaded.':'Savollar yuklanmadi.'));}
       finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true};
-  },[codes.join('|')]);
+  },[codes.join('|'),syllabusCode,yearFrom,yearTo,is0478]);
 
-  if(slide.checkpointUnavailableReason)return <div className="lesson-checkpoint-unavailable"><span>NO EXACT HISTORICAL LO</span><h2>Bu qism uchun savol majburan tanlanmadi</h2><p>{slide.checkpointUnavailableReason}</p></div>;
-  if(loading)return <div className="lesson-loading">Exact learning-objective past-paper savollari yuklanmoqda…</div>;
+  if(slide.checkpointUnavailableReason)return <div className="lesson-checkpoint-unavailable"><span>NO EXACT HISTORICAL LO</span><h2>{is0478?'No exact past-paper match is forced for this part':'Bu qism uchun savol majburan tanlanmadi'}</h2><p>{slide.checkpointUnavailableReason}</p></div>;
+  if(loading)return <div className="lesson-loading">{is0478?'Loading exact learning-objective past-paper questions…':'Exact learning-objective past-paper savollari yuklanmoqda…'}</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
 
-  const years=[2021,2022,2023,2024,2025];
+  const years=Array.from({length:Math.max(0,yearTo-yearFrom+1)},(_,index)=>yearFrom+index);
   const represented=new Set(questions.map(q=>q.year));
   const groups=years.map(year=>({year,questions:questions.filter(q=>q.year===year)})).filter(group=>group.questions.length);
+  const rangeLabel=`${yearFrom}–${yearTo}`;
   let ordinal=0;
   return <>
-    <div className="lesson-checkpoint-contract"><div><span>EXACT LO MATCH</span><strong>{slide.checkpointLabel||codes.join(' · ')}</strong></div><p>Only approved 2021–2025 Cambridge 9618 leaves explicitly mapped to these historical learning objective codes are shown.</p></div>
+    <div className="lesson-checkpoint-contract"><div><span>EXACT LO MATCH</span><strong>{slide.checkpointLabel||codes.join(' · ')}</strong></div><p>{is0478?`Only approved ${rangeLabel} Cambridge 0478 leaves explicitly mapped to these historical/current learning objective codes are shown.`:`Only approved ${rangeLabel} Cambridge 9618 leaves explicitly mapped to these historical learning objective codes are shown.`}</p></div>
     <div className="lesson-exam-years"><strong>Paper coverage</strong>{years.map(year=><span className={represented.has(year)?'available':'missing'} key={year}>{year}</span>)}</div>
-    <div className="lesson-exam-summary"><strong>{questions.length} ta approved savol</strong><span>Barchasi ko‘rsatiladi · yillar bo‘yicha guruhlangan · pastga scroll qiling</span></div>
-    {!questions.length?<div className="lesson-empty">Bu exact learning objective uchun 2021–2025 corpusda approved savol yo‘q. CamPath boshqa subtopic savolini bu yerga aralashtirmaydi.</div>:
+    <div className="lesson-exam-summary"><strong>{is0478?`${questions.length} approved questions`:`${questions.length} ta approved savol`}</strong><span>{is0478?'All shown · grouped by year · scroll down':'Barchasi ko‘rsatiladi · yillar bo‘yicha guruhlangan · pastga scroll qiling'}</span></div>
+    {!questions.length?<div className="lesson-empty">{is0478?`No approved Cambridge 0478 question is currently mapped to this exact learning-objective set in the ${rangeLabel} corpus. CamPath does not substitute a loosely related question.`:`Bu exact learning objective uchun ${rangeLabel} corpusda approved savol yo‘q. CamPath boshqa subtopic savolini bu yerga aralashtirmaydi.`}</div>:
     <div className="lesson-exam-scroll">{groups.map(group=><section className="lesson-exam-year-group" key={group.year}>
-      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} ta savol</span></div>
+      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{is0478?`${group.questions.length} questions`:`${group.questions.length} ta savol`}</span></div>
       <div className="lesson-exam-grid">{group.questions.map(q=>{ordinal+=1;const flags=[q.hasDiagram?'Diagram':'',q.hasDependency?'Parent context':''].filter(Boolean);return <article className="lesson-exam-card" key={q.id}>
-        <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} ball</b></div>
+        <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} {is0478?'marks':'ball'}</b></div>
         {q.contextMd&&<div className="lesson-question-context">{q.contextMd}</div>}
         <p>{q.stem}</p>
         <footer><span>{q.commandWord||'Question'}{flags.length?` · ${flags.join(' · ')}`:''}</span><span>{q.matchedLearningObjectiveCodes.join(', ')}</span></footer>

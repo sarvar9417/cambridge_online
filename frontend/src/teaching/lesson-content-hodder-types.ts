@@ -58,6 +58,9 @@ export type HodderLessonSlide = LessonSlide & {
   learningObjectiveCodes?: string[];
   checkpointLabel?: string;
   checkpointUnavailableReason?: string;
+  checkpointSyllabusCode?: '9618' | '0478';
+  checkpointYearFrom?: number;
+  checkpointYearTo?: number;
 };
 
 export type HodderLessonChapter = {
@@ -86,6 +89,9 @@ export const checkpoint = (
   lead: 'This checkpoint is loaded live from approved Cambridge 9618 past-paper leaves mapped to the exact historical learning objective(s) for the part just taught.',
   learningObjectiveCodes,
   checkpointLabel: learningObjectiveCodes.join(' · '),
+  checkpointSyllabusCode: '9618',
+  checkpointYearFrom: 2021,
+  checkpointYearTo: 2025,
   sourcePages,
   sourceElements: ['Live 2021–2025 approved past-paper checkpoint'],
   examPractice: true,
