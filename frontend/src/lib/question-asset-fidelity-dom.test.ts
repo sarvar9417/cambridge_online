@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
+import { browserAssetUrl, isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
 
 describe('question asset fidelity helpers', () => {
   it('recognises an SVG portable asset', () => {
@@ -13,5 +13,16 @@ describe('question asset fidelity helpers', () => {
     expect(url).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
     expect(url).toContain('%3Csvg');
     expect(url).not.toContain('<svg');
+  });
+
+  it('decodes a server-projected signed storage URL', () => {
+    const url = 'https://project.supabase.co/storage/v1/object/sign/question-assets/a.png?token=temp';
+    const marker = `[[browser_asset_url:${encodeURIComponent(url)}]]`;
+    expect(browserAssetUrl(marker)).toBe(url);
+  });
+
+  it('rejects unsafe projected URLs', () => {
+    expect(browserAssetUrl('[[browser_asset_url:javascript%3Aalert(1)]]')).toBeNull();
+    expect(browserAssetUrl('ordinary text')).toBeNull();
   });
 });

@@ -55,7 +55,9 @@ import { AuthService } from './services/auth-service.js';
 import { ZodError } from 'zod';
 import { DomainError } from './services/assignments-service.js';
 import { opportunisticMaintenance } from './middleware/opportunistic-maintenance.js';
+import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
+import { SupabaseAssetStore } from './jobs/asset-store.js';
 
 export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository) {
   const app = express();
@@ -74,7 +76,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   mountPublic('/api/v1/ready', createReadyRouter(pool, {
     ai: Boolean(process.env.ANTHROPIC_API_KEY),
     pdfPrepare: Boolean(process.env.PDFTOTEXT_PATH && process.env.PDFTOPPM_PATH),
-    durableStorage: Boolean(process.env.S3_BUCKET),
+    durableStorage: Boolean(process.env.S3_BUCKET || (config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY)),
   }));
   if (auth) {
     mountPublic('/api/v1/auth', createAuthRouter(auth));
@@ -95,6 +97,11 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   app.use('/api/v1', requireAuth(auth));
   const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
   const selectionsRepository = pool && questionsRepository ? new PgSelectionsRepository(pool, questionsRepository) : undefined;
+  const questionVisualFidelity = pool ? createQuestionVisualFidelityMiddleware(pool) : undefined;
+  if (questionVisualFidelity) {
+    app.use('/api/v1/questions', questionVisualFidelity);
+    app.use('/api/v1/selections', questionVisualFidelity);
+  }
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
   // Managing classes mounts before reading them: the read router owns '/:id',
   // which would otherwise swallow paths like '/unassigned-students'.
@@ -161,5 +168,12 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 const authRepository = pool ? new PgAuthRepository(pool) : undefined;
 const auth = authRepository ? new AuthService(authRepository, createMailer(config)) : undefined;
 const classesRepository = pool ? new PgClassesRepository(pool) : undefined;
-const questionsRepository = pool ? new PgQuestionsRepository(pool) : undefined;
+const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
+  ? new SupabaseAssetStore({
+      url: config.SUPABASE_URL,
+      secretKey: config.SUPABASE_STORAGE_SECRET_KEY,
+      bucket: config.ASSET_STORAGE_BUCKET,
+    })
+  : undefined;
+const questionsRepository = pool ? new PgQuestionsRepository(pool, assetSigner) : undefined;
 export const app = createApp(auth, classesRepository, questionsRepository, authRepository);
