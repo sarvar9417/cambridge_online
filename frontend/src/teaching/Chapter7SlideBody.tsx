@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LessonSlide } from './lesson-content-full';
+import { Chapter7BookVisual } from './Chapter7BookVisual';
 import './chapter7-lesson.css';
 
 const facts = [
@@ -153,6 +154,7 @@ function VisualForSlide({ id, revealed }: { id:string; revealed:boolean }) {
 export function Chapter7SlideBody({ slide }: { slide:LessonSlide }) {
   const [revealed,setRevealed]=useState(false);
   useEffect(()=>setRevealed(false),[slide.id]);
+  const isBookSlide=slide.id.startsWith('ch7-book-');
   const hasReveal=Boolean(slide.activity?.reveal)||['ch7-02-understand','ch7-03-small-jobs','ch7-04-filter','ch7-05-hierarchy','ch7-06-sequence','ch7-07-shapes','ch7-08-structured-text','ch7-09-command-cards','ch7-10-human-computer','ch7-11-predict-check','ch7-12-bug'].includes(slide.id);
   return <div className="ch7-slide-body">
     <div className="ch7-copy">
@@ -161,11 +163,12 @@ export function Chapter7SlideBody({ slide }: { slide:LessonSlide }) {
       <p className="ch7-lead">{slide.lead}</p>
       {slide.bullets&&<ul>{slide.bullets.map(item=><li key={item}>{item}</li>)}</ul>}
       {slide.keyTerms&&<div className="ch7-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><span>{item.definition}</span></article>)}</div>}
+      {slide.example&&<div className="ch7-answer ch7-worked-example"><b>WORKED EXAMPLE</b><strong>{slide.example.title}</strong><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p>{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<div className="ch7-question"><span>INSTRUCTION</span><p>{slide.teacherPrompt}</p></div>}
       {slide.activity&&<div className="ch7-task"><span>YOUR TASK</span><strong>{slide.activity.title}</strong><p>{slide.activity.prompt}</p></div>}
       {hasReveal&&<button type="button" className="ch7-reveal-button" onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide answer':'Show answer / example'}</button>}
       {revealed&&slide.activity?.reveal&&<div className="ch7-answer"><b>EXAMPLE</b><p>{slide.activity.reveal}</p></div>}
     </div>
-    <div className="ch7-visual-panel"><VisualForSlide id={slide.id} revealed={revealed}/></div>
+    <div className="ch7-visual-panel">{isBookSlide?<Chapter7BookVisual slide={slide} revealed={revealed}/>:<VisualForSlide id={slide.id} revealed={revealed}/>}</div>
   </div>;
 }
