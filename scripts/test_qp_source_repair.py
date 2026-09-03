@@ -38,6 +38,45 @@ class SourceRepairTests(unittest.TestCase):
         rows, _ = repair.parse_text(text, {"1.a": 1})
         self.assertEqual(rows["1.a"]["stem"], "State one purpose of an operating system.")
 
+    def test_numbered_answer_lines_and_joined_page_number_are_removed(self):
+        text = (
+            "10 (c) Identify two ADTs other than a stack.\n"
+            "1 ................................................................................\n"
+            "...................................................................................\n"
+            "2 ................................................................................\n"
+            "...................................................................................\n"
+            "[2]14\n"
+        )
+        rows, _ = repair.parse_text(text, {"10.c": 2})
+        self.assertEqual(rows["10.c"]["stem"], "Identify two ADTs other than a stack.")
+
+    def test_bare_table_response_labels_are_removed_only_when_followed_by_blanks(self):
+        text = (
+            "3 (b) Complete the table by identifying two characteristics of a thin-client.\n"
+            "Describe how each characteristic will be used in this software.\n"
+            "Thin-client characteristic Description of use in this software\n"
+            "1\n"
+            ".............................................................\n"
+            "........................................................................\n"
+            "2\n"
+            ".............................................................\n"
+            "........................................................................\n"
+            "[4]\n"
+        )
+        rows, _ = repair.parse_text(text, {"3.b": 4})
+        stem = rows["3.b"]["stem"]
+        self.assertIn("Thin-client characteristic Description of use in this software", stem)
+        self.assertNotRegex(stem, r"(?m)^1$")
+        self.assertNotRegex(stem, r"(?m)^2$")
+
+    def test_semantic_number_at_end_of_question_is_preserved(self):
+        text = "1 (a) Give the binary number stored to display the error code 51. [1]\n"
+        rows, _ = repair.parse_text(text, {"1.a": 1})
+        self.assertEqual(
+            rows["1.a"]["stem"],
+            "Give the binary number stored to display the error code 51.",
+        )
+
     def test_margin_and_footer_noise_are_removed(self):
         text = (
             "1 (a) State the value. DO NOT WRITE IN THIS MARGIN [1]\n"
@@ -94,6 +133,17 @@ class SourceRepairTests(unittest.TestCase):
                     "path": "1.a",
                     "marks": 1,
                     "stem": "State this. DO NOT WRITE IN THIS MARGIN",
+                    "context": None,
+                }
+            })
+
+    def test_quality_gate_rejects_unresolved_response_guide_tail(self):
+        with self.assertRaisesRegex(ValueError, "response_guide"):
+            repair.quality_gate({
+                "10.c": {
+                    "path": "10.c",
+                    "marks": 2,
+                    "stem": "Identify two ADTs other than a stack.\n1\n2\n14",
                     "context": None,
                 }
             })

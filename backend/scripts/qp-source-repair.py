@@ -232,9 +232,66 @@ def dense_font_garbage(text: str) -> bool:
     return non_ascii > 0.35 and ascii_alnum < 0.45
 
 
+def dotted_placeholder(text: str) -> bool:
+    compact = re.sub(r"\s+", "", text)
+    return len(compact) >= 8 and re.fullmatch(r"[._…]+", compact) is not None
+
+
+def numbered_response_guide(raw: str) -> bool:
+    """Return True for printed answer guides such as `1 ............`, never code/data rows."""
+    stripped = raw.strip().replace("DO NOT WRITE IN THIS MARGIN", " ").strip()
+    match = re.fullmatch(r"\d{1,2}\s+(.+)", stripped)
+    return bool(match and dotted_placeholder(match.group(1)))
+
+
+def bare_response_label(raw_lines: list[str], index: int) -> bool:
+    """Recognise table/answer-box labels printed as a bare `1`, `2`, ... before dotted blanks."""
+    current = raw_lines[index].strip()
+    if re.fullmatch(r"[1-9]\d?", current) is None:
+        return False
+    for following in raw_lines[index + 1 :]:
+        candidate = following.strip().replace("DO NOT WRITE IN THIS MARGIN", " ").strip()
+        if not candidate:
+            continue
+        candidate = re.sub(r"\s*\[\d+\]\s*(?:\d{1,2})?\s*$", "", candidate).strip()
+        return dotted_placeholder(candidate)
+    return False
+
+
+def strip_terminal_mark_and_page(text: str, expected_mark: int | None) -> str:
+    if expected_mark is None:
+        return re.sub(r"\s*\[\s*\d+\s*\]\s*$", "", text).rstrip()
+    # Cambridge extraction can join a printed page number to the mark token: `[2]14`.
+    return re.sub(
+        rf"\s*\[\s*{expected_mark}\s*\]\s*(?:\d{{1,2}})?\s*$",
+        "",
+        text,
+    ).rstrip()
+
+
+def suspicious_response_tail(text: str) -> bool:
+    """Detect unresolved `1 / 2 / [3 / 4] / page` response-guide contamination."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 3:
+        return False
+    numeric: list[int] = []
+    for line in reversed(lines):
+        if re.fullmatch(r"\d{1,2}", line) is None:
+            break
+        numeric.append(int(line))
+        if len(numeric) >= 6:
+            break
+    numeric.reverse()
+    if len(numeric) < 2:
+        return False
+    # A trailing page number may follow the answer labels, e.g. 1, 2, 14.
+    labels = numeric[:-1] if len(numeric) >= 3 and numeric[-1] > numeric[-2] + 1 else numeric
+    return len(labels) >= 2 and labels == list(range(1, len(labels) + 1))
+
+
 def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str:
     cleaned: list[str] = []
-    for raw in raw_lines:
+    for index, raw in enumerate(raw_lines):
         stripped = raw.strip().replace("DO NOT WRITE IN THIS MARGIN", " ").strip()
         if not stripped:
             if cleaned and cleaned[-1] != "":
@@ -252,8 +309,14 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
             continue
         if dense_font_garbage(stripped):
             continue
+        if numbered_response_guide(raw) or bare_response_label(raw_lines, index):
+            continue
+
+        stripped = strip_terminal_mark_and_page(stripped, expected_mark)
+        if not stripped:
+            continue
         without_terminal_mark = re.sub(r"\s*\[\d+\]\s*$", "", stripped).strip()
-        if re.fullmatch(r"[\s._…]+", without_terminal_mark) and len(without_terminal_mark) >= 8:
+        if dotted_placeholder(without_terminal_mark):
             continue
         stripped = re.sub(r"\.{8,}", " __________ ", stripped)
         stripped = re.sub(r"…{4,}", " __________ ", stripped)
@@ -270,7 +333,7 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
         cleaned.pop()
     text = "\n".join(cleaned).strip()
     if expected_mark is not None:
-        text = re.sub(rf"\s*\[{expected_mark}\]\s*$", "", text).rstrip()
+        text = strip_terminal_mark_and_page(text, expected_mark)
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
@@ -329,6 +392,8 @@ def quality_gate(rows: dict[str, dict[str, object]]) -> None:
             issues.append(f"{path}:footer")
         if re.search(rf"\[\s*{row['marks']}\s*\]\s*$", stem):
             issues.append(f"{path}:trailing_mark")
+        if suspicious_response_tail(stem):
+            issues.append(f"{path}:response_guide")
         if any(dense_font_garbage(line) for line in text.splitlines()):
             issues.append(f"{path}:gibberish")
     if issues:
