@@ -22,18 +22,18 @@
 :root {
   /* Surfaces. The page is off-white rather than pure white: a teacher spends
      hours here and pure white at full brightness is tiring. */
-  --bg: #fbfaf8;
+  --bg: #f7f9fc;
   --surface: #ffffff;
-  --surface-soft: #f7f7f6;
-  --border: #e5e2dc;
-  --border-strong: #cbc6bc;
+  --surface-soft: #f1f5fa;
+  --border: #dfe6ef;
+  --border-strong: #c7d2df;
 
-  --text: #1a1815;
-  --text-muted: #6b655c;
+  --text: #142033;
+  --text-muted: #68758a;
 
-  --accent: #1e3a5f;
-  --accent-strong: #162c48;
-  --accent-soft: #ebf0f6;
+  --accent: #1769d2;
+  --accent-strong: #0f56b3;
+  --accent-soft: #e8f1fc;
   /* Text drawn on top of --accent. */
   --accent-contrast: #ffffff;
 
@@ -44,15 +44,21 @@
   --missed-bg: #fbeeee;
   /* Darker than the classic #b8860b, which only reaches 3.3:1 on this
      background and fails as text. */
-  --uncertain: #8a6508;
-  --uncertain-bg: #fbf4e4;
+  --uncertain: #b86412;
+  --uncertain-bg: #fff3e6;
 
-  --focus-ring: #1e3a5f;
-  --shadow: 0 12px 32px rgb(26 24 21 / 8%);
-  --shadow-lg: 0 20px 48px rgb(26 24 21 / 12%);
+  --focus-ring: #1769d2;
+  --shadow: 0 12px 32px rgb(18 42 72 / 8%);
+  --shadow-lg: 0 24px 56px rgb(18 42 72 / 14%);
 
-  --radius: 6px;
-  --radius-lg: 10px;
+  --radius: 7px;
+  --radius-lg: 12px;
+  --nav-bg: #08233b;
+  --nav-active: #153b5e;
+  --nav-text: #f6f9fd;
+  --nav-muted: #aebed0;
+  --nav-border: #203e58;
+  --context-bg: #fbfcfe;
 
   --font-ui: Inter, system-ui, -apple-system, sans-serif;
   /* Question and answer text is reading matter, not interface: serif separates
@@ -66,21 +72,26 @@
 /* Dark values live in one place and are applied by either trigger below. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #10141a;
-    --surface: #171c24;
-    --surface-soft: #1d232c;
-    --border: #2a313b;
-    --border-strong: #3b4552;
+    --bg: #081827;
+    --surface: #0b1d2e;
+    --surface-soft: #102438;
+    --border: #23384c;
+    --border-strong: #344c62;
 
-    --text: #e9e9e7;
-    --text-muted: #a0a6af;
+    --text: #edf4fb;
+    --text-muted: #9eafc2;
 
     /* The light accent is unreadable on a dark ground, so it is lightened
        rather than reused, and the button text flips to dark. */
-    --accent: #8fb4e0;
-    --accent-strong: #a9c6e9;
-    --accent-soft: #1b2735;
-    --accent-contrast: #10141a;
+    --accent: #5ca4ff;
+    --accent-strong: #7bb5ff;
+    --accent-soft: #112e4c;
+    --accent-contrast: #061421;
+    --nav-bg: #061524;
+    --nav-active: #153b5e;
+    --nav-muted: #9fb2c7;
+    --nav-border: #1e3448;
+    --context-bg: #0a1b2b;
 
     --awarded: #6fc79a;
     --awarded-bg: #16281f;
@@ -98,19 +109,25 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #10141a;
-  --surface: #171c24;
-  --surface-soft: #1d232c;
-  --border: #2a313b;
-  --border-strong: #3b4552;
+  --bg: #081827;
+  --surface: #0b1d2e;
+  --surface-soft: #102438;
+  --border: #23384c;
+  --border-strong: #344c62;
 
-  --text: #e9e9e7;
-  --text-muted: #a0a6af;
+  --text: #edf4fb;
+  --text-muted: #9eafc2;
 
-  --accent: #8fb4e0;
-  --accent-strong: #a9c6e9;
-  --accent-soft: #1b2735;
-  --accent-contrast: #10141a;
+  --accent: #5ca4ff;
+  --accent-strong: #7bb5ff;
+  --accent-soft: #112e4c;
+  --accent-contrast: #061421;
+  --nav-bg: #061524;
+  --nav-active: #153b5e;
+  --nav-text: #f6f9fd;
+  --nav-muted: #9fb2c7;
+  --nav-border: #1e3448;
+  --context-bg: #0a1b2b;
 
   --awarded: #6fc79a;
   --awarded-bg: #16281f;
@@ -190,14 +207,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 0 11px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
