@@ -18,7 +18,7 @@ type HorizontalMarkSchemeTable = {
 const QUESTION_PATH = /^\d{1,2}(?:\([a-z]\))?(?:\([ivx]+\))?$/i
 const INTEGER_MARK = /^\d{1,2}$/
 const MIRROR_NOISE = /(?:papacambridge\.com|Downloaded from PapaCambridge|Licensed for hosting|Re-uploading, mirroring or re-hosting|Trace ID:)/i
-const MARGIN_PREFIX = /^(?:THIS|IN|WRITE|NOT|DO|MARGIN)\s+(?=\([a-zivx]+\))/
+const MARGIN_PREFIX = /^(?:THIS|IN|WRITE|NOT|DO|MARGIN)\s+(?=(?:\([a-zivx]+\)|\d{1,2}\b))/
 
 function compact(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
