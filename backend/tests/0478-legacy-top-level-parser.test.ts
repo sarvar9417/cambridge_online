@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseMsV2 } from '../../supabase/functions/corpus-runner/parser-v3.ts'
+import { parseMsV3 } from '../../supabase/functions/corpus-runner/parser-v3-adapter.ts'
 
 describe('0478 legacy top-level mark rows', () => {
   it('keeps sequential top-level questions whose guidance starts with a digit', () => {
@@ -17,5 +18,20 @@ describe('0478 legacy top-level mark rows', () => {
     ])
     expect(rows.map((row) => row.path)).toEqual(expect.arrayContaining(['4', '5', '9', '10']))
     expect(rows.reduce((sum, row) => sum + row.marks, 0)).toBe(75)
+  })
+
+  it('does not treat numeric array indexes inside legacy guidance as marks', () => {
+    const rows = parseMsV3([
+      '1 (a) first answer', '[2]',
+      '(b) loop answer', '[5]',
+      'Value[1] Value[2] Value[7]',
+      '(c) next answer', '[2]',
+    ])
+    expect(rows.map((row) => [row.path, row.marks])).toEqual([
+      ['1.a', 2],
+      ['1.b', 5],
+      ['1.c', 2],
+    ])
+    expect(rows.reduce((sum, row) => sum + row.marks, 0)).toBe(9)
   })
 })
