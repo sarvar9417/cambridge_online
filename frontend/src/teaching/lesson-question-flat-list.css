@@ -1,0 +1,185 @@
+/* Exact-LO past-paper picker: deliberately a flat index, not a card grid.
+   The focused workspace remains the place for the complete question. */
+.lesson-exam-year-group .lesson-exam-grid {
+  display: block;
+  margin: 0;
+}
+
+.lesson-exam-card,
+.lesson-exam-card.lesson-exam-launcher {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
+  column-gap: 16px;
+  row-gap: 5px;
+  min-height: 0;
+  margin: 0;
+  padding: 14px 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--lesson-line, var(--border, #e3e8f1));
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lesson-exam-card:first-child {
+  border-top: 1px solid var(--lesson-line, var(--border, #e3e8f1));
+}
+
+.lesson-exam-card:hover {
+  background: color-mix(in srgb, var(--lesson-accent, var(--accent, #5b5ce2)) 4%, transparent);
+}
+
+.lesson-exam-card .lesson-exam-number {
+  position: static;
+  grid-column: 1;
+  grid-row: 1 / 5;
+  align-self: start;
+  justify-self: center;
+  padding-top: 2px;
+  color: var(--lesson-muted, var(--text-muted, #687386));
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.4;
+  opacity: .72;
+}
+
+.lesson-exam-card .lesson-exam-meta {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.lesson-exam-card .lesson-exam-meta span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lesson-accent, var(--accent, #5b5ce2));
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-exam-card .lesson-exam-meta b {
+  flex: 0 0 auto;
+  color: var(--lesson-muted, var(--text-muted, #687386));
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lesson-exam-card .lesson-question-context {
+  grid-column: 2;
+  grid-row: 2;
+  max-height: 3.2em;
+  margin: 0;
+  overflow: hidden;
+  color: var(--lesson-muted, var(--text-muted, #687386));
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.lesson-exam-card > p,
+.lesson-exam-card > .qtext-host,
+.lesson-exam-launcher > p,
+.lesson-exam-launcher > .qtext-host {
+  grid-column: 2;
+  grid-row: 3;
+  display: -webkit-box;
+  max-height: 3.2em;
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--lesson-ink, var(--text, #172033));
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lesson-exam-card footer {
+  grid-column: 2;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px 12px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  color: var(--lesson-muted, var(--text-muted, #687386));
+  font-size: 10px;
+}
+
+.lesson-exam-launcher footer span:last-child {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lesson-muted, var(--text-muted, #687386));
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.lesson-exam-card .lesson-question-card-actions {
+  position: static;
+  grid-column: 3;
+  grid-row: 1 / 5;
+  align-self: center;
+  justify-self: end;
+  display: block;
+  margin: 0;
+}
+
+.lesson-exam-card .lesson-question-open {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.lesson-exam-card .lesson-question-open:hover {
+  transform: none;
+}
+
+@media (max-width: 720px) {
+  .lesson-exam-card,
+  .lesson-exam-card.lesson-exam-launcher {
+    grid-template-columns: 32px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    column-gap: 10px;
+    padding: 12px 0;
+  }
+
+  .lesson-exam-card .lesson-exam-number {
+    grid-column: 1;
+    grid-row: 1 / 6;
+  }
+
+  .lesson-exam-card .lesson-exam-meta,
+  .lesson-exam-card .lesson-question-context,
+  .lesson-exam-card > p,
+  .lesson-exam-card > .qtext-host,
+  .lesson-exam-card footer {
+    grid-column: 2;
+  }
+
+  .lesson-exam-card .lesson-question-card-actions {
+    grid-column: 2;
+    grid-row: 5;
+    justify-self: start;
+    margin-top: 4px;
+  }
+
+  .lesson-exam-card .lesson-question-open {
+    min-height: 32px;
+    font-size: 11px;
+  }
+}
