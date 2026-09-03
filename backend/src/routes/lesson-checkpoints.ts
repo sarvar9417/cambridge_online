@@ -9,8 +9,9 @@ const loCodes = z.preprocess(
 
 const querySchema = z.object({
   loCodes,
-  yearFrom: z.coerce.number().int().min(2021).max(2025).default(2021),
-  yearTo: z.coerce.number().int().min(2021).max(2025).default(2025),
+  syllabusCode: z.enum(['9618','0478']).default('9618'),
+  yearFrom: z.coerce.number().int().min(2015).max(2035).default(2021),
+  yearTo: z.coerce.number().int().min(2015).max(2035).default(2025),
 }).superRefine((value, ctx) => {
   if (value.yearFrom > value.yearTo) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['yearTo'], message: 'yearTo must be >= yearFrom' });
@@ -32,7 +33,12 @@ export function createLessonCheckpointsRouter(service: LessonCheckpointService) 
       return;
     }
 
-    res.json(await service.list(parsed.data.loCodes, parsed.data.yearFrom, parsed.data.yearTo));
+    res.json(await service.list(
+      parsed.data.loCodes,
+      parsed.data.yearFrom,
+      parsed.data.yearTo,
+      parsed.data.syllabusCode,
+    ));
   });
 
   return router;
