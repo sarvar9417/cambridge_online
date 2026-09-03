@@ -26,6 +26,11 @@ const formalTerms = [
   'testing',
 ];
 
+const uzbekStudentFacingMarkers = [
+  'guruh', 'savol', 'vazifa', 'javob', 'o‘quvchi', 'tizim', 'oshxona', 'qaytim',
+  'narx', 'boshlash', 'tugatish', 'kerak emas', 'pul yetarli emas', 'so‘m',
+];
+
 describe('0478 Chapter 7 guided-discovery lesson', () => {
   it('keeps formal Cambridge terminology hidden until the reveal slide', () => {
     const revealIndex = CHAPTER_7.slides.findIndex((slide) => slide.id === CHAPTER_7_REVEAL_ID);
@@ -42,6 +47,22 @@ describe('0478 Chapter 7 guided-discovery lesson', () => {
     const afterReveal = CHAPTER_7.slides.slice(revealIndex).map(slideText).join('\n').toLowerCase();
     for (const term of formalTerms) {
       expect(afterReveal).toContain(term);
+    }
+  });
+
+  it('keeps all slide content student-facing and English-only', () => {
+    const value = CHAPTER_7.slides.map(slideText).join('\n').toLowerCase();
+    for (const marker of uzbekStudentFacingMarkers) {
+      expect(value).not.toContain(marker);
+    }
+    expect(value).not.toContain('discuss in groups');
+    expect(value).not.toContain('discuss with your group');
+  });
+
+  it('uses explicit action instructions for every activity', () => {
+    for (const slide of CHAPTER_7.slides) {
+      if (!slide.activity) continue;
+      expect(slide.activity.prompt.trim().length).toBeGreaterThan(20);
     }
   });
 
