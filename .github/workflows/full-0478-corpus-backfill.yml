@@ -1,0 +1,66 @@
+name: Full 0478 corpus backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum un-ingested papers to apply (0 = all)'
+        required: false
+        default: '0'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/full-0478-corpus-backfill.yml'
+      - 'backend/scripts/full-0478-corpus-backfill.py'
+      - 'backend/src/database/catalogs/0478-2015-2022.json'
+      - 'backend/src/database/migrations/0100_0478_full_corpus_runner.sql'
+      - 'backend/src/database/migrations/0101_syllabus_catalog_json_rpc.sql'
+      - 'supabase/functions/corpus-runner/index.ts'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: full-0478-corpus-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
+      BACKFILL_LIMIT: ${{ github.event.inputs.limit || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-backed corpus tools
+        run: python -m pip install --upgrade 'gdown>=6.0.0' requests scikit-learn
+      - name: Compile 0478 backfill script
+        run: python -m py_compile backend/scripts/full-0478-corpus-backfill.py
+      - name: Run full 0478 corpus backfill
+        id: backfill
+        shell: bash
+        run: |
+          set +e
+          python backend/scripts/full-0478-corpus-backfill.py
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload source audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 0478-backfill-report
+          path: 0478-backfill-report.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce backfill result
+        if: always()
+        run: |
+          code='${{ steps.backfill.outputs.exit_code }}'
+          if [ -z "$code" ]; then code=1; fi
+          exit "$code"
