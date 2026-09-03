@@ -4,13 +4,13 @@ import { z } from 'zod';
 import { syllabusCatalogSchema, type SyllabusCatalog } from './syllabus-catalog-import.js';
 
 const descriptorSchema = z.object({
-  code: z.literal('9618'),
+  code: z.enum(['9618', '0478']),
   subject: z.string().trim().min(1),
   versionLabel: z.string().trim().min(1),
   validFrom: z.number().int(),
   validTo: z.number().int(),
   isActive: z.boolean(),
-  components: z.array(z.unknown()).length(4),
+  components: z.array(z.unknown()).min(1).max(4),
   fragments: z.array(z.string().trim().min(1)).min(1),
   learningObjectiveOverrides: z.record(z.string(), z.array(z.string().trim().min(1))).default({}),
 }).strict();
