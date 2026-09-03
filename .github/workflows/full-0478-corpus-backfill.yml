@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install source-backed corpus tools
-        run: python -m pip install --upgrade 'gdown>=6.0.0' requests scikit-learn
+        run: python -m pip install --upgrade 'gdown==5.2.0' requests scikit-learn
       - name: Compile 0478 backfill script
         run: python -m py_compile backend/scripts/full-0478-corpus-backfill.py
       - name: Run full 0478 corpus backfill
