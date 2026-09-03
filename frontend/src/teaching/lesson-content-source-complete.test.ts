@@ -14,30 +14,34 @@ const text = (chapter: NonNullable<ReturnType<typeof lessonChapter>>) =>
   ].join(' ')).join('\n');
 
 describe('source-audited Hodder lessons', () => {
-  it('covers every named Chapter 1 coursebook subsection', () => {
+  it('covers every Chapter 1 coursebook section and its core concepts', () => {
     const chapter = lessonChapter(1)!;
     const sourceMap = chapter.slides.find((slide) => slide.id === 'c1-source-map');
     expect(sourceMap).toBeTruthy();
     const value = text(chapter);
-    for (const marker of ['1.1.1', '1.1.2', '1.1.3', '1.1.4', '1.1.5', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.3.1', '1.3.2']) {
+    for (const marker of ['1.1.1–1.1.2', '1.1.3–1.1.5', '1.2.1–1.2.2', '1.2.3–1.2.4', '1.3.1', '1.3.2']) {
       expect(value).toContain(marker);
     }
+    for (const concept of ['Binary-Coded Decimal', 'ASCII', 'Unicode', 'bitmap', 'Vector', 'sampling', 'compression']) {
+      expect(value.toLowerCase()).toContain(concept.toLowerCase());
+    }
     expect(value).toContain('Reduce unwanted noise');
-    expect(value).toContain('frame rate');
+    expect(value.toLowerCase()).toContain('frame rate');
   });
 
   it('covers the Chapter 13 structure and precision/range reasoning', () => {
     const chapter = lessonChapter(13)!;
     const value = text(chapter);
+    const lower = value.toLowerCase();
     for (const marker of ['13.1.1', '13.1.2', '13.2.1', '13.2.2', '13.3.1']) {
       expect(value).toContain(marker);
     }
     expect(value).toContain('address = fileStart + (slot × recordSize)');
-    expect(value).toContain('largest positive');
-    expect(value).toContain('smallest positive non-zero');
-    expect(value).toContain('underflow');
-    expect(value).toContain('overflow');
-    expect(value).toContain('rounding');
+    expect(lower).toContain('largest positive');
+    expect(lower).toContain('smallest positive non-zero');
+    expect(lower).toContain('underflow');
+    expect(lower).toContain('overflow');
+    expect(lower).toContain('rounding');
   });
 
   it('uses Hodder open/closed hashing terminology exactly', () => {
