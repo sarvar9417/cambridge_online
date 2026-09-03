@@ -220,9 +220,9 @@ async function loadTargets(pool: Pool, paperLimit: number | null, paperId: strin
        where vf.rule_code='${RULE}' and vf.resolved_at is null ${paperFilter}
      ), ranked_papers as (
        select paper_id,
-              max(year) year,max(series) series,max(component) component,max(variant) variant,
-              max(storage_path) storage_path,max(source_url) source_url,max(sha256) sha256,
-              count(*) filter(where notes ilike '%Source-backed manual extraction%')::int source_backed_count
+              max(year) as paper_year,max(series) as paper_series,max(component) as component,max(variant) as variant,
+              max(storage_path) as storage_path,max(source_url) as source_url,max(sha256) as sha256,
+              count(*) filter(where notes ilike '%Source-backed manual extraction%')::int as source_backed_count
        from target_leaves group by paper_id
        order by count(*) filter(where notes ilike '%Source-backed manual extraction%') desc,
                 max(year) desc,max(series),max(component),max(variant)
@@ -260,7 +260,7 @@ async function loadTargets(pool: Pool, paperLimit: number | null, paperId: strin
     papers.push({
       paperId: String(row.paper_id), storagePath: row.storage_path ? String(row.storage_path) : null,
       sourceUrl: row.source_url ? String(row.source_url) : null, sha256: String(row.sha256),
-      year: Number(row.year), series: String(row.series), component: Number(row.component), variant: Number(row.variant),
+      year: Number(row.paper_year), series: String(row.paper_series), component: Number(row.component), variant: Number(row.variant),
       sourceBackedCount: Number(row.source_backed_count), leaves, chainPaths,
     });
   }
