@@ -1,0 +1,286 @@
+import type { LessonSlide } from './lesson-content-full';
+
+export type Chapter7LessonChapter = {
+  number: 7;
+  level: 'IGCSE';
+  title: string;
+  subtitle: string;
+  subtopics: string[];
+  sourceNote: string;
+  coverage: string;
+  slides: LessonSlide[];
+};
+
+const slides: LessonSlide[] = [
+  {
+    id: 'ch7-01-challenge',
+    section: 'Muammo',
+    eyebrow: '0478 · CHAPTER 07 · CLASSROOM CHALLENGE',
+    title: 'Maktab oshxonasi uchun avtomatik buyurtma tizimini yarating',
+    lead: 'Bugun tayyor ta’riflardan boshlamaymiz. Guruhingiz bilan ishlaydigan yechim quramiz, keyin nima qilganimizni tahlil qilamiz.',
+    bullets: [
+      'Burger — 20 000 so‘m',
+      'Pizza — 25 000 so‘m',
+      'Sandwich — 15 000 so‘m',
+      'Tizim ovqatni qabul qiladi, narxni aniqlaydi, to‘lovni tekshiradi va kerak bo‘lsa qaytimni hisoblaydi.',
+    ],
+    teacherPrompt: 'Hozircha hech qanday yechim yozmang. Avval vaziyatni yaxshilab tushunib olaylik.',
+    accent: 'indigo',
+  },
+  {
+    id: 'ch7-02-understand',
+    section: 'Muammo',
+    eyebrow: '1-QADAM · AVVAL TUSHUNING',
+    title: 'Tizim aslida nima qilishi kerak?',
+    lead: 'Guruhda savollarga javob bering. Hozircha qanday qurishni emas, nimaga erishish kerakligini aniqlang.',
+    bullets: [
+      'Biz yaratmoqchi bo‘lgan tizimning asosiy vazifasi nima?',
+      'Tizim ishlashi uchun o‘quvchidan qanday ma’lumotlarni olish kerak?',
+      'Tizim o‘zi qanday ishlarni bajarishi kerak?',
+      'Tizim oxirida o‘quvchiga qanday ma’lumot berishi kerak?',
+    ],
+    activity: {
+      title: 'Uch ustunli doska',
+      prompt: 'Javoblaringizni “Tizimga beramiz”, “Tizim bajaradi”, “Tizim bizga beradi” ustunlariga joylashtiring.',
+      reveal: 'Tanlangan ovqat va berilgan pul → narxni aniqlash, pulni tekshirish, qaytimni hisoblash → narx/qaytim yoki “Pul yetarli emas” xabari.',
+    },
+    accent: 'cyan',
+  },
+  {
+    id: 'ch7-03-small-jobs',
+    section: 'Muammo',
+    eyebrow: '2-QADAM · BITTA KATTA ISHNI OSONLASHTIRING',
+    title: 'Bu tizim bajaradigan kichik ishlarni toping',
+    lead: 'Butun tizimni birdan yaratishga urinmang. Bajarilishi kerak bo‘lgan ishlarni alohida kartochkalarga yozing.',
+    bullets: [
+      'O‘quvchi kelganda birinchi nima bo‘lishi kerak?',
+      'Ovqat tanlangandan keyin nima qilish kerak?',
+      'Pul berilgandan keyin nimani tekshirish kerak?',
+      'Pul yetarli bo‘lsa nima, yetarli bo‘lmasa nima bo‘ladi?',
+      'Oxirida nima ko‘rsatiladi?',
+    ],
+    activity: {
+      title: 'Kartochkalarni guruhlang',
+      prompt: 'Topgan kichik ishlaringizni bir-biriga yaqin maqsadiga qarab 2–4 ta mantiqiy guruhga ajrating.',
+      reveal: 'Masalan: Ovqat — tanlash, narxni topish. To‘lov — pulni olish, tekshirish, qaytimni hisoblash. Natija — xabarni ko‘rsatish.',
+    },
+    accent: 'emerald',
+  },
+  {
+    id: 'ch7-04-filter',
+    section: 'Muammo',
+    eyebrow: '3-QADAM · MA’LUMOTNI SARALANG',
+    title: 'Qaysi ma’lumot natijaga ta’sir qiladi?',
+    lead: 'Oshxona haqidagi hamma ma’lumot ham biz yaratmoqchi bo‘lgan tizim uchun kerak emas.',
+    activity: {
+      title: 'Kerak / kerak emas',
+      prompt: '12 ta ma’lumotni ikki guruhga ajrating. Keyin: “Nima sababdan ayrim ma’lumotlarni chiqarib tashladingiz?” savoliga javob bering.',
+      reveal: 'Narxlar, ovqat tanlovi, berilgan pul, pulni tekshirish va qaytim kerak. Devor rangi, stol soni, oshpaz ismi, o‘quvchilar soni va maktab ochilgan yil natijaga ta’sir qilmaydi.',
+    },
+    accent: 'amber',
+  },
+  {
+    id: 'ch7-05-hierarchy',
+    section: 'Yechimni qurish',
+    eyebrow: '4-QADAM · QISMLARNI TARTIBGA SOLING',
+    title: 'Butun tizimdan kichik ishlargacha bitta rasm yarating',
+    lead: 'Kartochkalarni yuqoridan pastga joylashtiring: eng yuqorida butun tizim, uning ostida katta qismlar, keyin har bir qism ichidagi kichik ishlar.',
+    bullets: [
+      'Oshxona tizimi',
+      'Ovqat · To‘lov · Natija',
+      'Ovqatni tanlash · Narxni aniqlash · Pulni olish · Pulni tekshirish · Qaytimni hisoblash · Natijani ko‘rsatish',
+    ],
+    teacherPrompt: 'Bir katta quti chizing. Ostiga katta qismlarni, keyin ularga tegishli kichik ishlarni joylashtiring va chiziqlar bilan bog‘lang.',
+    accent: 'indigo',
+  },
+  {
+    id: 'ch7-06-sequence',
+    section: 'Yechimni qurish',
+    eyebrow: '5-QADAM · BOSHDAN OXIRIGACHA',
+    title: 'Tizim ish boshlaganidan tugaguncha nima sodir bo‘ladi?',
+    lead: 'Endi qismlar ro‘yxati emas, aynan bajarilish tartibi kerak. Strelkalar yordamida ketma-ketlik yarating.',
+    bullets: [
+      'Eng birinchi nima sodir bo‘ladi?',
+      'Ovqat tanlangandan keyin tizim nima qiladi?',
+      'O‘quvchidan keyin qanday ma’lumot olinadi?',
+      'Tizim qaysi savolga “ha” yoki “yo‘q” deb javob topishi kerak?',
+      'Ikki javobdan keyin yo‘llar qanday davom etadi?',
+    ],
+    activity: {
+      title: 'Ikki yo‘lni toping',
+      prompt: '“Pul yetarlimi?” joyiga kelganda to‘xtang. Undan chiqadigan ikki yo‘lni alohida davom ettiring.',
+      reveal: 'Boshlash → ovqatni tanlash → narxni aniqlash → pulni kiritish → “Pul yetarlimi?” → Ha: qaytimni hisoblash/ko‘rsatish; Yo‘q: “Pul yetarli emas” → tugash.',
+    },
+    accent: 'cyan',
+  },
+  {
+    id: 'ch7-07-shapes',
+    section: 'Yechimni qurish',
+    eyebrow: '6-QADAM · HAMMA BIR XIL BELGILARDAN FOYDALANSIN',
+    title: 'Har xil ish turini har xil shakl bilan ko‘rsating',
+    lead: 'Oldingi ketma-ketlikni qayta chizing, lekin bu safar shaklning o‘zi qadamning qanday tur ekanini bildirib tursin.',
+    bullets: [
+      'Yumaloq shakl — boshlanish yoki tugash',
+      'To‘rtburchak — tizim bajaradigan ish',
+      'Parallelogram — tizimga ma’lumot berish yoki undan ma’lumot olish',
+      'Romb — ikki yo‘lga ajratadigan savol',
+      'Strelka — keyingi qadam',
+    ],
+    teacherPrompt: '“Pul yetarlimi?” oddiy ishmi yoki ikki javobli savolmi? Undan nechta yo‘l chiqishi kerak?',
+    accent: 'emerald',
+  },
+  {
+    id: 'ch7-08-structured-text',
+    section: 'Aniq ko‘rsatmalar',
+    eyebrow: '7-QADAM · RASMSIZ HAM ANIQLIK SAQLANSIN',
+    title: 'Xuddi shu yechimni tartibli matnga aylantiring',
+    lead: 'Tasavvur qiling, diagrammani yubora olmaysiz. Boshqa odam faqat matningizga qarab aynan shu yechimni tushunishi kerak.',
+    bullets: ['BOSHLASH', 'KIRITISH', 'AGAR', 'UNDA', 'AKS HOLDA', 'CHIQARISH', 'TUGATISH'],
+    activity: {
+      title: '7 ta kalit so‘z bilan yozing',
+      prompt: 'Diagrammadagi har bir muhim qadamni yuqoridagi so‘zlardan foydalanib ketma-ket yozing. Ikki yo‘lni ham yo‘qotmang.',
+      reveal: 'BOSHLASH → KIRITISH ovqat → narxni aniqlash → KIRITISH pul → AGAR pul ≥ narx UNDA qaytimni hisoblash va CHIQARISH → AKS HOLDA “Pul yetarli emas”ni CHIQARISH → TUGATISH.',
+    },
+    accent: 'amber',
+  },
+  {
+    id: 'ch7-09-command-cards',
+    section: 'Aniq ko‘rsatmalar',
+    eyebrow: '8-QADAM · FAQAT BERILGAN BUYRUQLAR ISHLAYDI',
+    title: 'Yechimingizni kompyuter tushunadigan kartochkalarga aylantiring',
+    lead: 'Kompyuter sizning erkin gaplaringizni tushunmaydi deb tasavvur qiling. U faqat ekrandagi buyruq kartochkalarini bajaradi.',
+    bullets: [
+      'ASK food · SET price TO ...',
+      'ASK money · IF money >= price',
+      'SET change TO money - price · SAY change',
+      'ELSE · SAY “Pul yetarli emas” · END IF',
+    ],
+    teacherPrompt: 'Birinchi bo‘lib kompyuter nimani bilishi kerak? Narx qachon aniqlanadi? Tekshirish qaysi buyruq bilan boshlanadi?',
+    accent: 'rose',
+  },
+  {
+    id: 'ch7-10-human-computer',
+    section: 'Ishlatib ko‘rish',
+    eyebrow: '9-QADAM · SEN KOMPYUTERSAN',
+    title: 'O‘zingdan hech narsa qo‘shma — faqat buyruqlarni bajar',
+    lead: 'Har bir guruhdan bitta o‘quvchi “kompyuter” bo‘ladi. U kartochkalarni aynan yozilgan tartibda bajaradi.',
+    bullets: [
+      'Pizza + 30 000 so‘m',
+      'Burger + 20 000 so‘m',
+      'Sandwich + 10 000 so‘m',
+    ],
+    activity: {
+      title: 'Natijani ovoz chiqarib ayting',
+      prompt: 'Har bir holatda buyruqlarni birma-bir bajaring. “Kompyuter” yashirincha tuzatish yoki taxmin qilish huquqiga ega emas.',
+      reveal: 'Pizza → 5 000 so‘m qaytim. Burger → 0 so‘m qaytim. Sandwich → “Pul yetarli emas”.',
+    },
+    accent: 'indigo',
+  },
+  {
+    id: 'ch7-11-predict-check',
+    section: 'Ishlatib ko‘rish',
+    eyebrow: '10-QADAM · AVVAL BASHORAT, KEYIN ISHLATISH',
+    title: 'Kutgan natijangiz bilan haqiqiy natijani solishtiring',
+    lead: 'Har bir holat uchun tizimni ishlatishdan oldin natijani yozing. Keyin haqiqiy natijani qayd qiling va ikkalasini solishtiring.',
+    bullets: [
+      'Pizza — 30 000',
+      'Burger — 20 000',
+      'Sandwich — 10 000',
+      'Pizza — 25 000',
+      'Burger — 15 000',
+    ],
+    teacherPrompt: 'Bir xil bo‘lmasa, qaysi qadamda muammo bo‘lishi mumkin? O‘zgartirgandan keyin faqat shu holatni tekshirish yetarlimi?',
+    accent: 'cyan',
+  },
+  {
+    id: 'ch7-12-bug',
+    section: 'Ishlatib ko‘rish',
+    eyebrow: '11-QADAM · BITTA BELGI BUTUN NATIJANI O‘ZGARTIRDI',
+    title: 'Nega aynan 20 000 so‘m berganda tizim xato qildi?',
+    lead: 'Buyruqda “IF money > price” yozilgan. Burger narxi 20 000 so‘m va o‘quvchi aynan 20 000 so‘m berdi.',
+    bullets: [
+      'Siz qanday natija kutyapsiz?',
+      'Tizim qanday natija chiqaryapti?',
+      'Muammo qaysi buyruqda?',
+      'Qaysi belgini o‘zgartirish kerak?',
+      'Tuzatgandan keyin yana qaysi holatlarni qayta tekshirish kerak?',
+    ],
+    activity: {
+      title: 'Xatoni tuzating',
+      prompt: 'Faqat bitta belgini o‘zgartirib, aynan narxga teng pul berilgan holatni to‘g‘ri ishlating.',
+      reveal: '“>” o‘rniga “>=” kerak. Keyin teng, katta va kichik to‘lov holatlarini qayta tekshirish kerak.',
+    },
+    accent: 'rose',
+  },
+  {
+    id: 'ch7-13-recap',
+    section: 'Nima qildik?',
+    eyebrow: '12-QADAM · ORQAGA QARANG',
+    title: 'Biz hozirgacha aslida qanday ishlarni bajardik?',
+    lead: 'Nom qo‘yishga shoshilmang. Avval o‘z jarayoningizni eslang.',
+    bullets: [
+      'Muammoni tushundik va kerakli narsalarni aniqladik.',
+      'Katta ishni kichik ishlarga ajratdik.',
+      'Keraksiz ma’lumotlarni chiqarib tashladik.',
+      'Qismlar qanday bog‘langanini ko‘rsatdik.',
+      'Bajarilish ketma-ketligini shakllar bilan chizdik.',
+      'Yechimni tartibli matn bilan yozdik.',
+      'Uni kompyuter tushunadigan buyruqlarga aylantirdik.',
+      'Turli holatlarda ishlatdik, xatoni topdik, tuzatdik va qayta tekshirdik.',
+    ],
+    teacherPrompt: 'Sizningcha, biz hozir aslida nima yaratdik?',
+    accent: 'amber',
+  },
+  {
+    id: 'ch7-14-reveal',
+    section: 'Cambridge nomlari',
+    eyebrow: 'REVEAL · ENDI BAJARGAN ISHLARIMIZGA NOM BERAMIZ',
+    title: 'Siz Program Development Life Cycle jarayonini bajardingiz',
+    lead: 'Oldingi har bir ish Cambridge Computer Science terminlaridan biriga mos keladi. Endi tajribangizni rasmiy nomlar bilan bog‘laymiz.',
+    keyTerms: [
+      { term: 'Analysis', definition: 'Muammoni, talablarni, input, processing va outputni aniqlash.' },
+      { term: 'Decomposition', definition: 'Katta muammoni kichik, boshqarish oson bo‘lgan qismlarga ajratish.' },
+      { term: 'Abstraction', definition: 'Muammo uchun muhim ma’lumotga e’tibor berib, keraksiz tafsilotlarni chiqarish.' },
+      { term: 'Design', definition: 'Yechimni program yozishdan oldin rejalashtirish.' },
+      { term: 'Structure diagram', definition: 'Yechimning qismlari va ularning ierarxiyasini ko‘rsatish.' },
+      { term: 'Flowchart', definition: 'Algorithmning bajarilish oqimini standart shakllar va strelkalar bilan ko‘rsatish.' },
+      { term: 'Pseudocode', definition: 'Algorithmni programming languagega bog‘lanmagan tartibli ko‘rsatmalar bilan ifodalash.' },
+      { term: 'Coding', definition: 'Tayyor yechimni programming language yordamida implementatsiya qilish.' },
+      { term: 'Testing', definition: 'Expected va actual resultlarni turli test data bilan solishtirib, program to‘g‘ri ishlashini tekshirish.' },
+    ],
+    accent: 'emerald',
+  },
+  {
+    id: 'ch7-15-cambridge-check',
+    section: 'Cambridge nomlari',
+    eyebrow: '0478 CHECKPOINT · CHAPTER 07',
+    title: 'Endi nomni emas, vazifani ajrata olasizmi?',
+    lead: 'Har bir holat uchun eng mos terminni tanlang va nima uchunligini bir jumlada asoslang.',
+    bullets: [
+      '“Oshxona devori sariq” ma’lumotini yechimdan olib tashlash.',
+      'Butun tizimni Ovqat, To‘lov va Natija qismlariga bo‘lish.',
+      'Pul yetarliligini romb shaklida ikki yo‘lga ajratib ko‘rsatish.',
+      'Expected result va actual resultni solishtirish.',
+      'Tartibli yechimni haqiqiy programming language buyruqlariga aylantirish.',
+    ],
+    activity: {
+      title: '5 ta tezkor javob',
+      prompt: 'Har biriga bitta termin + bitta sabab. Faqat yodlangan ta’rifni takrorlamang.',
+      reveal: 'Abstraction · Decomposition · Flowchart · Testing · Coding.',
+    },
+    accent: 'indigo',
+  },
+];
+
+export const CHAPTER_7: Chapter7LessonChapter = {
+  number: 7,
+  level: 'IGCSE',
+  title: 'Algorithm design and problem-solving',
+  subtitle: 'Program development life cycle — o‘quvchi avval jarayonni bajaradi, keyin Cambridge terminlarini kashf qiladi.',
+  subtopics: ['Analysis', 'Decomposition & abstraction', 'Structure diagrams', 'Flowcharts & pseudocode', 'Coding & testing'],
+  sourceNote: 'Cambridge 0478 Chapter 7 classroom lesson. Content route grounded in the supplied 0478 syllabus/coursebook collection and adapted for board-first teaching.',
+  coverage: 'Chapter 7 · guided discovery lesson',
+  slides,
+};
+
+export const CHAPTER_7_REVEAL_ID = 'ch7-14-reveal';
