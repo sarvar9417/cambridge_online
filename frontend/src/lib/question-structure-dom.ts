@@ -492,11 +492,12 @@ function renderDependencies(portable: PortableQuestion) {
 function ensureWorkspaceDialog(host: Element) {
   let dialog = document.querySelector<HTMLDialogElement>('.lesson-question-workspace');
   if (!dialog) {
-    dialog = document.createElement('dialog');
-    dialog.className = 'lesson-question-workspace';
-    dialog.addEventListener('click', (event) => {
-      if (event.target === dialog) dialog.close();
+    const created = document.createElement('dialog');
+    created.className = 'lesson-question-workspace';
+    created.addEventListener('click', (event) => {
+      if (event.target === created) created.close();
     });
+    dialog = created;
   }
   if (dialog.parentElement !== host) host.append(dialog);
   return dialog;
