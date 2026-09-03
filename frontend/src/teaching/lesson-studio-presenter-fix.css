@@ -1,0 +1,55 @@
+.lesson-studio:fullscreen,
+.lesson-studio:-webkit-full-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #0c1220;
+  color: #eaf0f8;
+}
+
+.lesson-studio:fullscreen::backdrop {
+  background: #0c1220;
+}
+
+.lesson-studio:fullscreen .lesson-toolbar,
+.lesson-studio:-webkit-full-screen .lesson-toolbar,
+.lesson-studio:fullscreen .lesson-progress,
+.lesson-studio:-webkit-full-screen .lesson-progress,
+.lesson-studio:fullscreen .lesson-nav,
+.lesson-studio:-webkit-full-screen .lesson-nav {
+  flex: 0 0 auto;
+}
+
+.lesson-studio:fullscreen .lesson-workspace,
+.lesson-studio:-webkit-full-screen .lesson-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lesson-studio:fullscreen .lesson-slide,
+.lesson-studio:-webkit-full-screen .lesson-slide {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1050px) {
+  .lesson-studio:fullscreen .lesson-workspace,
+  .lesson-studio:-webkit-full-screen .lesson-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-studio:fullscreen .lesson-outline,
+  .lesson-studio:-webkit-full-screen .lesson-outline {
+    display: none;
+  }
+}
