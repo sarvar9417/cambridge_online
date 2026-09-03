@@ -26,7 +26,7 @@ export interface StagedSource {
 
 type FetchLike = typeof fetch;
 
-type ValidatedStageItem = SourceStageItem & {
+type ValidatedStageItem = Omit<SourceStageItem, 'sourceUrl'> & {
   component: number;
   variant: number;
   storagePath: string;
