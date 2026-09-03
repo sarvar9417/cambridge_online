@@ -35,7 +35,7 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
       try{
         const options=await api<FilterOptions>('/questions/filter-options');
         const ids=options.topics.filter(item=>item.code===subtopicCode).map(item=>item.subtopic_id);
-        if(!ids.length) throw new Error('Subtopic topilmadi.');
+        if(!ids.length) throw new Error('Subtopic not found.');
 
         // Load every approved question for this subtopic from each historical paper year. We keep the
         // per-year window at the same broad 120-row ceiling used by Question Bank, but do not truncate
@@ -50,28 +50,28 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
         }));
 
         if(!cancelled)setQuestions(collectAllCheckpointQuestions(byYear.flat()));
-      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Savollar yuklanmadi.');}
+      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Questions could not be loaded.');}
       finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true};
   },[subtopicCode]);
-  if(loading)return <div className="lesson-loading">Past paper savollari yuklanmoqda…</div>;
+  if(loading)return <div className="lesson-loading">Loading past-paper questions…</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
-  if(!questions.length)return <div className="lesson-empty">Bu bo‘lim uchun approved past-paper savoli topilmadi.</div>;
+  if(!questions.length)return <div className="lesson-empty">No approved past-paper questions were found for this section.</div>;
   const representedYears=[...new Set(questions.map(question=>question.year))].sort((a,b)=>a-b);
   const byYear=CHECKPOINT_YEARS.map(year=>({year,questions:questions.filter(question=>question.year===year)})).filter(group=>group.questions.length>0);
   let runningIndex=0;
   return <>
     <div className="lesson-exam-years"><strong>Paper coverage</strong>{CHECKPOINT_YEARS.map(year=><span className={representedYears.includes(year)?'available':'missing'} key={year}>{year}</span>)}</div>
-    <div className="lesson-exam-summary"><strong>{questions.length} ta approved savol</strong><span>2021–2025 · barcha savollar · pastga scroll qiling</span></div>
+    <div className="lesson-exam-summary"><strong>{questions.length} approved questions</strong><span>2021–2025 · all questions · scroll down</span></div>
     <div className="lesson-exam-scroll">{byYear.map(group=><section className="lesson-exam-year-group" key={group.year}>
-      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} ta savol</span></div>
+      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} questions</span></div>
       <div className="lesson-exam-grid">{group.questions.map(q=>{
         runningIndex+=1;
         const displayIndex=runningIndex;
         const flags=[q.hasDiagram?'Diagram':'',q.hasDependency?'Context':''].filter(Boolean).join(' · ');
         return <article className="lesson-exam-card" key={q.id}>
-          <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} ball</b></div>
+          <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} marks</b></div>
           <p>{q.stem}</p>
           <footer><span>{q.commandWord||'Question'}{flags?` · ${flags}`:''}</span><span>{q.year}</span></footer>
           <span className="lesson-exam-number">{String(displayIndex).padStart(2,'0')}</span>
@@ -142,9 +142,9 @@ export function LessonStudio({ user }: { user:User }) {
 
   if(user.role==='student')return null;
   if(!chosen)return <section className="lesson-library">
-    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Cambridge 0478 va 9618 manbalari asosida, doskada prezentatsiyadek o‘tishga moslashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} chapter · source-audited coverage</span></header>
+    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Lessons</h1><p>Classroom lessons based on Cambridge 0478 and 9618 sources, designed for clear full-screen teaching on an interactive board.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} chapters · source-audited coverage</span></header>
     <div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}>
-      <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer>
+      <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Open →</span></footer>
     </button>)}</div>
   </section>;
 
@@ -154,7 +154,7 @@ export function LessonStudio({ user }: { user:User }) {
     <header className="lesson-toolbar">
       <button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button>
       <div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number}</span><strong>{chosen.title}</strong></div>
-      <div className="lesson-toolbar-actions"><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Presenter’dan chiqish':'Doskada ochish ↗'}</button></div>
+      <div className="lesson-toolbar-actions"><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Exit presenter':'Present on board ↗'}</button></div>
     </header>
     <div className="lesson-progress"><span style={{width:`${((index+1)/chosen.slides.length)*100}%`}}/></div>
     <div className="lesson-workspace">
@@ -164,6 +164,6 @@ export function LessonStudio({ user }: { user:User }) {
         <div className="lesson-slide-watermark">CamPath · {chosen.level}</div>
       </main>
     </div>
-    <footer className="lesson-nav"><button disabled={index===0} onClick={()=>setIndex(value=>Math.max(0,value-1))}>← Oldingi</button><div>{chosen.slides.map((item,i)=><button key={item.id} aria-label={`${i+1}-slide`} className={i===index?'active':item.section===slide.section?'same-section':''} onClick={()=>setIndex(i)}/>)}</div><button disabled={index===chosen.slides.length-1} onClick={()=>setIndex(value=>Math.min(chosen.slides.length-1,value+1))}>Keyingi →</button></footer>
+    <footer className="lesson-nav"><button disabled={index===0} onClick={()=>setIndex(value=>Math.max(0,value-1))}>← Previous</button><div>{chosen.slides.map((item,i)=><button key={item.id} aria-label={`${i+1}-slide`} className={i===index?'active':item.section===slide.section?'same-section':''} onClick={()=>setIndex(i)}/>)}</div><button disabled={index===chosen.slides.length-1} onClick={()=>setIndex(value=>Math.min(chosen.slides.length-1,value+1))}>Next →</button></footer>
   </section>;
 }
