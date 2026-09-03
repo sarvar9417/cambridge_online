@@ -8,11 +8,7 @@ export type QuestionTextBlock =
 const BULLET = /^\s*(?:[•●▪◦]|[-*])\s+(.+?)\s*$/;
 const TABLE = /^\s*\|.*\|\s*$/;
 const TASK = /^\s*(?:Write|State|Give|Name|Identify|Define|Describe|Explain|Compare|Calculate|Complete|Draw|Evaluate|Justify|Suggest|Show|Determine|Find|Convert|Use|Select|Tick|Circle|Fill|Indicate|Outline|Label|Construct|Predict)\b/i;
-
-const PSEUDOCODE = /^\s*(?:
-  TYPE\b|ENDTYPE\b|DECLARE\b|CONSTANT\b|IF\b|ELSE\b|ELSEIF\b|ENDIF\b|FOR\b|NEXT\b|WHILE\b|ENDWHILE\b|REPEAT\b|UNTIL\b|CASE\s+OF\b|OTHERWISE\b|ENDCASE\b|PROCEDURE\b|ENDPROCEDURE\b|FUNCTION\b|ENDFUNCTION\b|CALL\b|RETURN\b|INPUT\b|OUTPUT\b|OPENFILE\b|READFILE\b|WRITEFILE\b|CLOSEFILE\b|SEEK\b|GETRECORD\b|PUTRECORD\b|CLASS\b|ENDCLASS\b|PUBLIC\b|PRIVATE\b|INHERITS\b|SUPER\b
-)/ix;
-
+const PSEUDOCODE = /^\s*(?:TYPE\b|ENDTYPE\b|DECLARE\b|CONSTANT\b|IF\b|ELSE\b|ELSEIF\b|ENDIF\b|FOR\b|NEXT\b|WHILE\b|ENDWHILE\b|REPEAT\b|UNTIL\b|CASE\s+OF\b|OTHERWISE\b|ENDCASE\b|PROCEDURE\b|ENDPROCEDURE\b|FUNCTION\b|ENDFUNCTION\b|CALL\b|RETURN\b|INPUT\b|OUTPUT\b|OPENFILE\b|READFILE\b|WRITEFILE\b|CLOSEFILE\b|SEEK\b|GETRECORD\b|PUTRECORD\b|CLASS\b|ENDCLASS\b|PUBLIC\b|PRIVATE\b|INHERITS\b|SUPER\b)/i;
 const SQL = /^\s*(?:SELECT\b|FROM\b|WHERE\b|ORDER\s+BY\b|GROUP\s+BY\b|INSERT\s+INTO\b|UPDATE\b|DELETE\s+FROM\b|CREATE\s+TABLE\b|ALTER\s+TABLE\b|DROP\s+TABLE\b)/i;
 const PROGRAM_CODE = /^\s*(?:def\s+\w+\s*\(|class\s+\w+|if\s+.+:|elif\s+.+:|else\s*:|for\s+.+:|while\s+.+:|return\b|print\s*\(|input\s*\(|#include\b|using\s+namespace\b|public\s*:|private\s*:|protected\s*:|(?:int|float|double|bool|boolean|char|string|String|void)\s+[A-Za-z_]\w*)/;
 const ASSIGNMENT = /^\s*[A-Za-z_]\w*(?:\s*\[[^\]]+\])?(?:\.[A-Za-z_]\w*)*\s*(?:←|<-|:=|=(?!=))\s*.+$/;
