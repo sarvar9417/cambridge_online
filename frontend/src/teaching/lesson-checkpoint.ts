@@ -14,13 +14,11 @@ export function selectYearBalancedQuestions<T extends CheckpointQuestion>(questi
   }
 
   const selected: T[] = [];
-  // First guarantee one representative question from every year that actually has an eligible question.
   for (const year of CHECKPOINT_YEARS) {
     const first = groups.get(year)?.[0];
     if (first && selected.length < limit) selected.push(first);
   }
 
-  // Use remaining capacity for recent years first, while preserving the all-years guarantee above.
   for (let offset = 1; selected.length < limit; offset += 1) {
     let added = false;
     for (const year of [...CHECKPOINT_YEARS].reverse()) {
@@ -34,4 +32,10 @@ export function selectYearBalancedQuestions<T extends CheckpointQuestion>(questi
   }
 
   return selected;
+}
+
+export function collectAllCheckpointQuestions<T extends CheckpointQuestion>(questions: T[]): T[] {
+  return [...new Map(questions.map((question) => [question.id, question])).values()]
+    .filter((question) => CHECKPOINT_YEARS.includes(question.year as (typeof CHECKPOINT_YEARS)[number]))
+    .sort((a, b) => a.year - b.year || a.id.localeCompare(b.id));
 }
