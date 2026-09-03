@@ -73,4 +73,30 @@ describe('0478 parser v3 adapter', () => {
     expect(stems['4.b.i']).toContain('State the initial value of the first counter')
     expect(stems['4.b.ii']).toContain('Explain why the second counter is incremented')
   })
+
+  it('strips a margin token before a top-level question number', () => {
+    const ms: ParsedLeaf[] = [
+      { i: 0, path: '1.b', top: 1, a: '(b)', marks: 4 },
+      { i: 1, path: '2', top: 2, marks: 3 },
+      { i: 2, path: '3.a', top: 3, a: '(a)', marks: 4 },
+    ]
+    const qp = [
+      '1 (b) Explain the previous method.',
+      '[4]',
+      'IN 2 Three uses of arithmetic operators are shown.',
+      'Draw one line from each use to the correct result.',
+      '[3]',
+      '3 The purpose of this algorithm is to sort values.',
+      '(a) State the purpose of the flag.',
+      '[4]',
+      'Price',
+      '2 decimal places',
+    ]
+
+    const normalized = normalizeQpLinesV3(qp, ms)
+    expect(normalized[2]).toBe('2 Three uses of arithmetic operators are shown.')
+    const stems = parseQpV3(qp, ms)
+    expect(stems['2']).toContain('Three uses of arithmetic operators are shown')
+    expect(stems['2']).not.toContain('decimal places')
+  })
 })
