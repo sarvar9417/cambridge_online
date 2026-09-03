@@ -1,0 +1,90 @@
+name: 9618 source visual repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_papers:
+        description: Number of source QPs to repair in this run
+        required: false
+        default: '1'
+      paper_id:
+        description: Optional exact QP source_papers UUID
+        required: false
+        default: ''
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/9618-source-visual-repair.yml
+      - backend/src/jobs/source-visual-repair.ts
+      - backend/src/jobs/source-visual-repair-cli.ts
+      - backend/src/jobs/processors/source-visual-fidelity.ts
+      - backend/src/jobs/processors/asset-crop-store.ts
+      - backend/src/jobs/source-paper-file.ts
+      - backend/package.json
+
+concurrency:
+  group: 9618-source-visual-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_STORAGE_SECRET_KEY: ${{ secrets.SUPABASE_STORAGE_SECRET_KEY }}
+      DB_SSL_MODE: ${{ secrets.DB_SSL_MODE }}
+      DB_SSL_CA_BASE64: ${{ secrets.DB_SSL_CA_BASE64 }}
+      ASSET_STORAGE_BUCKET: question-assets
+      PDFTOPPM_PATH: /usr/bin/pdftoppm
+      PDFTOTEXT_PATH: /usr/bin/pdftotext
+      REPAIR_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit_papers || '1' }}
+      REPAIR_PAPER_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.paper_id || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check required secret presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in DATABASE_URL ANTHROPIC_API_KEY SUPABASE_URL SUPABASE_STORAGE_SECRET_KEY; do
+            if [ -n "${!key:-}" ]; then
+              echo "$key=present"
+            else
+              echo "$key=missing"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Source visual repair secrets are incomplete; no production write was attempted."
+            exit 2
+          fi
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install dependencies
+        run: npm ci
+      - name: Repair source visuals
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--apply --limit-papers="$REPAIR_LIMIT" --report="$RUNNER_TEMP/source-visual-repair-report.json")
+          if [ -n "$REPAIR_PAPER_ID" ]; then
+            args+=(--paper-id="$REPAIR_PAPER_ID")
+          fi
+          npm run corpus:visual-repair -- "${args[@]}"
+      - name: Upload repair report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-source-visual-repair-report
+          path: ${{ runner.temp }}/source-visual-repair-report.json
+          if-no-files-found: warn
+          retention-days: 14
