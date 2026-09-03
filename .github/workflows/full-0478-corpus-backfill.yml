@@ -13,9 +13,12 @@ on:
       - '.github/workflows/full-0478-corpus-backfill.yml'
       - 'backend/scripts/full-0478-corpus-backfill.py'
       - 'backend/src/database/catalogs/0478-2015-2022.json'
+      - 'backend/src/database/catalogs/0478-2023-2025.json'
       - 'backend/src/database/migrations/0100_0478_full_corpus_runner.sql'
       - 'backend/src/database/migrations/0101_syllabus_catalog_json_rpc.sql'
+      - 'backend/src/database/migrations/0103_extend_0478_sources_to_2028.sql'
       - 'supabase/functions/corpus-runner/index.ts'
+      - 'supabase/functions/corpus-runner/parser.ts'
 
 permissions:
   contents: read
