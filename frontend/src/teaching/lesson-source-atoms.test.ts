@@ -40,6 +40,19 @@ describe('source atom registry', () => {
     }
   });
 
+  it('keeps exact source data in the collapsed activity drawer instead of flooding the main rich-block canvas', () => {
+    for (const chapterNumber of [1, 13] as const) {
+      const chapter = lessonChapter(chapterNumber)!;
+      const atomSlideIds = new Set(sourceAtomsForChapter(chapterNumber).map((item) => item.targetSlideId));
+      for (const slideId of atomSlideIds) {
+        const slide = chapter.slides.find((item) => item.id === slideId)!;
+        expect(slide.activity?.title).toMatch(/BOOK PRACTICE|SOURCE DETAIL/);
+        expect(slide.activity?.prompt).toContain('Hodder p.');
+        expect(JSON.stringify(slide.richBlocks ?? [])).not.toContain('SOURCE ATOM');
+      }
+    }
+  });
+
   it('pins all Hodder activity and extension families instead of title-only summaries', () => {
     const ch1Refs = sourceAtomsForChapter(1).map((item) => item.sourceRef);
     for (const letter of 'ABCDEFGHI') expect(ch1Refs.some((ref) => ref.includes(`Activity 1${letter}`))).toBe(true);
