@@ -11,7 +11,7 @@ import './lesson-studio-presenter-fix.css';
 import './lesson-checkpoint-scroll.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
-type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
+type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string; hasDiagram:boolean; hasDependency:boolean };
 type QuestionResponse = { data: ExamPart[]; view:'parts'; unavailableFilters:string[]; nextCursor:string|null };
 
 const LESSON_CHAPTERS = [...SOURCE_CHAPTERS, CHAPTER_7].sort((a,b)=>a.number-b.number);
@@ -37,12 +37,12 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
         const ids=options.topics.filter(item=>item.code===subtopicCode).map(item=>item.subtopic_id);
         if(!ids.length) throw new Error('Subtopic topilmadi.');
 
-        // Load the complete board-ready set for every historical paper year. The Question Bank itself
-        // uses 120 as its broad result window; a single subtopic/year is far below that corpus bound.
+        // Load every approved question for this subtopic from each historical paper year. We keep the
+        // per-year window at the same broad 120-row ceiling used by Question Bank, but do not truncate
+        // the combined checkpoint list in the UI.
         const byYear=await Promise.all(CHECKPOINT_YEARS.map(async(year)=>{
           const qs=new URLSearchParams({
-            view:'parts',status:'approved',yearFrom:String(year),yearTo:String(year),
-            hasDiagram:'false',dependency:'independent',limit:'120',
+            view:'parts',status:'approved',yearFrom:String(year),yearTo:String(year),limit:'120',
           });
           ids.forEach(id=>qs.append('subtopicIds',id));
           const result=await api<QuestionResponse>(`/questions?${qs}`);
@@ -57,22 +57,23 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
   },[subtopicCode]);
   if(loading)return <div className="lesson-loading">Past paper savollari yuklanmoqda…</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
-  if(!questions.length)return <div className="lesson-empty">Bu bo‘lim uchun doskada mustaqil ko‘rsatishga tayyor savol topilmadi.</div>;
+  if(!questions.length)return <div className="lesson-empty">Bu bo‘lim uchun approved past-paper savoli topilmadi.</div>;
   const representedYears=[...new Set(questions.map(question=>question.year))].sort((a,b)=>a-b);
   const byYear=CHECKPOINT_YEARS.map(year=>({year,questions:questions.filter(question=>question.year===year)})).filter(group=>group.questions.length>0);
   let runningIndex=0;
   return <>
     <div className="lesson-exam-years"><strong>Paper coverage</strong>{CHECKPOINT_YEARS.map(year=><span className={representedYears.includes(year)?'available':'missing'} key={year}>{year}</span>)}</div>
-    <div className="lesson-exam-summary"><strong>{questions.length} ta approved savol</strong><span>2021–2025 · barcha board-ready savollar · pastga scroll qiling</span></div>
+    <div className="lesson-exam-summary"><strong>{questions.length} ta approved savol</strong><span>2021–2025 · barcha savollar · pastga scroll qiling</span></div>
     <div className="lesson-exam-scroll">{byYear.map(group=><section className="lesson-exam-year-group" key={group.year}>
       <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} ta savol</span></div>
       <div className="lesson-exam-grid">{group.questions.map(q=>{
         runningIndex+=1;
         const displayIndex=runningIndex;
+        const flags=[q.hasDiagram?'Diagram':'',q.hasDependency?'Context':''].filter(Boolean).join(' · ');
         return <article className="lesson-exam-card" key={q.id}>
           <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} ball</b></div>
           <p>{q.stem}</p>
-          <footer><span>{q.commandWord||'Question'}</span><span>{q.year}</span></footer>
+          <footer><span>{q.commandWord||'Question'}{flags?` · ${flags}`:''}</span><span>{q.year}</span></footer>
           <span className="lesson-exam-number">{String(displayIndex).padStart(2,'0')}</span>
         </article>;
       })}</div>
