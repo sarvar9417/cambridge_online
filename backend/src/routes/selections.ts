@@ -7,8 +7,10 @@ import type { Pool } from 'pg';
 
 const roleSchema = z.enum(['graded', 'context_only']);
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
+const renameSchema = z.object({ name: z.string().trim().min(1).max(120) });
 const itemSchema = z.object({ questionId: z.string().uuid(), role: roleSchema.default('graded') });
 const updateItemSchema = z.object({ role: roleSchema });
+const reorderSchema = z.object({ itemIds: z.array(z.string().uuid()).min(1).max(250).refine((ids) => new Set(ids).size === ids.length, 'Elementlar takrorlanmasligi kerak.') });
 const assignmentSchema = z.object({
   classId: z.string().uuid(),
   title: z.string().trim().min(3).max(120),
@@ -56,6 +58,19 @@ export function createSelectionsRouter(
     res.json(review);
   });
 
+  router.patch('/:id', async (req, res) => {
+    const body = renameSchema.parse(req.body);
+    const selection = await repository.rename(req.actor!, uuid.parse(req.params.id), body.name);
+    if (!selection) { res.status(404).json({ error: { code: 'not_found', message: 'Savatcha topilmadi.' } }); return; }
+    res.json(selection);
+  });
+
+  router.delete('/:id', async (req, res) => {
+    const removed = await repository.remove(req.actor!, uuid.parse(req.params.id));
+    if (!removed) { res.status(404).json({ error: { code: 'not_found', message: 'Savatcha topilmadi.' } }); return; }
+    res.status(204).send();
+  });
+
   router.post('/:id/assignment', async (req, res) => {
     if (!assignments) {
       res.status(503).json({ error: { code: 'assignment_handoff_unavailable', message: 'Assignment handoff sozlanmagan.' } });
@@ -87,6 +102,13 @@ export function createSelectionsRouter(
     );
     if (!result) { res.status(404).json({ error: { code: 'not_found', message: 'Tanlov elementi topilmadi.' } }); return; }
     res.json(result);
+  });
+
+  router.put('/:id/items/order', async (req, res) => {
+    const body = reorderSchema.parse(req.body);
+    const reordered = await repository.reorderItems(req.actor!, uuid.parse(req.params.id), body.itemIds);
+    if (!reordered) { res.status(404).json({ error: { code: 'not_found', message: 'Savatcha yoki elementlar topilmadi.' } }); return; }
+    res.json({ ok: true });
   });
 
   router.delete('/:id/items/:itemId', async (req, res) => {

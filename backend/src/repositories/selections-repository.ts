@@ -53,6 +53,27 @@ export class PgSelectionsRepository {
     ).rows[0];
   }
 
+  async rename(actor: Actor, selectionId: string, name: string) {
+    if (!this.eligible(actor)) return null;
+    return (
+      await this.pool.query(
+        `update selections set name=$4,updated_at=now()
+         where id=$1 and owner_id=$2 and school_id=$3
+         returning id,name,created_at,updated_at`,
+        [selectionId, actor.id, actor.schoolId, name],
+      )
+    ).rows[0] ?? null;
+  }
+
+  async remove(actor: Actor, selectionId: string) {
+    if (!this.eligible(actor)) return false;
+    const result = await this.pool.query(
+      `delete from selections where id=$1 and owner_id=$2 and school_id=$3 returning id`,
+      [selectionId, actor.id, actor.schoolId],
+    );
+    return Boolean(result.rowCount);
+  }
+
   async items(actor: Actor, selectionId: string): Promise<SelectionItemPortable[] | null> {
     if (!(await this.owns(actor, selectionId))) return null;
     const rows = (
@@ -155,6 +176,39 @@ export class PgSelectionsRepository {
     if (!result.rowCount) return null;
     await this.pool.query(`update selections set updated_at=now() where id=$1`, [selectionId]);
     return result.rows[0];
+  }
+
+  async reorderItems(actor: Actor, selectionId: string, itemIds: string[]) {
+    if (!this.eligible(actor)) return false;
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const owned = await client.query(
+        `select count(si.id)::int as total,
+           count(si.id) filter (where si.id=any($4::uuid[]))::int as matched
+         from selections s left join selection_items si on si.selection_id=s.id
+         where s.id=$1 and s.owner_id=$2 and s.school_id=$3`,
+        [selectionId, actor.id, actor.schoolId, itemIds],
+      );
+      if (owned.rows[0]?.total !== itemIds.length || owned.rows[0]?.matched !== itemIds.length) {
+        await client.query('rollback');
+        return false;
+      }
+      await client.query(
+        `update selection_items si set sort_order=ordered.position
+         from unnest($2::uuid[]) with ordinality as ordered(id,position)
+         where si.selection_id=$1 and si.id=ordered.id`,
+        [selectionId, itemIds],
+      );
+      await client.query(`update selections set updated_at=now() where id=$1`, [selectionId]);
+      await client.query('commit');
+      return true;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async removeItem(actor: Actor, selectionId: string, itemId: string) {
