@@ -19,6 +19,7 @@ const QUESTION_PATH = /^\d{1,2}(?:\([a-z]\))?(?:\([ivx]+\))?$/i
 const INTEGER_MARK = /^\d{1,2}$/
 const MIRROR_NOISE = /(?:papacambridge\.com|Downloaded from PapaCambridge|Licensed for hosting|Re-uploading, mirroring or re-hosting|Trace ID:)/i
 const MARGIN_PREFIX = /^(?:THIS|IN|WRITE|NOT|DO|MARGIN)\s+(?=(?:\([a-zivx]+\)|\d{1,2}\b))/
+const REVERSED_MARGIN_PREFIX = /^(?:(?:OD|TON|ETIRW|NI|SIHT|NIGRAM)\s+)+(?=\([a-zivx]+\))/
 const MARKED_ROMAN_ROW = /^(\d{1,2})\(([a-z])\)\(([ivx]+)\)\s+.*\s+(\d{1,2})\s*$/i
 const ROMAN_SEQUENCE = ['i','ii','iii','iv','v','vi','vii','viii','ix','x'] as const
 const STANDALONE_BRACKET_MARK = /(?:^|\s)\[\s*(\d{1,2})\s*\](?=\s|$)/g
@@ -30,7 +31,7 @@ function compact(value: string): string {
 function normalizedQpLine(value: string): string {
   const line = compact(value)
   if (!line || MIRROR_NOISE.test(line)) return ''
-  return line.replace(MARGIN_PREFIX, '')
+  return line.replace(MARGIN_PREFIX, '').replace(REVERSED_MARGIN_PREFIX, '')
 }
 
 function romanKey(line: string): { top: number; part: string; roman: string; mark: number } | null {
