@@ -9,6 +9,7 @@ syllabus-version taxonomy, and applies each paper transactionally.
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
 import os
@@ -29,8 +30,13 @@ RUNNER_URL = os.environ.get(
     "CORPUS_RUNNER_URL",
     "https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner",
 )
-CATALOG = Path("backend/src/database/catalogs/0478-2015-2022.json")
+CATALOGS = (
+    Path("backend/src/database/catalogs/0478-2015-2022.json"),
+    Path("backend/src/database/catalogs/0478-2023-2025.json"),
+)
 YEAR_FOLDERS = {
+    2026: "1F9SRtj85iO7ciaE2B5hIKrTR66Czn5l0",
+    2025: "11BB4bIy6cU1Eng2qQOJx6lK8Um6-dEOY",
     2024: "1SdW1OU_2PXzJQa2Jxk65m7i6fkFjsWqq",
     2023: "1Tu7aQgae0tYPC-1FswFa9gBqErRptxjS",
     2022: "14im3JAnbiotYym_4NR9eXKm2Zlbq3hk_",
@@ -63,6 +69,36 @@ SPECIFIC_RULES = [
     (r"\b(robot|robotics)\b", ("robot",), 0.25),
     (r"\b(artificial intelligence|machine learning|expert system)\b", ("artificial intelligence",), 0.25),
 ]
+
+
+def catalog_payloads() -> list[dict[str, Any]]:
+    """Return exact non-overlapping 0478 syllabus families used by this corpus.
+
+    Cambridge keeps the 2026-2028 topic/subtopic structure aligned with the
+    2023-2025 family. We clone that audited catalog and apply the syllabus-core
+    wording updates that affect our searchable LO text rather than mapping 2026
+    papers to the expired 2023-2025 syllabus row.
+    """
+    historical = json.loads(CATALOGS[0].read_text(encoding="utf-8"))
+    revised = json.loads(CATALOGS[1].read_text(encoding="utf-8"))
+    current = copy.deepcopy(revised)
+    current.update({"versionLabel": "2026-2028", "validFrom": 2026, "validTo": 2028, "isActive": False})
+
+    objective_updates = {
+        "1.1-lo-06": "Use the two’s complement number system to represent positive and negative 8-bit binary integers",
+        "3.1-lo-02": "(a) Understand the purpose of the components in a CPU, in a computer that has a Von Neumann architecture. (b) Describe the process of the fetch–decode–execute (FDE) cycle including the role of each component in the process",
+    }
+    seen: set[str] = set()
+    for topic in current.get("topics", []):
+        for subtopic in topic.get("subtopics", []):
+            for lo in subtopic.get("learningObjectives", []):
+                code = str(lo.get("code", ""))
+                if code in objective_updates:
+                    lo["text"] = objective_updates[code]
+                    seen.add(code)
+    if seen != set(objective_updates):
+        raise RuntimeError(f"2026_catalog_objective_update_missing:{sorted(set(objective_updates) - seen)}")
+    return [historical, revised, current]
 
 
 def oidc_token() -> str:
@@ -220,9 +256,11 @@ def answer_kind(stem: str) -> str:
 
 def main() -> int:
     report: dict[str, Any] = {"started_at": time.time(), "manifest": {}, "papers": [], "failures": []}
-    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
-    print("[0478] importing/checking historical syllabus catalog", flush=True)
-    report["catalog"] = runner("catalog", catalog=catalog).get("result")
+    report["catalogs"] = []
+    for catalog in catalog_payloads():
+        version = str(catalog.get("versionLabel", "unknown"))
+        print(f"[0478] importing/checking syllabus catalog {version}", flush=True)
+        report["catalogs"].append(runner("catalog", catalog=catalog).get("result"))
 
     manifest = discover_manifest()
     pairs = audit_pairs(manifest)
@@ -233,7 +271,7 @@ def main() -> int:
         print(f"[0478] stage batch {batch_no}", flush=True)
         runner("stage", sources=batch)
 
-    boot = runner("bootstrap", syllabus_code="0478", year_from=2015, year_to=2024)["data"]
+    boot = runner("bootstrap", syllabus_code="0478", year_from=2015, year_to=2026)["data"]
     sources = boot.get("sources") or []
     coverage_all = boot.get("coverage") or []
     coverage_by_key = {(str(x["syllabus_id"]), int(x["component"])): x for x in coverage_all}
