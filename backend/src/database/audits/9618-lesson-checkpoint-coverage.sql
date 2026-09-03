@@ -3,6 +3,10 @@
 -- Chapter 13 lesson checkpoints must resolve to at least one approved 2021-2025
 -- past-paper question. Hodder-only extension parts intentionally use the
 -- explicit no-exact-question state and are not listed here.
+--
+-- The binary/decimal-prefix objective (1.1-lo-00) is deliberately explicit:
+-- it was present in the official Cambridge 9618 historical syllabus but was
+-- missing from the normalized historical LO catalogue until migration 0098.
 
 DO $$
 DECLARE
@@ -10,7 +14,7 @@ DECLARE
 BEGIN
   WITH required(code) AS (
     VALUES
-      ('1.1-lo-01'),('1.1-lo-02'),('1.1-lo-03'),('1.1-lo-04'),('1.1-lo-05'),
+      ('1.1-lo-00'),('1.1-lo-01'),('1.1-lo-02'),('1.1-lo-03'),('1.1-lo-04'),('1.1-lo-05'),
       ('1.2-lo-01'),('1.2-lo-02'),('1.2-lo-03'),('1.2-lo-04'),('1.2-lo-05'),
       ('1.3-lo-01'),('1.3-lo-02'),('1.3-lo-03'),('1.3-lo-04'),
       ('13.1-lo-01'),('13.1-lo-02'),('13.1-lo-03'),('13.1-lo-04'),
@@ -43,7 +47,7 @@ END $$;
 
 WITH required(code) AS (
   VALUES
-    ('1.1-lo-01'),('1.1-lo-02'),('1.1-lo-03'),('1.1-lo-04'),('1.1-lo-05'),
+    ('1.1-lo-00'),('1.1-lo-01'),('1.1-lo-02'),('1.1-lo-03'),('1.1-lo-04'),('1.1-lo-05'),
     ('1.2-lo-01'),('1.2-lo-02'),('1.2-lo-03'),('1.2-lo-04'),('1.2-lo-05'),
     ('1.3-lo-01'),('1.3-lo-02'),('1.3-lo-03'),('1.3-lo-04'),
     ('13.1-lo-01'),('13.1-lo-02'),('13.1-lo-03'),('13.1-lo-04'),
