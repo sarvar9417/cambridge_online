@@ -5,9 +5,11 @@ import { EXAMPLE_COMPLETE_SOURCE_ATOMS } from './lesson-source-atoms-example-com
 
 export type { LessonSourceAtom } from './lesson-source-atoms';
 
-const correctedBaseAtoms = SOURCE_ATOMS.map((item): LessonSourceAtom =>
-  item.targetSlideId === 'h13-hashing' ? { ...item, targetSlideId: 'h13-hash-address' } : item,
-);
+const correctedBaseAtoms = SOURCE_ATOMS.map((item): LessonSourceAtom => {
+  if (item.targetSlideId === 'h13-hashing') return { ...item, targetSlideId: 'h13-hash-address' };
+  if (item.targetSlideId === 'h13-hodder-review-3') return { ...item, targetSlideId: 'h13-hodder-review-2' };
+  return item;
+});
 
 export const COMPLETE_SOURCE_ATOMS: LessonSourceAtom[] = [
   ...correctedBaseAtoms,
