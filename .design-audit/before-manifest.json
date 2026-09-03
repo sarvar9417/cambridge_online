@@ -1,0 +1,189 @@
+[
+  {
+    "name": "01-login",
+    "file": ".design-audit/after/01-login.png",
+    "role": "none",
+    "route": "",
+    "theme": "light",
+    "mobile": false,
+    "text": "CamPath Tizim Salom! 👋 Cambridge 9618 — davom etamizmi? Login yoki email Parol 👁 Kirish → Parolni unutdingizmi? · Hisob yaratish Cambridge",
+    "shell": false,
+    "h1": "Salom! 👋",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "02-dashboard-light",
+    "file": ".design-audit/after/02-dashboard-light.png",
+    "role": "owner",
+    "route": "#boshqaruv/holat",
+    "theme": "light",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Umumiy holat",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "03-dashboard-dark",
+    "file": ".design-audit/after/03-dashboard-dark.png",
+    "role": "owner",
+    "route": "#boshqaruv/holat",
+    "theme": "dark",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Umumiy holat",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "04-corpus",
+    "file": ".design-audit/after/04-corpus.png",
+    "role": "owner",
+    "route": "#boshqaruv/korpus",
+    "theme": "light",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Korpus",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "05-quality",
+    "file": ".design-audit/after/05-quality.png",
+    "role": "owner",
+    "route": "#boshqaruv/sifat",
+    "theme": "light",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Sifat",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "06-system",
+    "file": ".design-audit/after/06-system.png",
+    "role": "owner",
+    "route": "#boshqaruv/tizim",
+    "theme": "dark",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Tizim",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "07-lessons",
+    "file": ".design-audit/after/07-lessons.png",
+    "role": "teacher",
+    "route": "#oqitish/darslar",
+    "theme": "light",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 O‘QITISH Darslar Savol banki Tanlovlarim Topshiriqlar Baholash O‘quvchilar Yordam Chiqish DY D. ",
+    "shell": true,
+    "h1": "Darslar",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "08-student-home",
+    "file": ".design-audit/after/08-student-home.png",
+    "role": "student",
+    "route": "#oquvchi/uy",
+    "theme": "light",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 O‘RGANISH Ish stoli Vazifalar Natijalar O‘rganish Yordam Chiqish AK A. Karimov O‘quvchi CamPath ",
+    "shell": true,
+    "h1": "Savol banki",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "09-student-results",
+    "file": ".design-audit/after/09-student-results.png",
+    "role": "student",
+    "route": "#oquvchi/natijalar",
+    "theme": "dark",
+    "mobile": false,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 O‘RGANISH Ish stoli Vazifalar Natijalar O‘rganish Yordam Chiqish AK A. Karimov O‘quvchi Natijala",
+    "shell": true,
+    "h1": "Natijalar",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "10-dashboard-mobile",
+    "file": ".design-audit/after/10-dashboard-mobile.png",
+    "role": "owner",
+    "route": "#boshqaruv/holat",
+    "theme": "light",
+    "mobile": true,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 BOSHQARUV Ish stoli Odamlar 3 Korpus 12 Sifat Tizim O‘QITISH Darslar Savol banki Tanlovlarim Top",
+    "shell": true,
+    "h1": "Umumiy holat",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  },
+  {
+    "name": "11-student-home-mobile",
+    "file": ".design-audit/after/11-student-home-mobile.png",
+    "role": "student",
+    "route": "#oquvchi/uy",
+    "theme": "light",
+    "mobile": true,
+    "text": "Asosiy qismga o‘tish CamPath Cambridge 9618 O‘RGANISH Ish stoli Vazifalar Natijalar O‘rganish Yordam Chiqish AK A. Karimov O‘quvchi Ish stol",
+    "shell": true,
+    "h1": "Umumiy holat",
+    "overflowX": 0,
+    "fonts": [
+      "Inter Variable",
+      "Source Serif 4 Variable",
+      "JetBrains Mono Variable"
+    ]
+  }
+]

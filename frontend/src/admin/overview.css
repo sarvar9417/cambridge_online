@@ -21,7 +21,6 @@
 .ov-head time { font-size: 0.8rem; color: var(--text-muted); }
 
 .ov-loading, .ov-error { margin: 0; font-size: 0.9rem; }
-.ov-loading { color: var(--text-muted); }
 .ov-error {
   color: var(--missed);
   background: var(--missed-bg);
@@ -29,6 +28,28 @@
   padding: 0.7rem 0.9rem;
   border-radius: var(--radius);
 }
+
+/* Loading keeps the dashboard's shape: skeletons fill the same metrics and
+   cards the real data will occupy, so the layout does not jump on arrival. */
+.ov-skel {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.ov-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 80%, transparent), transparent);
+  animation: ov-shimmer 1.5s ease-in-out infinite;
+}
+.ov-skel--tall { min-height: 320px; }
+@keyframes ov-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .ov-skel::after { animation: none; } }
 
 /* The one thing that stops work. Red is spent here and nowhere else. */
 .ov-blocker {

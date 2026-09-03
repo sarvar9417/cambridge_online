@@ -70,10 +70,15 @@
   font-size: 1.05rem;
 }
 
+/* The same rotated-square mark the product shell uses, so a signed-out visitor
+   already sees the identity they will recognise once inside. */
 .auth-mark {
-  color: var(--accent);
-  font-size: 1.15rem;
-  line-height: 1;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .auth-card {

@@ -4,3 +4,28 @@
 html.lesson-presenting{background:#0c1220}html.lesson-presenting .shell-rail,html.lesson-presenting .shell-top,html.lesson-presenting .shell-scrim{display:none!important}html.lesson-presenting .shell-body{margin:0!important}html.lesson-presenting .shell-main{padding:0!important;max-width:none!important}html.lesson-presenting .lesson-studio{height:100vh;min-height:100vh;border:0;border-radius:0;background:#0c1220}html.lesson-presenting .lesson-toolbar{background:#101827;border-color:#243048;color:#fff}html.lesson-presenting .lesson-back{color:#c1cada!important}html.lesson-presenting .lesson-toolbar-actions button{background:#fff;color:#152037}html.lesson-presenting .lesson-outline{background:#101827;border-color:#243048}html.lesson-presenting .lesson-outline button{color:#9ca9bb}html.lesson-presenting .lesson-outline button.active{color:#fff;background:rgba(255,255,255,.09)}html.lesson-presenting .lesson-slide{margin:12px;border:0;border-radius:16px;padding:clamp(44px,6vw,92px)}html.lesson-presenting .lesson-nav{background:#101827;border-color:#243048}html.lesson-presenting .lesson-nav>button{color:#e8edf6}
 @media(max-width:1050px){.lesson-workspace{grid-template-columns:1fr}.lesson-outline{display:none}.lesson-slide{grid-template-columns:1fr}.lesson-visual{min-height:220px}.lesson-exam-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lesson-studio{height:auto;min-height:calc(100vh - 100px)}}
 @media(max-width:720px){.lesson-library-grid{grid-template-columns:1fr}.lesson-library>header{align-items:flex-start;flex-direction:column}.lesson-chapter-card{min-height:450px}.lesson-toolbar{grid-template-columns:auto 1fr auto;padding:0 10px}.lesson-toolbar-title strong{display:none}.lesson-toolbar-actions>span{display:none}.lesson-toolbar-actions button{font-size:0;padding:10px}.lesson-toolbar-actions button:after{content:'↗';font-size:16px}.lesson-slide{margin:8px;padding:30px 22px}.lesson-copy h1{font-size:36px}.lesson-terms{grid-template-columns:1fr}.lesson-exam-grid{grid-template-columns:1fr}.lesson-exam-intro{display:block}.lesson-slide-exam{padding:26px 20px}.lesson-nav{grid-template-columns:85px 1fr 85px;padding:0 6px}.lesson-nav>div{gap:3px}.lesson-nav>div button{width:5px;height:5px}}
+
+/* ---- Canvas layer (added for theme coherence) ----
+   The teaching studio is a projection workspace: it keeps its own light canvas
+   in both themes, but it must sit on that canvas explicitly instead of letting
+   the surrounding shell background show through. Without a surface of its own,
+   dark theme turned the chapter library's dark ink text unreadable on the dark
+   page background. */
+.lesson-library{
+  background:#f6f8fc;
+  border:1px solid var(--border);
+  border-radius:var(--radius-xl);
+  box-shadow:var(--shadow);
+  padding:clamp(20px,3vw,36px) clamp(12px,2vw,26px) 48px;
+}
+.lesson-library .lesson-chapter-card{box-shadow:0 14px 34px rgb(26 40 74 / 7%)}
+.lesson-library .lesson-chapter-card:hover{box-shadow:0 22px 50px rgb(26 40 74 / 13%)}
+@media (max-width:720px){.lesson-library{padding:16px 10px 40px}}
+
+/* In fullscreen the studio is already a dedicated dark stage (see
+   lesson-studio-full.css); outside fullscreen the dark shell surrounds a light
+   board, so the sheet edge must track the active border token. */
+[data-theme='dark'] .lesson-library{border-color:var(--border-strong);box-shadow:0 18px 48px rgb(0 0 0 / 40%)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme='light']) .lesson-library{border-color:var(--border-strong);box-shadow:0 18px 48px rgb(0 0 0 / 40%)}
+}

@@ -29,7 +29,7 @@
   --border-strong: #c7d2df;
 
   --text: #142033;
-  --text-muted: #68758a;
+  --text-muted: #5f6d82;
 
   --accent: #1769d2;
   --accent-strong: #0f56b3;
@@ -38,33 +38,48 @@
   --accent-contrast: #ffffff;
 
   /* Mark point states. */
-  --awarded: #2d7d5a;
+  --awarded: #27734f;
   --awarded-bg: #eaf5ef;
   --missed: #a63d40;
   --missed-bg: #fbeeee;
   /* Darker than the classic #b8860b, which only reaches 3.3:1 on this
      background and fails as text. */
-  --uncertain: #b86412;
+  --uncertain: #a85a0e;
   --uncertain-bg: #fff3e6;
 
   --focus-ring: #1769d2;
   --shadow: 0 12px 32px rgb(18 42 72 / 8%);
   --shadow-lg: 0 24px 56px rgb(18 42 72 / 14%);
 
-  --radius: 7px;
+  /* Radii: controls stay tight, panels breathe, pills are for status. */
+  --radius-sm: 6px;
+  --radius: 8px;
   --radius-lg: 12px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --transition: 140ms ease;
+
   --nav-bg: #08233b;
   --nav-active: #153b5e;
+  --nav-active-text: #ffffff;
+  --nav-hover: rgb(255 255 255 / 5%);
+  --nav-accent: #4d9cff;
   --nav-text: #f6f9fd;
   --nav-muted: #aebed0;
   --nav-border: #203e58;
+  --brand-text: #f7fbff;
+  --brand-mark: #75adf0;
+  --avatar-bg: #d9e5f2;
+  --avatar-fg: #14263c;
   --context-bg: #fbfcfe;
 
-  --font-ui: Inter, system-ui, -apple-system, sans-serif;
+  /* The @fontsource imports in main.tsx ship these, so the product no longer
+     depends on which fonts happen to be installed on the viewer's machine. */
+  --font-ui: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
   /* Question and answer text is reading matter, not interface: serif separates
      it from the controls around it and is easier over long passages. */
-  --font-read: 'Source Serif 4', Georgia, serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-read: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   color-scheme: light;
 }

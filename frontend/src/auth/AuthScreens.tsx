@@ -205,7 +205,7 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
 
       <header className="auth-topbar">
         <div className="auth-brand">
-          <span className="auth-mark" aria-hidden="true">◆</span>
+          <span className="auth-mark" aria-hidden="true" />
           <span>CamPath</span>
         </div>
         <ThemeToggle />

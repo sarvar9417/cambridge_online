@@ -4,6 +4,12 @@ import { App } from './App';
 import { applyStoredTheme } from './lib/theme';
 import { parseRoute } from './lib/router';
 import { installQuestionStructureEnhancer } from './lib/question-structure-dom';
+// The design tokens name Inter, Source Serif 4 and JetBrains Mono; shipping the
+// fonts makes every operating system render the same product instead of
+// falling back to whatever sans/serif/mono the machine happens to have.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/source-serif-4';
+import '@fontsource-variable/jetbrains-mono';
 import './theme.css';
 import './styles.css';
 import './question-structure.css';

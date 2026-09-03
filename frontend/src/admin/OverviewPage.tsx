@@ -41,7 +41,25 @@ export function OverviewPage() {
   }, []);
 
   if (error) return <p className="ov-error" role="alert">{error}</p>;
-  if (!data) return <p className="ov-loading">Yuklanmoqda…</p>;
+  if (!data) {
+    // A layout-shaped skeleton, so the first paint already teaches where the
+    // numbers will sit instead of replacing the dashboard with a text line.
+    return (
+      <div className="ov" aria-busy="true" aria-label="Yuklanmoqda">
+        <header className="ov-head"><h1>Umumiy holat</h1></header>
+        <div className="ov-metrics" aria-hidden="true">
+          {[0, 1, 2, 3].map((index) => <div className="ov-metric ov-skel" key={index} />)}
+        </div>
+        <div className="ov-cols" aria-hidden="true">
+          <section className="ov-card ov-skel ov-skel--tall" />
+          <div className="ov-stack">
+            <section className="ov-card ov-skel" />
+            <section className="ov-card ov-skel" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const { waiting, corpus, syllabus, spend, blockers } = data;
   const fill = corpus.totalPapers ? Math.round((corpus.ingestedPapers / corpus.totalPapers) * 100) : 0;
