@@ -3,6 +3,7 @@ import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import {
   LESSON_CHAPTERS as SOURCE_CHAPTERS,
+  type LessonFigure,
   type LessonRichBlock,
   type LessonSlide,
   type LessonVisual,
@@ -35,6 +36,38 @@ function Visual({ kind }: { kind?: LessonVisual }) {
   return <div className={`lesson-visual lesson-visual-${kind}`} aria-hidden="true">{labels[kind].map((item,index)=><span key={`${item}-${index}`}>{item}</span>)}</div>;
 }
 
+function WaveFigure({ figure }: { figure:Extract<LessonFigure,{kind:'wave'}> }) {
+  const width=620,height=figure.series.length*118;
+  return <div className="hodder-figure hodder-wave-figure"><strong>{figure.title}</strong><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={figure.title}>
+    {figure.series.map((series,index)=>{
+      const top=index*118,mid=top+62,amplitude=34;
+      const points=Array.from({length:121},(_,i)=>{
+        const x=46+(i/120)*540;
+        const y=mid-Math.sin((i/120)*Math.PI*2*series.cycles)*amplitude;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      const samples=series.samples?Array.from({length:series.samples},(_,i)=>{
+        const x=46+(i/(series.samples!-1))*540;
+        const y=mid-Math.sin((i/(series.samples!-1))*Math.PI*2*series.cycles)*amplitude;
+        return <circle key={i} cx={x} cy={y} r="3.4"/>;
+      }):null;
+      return <g key={series.label}>
+        <text x="46" y={top+17}>{series.label}</text>
+        <line x1="46" y1={mid} x2="586" y2={mid}/>
+        <polyline points={points}/>{samples}
+      </g>;
+    })}
+  </svg>{figure.caption&&<p>{figure.caption}</p>}</div>;
+}
+
+function FigureBlock({ figure }: { figure:LessonFigure }) {
+  if(figure.kind==='wave')return <WaveFigure figure={figure}/>;
+  if(figure.kind==='grid')return <figure className="hodder-figure hodder-grid-figure"><strong>{figure.title}</strong><div className="hodder-pixel-grid" style={{gridTemplateColumns:`repeat(${Math.max(...figure.rows.map(row=>row.length))}, 1fr)`}}>{figure.rows.flatMap((row,rowIndex)=>[...row].map((symbol,columnIndex)=><span data-symbol={symbol} key={`${rowIndex}-${columnIndex}`}>{symbol}</span>))}</div>{figure.legend&&<div className="hodder-figure-legend">{figure.legend.map(item=><span key={`${item.symbol}-${item.label}`}><b data-symbol={item.symbol}>{item.symbol}</b>{item.label}</span>)}</div>}{figure.caption&&<figcaption>{figure.caption}</figcaption>}</figure>;
+  if(figure.kind==='sequence')return <figure className="hodder-figure hodder-sequence-figure"><strong>{figure.title}</strong><div className="hodder-sequence">{figure.items.map((item,index)=><div className="hodder-sequence-node-wrap" key={`${item.label}-${index}`}><div className="hodder-sequence-node"><b>{item.label}</b>{item.note&&<small>{item.note}</small>}</div>{index<figure.items.length-1&&<span className="hodder-sequence-arrow">→</span>}</div>)}</div>{figure.caption&&<figcaption>{figure.caption}</figcaption>}</figure>;
+  if(figure.kind==='bitfield')return <figure className="hodder-figure hodder-bitfield-figure"><strong>{figure.title}</strong><div className="hodder-bitfield-list">{figure.fields.map((field,index)=><div className="hodder-bitfield-row" key={`${field.label}-${index}`}><div><b>{field.label}</b>{field.detail&&<small>{field.detail}</small>}</div><div className="hodder-bitfield-bits">{field.bits.split(/\s+/).filter(Boolean).map((bit,bitIndex)=>bit==='|'?<i key={bitIndex}/>:<span key={bitIndex}>{bit}</span>)}</div></div>)}</div>{figure.caption&&<figcaption>{figure.caption}</figcaption>}</figure>;
+  return <figure className="hodder-figure hodder-pixel-scale-figure"><strong>{figure.title}</strong><div className="hodder-pixel-scale">{figure.stages.map((stage,index)=><div className={`hodder-pixel-stage level-${Math.max(1,Math.min(5,stage.level))}`} key={`${stage.label}-${index}`}><div aria-hidden="true">{Array.from({length:16},(_,i)=><span key={i}/>)}</div><b>{stage.label}</b>{stage.note&&<small>{stage.note}</small>}</div>)}</div>{figure.caption&&<figcaption>{figure.caption}</figcaption>}</figure>;
+}
+
 function RichBlock({ block }: { block:LessonRichBlock }) {
   if(block.kind==='paragraph') return <p className="hodder-paragraph">{block.text}</p>;
   if(block.kind==='bullets') return <ul className="hodder-bullets">{block.items.map(item=><li key={item}>{item}</li>)}</ul>;
@@ -42,13 +75,15 @@ function RichBlock({ block }: { block:LessonRichBlock }) {
   if(block.kind==='steps') return <div className="hodder-steps">{block.title&&<strong>{block.title}</strong>}<ol>{block.items.map(item=><li key={item}>{item}</li>)}</ol></div>;
   if(block.kind==='callout') return <aside className={`hodder-callout tone-${block.tone||'info'}`}><span>{block.tone==='extension'?'EXTENSION':block.tone==='activity'?'ACTIVITY':'NOTE'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
   if(block.kind==='comparison') return <div className="hodder-comparison"><div><strong>{block.leftTitle}</strong>{block.rows.map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</div><div><strong>{block.rightTitle}</strong>{block.rows.map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</div></div>;
+  if(block.kind==='source-note') return <aside className="hodder-source-note"><header><span>SOURCE FIDELITY</span><strong>{block.title}</strong></header><div><section><b>{block.sourceLabel}</b><p>{block.sourceText}</p></section><section><b>{block.examSafeLabel}</b><p>{block.examSafeText}</p></section></div></aside>;
+  if(block.kind==='figure') return <FigureBlock figure={block.figure}/>;
   return <div className="hodder-table-wrap"><table className="hodder-table"><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,index)=><td key={`${rowIndex}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
 function SourceTrace({ slide }: { slide:LessonSlide }) {
   const pages=slide.sourcePages??[],elements=slide.sourceElements??[];
   if(!pages.length&&!elements.length)return null;
-  return <details className="lesson-source-trace"><summary>Hodder source</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
+  return <details className="lesson-source-trace"><summary>{slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
 }
 
 function ExamPractice({ slide }: { slide:LessonSlide }) {
