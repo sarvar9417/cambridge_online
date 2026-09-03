@@ -6,6 +6,14 @@ import { z } from 'zod';
 const backendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadEnv({ path: resolve(backendRoot, '../.env'), quiet: true });
 
+const normalizeEmptyEnv = (env: NodeJS.ProcessEnv) => {
+  const next: NodeJS.ProcessEnv = { ...env };
+  for (const key of Object.keys(next)) {
+    if (next[key] === '') next[key] = undefined;
+  }
+  return next;
+};
+
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
@@ -31,7 +39,7 @@ const configSchema = z.object({
   EMAIL_FROM: z.string().min(1).optional(),
 });
 
-const parsed = configSchema.parse(process.env);
+const parsed = configSchema.parse(normalizeEmptyEnv(process.env));
 export const config = {
   ...parsed,
   DB_POOL_MAX: parsed.DB_POOL_MAX ?? (process.env.VERCEL ? 2 : 10),
