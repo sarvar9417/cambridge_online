@@ -48,6 +48,16 @@ export type LessonRichBlock =
   | { kind: 'callout'; tone?: 'info' | 'warning' | 'activity' | 'extension'; title: string; text: string }
   | { kind: 'comparison'; leftTitle: string; rightTitle: string; rows: Array<[string,string]> }
   | { kind: 'source-note'; title: string; sourceLabel: string; sourceText: string; examSafeLabel: string; examSafeText: string }
+  | {
+      kind: 'source-task';
+      task: {
+        sourceRef: string;
+        page: number;
+        tone: 'prior' | 'activity' | 'extension' | 'review';
+        instruction: string;
+        items: string[];
+      };
+    }
   | { kind: 'figure'; figure: LessonFigure };
 
 export type HodderLessonSlide = LessonSlide & {
