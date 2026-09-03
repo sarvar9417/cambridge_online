@@ -22,25 +22,25 @@ const atomDrawerPrompt = (slide: HodderLessonSlide, atoms: LessonSourceAtom[]) =
 };
 
 const boardPracticeBlocks = (atoms: LessonSourceAtom[]): LessonRichBlock[] =>
-  atoms.filter(isBoardPracticeAtom).flatMap((atom) => {
+  atoms.filter(isBoardPracticeAtom).map((atom) => {
     const [instruction, ...items] = atom.needles;
-    const tone: 'activity' | 'extension' = atom.kind === 'extension' ? 'extension' : 'activity';
-    const blocks: LessonRichBlock[] = [
-      {
-        kind: 'callout',
+    const tone = atom.kind === 'prior'
+      ? 'prior'
+      : atom.kind === 'extension'
+        ? 'extension'
+        : atom.kind === 'review'
+          ? 'review'
+          : 'activity';
+    return {
+      kind: 'source-task',
+      task: {
+        sourceRef: atom.sourceRef,
+        page: atom.page,
         tone,
-        title: `${atom.sourceRef} · Hodder p.${atom.page}`,
-        text: instruction ?? `Complete the source task from Hodder p.${atom.page}.`,
+        instruction: instruction ?? `Complete the source task from Hodder p.${atom.page}.`,
+        items,
       },
-    ];
-    if (items.length) {
-      blocks.push({
-        kind: 'code',
-        title: `${atom.sourceRef} · exact task data`,
-        lines: items,
-      });
-    }
-    return blocks;
+    };
   });
 
 const enrichSlide = (slide: HodderLessonSlide): HodderLessonSlide => {
