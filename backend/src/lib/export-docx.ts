@@ -1,5 +1,6 @@
 import type { ExportMode, ExportQuestion } from './export-html.js';
 import { assertPortableAssetCoverage } from './export-html.js';
+import { structureQuestionText } from './question-structure.js';
 
 const x=(value:unknown)=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const run=(text:string,bold=false,mono=false)=>`<w:r><w:rPr>${bold?'<w:b/>':''}${mono?'<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>':''}</w:rPr><w:t xml:space="preserve">${x(text)}</w:t></w:r>`;
@@ -40,14 +41,21 @@ function contextXml(question:ExportQuestion,ctx:BuildContext){
   if(!blocks.length)return question.context?para(question.context):'';
   return blocks.map(block=>`${block.displayRef?para(block.displayRef,{bold:true}):''}${block.context?para(block.context):''}${(block.assets??[]).map(asset=>asset.contentMd?assetXml(asset.contentMd,asset.kind,asset.altText,ctx):'').join('')}`).join('');
 }
+function stemXml(value:string){return structureQuestionText(value).map(block=>{
+  if(block.type==='code')return para(block.text,{mono:true});
+  if(block.type==='list')return block.items.map(item=>para(`•  ${item}`)).join('');
+  if(block.type==='table')return markdownTable(block.rows.join('\n'))??para(block.rows.join('\n'),{mono:true});
+  if(block.type==='task')return `${para('TASK',{bold:true})}${para(block.text,{bold:true})}`;
+  return para(block.text);
+}).join('')}
 function schemeXml(question:ExportQuestion){const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';return warning+((question.points??[]).map(point=>para(`${point.code}  ${point.text}  [${point.marks}]`)).join('')||para('No atomic mark-scheme points are available for this item.'))}
 function answerSpace(question:ExportQuestion){const count=Math.max(0,Math.min(12,question.answerLines??Math.max(2,question.marks*2)));return Array.from({length:count},()=>para('________________________________________________________________________________')).join('')}
 
 function documentXml(title:string,questions:ExportQuestion[],mode:ExportMode,ctx:BuildContext){
   const total=questions.reduce((sum,q)=>sum+(q.role==='context_only'?0:q.marks),0);
-  const header=`${para(title,{style:'Title'})}${para('Cambridge International AS & A Level Computer Science 9618')}${para(`Total: ${total}`,{bold:true})}`;
+  const header=`${para(title,{style:'Title'})}${para('Cambridge International Computer Science')}${para(`Total: ${total}`,{bold:true})}`;
   const candidate=mode==='mark_scheme'?para('Mark Scheme',{style:'Heading1'}):para('Name: ______________________________    Class: __________________    Date: __________________');
-  const questionSection=mode==='mark_scheme'?'':questions.map(q=>`${para(`${q.displayRef}${q.role==='context_only'?'  Context':`  [${q.marks}]`}`,{bold:true})}${contextXml(q,ctx)}${para(q.stem)}${q.sourceRef?para(`Source: ${q.sourceRef}`):''}${q.role!=='context_only'?answerSpace(q):''}${mode==='combined'&&q.role!=='context_only'?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:''}`).join('');
+  const questionSection=mode==='mark_scheme'?'':questions.map(q=>`${para(`${q.displayRef}${q.role==='context_only'?'  Context':`  [${q.marks}]`}`,{bold:true})}${contextXml(q,ctx)}${stemXml(q.stem)}${q.sourceRef?para(`Source: ${q.sourceRef}`):''}${q.role!=='context_only'?answerSpace(q):''}${mode==='combined'&&q.role!=='context_only'?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:''}`).join('');
   const schemeSection=mode==='mark_scheme'?questions.filter(q=>q.role!=='context_only').map(q=>`${para(`${q.displayRef}  [${q.marks}]`,{bold:true})}${q.sourceRef?para(`Source: ${q.sourceRef}`):''}${schemeXml(q)}`).join(''):'';
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body>${header}${candidate}${questionSection}${schemeSection}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020"/></w:sectPr></w:body></w:document>`;
 }
@@ -56,7 +64,7 @@ const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles x
 const contentTypes=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="svg" ContentType="image/svg+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`;
 const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
 const documentRels=(ctx:BuildContext)=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${ctx.media.map(media=>`<Relationship Id="${media.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x(media.name)}"/>`).join('')}</Relationships>`;
-const core=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>CamPath</dc:creator><dc:title>Cambridge 9618 worksheet</dc:title></cp:coreProperties>`;
+const core=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>CamPath</dc:creator><dc:title>Cambridge worksheet</dc:title></cp:coreProperties>`;
 
 const crcTable=Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;return c>>>0});
 function crc32(buf:Buffer){let c=0xffffffff;for(const b of buf)c=crcTable[(c^b)&0xff]!^(c>>>8);return (c^0xffffffff)>>>0}

@@ -35,7 +35,7 @@ Extract every visible question and sub-question as a tree. Complete any visible 
 3. Shared scenario text belongs in the parent `context_md`, not duplicated onto children.
 4. `marks` comes from the printed bracket at the right margin.
 5. `command_word` is the first imperative verb, exactly one of: State, Give, Name, Identify, Define, Describe, Explain, Compare, Calculate, Complete, Draw, Write, Evaluate, Justify, Suggest, Show, Other.
-6. Diagrams are not transcribed into prose. Emit an asset. Tables/code may use `content_md`.
+6. Preserve printed semantic structure. Diagrams are never transcribed into prose: emit an asset. A visibly separate table, pseudocode listing or program-code listing MUST be emitted as an asset with `kind: table`, `pseudocode` or `code` and a source-faithful `content_md`; do not flatten that listing into prose inside `stem_md` or `context_md`. Keep only the surrounding prose and the actual candidate instruction in `stem_md`/`context_md`. When ordinary question prose itself contains short inline identifiers or operators, keep those in the prose rather than inventing an asset.
 7. Asset `bbox` is `[x1,y1,x2,y2]` in pixels of the supplied 200-dpi page image, top-left origin.
 8. `answer_lines` counts printed ruled lines; use `0` for boxes/tables/diagram frames.
 9. `answer_kind` is one of: text, pseudocode, code, image, table, diagram.
@@ -52,7 +52,7 @@ An entry in `assets` is exactly these five keys, no others:
 | key | type | meaning |
 | --- | --- | --- |
 | `kind` | one of `text`, `pseudocode`, `code`, `image`, `table`, `diagram` | what the material is. Same vocabulary as `answer_kind`. |
-| `content_md` | string or `null` | Markdown transcription for `table`, `code` and `pseudocode`. `null` for anything drawn — a diagram is cropped from the page, never transcribed. |
+| `content_md` | string or `null` | Source-faithful Markdown/text transcription. REQUIRED for every printed `table`, `code` and `pseudocode` asset so line/row structure survives ingestion. `null` only for drawn material such as diagrams/images. |
 | `alt_text` | string, never `null` | a short factual description of what is shown, e.g. "logic circuit with two AND gates feeding an OR gate". Required on every asset. |
 | `bbox` | `[x1,y1,x2,y2]` or `null` | pixel rectangle in the 200-dpi page image. Required when `content_md` is `null`, because the crop is the only copy of that material. |
 | `page` | integer or `null` | the page the material appears on. |

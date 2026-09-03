@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { applyStoredTheme } from './lib/theme';
 import { parseRoute } from './lib/router';
+import { installQuestionStructureEnhancer } from './lib/question-structure-dom';
 import './theme.css';
 import './styles.css';
+import './question-structure.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
@@ -29,6 +31,8 @@ function Root() {
     window.addEventListener('hashchange', redirect);
     return () => window.removeEventListener('hashchange', redirect);
   }, []);
+
+  useEffect(() => installQuestionStructureEnhancer(), []);
 
   return <App />;
 }
