@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'npm:jose@6.1.0'
 import { getDocumentProxy } from 'npm:unpdf@1.4.0'
+import { isRotatedQuestionTable, parseMsV2, parseQpV2 } from './parser.ts'
 
 const GITHUB_JWKS = createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'))
 const EXPECTED_REPO = 'sarvar9417/cambridge_online'
@@ -35,8 +36,7 @@ async function pdfLines(u:string){
   const bytes=await fetchPdf(u),pdf=await getDocumentProxy(bytes),out:string[]=[]
   for(let p=1;p<=pdf.numPages;p++){
     const pg=await pdf.getPage(p),tc:any=await pg.getTextContent(),it=(tc.items||[]).filter((z:any)=>z.str?.trim()).map((z:any)=>({s:String(z.str),x:+(z.transform?.[4]||0),y:+(z.transform?.[5]||0)}))
-    const h=it.filter((z:any)=>/^(Question|Answer|Marks)$/.test(z.s.trim()))
-    const rot=h.some((a:any,i:number)=>h.some((b:any,j:number)=>j>i&&Math.abs(a.x-b.x)<10&&Math.abs(a.y-b.y)>100))
+    const rot=isRotatedQuestionTable(it)
     if(rot){it.sort((a:any,b:any)=>Math.abs(a.x-b.x)>1.8?a.x-b.x:a.y-b.y);let row:any[]=[],x:number|null=null;const f=()=>{if(row.length){row.sort((a,b)=>a.y-b.y);out.push(row.map(z=>z.s).join(' ').replace(/\s+/g,' ').trim());row=[]}};for(const z of it){if(x===null||Math.abs(z.x-x)<=1.8){row.push(z);if(x===null)x=z.x}else{f();row=[z];x=z.x}}f()}
     else{it.sort((a:any,b:any)=>Math.abs(b.y-a.y)>1.8?b.y-a.y:a.x-b.x);let row:any[]=[],y:number|null=null;const f=()=>{if(row.length){row.sort((a,b)=>a.x-b.x);out.push(row.map(z=>z.s).join(' ').replace(/\s+/g,' ').trim());row=[]}};for(const z of it){if(y===null||Math.abs(z.y-y)<=1.8){row.push(z);if(y===null)y=z.y}else{f();row=[z];y=z.y}}f()}
     out.push('')
@@ -148,7 +148,7 @@ Deno.serve(async(req:Request)=>{
     if(action==='repair_bootstrap'){const base=await rpc('corpus_runner_bootstrap'),repair=await rpc('corpus_runner_repair_bootstrap');return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:{...base,sources:repair?.sources||[]}})}
     if(action==='extract'){
       const qpUrl=String(body?.qp_url||''),msUrl=String(body?.ms_url||'');if(!qpUrl||!msUrl)return Response.json({error:'invalid_extract_payload'},{status:400})
-      const[q,m]=await Promise.all([pdfLines(qpUrl),pdfLines(msUrl)]),leaves=parseMs(m),stems=parseQp(q,leaves),rows=leaves.map(x=>({path:x.path,marks:x.marks,stem:stems[x.path]||null,guidance:x.guidance}))
+      const[q,m]=await Promise.all([pdfLines(qpUrl),pdfLines(msUrl)]),leaves=parseMsV2(m),stems=parseQpV2(q,leaves),rows=leaves.map(x=>({path:x.path,marks:x.marks,stem:stems[x.path]||null,guidance:x.guidance}))
       const total=rows.reduce((a,x)=>a+x.marks,0),missing=rows.filter(x=>!x.stem).map(x=>x.path)
       return Response.json({ok:true,count:rows.length,total,missing,rows})
     }
