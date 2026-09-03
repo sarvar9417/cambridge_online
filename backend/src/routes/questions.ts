@@ -18,6 +18,7 @@ const booleanQuery = z.preprocess((value) => {
 const querySchema = z.object({
   view: z.enum(['parts', 'families']).default('parts'),
   q: z.string().trim().max(200).optional(),
+  syllabusCode: z.string().trim().regex(/^\d{4}$/).optional(),
   component: z.coerce.number().int().min(1).max(4).optional(),
   commandWord: z.string().trim().max(30).optional(),
   commandWords: stringList,
