@@ -5,6 +5,19 @@ import { PgQuestionsRepository } from './repositories/questions-repository.js';
 const teacher = { id:'teacher', role:'teacher' as const, schoolId:'school', fullName:'Teacher' };
 
 describe('Question Bank cross-version syllabus matching', () => {
+  it('scopes corpus searches by qualification code without pinning a historical syllabus UUID', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount:0, rows:[] });
+    const repository = new PgQuestionsRepository({ query } as unknown as Pool);
+
+    await repository.findVisible(teacher, { view:'parts', syllabusCode:'0478' });
+
+    const [sql, values] = query.mock.calls[0]!;
+    expect(sql).toContain('join syllabi syllabus on syllabus.id=sp.syllabus_id');
+    expect(sql).toContain('syllabus.code=$1');
+    expect(values[0]).toBe('0478');
+    expect(sql).not.toContain('sp.syllabus_id=$1');
+  });
+
   it('matches selected topic IDs by qualification code and topic number, not historical UUID', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount:0, rows:[] });
     const repository = new PgQuestionsRepository({ query } as unknown as Pool);
@@ -34,16 +47,16 @@ describe('Question Bank cross-version syllabus matching', () => {
     expect(values).toContainEqual([subtopicId]);
   });
 
-  it('authorizes portable historical questions through any visible class for the same qualification code', async () => {
+  it('treats approved Cambridge corpus questions as portable staff reference content without requiring a matching class', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount:0, rows:[] });
     const repository = new PgQuestionsRepository({ query } as unknown as Pool);
 
     await repository.portable(teacher, '22222222-2222-4222-8222-222222222222');
 
-    const [sql] = query.mock.calls[0]!;
-    expect(sql).toContain('join syllabi visible_syllabus');
-    expect(sql).toContain('join syllabi source_syllabus');
-    expect(sql).toContain('visible_syllabus.code=source_syllabus.code');
-    expect(sql).not.toContain('visible.syllabus_id=sp.syllabus_id');
+    const [sql, values] = query.mock.calls[0]!;
+    expect(sql).toContain("q.status in ('approved','needs_review')");
+    expect(sql).not.toContain('from classes visible');
+    expect(sql).not.toContain('class_teachers');
+    expect(values).toEqual(['22222222-2222-4222-8222-222222222222']);
   });
 });

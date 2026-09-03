@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import { z } from 'zod';
 
 const componentNumberSchema = z.number().int().min(1).max(4);
+const syllabusLevelSchema = z.enum(['AS', 'A2', 'IGCSE']);
 const loSchema = z.object({
   code: z.string().trim().min(1),
   text: z.string().trim().min(1),
@@ -27,24 +28,30 @@ const topicSchema = z.object({
 const componentSchema = z.object({
   number: componentNumberSchema,
   name: z.string().trim().min(1),
-  level: z.enum(['AS', 'A2']),
+  level: syllabusLevelSchema,
   durationMinutes: z.number().int().positive(),
   totalMarks: z.number().int().positive(),
   weightingPct: z.number().positive().max(100),
 }).strict();
 
 export const syllabusCatalogSchema = z.object({
-  code: z.literal('9618'),
+  code: z.enum(['9618', '0478']),
   subject: z.string().trim().min(1),
   versionLabel: z.string().trim().min(1),
-  validFrom: z.number().int().min(2021),
-  validTo: z.number().int().min(2021),
+  validFrom: z.number().int().min(2015),
+  validTo: z.number().int().min(2015),
   isActive: z.boolean().default(false),
-  components: z.array(componentSchema).length(4),
+  components: z.array(componentSchema).min(1).max(4),
   topics: z.array(topicSchema).min(1),
 }).strict().superRefine((value, ctx) => {
   if (value.validTo < value.validFrom) {
     ctx.addIssue({ code: 'custom', message: 'validTo must be >= validFrom', path: ['validTo'] });
+  }
+  if (value.code === '9618' && value.components.length !== 4) {
+    ctx.addIssue({ code: 'custom', message: '9618 requires four components.', path: ['components'] });
+  }
+  if (value.code === '0478' && value.components.length !== 2) {
+    ctx.addIssue({ code: 'custom', message: '0478 requires two components.', path: ['components'] });
   }
   unique(value.components.map((item) => String(item.number)), ctx, ['components'], 'component number');
   unique(value.topics.map((item) => String(item.number)), ctx, ['topics'], 'topic number');
@@ -52,7 +59,7 @@ export const syllabusCatalogSchema = z.object({
   for (const [topicIndex, topic] of value.topics.entries()) {
     unique(topic.componentNumbers.map(String), ctx, ['topics', topicIndex, 'componentNumbers'], 'component number');
     const topicComponentSet = new Set(topic.componentNumbers);
-    const levels = new Set<'AS' | 'A2'>();
+    const levels = new Set<z.infer<typeof syllabusLevelSchema>>();
     for (const [componentIndex, componentNumber] of topic.componentNumbers.entries()) {
       const component = components.get(componentNumber);
       if (!component) {
@@ -68,7 +75,7 @@ export const syllabusCatalogSchema = z.object({
     if (levels.size > 1) {
       ctx.addIssue({
         code: 'custom',
-        message: 'A topic cannot span AS and A2 components.',
+        message: 'A topic cannot span components from different qualification levels.',
         path: ['topics', topicIndex, 'componentNumbers'],
       });
     }
@@ -103,6 +110,7 @@ export const syllabusCatalogSchema = z.object({
 });
 
 export type SyllabusCatalog = z.infer<typeof syllabusCatalogSchema>;
+export type SyllabusLevel = z.infer<typeof syllabusLevelSchema>;
 
 export interface SyllabusCatalogImportResult {
   syllabusId: string;
@@ -164,7 +172,7 @@ export async function importSyllabusCatalog(pool: Pool, raw: unknown): Promise<S
     }
 
     const componentIds = new Map<number, string>();
-    const componentLevels = new Map<number, 'AS' | 'A2'>();
+    const componentLevels = new Map<number, SyllabusLevel>();
     for (const component of [...catalog.components].sort((a, b) => a.number - b.number)) {
       const inserted = await client.query(
         `insert into components(syllabus_id,number,name,level,duration_min,total_marks,weight_pct)

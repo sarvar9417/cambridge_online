@@ -65,6 +65,7 @@ type Part = {
   marks: number;
   ao: string | null;
   answerKind: string;
+  syllabusCode: string;
   component: number;
   year: number;
   series: string;
@@ -92,7 +93,22 @@ type QuestionResponse = {
 };
 
 type FilterOptions = {
+  syllabi: Array<{
+    code: string;
+    subject: string;
+    valid_from: number;
+    valid_to: number;
+    is_active: boolean;
+    question_count: number;
+  }>;
+  components: Array<{
+    syllabus_code: string;
+    number: number;
+    name: string;
+    level: string;
+  }>;
   topics: Array<{
+    syllabus_code: string;
     topic_id: string;
     topic_number: number;
     topic_title: string;
@@ -173,13 +189,15 @@ function message(error: unknown, fallback: string) {
 }
 
 export function QuestionBankPage({ user }: { user: User }) {
-  const forClass = useRoute().params.get('sinf') ?? '';
+  const route = useRoute();
+  const forClass = route.params.get('sinf') ?? '';
+  const requestedSyllabus = route.params.get('syllabus') ?? '9618';
   const searchRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<BankView>('parts');
   const [questions, setQuestions] = useState<QuestionResponse>({ data: [], view: 'parts', unavailableFilters: [], nextCursor: null });
-  const [options, setOptions] = useState<FilterOptions>({ topics: [], classes: [] });
+  const [options, setOptions] = useState<FilterOptions>({ syllabi: [], components: [], topics: [], classes: [] });
   const [selections, setSelections] = useState<SelectionSummary[]>([]);
   const [selectionId, setSelectionId] = useState('');
   const [review, setReview] = useState<SelectionReview | null>(null);
@@ -189,6 +207,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [focused, setFocused] = useState(0);
 
   const [query, setQuery] = useState('');
+  const [syllabusCode, setSyllabusCode] = useState(requestedSyllabus);
   const [component, setComponent] = useState('');
   const [marksMin, setMarksMin] = useState('');
   const [marksMax, setMarksMax] = useState('');
@@ -209,7 +228,12 @@ export function QuestionBankPage({ user }: { user: User }) {
       retry(() => api<SelectionSummary[]>('/selections')),
     ]);
 
-    if (filterResult.status === 'fulfilled') setOptions(filterResult.value);
+    if (filterResult.status === 'fulfilled') {
+      setOptions(filterResult.value);
+      setSyllabusCode((current) => filterResult.value.syllabi.some((item) => item.code === current)
+        ? current
+        : filterResult.value.syllabi[0]?.code ?? '');
+    }
     if (basketResult.status === 'fulfilled') {
       setSelections(basketResult.value);
       setSelectionId((current) => current || basketResult.value[0]?.id || '');
@@ -228,6 +252,7 @@ export function QuestionBankPage({ user }: { user: User }) {
 
   const params = useMemo(() => {
     const value = new URLSearchParams({ view, dependency, limit: '120' });
+    if (syllabusCode) value.set('syllabusCode', syllabusCode);
     if (query.trim()) value.set('q', query.trim());
     if (component) value.set('component', component);
     if (marksMin) value.set('marksMin', marksMin);
@@ -242,10 +267,10 @@ export function QuestionBankPage({ user }: { user: User }) {
     subtopicIds.forEach((item) => value.append('subtopicIds', item));
     commandWords.forEach((item) => value.append('commandWords', item));
     return value.toString();
-  }, [view, dependency, query, component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, status, series, aos, topicIds, subtopicIds, commandWords]);
+  }, [view, dependency, syllabusCode, query, component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, status, series, aos, topicIds, subtopicIds, commandWords]);
 
   useEffect(() => {
-    if (!user || user.role === 'student') return;
+    if (!user || user.role === 'student' || !syllabusCode) return;
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError('');
@@ -258,7 +283,7 @@ export function QuestionBankPage({ user }: { user: User }) {
         .finally(() => setLoading(false));
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [user, params]);
+  }, [user, syllabusCode, params]);
 
   const loadReview = async (id = selectionId) => {
     if (!id) {
@@ -368,8 +393,20 @@ export function QuestionBankPage({ user }: { user: User }) {
     return () => window.removeEventListener('keydown', handle);
   }, [flat, focused, reviewing, preview, dependencyDialog, selectionId]);
 
-  const topicChoices = [...new Map(options.topics.map((item) => [item.topic_id, item])).values()];
-  const visibleSubtopics = options.topics.filter((item) => !topicIds.length || topicIds.includes(item.topic_id));
+  const scopedTopics = options.topics.filter((item) => item.syllabus_code === syllabusCode);
+  const topicChoices = [...new Map(scopedTopics.map((item) => [item.topic_id, item])).values()];
+  const visibleSubtopics = scopedTopics.filter((item) => !topicIds.length || topicIds.includes(item.topic_id));
+  const componentChoices = options.components.filter((item) => item.syllabus_code === syllabusCode);
+  const activeSyllabus = options.syllabi.find((item) => item.code === syllabusCode);
+
+  const changeSyllabus = (next: string) => {
+    setSyllabusCode(next);
+    setComponent('');
+    setTopicIds([]);
+    setSubtopicIds([]);
+    setYearFrom('');
+    setYearTo('');
+  };
 
   const resetFilters = () => {
     setQuery('');
@@ -403,14 +440,15 @@ export function QuestionBankPage({ user }: { user: User }) {
           <button className="qb-icon-button" title="Dashboardga qaytish" onClick={() => { window.location.hash = ''; }}>←</button>
           <div><strong>CamPath</strong><span>Question Bank v2</span></div>
         </div>
-        <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge 9618</span><span className="qb-badge">Leaf-first</span></div>
+        <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge {syllabusCode || '—'}</span>{activeSyllabus && <span className="qb-badge">{activeSyllabus.question_count} savol</span>}<span className="qb-badge">Leaf-first</span></div>
       </header>
 
       <div className="qb-layout">
         <aside className="qb-filters">
           <div className="qb-panel-title"><div><strong>Filtrlar</strong><small>Imtihon bankini toraytiring</small></div><button className="qb-link-button" onClick={resetFilters}>Tozalash</button></div>
-          <Filter label="Komponent"><select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Barchasi</option>{[1, 2, 3, 4].map((item) => <option key={item} value={item}>Paper {item}</option>)}</select></Filter>
-          <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => options.topics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
+          <Filter label="Syllabus"><select value={syllabusCode} onChange={(event) => changeSyllabus(event.target.value)}>{options.syllabi.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.subject} · {item.question_count} savol</option>)}</select></Filter>
+          <Filter label="Komponent"><select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Barchasi</option>{componentChoices.map((item) => <option key={`${item.syllabus_code}-${item.number}`} value={item.number}>Paper {item.number} · {item.name}</option>)}</select></Filter>
+          <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => scopedTopics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
           <CheckGroup label="Kichik mavzu" options={visibleSubtopics.map((item) => [item.subtopic_id, `${item.code} ${item.subtopic_title}`])} value={subtopicIds} onChange={setSubtopicIds} maxHeight />
           <Filter label="Ball"><div className="qb-two-fields"><input type="number" min="0" placeholder="dan" value={marksMin} onChange={(event) => setMarksMin(event.target.value)} /><input type="number" min="0" placeholder="gacha" value={marksMax} onChange={(event) => setMarksMax(event.target.value)} /></div></Filter>
           <Filter label="Yil"><div className="qb-two-fields"><input type="number" min="2000" placeholder="dan" value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} /><input type="number" min="2000" placeholder="gacha" value={yearTo} onChange={(event) => setYearTo(event.target.value)} /></div></Filter>
@@ -423,7 +461,7 @@ export function QuestionBankPage({ user }: { user: User }) {
 
         <section className="qb-results">
           <div className="qb-search-row"><label className="qb-search"><span>⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Savol matnidan qidiring…  /" /></label><div className="qb-segments" aria-label="Savol ko‘rinishi"><button className={view === 'parts' ? 'active' : ''} onClick={() => setView('parts')}>Qismlar</button><button className={view === 'families' ? 'active' : ''} onClick={() => setView('families')}>Oilalar</button></div></div>
-          <div className="qb-result-meta"><div><strong>{view === 'parts' ? (questions.data as Part[]).length : (questions.data as Family[]).length}</strong><span>{view === 'parts' ? ' mos subpart' : ' savol oilasi'}</span></div><small>↑↓ tanlash · Enter savatchaga qo‘shish</small></div>
+          <div className="qb-result-meta"><div><strong>{view === 'parts' ? (questions.data as Part[]).length : (questions.data as Family[]).length}</strong><span>{view === 'parts' ? ' mos subpart' : ' savol oilasi'}</span></div><small>{syllabusCode ? `${syllabusCode} · ` : ''}↑↓ tanlash · Enter savatchaga qo‘shish</small></div>
           {questions.unavailableFilters.length > 0 && <div className="qb-notice">Hozircha ishlamaydigan filtrlar: {questions.unavailableFilters.join(', ')}</div>}
           {error && <div className="qb-error">{error}</div>}
           {loading && <div className="qb-loading">Savollar yuklanmoqda…</div>}
@@ -457,7 +495,7 @@ function CheckGroup({ label, options, value, onChange, maxHeight = false }: { la
 }
 
 function PartCard({ part, focused, onAdd, onPreview }: { part: Part; focused: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className="qb-add-button" title="Savatchaga qo‘shish" onClick={onAdd}>+</button></div></article>;
+  return <article className={`qb-question-card ${focused ? 'focused' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className="qb-add-button" title="Savatchaga qo‘shish" onClick={onAdd}>+</button></div></article>;
 }
 
 function FamilyCard({ family, onAdd, onPreview }: { family: Family; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
@@ -480,13 +518,16 @@ function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Depen
 function ReviewScreen({ review, selectionId, forClass, onBack }: { review: SelectionReview; selectionId: string; forClass: string; onBack: () => void }) {
   const [exporting, setExporting] = useState<'pdf' | 'docx' | ''>('');
   const [exportError, setExportError] = useState('');
+  const syllabusCodes = [...new Set(review.items.map((item) => item.sourceRef.split('/')[0]).filter(Boolean))];
+  const documentLabel = syllabusCodes.length === 1 ? `Cambridge ${syllabusCodes[0]}` : 'Cambridge mixed syllabus';
+  const fileStem = syllabusCodes.length === 1 ? `cambridge-${syllabusCodes[0]}-practice` : 'cambridge-mixed-practice';
 
   const exportSelection = async (format: 'pdf' | 'docx') => {
     if (!selectionId || !review.canPublish || exporting) return;
     setExporting(format);
     setExportError('');
     try {
-      const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: 'Cambridge 9618 practice' }) });
+      const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: `${documentLabel} practice` }) });
       await api('/jobs/run-once', { method: 'POST' }).catch(() => null);
       let complete: ExportItem | null = null;
       for (let attempt = 0; attempt < 25; attempt++) {
@@ -500,7 +541,7 @@ function ReviewScreen({ review, selectionId, forClass, onBack }: { review: Selec
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `cambridge-9618-practice.${format}`;
+      anchor.download = `${fileStem}.${format}`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (cause) {
@@ -510,7 +551,7 @@ function ReviewScreen({ review, selectionId, forClass, onBack }: { review: Selec
     }
   };
 
-  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{review.items.length} qism</strong><span>{review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>CAMBRIDGE 9618 · GENERATED PRACTICE</span><h1>Savollar to‘plami</h1><small>Fresh numbering · original source references retained</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Context only · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><p className="qb-review-stem">{item.portable.leaf.stem}</p><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'Download PDF'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Download Word (.docx)'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Mark Scheme / Assignment →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word assignment yaratmasdan to‘g‘ridan-to‘g‘ri shu selection’dan olinadi.</small></aside></div></main>;
+  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{review.items.length} qism</strong><span>{review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>{documentLabel.toUpperCase()} · GENERATED PRACTICE</span><h1>Savollar to‘plami</h1><small>Fresh numbering · original source references retained</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Context only · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><p className="qb-review-stem">{item.portable.leaf.stem}</p><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Preflight</h2><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Dependency issues</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha dependency qoidalari qondirilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'Download PDF'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Download Word (.docx)'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Mark Scheme / Assignment →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word assignment yaratmasdan to‘g‘ridan-to‘g‘ri shu selection’dan olinadi.</small></aside></div></main>;
 }
 
 function issueLabel(issue: SelectionIssue) {

@@ -17,6 +17,7 @@ import type {
 export interface QuestionFilters {
   view?: 'parts' | 'families';
   q?: string;
+  syllabusCode?: string;
   component?: number;
   commandWords?: string[];
   marksMin?: number;
@@ -74,6 +75,7 @@ const mapPart = (row: Record<string, unknown>) => ({
   marks: Number(row.marks),
   ao: row.ao,
   answerKind: row.answer_kind,
+  syllabusCode: row.syllabus_code,
   component: Number(row.component),
   year: Number(row.year),
   series: row.series,
@@ -102,6 +104,9 @@ export class PgQuestionsRepository {
       conditions.push(`q.status in ('approved','needs_review')`);
     }
 
+    if (filters.syllabusCode) {
+      conditions.push(`syllabus.code=${add(values, filters.syllabusCode)}`);
+    }
     if (filters.component !== undefined) {
       conditions.push(`component.number=${add(values, filters.component)}`);
     }
@@ -207,13 +212,14 @@ export class PgQuestionsRepository {
       `with recursive matching as (
          select q.id,q.parent_id,q.label,q.path,q.display_ref,q.depth,q.sort_order,
            coalesce(q.stem_md,'') stem,q.command_word,q.marks,q.ao,q.answer_kind,q.status,
-           component.number component,sp.year,sp.series,sp.variant,
+           syllabus.code syllabus_code,component.number component,sp.year,sp.series,sp.variant,
            exists(
              select 1 from question_assets qa
              where qa.question_id=q.id and qa.kind in ('diagram','image')
            ) has_diagram
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
+         join syllabi syllabus on syllabus.id=sp.syllabus_id
          join components component on component.id=q.component_id
          where ${conditions.join(' and ')}
          order by sp.year desc,sp.series,component.number,sp.variant,q.sort_order
@@ -316,28 +322,58 @@ export class PgQuestionsRepository {
   }
 
   async filterOptions(actor: Actor) {
-    if (actor.role === 'student') return { topics: [], classes: [] };
+    if (actor.role === 'student') return { syllabi: [], components: [], topics: [], classes: [] };
+
+    // The Cambridge corpus is global reference content, not class-owned data.
+    // Pick one catalog version per syllabus code for filter labels while the
+    // actual question search remains code-scoped across all historical versions.
+    const syllabi = await this.pool.query(
+      `select s.code,max(s.subject) subject,min(s.valid_from) valid_from,max(s.valid_to) valid_to,
+         bool_or(s.is_active) is_active,count(distinct q.id)::int question_count
+       from syllabi s
+       join source_papers sp on sp.syllabus_id=s.id and sp.kind='QP'
+       join questions q on q.source_paper_id=sp.id and q.marks is not null
+         and q.status in ('approved','needs_review')
+       group by s.code
+       order by bool_or(s.is_active) desc,s.code`,
+    );
     const topics = await this.pool.query(
-      `select distinct t.id topic_id,t.number topic_number,t.title topic_title,
+      `with catalog as (
+         select distinct on (s.code) s.id,s.code
+         from syllabi s
+         where s.is_active
+            or exists(select 1 from source_papers sp where sp.syllabus_id=s.id and sp.kind='QP')
+         order by s.code,s.is_active desc,s.valid_from desc
+       )
+       select catalog.code syllabus_code,t.id topic_id,t.number topic_number,t.title topic_title,
          st.id subtopic_id,st.code,st.title subtopic_title,st.sort_order,
-         c.number component
-       from classes cl
-       join topics t on t.syllabus_id=cl.syllabus_id
+         coalesce(c.number,ct_component.number) component
+       from catalog
+       join topics t on t.syllabus_id=catalog.id
        join subtopics st on st.topic_id=t.id
        left join components c on c.id=t.component_id
-       where cl.archived_at is null
-         and (
-           ($1='owner' and cl.school_id=$2)
-           or ($1='teacher' and (
-             cl.owner_id=$3
-             or exists(
-               select 1 from class_teachers ct
-               where ct.class_id=cl.id and ct.teacher_id=$3
-             )
-           ))
-         )
-       order by t.number,st.sort_order`,
-      [actor.role, actor.schoolId, actor.id],
+       left join lateral (
+         select c2.number
+         from component_topics ct
+         join components c2 on c2.id=ct.component_id
+         where ct.topic_id=t.id
+         order by ct.is_primary desc,c2.number
+         limit 1
+       ) ct_component on true
+       order by catalog.code,t.number,st.sort_order`,
+    );
+    const components = await this.pool.query(
+      `with catalog as (
+         select distinct on (s.code) s.id,s.code
+         from syllabi s
+         where s.is_active
+            or exists(select 1 from source_papers sp where sp.syllabus_id=s.id and sp.kind='QP')
+         order by s.code,s.is_active desc,s.valid_from desc
+       )
+       select catalog.code syllabus_code,c.number,c.name,c.level::text level
+       from catalog
+       join components c on c.syllabus_id=catalog.id
+       order by catalog.code,c.number`,
     );
     const classes = await this.pool.query(
       `select distinct cl.id,cl.name
@@ -356,7 +392,12 @@ export class PgQuestionsRepository {
        order by cl.name`,
       [actor.role, actor.schoolId, actor.id],
     );
-    return { topics: topics.rows, classes: classes.rows };
+    return {
+      syllabi: syllabi.rows,
+      components: components.rows,
+      topics: topics.rows,
+      classes: classes.rows,
+    };
   }
 
   async findOne(actor: Actor, id: string) {
@@ -398,33 +439,13 @@ export class PgQuestionsRepository {
    * portable by copying printed context.
    */
   async portable(actor: Actor, id: string): Promise<PortableQuestion | null> {
-    if (actor.role === 'student' || !actor.schoolId) return null;
+    if (actor.role === 'student') return null;
 
     const result = await this.pool.query(
       `with recursive chain as (
          select q.*
          from questions q
-         join source_papers sp on sp.id=q.source_paper_id
          where q.id=$1 and q.marks is not null and q.status in ('approved','needs_review')
-           and exists (
-             select 1
-             from classes visible
-             join syllabi visible_syllabus on visible_syllabus.id=visible.syllabus_id
-             join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
-             where visible_syllabus.code=source_syllabus.code
-               and visible.school_id=$2
-               and visible.archived_at is null
-               and (
-                 $3='owner'
-                 or ($3='teacher' and (
-                   visible.owner_id=$4
-                   or exists (
-                     select 1 from class_teachers ct
-                     where ct.class_id=visible.id and ct.teacher_id=$4
-                   )
-                 ))
-               )
-           )
          union all
          select parent.* from chain child join questions parent on parent.id=child.parent_id
        )
@@ -438,7 +459,7 @@ export class PgQuestionsRepository {
            from question_assets qa where qa.question_id=c.id
          ),'[]'::jsonb) assets
        from chain c order by c.depth`,
-      [id, actor.schoolId, actor.role, actor.id],
+      [id],
     );
     if (!result.rowCount) return null;
 
