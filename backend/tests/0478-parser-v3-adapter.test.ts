@@ -99,4 +99,33 @@ describe('0478 parser v3 adapter', () => {
     expect(stems['2']).toContain('Three uses of arithmetic operators are shown')
     expect(stems['2']).not.toContain('decimal places')
   })
+
+  it('strips reversed vertical margin fragments before letter and roman part labels', () => {
+    const ms: ParsedLeaf[] = [
+      { i: 0, path: '2.d', top: 2, a: '(d)', marks: 3 },
+      { i: 1, path: '2.e.i', top: 2, a: '(e)', r: '(i)', marks: 2 },
+      { i: 2, path: '2.e.ii', top: 2, a: '(e)', r: '(ii)', marks: 2 },
+      { i: 3, path: '3', top: 3, marks: 1 },
+    ]
+    const qp = [
+      '2 Data is transmitted across a network.',
+      '(d) Describe how a checksum is used.',
+      '[3]',
+      'OD (e) All data is encrypted before transmission.',
+      '(i) Give two types of encryption.',
+      '[2]',
+      'ETIRW (ii) Describe what is meant by an encryption key.',
+      '[2]',
+      '3 State one security measure.',
+      '[1]',
+    ]
+
+    const normalized = normalizeQpLinesV3(qp, ms)
+    expect(normalized[3]).toBe('(e) All data is encrypted before transmission.')
+    expect(normalized[6]).toBe('(ii) Describe what is meant by an encryption key.')
+
+    const stems = parseQpV3(qp, ms)
+    expect(stems['2.e.i']).toContain('Give two types of encryption')
+    expect(stems['2.e.ii']).toContain('Describe what is meant by an encryption key')
+  })
 })
