@@ -3,6 +3,7 @@ import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-full';
 import './lesson-studio.css';
+import './lesson-studio-full.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
 type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
