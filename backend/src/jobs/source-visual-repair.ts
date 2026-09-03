@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import type { Pool, PoolClient } from 'pg';
@@ -10,6 +10,7 @@ import { materializeSourcePdf } from './source-paper-file.js';
 import { segmentPreparedArtifact } from './processors/ingestion.js';
 import { createQuestionExtractionV2Handler } from './processors/ai-extract-qp-v2.js';
 import { cropAndStoreAssets, type StoredAssetRecord } from './processors/asset-crop-store.js';
+import { validateAssetMetadata } from './processors/asset-metadata.js';
 import type { ExtractedAsset, ExtractedQuestion } from './processors/ingestion-contract.js';
 
 const run = promisify(execFile);
@@ -157,7 +158,7 @@ export async function repairSourceVisuals(pool: Pool, options: {
       .filter((question) => paper.chainPaths.has(question.path))
       .map(sourceCropAssets);
 
-    const cropInput: Artifact = { ...extracted, questions: relevant };
+    const cropInput = validateAssetMetadata({ ...extracted, questions: relevant });
     const cropped = await cropAndStoreAssets(cropInput, assetStore);
     const stored = Array.isArray(cropped.storedAssets) ? cropped.storedAssets as StoredAssetRecord[] : [];
     const cropCandidateCount = Array.isArray(cropped.assetCandidates) ? cropped.assetCandidates.length : 0;
