@@ -21,6 +21,7 @@ const MIRROR_NOISE = /(?:papacambridge\.com|Downloaded from PapaCambridge|Licens
 const MARGIN_PREFIX = /^(?:THIS|IN|WRITE|NOT|DO|MARGIN)\s+(?=(?:\([a-zivx]+\)|\d{1,2}\b))/
 const MARKED_ROMAN_ROW = /^(\d{1,2})\(([a-z])\)\(([ivx]+)\)\s+.*\s+(\d{1,2})\s*$/i
 const ROMAN_SEQUENCE = ['i','ii','iii','iv','v','vi','vii','viii','ix','x'] as const
+const STANDALONE_BRACKET_MARK = /(?:^|\s)\[\s*(\d{1,2})\s*\](?=\s|$)/g
 
 function compact(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
@@ -69,6 +70,18 @@ export function normalizeDuplicateRomanMarkRows(ls: string[]): string[] {
     lastSeen.set(key, i)
   }
   return out
+}
+
+function repairLegacyBracketMarks(rows: ParsedLeaf[]): ParsedLeaf[] {
+  return rows.map((row) => {
+    const guidance = row.guidance ?? ''
+    const standalone = [...guidance.matchAll(STANDALONE_BRACKET_MARK)]
+      .map((match) => Number(match[1]))
+      .filter((mark) => Number.isInteger(mark) && mark >= 1 && mark <= 20)
+    if (!standalone.length) return row
+    const mark = standalone[standalone.length - 1]!
+    return mark === row.marks ? row : { ...row, marks: mark }
+  })
 }
 
 export function detectHorizontalMarkSchemeTable(items: PdfTextItem[]): HorizontalMarkSchemeTable | null {
@@ -158,7 +171,7 @@ export function normalizeQpLinesV3(ls: string[], ms: ParsedLeaf[]): string[] {
 }
 
 export function parseMsV3(ls: string[]): ParsedLeaf[] {
-  return parseMsV2(normalizeDuplicateRomanMarkRows(ls))
+  return repairLegacyBracketMarks(parseMsV2(normalizeDuplicateRomanMarkRows(ls)))
 }
 
 export function parseQpV3(ls: string[], ms: ParsedLeaf[]): Record<string, string> {
