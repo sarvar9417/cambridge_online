@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
+import { CHECKPOINT_YEARS, selectYearBalancedQuestions } from './lesson-checkpoint';
 import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-source-complete';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
@@ -8,7 +9,7 @@ import './lesson-studio-presenter-fix.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
 type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
-type QuestionResponse = { data: ExamPart[]; view:'parts'; unavailableFilters:string[]; nextCursor:null };
+type QuestionResponse = { data: ExamPart[]; view:'parts'; unavailableFilters:string[]; nextCursor:string|null };
 
 function Visual({ kind }: { kind?: LessonVisual }) {
   if (!kind) return null;
@@ -30,10 +31,20 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
         const options=await api<FilterOptions>('/questions/filter-options');
         const ids=options.topics.filter(item=>item.code===subtopicCode).map(item=>item.subtopic_id);
         if(!ids.length) throw new Error('Subtopic topilmadi.');
-        const qs=new URLSearchParams({view:'parts',status:'approved',yearFrom:'2021',yearTo:'2025',hasDiagram:'false',dependency:'independent',limit:'24'});
-        ids.forEach(id=>qs.append('subtopicIds',id));
-        const result=await api<QuestionResponse>(`/questions?${qs}`);
-        if(!cancelled)setQuestions(result.data.filter(question=>question.status==='approved').slice(0,6));
+
+        // Query each paper year independently. A single newest-first query can be filled entirely by 2025
+        // before older papers are reached, even though 2021–2024 have eligible questions.
+        const byYear=await Promise.all(CHECKPOINT_YEARS.map(async(year)=>{
+          const qs=new URLSearchParams({
+            view:'parts',status:'approved',yearFrom:String(year),yearTo:String(year),
+            hasDiagram:'false',dependency:'independent',limit:'12',
+          });
+          ids.forEach(id=>qs.append('subtopicIds',id));
+          const result=await api<QuestionResponse>(`/questions?${qs}`);
+          return result.data.filter(question=>question.status==='approved');
+        }));
+
+        if(!cancelled)setQuestions(selectYearBalancedQuestions(byYear.flat(),6));
       }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Savollar yuklanmadi.');}
       finally{if(!cancelled)setLoading(false);}
     })();
@@ -42,12 +53,16 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
   if(loading)return <div className="lesson-loading">Past paper savollari yuklanmoqda…</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
   if(!questions.length)return <div className="lesson-empty">Bu bo‘lim uchun doskada mustaqil ko‘rsatishga tayyor savol topilmadi.</div>;
-  return <div className="lesson-exam-grid">{questions.map((q,index)=><article className="lesson-exam-card" key={q.id}>
-    <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} ball</b></div>
-    <p>{q.stem}</p>
-    <footer><span>{q.commandWord||'Question'}</span><span>{q.year}</span></footer>
-    <span className="lesson-exam-number">{String(index+1).padStart(2,'0')}</span>
-  </article>)}</div>;
+  const representedYears=[...new Set(questions.map(question=>question.year))].sort((a,b)=>a-b);
+  return <>
+    <div className="lesson-exam-years"><strong>Paper coverage</strong>{CHECKPOINT_YEARS.map(year=><span className={representedYears.includes(year)?'available':'missing'} key={year}>{year}</span>)}</div>
+    <div className="lesson-exam-grid">{questions.map((q,index)=><article className="lesson-exam-card" key={q.id}>
+      <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} ball</b></div>
+      <p>{q.stem}</p>
+      <footer><span>{q.commandWord||'Question'}</span><span>{q.year}</span></footer>
+      <span className="lesson-exam-number">{String(index+1).padStart(2,'0')}</span>
+    </article>)}</div>
+  </>;
 }
 
 function SlideBody({ slide }: { slide:LessonSlide }) {
