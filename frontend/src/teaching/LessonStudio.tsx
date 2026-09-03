@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
-import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-full';
+import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-source-complete';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
+import './lesson-studio-presenter-fix.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
 type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
@@ -110,7 +111,7 @@ export function LessonStudio({ user }: { user:User }) {
 
   if(user.role==='student')return null;
   if(!chosen)return <section className="lesson-library">
-    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Hodder coursebook mazmuni Cambridge 9618 syllabus va production past-paper corpus bilan birlashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">2 chapter · full coverage</span></header>
+    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Hodder coursebook mazmuni Cambridge 9618 syllabus va production past-paper corpus bilan birlashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">2 chapter · source-audited coverage</span></header>
     <div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}>
       <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer>
     </button>)}</div>
