@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseMsV2 } from '../../supabase/functions/corpus-runner/parser.ts'
+import { parseMsV2 } from '../../supabase/functions/corpus-runner/parser-v3.ts'
 
 describe('0478 legacy top-level mark rows', () => {
   it('keeps sequential top-level questions whose guidance starts with a digit', () => {
