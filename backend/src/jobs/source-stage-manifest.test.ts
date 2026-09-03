@@ -12,7 +12,9 @@ async function source(size = 2048, fill = 7, filename = '9618_s25_qp_11.pdf') {
   const dir = await mkdtemp(join(tmpdir(), 'campath-source-'));
   dirs.push(dir);
   const path = join(dir, filename);
-  await writeFile(path, Buffer.alloc(size, fill));
+  const bytes = Buffer.alloc(size, fill);
+  if (size >= 5) bytes.write('%PDF-', 0, 'ascii');
+  await writeFile(path, bytes);
   return path;
 }
 
@@ -25,8 +27,7 @@ function stagedPool(options: { syllabusRows?: Array<{ syllabus_id: string; compo
     if (sql.includes('select id,sha256 from source_papers')) return { rowCount: sourceRows.length, rows: sourceRows };
     if (sql.includes('select count(*)::int in_use')) return { rowCount: 1, rows: [{ in_use: options.inUse ?? 0 }] };
     if (sql.includes('insert into source_papers')) return { rowCount: 1, rows: [{ id: 'paper1' }] };
-    if (sql.includes('update source_papers set storage_path=$2,sha256')) return { rowCount: 1, rows: [{ id: sourceRows[0]?.id ?? 'paper1' }] };
-    if (sql.includes('update source_papers set storage_path=$2 where')) return { rowCount: 1, rows: [{ id: sourceRows[0]?.id ?? 'paper1' }] };
+    if (sql.includes('update source_papers')) return { rowCount: 1, rows: [{ id: sourceRows[0]?.id ?? 'paper1' }] };
     throw new Error(`unexpected ${sql}`);
   });
   const client = { query, release: vi.fn() } as unknown as PoolClient;
@@ -51,8 +52,8 @@ describe('source staging manifest', () => {
       { syllabusCode: '0478', year: 2023, series: 'MJ', paperCode: 21, kind: 'QP', path: p0478 },
     ]);
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({ component: 1, variant: 1, absolutePath: p9618 });
-    expect(rows[1]).toMatchObject({ component: 2, variant: 1, absolutePath: p0478 });
+    expect(rows[0]).toMatchObject({ component: 1, variant: 1, storagePath: p9618, sourceUrl: null });
+    expect(rows[1]).toMatchObject({ component: 2, variant: 1, storagePath: p0478, sourceUrl: null });
     expect(rows.every((row) => row.sha256.length === 64)).toBe(true);
   });
 
@@ -74,7 +75,7 @@ describe('source staging manifest', () => {
     const path = await source(2048, 8, '0478_s23_qp_21.pdf');
     const h = stagedPool();
     const result = await registerStagedSources(h.pool, [{ syllabusCode: '0478', year: 2023, series: 'MJ', paperCode: 21, kind: 'QP', path }]);
-    expect(result[0]).toMatchObject({ key: '2023-MJ-21-QP', sourcePaperId: 'paper1' });
+    expect(result[0]).toMatchObject({ key: '2023-MJ-21-QP', sourcePaperId: 'paper1', path, sourceUrl: null });
     const lookup = h.query.mock.calls.find(([sql]) => String(sql).includes('select s.id syllabus_id'))!;
     expect(lookup[0]).toContain('s.valid_from<=$3');
     expect(lookup[0]).toContain('s.valid_to>=$3');
