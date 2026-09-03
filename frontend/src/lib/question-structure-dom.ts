@@ -17,8 +17,6 @@ const TARGETS = [
   '[class$="-stem"]',
 ].join(',');
 
-const processed = new WeakMap<Element, string>();
-
 function span(className: string, text?: string) {
   const node = document.createElement('span');
   node.className = className;
@@ -62,16 +60,18 @@ function sourceText(element: Element) {
 
 function enhance(element: Element) {
   if (element.closest('.attempt-context')) return;
+  // If semantic children are still present, this node is already enhanced.
+  // When React replaces them with raw text during a route/question change the
+  // guard becomes false and the same source can be enhanced again safely.
   if (element.querySelector(':scope > .qtext-block')) return;
   const source = sourceText(element);
-  if (!source || processed.get(element) === source) return;
+  if (!source) return;
 
   const blocks = structureQuestionText(source);
-  processed.set(element, source);
   element.classList.add('qtext-host');
 
-  // A single ordinary sentence needs no extra DOM. The CSS class still gives
-  // it safe pre-wrap behaviour for source line breaks.
+  // A single ordinary paragraph needs no extra DOM. The host class still
+  // preserves meaningful line breaks without changing the source text.
   if (blocks.length === 1 && blocks[0]?.type === 'paragraph') return;
 
   const fragment = document.createDocumentFragment();
