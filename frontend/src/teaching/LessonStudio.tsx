@@ -3,7 +3,7 @@ import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { CHECKPOINT_YEARS, collectAllCheckpointQuestions } from './lesson-checkpoint';
 import { LESSON_CHAPTERS as SOURCE_CHAPTERS, type LessonSlide, type LessonVisual } from './lesson-content-source-complete';
-import { CHAPTER_7 } from './lesson-content-chapter7';
+import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
