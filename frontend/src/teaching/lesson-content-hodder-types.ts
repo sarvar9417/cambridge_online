@@ -6,6 +6,39 @@ export type LessonTable = {
   rows: string[][];
 };
 
+export type LessonFigure =
+  | {
+      kind: 'grid';
+      title: string;
+      rows: string[];
+      legend?: Array<{ symbol: string; label: string }>;
+      caption?: string;
+    }
+  | {
+      kind: 'bitfield';
+      title: string;
+      fields: Array<{ label: string; bits: string; detail?: string }>;
+      caption?: string;
+    }
+  | {
+      kind: 'sequence';
+      title: string;
+      items: Array<{ label: string; note?: string }>;
+      caption?: string;
+    }
+  | {
+      kind: 'wave';
+      title: string;
+      series: Array<{ label: string; cycles: number; samples?: number }>;
+      caption?: string;
+    }
+  | {
+      kind: 'pixel-scale';
+      title: string;
+      stages: Array<{ label: string; level: number; note?: string }>;
+      caption?: string;
+    };
+
 export type LessonRichBlock =
   | { kind: 'paragraph'; text: string }
   | { kind: 'bullets'; items: string[] }
@@ -13,11 +46,14 @@ export type LessonRichBlock =
   | { kind: 'code'; title?: string; lines: string[] }
   | { kind: 'steps'; title?: string; items: string[] }
   | { kind: 'callout'; tone?: 'info' | 'warning' | 'activity' | 'extension'; title: string; text: string }
-  | { kind: 'comparison'; leftTitle: string; rightTitle: string; rows: Array<[string,string]> };
+  | { kind: 'comparison'; leftTitle: string; rightTitle: string; rows: Array<[string,string]> }
+  | { kind: 'source-note'; title: string; sourceLabel: string; sourceText: string; examSafeLabel: string; examSafeText: string }
+  | { kind: 'figure'; figure: LessonFigure };
 
 export type HodderLessonSlide = LessonSlide & {
   sourcePages?: number[];
   sourceElements?: string[];
+  sourceLabel?: string;
   richBlocks?: LessonRichBlock[];
   learningObjectiveCodes?: string[];
   checkpointLabel?: string;
