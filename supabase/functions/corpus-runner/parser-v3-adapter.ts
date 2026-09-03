@@ -19,6 +19,8 @@ const QUESTION_PATH = /^\d{1,2}(?:\([a-z]\))?(?:\([ivx]+\))?$/i
 const INTEGER_MARK = /^\d{1,2}$/
 const MIRROR_NOISE = /(?:papacambridge\.com|Downloaded from PapaCambridge|Licensed for hosting|Re-uploading, mirroring or re-hosting|Trace ID:)/i
 const MARGIN_PREFIX = /^(?:THIS|IN|WRITE|NOT|DO|MARGIN)\s+(?=(?:\([a-zivx]+\)|\d{1,2}\b))/
+const MARKED_ROMAN_ROW = /^(\d{1,2})\(([a-z])\)\(([ivx]+)\)\s+.*\s+(\d{1,2})\s*$/i
+const ROMAN_SEQUENCE = ['i','ii','iii','iv','v','vi','vii','viii','ix','x'] as const
 
 function compact(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
@@ -28,6 +30,45 @@ function normalizedQpLine(value: string): string {
   const line = compact(value)
   if (!line || MIRROR_NOISE.test(line)) return ''
   return line.replace(MARGIN_PREFIX, '')
+}
+
+function romanKey(line: string): { top: number; part: string; roman: string; mark: number } | null {
+  const match = compact(line).match(MARKED_ROMAN_ROW)
+  if (!match) return null
+  const mark = Number(match[4])
+  if (!Number.isInteger(mark) || mark < 1 || mark > 20) return null
+  return { top: Number(match[1]), part: match[2]!.toLowerCase(), roman: match[3]!.toLowerCase(), mark }
+}
+
+export function normalizeDuplicateRomanMarkRows(ls: string[]): string[] {
+  const out = [...ls]
+  const explicit = new Set<string>()
+  for (const line of out) {
+    const row = romanKey(line)
+    if (row) explicit.add(`${row.top}.${row.part}.${row.roman}`)
+  }
+
+  const lastSeen = new Map<string, number>()
+  for (let i = 0; i < out.length; i++) {
+    const row = romanKey(out[i] ?? '')
+    if (!row) continue
+    const key = `${row.top}.${row.part}.${row.roman}`
+    const previous = lastSeen.get(key)
+    if (previous !== undefined && i - previous <= 20 && romanKey(out[previous] ?? '')) {
+      const romanIndex = ROMAN_SEQUENCE.indexOf(row.roman as (typeof ROMAN_SEQUENCE)[number])
+      const nextRoman = romanIndex >= 0 ? ROMAN_SEQUENCE[romanIndex + 1] : undefined
+      const nextKey = nextRoman ? `${row.top}.${row.part}.${nextRoman}` : ''
+      if (nextRoman && !explicit.has(nextKey)) {
+        out[i] = compact(out[i] ?? '').replace(
+          /^(\d{1,2}\([a-z]\)\()[ivx]+(\))/i,
+          `$1${nextRoman}$2`,
+        )
+        explicit.add(nextKey)
+      }
+    }
+    lastSeen.set(key, i)
+  }
+  return out
 }
 
 export function detectHorizontalMarkSchemeTable(items: PdfTextItem[]): HorizontalMarkSchemeTable | null {
@@ -117,7 +158,7 @@ export function normalizeQpLinesV3(ls: string[], ms: ParsedLeaf[]): string[] {
 }
 
 export function parseMsV3(ls: string[]): ParsedLeaf[] {
-  return parseMsV2(ls)
+  return parseMsV2(normalizeDuplicateRomanMarkRows(ls))
 }
 
 export function parseQpV3(ls: string[], ms: ParsedLeaf[]): Record<string, string> {
