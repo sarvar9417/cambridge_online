@@ -1,0 +1,14 @@
+/* Exact source colours for Hodder pixel-grid reconstructions.
+   !important is intentional because this fidelity layer must override the older presentation palette. */
+.hodder-pixel-grid>span[data-symbol="B"],
+.hodder-figure-legend b[data-symbol="B"]{background:#000!important;color:#fff!important}
+.hodder-pixel-grid>span[data-symbol="R"],
+.hodder-figure-legend b[data-symbol="R"]{background:#f00!important;color:#fff!important}
+.hodder-pixel-grid>span[data-symbol="G"],
+.hodder-figure-legend b[data-symbol="G"]{background:#0f0!important;color:#102a10!important}
+.hodder-pixel-grid>span[data-symbol="W"],
+.hodder-figure-legend b[data-symbol="W"]{background:#fff!important;color:#526078!important}
+
+/* Figure 1.7 uses binary-like display symbols rather than RGB initials. */
+.hodder-pixel-grid>span[data-symbol="0"]{background:#000!important;color:#fff!important}
+.hodder-pixel-grid>span[data-symbol="1"]{background:#fff!important;color:#526078!important}
