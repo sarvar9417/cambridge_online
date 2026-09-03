@@ -3,6 +3,7 @@ import { CHAPTER_7 as DISCOVERY_CHAPTER_7 } from './lesson-content-chapter7';
 import { CHAPTER_7, CHAPTER_7_BOOK_START_ID, CHAPTER_7_DISCOVERY_SLIDE_COUNT } from './lesson-content-chapter7-complete';
 import { CHAPTER_7_BOOK_SLIDES, CHAPTER_7_BOOK_SOURCE_COVERAGE } from './chapter7-book-content';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
+import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 
 const allText = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -14,10 +15,38 @@ describe('0478 Chapter 7 complete presenter route', () => {
     expect(CHAPTER_7_BOOK_START_ID).toBe('ch7-book-00-route');
   });
 
-  it('appends the coursebook deep dive instead of replacing discovery content', () => {
+  it('appends the coursebook deep dive and nine live 0478 checkpoints without replacing discovery content', () => {
     expect(CHAPTER_7_BOOK_SLIDES.length).toBeGreaterThan(50);
-    expect(CHAPTER_7.slides.length).toBe(15 + CHAPTER_7_BOOK_SLIDES.length);
+    expect(CHAPTER_7_PAST_PAPER_CHECKPOINTS).toHaveLength(9);
+    expect(CHAPTER_7.slides.length).toBe(15 + CHAPTER_7_BOOK_SLIDES.length + CHAPTER_7_PAST_PAPER_CHECKPOINTS.length);
     expect(CHAPTER_7_BOOK_SLIDES.every((slide) => slide.id.startsWith('ch7-book-'))).toBe(true);
+  });
+
+  it('places one checkpoint after the final coursebook slide for each 7.1–7.9 section', () => {
+    for (const checkpoint of CHAPTER_7_PAST_PAPER_CHECKPOINTS) {
+      const checkpointIndex = CHAPTER_7.slides.findIndex((slide) => slide.id === checkpoint.id);
+      expect(checkpointIndex).toBeGreaterThan(15);
+      const previous = CHAPTER_7.slides[checkpointIndex - 1];
+      const next = CHAPTER_7.slides[checkpointIndex + 1];
+      expect(previous?.subtopicCode).toBe(checkpoint.subtopicCode);
+      expect(next?.subtopicCode).not.toBe(checkpoint.subtopicCode);
+    }
+  });
+
+  it('uses exact historical/current 0478 LO sets and never the 9618 checkpoint scope', () => {
+    const byCode = new Map(CHAPTER_7_PAST_PAPER_CHECKPOINTS.map((slide) => [slide.subtopicCode, slide]));
+    expect(byCode.get('7.1')?.learningObjectiveCodes).toEqual(['7-lo-01']);
+    expect(byCode.get('7.3')?.learningObjectiveCodes).toEqual(['7-lo-03','2.1.1-lo-03']);
+    expect(byCode.get('7.5')?.learningObjectiveCodes).toEqual(['7-lo-05','2.1.1-lo-06']);
+    expect(byCode.get('7.7')?.learningObjectiveCodes).toEqual(['7-lo-07','2.1.1-lo-07']);
+    expect(byCode.get('7.9')?.learningObjectiveCodes).toEqual(['7-lo-09','2.1.1-lo-09','2.1.1-lo-10']);
+    CHAPTER_7_PAST_PAPER_CHECKPOINTS.forEach((slide) => {
+      expect(slide.checkpointSyllabusCode).toBe('0478');
+      expect(slide.checkpointYearTo).toBe(2026);
+      expect(slide.examPractice).toBe(true);
+    });
+    expect(byCode.get('7.1')?.checkpointYearFrom).toBe(2023);
+    expect(byCode.get('7.2')?.checkpointYearFrom).toBe(2015);
   });
 
   it('maps every Activity 7.1–7.20 to an existing presenter slide', () => {
@@ -45,8 +74,8 @@ describe('0478 Chapter 7 complete presenter route', () => {
     CHAPTER_7_BOOK_SOURCE_COVERAGE.sections.forEach((code) => expect(codes.has(code)).toBe(true));
   });
 
-  it('keeps the appended student-facing book content English-only', () => {
-    const text = allText(CHAPTER_7_BOOK_SLIDES);
+  it('keeps the appended student-facing book and 0478 checkpoint content English-only', () => {
+    const text = allText([...CHAPTER_7_BOOK_SLIDES, ...CHAPTER_7_PAST_PAPER_CHECKPOINTS]);
     const forbiddenUzbekMarkers = ['o‘quvchi','tizim','vazifa','savol','javob','qaytim','kerak emas','boshlash','tugatish','guruh'];
     forbiddenUzbekMarkers.forEach((marker) => expect(text).not.toContain(marker));
   });
