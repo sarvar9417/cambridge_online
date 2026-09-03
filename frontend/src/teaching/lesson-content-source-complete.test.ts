@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { lessonChapter } from './lesson-content-source-complete';
+import { lessonChapter, type LessonRichBlock } from './lesson-content-source-complete';
 
 type Chapter = NonNullable<ReturnType<typeof lessonChapter>>;
 const sourceElements = (chapter: Chapter) => new Set(chapter.slides.flatMap(slide=>slide.sourceElements??[]));
 const ids = (chapter: Chapter) => chapter.slides.map(slide=>slide.id);
+const slide=(chapter:Chapter,id:string)=>{
+  const found=chapter.slides.find(item=>item.id===id);
+  expect(found,`Missing slide: ${id}`).toBeTruthy();
+  return found!;
+};
+const blockText=(blocks:LessonRichBlock[]|undefined)=>JSON.stringify(blocks??[]);
+const figureKinds=(chapter:Chapter)=>chapter.slides.flatMap(item=>(item.richBlocks??[]).flatMap(block=>block.kind==='figure'?[block.figure.kind]:[]));
 
 const ch1Elements = [
   'Chapter 1 learning objectives','Chapter 1 What you should already know','1.1 Key terms','1.1.1 Number systems','1.1.2 Binary number system',
@@ -50,7 +57,7 @@ describe('uploaded Hodder chapter source inventory',()=>{
 describe('granular part checkpoints',()=>{
   const assertImmediatelyAfter=(chapter:Chapter,contentId:string,checkpointId:string)=>{
     const order=ids(chapter);expect(order.indexOf(checkpointId),checkpointId).toBe(order.indexOf(contentId)+1);
-    const checkpoint=chapter.slides.find(slide=>slide.id===checkpointId)!;
+    const checkpoint=chapter.slides.find(item=>item.id===checkpointId)!;
     expect(checkpoint.examPractice).toBe(true);
     expect(Boolean(checkpoint.learningObjectiveCodes?.length||checkpoint.checkpointUnavailableReason)).toBe(true);
   };
@@ -59,18 +66,24 @@ describe('granular part checkpoints',()=>{
     const c=lessonChapter(1)!;
     for(const pair of [
       ['h1-111-number-systems','h1-cp-number-purpose'],['h1-112-convert','h1-cp-base-convert'],['h1-112-arithmetic','h1-cp-arithmetic'],
-      ['h1-hex-uses','h1-cp-hex'],['h1-bcd-uses','h1-cp-bcd'],['h1-115-ascii','h1-cp-character-purpose'],['h1-115-unicode','h1-cp-character-rep'],
+      ['h1-memory-units','h1-cp-memory-prefixes'],['h1-hex-uses','h1-cp-hex'],['h1-bcd-uses','h1-cp-bcd'],['h1-115-ascii','h1-cp-character-purpose'],['h1-115-unicode','h1-cp-character-rep'],
       ['h1-bitmap-size','h1-cp-bitmap'],['h1-122-vector','h1-cp-vector'],['h1-bitmap-vector-choice','h1-cp-format-choice'],['h1-123-sound-wave','h1-cp-sound-digitise'],
-      ['h1-sampling-quality','h1-cp-sampling'],['h1-124-video','h1-cp-video'],['h1-13-need','h1-cp-compression-need'],['h1-rle-images','h1-cp-rle'],
+      ['h1-sampling-quality','h1-cp-sampling'],['h1-sound-editing','h1-cp-sound-editing'],['h1-124-video','h1-cp-video'],['h1-13-need','h1-cp-compression-need'],['h1-rle-images','h1-cp-rle'],['h1-132-general','h1-cp-general-reduction'],
     ] as const) assertImmediatelyAfter(c,pair[0],pair[1]);
-    expect(c.slides.find(slide=>slide.id==='h1-cp-video')?.checkpointUnavailableReason).toContain('beyond the 9618 syllabus');
+    expect(slide(c,'h1-cp-video').checkpointUnavailableReason).toContain('beyond the 9618 syllabus');
+  });
+
+  it('places the current pseudocode alignment before the historical hashing checkpoint',()=>{
+    const c=lessonChapter(13)!;const order=ids(c);
+    expect(order.indexOf('h13-current-random-file-pseudocode')).toBe(order.indexOf('h13-hash-collision')+1);
+    expect(order.indexOf('h13-cp-hashing')).toBe(order.indexOf('h13-current-random-file-pseudocode')+1);
   });
 
   it('places exact checkpoint slides after every Chapter 13 logical teaching part',()=>{
     const c=lessonChapter(13)!;
     for(const pair of [
       ['h13-udt-why','h13-cp-udt-need'],['h13-pointer','h13-cp-noncomposite'],['h13-sets-classes','h13-cp-composite'],['h13-activity-13c','h13-cp-type-choice'],
-      ['h13-random','h13-cp-file-org'],['h13-direct-access','h13-cp-file-access'],['h13-org-access-choice','h13-cp-org-access-choice'],['h13-hash-collision','h13-cp-hashing'],
+      ['h13-random','h13-cp-file-org'],['h13-direct-access','h13-cp-file-access'],['h13-org-access-choice','h13-cp-org-access-choice'],['h13-current-random-file-pseudocode','h13-cp-hashing'],
       ['h13-float-format','h13-cp-float-format'],['h13-float-to-denary','h13-cp-float-to-denary'],['h13-denary-to-float','h13-cp-denary-to-float'],
       ['h13-approximation','h13-cp-approximation'],['h13-normalisation','h13-cp-normalise'],['h13-precision-range','h13-cp-precision-range'],['h13-rounding-program','h13-cp-rounding'],['h13-over-under-zero','h13-cp-approx-final'],
     ] as const) assertImmediatelyAfter(c,pair[0],pair[1]);
@@ -79,9 +92,60 @@ describe('granular part checkpoints',()=>{
   it('never falls back to subtopic-wide questions for Chapter 1 or 13 checkpoints',()=>{
     for(const chapterNo of [1,13]){
       const chapter=lessonChapter(chapterNo)!;
-      for(const slide of chapter.slides.filter(slide=>slide.examPractice)){
-        expect(Boolean(slide.learningObjectiveCodes?.length||slide.checkpointUnavailableReason),slide.id).toBe(true);
+      for(const item of chapter.slides.filter(item=>item.examPractice)){
+        expect(Boolean(item.learningObjectiveCodes?.length||item.checkpointUnavailableReason),item.id).toBe(true);
       }
     }
+  });
+});
+
+describe('semantic source fidelity',()=>{
+  it('turns the memory-prefix gap into a real exact historical-LO checkpoint',()=>{
+    const c=lessonChapter(1)!;const checkpoint=slide(c,'h1-cp-memory-prefixes');
+    expect(checkpoint.learningObjectiveCodes).toEqual(['1.1-lo-00']);
+    expect(checkpoint.checkpointUnavailableReason).toBeUndefined();
+    expect(blockText(slide(c,'h1-memory-units').richBlocks)).toContain('kibi/kilo');
+    expect(blockText(slide(c,'h1-memory-units').richBlocks)).toContain('tebi/tera');
+  });
+
+  it('labels Hodder source text separately from the exam-safe editorial form',()=>{
+    const c=lessonChapter(13)!;
+    const record=blockText(slide(c,'h13-record').richBlocks);
+    expect(record).toContain('noPages : STRING');
+    expect(record).toContain('fiction : STRING');
+    expect(record).toContain('noPages : INTEGER');
+    expect(record).toContain('fiction : BOOLEAN');
+    const set=blockText(slide(c,'h13-sets-classes').richBlocks);
+    expect(set).toContain(': letters');
+    expect(set).toContain(': Sletter');
+  });
+
+  it('includes the current Cambridge random-file pseudocode without relabelling it as Hodder',()=>{
+    const c=lessonChapter(13)!;const current=slide(c,'h13-current-random-file-pseudocode');const text=blockText(current.richBlocks);
+    expect(current.sourceLabel).toBe('Cambridge 2027–2029 Pseudocode Guide');
+    for(const token of ['OPENFILE','FOR RANDOM','SEEK','GETRECORD','PUTRECORD'])expect(text).toContain(token);
+  });
+
+  it('preserves the high-value Hodder details found by the PDF audit',()=>{
+    const c=lessonChapter(1)!;
+    expect(blockText(slide(c,'h1-114-bcd').richBlocks)).toContain('four single bytes');
+    expect(blockText(slide(c,'h1-114-bcd').richBlocks)).toContain('two packed bytes');
+    expect(blockText(slide(c,'h1-115-ascii').richBlocks)).toContain('sixth bit');
+    expect(blockText(slide(c,'h1-bitmap-resolution').richBlocks)).toContain('401 pixels per inch');
+    expect(blockText(slide(c,'h1-123-sound-wave').richBlocks)).toContain('vacuum');
+    expect(blockText(slide(c,'h1-131-mp3-jpeg').richBlocks)).toContain('80–320');
+    expect(blockText(slide(c,'h1-131-mp3-jpeg').richBlocks)).toContain('5–15');
+  });
+
+  it('requires real board-readable source figure reconstructions, not just source-element names',()=>{
+    const c1=lessonChapter(1)!;const c13=lessonChapter(13)!;
+    expect(figureKinds(c1)).toEqual(expect.arrayContaining(['grid','wave','pixel-scale']));
+    expect(figureKinds(c13)).toEqual(expect.arrayContaining(['sequence','bitfield']));
+    expect(blockText(slide(c1,'h1-rle-images').richBlocks)).toContain('Figure 1.7 reconstructed');
+    expect(blockText(slide(c1,'h1-rle-images').richBlocks)).toContain('Figure 1.8 reconstructed');
+    expect(blockText(slide(c13,'h13-seq-access').richBlocks)).toContain('Figure 13.5 reconstructed');
+    const precision=blockText(slide(c13,'h13-precision-range').richBlocks);
+    expect(precision).toContain('011111111111 | 0111');
+    expect(precision).toContain('0111 | 011111111111');
   });
 });
