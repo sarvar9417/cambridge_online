@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
-import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content';
+import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-full';
 import './lesson-studio.css';
 
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
@@ -28,9 +28,6 @@ function ExamPractice({ subtopicCode }: { subtopicCode:string }) {
         const options=await api<FilterOptions>('/questions/filter-options');
         const ids=options.topics.filter(item=>item.code===subtopicCode).map(item=>item.subtopic_id);
         if(!ids.length) throw new Error('Subtopic topilmadi.');
-        // Staff question search intentionally exposes needs_review rows as well as
-        // approved rows. A board lesson must be stricter, so fetch a wider pool
-        // and filter approved explicitly before showing anything to learners.
         const qs=new URLSearchParams({view:'parts',status:'approved',yearFrom:'2021',yearTo:'2025',hasDiagram:'false',dependency:'independent',limit:'24'});
         ids.forEach(id=>qs.append('subtopicIds',id));
         const result=await api<QuestionResponse>(`/questions?${qs}`);
@@ -62,6 +59,7 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
       {slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><p>{item.definition}</p></article>)}</div>}
       {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<aside className="lesson-prompt"><span>DISCUSS</span><p>{slide.teacherPrompt}</p></aside>}
+      {slide.activity&&<details className="lesson-activity"><summary><span>CLASS ACTIVITY</span><strong>{slide.activity.title}</strong></summary><p>{slide.activity.prompt}</p>{slide.activity.reveal&&<div className="lesson-activity-answer"><span>ANSWER / GUIDE</span><p>{slide.activity.reveal}</p></div>}</details>}
     </div>
     <Visual kind={slide.visual}/>
   </>;
@@ -72,12 +70,32 @@ export function LessonStudio({ user }: { user:User }) {
   const chapterNo=Number(route.params.get('chapter')||0);
   const chosen=chapterNo===1||chapterNo===13?lessonChapter(chapterNo):null;
   const [index,setIndex]=useState(0),[presenting,setPresenting]=useState(false);
+  const studioRef=useRef<HTMLElement|null>(null);
   const slide=chosen?.slides[index];
   const sections=useMemo(()=>chosen?[...new Set(chosen.slides.map(item=>item.section))]:[],[chosen]);
 
   useEffect(()=>{setIndex(0)},[chapterNo]);
-  const leavePresenter=async()=>{setPresenting(false);document.documentElement.classList.remove('lesson-presenting');try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}};
-  const enterPresenter=async()=>{setPresenting(true);document.documentElement.classList.add('lesson-presenting');try{await document.documentElement.requestFullscreen?.()}catch{}};
+
+  const leavePresenter=async()=>{
+    try{if(document.fullscreenElement)await document.exitFullscreen();}
+    catch{setPresenting(false);}
+  };
+  const enterPresenter=async()=>{
+    const target=studioRef.current;
+    if(!target)return;
+    try{
+      await target.requestFullscreen?.();
+      setPresenting(document.fullscreenElement===target);
+    }catch{
+      setPresenting(false);
+    }
+  };
+
+  useEffect(()=>{
+    const sync=()=>setPresenting(document.fullscreenElement===studioRef.current);
+    document.addEventListener('fullscreenchange',sync);
+    return()=>document.removeEventListener('fullscreenchange',sync);
+  },[]);
 
   useEffect(()=>{
     if(!chosen)return;
@@ -88,19 +106,18 @@ export function LessonStudio({ user }: { user:User }) {
     };
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[chosen,presenting]);
-  useEffect(()=>()=>{document.documentElement.classList.remove('lesson-presenting')},[]);
 
   if(user.role==='student')return null;
   if(!chosen)return <section className="lesson-library">
-    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Hodder coursebook mazmuni Cambridge 9618 syllabus va production past-paper corpus bilan birlashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">2 chapter ready</span></header>
+    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Hodder coursebook mazmuni Cambridge 9618 syllabus va production past-paper corpus bilan birlashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">2 chapter · full coverage</span></header>
     <div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}>
-      <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides</b><span>Ochish →</span></footer>
+      <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer>
     </button>)}</div>
   </section>;
 
   if(!slide)return null;
   const sectionStart=sections.map(section=>chosen.slides.findIndex(item=>item.section===section));
-  return <section className={`lesson-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
+  return <section ref={studioRef} className={`lesson-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
     <header className="lesson-toolbar">
       <button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button>
       <div className="lesson-toolbar-title"><span>Chapter {chosen.number}</span><strong>{chosen.title}</strong></div>
