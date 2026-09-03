@@ -1,6 +1,6 @@
 import { SOURCE_VERIFIED_CHAPTER_1, SOURCE_VERIFIED_CHAPTER_13 } from './lesson-content-source-verified';
 import type { HodderLessonChapter, HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
-import { sourceAtomsForChapter, sourceAtomsForSlide, type LessonSourceAtom } from './lesson-source-atoms';
+import { sourceAtomsForChapter, sourceAtomsForSlide, type LessonSourceAtom } from './lesson-source-atom-registry';
 
 const atomBlock = (atom: LessonSourceAtom): LessonRichBlock => ({
   kind: 'code',
@@ -16,7 +16,7 @@ const atomIntro = (atoms: LessonSourceAtom[]): LessonRichBlock => {
     tone: practiceCount ? 'activity' : 'info',
     title: practiceCount ? 'BOOK PRACTICE · exact source data' : 'SOURCE DETAIL · exact values retained',
     text: practiceCount
-      ? `This drawer-equivalent source block keeps the actual Hodder values/tasks on the teaching slide instead of replacing them with a summary. ${practiceCount} practice atom(s) and ${evidenceCount} supporting source atom(s) are pinned here.`
+      ? `The actual Hodder values/tasks are retained here instead of being replaced by a title-only summary. ${practiceCount} practice atom(s) and ${evidenceCount} supporting source atom(s) are pinned to this teaching unit.`
       : `The high-value numbers, bit patterns, table rows and worked-example values from the Hodder source are pinned here so source coverage is semantic rather than title-only.`,
   };
 };
@@ -43,7 +43,7 @@ const enrichChapter = (chapter: HodderLessonChapter): HodderLessonChapter => {
   const pages = new Set(atoms.map((item) => item.page));
   return {
     ...chapter,
-    coverage: `${chapter.coverage} · ${atoms.length}/${atoms.length} source atoms pinned · ${pages.size} atom-audited pages`,
+    coverage: `${chapter.coverage} · ${atoms.length}/${atoms.length} source atoms pinned · ${pages.size}/${chapter.number === 1 ? 26 : 24} atom-audited pages`,
     slides: chapter.slides.map(enrichSlide),
   };
 };
