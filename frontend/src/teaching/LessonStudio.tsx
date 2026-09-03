@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { CHECKPOINT_YEARS, selectYearBalancedQuestions } from './lesson-checkpoint';
-import { LESSON_CHAPTERS, lessonChapter, type LessonSlide, type LessonVisual } from './lesson-content-source-complete';
+import { LESSON_CHAPTERS as SOURCE_CHAPTERS, type LessonSlide, type LessonVisual } from './lesson-content-source-complete';
+import { CHAPTER_7 } from './lesson-content-chapter7';
+import { Chapter7SlideBody } from './Chapter7SlideBody';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
 import './lesson-studio-presenter-fix.css';
@@ -10,6 +12,8 @@ import './lesson-studio-presenter-fix.css';
 type FilterOptions = { topics: Array<{ subtopic_id:string; code:string; subtopic_title:string }> };
 type ExamPart = { id:string; displayRef:string; stem:string; commandWord:string|null; marks:number; year:number; series:string; variant:number; status:string };
 type QuestionResponse = { data: ExamPart[]; view:'parts'; unavailableFilters:string[]; nextCursor:string|null };
+
+const LESSON_CHAPTERS = [...SOURCE_CHAPTERS, CHAPTER_7].sort((a,b)=>a.number-b.number);
 
 function Visual({ kind }: { kind?: LessonVisual }) {
   if (!kind) return null;
@@ -85,7 +89,7 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
 export function LessonStudio({ user }: { user:User }) {
   const route=useRoute();
   const chapterNo=Number(route.params.get('chapter')||0);
-  const chosen=chapterNo===1||chapterNo===13?lessonChapter(chapterNo):null;
+  const chosen=LESSON_CHAPTERS.find(chapter=>chapter.number===chapterNo)??null;
   const [index,setIndex]=useState(0),[presenting,setPresenting]=useState(false);
   const studioRef=useRef<HTMLElement|null>(null);
   const slide=chosen?.slides[index];
@@ -126,7 +130,7 @@ export function LessonStudio({ user }: { user:User }) {
 
   if(user.role==='student')return null;
   if(!chosen)return <section className="lesson-library">
-    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Hodder coursebook mazmuni Cambridge 9618 syllabus va production past-paper corpus bilan birlashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">2 chapter · source-audited coverage</span></header>
+    <header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Cambridge 0478 va 9618 manbalari asosida, doskada prezentatsiyadek o‘tishga moslashtirilgan classroom lessons.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} chapter · source-audited coverage</span></header>
     <div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}>
       <span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer>
     </button>)}</div>
@@ -137,14 +141,14 @@ export function LessonStudio({ user }: { user:User }) {
   return <section ref={studioRef} className={`lesson-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
     <header className="lesson-toolbar">
       <button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button>
-      <div className="lesson-toolbar-title"><span>Chapter {chosen.number}</span><strong>{chosen.title}</strong></div>
+      <div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number}</span><strong>{chosen.title}</strong></div>
       <div className="lesson-toolbar-actions"><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Presenter’dan chiqish':'Doskada ochish ↗'}</button></div>
     </header>
     <div className="lesson-progress"><span style={{width:`${((index+1)/chosen.slides.length)*100}%`}}/></div>
     <div className="lesson-workspace">
       <aside className="lesson-outline"><p>CHAPTER {chosen.number}</p>{sections.map((section,i)=><button className={slide.section===section?'active':''} key={section} onClick={()=>setIndex(sectionStart[i]!)}><span>{String(i+1).padStart(2,'0')}</span>{section}</button>)}</aside>
       <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>
-        {slide.examPractice&&slide.subtopicCode?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1><p>{slide.lead}</p></div><ExamPractice subtopicCode={slide.subtopicCode}/></div>:<SlideBody slide={slide}/>} 
+        {slide.examPractice&&slide.subtopicCode?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1><p>{slide.lead}</p></div><ExamPractice subtopicCode={slide.subtopicCode}/></div>:slide.id.startsWith('ch7-')?<Chapter7SlideBody slide={slide}/>:<SlideBody slide={slide}/>} 
         <div className="lesson-slide-watermark">CamPath · {chosen.level}</div>
       </main>
     </div>
