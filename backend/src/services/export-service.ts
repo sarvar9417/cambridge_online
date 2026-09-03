@@ -36,7 +36,7 @@ export class ExportService {
       if (!meta.rowCount) throw new DomainError('not_found', 404);
       requestPayload = {
         version: 1,
-        title: input.title?.trim() || meta.rows[0].name || 'Cambridge 9618 practice',
+        title: input.title?.trim() || meta.rows[0].name || 'Cambridge practice',
         review,
       };
     } else if (input.refTable === 'submissions' && actor.role === 'student') {
