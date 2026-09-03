@@ -40,6 +40,35 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  background: #ffffff;
+  color: #172033;
+}
+
+/* Presenter mode must remain readable on a bright classroom projector.
+   The fullscreen shell is dark, but the teaching canvas is deliberately high contrast. */
+.lesson-studio:fullscreen .lesson-copy h1,
+.lesson-studio:-webkit-full-screen .lesson-copy h1,
+.lesson-studio:fullscreen .lesson-exam-intro h1,
+.lesson-studio:-webkit-full-screen .lesson-exam-intro h1 {
+  color: #111827;
+}
+
+.lesson-studio:fullscreen .lesson-bullets li,
+.lesson-studio:-webkit-full-screen .lesson-bullets li,
+.lesson-studio:fullscreen .lesson-prompt p,
+.lesson-studio:-webkit-full-screen .lesson-prompt p,
+.lesson-studio:fullscreen .lesson-example,
+.lesson-studio:-webkit-full-screen .lesson-example,
+.lesson-studio:fullscreen .lesson-activity summary strong,
+.lesson-studio:-webkit-full-screen .lesson-activity summary strong {
+  color: #263247;
+}
+
+.lesson-studio:fullscreen .lesson-lead,
+.lesson-studio:-webkit-full-screen .lesson-lead,
+.lesson-studio:fullscreen .lesson-exam-intro > p:last-child,
+.lesson-studio:-webkit-full-screen .lesson-exam-intro > p:last-child {
+  color: #4b5565;
 }
 
 @media (max-width: 1050px) {
