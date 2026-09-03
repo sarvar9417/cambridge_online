@@ -193,6 +193,8 @@ export function QuestionBankPage({ user }: { user: User }) {
   const forClass = route.params.get('sinf') ?? '';
   const requestedSyllabus = route.params.get('syllabus') ?? '9618';
   const searchRef = useRef<HTMLInputElement>(null);
+  const reviewRequestRef = useRef(0);
+  const selectionStorageKey = `campath:question-bank:selection:${user.id}`;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<BankView>('parts');
@@ -201,6 +203,12 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [selections, setSelections] = useState<SelectionSummary[]>([]);
   const [selectionId, setSelectionId] = useState('');
   const [review, setReview] = useState<SelectionReview | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [basketOpen, setBasketOpen] = useState(false);
+  const [pendingQuestionIds, setPendingQuestionIds] = useState<Set<string>>(new Set());
+  const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(new Set());
+  const [basketNotice, setBasketNotice] = useState('');
+  const [lastRemoved, setLastRemoved] = useState<ReviewItem | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [preview, setPreview] = useState<PortableQuestion | null>(null);
   const [dependencyDialog, setDependencyDialog] = useState<Dependency[] | null>(null);
@@ -236,7 +244,11 @@ export function QuestionBankPage({ user }: { user: User }) {
     }
     if (basketResult.status === 'fulfilled') {
       setSelections(basketResult.value);
-      setSelectionId((current) => current || basketResult.value[0]?.id || '');
+      setSelectionId((current) => {
+        if (current && basketResult.value.some((item) => item.id === current)) return current;
+        const saved = window.localStorage.getItem(selectionStorageKey);
+        return basketResult.value.some((item) => item.id === saved) ? saved! : basketResult.value[0]?.id || '';
+      });
     }
 
     const failed = [filterResult, basketResult].find(
@@ -286,11 +298,18 @@ export function QuestionBankPage({ user }: { user: User }) {
   }, [user, syllabusCode, params]);
 
   const loadReview = async (id = selectionId) => {
+    const request = ++reviewRequestRef.current;
     if (!id) {
       setReview(null);
       return;
     }
-    setReview(await api<SelectionReview>(`/selections/${id}`));
+    setReviewLoading(true);
+    try {
+      const next = await api<SelectionReview>(`/selections/${id}`);
+      if (request === reviewRequestRef.current) setReview(next);
+    } finally {
+      if (request === reviewRequestRef.current) setReviewLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -300,6 +319,11 @@ export function QuestionBankPage({ user }: { user: User }) {
     }
     void loadReview(selectionId).catch((cause) => setError(message(cause, 'Savatcha yuklanmadi.')));
   }, [selectionId, user]);
+
+  useEffect(() => {
+    if (selectionId) window.localStorage.setItem(selectionStorageKey, selectionId);
+    else window.localStorage.removeItem(selectionStorageKey);
+  }, [selectionId, selectionStorageKey]);
 
   const refreshSelections = async () => {
     const data = await api<SelectionSummary[]>('/selections');
@@ -321,6 +345,11 @@ export function QuestionBankPage({ user }: { user: User }) {
   const ensureSelection = async () => selectionId || createSelection();
 
   const addQuestion = async (questionId: string, role: SelectionRole = 'graded') => {
+    if (pendingQuestionIds.has(questionId) || review?.items.some((item) => item.portable.leaf.id === questionId)) return;
+    setPendingQuestionIds((current) => new Set(current).add(questionId));
+    setError('');
+    setBasketNotice('');
+    setLastRemoved(null);
     try {
       const id = await ensureSelection();
       if (!id) return;
@@ -329,14 +358,23 @@ export function QuestionBankPage({ user }: { user: User }) {
         body: JSON.stringify({ questionId, role }),
       });
       await Promise.all([loadReview(id), refreshSelections()]);
+      setBasketNotice('Savol savatchaga qo‘shildi.');
+      setBasketOpen(true);
       if (result.dependencies.length) setDependencyDialog(result.dependencies);
     } catch (cause) {
       setError(message(cause, 'Savol savatchaga qo‘shilmadi.'));
+    } finally {
+      setPendingQuestionIds((current) => {
+        const next = new Set(current);
+        next.delete(questionId);
+        return next;
+      });
     }
   };
 
   const changeRole = async (itemId: string, role: SelectionRole) => {
-    if (!selectionId) return;
+    if (!selectionId || pendingItemIds.has(itemId)) return;
+    setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, {
         method: 'PATCH',
@@ -345,17 +383,33 @@ export function QuestionBankPage({ user }: { user: User }) {
       await Promise.all([loadReview(), refreshSelections()]);
     } catch (cause) {
       setError(message(cause, 'Savol roli o‘zgarmadi.'));
+    } finally {
+      setPendingItemIds((current) => { const next = new Set(current); next.delete(itemId); return next; });
     }
   };
 
   const removeItem = async (itemId: string) => {
-    if (!selectionId) return;
+    if (!selectionId || pendingItemIds.has(itemId)) return;
+    const removed = review?.items.find((item) => item.id === itemId) ?? null;
+    setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, { method: 'DELETE' });
       await Promise.all([loadReview(), refreshSelections()]);
+      setLastRemoved(removed);
+      setBasketNotice('Savol savatchadan olib tashlandi.');
     } catch (cause) {
       setError(message(cause, 'Savol savatchadan olinmadi.'));
+    } finally {
+      setPendingItemIds((current) => { const next = new Set(current); next.delete(itemId); return next; });
     }
+  };
+
+  const undoRemove = async () => {
+    if (!lastRemoved) return;
+    const item = lastRemoved;
+    setLastRemoved(null);
+    setBasketNotice('');
+    await addQuestion(item.portable.leaf.id, item.role);
   };
 
   const openPreview = async (questionId: string) => {
@@ -369,6 +423,10 @@ export function QuestionBankPage({ user }: { user: User }) {
   const flat = view === 'parts'
     ? (questions.data as Part[])
     : (questions.data as Family[]).flatMap((family) => family.parts.filter((part) => part.matches));
+  const selectedQuestionIds = useMemo(
+    () => new Set(review?.items.map((item) => item.portable.leaf.id) ?? []),
+    [review],
+  );
 
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
@@ -384,14 +442,14 @@ export function QuestionBankPage({ user }: { user: User }) {
         event.preventDefault();
         setFocused((current) => Math.max(0, Math.min(flat.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1))));
       }
-      if ((event.key === 'Enter' || event.key === ' ') && flat[focused]) {
+      if ((event.key === 'Enter' || event.key === ' ') && flat[focused] && !selectedQuestionIds.has(flat[focused].id)) {
         event.preventDefault();
         void addQuestion(flat[focused].id);
       }
     };
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
-  }, [flat, focused, reviewing, preview, dependencyDialog, selectionId]);
+  }, [flat, focused, reviewing, preview, dependencyDialog, selectionId, selectedQuestionIds, pendingQuestionIds]);
 
   const scopedTopics = options.topics.filter((item) => item.syllabus_code === syllabusCode);
   const topicChoices = [...new Map(scopedTopics.map((item) => [item.topic_id, item])).values()];
@@ -441,6 +499,7 @@ export function QuestionBankPage({ user }: { user: User }) {
           <div><strong>CamPath</strong><span>Question Bank v2</span></div>
         </div>
         <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge {syllabusCode || '—'}</span>{activeSyllabus && <span className="qb-badge">{activeSyllabus.question_count} savol</span>}<span className="qb-badge">Leaf-first</span></div>
+        <button className="qb-basket-toggle" type="button" aria-expanded={basketOpen} onClick={() => setBasketOpen((open) => !open)}><span>Savatcha</span><strong>{review?.items.length ?? 0}</strong></button>
       </header>
 
       <div className="qb-layout">
@@ -465,19 +524,22 @@ export function QuestionBankPage({ user }: { user: User }) {
           {questions.unavailableFilters.length > 0 && <div className="qb-notice">Hozircha ishlamaydigan filtrlar: {questions.unavailableFilters.join(', ')}</div>}
           {error && <div className="qb-error">{error}</div>}
           {loading && <div className="qb-loading">Savollar yuklanmoqda…</div>}
-          {!loading && view === 'parts' && <div className="qb-card-list">{(questions.data as Part[]).map((part, index) => <PartCard key={part.id} part={part} focused={focused === index} onAdd={() => void addQuestion(part.id)} onPreview={() => void openPreview(part.id)} />)}</div>}
-          {!loading && view === 'families' && <div className="qb-card-list">{(questions.data as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}</div>}
+          {!loading && view === 'parts' && <div className="qb-card-list">{(questions.data as Part[]).map((part, index) => <PartCard key={part.id} part={part} focused={focused === index} selected={selectedQuestionIds.has(part.id)} pending={pendingQuestionIds.has(part.id)} onAdd={() => void addQuestion(part.id)} onPreview={() => void openPreview(part.id)} />)}</div>}
+          {!loading && view === 'families' && <div className="qb-card-list">{(questions.data as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} selectedIds={selectedQuestionIds} pendingIds={pendingQuestionIds} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}</div>}
           {!loading && questions.data.length === 0 && <div className="qb-empty"><strong>Savol topilmadi</strong><span>Filtrlarni yumshatib ko‘ring.</span></div>}
         </section>
 
-        <aside className="qb-basket">
-          <div className="qb-panel-title"><div><strong>Savatcha</strong><small>Serverda saqlanadi</small></div><button className="qb-icon-button" title="Yangi savatcha" onClick={() => void createSelection()}>+</button></div>
-          <select className="qb-basket-select" value={selectionId} onChange={(event) => setSelectionId(event.target.value)}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
+        {basketOpen && <button className="qb-basket-backdrop" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)} />}
+        <aside className={`qb-basket ${basketOpen ? 'open' : ''}`} aria-label="Savollar savatchasi">
+          <div className="qb-panel-title"><div><strong>Savatcha</strong><small>Serverda avtomatik saqlanadi</small></div><div className="qb-basket-head-actions"><button className="qb-icon-button qb-basket-close" title="Yopish" onClick={() => setBasketOpen(false)}>×</button><button className="qb-icon-button" title="Yangi savatcha" onClick={() => void createSelection()}>+</button></div></div>
+          <select className="qb-basket-select" value={selectionId} onChange={(event) => { setReview(null); setBasketNotice(''); setLastRemoved(null); setSelectionId(event.target.value); }}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
           <div className="qb-basket-items">
-            {review?.items.map((item) => <article className="qb-basket-item" key={item.id}><div className="qb-basket-item-head"><strong>{item.freshRef}</strong><button title="Olib tashlash" onClick={() => void removeItem(item.id)}>×</button></div><small>{item.sourceRef}</small><p>{item.portable.leaf.stem}</p><div className="qb-basket-item-footer"><select value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}><option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option><option value="context_only">Faqat kontekst · 0 ball</option></select><button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button></div></article>)}
-            {selectionId && !review?.items.length && <div className="qb-empty small"><span>Savollarni + bilan qo‘shing.</span></div>}
+            {reviewLoading && <div className="qb-loading">Savatcha yuklanmoqda…</div>}
+            {!reviewLoading && review?.items.map((item) => <article className={`qb-basket-item ${pendingItemIds.has(item.id) ? 'pending' : ''}`} key={item.id}><div className="qb-basket-item-head"><strong>{item.freshRef}</strong><button disabled={pendingItemIds.has(item.id)} title="Olib tashlash" onClick={() => void removeItem(item.id)}>×</button></div><small>{item.sourceRef}</small><p>{item.portable.leaf.stem}</p><div className="qb-basket-item-footer"><select disabled={pendingItemIds.has(item.id)} value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}><option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option><option value="context_only">Faqat kontekst · 0 ball</option></select><button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button></div></article>)}
+            {!reviewLoading && selectionId && !review?.items.length && <div className="qb-empty small"><span>Savollarni + bilan qo‘shing.</span></div>}
             {!selectionId && <div className="qb-empty small"><span>Avval savatcha yarating.</span></div>}
           </div>
+          {basketNotice && <div className="qb-basket-notice"><span>{basketNotice}</span>{lastRemoved && <button onClick={() => void undoRemove()}>Qaytarish</button>}</div>}
           {review?.dependencyIssues.length ? <div className="qb-issues">{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.severity === 'error' ? '!' : 'i'} {issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span></div>)}</div> : null}
           <div className="qb-basket-summary"><div><span>Tanlangan</span><strong>{review?.items.length ?? 0} ta</strong></div><div><span>Jami</span><strong>{review?.totalMarks ?? 0} ball</strong></div><div><span>Dependency</span><strong className={review?.canPublish === false ? 'qb-danger-text' : 'qb-success-text'}>{review?.canPublish === false ? 'Bloklangan' : 'Tayyor'}</strong></div><button disabled={!review?.items.length} onClick={() => setReviewing(true)}>Ko‘rib chiqish</button></div>
         </aside>
@@ -494,12 +556,12 @@ function CheckGroup({ label, options, value, onChange, maxHeight = false }: { la
   return <fieldset className={`qb-check-group ${maxHeight ? 'scroll' : ''}`}><legend>{label}</legend><div>{options.map(([id, text]) => <label key={id}><input type="checkbox" checked={value.includes(id)} onChange={(event) => onChange(event.target.checked ? [...value, id] : value.filter((item) => item !== id))} /><span>{text}</span></label>)}</div></fieldset>;
 }
 
-function PartCard({ part, focused, onAdd, onPreview }: { part: Part; focused: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className="qb-add-button" title="Savatchaga qo‘shish" onClick={onAdd}>+</button></div></article>;
+function PartCard({ part, focused, selected, pending, onAdd, onPreview }: { part: Part; focused: boolean; selected: boolean; pending: boolean; onAdd: () => void; onPreview: () => void }) {
+  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} title={selected ? 'Savatchaga qo‘shilgan' : 'Savatchaga qo‘shish'} onClick={onAdd}>{pending ? '…' : selected ? '✓' : '+'}</button></div></article>;
 }
 
-function FamilyCard({ family, onAdd, onPreview }: { family: Family; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
-  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><span>⌄</span></summary><div className="qb-family-parts">{family.parts.map((part) => <article className={part.matches ? 'match' : ''} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<p>{part.stem}</p></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className="qb-add-button" onClick={() => onAdd(part.id)}>+</button></article>)}</div></details>;
+function FamilyCard({ family, selectedIds, pendingIds, onAdd, onPreview }: { family: Family; selectedIds: Set<string>; pendingIds: Set<string>; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
+  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><span>⌄</span></summary><div className="qb-family-parts">{family.parts.map((part) => { const selected = selectedIds.has(part.id); const pending = pendingIds.has(part.id); return <article className={`${part.matches ? 'match' : ''} ${selected ? 'selected' : ''}`} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<p>{part.stem}</p></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} title={selected ? 'Savatchaga qo‘shilgan' : 'Savatchaga qo‘shish'} onClick={() => onAdd(part.id)}>{pending ? '…' : selected ? '✓' : '+'}</button></article>; })}</div></details>;
 }
 
 function ContextBlocks({ portable }: { portable: PortableQuestion }) {
