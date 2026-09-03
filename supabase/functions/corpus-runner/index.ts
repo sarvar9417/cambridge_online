@@ -1,6 +1,12 @@
 import { createRemoteJWKSet, jwtVerify } from 'npm:jose@6.1.0'
 import { getDocumentProxy } from 'npm:unpdf@1.4.0'
-import { isRotatedQuestionTable, parseMsV2, parseQpV2 } from './parser.ts'
+import {
+  detectHorizontalMarkSchemeTable,
+  formatPdfTextRow,
+  isRotatedQuestionTable,
+  parseMsV3,
+  parseQpV3,
+} from './parser-v3-adapter.ts'
 
 const GITHUB_JWKS = createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'))
 const EXPECTED_REPO = 'sarvar9417/cambridge_online'
@@ -70,7 +76,7 @@ async function pdfLines(u:string){
     const pg=await pdf.getPage(p),tc:any=await pg.getTextContent(),it=(tc.items||[])
       .filter((z:any)=>z.str?.trim())
       .map((z:any)=>({s:String(z.str),x:+(z.transform?.[4]||0),y:+(z.transform?.[5]||0)}))
-    const rot=isRotatedQuestionTable(it)
+    const rot=isRotatedQuestionTable(it),table=detectHorizontalMarkSchemeTable(it)
     if(rot){
       it.sort((a:any,b:any)=>Math.abs(a.x-b.x)>1.8?a.x-b.x:a.y-b.y)
       let row:any[]=[],x:number|null=null
@@ -80,7 +86,7 @@ async function pdfLines(u:string){
     }else{
       it.sort((a:any,b:any)=>Math.abs(b.y-a.y)>1.8?b.y-a.y:a.x-b.x)
       let row:any[]=[],y:number|null=null
-      const flush=()=>{if(row.length){row.sort((a,b)=>a.x-b.x);out.push(row.map(z=>z.s).join(' ').replace(/\s+/g,' ').trim());row=[]}}
+      const flush=()=>{if(row.length){row.sort((a,b)=>a.x-b.x);out.push(formatPdfTextRow(row,table));row=[]}}
       for(const z of it){if(y===null||Math.abs(z.y-y)<=1.8){row.push(z);if(y===null)y=z.y}else{flush();row=[z];y=z.y}}
       flush()
     }
@@ -153,7 +159,7 @@ Deno.serve(async(req:Request)=>{
       const qpUrl=String(body?.qp_url||''),msUrl=String(body?.ms_url||'')
       if(!qpUrl||!msUrl)return Response.json({error:'invalid_extract_payload'},{status:400})
       const[q,m]=await Promise.all([pdfLines(qpUrl),pdfLines(msUrl)])
-      const leaves=parseMsV2(m),stems=parseQpV2(q,leaves),rows=leaves.map(x=>({path:x.path,marks:x.marks,stem:stems[x.path]||null,guidance:x.guidance}))
+      const leaves=parseMsV3(m),stems=parseQpV3(q,leaves),rows=leaves.map(x=>({path:x.path,marks:x.marks,stem:stems[x.path]||null,guidance:x.guidance}))
       const total=rows.reduce((a,x)=>a+x.marks,0),missing=rows.filter(x=>!x.stem).map(x=>x.path)
       return Response.json({ok:true,count:rows.length,total,missing,rows})
     }
