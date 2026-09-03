@@ -1,7 +1,85 @@
-import{readdir}from'node:fs/promises';import{join,resolve}from'node:path';import type{SourceStageItem}from'./source-stage-manifest.js';import{parsePaperCode}from'./source-stage-manifest.js';
-const seriesCode={m:'FM',s:'MJ',w:'ON'}as const;
-export interface DiscoveredCorpus{root:string;items:SourceStageItem[];ignoredPdfCount:number;pairCount:number;unpaired:Array<{key:string;missing:'QP'|'MS'}>}
-export function parseCambridgeSourceFilename(filename:string,absolutePath:string):SourceStageItem|null{const match=filename.match(/^9618_([msw])(\d{2})_(qp|ms)_(\d{2})\.pdf$/i);if(!match)return null;const series=seriesCode[match[1]!.toLowerCase()as keyof typeof seriesCode],year=2000+Number(match[2]),kind=match[3]!.toUpperCase()as'QP'|'MS',paperCode=Number(match[4]);parsePaperCode(paperCode);return{syllabusCode:'9618',year,series,paperCode,kind,path:absolutePath}}
-export async function discoverCorpusSources(root:string):Promise<DiscoveredCorpus>{const absoluteRoot=resolve(root),items:SourceStageItem[]=[],ignored:{count:number}={count:0};await walk(absoluteRoot,items,ignored);items.sort((a,b)=>a.year-b.year||seriesOrder(a.series)-seriesOrder(b.series)||a.paperCode-b.paperCode||a.kind.localeCompare(b.kind));const seen=new Map<string,Set<'QP'|'MS'>>();for(const item of items){const key=`${item.year}-${item.series}-${item.paperCode}`;const kinds=seen.get(key)??new Set<'QP'|'MS'>();if(kinds.has(item.kind))throw new Error(`duplicate_discovered_source:${key}-${item.kind}`);kinds.add(item.kind);seen.set(key,kinds)}const unpaired:Array<{key:string;missing:'QP'|'MS'}>=[];for(const[key,kinds]of seen){if(!kinds.has('QP'))unpaired.push({key,missing:'QP'});if(!kinds.has('MS'))unpaired.push({key,missing:'MS'})}return{root:absoluteRoot,items,ignoredPdfCount:ignored.count,pairCount:[...seen.values()].filter(kinds=>kinds.has('QP')&&kinds.has('MS')).length,unpaired}}
-async function walk(dir:string,items:SourceStageItem[],ignored:{count:number}){for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory()){await walk(path,items,ignored);continue}if(!entry.isFile()||!entry.name.toLowerCase().endsWith('.pdf'))continue;const parsed=parseCambridgeSourceFilename(entry.name,path);if(parsed)items.push(parsed);else ignored.count++}}
-function seriesOrder(series:'FM'|'MJ'|'ON'){return series==='FM'?0:series==='MJ'?1:2}
+import { readdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import type { SourceStageItem } from './source-stage-manifest.js';
+import { isCorpusSyllabusCode, parsePaperCode } from './source-stage-manifest.js';
+
+const seriesCode = { m: 'FM', s: 'MJ', w: 'ON' } as const;
+
+export interface DiscoveredCorpus {
+  root: string;
+  items: SourceStageItem[];
+  ignoredPdfCount: number;
+  pairCount: number;
+  unpaired: Array<{ key: string; missing: 'QP' | 'MS' }>;
+}
+
+export function parseCambridgeSourceFilename(filename: string, absolutePath: string): SourceStageItem | null {
+  const match = filename.match(/^(9618|0478)_([msw])(\d{2})_(qp|ms)_(\d{2})\.pdf$/i);
+  if (!match) return null;
+
+  const syllabusCode = match[1]!;
+  if (!isCorpusSyllabusCode(syllabusCode)) return null;
+  const series = seriesCode[match[2]!.toLowerCase() as keyof typeof seriesCode];
+  const year = 2000 + Number(match[3]);
+  const kind = match[4]!.toUpperCase() as 'QP' | 'MS';
+  const paperCode = Number(match[5]);
+  parsePaperCode(paperCode, syllabusCode);
+
+  return { syllabusCode, year, series, paperCode, kind, path: absolutePath };
+}
+
+export async function discoverCorpusSources(root: string): Promise<DiscoveredCorpus> {
+  const absoluteRoot = resolve(root);
+  const items: SourceStageItem[] = [];
+  const ignored = { count: 0 };
+  await walk(absoluteRoot, items, ignored);
+
+  items.sort((a, b) =>
+    a.syllabusCode.localeCompare(b.syllabusCode)
+    || a.year - b.year
+    || seriesOrder(a.series) - seriesOrder(b.series)
+    || a.paperCode - b.paperCode
+    || a.kind.localeCompare(b.kind),
+  );
+
+  const seen = new Map<string, Set<'QP' | 'MS'>>();
+  for (const item of items) {
+    const key = `${item.syllabusCode}-${item.year}-${item.series}-${item.paperCode}`;
+    const kinds = seen.get(key) ?? new Set<'QP' | 'MS'>();
+    if (kinds.has(item.kind)) throw new Error(`duplicate_discovered_source:${key}-${item.kind}`);
+    kinds.add(item.kind);
+    seen.set(key, kinds);
+  }
+
+  const unpaired: Array<{ key: string; missing: 'QP' | 'MS' }> = [];
+  for (const [key, kinds] of seen) {
+    if (!kinds.has('QP')) unpaired.push({ key, missing: 'QP' });
+    if (!kinds.has('MS')) unpaired.push({ key, missing: 'MS' });
+  }
+
+  return {
+    root: absoluteRoot,
+    items,
+    ignoredPdfCount: ignored.count,
+    pairCount: [...seen.values()].filter((kinds) => kinds.has('QP') && kinds.has('MS')).length,
+    unpaired,
+  };
+}
+
+async function walk(dir: string, items: SourceStageItem[], ignored: { count: number }) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await walk(path, items, ignored);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.pdf')) continue;
+    const parsed = parseCambridgeSourceFilename(entry.name, path);
+    if (parsed) items.push(parsed);
+    else ignored.count++;
+  }
+}
+
+function seriesOrder(series: 'FM' | 'MJ' | 'ON') {
+  return series === 'FM' ? 0 : series === 'MJ' ? 1 : 2;
+}
