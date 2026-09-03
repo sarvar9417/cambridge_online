@@ -21,6 +21,7 @@ on:
       - 'supabase/functions/corpus-runner/parser.ts'
       - 'supabase/functions/corpus-runner/parser-v3.ts'
       - 'supabase/functions/corpus-runner/parser-v3-adapter.ts'
+      - 'supabase/functions/corpus-runner/source-overrides.ts'
 
 permissions:
   contents: read
