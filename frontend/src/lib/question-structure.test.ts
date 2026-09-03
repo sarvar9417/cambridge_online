@@ -76,7 +76,7 @@ Total ← 0
 Calculate the final value.`;
 
     expect(structureQuestionText(stem)).toEqual([
-      { type: 'paragraph', text: 'Use the following data.' },
+      { type: 'task', text: 'Use the following data.' },
       { type: 'table', rows: ['| Name | Value |', '| A | 10 |'] },
       { type: 'code', text: 'DECLARE Total : INTEGER\nTotal ← 0' },
       { type: 'task', text: 'Calculate the final value.' },
