@@ -40,6 +40,68 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  background: #ffffff;
+  color: #172033;
+}
+
+/* Presenter mode must remain readable on a bright classroom projector. */
+.lesson-studio:fullscreen .lesson-copy h1,
+.lesson-studio:-webkit-full-screen .lesson-copy h1,
+.lesson-studio:fullscreen .lesson-exam-intro h1,
+.lesson-studio:-webkit-full-screen .lesson-exam-intro h1 {
+  color: #111827;
+}
+
+.lesson-studio:fullscreen .lesson-bullets li,
+.lesson-studio:-webkit-full-screen .lesson-bullets li,
+.lesson-studio:fullscreen .lesson-prompt p,
+.lesson-studio:-webkit-full-screen .lesson-prompt p,
+.lesson-studio:fullscreen .lesson-example,
+.lesson-studio:-webkit-full-screen .lesson-example,
+.lesson-studio:fullscreen .lesson-activity summary strong,
+.lesson-studio:-webkit-full-screen .lesson-activity summary strong {
+  color: #263247;
+}
+
+.lesson-studio:fullscreen .lesson-lead,
+.lesson-studio:-webkit-full-screen .lesson-lead,
+.lesson-studio:fullscreen .lesson-exam-intro > p:last-child,
+.lesson-studio:-webkit-full-screen .lesson-exam-intro > p:last-child {
+  color: #4b5565;
+}
+
+.lesson-exam-years {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: -4px 0 14px;
+}
+.lesson-exam-years strong {
+  margin-right: 4px;
+  color: #596579;
+  font-size: 10px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.lesson-exam-years span {
+  border: 1px solid #d9e0ec;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: #8a94a5;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lesson-exam-years span.available {
+  border-color: color-mix(in srgb, var(--lesson-accent) 32%, #d9e0ec);
+  background: var(--lesson-accent-soft);
+  color: var(--lesson-accent);
+}
+.lesson-exam-years span.missing {
+  opacity: .45;
+  text-decoration: line-through;
 }
 
 @media (max-width: 1050px) {
