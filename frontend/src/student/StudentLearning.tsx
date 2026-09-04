@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { CommandWordProgress, Flashcard, MasteryItem } from '../lib/api';
 import { useRoute } from '../lib/router';
 import { StudentLessons } from './StudentLessons';
@@ -26,10 +26,19 @@ export function StudentLearning({
   onReveal, onGrade, onPractice, games,
 }: StudentLearningProps) {
   const route = useRoute();
+  const launchedTarget = useRef<string|null>(null);
   const attempted = useMemo(() => mastery.filter((item) => item.attempts > 0).sort((a,b)=>a.score-b.score), [mastery]);
   const readyTopics = mastery.filter((item) => item.practiceReady).length;
   const weakest = attempted[0];
   const card = flashcards[0];
+  const requestedSubtopic = route.params.get('subtopic');
+  const requestedItem = requestedSubtopic ? mastery.find((item)=>item.subtopic_id===requestedSubtopic) : undefined;
+
+  useEffect(()=>{
+    if(route.page!=='organish'||!requestedItem?.practiceReady||practicing||launchedTarget.current===requestedItem.subtopic_id)return;
+    launchedTarget.current=requestedItem.subtopic_id;
+    onPractice(requestedItem);
+  },[route.page,requestedItem?.subtopic_id,requestedItem?.practiceReady,practicing,onPractice]);
 
   if (route.page === 'darslar') return <>
     <StudentLessonProgress />
@@ -54,6 +63,11 @@ export function StudentLearning({
         <span>subtopicda 5 ta to‘liq source-backed Cambridge savoli tayyor</span>
       </div> : null}
     </header>
+
+    {requestedSubtopic ? <section className="sl-card sl-targeted" aria-live="polite">
+      <h2>Natijadan kelgan targeted practice</h2>
+      {requestedItem ? <p><strong>{requestedItem.code} {requestedItem.title}</strong> · {requestedItem.practiceReady ? '5 ta source-backed savol bilan mashq ochilmoqda.' : `${requestedItem.practiceQuestionCount ?? 0}/5 savol tayyor — pool to‘liq bo‘lmaguncha incomplete mashq ochilmaydi.`}</p> : <p>Bu subtopic hozirgi syllabus bilim xaritasida topilmadi.</p>}
+    </section> : null}
 
     {card ? <section className="sl-card sl-flash">
       <div className="sl-card-head"><h2>Kartochkalar</h2><span className="sl-counter">{flashcards.length} ta qoldi</span></div>
