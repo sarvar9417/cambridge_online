@@ -17,6 +17,7 @@ on:
       - main
     paths:
       - 'backend/scripts/structured_content_backfill.py'
+      - 'backend/scripts/tools/pdftotext'
       - 'scripts/test_structured_content_backfill.py'
       - 'backend/src/database/migrations/0114_structured_content_backfill_contract.sql'
       - 'supabase/functions/structured-content-runner/index.ts'
@@ -37,6 +38,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
+      - name: Enable XML-safe pdftotext shim
+        run: |
+          chmod +x backend/scripts/tools/pdftotext
+          echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
       - name: Determine mode
         id: mode
         shell: bash
