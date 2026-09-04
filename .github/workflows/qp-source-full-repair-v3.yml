@@ -1,5 +1,6 @@
 name: Full 9618 QP source repair v3
 
+# TEMPORARY production mutation workflow. Remove after the verified 118-paper repair.
 on:
   push:
     branches: [fix/9618-full-source-audit]
