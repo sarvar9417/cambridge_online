@@ -22,12 +22,21 @@ export type Chapter7SourcePageTranscript = {
  * prompts, table/figure labels and exam text available from the presenter
  * without crowding the normal lesson view.
  */
-export const CHAPTER_7_SOURCE_TRANSCRIPT: Chapter7SourcePageTranscript[] = [
+const importedTranscript: Chapter7SourcePageTranscript[] = [
   ...CHAPTER_7_SOURCE_TRANSCRIPT_258_268,
   ...CHAPTER_7_SOURCE_TRANSCRIPT_269_279,
   ...CHAPTER_7_SOURCE_TRANSCRIPT_280_289,
   ...CHAPTER_7_SOURCE_TRANSCRIPT_290_298,
 ];
+
+// Import repair only: one accidental capitalisation was introduced while moving
+// the extracted p.277 text into the repository. The supplied PDF/source extract
+// has lowercase “the number of”; restore that exact source wording before use.
+export const CHAPTER_7_SOURCE_TRANSCRIPT: Chapter7SourcePageTranscript[] = importedTranscript.map((page) =>
+  page.printedPage === 277
+    ? { ...page, text: page.text.replace('\nTHE number of', '\nthe number of') }
+    : page,
+);
 
 export const CHAPTER_7_SOURCE_TRANSCRIPT_BY_PAGE = new Map(
   CHAPTER_7_SOURCE_TRANSCRIPT.map((page) => [page.printedPage, page] as const),
