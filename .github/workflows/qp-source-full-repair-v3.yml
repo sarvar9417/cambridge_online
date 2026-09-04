@@ -1,0 +1,38 @@
+name: Full 9618 QP source repair v3
+
+on:
+  push:
+    branches: [fix/9618-full-source-audit]
+    paths:
+      - .github/workflows/qp-source-full-repair-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CORPUS_REPAIR_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
+      SOURCE_REPAIR_REPORT: source-repair-v3-report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install layout extraction dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Parse all 118 sources, then apply only after the full parse gate passes
+        run: python backend/scripts/qp-source-full-repair-v3.py
+      - name: Upload source repair report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-source-repair-v3-report
+          path: source-repair-v3-report.json
+          if-no-files-found: warn
