@@ -16,7 +16,9 @@ import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { CHAPTER_7_SOURCE_ACTIVITY_ATOMS } from './chapter7-source-activity-atoms';
 import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
 
-const text = (value: unknown) => JSON.stringify(value).toLowerCase();
+const text = (value: unknown) => JSON.stringify(value).toLowerCase()
+  .replace(/\\\"/g, '"')
+  .replace(/\\\\/g, '\\');
 
 describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
   it('atom-audits every printed source page from 258 through 298', () => {
