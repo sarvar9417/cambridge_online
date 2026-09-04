@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
+
+interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
 export class DomainError extends Error { constructor(public code:string, public status:400|403|404|409|429) { super(code); } }
 
 export class AssignmentsService {
-  constructor(private pool:Pool) {}
+  constructor(private pool:Pool,private assetUrlSigner?:AssetUrlSigner) {}
   async createPractice(actor:Actor,input:{subtopicId:string;commandWord?:string}) {
     if(actor.role!=='student')throw new DomainError('students_only',403);
     const client=await this.pool.connect();
@@ -132,11 +135,28 @@ export class AssignmentsService {
         returning *`,[assignmentId,actor.id,sid]); const s=sr.rows[0];
       if(!['not_started','in_progress'].includes(s.status)) throw new DomainError('already_submitted',409);
       const qr=await client.query(`select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.answer_kind,
-        p.context_md parent_context,ans.text answer_text from assignment_questions aq join questions q on q.id=aq.question_id
+        q.content_json,q.content_version,p.context_md parent_context,ans.text answer_text
+        from assignment_questions aq join questions q on q.id=aq.question_id
         left join questions p on p.id=q.parent_id left join answers ans on ans.submission_id=$1 and ans.question_id=q.id
-        where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]); await client.query('commit');
+        where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]);
+      const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
+      const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
+      const assetRows=assetIds.length
+        ? (await client.query(`select id,storage_path from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+        : [];
+      await client.query('commit');
+
+      const signedAssetUrls:Record<string,string>={};
+      if(this.assetUrlSigner){
+        await Promise.all(assetRows.map(async(row)=>{
+          if(!row.storage_path)return;
+          const url=await this.assetUrlSigner!.signStoragePath(row.storage_path,300);
+          if(url)signedAssetUrls[row.id]=url;
+        }));
+      }
+      const questions=qr.rows.map((row)=>serializeAttemptQuestion(row,signedAssetUrls));
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
-      return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions:qr.rows.map(q=>({id:q.id,displayRef:q.display_ref,stemMd:q.stem_md,contextMd:q.parent_context??q.context_md,commandWord:q.command_word,marks:q.marks,answerKind:q.answer_kind,answerText:q.answer_text??''}))};
+      return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
   }
   async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string) {
