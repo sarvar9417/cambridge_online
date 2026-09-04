@@ -3,9 +3,10 @@
 
 The runner downloads each official MS PDF, verifies its stored SHA-256, extracts
 question sections with pdftotext -layout, and proves that the current canonical
-rubric is supported by that exact source section. It never rewrites questions,
-taxonomy, dependencies, points or groups. Optional recording writes only durable
-audit evidence; promotion is a separate database gate.
+GRADING RUBRIC is supported by that exact source section. It never rewrites
+questions, taxonomy, dependencies, points or groups. Free-form guidance is
+reported separately because it can concatenate whole source sections and is not
+itself a mark-awarding primitive.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 AUDIENCE = "cambridge-corpus"
-AUDIT_VERSION = "9618-ms-source-audit-v1"
+AUDIT_VERSION = "9618-ms-source-audit-v2"
 
 
 def oidc_token() -> str:
@@ -64,7 +65,7 @@ def drive_id(url: str) -> str:
 
 def download(url: str, path: Path) -> None:
     direct = f"https://drive.usercontent.google.com/download?id={drive_id(url)}&export=download&confirm=t"
-    req = urllib.request.Request(direct, headers={"User-Agent": "CamPathMsSourceAudit/1.0"})
+    req = urllib.request.Request(direct, headers={"User-Agent": "CamPathMsSourceAudit/2.0"})
     with urllib.request.urlopen(req, timeout=120) as response, path.open("wb") as handle:
         while chunk := response.read(1024 * 1024):
             handle.write(chunk)
@@ -175,8 +176,6 @@ def supported(phrase: object, source_text: str) -> tuple[bool, str]:
     key = normalized(phrase)
     if not key:
         return True, key
-    # Very short fragments are unsafe evidence: they can match a mark number,
-    # question label or unrelated table value by chance.
     if len(re.sub(r"[^a-z0-9]", "", key)) < 4:
         return False, key
     return key in normalized(source_text), key
@@ -197,10 +196,14 @@ def canonical_hash(scheme: dict[str, Any]) -> str:
 
 def audit_scheme(scheme: dict[str, Any], section: dict[str, Any] | None, source: dict[str, Any]) -> dict[str, Any]:
     reasons: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
     source_text = str(section.get("text") if section else "")
 
     def fail(code: str, detail: str) -> None:
         reasons.append({"code": code, "detail": detail[:500]})
+
+    def warn(code: str, detail: str) -> None:
+        warnings.append({"code": code, "detail": detail[:500]})
 
     if section is None:
         fail("source_path_missing", str(scheme.get("path")))
@@ -247,25 +250,23 @@ def audit_scheme(scheme: dict[str, Any], section: dict[str, Any] | None, source:
     elif scheme_type not in {"exact_match", "code_output", "manual_only"}:
         fail("unsupported_scheme_type", scheme_type)
 
-    evidence_phrases: list[tuple[str, str]] = []
-    guidance = scheme.get("guidanceMd")
-    if guidance:
-        evidence_phrases.append(("guidance", str(guidance)))
+    rubric_phrases: list[tuple[str, str]] = []
     for group in groups:
         if group.get("label"):
-            evidence_phrases.append(("group", str(group["label"])))
+            rubric_phrases.append(("group", str(group["label"])))
     for point in points:
-        evidence_phrases.append((f"point:{point.get('code')}", str(point.get("text") or "")))
-        evidence_phrases.extend((f"accept:{point.get('code')}", value) for value in strings(point.get("accept")))
-        evidence_phrases.extend((f"reject:{point.get('code')}", value) for value in strings(point.get("reject")))
+        rubric_phrases.append((f"point:{point.get('code')}", str(point.get("text") or "")))
+        rubric_phrases.extend((f"accept:{point.get('code')}", value) for value in strings(point.get("accept")))
+        rubric_phrases.extend((f"reject:{point.get('code')}", value) for value in strings(point.get("reject")))
+        rubric_phrases.extend((f"requires:{point.get('code')}", value) for value in strings(point.get("requires")))
     for level in levels:
-        evidence_phrases.append((f"level:{level.get('levelNumber')}", str(level.get("descriptorMd") or "")))
+        rubric_phrases.append((f"level:{level.get('levelNumber')}", str(level.get("descriptorMd") or "")))
         if level.get("indicativeContentMd"):
-            evidence_phrases.append((f"indicative:{level.get('levelNumber')}", str(level["indicativeContentMd"])))
+            rubric_phrases.append((f"indicative:{level.get('levelNumber')}", str(level["indicativeContentMd"])))
 
     checked = 0
     matched = 0
-    for label, phrase in evidence_phrases:
+    for label, phrase in rubric_phrases:
         ok, key = supported(phrase, source_text)
         if not key:
             continue
@@ -273,10 +274,19 @@ def audit_scheme(scheme: dict[str, Any], section: dict[str, Any] | None, source:
         if ok:
             matched += 1
         else:
-            fail("source_text_mismatch", f"{label}:{key}")
+            fail("rubric_source_text_mismatch", f"{label}:{key}")
 
     if checked == 0:
-        fail("no_source_text_evidence", "no canonical rubric phrase was available for source proof")
+        fail("no_structured_rubric_evidence", "no canonical grading-rubric phrase was available for source proof")
+
+    guidance = scheme.get("guidanceMd")
+    guidance_checked = False
+    guidance_matched: bool | None = None
+    if guidance:
+        guidance_matched, guidance_key = supported(guidance, source_text)
+        guidance_checked = bool(guidance_key)
+        if guidance_checked and not guidance_matched:
+            warn("guidance_representation_mismatch", guidance_key)
 
     result = "verified" if not reasons else "needs_review"
     evidence = {
@@ -287,9 +297,12 @@ def audit_scheme(scheme: dict[str, Any], section: dict[str, Any] | None, source:
         "canonicalMarks": scheme.get("maxMarks"),
         "canonicalHash": canonical_hash(scheme),
         "sourceSectionHash": hashlib.sha256(normalized(source_text).encode()).hexdigest() if source_text else None,
-        "phrasesChecked": checked,
-        "phrasesMatched": matched,
+        "rubricPhrasesChecked": checked,
+        "rubricPhrasesMatched": matched,
+        "guidanceChecked": guidance_checked,
+        "guidanceMatched": guidance_matched,
         "reasons": reasons,
+        "warnings": warnings,
         "schemeType": scheme_type,
         "extractConfidence": scheme.get("extractConfidence"),
     }
@@ -346,7 +359,7 @@ def main() -> int:
                 all_audits.extend(audits)
                 papers.append(summary)
                 print(json.dumps(summary, separators=(",", ":")))
-            except Exception as exc:  # fail closed and keep the rest of the corpus auditable
+            except Exception as exc:
                 key = f"{source.get('year')}-{source.get('series')}-{source.get('component')}{source.get('variant')}"
                 source_failures.append({"key": key, "error": str(exc)[:1000]})
                 for scheme in source.get("schemes") or []:
@@ -360,7 +373,10 @@ def main() -> int:
                         "evidence": {
                             "strict": False,
                             "path": scheme.get("path"),
+                            "rubricPhrasesChecked": 0,
+                            "rubricPhrasesMatched": 0,
                             "reasons": [{"code": "source_audit_error", "detail": str(exc)[:500]}],
+                            "warnings": [],
                         },
                     })
 
