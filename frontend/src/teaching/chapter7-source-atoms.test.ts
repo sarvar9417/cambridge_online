@@ -12,6 +12,7 @@ import {
   CHAPTER_7_SOURCE_ATOM_COVERAGE,
 } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
+import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 
 const text = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -52,12 +53,18 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.examQuestions).toBe(9);
   });
 
-  it('pins all formal textbook key terms from the Chapter 7 key-term page', () => {
+  it('pins all 30 formal textbook key terms and their source definitions', () => {
     const page294 = text(CHAPTER_7_PAGE_SOURCE_ATOMS.filter((atom) => atom.printedPage === 294));
     const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    expect(CHAPTER_7_SOURCE_KEY_TERMS).toHaveLength(30);
+    expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.keyTerms).toBe(30);
+
     for (const term of CHAPTER_7_REQUIRED_KEY_TERMS) {
       expect(page294, term).toContain(term.toLowerCase());
       expect(presenter, term).toContain(term.toLowerCase());
+    }
+    for (const item of CHAPTER_7_SOURCE_KEY_TERMS) {
+      expect(presenter, item.term).toContain(item.definition.toLowerCase());
     }
   });
 
@@ -108,10 +115,10 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
 
     expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned`);
     expect(CHAPTER_7.coverage).toContain('41/41 source pages atom-audited');
+    expect(CHAPTER_7.coverage).toContain('30/30 formal key terms');
     expect(CHAPTER_7.coverage).toContain('20/20 activities');
     expect(CHAPTER_7.coverage).toContain('22/22 figures');
     expect(CHAPTER_7.coverage).toContain('6/6 tables');
     expect(CHAPTER_7.coverage).toContain('9/9 exam-style questions');
-    expect(CHAPTER_7.coverage).toContain('key terms source-pinned');
   });
 });
