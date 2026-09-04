@@ -29,6 +29,7 @@
 .saw-question-meta { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; color:var(--text-muted); font-size:.76rem; }
 .saw-question-meta strong { padding:.15rem .45rem; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
 .saw-question-meta b { margin-left:auto; color:var(--text); }
+.saw-source-backed { padding:.14rem .42rem; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-size:.68rem; font-weight:700; }
 .saw-question { padding:1.35rem 1.45rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface); box-shadow:0 10px 26px -24px var(--text); }
 .saw-question h1 { margin:.8rem 0 0; font-family:var(--font-read); font-size:clamp(1.05rem,2.4vw,1.35rem); line-height:1.55; font-weight:600; }
 .saw-answer { display:grid; gap:.45rem; padding:1rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface); }
@@ -46,6 +47,29 @@
 .saw-submit-summary strong { font-family:var(--font-mono); font-size:1.35rem; }
 .saw-submit-summary small { color:var(--text-muted); }
 .saw-unanswered { color:var(--uncertain); font-weight:600; }
+
+/* Source-backed structured question content. Every block keeps its source page
+   in data attributes from the canonical renderer; CSS only controls layout. */
+.structured-question-view { display:grid; gap:.85rem; min-width:0; }
+.structured-question-text { margin:0; font-family:var(--font-read); font-size:1rem; line-height:1.6; }
+.structured-question-task { font-weight:600; }
+.structured-question-code { margin:0; padding:.9rem; overflow:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-soft); font-family:var(--font-mono); line-height:1.5; white-space:pre-wrap; }
+.structured-question-list { margin:0; padding-left:1.35rem; display:grid; gap:.35rem; line-height:1.5; }
+.structured-question-math { max-width:100%; overflow-x:auto; padding:.35rem .5rem; border-radius:var(--radius-sm); background:var(--surface-soft); font-family:var(--font-mono); white-space:pre-wrap; }
+.structured-question-table { width:100%; border-collapse:collapse; font-size:.9rem; }
+.structured-question-table th,.structured-question-table td { padding:.55rem .65rem; border:1px solid var(--border-strong); text-align:left; vertical-align:top; }
+.structured-question-table th { background:var(--surface-soft); font-weight:700; }
+.structured-question-table td[data-editable="true"] { background:var(--accent-soft); }
+.structured-question-matching { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.structured-question-matching ol { margin:0; padding-left:1.7rem; display:grid; gap:.45rem; }
+.structured-question-asset { margin:.25rem 0; display:grid; justify-items:center; gap:.4rem; }
+.structured-question-asset img { display:block; max-width:100%; height:auto; object-fit:contain; border-radius:var(--radius-sm); }
+.structured-question-asset-missing { width:100%; padding:1rem; border:1px dashed var(--missed); border-radius:var(--radius); background:var(--missed-bg); color:var(--missed); text-align:center; font-weight:700; }
+.structured-question-answer-area { min-height:3.5rem; border:1px solid var(--border); border-radius:var(--radius); background:repeating-linear-gradient(to bottom,transparent 0,transparent 1.7rem,var(--border) 1.72rem,var(--border) 1.75rem); opacity:.6; }
+.structured-question-answer-box { min-height:7rem; background:none; }
+.structured-question-answer-drawing { min-height:12rem; background:none; border-style:dashed; }
+.structured-question-invalid { padding:1rem; border:1px solid var(--missed); border-radius:var(--radius); background:var(--missed-bg); color:var(--missed); font-weight:700; line-height:1.5; }
+
 @media (max-width:820px) {
   .saw-topbar { align-items:flex-start; }
   .saw-topbar-actions { flex-wrap:wrap; justify-content:flex-end; }
@@ -65,4 +89,7 @@
   .saw-answer-head { display:grid; gap:.2rem; }
   .saw-bottom-nav button { flex:1; }
   .saw-submit-summary { grid-template-columns:1fr; }
+  .structured-question-matching { grid-template-columns:1fr; }
+  .structured-question-table { min-width:520px; }
+  .structured-question-view:has(.structured-question-table) { overflow-x:auto; }
 }
