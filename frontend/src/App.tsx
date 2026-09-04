@@ -14,7 +14,6 @@ import {
   type Flashcard,
   type GradingItem,
   type MasteryItem,
-  type Question,
   type ResultDetail,
   type ResultItem,
   type User,
@@ -48,7 +47,6 @@ import { AttemptContext } from './AttemptContext';
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [grading, setGrading] = useState<GradingItem[]>([]);
   const [results, setResults] = useState<ResultItem[]>([]);
@@ -124,14 +122,11 @@ export function App() {
       setGames(g.data);setSequence([...g.data.sequence].reverse());
     }
     if (session.user.role !== "student") {
-      const [questionData, gradingData, appealData, exportData] =
-        await Promise.all([
-          api<{ data: Question[] }>("/questions"),
-          api<{ data: GradingItem[] }>("/grading/queue"),
-          api<{ data: AppealItem[] }>("/grading/appeals"),
-          api<{ data: ExportItem[] }>("/exports"),
-        ]);
-      setQuestions(questionData.data);
+      const [gradingData, appealData, exportData] = await Promise.all([
+        api<{ data: GradingItem[] }>("/grading/queue"),
+        api<{ data: AppealItem[] }>("/grading/appeals"),
+        api<{ data: ExportItem[] }>("/exports"),
+      ]);
       setGrading(gradingData.data);
       setAppeals(appealData.data);
       setExports(exportData.data);
