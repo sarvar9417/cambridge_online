@@ -2,6 +2,7 @@ import type { PracticeTarget, ResultDetail, ResultItem, User } from '../lib/api'
 import { navigate } from '../lib/router';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-results.css';
+import './student-results-remediation.css';
 
 export interface StudentResultsProps {
   user: User;
