@@ -1,0 +1,23 @@
+/* Keep writable Lesson Studio exam fields readable regardless of the surrounding theme. */
+.lesson-question-workspace .lesson-workspace-response textarea,
+.lesson-question-workspace .lesson-workspace-answer-slots input,
+.lesson-question-workspace .lesson-workspace-table-answer input {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033;
+  caret-color: #172033;
+  background-color: #fff;
+}
+
+.lesson-question-workspace .lesson-workspace-response textarea::placeholder,
+.lesson-question-workspace .lesson-workspace-answer-slots input::placeholder,
+.lesson-question-workspace .lesson-workspace-table-answer input::placeholder {
+  color: #7a8596 !important;
+  -webkit-text-fill-color: #7a8596;
+  opacity: 1;
+}
+
+.lesson-question-workspace .lesson-workspace-answer-slots input:-webkit-autofill,
+.lesson-question-workspace .lesson-workspace-table-answer input:-webkit-autofill {
+  -webkit-text-fill-color: #172033;
+  caret-color: #172033;
+}
