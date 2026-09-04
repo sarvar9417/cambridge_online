@@ -129,6 +129,13 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     ].forEach((needle) => expect(presenter, needle).toContain(needle));
   });
 
+  it('makes every Chapter 7 supplied-PDF detail atom visible in presenter data', () => {
+    const presenter=text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    for(const atom of CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS){
+      atom.needles.forEach(needle=>expect(presenter,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
+    }
+  });
+
   it('preserves the full exam-style task data instead of only question identifiers', () => {
     const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
     [
@@ -161,6 +168,7 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     ].forEach((needle) => expect(route, needle).toContain(needle));
 
     expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned`);
+    expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms} source-PDF detail atoms`);
     expect(CHAPTER_7.coverage).toContain('41/41 source pages atom-audited');
     expect(CHAPTER_7.coverage).toContain('30/30 formal key terms');
     expect(CHAPTER_7.coverage).toContain('20/20 activities');
