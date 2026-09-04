@@ -116,7 +116,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
   if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
   if (pool) mountPrivate('/api/v1/gradings', createGradingsRouter(new GradingService(pool)));
-  if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool)));
+  if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool,assetUrlSigner)));
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
