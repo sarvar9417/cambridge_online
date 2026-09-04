@@ -7,6 +7,7 @@ type Artifact=Record<string,unknown>;
 type Finding={code:string;severity:'error'|'warning';message:string;details?:unknown};
 type CrossCheck={path:string;agrees:boolean;disagreements?:unknown;confidence:number;promptVersion?:string};
 type SourceMeta={qpPaperId:string;msPaperId:string|null;componentId:string;syllabusCode:string;component:number;variant:number;year:number;series:'FM'|'MJ'|'ON'};
+type MarkSchemeReviewReason={code:string;message:string;details:Record<string,unknown>};
 
 export interface PersistPaperResult{questionCount:number;leafCount:number;approvedCount:number;needsReviewCount:number;findingCount:number;pendingAssetCount:number;readyAssetCount:number;failedAssetCount:number}
 
@@ -48,7 +49,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
 
   const questionIds=[...idByPath.values()];
   if(questionIds.length){
-   await client.query(`delete from validation_findings where (ref_table='questions' and ref_id=any($1::uuid[])) or (ref_table='source_papers' and ref_id=$2)`,[questionIds,meta.qpPaperId]);
+   await client.query(`delete from validation_findings where (ref_table='questions' and ref_id=any($1::uuid[])) or (ref_table='source_papers' and ref_id=$2) or (ref_table='mark_schemes' and ref_id in(select ms.id from mark_schemes ms where ms.question_id=any($1::uuid[])))`,[questionIds,meta.qpPaperId]);
    await client.query(`delete from cross_checks where ref_table='questions' and ref_id=any($1::uuid[])`,[questionIds]);
    await client.query(`delete from question_assets where question_id=any($1::uuid[])`,[questionIds]);
    await client.query(`delete from question_subtopics where question_id=any($1::uuid[])`,[questionIds]);
@@ -80,9 +81,22 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   }
 
   for(const scheme of schemes){
-   const questionId=idByPath.get(scheme.path);if(!questionId)continue;const question=questions.find(item=>item.path===scheme.path),classification=classificationByPath.get(scheme.path),assetNeedsReview=Boolean(question&&hasUnreadyBinaryAsset(question,storedByKey));const localIssues=[...(scheme.issues??[]),...(question?.issues??[]),...(classification?.issues??[])];const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
+   const questionId=idByPath.get(scheme.path);if(!questionId)continue;
+   const question=questions.find(item=>item.path===scheme.path),classification=classificationByPath.get(scheme.path),assetNeedsReview=Boolean(question&&hasUnreadyBinaryAsset(question,storedByKey));
+   const schemeIssues=scheme.issues??[],questionIssues=question?.issues??[],classificationIssues=classification?.issues??[],localIssues=[...schemeIssues,...questionIssues,...classificationIssues];
+   const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
    const inserted=await client.query(`insert into mark_schemes(question_id,source_paper_id,scheme_type,max_marks,guidance_md,status,extract_confidence,prompt_version) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,[questionId,meta.msPaperId,scheme.schemeType,scheme.maxMarks,scheme.guidanceMd,status,scheme.confidence,'extract-markscheme.v1']);
    const markSchemeId=String(inserted.rows[0].id),groupIds=new Map<string,string>();
+   if(status==='needs_review'){
+    const reasons:MarkSchemeReviewReason[]=[
+     ...schemeIssues.map(message=>reviewReason('MS_REVIEW_SCHEME_ISSUE',String(message),scheme.path,'scheme')),
+     ...questionIssues.map(message=>reviewReason('MS_REVIEW_QUESTION_ISSUE',String(message),scheme.path,'question')),
+     ...classificationIssues.map(message=>reviewReason('MS_REVIEW_CLASSIFICATION_ISSUE',String(message),scheme.path,'classification')),
+    ];
+    if(assetNeedsReview)reasons.push(reviewReason('MS_REVIEW_ASSET','Question contains a binary asset that is not durably ready.',scheme.path,'asset'));
+    if(!paperCanAutoApprove)reasons.push({code:'MS_REVIEW_PAPER_GATE',message:'Paper-level auto-approval gate was not satisfied.',details:{path:scheme.path,source:'paper',reviewStatus:input.reviewStatus??null,globalError,crossCheckReady}});
+    for(const reason of reasons)await client.query(`insert into validation_findings(rule_code,severity,ref_table,ref_id,message,details) values($1,'warning','mark_schemes',$2,$3,$4::jsonb)`,[reason.code,markSchemeId,reason.message,JSON.stringify(reason.details)]);
+   }
    for(const[sortOrder,group]of scheme.groups.entries()){const insertedGroup=await client.query(`insert into mark_scheme_groups(mark_scheme_id,label,n_required,marks_per_point,max_marks,sort_order) values($1,$2,$3,$4,$5,$6) returning id`,[markSchemeId,group.label,group.nRequired,group.marksPerPoint,group.maxMarks,sortOrder]);groupIds.set(group.label,String(insertedGroup.rows[0].id))}
    for(const[sortOrder,point]of scheme.points.entries())await client.query(`insert into mark_scheme_points(mark_scheme_id,group_id,code,text,marks,accept,reject,requires,is_bod,sort_order) values($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10)`,[markSchemeId,point.groupLabel?groupIds.get(point.groupLabel)??null:null,point.code,point.text,point.marks,JSON.stringify(point.accept),JSON.stringify(point.reject),JSON.stringify(point.requires),point.isBod,sortOrder]);
    for(const level of scheme.levels)await client.query(`insert into mark_scheme_levels(mark_scheme_id,level_number,min_marks,max_marks,descriptor_md,indicative_content_md) values($1,$2,$3,$4,$5,null)`,[markSchemeId,level.levelNumber,level.minMarks,level.maxMarks,level.descriptorMd]);
@@ -99,6 +113,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
  }catch(error){await client.query('rollback');throw error}finally{client.release()}
 }
 
+function reviewReason(code:string,message:string,path:string,source:string):MarkSchemeReviewReason{return{code,message,details:{path,source}}}
 function indexStoredAssets(questions:ExtractedQuestion[],storedAssets:StoredAssetRecord[]){const questionByPath=new Map(questions.map(question=>[question.path,question])),map=new Map<string,StoredAssetRecord>();for(const stored of storedAssets){const question=questionByPath.get(stored.questionPath);if(!question||!question.assets[stored.assetIndex])throw new Error(`ingestion_persist_stored_asset_orphan:${stored.questionPath}:${stored.assetIndex}`);const key=assetKey(stored.questionPath,stored.assetIndex);if(map.has(key))throw new Error(`ingestion_persist_stored_asset_duplicate:${stored.questionPath}:${stored.assetIndex}`);map.set(key,stored)}return map}
 function hasUnreadyBinaryAsset(question:ExtractedQuestion,storedByKey:Map<string,StoredAssetRecord>){return question.assets.some((asset,index)=>!asset.contentMd&&!storedByKey.has(assetKey(question.path,index)))}
 function assetKey(path:string,index:number){return`${path}#${index}`}
