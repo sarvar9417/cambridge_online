@@ -67,7 +67,7 @@ describe('DOCX export',()=>{
     expect(text).not.toContain('Flattened Boolean expression');
   });
 
-  it('embeds a canonical source asset by stable asset id',()=>{
+  it('embeds a canonical source asset once by stable asset id',()=>{
     const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><path d="M0 30h100"/></svg>';
     const assetId='22222222-2222-4222-8222-222222222222';
     const text=buildDocx('T',[{
@@ -75,8 +75,9 @@ describe('DOCX export',()=>{
       contentJson:{version:1,source,blocks:[{type:'asset',kind:'logic_circuit',assetId,altText:'Logic circuit',source:location}]},
       contextBlocks:[{assets:[{id:assetId,kind:'diagram',contentMd:svg,altText:'Logic circuit'}]}],
     }]).toString('utf8');
-    expect(text).toContain('word/media/diagram-');
-    expect(text).toContain('<w:drawing>');
+    expect(text).toContain('word/media/diagram-1.svg');
+    expect(text).not.toContain('word/media/diagram-2.svg');
+    expect((text.match(/<w:drawing>/g)??[])).toHaveLength(1);
   });
 
   it('supports mark-scheme-only output',()=>{
