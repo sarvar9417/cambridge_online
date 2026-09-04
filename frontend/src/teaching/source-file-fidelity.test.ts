@@ -59,6 +59,14 @@ describe('exact supplied PDF fidelity contract',()=>{
     SUPPLIED_PDF_DETAIL_ATOMS.forEach(atom=>expect(slideIds.has(atom.targetSlideId),atom.id).toBe(true));
   });
 
+  it('makes every registered Chapter 1 and 13 supplied-PDF detail visible in the presenter data',()=>{
+    const routes={1:text(lessonChapter(1)),13:text(lessonChapter(13))} as const;
+    for(const atom of SUPPLIED_PDF_DETAIL_ATOMS){
+      const route=routes[atom.chapter];
+      atom.needles.forEach(needle=>expect(route,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
+    }
+  });
+
   it('requires every fingerprinted Chapter 7 page to remain represented by a page source atom',()=>{
     const pages=new Set(CHAPTER_7_PAGE_SOURCE_ATOMS.map(atom=>atom.printedPage));
     CHAPTER_7_SOURCE_FILE_MANIFEST.pages.forEach(page=>expect(pages.has(page.printedPage),`Chapter 7 p.${page.printedPage}`).toBe(true));
