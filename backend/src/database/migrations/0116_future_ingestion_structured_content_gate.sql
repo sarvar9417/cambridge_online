@@ -223,7 +223,7 @@ BEGIN
   IF NEW.marks IS NOT NULL
      AND NEW.status='approved'
      AND EXISTS(SELECT 1 FROM public.source_papers sp WHERE sp.id=NEW.source_paper_id AND sp.kind='QP')
-     AND (NEW.content_json IS NULL OR NEW.content_version<>1) THEN
+     AND (NEW.content_json IS NULL OR NEW.content_version IS DISTINCT FROM 1) THEN
     RAISE EXCEPTION 'approved QP leaf requires source-backed structured content: %',NEW.id;
   END IF;
   RETURN NEW;
