@@ -1,5 +1,6 @@
 import { SOURCE_FINAL_CHAPTER_1, SOURCE_FINAL_CHAPTER_13 } from './lesson-content-source-final-hardening';
 import type { HodderLessonChapter, HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
+import { SUPPLIED_PDF_DETAIL_ATOMS } from './lesson-source-atoms-supplied-pdf-detail';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
   CHAPTER_13_SOURCE_FILE_MANIFEST,
@@ -15,22 +16,28 @@ const appendBlocks = (slide:HodderLessonSlide, blocks:LessonRichBlock[], sourceE
 const patch = (slides:HodderLessonSlide[], id:string, mutate:(slide:HodderLessonSlide)=>HodderLessonSlide) =>
   slides.map(slide=>slide.id===id?mutate(slide):slide);
 
-const addFileFingerprints = (chapter:HodderLessonChapter, manifest:SourceFileFidelityManifest):HodderLessonChapter => ({
-  ...chapter,
-  coverage:`${chapter.coverage} · exact supplied PDF locked (${manifest.pageCount}/${manifest.pageCount} page fingerprints)`,
-  slides:chapter.slides.map(slide=>{
-    const printedPages=(slide.sourcePages??[]).map(page=>chapter.number===13?page+303:page);
-    const fingerprints=printedPages.flatMap(page=>{
-      const match=manifest.pages.find(item=>item.printedPage===page);
-      return match?[`SOURCE FILE PAGE ${page} · sha256:${match.sha256}`]:[];
-    });
-    if(!fingerprints.length)return slide;
-    return {
-      ...slide,
-      sourceElements:[...(slide.sourceElements??[]),...fingerprints],
-    };
-  }),
-});
+const suppliedDetailPageCount = (chapter:1|13) =>
+  new Set(SUPPLIED_PDF_DETAIL_ATOMS.filter(atom=>atom.chapter===chapter).map(atom=>atom.page)).size;
+
+const addFileFingerprints = (chapter:HodderLessonChapter, manifest:SourceFileFidelityManifest):HodderLessonChapter => {
+  const detailPages=suppliedDetailPageCount(chapter.number);
+  return {
+    ...chapter,
+    coverage:`${chapter.coverage} · exact supplied PDF locked (${manifest.pageCount}/${manifest.pageCount} page fingerprints) · ${detailPages}/${manifest.pageCount} supplied-PDF detail pages`,
+    slides:chapter.slides.map(slide=>{
+      const printedPages=(slide.sourcePages??[]).map(page=>chapter.number===13?page+303:page);
+      const fingerprints=printedPages.flatMap(page=>{
+        const match=manifest.pages.find(item=>item.printedPage===page);
+        return match?[`SOURCE FILE PAGE ${page} · sha256:${match.sha256}`]:[];
+      });
+      if(!fingerprints.length)return slide;
+      return {
+        ...slide,
+        sourceElements:[...(slide.sourceElements??[]),...fingerprints],
+      };
+    }),
+  };
+};
 
 let chapter1Slides=[...SOURCE_FINAL_CHAPTER_1.slides];
 chapter1Slides=patch(chapter1Slides,'h1-prior',slide=>appendBlocks(slide,[
