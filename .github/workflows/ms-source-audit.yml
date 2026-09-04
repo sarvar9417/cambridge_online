@@ -1,0 +1,62 @@
+name: 9618 mark scheme source audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/9618-ms-source-audit
+      - main
+    paths:
+      - backend/scripts/ms-source-audit-runner.py
+      - scripts/test_ms_source_audit.py
+      - backend/src/database/migrations/0109_9618_ms_source_audit.sql
+      - supabase/functions/ms-source-audit-runner/index.ts
+      - .github/workflows/ms-source-audit.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MS_SOURCE_AUDIT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/ms-source-audit-runner
+      SOURCE_AUDIT_REPORT: ms-source-audit-report.json
+      SOURCE_AUDIT_RECORD: '1'
+      SOURCE_AUDIT_STRICT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PDF text tools
+        run: sudo apt-get update -qq && sudo apt-get install -y poppler-utils
+      - name: Unit test audit gates
+        run: python3 -m unittest scripts.test_ms_source_audit
+      - name: Audit official mark schemes
+        run: python3 backend/scripts/ms-source-audit-runner.py
+      - name: Publish audit summary
+        if: always()
+        run: |
+          if [ -f "$SOURCE_AUDIT_REPORT" ]; then
+            python3 - <<'PY'
+          import json, os
+          report=json.load(open(os.environ['SOURCE_AUDIT_REPORT'],encoding='utf-8'))
+          summary={k:report.get(k) for k in ('targetCount','sourceCount','audited','verified','needsReview','recorded')}
+          print(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as out:
+              out.write('## 9618 mark scheme source audit\n\n')
+              for key,value in summary.items(): out.write(f'- **{key}**: {value}\n')
+              out.write(f"- **sourceFailures**: {len(report.get('sourceFailures') or [])}\n")
+          PY
+          fi
+      - name: Upload source audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ms-source-audit-report
+          path: ms-source-audit-report.json
+          if-no-files-found: warn
+          retention-days: 30
