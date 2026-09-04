@@ -86,7 +86,7 @@ export async function apiBlob(path:string){const tokenUsed=accessToken;let respo
 export interface User { id: string; fullName: string; role: 'owner'|'teacher'|'student'; schoolId: string|null }
 export interface ClassItem { id:string; name:string; grade:number|null; level:'AS'|'A2'; academicYear:string; studentCount:number }
 export interface Question { id:string; displayRef:string; stemMd:string; commandWord:string; marks:number; ao:string; answerKind:string }
-export interface Assignment {id:string;classId:string;title:string;mode:string;className:string;totalMarks:number;opensAt:string|null;dueAt:string;timeLimitMin:number|null;publishedAt:string|null;submissionStatus:string|null;classSize:number;submittedCount:number;pendingGrading:number}
+export interface Assignment {id:string;classId:string;title:string;mode:string;className:string;totalMarks:number;opensAt:string|null;dueAt:string|null;timeLimitMin:number|null;publishedAt:string|null;submissionStatus:string|null;classSize:number;submittedCount:number;pendingGrading:number}
 export interface AttemptQuestion {id:string;displayRef:string;stemMd:string;contextMd:string;commandWord:string;marks:number;answerKind:string;answerText:string;contentJson?:StructuredQuestionContent|null;contentVersion?:1|null;assetUrls?:Record<string,string>}
 export interface Attempt {submissionId:string;activeSessionId:string;startedAt:string;deadline:string|null;serverNow:string;questions:AttemptQuestion[]}
 export interface GradingPoint {id:string;code:string;text:string;matched:boolean|null;marks:number}
