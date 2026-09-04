@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { CommandWordProgress, Flashcard, MasteryItem } from '../lib/api';
+import { useRoute } from '../lib/router';
+import { StudentLessons } from './StudentLessons';
 import './student-learning.css';
 
 export interface StudentLearningProps {
@@ -25,17 +27,18 @@ export function bandOf(score: number) {
 }
 
 /**
- * Where a student works on what they are weak at.
+ * Student learning surface.
  *
- * Practice availability is deliberately server-authoritative. A topic only
- * receives an active CTA when the historical Cambridge pool contains five
- * approved, standalone, render-safe questions mapped to the current syllabus.
+ * `/oquvchi/darslar` is the source-backed lesson reader; `/oquvchi/organish`
+ * remains the adaptive practice/revision surface. They deliberately share this
+ * module so the shell does not need a second copy of learning state.
  */
 export function StudentLearning({
   mastery, commandWords, flashcards, cardRevealed, practicing,
   onReveal, onGrade, onPractice, games,
 }: StudentLearningProps) {
   const [showAll, setShowAll] = useState(false);
+  const route = useRoute();
 
   const attempted = useMemo(
     () => mastery.filter((item) => item.attempts > 0).sort((a, b) => a.score - b.score),
@@ -47,6 +50,10 @@ export function StudentLearning({
 
   const card = flashcards[0];
   const weakest = attempted[0];
+
+  // Keep all hooks above the route branch: navigating between Darslar and
+  // O‘rganish reuses this mounted component, so hook order must remain stable.
+  if (route.page === 'darslar') return <StudentLessons />;
 
   const headline = card
     ? `${flashcards.length} ta kartochka takrorlashni kutmoqda.`
