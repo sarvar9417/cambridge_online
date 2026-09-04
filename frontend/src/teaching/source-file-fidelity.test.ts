@@ -51,6 +51,14 @@ describe('exact supplied PDF fidelity contract',()=>{
     expect([...chapter13Pages].sort((a,b)=>a-b)).toEqual(Array.from({length:24},(_,index)=>index+1));
   });
 
+  it('pins every supplied-PDF detail atom to an existing presenter slide',()=>{
+    const slideIds=new Set([
+      ...(lessonChapter(1)?.slides??[]),
+      ...(lessonChapter(13)?.slides??[]),
+    ].map(slide=>slide.id));
+    SUPPLIED_PDF_DETAIL_ATOMS.forEach(atom=>expect(slideIds.has(atom.targetSlideId),atom.id).toBe(true));
+  });
+
   it('requires every fingerprinted Chapter 7 page to remain represented by a page source atom',()=>{
     const pages=new Set(CHAPTER_7_PAGE_SOURCE_ATOMS.map(atom=>atom.printedPage));
     CHAPTER_7_SOURCE_FILE_MANIFEST.pages.forEach(page=>expect(pages.has(page.printedPage),`Chapter 7 p.${page.printedPage}`).toBe(true));
@@ -70,7 +78,9 @@ describe('exact supplied PDF fidelity contract',()=>{
     expect(ch13).toContain('append a line at the end');
     expect(ch13).toContain('serial/sequential/random file organisation');
     expect(chapter1?.coverage).toContain('26/26 page fingerprints');
+    expect(chapter1?.coverage).toContain('26/26 supplied-PDF detail pages');
     expect(chapter13?.coverage).toContain('24/24 page fingerprints');
+    expect(chapter13?.coverage).toContain('24/24 supplied-PDF detail pages');
   });
 
   it('keeps source-specific Chapter 1 definitions, relationships, tables and worked values visible',()=>{
