@@ -1,5 +1,6 @@
 import { CHAPTER_7 as DISCOVERY_CHAPTER_7, CHAPTER_7_REVEAL_ID } from './lesson-content-chapter7';
 import { CHAPTER_7_SOURCE_EXHAUSTIVE_SLIDES } from './chapter7-source-exhaustive';
+import { CHAPTER_7_SOURCE_PAGE_AUDIT } from './chapter7-source-page-audit';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS, withChapter7PastPaperCheckpoints } from './chapter7-past-paper-checkpoints';
 
 const chapter7BookWithCheckpoints = withChapter7PastPaperCheckpoints(CHAPTER_7_SOURCE_EXHAUSTIVE_SLIDES);
@@ -25,7 +26,7 @@ export const CHAPTER_7 = {
     '7.8 Identifying errors',
     '7.9 Writing & amending algorithms',
   ],
-  coverage: `15-slide discovery lesson + ${CHAPTER_7_SOURCE_EXHAUSTIVE_SLIDES.length}-slide source-exhaustive book deep dive + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints`,
+  coverage: `15-slide discovery lesson + ${CHAPTER_7_SOURCE_EXHAUSTIVE_SLIDES.length}-slide source-exhaustive book deep dive + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_PAGE_AUDIT.length}/41 source pages audited`,
   slides: [...DISCOVERY_CHAPTER_7.slides, ...chapter7BookWithCheckpoints],
 };
 
