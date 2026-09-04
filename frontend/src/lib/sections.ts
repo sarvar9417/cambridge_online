@@ -9,6 +9,7 @@ import type { User } from './api';
  */
 export type SectionName =
   | 'studentHome'
+  | 'studentLessons'
   | 'studentAssignments'
   | 'studentResults'
   | 'studentLearning'
@@ -20,7 +21,7 @@ export type SectionName =
   | 'gradingQueue';
 
 const STUDENT_SECTIONS = new Set<SectionName>([
-  'studentHome', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile',
+  'studentHome', 'studentLessons', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile',
 ]);
 
 /**
@@ -49,6 +50,7 @@ export function sectionsFor(
 function pick(surface: string, page: string, role: User['role']): SectionName[] {
   if (role === 'student' || surface === 'oquvchi') {
     switch (page) {
+      case 'darslar': return ['studentLessons'];
       case 'vazifalar': return ['studentAssignments'];
       case 'natijalar': return ['studentResults'];
       case 'organish': return ['studentLearning'];
