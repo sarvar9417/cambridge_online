@@ -82,7 +82,11 @@ export class ResultsService {
 
     return result.rows.map((row) => {
       const content=contentByQuestion.get(row.id)??null;
-      const rowAssetUrls=Object.fromEntries(assetIds(content).flatMap((id)=>signedAssetUrls[id]?[[id,signedAssetUrls[id]!]]:[]));
+      const rowAssetUrls=Object.fromEntries(
+        assetIds(content)
+          .filter((id)=>Boolean(signedAssetUrls[id]))
+          .map((id)=>[id,signedAssetUrls[id]!] as const),
+      );
       return {
         gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
         finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
