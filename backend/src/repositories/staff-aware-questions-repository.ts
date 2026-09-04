@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { safeParseStructuredQuestionContent } from '../lib/structured-question-content.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import { PgQuestionsRepository } from './questions-repository.js';
 
@@ -56,5 +57,31 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
       [id, actor.role, actor.id],
     );
     return result.rows[0] ? serializeQuestion(result.rows[0]) : null;
+  }
+
+  /**
+   * The selection/assignment handoff freezes canonical content. The base
+   * repository remains backward-compatible for older tests/callers; the
+   * production staff-aware repository validates and attaches content_json so a
+   * later database edit cannot silently change a generated paper.
+   */
+  override async portable(actor: Actor, id: string) {
+    const portable = await super.portable(actor, id);
+    if (!portable) return null;
+    const result = await this.detailPool.query(
+      `select content_json,content_version from questions where id=$1`,
+      [id],
+    );
+    if (!result.rowCount) return null;
+    const row = result.rows[0];
+    if (row.content_json == null) {
+      return { ...portable, leaf: { ...portable.leaf, contentJson: null } };
+    }
+    if (Number(row.content_version) !== 1) {
+      throw new Error('portable_structured_content_version_unsupported');
+    }
+    const parsed = safeParseStructuredQuestionContent(row.content_json);
+    if (!parsed.success) throw new Error('portable_structured_content_invalid');
+    return { ...portable, leaf: { ...portable.leaf, contentJson: parsed.data } };
   }
 }
