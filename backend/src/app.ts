@@ -18,6 +18,7 @@ import { CorpusService } from './services/corpus-service.js';
 import { OverviewService } from './services/overview-service.js';
 import { PgClassesRepository, type ClassesRepository } from './repositories/classes-repository.js';
 import { PgQuestionsRepository } from './repositories/questions-repository.js';
+import { PgStaffAwareQuestionsRepository } from './repositories/staff-aware-questions-repository.js';
 import { PgSelectionsRepository } from './repositories/selections-repository.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createClassesRouter } from './routes/classes.js';
@@ -175,5 +176,5 @@ const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
       bucket: config.ASSET_STORAGE_BUCKET,
     })
   : undefined;
-const questionsRepository = pool ? new PgQuestionsRepository(pool, assetSigner) : undefined;
+const questionsRepository = pool ? new PgStaffAwareQuestionsRepository(pool, assetSigner) : undefined;
 export const app = createApp(auth, classesRepository, questionsRepository, authRepository);
