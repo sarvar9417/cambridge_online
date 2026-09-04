@@ -67,7 +67,7 @@ class SourceRepairV3Tests(unittest.TestCase):
         rows, _ = repair.parse_text(text, {"1.a": 1})
         self.assertEqual(rows["1.a"]["stem"], "Give the binary number stored to display the error code 51.")
 
-    def test_legitimate_table_response_labels_are_preserved(self):
+    def test_numbered_response_rows_are_safe_removable_scaffolding(self):
         text = (
             "5 (c) Identify two tables in the database that contain one or more foreign keys.\n"
             "Give one attribute that is a foreign key in each table.\n"
@@ -80,8 +80,8 @@ class SourceRepairV3Tests(unittest.TestCase):
         repair.quality_gate(rows)
         stem = rows["5.c"]["stem"]
         self.assertIn("Table Foreign key", stem)
-        self.assertRegex(stem, r"(?m)^1$")
-        self.assertRegex(stem, r"(?m)^2$")
+        self.assertNotRegex(stem, r"(?m)^1$")
+        self.assertNotRegex(stem, r"(?m)^2$")
 
     def test_left_indented_legacy_question_is_detected(self):
         self.assertIsNotNone(repair.main_candidate("    3   A logic expression is given:", 3))
