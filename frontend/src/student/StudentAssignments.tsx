@@ -3,6 +3,7 @@ import type { Assignment } from '../lib/api';
 import './student-assignments.css';
 
 export type StudentAssignmentBucket = 'in_progress' | 'todo' | 'submitted' | 'completed';
+export type AssignmentDueState = 'none' | 'overdue' | 'today' | 'soon' | 'later';
 
 export function studentAssignmentBucket(assignment: Assignment): StudentAssignmentBucket {
   switch (assignment.submissionStatus) {
@@ -14,19 +15,30 @@ export function studentAssignmentBucket(assignment: Assignment): StudentAssignme
   }
 }
 
-export function assignmentDueState(dueAt: string, now = Date.now()) {
+export function assignmentDueState(dueAt: string | null, now = Date.now()): AssignmentDueState {
+  if (!dueAt) return 'none';
   const remaining = new Date(dueAt).getTime() - now;
-  if (remaining < 0) return 'overdue' as const;
-  if (remaining < 86_400_000) return 'today' as const;
-  if (remaining < 3 * 86_400_000) return 'soon' as const;
-  return 'later' as const;
+  if (remaining < 0) return 'overdue';
+  if (remaining < 86_400_000) return 'today';
+  if (remaining < 3 * 86_400_000) return 'soon';
+  return 'later';
 }
+
+const dueTime = (dueAt: string | null) => dueAt ? new Date(dueAt).getTime() : Number.POSITIVE_INFINITY;
+const compareDueAsc = (a: Assignment, b: Assignment) => dueTime(a.dueAt) - dueTime(b.dueAt);
+const compareDueDesc = (a: Assignment, b: Assignment) => {
+  if (!a.dueAt && !b.dueAt) return 0;
+  if (!a.dueAt) return 1;
+  if (!b.dueAt) return -1;
+  return new Date(b.dueAt).getTime() - new Date(a.dueAt).getTime();
+};
 
 const when = (iso: string) => new Date(iso).toLocaleString('uz-UZ', {
   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 });
 
 const dueLabel = (assignment: Assignment) => {
+  if (!assignment.dueAt) return 'Muddat belgilanmagan';
   const state = assignmentDueState(assignment.dueAt);
   if (state === 'overdue') return `Muddati o‘tgan · ${when(assignment.dueAt)}`;
   if (state === 'today') return `Bugun · ${when(assignment.dueAt)}`;
@@ -56,10 +68,10 @@ export function StudentAssignments({ assignments, onStart }: StudentAssignmentsP
       in_progress: [], todo: [], submitted: [], completed: [],
     };
     for (const assignment of assignments) groups[studentAssignmentBucket(assignment)].push(assignment);
-    groups.in_progress.sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
-    groups.todo.sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
-    groups.submitted.sort((a, b) => +new Date(b.dueAt) - +new Date(a.dueAt));
-    groups.completed.sort((a, b) => +new Date(b.dueAt) - +new Date(a.dueAt));
+    groups.in_progress.sort(compareDueAsc);
+    groups.todo.sort(compareDueAsc);
+    groups.submitted.sort(compareDueDesc);
+    groups.completed.sort(compareDueDesc);
     return groups;
   }, [assignments]);
 
