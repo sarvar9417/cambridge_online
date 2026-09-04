@@ -1,0 +1,69 @@
+name: QP Source Fidelity Repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply verified repairs (YES to write; otherwise plan only)'
+        required: false
+        default: 'NO'
+      only:
+        description: 'Optional sourcePaperId, paper key, or syllabus code'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/scripts/qp-source-structure-repair-v2.py'
+      - 'backend/scripts/qp-source-structure-repair-v3.py'
+      - 'backend/scripts/qp-source-structure-repair-v4.py'
+      - 'backend/scripts/qp-source-structure-repair-v5.py'
+      - 'backend/scripts/qp-source-structure-repair-v6.py'
+      - 'backend/scripts/tools/pdftotext'
+      - '.github/workflows/qp-source-structure-repair-v2.yml'
+      - 'backend/src/database/migrations/0115_source_fidelity_repair_contract.sql'
+      - 'supabase/functions/qp-source-repair-runner/index.ts'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  repair-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PDF and image tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python3 -m pip install --disable-pip-version-check pillow
+      - name: Enable XML-safe pdftotext shim
+        run: |
+          chmod +x backend/scripts/tools/pdftotext
+          echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
+      - name: Determine repair mode
+        id: mode
+        shell: bash
+        run: |
+          apply=NO
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
+            apply=YES
+          fi
+          echo "apply=$apply" >> "$GITHUB_OUTPUT"
+      - name: Build verified source repair plan
+        env:
+          CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
+          SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
+          SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
+        run: python3 backend/scripts/qp-source-structure-repair-v6.py
+      - name: Upload repair plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-structure-repair-plan
+          path: source-structure-repair-plan.json
+          if-no-files-found: warn
+          retention-days: 14
