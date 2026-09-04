@@ -88,6 +88,7 @@ DECLARE
   v_block jsonb;
   v_text text;
   v_line text;
+  v_expression text;
   v_before text;
   v_after text;
   v_pos integer;
@@ -129,15 +130,16 @@ BEGIN
       LIMIT 1;
 
       IF v_line IS NOT NULL THEN
-        v_pos := strpos(v_text,v_line);
+        v_expression := v_line;
+        v_pos := strpos(v_text,v_expression);
         IF v_pos<1 THEN RAISE EXCEPTION 'Boolean expression boundary mismatch'; END IF;
         v_before := btrim(substr(v_text,1,v_pos-1));
-        v_after := btrim(substr(v_text,v_pos+char_length(v_line)));
+        v_after := btrim(substr(v_text,v_pos+char_length(v_expression)));
         v_source_page := nullif(v_block->'source'->>'page','')::integer;
         IF v_source_page IS NULL OR v_source_page<1 THEN
           RAISE EXCEPTION 'Boolean expression source page missing';
         END IF;
-        v_latex := public.boolean_source_to_latex_v1(v_line);
+        v_latex := public.boolean_source_to_latex_v1(v_expression);
 
         IF v_before<>'' THEN
           v_new_blocks := v_new_blocks || jsonb_build_array(v_block || jsonb_build_object('text',v_before));
@@ -156,7 +158,7 @@ BEGIN
     v_new_blocks := v_new_blocks || jsonb_build_array(v_block);
   END LOOP;
 
-  IF NOT v_changed THEN
+  IF NOT v_changed OR v_expression IS NULL THEN
     RETURN jsonb_build_object('questionId',p_question_id,'status','no_printed_expression');
   END IF;
 
@@ -171,7 +173,7 @@ BEGIN
     question_id,source_paper_id,source_sha256,source_page,expression_text,latex,enriched_at
   ) VALUES(
     p_question_id,v_question.source_paper_id,lower(v_question.content_json->'source'->>'sha256'),
-    v_source_page,v_line,v_latex,now()
+    v_source_page,v_expression,v_latex,now()
   )
   ON CONFLICT(question_id) DO UPDATE SET
     source_paper_id=excluded.source_paper_id,
@@ -182,7 +184,7 @@ BEGIN
     enriched_at=now();
 
   RETURN jsonb_build_object(
-    'questionId',p_question_id,'status','enriched','expression',v_line,'latex',v_latex,'sourcePage',v_source_page
+    'questionId',p_question_id,'status','enriched','expression',v_expression,'latex',v_latex,'sourcePage',v_source_page
   );
 END;
 $function$;
