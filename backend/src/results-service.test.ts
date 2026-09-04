@@ -24,19 +24,21 @@ describe('results detail authorization', () => {
       .rejects.toMatchObject({ code: 'not_found', status: 404 });
   });
 
-  it('maps a released visible result with numeric scores and mark points', async () => {
+  it('maps a released visible legacy result with numeric scores and mark points', async () => {
     const points = [{ code: 'M1', text: 'Method', matched: true, marks: 1 }];
     const query = vi.fn().mockResolvedValue({
       rowCount: 1,
       rows: [{
-        grading_id: 'grading-1', appeal_status: null, display_ref: '1(a)', stem_md: 'Solve', marks: 2,
+        id:'question-1',grading_id: 'grading-1', appeal_status: null, display_ref: '1(a)', stem_md: 'Solve', marks: 2,
         text: 'x = 2', final_score: '1.5', teacher_feedback_md: 'Good method', points,
+        content_json:null,content_version:null,
       }],
     });
 
     await expect(new ResultsService({ query } as unknown as Pool).detail(student, 'submission-a')).resolves.toEqual([{
       gradingId: 'grading-1', appealStatus: null, displayRef: '1(a)', stemMd: 'Solve', marks: 2,
       answerText: 'x = 2', finalScore: 1.5, feedback: 'Good method', points,
+      contentJson:null,contentVersion:null,assetUrls:{},
     }]);
   });
 });
