@@ -8,7 +8,7 @@ on:
         required: false
         default: 'NO'
       only:
-        description: 'Optional 0478 or 9618. Leave blank to process both in parallel.'
+        description: 'Reserved. Both official syllabi are processed in parallel.'
         required: false
         default: ''
   push:
@@ -30,7 +30,6 @@ permissions:
 
 jobs:
   source-backfill:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only == '' || inputs.only == matrix.syllabus }}
     strategy:
       fail-fast: false
       matrix:
