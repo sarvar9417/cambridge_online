@@ -2,7 +2,7 @@ import { structureQuestionText } from './question-structure.js';
 import type { StructuredQuestionContent } from './structured-question-content.js';
 import { renderStructuredQuestionHtml,structuredQuestionPrintCss } from './structured-question-export.js';
 
-const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]!));
+const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 
 export type ExportMode='question_paper'|'mark_scheme'|'combined'|'feedback';
 export interface ExportAsset{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}
