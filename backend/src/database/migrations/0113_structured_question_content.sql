@@ -66,6 +66,18 @@ BEGIN
   IF jsonb_typeof(p_content->'blocks')<>'array' OR jsonb_array_length(p_content->'blocks')=0 THEN
     RAISE EXCEPTION 'structured content blocks must be a non-empty array';
   END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(p_content->'blocks') block
+    WHERE jsonb_typeof(block)<>'object'
+       OR coalesce(block->>'type','') NOT IN (
+         'text','math','code','list','table','matching','asset','answer_area'
+       )
+       OR jsonb_typeof(block->'source')<>'object'
+       OR coalesce(block->'source'->>'page','') !~ '^[1-9][0-9]*$'
+  ) THEN
+    RAISE EXCEPTION 'structured content contains an unsupported block or missing source page';
+  END IF;
   IF p_source_sha256 IS NULL OR p_source_sha256 !~ '^[0-9A-Fa-f]{64}$' THEN
     RAISE EXCEPTION 'source SHA-256 is invalid';
   END IF;
