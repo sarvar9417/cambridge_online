@@ -80,11 +80,13 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
    await client.query(`insert into question_dependencies(question_id,depends_on_id,kind,strength,evidence,detected_by,confidence) values($1,$2,$3,$4,$5,'ai',$6)`,[fromId,toId,dependency.kind,dependency.strength,dependency.evidence,dependency.confidence]);
   }
 
+  let markSchemeNeedsReview=false;
   for(const scheme of schemes){
    const questionId=idByPath.get(scheme.path);if(!questionId)continue;
    const question=questions.find(item=>item.path===scheme.path),classification=classificationByPath.get(scheme.path),assetNeedsReview=Boolean(question&&hasUnreadyBinaryAsset(question,storedByKey));
    const schemeIssues=scheme.issues??[],questionIssues=question?.issues??[],classificationIssues=classification?.issues??[],localIssues=[...schemeIssues,...questionIssues,...classificationIssues];
    const status=paperCanAutoApprove&&!localIssues.length&&!assetNeedsReview?'approved':'needs_review';
+   if(status==='needs_review')markSchemeNeedsReview=true;
    const inserted=await client.query(`insert into mark_schemes(question_id,source_paper_id,scheme_type,max_marks,guidance_md,status,extract_confidence,prompt_version) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,[questionId,meta.msPaperId,scheme.schemeType,scheme.maxMarks,scheme.guidanceMd,status,scheme.confidence,'extract-markscheme.v1']);
    const markSchemeId=String(inserted.rows[0].id),groupIds=new Map<string,string>();
    if(status==='needs_review'){
@@ -108,7 +110,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   await client.query('commit');
   const leaves=questions.filter(question=>question.marks!==null),approvedCount=paperCanAutoApprove?leaves.filter(question=>!question.issues.length&&!classificationByPath.get(question.path)?.issues.length&&!hasUnreadyBinaryAsset(question,storedByKey)).length:0;
   const result:PersistPaperResult={questionCount:questions.length,leafCount:leaves.length,approvedCount,needsReviewCount:leaves.length-approvedCount,findingCount:findings.length,pendingAssetCount,readyAssetCount,failedAssetCount};
-  const finalReviewStatus=result.needsReviewCount===0&&result.pendingAssetCount===0&&result.failedAssetCount===0&&paperCanAutoApprove?'approved_candidate':'needs_review';
+  const finalReviewStatus=result.needsReviewCount===0&&result.pendingAssetCount===0&&result.failedAssetCount===0&&paperCanAutoApprove&&!markSchemeNeedsReview?'approved_candidate':'needs_review';
   return{...input,reviewStatus:finalReviewStatus,persistResult:result};
  }catch(error){await client.query('rollback');throw error}finally{client.release()}
 }
