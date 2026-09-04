@@ -1,5 +1,9 @@
 import { api } from './api';
-import { isStructuredQuestionContent, type StructuredQuestionContent } from './structured-question-content';
+import {
+  isStructuredQuestionContent,
+  type StructuredQuestionBlock,
+  type StructuredQuestionContent,
+} from './structured-question-content';
 import { renderStructuredQuestionContent } from './structured-question-renderer';
 
 type PortableAsset = { id:string;url?:string|null };
@@ -11,6 +15,7 @@ type RefResponse = {
   detail:{ contentJson?:unknown };
   portable:PortableQuestion;
 };
+type AssetBlock=Extract<StructuredQuestionBlock,{type:'asset'}>;
 
 const cache=new Map<string,Promise<RefResponse>>();
 
@@ -52,8 +57,8 @@ function canonicalContent(value:RefResponse):StructuredQuestionContent|null{
   return isStructuredQuestionContent(candidate)?candidate:null;
 }
 
-function missingAsset(content:StructuredQuestionContent,urls:Record<string,string>){
-  return content.blocks.find((block)=>block.type==='asset'&&!urls[block.assetId]);
+function missingAsset(content:StructuredQuestionContent,urls:Record<string,string>):AssetBlock|undefined{
+  return content.blocks.find((block):block is AssetBlock=>block.type==='asset'&&!urls[block.assetId]);
 }
 
 function alertHost(message:string){
