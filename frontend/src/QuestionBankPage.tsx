@@ -239,6 +239,23 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [dependency, setDependency] = useState<'any' | 'independent'>('any');
   const [status, setStatus] = useState('approved');
 
+  const hasQuestionCriteria = Boolean(
+    query.trim()
+    || component
+    || marksMin
+    || marksMax
+    || yearFrom
+    || yearTo
+    || hasDiagram
+    || dependency !== 'any'
+    || (user.role === 'owner' && status !== 'approved')
+    || series.length
+    || aos.length
+    || topicIds.length
+    || subtopicIds.length
+    || commandWords.length
+  );
+
   const loadOptions = async () => {
     const [filterResult, basketResult] = await Promise.allSettled([
       retry(() => api<FilterOptions>('/questions/filter-options')),
@@ -292,19 +309,36 @@ export function QuestionBankPage({ user }: { user: User }) {
 
   useEffect(() => {
     if (!user || user.role === 'student' || !syllabusCode) return;
+    if (!hasQuestionCriteria) {
+      setLoading(false);
+      setError('');
+      setQuestions({ data: [], view, unavailableFilters: [], nextCursor: null });
+      setFocused(0);
+      return;
+    }
+
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError('');
       api<QuestionResponse>(`/questions?${params}`)
         .then((data) => {
+          if (cancelled) return;
           setQuestions(data);
           setFocused(0);
         })
-        .catch((cause) => setError(message(cause, 'Savollar yuklanmadi.')))
-        .finally(() => setLoading(false));
+        .catch((cause) => {
+          if (!cancelled) setError(message(cause, 'Savollar yuklanmadi.'));
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
     }, 180);
-    return () => window.clearTimeout(timer);
-  }, [user, syllabusCode, params]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [user, syllabusCode, params, hasQuestionCriteria, view]);
 
   const loadReview = async (id = selectionId) => {
     const request = ++reviewRequestRef.current;
@@ -594,7 +628,7 @@ export function QuestionBankPage({ user }: { user: User }) {
       <div className="qb-layout">
         {filterOpen && <button className="qb-filter-backdrop" aria-label="Filtrlarni yopish" onClick={() => setFilterOpen(false)} />}
         <aside className={`qb-filters ${filterOpen ? 'open' : ''}`} aria-label="Savol filtrlari">
-          <div className="qb-panel-title"><div><strong>Filtrlar</strong><small>{activeFilterCount ? `${activeFilterCount} ta faol filtr` : 'Imtihon bankini toraytiring'}</small></div><div className="qb-filter-head-actions"><button className="qb-link-button" onClick={resetFilters} disabled={!activeFilterCount}>Tozalash</button><button className="qb-icon-button qb-filter-close" aria-label="Filtrlarni yopish" onClick={() => setFilterOpen(false)}><X size={17} /></button></div></div>
+          <div className="qb-panel-title"><div><strong>Filtrlar</strong><small>{activeFilterCount ? `${activeFilterCount} ta faol filtr` : 'Imtihon bankini toraytiring'}</small></div><div className="qb-filter-head-actions"><button className="qb-link-button" onClick={resetFilters} disabled={!activeFilterCount && !query}>Tozalash</button><button className="qb-icon-button qb-filter-close" aria-label="Filtrlarni yopish" onClick={() => setFilterOpen(false)}><X size={17} /></button></div></div>
           <Filter label="Syllabus"><select value={syllabusCode} onChange={(event) => changeSyllabus(event.target.value)}>{options.syllabi.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.subject} · {item.question_count} savol</option>)}</select></Filter>
           <Filter label="Komponent"><select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Barchasi</option>{componentChoices.map((item) => <option key={`${item.syllabus_code}-${item.number}`} value={item.number}>Paper {item.number} · {item.name}</option>)}</select></Filter>
           <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => scopedTopics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
@@ -606,18 +640,19 @@ export function QuestionBankPage({ user }: { user: User }) {
           <Filter label="Diagramma / rasm"><select value={hasDiagram} onChange={(event) => setHasDiagram(event.target.value)}><option value="">Barchasi</option><option value="true">Bor</option><option value="false">Yo‘q</option></select></Filter>
           <Filter label="Bog‘liqlik"><select value={dependency} onChange={(event) => setDependency(event.target.value as 'any' | 'independent')}><option value="any">Barchasi</option><option value="independent">Mustaqil savollar</option></select></Filter>
           {user.role === 'owner' && <Filter label="Review holati"><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Barchasi (approved + review)</option><option value="approved">Tasdiqlangan</option><option value="needs_review">Topic tekshiruvda</option><option value="draft">Qoralama</option><option value="rejected">Rad etilgan</option><option value="archived">Arxivlangan</option></select></Filter>}
-          <button className="qb-filter-apply" onClick={() => setFilterOpen(false)}>Natijalarni ko‘rish · {displayedQuestions.length}</button>
+          <button className="qb-filter-apply" disabled={!hasQuestionCriteria} onClick={() => setFilterOpen(false)}>{hasQuestionCriteria ? `Natijalarni ko‘rish · ${displayedQuestions.length}` : 'Avval filtr yoki qidiruv kiriting'}</button>
         </aside>
 
         <section className="qb-results">
           <div className="qb-search-row"><label className="qb-search"><MagnifyingGlass size={19} aria-hidden="true" /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Savol matnidan qidirish" placeholder="Savol matni yoki reference bo‘yicha qidiring…" />{query && <button type="button" aria-label="Qidiruvni tozalash" onClick={() => setQuery('')}><X size={16} /></button>}</label><div className="qb-segments" aria-label="Savol ko‘rinishi"><button className={view === 'parts' ? 'active' : ''} onClick={() => setView('parts')}>Qismlar</button><button className={view === 'families' ? 'active' : ''} onClick={() => setView('families')}>Oilalar</button></div></div>
-          <div className="qb-result-toolbar"><div className="qb-result-meta"><div><strong>{displayedQuestions.length}</strong><span>{view === 'parts' ? ' mos qism' : ' savol oilasi'}</span>{activeFilterCount > 0 && <span className="qb-active-filter-note">· {activeFilterCount} filtr faol</span>}</div><small>{syllabusCode ? `${syllabusCode} · ` : ''}↑↓ tanlash · Enter qo‘shish</small></div><label className="qb-sort"><span>Saralash</span><select value={sort} onChange={(event) => setSort(event.target.value as BankSort)}><option value="relevance">Moslik bo‘yicha</option><option value="newest">Eng yangi</option><option value="marks_asc">Ball: kamdan ko‘pga</option><option value="marks_desc">Ball: ko‘pdan kamga</option></select></label></div>
+          <div className="qb-result-toolbar"><div className="qb-result-meta"><div><strong>{hasQuestionCriteria ? displayedQuestions.length : 0}</strong><span>{view === 'parts' ? ' mos qism' : ' savol oilasi'}</span>{activeFilterCount > 0 && <span className="qb-active-filter-note">· {activeFilterCount} filtr faol</span>}</div><small>{syllabusCode ? `${syllabusCode} · ` : ''}↑↓ tanlash · Enter qo‘shish</small></div><label className="qb-sort"><span>Saralash</span><select value={sort} onChange={(event) => setSort(event.target.value as BankSort)}><option value="relevance">Moslik bo‘yicha</option><option value="newest">Eng yangi</option><option value="marks_asc">Ball: kamdan ko‘pga</option><option value="marks_desc">Ball: ko‘pdan kamga</option></select></label></div>
           {questions.unavailableFilters.length > 0 && <div className="qb-notice">Hozircha ishlamaydigan filtrlar: {questions.unavailableFilters.join(', ')}</div>}
           {error && <div className="qb-error">{error}</div>}
           {loading && <div className="qb-loading">Savollar yuklanmoqda…</div>}
-          {!loading && view === 'parts' && <div className="qb-card-list">{(displayedQuestions as Part[]).map((part, index) => <PartCard key={part.id} part={part} focused={focused === index} selected={selectedQuestionIds.has(part.id)} pending={pendingQuestionIds.has(part.id)} onAdd={() => void addQuestion(part.id)} onPreview={() => void openPreview(part.id)} />)}</div>}
-          {!loading && view === 'families' && <div className="qb-card-list">{(displayedQuestions as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} selectedIds={selectedQuestionIds} pendingIds={pendingQuestionIds} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}</div>}
-          {!loading && questions.data.length === 0 && <div className="qb-empty"><strong>Savol topilmadi</strong><span>Qidiruv yoki filtrlarni o‘zgartirib ko‘ring.</span><button className="qb-secondary-button" onClick={resetFilters}>Barcha filtrlarni tozalash</button></div>}
+          {!loading && !hasQuestionCriteria && <div className="qb-empty"><strong>Avval filtrlarni tanlang</strong><span>Savollar faqat filtr yoki qidiruv kiritilgandan keyin yuklanadi.</span><button className="qb-secondary-button" onClick={() => setFilterOpen(true)}><Funnel size={16} /> Filtrlarni ochish</button></div>}
+          {!loading && hasQuestionCriteria && view === 'parts' && <div className="qb-card-list">{(displayedQuestions as Part[]).map((part, index) => <PartCard key={part.id} part={part} focused={focused === index} selected={selectedQuestionIds.has(part.id)} pending={pendingQuestionIds.has(part.id)} onAdd={() => void addQuestion(part.id)} onPreview={() => void openPreview(part.id)} />)}</div>}
+          {!loading && hasQuestionCriteria && view === 'families' && <div className="qb-card-list">{(displayedQuestions as Family[]).map((family) => <FamilyCard key={family.rootId} family={family} selectedIds={selectedQuestionIds} pendingIds={pendingQuestionIds} onAdd={(id) => void addQuestion(id)} onPreview={(id) => void openPreview(id)} />)}</div>}
+          {!loading && hasQuestionCriteria && questions.data.length === 0 && <div className="qb-empty"><strong>Savol topilmadi</strong><span>Qidiruv yoki filtrlarni o‘zgartirib ko‘ring.</span><button className="qb-secondary-button" onClick={resetFilters}>Barcha filtrlarni tozalash</button></div>}
         </section>
 
         {basketOpen && <button className="qb-basket-backdrop" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)} />}
