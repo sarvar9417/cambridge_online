@@ -49,10 +49,7 @@ export function sectionsFor(
 function pick(surface: string, page: string, role: User['role']): SectionName[] {
   if (role === 'student' || surface === 'oquvchi') {
     switch (page) {
-      // StudentHome is the student surface controller. On this route it delegates
-      // to the dedicated StudentAssignments workspace, while preserving App's
-      // existing section contract until the larger student shell extraction.
-      case 'vazifalar': return ['studentHome'];
+      case 'vazifalar': return ['studentAssignments'];
       case 'natijalar': return ['studentResults'];
       case 'organish': return ['studentLearning'];
       /*
