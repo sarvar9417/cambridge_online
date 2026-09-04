@@ -1,0 +1,78 @@
+name: Structured content source backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply verified canonical rows (YES to write; otherwise plan only)'
+        required: false
+        default: 'NO'
+      only:
+        description: 'Reserved. Both official syllabi are processed in parallel.'
+        required: false
+        default: ''
+  push:
+    branches:
+      - feat/full-structured-content-backfill
+      - main
+    paths:
+      - 'backend/scripts/structured_content_backfill.py'
+      - 'backend/scripts/structured_content_backfill_v2.py'
+      - 'backend/scripts/structured_content_backfill_v3.py'
+      - 'backend/scripts/qp-source-repair.py'
+      - 'backend/scripts/qp-source-repair-v3.py'
+      - 'backend/scripts/tools/pdftotext'
+      - 'scripts/test_structured_content_backfill.py'
+      - 'backend/src/database/migrations/0114_structured_content_backfill_contract.sql'
+      - 'supabase/functions/structured-content-runner/index.ts'
+      - '.github/workflows/structured-content-backfill.yml'
+      - '.structured-content-apply'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  source-backfill:
+    strategy:
+      fail-fast: false
+      matrix:
+        syllabus: ['0478', '9618']
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PDF tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Enable XML-safe pdftotext shim
+        run: |
+          chmod +x backend/scripts/tools/pdftotext
+          echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
+      - name: Determine mode
+        id: mode
+        shell: bash
+        run: |
+          apply=NO
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
+            apply=YES
+          elif [[ -f .structured-content-apply ]] && grep -qx 'APPLY_STRUCTURED_CONTENT_V1=YES' .structured-content-apply; then
+            apply=YES
+          fi
+          echo "apply=$apply" >> "$GITHUB_OUTPUT"
+      - name: Run source-backed canonical planner
+        env:
+          STRUCTURED_CONTENT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/structured-content-runner
+          STRUCTURED_CONTENT_APPLY: ${{ steps.mode.outputs.apply }}
+          STRUCTURED_CONTENT_ONLY: ${{ matrix.syllabus }}
+          STRUCTURED_CONTENT_REPORT: structured-content-backfill-${{ matrix.syllabus }}.json
+        run: python3 backend/scripts/structured_content_backfill_v3.py
+      - name: Upload backfill evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: structured-content-backfill-${{ matrix.syllabus }}
+          path: structured-content-backfill-${{ matrix.syllabus }}.json
+          if-no-files-found: warn
+          retention-days: 30

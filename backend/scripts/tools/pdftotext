@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_PDFTOTEXT=/usr/bin/pdftotext
+"$REAL_PDFTOTEXT" "$@"
+
+is_bbox=0
+for arg in "$@"; do
+  if [[ "$arg" == "-bbox-layout" ]]; then
+    is_bbox=1
+    break
+  fi
+done
+
+if [[ "$is_bbox" == "1" ]]; then
+  out="${@: -1}"
+  if [[ "$out" != "-" && -f "$out" ]]; then
+    python3 - "$out" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8", errors="replace")
+clean = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+if clean != text:
+    path.write_text(clean, encoding="utf-8")
+PY
+  fi
+fi
