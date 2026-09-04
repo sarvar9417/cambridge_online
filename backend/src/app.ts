@@ -58,9 +58,9 @@ import { DomainError } from './services/assignments-service.js';
 import { opportunisticMaintenance } from './middleware/opportunistic-maintenance.js';
 import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
-import { SupabaseAssetStore } from './jobs/asset-store.js';
+import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
 
-export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository) {
+export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository, assetUrlSigner?:AssetUrlSigner) {
   const app = express();
   const routeMounts: Array<{ path:string; public:boolean }> = [];
   app.locals.routeMounts = routeMounts;
@@ -97,6 +97,7 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
 
   app.use('/api/v1', requireAuth(auth));
   const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
+  const assignmentsService=pool?new AssignmentsService(pool,assetUrlSigner):undefined;
   const selectionsRepository = pool && questionsRepository ? new PgSelectionsRepository(pool, questionsRepository) : undefined;
   const questionVisualFidelity = pool ? createQuestionVisualFidelityMiddleware(pool) : undefined;
   if (questionVisualFidelity) {
@@ -107,12 +108,12 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   // Managing classes mounts before reading them: the read router owns '/:id',
   // which would otherwise swallow paths like '/unassigned-students'.
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
-  if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,pool?new AssignmentsService(pool):undefined));
+  if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool) mountPrivate('/api/v1/lesson-checkpoints', createLessonCheckpointsRouter(new LessonCheckpointService(pool)));
   if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool));
-  if (pool) mountPrivate('/api/v1/assignments', createAssignmentsRouter(new AssignmentsService(pool),pool));
-  if (pool) mountPrivate('/api/v1/submissions', createSubmissionsRouter(new AssignmentsService(pool)));
+  if (assignmentsService) mountPrivate('/api/v1/assignments', createAssignmentsRouter(assignmentsService,pool!));
+  if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
   if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
   if (pool) mountPrivate('/api/v1/gradings', createGradingsRouter(new GradingService(pool)));
   if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool)));
@@ -177,4 +178,4 @@ const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
     })
   : undefined;
 const questionsRepository = pool ? new PgStaffAwareQuestionsRepository(pool, assetSigner) : undefined;
-export const app = createApp(auth, classesRepository, questionsRepository, authRepository);
+export const app = createApp(auth, classesRepository, questionsRepository, authRepository, assetSigner);
