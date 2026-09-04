@@ -1,4 +1,5 @@
 import type { ResultDetail, ResultItem, User } from '../lib/api';
+import { StructuredQuestionView, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-results.css';
 
 export interface StudentResultsProps {
@@ -20,12 +21,10 @@ const when = (iso: string) =>
  * Where a student finds out why they lost a mark.
  *
  * This is the most educational screen in the product, so it is laid out as
- * reading matter rather than as a table: the question in the serif face, their
- * own answer quoted back, then the mark scheme walked point by point.
+ * reading matter rather than as a table: the exact question, their own answer,
+ * then the mark scheme walked point by point.
  *
  * Green and red carry their one meaning here -- mark awarded, mark not awarded.
- * This is the screen that meaning was reserved for, which is why deadlines and
- * queues elsewhere use amber instead.
  */
 export function StudentResults({
   user, results, detail, openResultId, appealDraft, onOpen, onClose, onAppealDraft, onAppeal,
@@ -53,23 +52,35 @@ export function StudentResults({
           {detail.map((item) => {
             const full = item.finalScore === item.marks;
             const zero = item.finalScore === 0;
+            const structuredPresent=item.contentJson!=null;
+            const structuredReady=structuredPresent&&item.contentVersion===1&&structuredQuestionUsable(item.contentJson);
             return (
               <li key={item.gradingId} className="sr-question">
                 <div className="sr-question-head">
                   <span className="sr-ref">{item.displayRef}</span>
+                  {structuredReady ? <span className="sr-source-backed">Source-backed</span> : null}
                   <span className={`sr-mark ${full ? 'is-full' : zero ? 'is-zero' : 'is-part'}`}>
                     {item.finalScore}/{item.marks}
                   </span>
                 </div>
 
-                <p className="sr-stem">{item.stemMd}</p>
+                {structuredReady && item.contentJson ? (
+                  <div className="sr-structured-question">
+                    <StructuredQuestionView content={item.contentJson} assetUrls={item.assetUrls} />
+                  </div>
+                ) : structuredPresent ? (
+                  <div className="structured-question-invalid" role="alert">
+                    Savolning source-backed tarkibini tekshirib bo‘lmadi. Noto‘liq savol ko‘rsatilmadi.
+                  </div>
+                ) : (
+                  <p className="sr-stem">{item.stemMd}</p>
+                )}
 
                 <div className="sr-answer">
                   <span className="sr-answer-label">Sening javobing</span>
                   <blockquote>{item.answerText || 'Javob yozilmagan'}</blockquote>
                 </div>
 
-                {/* Written for the student and, until now, never shown to them. */}
                 {item.feedback ? (
                   <div className="sr-feedback">
                     <span className="sr-feedback-label">Izoh</span>
@@ -97,8 +108,6 @@ export function StudentResults({
                         : item.appealStatus === 'accepted' ? 'qabul qilindi' : 'rad etildi'}
                     </p>
                   ) : full ? null : (
-                    // Only offered where marks were actually lost: an appeal on
-                    // full marks is a form nobody should be invited to fill in.
                     <details className="sr-appeal">
                       <summary>Bahoga rozi emasmisan?</summary>
                       <textarea
