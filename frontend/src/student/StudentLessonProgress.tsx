@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type LessonProgress } from '../lib/api';
 import { useRoute } from '../lib/router';
-import { STUDENT_STUDY_CHAPTERS } from './StudentLessons';
+import { STUDENT_STUDY_CHAPTERS, resolveStudySlideIndex, studentStudyChapter } from './StudentLessons';
 import './student-lesson-progress.css';
 
-export function completedForChapter(progress: LessonProgress[], chapterNo: number) {
-  return new Set(progress.filter((item) => item.chapterNo === chapterNo && item.completedAt).map((item) => item.slideId));
+export function completedForChapter(progress: LessonProgress[], chapterNo: number, validSlideIds?: Set<string>) {
+  return new Set(
+    progress
+      .filter((item) => item.chapterNo === chapterNo && item.completedAt && (!validSlideIds || validSlideIds.has(item.slideId)))
+      .map((item) => item.slideId),
+  );
 }
 
 export function StudentLessonProgress() {
   const route = useRoute();
   const chapterNo = Number(route.params.get('chapter') || 0);
-  const slideId = route.params.get('slide') ?? '';
+  const chapter = studentStudyChapter(chapterNo);
+  const slideIndex = chapter ? resolveStudySlideIndex(chapter, route.params.get('slide')) : -1;
+  const slideId = chapter && slideIndex >= 0 ? chapter.slides[slideIndex]?.id ?? '' : '';
   const [progress, setProgress] = useState<LessonProgress[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -24,19 +30,35 @@ export function StudentLessonProgress() {
   }, []);
 
   useEffect(() => {
-    if (![1, 7, 13].includes(chapterNo) || !slideId) return;
+    if (!chapter || !slideId) return;
     void api<LessonProgress>('/content/lessons/progress', {
       method: 'PUT',
-      body: JSON.stringify({ chapterNo, slideId, completed:false }),
+      body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:false }),
     }).then((saved) => {
       setProgress((current) => [saved, ...current.filter((item) => !(item.chapterNo === saved.chapterNo && item.slideId === saved.slideId))]);
     }).catch(() => {});
   }, [chapterNo, slideId]);
 
-  const totalSlides = useMemo(() => STUDENT_STUDY_CHAPTERS.reduce((sum, chapter) => sum + chapter.slides.length, 0), []);
-  const completedTotal = new Set(progress.filter((item) => item.completedAt).map((item) => `${item.chapterNo}:${item.slideId}`)).size;
-  const chapter = STUDENT_STUDY_CHAPTERS.find((item) => item.number === chapterNo);
-  const completedInChapter = chapter ? completedForChapter(progress, chapterNo) : new Set<string>();
+  const totalSlides = useMemo(
+    () => STUDENT_STUDY_CHAPTERS.reduce((sum, item) => sum + item.slides.length, 0),
+    [],
+  );
+  const validKeys = useMemo(
+    () => new Set(STUDENT_STUDY_CHAPTERS.flatMap((item) => item.slides.map((slide) => `${item.number}:${slide.id}`))),
+    [],
+  );
+  const completedTotal = new Set(
+    progress
+      .filter((item) => item.completedAt && validKeys.has(`${item.chapterNo}:${item.slideId}`))
+      .map((item) => `${item.chapterNo}:${item.slideId}`),
+  ).size;
+  const validChapterSlides = useMemo(
+    () => new Set(chapter?.slides.map((slide) => slide.id) ?? []),
+    [chapter],
+  );
+  const completedInChapter = chapter
+    ? completedForChapter(progress, chapter.number, validChapterSlides)
+    : new Set<string>();
   const currentComplete = Boolean(slideId && completedInChapter.has(slideId));
 
   const markComplete = async () => {
@@ -45,7 +67,7 @@ export function StudentLessonProgress() {
     try {
       const saved = await api<LessonProgress>('/content/lessons/progress', {
         method: 'PUT',
-        body: JSON.stringify({ chapterNo, slideId, completed:true }),
+        body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:true }),
       });
       setProgress((current) => [saved, ...current.filter((item) => !(item.chapterNo === saved.chapterNo && item.slideId === saved.slideId))]);
     } finally {
