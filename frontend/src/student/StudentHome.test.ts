@@ -24,6 +24,12 @@ describe('deadline urgency', () => {
     expect(urgencyOf(inHours(73), NOW)).toBe('later');
   });
 
+  it('keeps an assignment with no deadline neutral and open', () => {
+    expect(urgencyOf(null, NOW)).toBe('none');
+    expect(daysUntil(null, NOW)).toBeNull();
+    expect(isOpen(assignment({ dueAt: null, submissionStatus: 'not_started' }))).toBe(true);
+  });
+
   it('floors the day count, so tomorrow never reads as today', () => {
     // Rounding would turn "due in 23 hours" into "0 kundan keyin", which a
     // student reads as due now and a teacher gets blamed for.
@@ -34,7 +40,9 @@ describe('deadline urgency', () => {
 
   it('counts a late assignment in whole days late', () => {
     expect(daysUntil(inHours(-25), NOW)).toBe(-2);
-    expect(Math.abs(daysUntil(inHours(-49), NOW))).toBe(3);
+    const late = daysUntil(inHours(-49), NOW);
+    expect(late).not.toBeNull();
+    expect(Math.abs(late!)).toBe(3);
   });
 });
 
