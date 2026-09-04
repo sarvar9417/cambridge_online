@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { parseStructuredQuestionContent } from '../lib/structured-question-content.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import { PgQuestionsRepository } from './questions-repository.js';
 
@@ -56,5 +57,46 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
       [id, actor.role, actor.id],
     );
     return result.rows[0] ? serializeQuestion(result.rows[0]) : null;
+  }
+
+  /** Freeze the canonical source-backed representation into staff selection snapshots. */
+  override async portable(actor: Actor, id: string) {
+    const portable = await super.portable(actor, id);
+    if (!portable) return null;
+    const result = await this.detailPool.query(
+      `select content_json,content_version
+       from questions
+       where id=$1 and status in ('approved','needs_review')`,
+      [id],
+    );
+    const row = result.rows[0];
+    if (!row?.content_json) return portable;
+    if (Number(row.content_version) !== 1) throw new Error('structured_question_version_unsupported');
+    return {
+      ...portable,
+      leaf: {
+        ...portable.leaf,
+        contentJson: parseStructuredQuestionContent(row.content_json),
+      },
+    };
+  }
+
+  /** Resolve the exact original Cambridge reference used in teacher review UI. */
+  async findByDisplayRef(actor: Actor, displayRef: string) {
+    if (actor.role === 'student') return null;
+    const result = await this.detailPool.query(
+      `select id from questions
+       where display_ref=$1 and marks is not null and status in ('approved','needs_review')
+       order by updated_at desc,id
+       limit 1`,
+      [displayRef],
+    );
+    const id = result.rows[0]?.id as string | undefined;
+    if (!id) return null;
+    const [detail, portable] = await Promise.all([
+      this.findOne(actor, id),
+      this.portable(actor, id),
+    ]);
+    return detail && portable ? { detail, portable } : null;
   }
 }

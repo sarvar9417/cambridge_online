@@ -1,3 +1,5 @@
+import type { StructuredQuestionContent } from '../lib/structured-question-content.js';
+
 export type SelectionRole = 'graded' | 'context_only';
 export type DependencyKind = 'text_ref' | 'answer_ref';
 export type DependencyStrength = 'required' | 'context_only';
@@ -22,6 +24,8 @@ export interface PortableQuestion {
     path: string;
     displayRef: string;
     stem: string;
+    /** Source-backed v1 content frozen with the selection/assignment snapshot. */
+    contentJson?: StructuredQuestionContent | null;
     commandWord: string | null;
     marks: number;
     answerKind: string;

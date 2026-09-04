@@ -13,6 +13,22 @@ function text(className:string,value:string){
   return node;
 }
 
+export function readableBooleanLatex(latex:string){
+  return latex
+    .replace(/\\overline\{([^{}]+)\}/g,(_,value:string)=>[...value].map(char=>`${char}\u0305`).join(''))
+    .replaceAll('\\land','∧')
+    .replaceAll('\\lor','∨')
+    .replaceAll('\\oplus','⊕')
+    .replaceAll('\\neg','¬')
+    .replaceAll('\\cdot','·')
+    .replace(/\\operatorname\{NAND\}/g,'NAND')
+    .replace(/\\operatorname\{NOR\}/g,'NOR')
+    .replace(/\\operatorname\{XOR\}/g,'XOR')
+    .replace(/\\mathrm\{(AND|OR|NOT|NAND|NOR|XOR)\}/g,'$1')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
 function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
   const table=document.createElement('table');
   table.className=`structured-question-table structured-question-${block.kind.replaceAll('_','-')}`;
@@ -93,7 +109,8 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
       node.dataset.questionBlock='math';
       node.dataset.latex=block.latex;
       node.setAttribute('role','math');
-      node.textContent=block.latex;
+      node.setAttribute('aria-label',block.semantics==='boolean_expression'?'Boolean expression':'Mathematical expression');
+      node.textContent=block.semantics==='boolean_expression'?readableBooleanLatex(block.latex):block.latex;
       return node;
     }
     case 'code': {

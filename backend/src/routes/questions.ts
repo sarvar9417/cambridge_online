@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { Actor } from '../lib/actor.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 
 const listOf = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(
@@ -45,7 +46,11 @@ const querySchema = z.object({
   }
 });
 
-export function createQuestionsRouter(repository: PgQuestionsRepository) {
+type QuestionsRepository = PgQuestionsRepository & {
+  findByDisplayRef?: (actor: Actor, displayRef: string) => Promise<unknown>;
+};
+
+export function createQuestionsRouter(repository: QuestionsRepository) {
   const router = Router();
 
   router.get('/', async (req, res) => {
@@ -77,6 +82,28 @@ export function createQuestionsRouter(repository: PgQuestionsRepository) {
       return;
     }
     res.json(await repository.filterOptions(req.actor!));
+  });
+
+  router.get('/by-ref', async (req, res) => {
+    if (req.actor!.role === 'student') {
+      res.status(403).json({ error: { code: 'forbidden', message: 'Bu amal faqat o‘qituvchi yoki owner uchun.' } });
+      return;
+    }
+    const parsed = z.string().trim().min(1).max(160).safeParse(req.query.ref);
+    if (!parsed.success) {
+      res.status(400).json({ error: { code: 'validation_error', message: 'Original savol reference’ini tekshiring.' } });
+      return;
+    }
+    if (!repository.findByDisplayRef) {
+      res.status(501).json({ error: { code: 'not_supported', message: 'Source reference resolver mavjud emas.' } });
+      return;
+    }
+    const question = await repository.findByDisplayRef(req.actor!, parsed.data);
+    if (!question) {
+      res.status(404).json({ error: { code: 'not_found', message: 'Topilmadi.' } });
+      return;
+    }
+    res.json(question);
   });
 
   router.get('/:id/portable', async (req, res) => {
