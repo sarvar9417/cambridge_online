@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Assignment, Flashcard, MasteryItem, ResultItem, User } from '../lib/api';
-import { navigate } from '../lib/router';
+import { navigate, useRoute } from '../lib/router';
+import { StudentAssignments } from './StudentAssignments';
 import './student-home.css';
 
 export interface StudentHomeProps {
@@ -46,19 +47,27 @@ const greeting = (hour = new Date().getHours()) =>
   hour < 5 ? 'Xayrli tun' : hour < 12 ? 'Xayrli tong' : hour < 18 ? 'Xayrli kun' : 'Xayrli kech';
 
 /**
+ * StudentHome remains the routed student landing section, but the dedicated
+ * assignments route delegates to StudentAssignments. This keeps the route
+ * contract stable while moving the old inline assignment table into a real
+ * student workspace without disturbing teacher/admin sections in App.tsx.
+ */
+export function StudentHome(props: StudentHomeProps) {
+  const route = useRoute();
+  if (route.page === 'vazifalar') {
+    return <StudentAssignments assignments={props.assignments} onStart={props.onStart} />;
+  }
+  return <StudentHomeDashboard {...props} />;
+}
+
+/**
  * The first screen a student sees.
  *
- * It used to be a table of assignments and a profile block with two buttons,
- * which answers neither of the questions a student actually arrives with: what
- * do I have to do, and am I getting better. Everything here is already loaded
- * for them; it was only never arranged.
- *
- * Colour discipline from theme.css holds: green and red mean "mark awarded" and
- * "mark not awarded", and appear here only on a released result, where that is
- * exactly what they mean. Deadline pressure is carried by amber and by wording,
- * never by red, so the two never blur into each other.
+ * It answers the two questions a student actually arrives with: what do I have
+ * to do, and am I getting better. Everything displayed here is already loaded
+ * for the student; this component only prioritises it.
  */
-export function StudentHome({
+function StudentHomeDashboard({
   user, assignments, results, mastery, flashcards, onStart, onPractice, practicing,
 }: StudentHomeProps) {
   const open = useMemo(
@@ -212,8 +221,6 @@ export function StudentHome({
                       <strong>{result.title}</strong>
                       <small>{result.totalScore}/{result.totalMax}</small>
                     </div>
-                    {/* Green and red here mean exactly what they mean everywhere
-                        else in the product: marks won and marks lost. */}
                     <span className={`sh-score ${result.percentage >= 50 ? 'is-good' : 'is-low'}`}>
                       {Math.round(result.percentage)}%
                     </span>
