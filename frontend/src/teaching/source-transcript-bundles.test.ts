@@ -31,10 +31,7 @@ const publicAssetPath = (path: string) => {
 
 const readBundle = (chapter: SourceTranscriptChapter) => {
   const meta = SOURCE_TRANSCRIPT_BUNDLES[chapter];
-  const base64 = meta.paths
-    .map(path => readFileSync(publicAssetPath(path), 'utf8').replace(/\s+/g, ''))
-    .join('');
-  const compressed = Buffer.from(base64, 'base64');
+  const compressed = Buffer.concat(meta.paths.map(path => readFileSync(publicAssetPath(path))));
   const collection = JSON.parse(gunzipSync(compressed).toString('utf8')) as SourcePageTranscriptCollection;
   return { compressed, collection };
 };
