@@ -13,7 +13,6 @@ on:
         default: ''
   push:
     branches:
-      - fix/source-fidelity-repair-final
       - main
     paths:
       - 'backend/scripts/qp-source-structure-repair-v2.py'
