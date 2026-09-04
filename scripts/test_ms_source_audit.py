@@ -51,25 +51,46 @@ class MarkSchemeSourceAuditTests(unittest.TestCase):
         self.assertIn("prevents duplicate records", sections["1.a"]["text"])
         self.assertEqual(sections["2"]["page"], 2)
 
-    def test_clean_exact_source_backing_verifies(self):
+    def test_clean_structured_rubric_source_backing_verifies(self):
         section = {
             "page": 3,
             "marks": 2,
             "text": "uses a unique identifier\nprevents duplicate records // no two records share the same value",
         }
         result = AUDIT["audit_scheme"](self.scheme(), section, self.source())
+        self.assertEqual(result["auditVersion"], "9618-ms-source-audit-v2")
         self.assertEqual(result["result"], "verified")
         self.assertTrue(result["evidence"]["strict"])
         self.assertEqual(result["sourcePage"], 3)
-        self.assertEqual(result["evidence"]["phrasesChecked"], 3)
-        self.assertEqual(result["evidence"]["phrasesMatched"], 3)
+        self.assertEqual(result["evidence"]["rubricPhrasesChecked"], 3)
+        self.assertEqual(result["evidence"]["rubricPhrasesMatched"], 3)
 
-    def test_missing_source_phrase_fails_closed(self):
+    def test_missing_rubric_phrase_fails_closed(self):
         section = {"page": 1, "marks": 2, "text": "uses a unique identifier\nprevents duplicate records"}
         result = AUDIT["audit_scheme"](self.scheme(), section, self.source())
         self.assertEqual(result["result"], "needs_review")
         codes = [item["code"] for item in result["evidence"]["reasons"]]
-        self.assertIn("source_text_mismatch", codes)
+        self.assertIn("rubric_source_text_mismatch", codes)
+
+    def test_guidance_representation_mismatch_is_warning_not_grading_failure(self):
+        section = {"page": 1, "marks": 2, "text": "uses a unique identifier prevents duplicate records no two records share the same value"}
+        scheme = self.scheme(guidanceMd="1(a) award one mark for each correct point; legacy rendered footer text")
+        result = AUDIT["audit_scheme"](scheme, section, self.source())
+        self.assertEqual(result["result"], "verified")
+        self.assertTrue(result["evidence"]["strict"])
+        self.assertFalse(result["evidence"]["guidanceMatched"])
+        self.assertEqual(result["evidence"]["reasons"], [])
+        self.assertIn("guidance_representation_mismatch", [item["code"] for item in result["evidence"]["warnings"]])
+
+    def test_requires_is_grading_authoritative_and_must_be_source_backed(self):
+        points = [
+            {"code": "MP1", "text": "uses a unique identifier", "marks": 1, "accept": [], "reject": [], "requires": [], "isBod": False, "sortOrder": 0},
+            {"code": "MP2", "text": "prevents duplicate records", "marks": 1, "accept": [], "reject": [], "requires": ["must refer to the primary key"], "isBod": False, "sortOrder": 1},
+        ]
+        section = {"page": 1, "marks": 2, "text": "uses a unique identifier prevents duplicate records"}
+        result = AUDIT["audit_scheme"](self.scheme(points=points), section, self.source())
+        self.assertEqual(result["result"], "needs_review")
+        self.assertIn("rubric_source_text_mismatch", [item["code"] for item in result["evidence"]["reasons"]])
 
     def test_manual_low_confidence_and_in_use_never_auto_approve(self):
         section = {"page": 1, "marks": 2, "text": "uses a unique identifier prevents duplicate records no two records share the same value"}
