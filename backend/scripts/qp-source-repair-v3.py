@@ -2,13 +2,14 @@
 """Source-faithful Cambridge 9618 QP parser v3.
 
 v3 keeps the conservative, manifest-driven contract from qp-source-repair-v2 but
-adds three audit-proven hardening rules:
+adds audit-proven hardening:
   * internal database paths may map to a different printed path (for example the
     historical 2023 M/J 11 internal path 6.a is printed simply as Q6);
-  * legacy PDF layouts may indent printed question numbers by up to four spaces,
-    while deeply-indented table/data rows are rejected as question starts;
-  * C0 extraction residue and content after the terminal mark token are removed
-    before source text is accepted.
+  * it first uses the proven legacy detector, then falls back to a stricter
+    left-indented detector for layouts the legacy parser cannot cover;
+  * C0 extraction residue and content after the terminal mark token are removed;
+  * legitimate bare table row labels (for example 1 / 2 in a response table) are
+    preserved instead of being rejected as answer-line contamination.
 
 The parser is read-only. Database mutation remains behind the guarded repair RPC.
 """
@@ -190,9 +191,11 @@ def clean_segment(raw_lines: list[str], expected_mark: int | None = None) -> str
     return BASE["clean_segment"](normalized, expected_mark)
 
 
-def parse_text(text: str, expected: dict[str, int]) -> tuple[dict[str, dict[str, object]], list[dict[str, object]]]:
-    lines = preprocess_text(text)
-    events = detect_events(lines, set(expected))
+def _rows_from_events(
+    lines: list[str],
+    events: list[dict[str, object]],
+    expected: dict[str, int],
+) -> dict[str, dict[str, object]]:
     nodes: dict[str, str] = {}
     for index, event in enumerate(events):
         end = int(events[index + 1]["line"]) if index + 1 < len(events) else len(lines)
@@ -225,14 +228,47 @@ def parse_text(text: str, expected: dict[str, int]) -> tuple[dict[str, dict[str,
             "stem": stem,
             "context": "\n\n".join(ancestors).strip() or None,
         }
-    return rows, events
+    return rows
+
+
+def parse_text(text: str, expected: dict[str, int]) -> tuple[dict[str, dict[str, object]], list[dict[str, object]]]:
+    # Preserve layouts already understood by the proven v2 detector. We still
+    # apply v3 cleaning to those events, so control/page residue is not retained.
+    legacy_lines = BASE["preprocess_text"](text)
+    legacy_events = BASE["detect_events"](legacy_lines, set(expected))
+    try:
+        return _rows_from_events(legacy_lines, legacy_events, expected), legacy_events
+    except ValueError as exc:
+        if not str(exc).startswith("missing_paths:"):
+            raise
+
+    # Only documents the conservative legacy detector cannot cover use the
+    # audit-proven fallback detector.
+    lines = preprocess_text(text)
+    events = detect_events(lines, set(expected))
+    return _rows_from_events(lines, events, expected), events
 
 
 def quality_gate(rows: dict[str, dict[str, object]]) -> None:
-    BASE["quality_gate"](rows)
     issues: list[str] = []
+    page_ref_re = BASE["PAGE_REF_RE"]
     for path, row in rows.items():
-        text = f"{row.get('context') or ''}\n{row.get('stem') or ''}"
+        stem = str(row.get("stem") or "")
+        context = str(row.get("context") or "")
+        text = f"{context}\n{stem}"
+        if not stem.strip():
+            issues.append(f"{path}:empty")
+        squashed = re.sub(r"\s+", "", text).upper()
+        if "DONOTWRITEINTHISMARGIN" in squashed:
+            issues.append(f"{path}:margin")
+        if page_ref_re.search(text):
+            issues.append(f"{path}:paper_ref")
+        if re.search(r"© UCLES|Copyright Acknowledgements|reasonable effort has been made", text, re.IGNORECASE) or any(BASE["footer_noise"](line) for line in text.splitlines()):
+            issues.append(f"{path}:footer")
+        if re.search(rf"\[\s*{row['marks']}\s*\]\s*$", stem):
+            issues.append(f"{path}:trailing_mark")
+        if any(BASE["dense_font_garbage"](line) for line in text.splitlines()):
+            issues.append(f"{path}:gibberish")
         if any((ord(char) < 32 and char not in ("\t", "\n", "\r")) or ord(char) == 127 for char in text):
             issues.append(f"{path}:control")
     if issues:
