@@ -1,0 +1,483 @@
+/* Lesson Studio focused past-paper workspace v2.
+   The existing DOM/data contract remains unchanged; this layer turns the dialog
+   into an exam-first surface and adapts it for classroom projection. */
+
+.lesson-question-workspace {
+  width: min(1280px, calc(100vw - 36px));
+  max-width: none;
+  max-height: min(94vh, 1040px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-strong, #8b95a7) 56%, transparent);
+  border-radius: 24px;
+  background: #eef2f7;
+  box-shadow: 0 34px 110px rgba(15, 23, 42, .32);
+}
+
+.lesson-question-workspace::backdrop {
+  background: rgba(10, 17, 30, .72);
+  backdrop-filter: blur(8px);
+}
+
+.lesson-question-workspace .lesson-workspace-shell,
+.lesson-question-workspace .lesson-workspace-loading,
+.lesson-question-workspace .lesson-workspace-error {
+  max-height: min(94vh, 1040px);
+  background: #eef2f7;
+}
+
+.lesson-question-workspace .lesson-workspace-header {
+  min-height: 76px;
+  padding: 14px 74px 14px 22px;
+  border-bottom: 1px solid #d9e0ea;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 1px 0 rgba(15,23,42,.02);
+}
+
+.lesson-question-workspace .lesson-workspace-header span:first-child {
+  margin-bottom: 4px;
+  color: #778397;
+  font-size: 10px;
+  letter-spacing: .11em;
+}
+
+.lesson-question-workspace .lesson-workspace-header h2 {
+  color: #172033;
+  font-size: clamp(18px, 2vw, 25px);
+  font-weight: 800;
+  letter-spacing: -.025em;
+}
+
+.lesson-question-workspace .lesson-workspace-marks {
+  min-width: 66px;
+  justify-content: center;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 30%, #d6deea);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 7%, #fff);
+  color: var(--lesson-accent, var(--accent, #4f46e5)) !important;
+  font-size: 12px !important;
+  font-weight: 850;
+}
+
+.lesson-question-workspace .lesson-workspace-close {
+  top: max(22px, calc(3vh + 4px));
+  right: max(28px, calc((100vw - min(1280px, calc(100vw - 36px))) / 2 + 20px));
+  min-width: 42px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-color: #d6deea;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15,23,42,.08);
+}
+
+.lesson-question-workspace .lesson-workspace-toolbar {
+  gap: 7px;
+  padding: 10px 22px;
+  border-bottom: 1px solid #d9e0ea;
+  background: #f8fafc;
+}
+
+.lesson-question-workspace .lesson-workspace-source,
+.lesson-question-workspace .lesson-workspace-lo {
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 10px;
+  letter-spacing: .015em;
+}
+
+.lesson-question-workspace .lesson-workspace-body {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  gap: 20px;
+  padding: 22px;
+  background: #eef2f7;
+}
+
+.lesson-question-workspace .lesson-workspace-question-column {
+  gap: 16px;
+}
+
+.lesson-question-workspace .lesson-workspace-side-column {
+  position: sticky;
+  top: 146px;
+  align-self: start;
+  gap: 12px;
+}
+
+/* Source context reads like the material supplied above an exam question. */
+.lesson-question-workspace .lesson-workspace-contexts {
+  padding: 18px 20px;
+  border: 1px solid #dbe2ec;
+  border-radius: 12px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.lesson-question-workspace .lesson-workspace-contexts article {
+  padding: 14px 16px;
+  border-color: #dbe2ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.lesson-question-workspace .lesson-workspace-contexts article > strong {
+  color: #667085;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* The question itself becomes the visual centre: a clean exam-paper sheet. */
+.lesson-question-workspace .lesson-workspace-question {
+  min-height: 430px;
+  padding: clamp(30px, 4vw, 54px);
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(30, 41, 59, .09);
+}
+
+.lesson-question-workspace .lesson-workspace-question > .lesson-workspace-section-heading:first-child {
+  margin-bottom: 28px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e8ef;
+}
+
+.lesson-question-workspace .lesson-workspace-section-heading > strong {
+  color: #344054;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.lesson-question-workspace .lesson-workspace-section-heading > span {
+  color: #8a94a5;
+  font-size: 10px;
+}
+
+.lesson-question-workspace .lesson-workspace-stem {
+  color: #111827;
+  font-family: var(--font-read, "Source Serif 4 Variable", Georgia, serif);
+  font-size: clamp(17px, 1.55vw, 21px);
+  font-weight: 470;
+  line-height: 1.7;
+}
+
+.lesson-question-workspace .lesson-workspace-stem .qtext-paragraph {
+  line-height: 1.72;
+}
+
+.lesson-question-workspace .lesson-workspace-stem .qtext-code,
+.lesson-question-workspace .lesson-workspace-stem .qtext-table {
+  margin-block: 16px;
+  border-radius: 7px;
+  background: #f7f8fa;
+}
+
+.lesson-question-workspace .lesson-workspace-stem .qtext-task {
+  margin-block: 16px;
+  padding: 12px 15px;
+  border-left-width: 3px;
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 5%, #fff);
+}
+
+.lesson-question-workspace .lesson-workspace-asset img {
+  width: min(100%, 820px);
+  max-height: 540px;
+  margin-inline: auto;
+  border-radius: 6px;
+}
+
+/* Practice response belongs to the paper, not to a second floating card. */
+.lesson-question-workspace .lesson-workspace-question .lesson-workspace-response {
+  margin-top: 32px;
+  padding: 22px 0 0;
+  border: 0;
+  border-top: 1px solid #e2e7ee;
+  border-radius: 0;
+  background: transparent;
+}
+
+.lesson-question-workspace .lesson-workspace-response textarea {
+  min-height: 150px;
+  padding: 8px 10px;
+  border: 1px solid #d7dee8;
+  border-radius: 7px;
+  background:
+    repeating-linear-gradient(to bottom, #fff 0, #fff 31px, #dde4ed 32px);
+  box-shadow: inset 0 1px 2px rgba(15,23,42,.025);
+  line-height: 32px;
+}
+
+.lesson-question-workspace .lesson-workspace-response textarea:focus,
+.lesson-question-workspace .lesson-workspace-answer-slots input:focus,
+.lesson-question-workspace .lesson-workspace-table-answer input:focus {
+  outline: 3px solid color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 16%, transparent);
+  border-color: color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 58%, #cbd5e1);
+}
+
+.lesson-question-workspace .lesson-workspace-choice-grid label {
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.lesson-question-workspace .lesson-workspace-word-bank,
+.lesson-question-workspace .lesson-workspace-passage {
+  border-radius: 8px;
+}
+
+/* Teacher rail: reveal is the primary deliberate action. */
+.lesson-question-workspace .lesson-workspace-reveal {
+  min-height: 46px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 42%, #d6deea);
+  border-radius: 10px;
+  background: var(--lesson-accent, var(--accent, #4f46e5));
+  color: #fff;
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 20%, transparent);
+  font-size: 12px;
+}
+
+.lesson-question-workspace .lesson-workspace-reveal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 24%, transparent);
+}
+
+.lesson-question-workspace .lesson-workspace-dependencies {
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.lesson-question-workspace .lesson-workspace-scheme {
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, var(--accent, #4f46e5)) 20%, #dbe2ec);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(30,41,59,.08);
+}
+
+.lesson-question-workspace .lesson-workspace-scheme[hidden] {
+  display: none;
+}
+
+.lesson-question-workspace .lesson-workspace-scheme-meta,
+.lesson-question-workspace .lesson-workspace-scheme-groups span {
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: 10px;
+}
+
+.lesson-question-workspace .lesson-workspace-guidance {
+  border-left: 3px solid var(--lesson-accent, var(--accent, #4f46e5));
+  border-radius: 0 6px 6px 0;
+  background: #f8fafc;
+}
+
+.lesson-question-workspace .lesson-workspace-mark-points {
+  gap: 9px;
+}
+
+.lesson-question-workspace .lesson-workspace-mark-points li {
+  padding: 11px 12px;
+  border-color: #dde3eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.lesson-question-workspace .lesson-workspace-mark-points p {
+  color: #273244;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.lesson-question-workspace .lesson-workspace-navigation {
+  padding: 10px 22px;
+  border-top-color: #d9e0ea;
+  background: rgba(255,255,255,.97);
+}
+
+.lesson-question-workspace .lesson-workspace-nav {
+  min-width: 148px;
+  min-height: 38px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* Presenter/classroom projection: remove answer-writing chrome and let the
+   question use the screen. The reveal remains available to the teacher. */
+html.lesson-presenting .lesson-question-workspace,
+.lesson-studio:fullscreen .lesson-question-workspace {
+  width: calc(100vw - 20px);
+  max-height: calc(100vh - 20px);
+  border-radius: 16px;
+  background: #e9eef5;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-shell,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-shell {
+  max-height: calc(100vh - 20px);
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-body,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-body {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 18px clamp(18px, 3vw, 44px) 28px;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-question-column,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-question-column {
+  width: min(1280px, 100%);
+  margin-inline: auto;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-question,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-question {
+  min-height: min(64vh, 720px);
+  padding: clamp(38px, 5vw, 76px);
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-stem,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-stem {
+  font-size: clamp(21px, 2.2vw, 30px);
+  line-height: 1.65;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-question .lesson-workspace-response,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-question .lesson-workspace-response {
+  display: none;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-side-column,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-side-column {
+  position: static;
+  display: grid;
+  width: min(1280px, 100%);
+  margin-inline: auto;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-dependencies,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-dependencies {
+  display: none;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-reveal,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-reveal {
+  position: sticky;
+  bottom: 14px;
+  z-index: 8;
+  justify-self: end;
+  width: auto;
+  min-width: 190px;
+  padding-inline: 18px;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-scheme,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-scheme {
+  padding: clamp(24px, 3vw, 42px);
+  border-radius: 8px;
+}
+
+html.lesson-presenting .lesson-question-workspace .lesson-workspace-mark-points p,
+.lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-mark-points p {
+  font-size: clamp(14px, 1.3vw, 18px);
+}
+
+@media (max-width: 980px) {
+  .lesson-question-workspace .lesson-workspace-body {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-question-workspace .lesson-workspace-side-column {
+    position: static;
+  }
+
+  .lesson-question-workspace .lesson-workspace-reveal {
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .lesson-question-workspace {
+    width: calc(100vw - 10px);
+    max-height: calc(100vh - 10px);
+    border-radius: 12px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-shell,
+  .lesson-question-workspace .lesson-workspace-loading,
+  .lesson-question-workspace .lesson-workspace-error {
+    max-height: calc(100vh - 10px);
+  }
+
+  .lesson-question-workspace .lesson-workspace-header {
+    min-height: 68px;
+    padding: 10px 106px 10px 13px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-header h2 {
+    font-size: 16px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-close {
+    top: 15px;
+    right: 78px;
+    min-height: 34px;
+    font-size: 11px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-toolbar,
+  .lesson-question-workspace .lesson-workspace-body,
+  .lesson-question-workspace .lesson-workspace-navigation {
+    padding-inline: 12px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-body {
+    gap: 12px;
+    padding-block: 12px 18px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-question {
+    min-height: 0;
+    padding: 24px 18px;
+    border-radius: 6px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-question > .lesson-workspace-section-heading:first-child {
+    margin-bottom: 20px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-stem {
+    font-size: 17px;
+    line-height: 1.62;
+  }
+
+  .lesson-question-workspace .lesson-workspace-contexts,
+  .lesson-question-workspace .lesson-workspace-scheme {
+    padding: 14px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-navigation {
+    gap: 8px;
+  }
+
+  .lesson-question-workspace .lesson-workspace-nav {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+
+  html.lesson-presenting .lesson-question-workspace .lesson-workspace-question,
+  .lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-question {
+    min-height: 0;
+    padding: 28px 20px;
+  }
+
+  html.lesson-presenting .lesson-question-workspace .lesson-workspace-stem,
+  .lesson-studio:fullscreen .lesson-question-workspace .lesson-workspace-stem {
+    font-size: 19px;
+  }
+}
