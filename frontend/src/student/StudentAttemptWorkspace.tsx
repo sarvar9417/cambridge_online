@@ -1,6 +1,6 @@
 import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
-import { StructuredQuestionView, structuredQuestionUsable } from './StructuredQuestionView';
+import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -46,9 +46,11 @@ export function StudentAttemptWorkspace({
   const timer = formatRemainingTime(remainingSeconds);
   const expired = remainingSeconds === 0;
   const structuredPresent = question.contentJson != null;
-  const structuredReady = structuredPresent
+  const structuredValid = structuredPresent
     && question.contentVersion === 1
     && structuredQuestionUsable(question.contentJson);
+  const structuredReady = structuredValid
+    && structuredQuestionAssetsReady(question.contentJson!, question.assetUrls ?? {});
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
 
@@ -118,9 +120,7 @@ export function StudentAttemptWorkspace({
             {structuredReady && question.contentJson ? (
               <StructuredQuestionView content={question.contentJson} assetUrls={question.assetUrls} />
             ) : structuredPresent ? (
-              <div className="structured-question-invalid" role="alert">
-                Savolning source-backed tarkibini tekshirib bo‘lmadi. Savol to‘liq ko‘rsatilmaguncha javob berish bloklandi.
-              </div>
+              <StructuredQuestionView content={question.contentJson!} assetUrls={question.assetUrls} />
             ) : (
               <>
                 {question.contextMd && <AttemptContext value={question.contextMd} />}
@@ -140,7 +140,7 @@ export function StudentAttemptWorkspace({
               disabled={answerDisabled}
               value={answers[question.id] ?? ''}
               onChange={(event) => onAnswerChange(question.id, event.target.value)}
-              placeholder={sourceContentBlocked ? 'Savol tarkibi tekshirilmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
+              placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
             />
           </section>
 
