@@ -49,6 +49,10 @@ export function sectionsFor(
 function pick(surface: string, page: string, role: User['role']): SectionName[] {
   if (role === 'student' || surface === 'oquvchi') {
     switch (page) {
+      // Darslar and O‘rganish are two routes inside the same learning module.
+      // StudentLearning keeps the shared state while selecting Study Mode or
+      // adaptive revision from the route.
+      case 'darslar': return ['studentLearning'];
       case 'vazifalar': return ['studentAssignments'];
       case 'natijalar': return ['studentResults'];
       case 'organish': return ['studentLearning'];

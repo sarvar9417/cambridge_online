@@ -73,19 +73,23 @@ export class AnalyticsService {
            )
          group by target_lo.subtopic_id
        )
-       select m.subtopic_id,st.code,st.title,m.score,m.attempts,m.marks_earned,m.marks_possible,m.updated_at,
+       select m.subtopic_id,st.code,st.title,t.number topic_number,t.title topic_title,
+              m.score,m.attempts,m.marks_earned,m.marks_possible,m.updated_at,
               coalesce(mapped.compatibility_count,0)::int compatibility_count,
               coalesce(practice_pool.question_count,0)::int practice_question_count
        from mastery m
        join subtopics st on st.id=m.subtopic_id
+       join topics t on t.id=st.topic_id
        left join mapped on mapped.subtopic_id=m.subtopic_id
        left join practice_pool on practice_pool.subtopic_id=m.subtopic_id
        where m.student_id=$1
-       order by m.score,st.code`,
+       order by t.sort_order,st.sort_order`,
       [studentId],
     );
     return result.rows.map((row) => ({
       ...row,
+      topicNumber: Number(row.topic_number),
+      topicTitle: row.topic_title,
       score: Number(row.score),
       attempts: Number(row.attempts),
       marksEarned: Number(row.marks_earned),

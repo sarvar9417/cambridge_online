@@ -35,8 +35,9 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
-    { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/vazifalar', label: 'Vazifalar' },
-    { path: 'oquvchi/natijalar', label: 'Natijalar' }, { path: 'oquvchi/organish', label: 'O‘rganish' },
+    { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/darslar', label: 'Darslar' },
+    { path: 'oquvchi/vazifalar', label: 'Vazifalar' }, { path: 'oquvchi/natijalar', label: 'Natijalar' },
+    { path: 'oquvchi/organish', label: 'Mashq va takrorlash' },
   ] });
   if (role !== 'student' && classes.length) groups.push({ label: 'Sinflar', items: classes.map((item) => ({ path: `oqitish/sinf?id=${item.id}`, label: item.name })) });
   return groups;

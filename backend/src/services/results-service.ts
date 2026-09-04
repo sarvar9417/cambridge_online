@@ -47,7 +47,27 @@ export class ResultsService {
       `select q.id, g.id as grading_id, ga.status as appeal_status, q.display_ref, q.stem_md, q.content_json, q.content_version,
               q.marks, ans.text, g.final_score, g.teacher_feedback_md,
               coalesce(json_agg(json_build_object('code', msp.code, 'text', msp.text, 'matched', gp.final_matched,
-                'marks', gp.awarded_marks) order by msp.sort_order) filter (where gp.id is not null), '[]') points
+                'marks', gp.awarded_marks) order by msp.sort_order) filter (where gp.id is not null), '[]') points,
+              coalesce((
+                select jsonb_agg(jsonb_build_object('subtopicId', mapped.id, 'code', mapped.code, 'title', mapped.title) order by mapped.code)
+                from (
+                  select distinct st.id,st.code,st.title
+                  from question_subtopics qs
+                  join subtopics st on st.id=qs.subtopic_id
+                  join topics t on t.id=st.topic_id
+                  where qs.question_id=q.id and t.syllabus_id=c.syllabus_id
+                  union
+                  select distinct target_st.id,target_st.code,target_st.title
+                  from question_learning_objectives qlo
+                  join learning_objective_compatibility compat
+                    on compat.source_lo_id=qlo.lo_id
+                   and compat.relation in('equivalent','subtopic_compatible')
+                  join learning_objectives target_lo on target_lo.id=compat.target_lo_id
+                  join subtopics target_st on target_st.id=target_lo.subtopic_id
+                  join topics target_topic on target_topic.id=target_st.topic_id
+                  where qlo.question_id=q.id and target_topic.syllabus_id=c.syllabus_id
+                ) mapped
+              ), '[]'::jsonb) practice_targets
        from submissions s
        join assignments a on a.id = s.assignment_id join classes c on c.id = a.class_id
        join answers ans on ans.submission_id = s.id join questions q on q.id = ans.question_id
@@ -58,7 +78,7 @@ export class ResultsService {
        where s.id = $1 and s.released_at is not null and (
          ($2 = 'student' and s.student_id = $3) or ($2 = 'owner' and c.school_id = $4) or
          ($2 = 'teacher' and (c.owner_id = $3 or exists (select 1 from class_teachers ct where ct.class_id = c.id and ct.teacher_id = $3)))
-       ) group by q.id, ans.id, g.id, ga.status order by q.sort_order`,
+       ) group by q.id, ans.id, g.id, ga.status, c.syllabus_id order by q.sort_order`,
       [submissionId, actor.role, actor.id, actor.schoolId],
     );
     if (!result.rowCount) throw new DomainError('not_found', 404);
@@ -91,6 +111,7 @@ export class ResultsService {
         gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
         finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
         contentJson:content,contentVersion:content?1:null,assetUrls:rowAssetUrls,
+        practiceTargets: Array.isArray(row.practice_targets) ? row.practice_targets : [],
       };
     });
   }
