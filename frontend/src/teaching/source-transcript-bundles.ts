@@ -59,10 +59,14 @@ const transcriptUrl = (path: string) => {
   return `${base.endsWith('/') ? base : `${base}/`}${path}`;
 };
 
-const decodeBase64 = (value: string) => {
-  const binary = atob(value.replace(/\s+/g, ''));
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+const concatBytes = (parts: Uint8Array<ArrayBuffer>[]) => {
+  const totalLength = parts.reduce((total, part) => total + part.byteLength, 0);
+  const bytes = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.byteLength;
+  }
   return bytes;
 };
 
@@ -78,12 +82,14 @@ export const loadSourceTranscript = (chapter: SourceTranscriptChapter) => {
 
   const meta = SOURCE_TRANSCRIPT_BUNDLES[chapter];
   const pending = (async () => {
-    const partTexts = await Promise.all(meta.paths.map(async path => {
+    // These static files are raw contiguous gzip byte chunks. The historical
+    // .b64 suffix is retained to avoid another asset-path migration.
+    const partBytes = await Promise.all(meta.paths.map(async path => {
       const response = await fetch(transcriptUrl(path));
       if (!response.ok) throw new Error(`Source transcript request failed for ${path} (${response.status})`);
-      return response.text();
+      return new Uint8Array(await response.arrayBuffer());
     }));
-    const compressed = decodeBase64(partTexts.join(''));
+    const compressed = concatBytes(partBytes);
     const actualGzipSha256 = await sha256Hex(compressed);
     if (actualGzipSha256 !== meta.gzipSha256) {
       throw new Error(`Source transcript bundle fingerprint mismatch for Chapter ${chapter}`);
