@@ -30,4 +30,9 @@ describe('student assignment workspace state', () => {
     expect(assignmentDueState(inHours(30), NOW)).toBe('soon');
     expect(assignmentDueState(inHours(80), NOW)).toBe('later');
   });
+
+  it('keeps assignments with no deadline open without falsely marking them overdue', () => {
+    expect(assignmentDueState(null, NOW)).toBe('none');
+    expect(studentAssignmentBucket(assignment({ dueAt:null, submissionStatus:'not_started' }))).toBe('todo');
+  });
 });
