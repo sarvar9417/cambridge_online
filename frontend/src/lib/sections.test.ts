@@ -12,6 +12,7 @@ describe('which sections a page shows', () => {
   });
 
   it('gives each student page its own sections', () => {
+    expect(student('darslar')).toEqual(['studentLessons']);
     expect(student('vazifalar')).toEqual(['studentAssignments']);
     expect(student('natijalar')).toEqual(['studentResults']);
     expect(student('organish')).toEqual(['studentLearning']);
@@ -42,9 +43,9 @@ describe('which sections a page shows', () => {
 
   it('puts every student section on some page', () => {
     const reachable = new Set(
-      ['vazifalar', 'natijalar', 'organish', ''].flatMap((page) => student(page)),
+      ['darslar', 'vazifalar', 'natijalar', 'organish', ''].flatMap((page) => student(page)),
     );
-    for (const section of ['studentHome', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
+    for (const section of ['studentHome', 'studentLessons', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
       expect(reachable.has(section)).toBe(true);
     }
   });
@@ -58,13 +59,15 @@ describe('which sections a page shows', () => {
   it('shows a teacher nothing on a student URL, not an empty student screen', () => {
     // The rail keeps roles apart, but a URL can be typed or shared.
     expect(sectionsFor('oquvchi', 'natijalar', 'teacher')).toEqual([]);
+    expect(sectionsFor('oquvchi', 'darslar', 'owner')).toEqual([]);
     expect(sectionsFor('oquvchi', 'organish', 'owner')).toEqual([]);
   });
 
   it('gives a student their own page when a teaching URL names one they have', () => {
     // The role decides which set of sections exists; the page name only picks
     // among that role's pages. A student following a stale /oqitish link gets
-    // their own assignments, never a teacher's.
+    // their own section, never a teacher's.
+    expect(sectionsFor('oqitish', 'darslar', 'student')).toEqual(['studentLessons']);
     expect(sectionsFor('oqitish', 'natijalar', 'student')).toEqual(['studentResults']);
     expect(sectionsFor('oqitish', 'vazifalar', 'student')).toEqual(['studentAssignments']);
   });
