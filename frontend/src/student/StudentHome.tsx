@@ -14,14 +14,16 @@ export interface StudentHomeProps {
   practicing: string | null;
 }
 
-type Urgency = 'overdue' | 'today' | 'soon' | 'later';
+type Urgency = 'none' | 'overdue' | 'today' | 'soon' | 'later';
 
 /** Days until the deadline, floored, so "tomorrow" never rounds to today. */
-export function daysUntil(dueAt: string, now = Date.now()) {
+export function daysUntil(dueAt: string | null, now = Date.now()) {
+  if (!dueAt) return null;
   return Math.floor((new Date(dueAt).getTime() - now) / 86_400_000);
 }
 
-export function urgencyOf(dueAt: string, now = Date.now()): Urgency {
+export function urgencyOf(dueAt: string | null, now = Date.now()): Urgency {
+  if (!dueAt) return 'none';
   const ms = new Date(dueAt).getTime() - now;
   if (ms < 0) return 'overdue';
   if (ms < 86_400_000) return 'today';
@@ -30,6 +32,7 @@ export function urgencyOf(dueAt: string, now = Date.now()): Urgency {
 }
 
 const DUE_LABEL: Record<Urgency, string> = {
+  none: 'Muddat belgilanmagan',
   overdue: 'Muddati o‘tgan',
   today: 'Bugun',
   soon: 'Yaqin kunda',
@@ -41,6 +44,10 @@ export const isOpen = (assignment: Assignment) =>
   !assignment.submissionStatus
   || assignment.submissionStatus === 'not_started'
   || assignment.submissionStatus === 'in_progress';
+
+const dueSortValue = (assignment: Assignment) => assignment.dueAt
+  ? new Date(assignment.dueAt).getTime()
+  : Number.POSITIVE_INFINITY;
 
 const greeting = (hour = new Date().getHours()) =>
   hour < 5 ? 'Xayrli tun' : hour < 12 ? 'Xayrli tong' : hour < 18 ? 'Xayrli kun' : 'Xayrli kech';
@@ -62,7 +69,7 @@ export function StudentHome({
   user, assignments, results, mastery, flashcards, onStart, onPractice, practicing,
 }: StudentHomeProps) {
   const open = useMemo(
-    () => assignments.filter(isOpen).sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt)),
+    () => assignments.filter(isOpen).sort((a, b) => dueSortValue(a) - dueSortValue(b)),
     [assignments],
   );
   const next = open[0];
@@ -137,9 +144,10 @@ export function StudentHome({
                     </small>
                   </div>
                   <span className={`sh-due-chip sh-due-chip--${urgency}`}>
-                    {urgency === 'overdue' ? `${Math.abs(days)} kun kechikdi`
-                      : urgency === 'today' ? 'Bugun'
-                        : `${days} kundan keyin`}
+                    {urgency === 'none' ? 'Muddat yo‘q'
+                      : urgency === 'overdue' ? `${Math.abs(days ?? 0)} kun kechikdi`
+                        : urgency === 'today' ? 'Bugun'
+                          : `${days ?? 0} kundan keyin`}
                   </span>
                   <button type="button" onClick={() => onStart(assignment.id)}>
                     {assignment.submissionStatus === 'in_progress' ? 'Davom etish' : 'Boshlash'}
