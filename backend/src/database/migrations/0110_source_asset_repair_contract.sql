@@ -141,10 +141,8 @@ BEGIN
     AND (
       rule_code IN ('source_structure_required_but_missing_table','source_structure_required_but_missing_layout')
       OR (v_visual AND rule_code='source_visual_required_but_missing')
-    )
-  RETURNING rule_code INTO v_resolved_rules;
+    );
 
-  -- RETURNING can produce several rows, so rebuild the complete resolved list.
   SELECT coalesce(array_agg(vf.rule_code ORDER BY vf.rule_code),ARRAY[]::text[])
   INTO v_resolved_rules
   FROM validation_findings vf
