@@ -1,6 +1,6 @@
 import type { Assignment, Flashcard, MasteryItem, ResultItem } from '../lib/api';
 import { navigate } from '../lib/router';
-import { isOpen, urgencyOf } from './StudentHome';
+import { assignmentDueState, studentAssignmentBucket } from './StudentAssignments';
 import './student-next-action.css';
 
 export type StudentNextActionModel =
@@ -11,11 +11,11 @@ export type StudentNextActionModel =
   | {kind:'lessons';title:string;detail:string};
 
 export function nextStudentAction(assignments:Assignment[],results:ResultItem[],mastery:MasteryItem[],flashcards:Flashcard[]):StudentNextActionModel {
-  const open=assignments.filter(isOpen);
+  const open=assignments.filter((item)=>['todo','in_progress'].includes(studentAssignmentBucket(item)));
   const inProgress=open.find((item)=>item.submissionStatus==='in_progress');
   if(inProgress)return{kind:'assignment',title:'Boshlangan vazifani tugat',detail:`${inProgress.title} · ${inProgress.totalMarks} ball`,assignmentId:inProgress.id};
-  const urgent=[...open].filter((item)=>['overdue','today','soon'].includes(urgencyOf(item.dueAt))).sort((a,b)=>(a.dueAt?+new Date(a.dueAt):Infinity)-(b.dueAt?+new Date(b.dueAt):Infinity))[0];
-  if(urgent)return{kind:'assignment',title:urgencyOf(urgent.dueAt)==='overdue'?'Muddati o‘tgan vazifani bajar':'Eng yaqin vazifani bajar',detail:`${urgent.title} · ${urgent.totalMarks} ball`,assignmentId:urgent.id};
+  const urgent=[...open].filter((item)=>['overdue','today','soon'].includes(assignmentDueState(item.dueAt))).sort((a,b)=>(a.dueAt?+new Date(a.dueAt):Infinity)-(b.dueAt?+new Date(b.dueAt):Infinity))[0];
+  if(urgent)return{kind:'assignment',title:assignmentDueState(urgent.dueAt)==='overdue'?'Muddati o‘tgan vazifani bajar':'Eng yaqin vazifani bajar',detail:`${urgent.title} · ${urgent.totalMarks} ball`,assignmentId:urgent.id};
   if(flashcards.length)return{kind:'flashcards',title:'Bugungi takrorlashni tugat',detail:`${flashcards.length} ta kartochka kutmoqda`};
   const weak=[...mastery].filter((item)=>item.attempts>0&&item.practiceReady).sort((a,b)=>a.score-b.score)[0];
   if(weak&&weak.score<.8)return{kind:'practice',title:'Eng kuchsiz subtopicni mashq qil',detail:`${weak.code} ${weak.title} · ${Math.round(weak.score*100)}% mastery`,item:weak};
