@@ -1,5 +1,5 @@
 import type { ResultDetail, ResultItem, User } from '../lib/api';
-import { StructuredQuestionView, structuredQuestionUsable } from './StructuredQuestionView';
+import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-results.css';
 
 export interface StudentResultsProps {
@@ -53,7 +53,8 @@ export function StudentResults({
             const full = item.finalScore === item.marks;
             const zero = item.finalScore === 0;
             const structuredPresent=item.contentJson!=null;
-            const structuredReady=structuredPresent&&item.contentVersion===1&&structuredQuestionUsable(item.contentJson);
+            const structuredValid=structuredPresent&&item.contentVersion===1&&structuredQuestionUsable(item.contentJson);
+            const structuredReady=structuredValid&&structuredQuestionAssetsReady(item.contentJson!,item.assetUrls??{});
             return (
               <li key={item.gradingId} className="sr-question">
                 <div className="sr-question-head">
@@ -64,13 +65,9 @@ export function StudentResults({
                   </span>
                 </div>
 
-                {structuredReady && item.contentJson ? (
+                {structuredPresent ? (
                   <div className="sr-structured-question">
-                    <StructuredQuestionView content={item.contentJson} assetUrls={item.assetUrls} />
-                  </div>
-                ) : structuredPresent ? (
-                  <div className="structured-question-invalid" role="alert">
-                    Savolning source-backed tarkibini tekshirib bo‘lmadi. Noto‘liq savol ko‘rsatilmadi.
+                    <StructuredQuestionView content={item.contentJson!} assetUrls={item.assetUrls} />
                   </div>
                 ) : (
                   <p className="sr-stem">{item.stemMd}</p>
