@@ -121,7 +121,7 @@ function sourceEvidenceMatches(check:CrossCheck,meta:SourceMeta){const e=check.e
 function validPages(value:unknown){return Array.isArray(value)&&value.length>0&&value.every(page=>Number.isInteger(page)&&Number(page)>0)}
 function indexStoredAssets(questions:ExtractedQuestion[],storedAssets:StoredAssetRecord[]){const questionByPath=new Map(questions.map(question=>[question.path,question])),map=new Map<string,StoredAssetRecord>();for(const stored of storedAssets){const question=questionByPath.get(stored.questionPath);if(!question||!question.assets[stored.assetIndex])throw new Error(`ingestion_persist_stored_asset_orphan:${stored.questionPath}:${stored.assetIndex}`);const key=assetKey(stored.questionPath,stored.assetIndex);if(map.has(key))throw new Error(`ingestion_persist_stored_asset_duplicate:${stored.questionPath}:${stored.assetIndex}`);map.set(key,stored)}return map}
 function hasUnreadyBinaryAsset(question:ExtractedQuestion,storedByKey:Map<string,StoredAssetRecord>){return question.assets.some((asset,index)=>!asset.contentMd&&!storedByKey.has(assetKey(question.path,index)))}
-function assetKey(path:string,index){return`${path}#${index}`}
+function assetKey(path:string,index:number){return`${path}#${index}`}
 async function assertSourcePaperQuestionsUnused(client:PoolClient,sourcePaperId:string){
  const result=await client.query(`select count(*)::int in_use from questions q where q.source_paper_id=$1 and (exists(select 1 from assignment_questions aq where aq.question_id=q.id) or exists(select 1 from answers a where a.question_id=q.id))`,[sourcePaperId]);
  const inUse=Number(result.rows[0]?.in_use??0);if(inUse>0)throw new Error(`ingestion_persist_question_in_use:${inUse}`);
