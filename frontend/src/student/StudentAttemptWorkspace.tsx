@@ -1,5 +1,6 @@
 import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
+import { StructuredQuestionView, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -44,6 +45,12 @@ export function StudentAttemptWorkspace({
   const answeredCount = attempt.questions.filter((item) => isAnswered(answers[item.id])).length;
   const timer = formatRemainingTime(remainingSeconds);
   const expired = remainingSeconds === 0;
+  const structuredPresent = question.contentJson != null;
+  const structuredReady = structuredPresent
+    && question.contentVersion === 1
+    && structuredQuestionUsable(question.contentJson);
+  const sourceContentBlocked = structuredPresent && !structuredReady;
+  const answerDisabled = expired || sourceContentBlocked;
 
   return (
     <main className="saw">
@@ -60,7 +67,7 @@ export function StudentAttemptWorkspace({
             {online ? '✓ Sinxronlandi' : '● Oflayn · javoblar qurilmada saqlanmoqda'}
           </span>
           {timer !== null && <time className={`saw-timer${remainingSeconds !== null && remainingSeconds < 300 ? ' is-urgent' : ''}`}>{timer}</time>}
-          <button type="button" className="saw-submit" onClick={onRequestSubmit} disabled={expired}>Topshirish</button>
+          <button type="button" className="saw-submit" onClick={onRequestSubmit} disabled={expired || sourceContentBlocked}>Topshirish</button>
         </div>
       </header>
 
@@ -103,12 +110,23 @@ export function StudentAttemptWorkspace({
             <span>Savol {index + 1}/{attempt.questions.length}</span>
             <span>{question.displayRef}</span>
             {question.commandWord && <strong>{question.commandWord}</strong>}
+            {structuredReady && <span className="saw-source-backed">Source-backed</span>}
             <b>{question.marks} ball</b>
           </div>
 
           <article className="saw-question">
-            {question.contextMd && <AttemptContext value={question.contextMd} />}
-            <h1>{question.stemMd}</h1>
+            {structuredReady && question.contentJson ? (
+              <StructuredQuestionView content={question.contentJson} assetUrls={question.assetUrls} />
+            ) : structuredPresent ? (
+              <div className="structured-question-invalid" role="alert">
+                Savolning source-backed tarkibini tekshirib bo‘lmadi. Savol to‘liq ko‘rsatilmaguncha javob berish bloklandi.
+              </div>
+            ) : (
+              <>
+                {question.contextMd && <AttemptContext value={question.contextMd} />}
+                <h1>{question.stemMd}</h1>
+              </>
+            )}
           </article>
 
           <section className="saw-answer">
@@ -119,10 +137,10 @@ export function StudentAttemptWorkspace({
             <textarea
               id={`answer-${question.id}`}
               className={question.answerKind === 'code' || question.answerKind === 'pseudocode' ? 'is-code' : ''}
-              disabled={expired}
+              disabled={answerDisabled}
               value={answers[question.id] ?? ''}
               onChange={(event) => onAnswerChange(question.id, event.target.value)}
-              placeholder={expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
+              placeholder={sourceContentBlocked ? 'Savol tarkibi tekshirilmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
             />
           </section>
 
