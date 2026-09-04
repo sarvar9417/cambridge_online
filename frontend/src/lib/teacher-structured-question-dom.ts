@@ -9,7 +9,7 @@ import { renderStructuredQuestionContent } from './structured-question-renderer'
 type PortableAsset = { id:string;url?:string|null };
 type PortableQuestion = {
   leaf:{ contentJson?:unknown };
-  contextBlocks:Array<{ assets:PortableAsset[] }>;
+  contextBlocks:Array<{ context?:unknown;assets:PortableAsset[] }>;
 };
 type RefResponse = {
   detail:{ contentJson?:unknown };
@@ -57,8 +57,40 @@ function canonicalContent(value:RefResponse):StructuredQuestionContent|null{
   return isStructuredQuestionContent(candidate)?candidate:null;
 }
 
+function canonicalAssetIds(content:StructuredQuestionContent){
+  return new Set(content.blocks.filter((block):block is AssetBlock=>block.type==='asset').map((block)=>block.assetId));
+}
+
 function missingAsset(content:StructuredQuestionContent,urls:Record<string,string>):AssetBlock|undefined{
   return content.blocks.find((block):block is AssetBlock=>block.type==='asset'&&!urls[block.assetId]);
+}
+
+function hideDuplicateAssetNodes(target:Element,content:StructuredQuestionContent,portable:PortableQuestion){
+  const ids=canonicalAssetIds(content);
+  if(!ids.size)return;
+
+  const modal=target.closest('.qb-portable-modal');
+  if(modal){
+    const sections=Array.from(modal.querySelectorAll('.qb-context-list > section'));
+    portable.contextBlocks.forEach((block,blockIndex)=>{
+      const nodes=Array.from(sections[blockIndex]?.querySelectorAll('.qb-asset')??[]);
+      block.assets.forEach((asset,assetIndex)=>{
+        if(ids.has(asset.id)){const node=nodes[assetIndex] as HTMLElement|undefined;if(node)node.hidden=true}
+      });
+    });
+  }
+
+  const workspace=target.closest('.lesson-question-workspace');
+  if(workspace){
+    const useful=portable.contextBlocks.filter((block)=>Boolean(block.context)||block.assets.length>0);
+    const articles=Array.from(workspace.querySelectorAll('.lesson-workspace-contexts article'));
+    useful.forEach((block,blockIndex)=>{
+      const figures=Array.from(articles[blockIndex]?.querySelectorAll('.lesson-workspace-asset')??[]);
+      block.assets.forEach((asset,assetIndex)=>{
+        if(ids.has(asset.id)){const figure=figures[assetIndex] as HTMLElement|undefined;if(figure)figure.hidden=true}
+      });
+    });
+  }
 }
 
 function alertHost(message:string){
@@ -81,6 +113,7 @@ function renderCanonical(target:Element,content:StructuredQuestionContent,portab
     host.append(renderStructuredQuestionContent(content,{resolveAsset:(id)=>urls[id]??null}));
   }
 
+  hideDuplicateAssetNodes(target,content,portable);
   if(target.matches('.lesson-question-workspace .lesson-workspace-stem')){
     target.replaceChildren(host);
   }else{

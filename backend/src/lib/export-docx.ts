@@ -42,8 +42,14 @@ function assetXml(content:string,kind:string,alt:string|null|undefined,ctx:Build
   if(isSvg(content))return `${alt?para(alt,{bold:true}):''}${svgDrawing(content,alt??kind,ctx)}`;
   const table=markdownTable(content);return `${alt?para(alt,{bold:true}):''}${table??para(content,{mono:kind==='code'||kind==='pseudocode'||kind==='table'})}`;
 }
+function canonicalAssetIds(question:ExportQuestion){
+  return new Set((question.contentJson?.blocks??[]).filter((block):block is Extract<StructuredQuestionBlock,{type:'asset'}>=>block.type==='asset').map(block=>block.assetId));
+}
 function contextXml(question:ExportQuestion,ctx:BuildContext){
-  const blocks=question.contextBlocks??[];
+  const canonical=canonicalAssetIds(question);
+  const blocks=(question.contextBlocks??[])
+    .map(block=>({...block,assets:(block.assets??[]).filter(asset=>!asset.id||!canonical.has(asset.id))}))
+    .filter(block=>Boolean(block.context)||(block.assets?.length??0)>0);
   if(!blocks.length)return question.context?para(question.context):'';
   return blocks.map(block=>`${block.displayRef?para(block.displayRef,{bold:true}):''}${block.context?para(block.context):''}${(block.assets??[]).map(asset=>asset.contentMd?assetXml(asset.contentMd,asset.kind,asset.altText,ctx):'').join('')}`).join('');
 }
