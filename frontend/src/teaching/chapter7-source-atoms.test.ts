@@ -4,15 +4,16 @@ import { CHAPTER_7_FINAL_SOURCE_SLIDES } from './chapter7-source-final-hardening
 import {
   CHAPTER_7_PAGE_SOURCE_ATOMS,
   CHAPTER_7_REQUIRED_KEY_TERMS,
-  CHAPTER_7_SOURCE_ATOMS,
   CHAPTER_7_SOURCE_INVENTORY_ATOMS,
 } from './chapter7-source-atoms';
 import {
+  CHAPTER_7_ALL_SOURCE_ATOMS,
   CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES,
   CHAPTER_7_SOURCE_ATOM_COVERAGE,
 } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
+import { CHAPTER_7_SOURCE_ACTIVITY_ATOMS } from './chapter7-source-activity-atoms';
 
 const text = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -29,7 +30,7 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
 
   it('pins every source atom to a real student-facing book slide', () => {
     const ids = new Set(CHAPTER_7_FINAL_SOURCE_SLIDES.map((slide) => slide.id));
-    CHAPTER_7_SOURCE_ATOMS.forEach((atom) => expect(ids.has(atom.targetSlideId), atom.id).toBe(true));
+    CHAPTER_7_ALL_SOURCE_ATOMS.forEach((atom) => expect(ids.has(atom.targetSlideId), atom.id).toBe(true));
     expect(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES).toHaveLength(CHAPTER_7_FINAL_SOURCE_SLIDES.length);
   });
 
@@ -66,6 +67,22 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     for (const item of CHAPTER_7_SOURCE_KEY_TERMS) {
       expect(presenter, item.term).toContain(item.definition.toLowerCase());
     }
+  });
+
+  it('pins the textbook values and prompts inside Activities 7.8–7.11, not just their labels', () => {
+    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    expect(CHAPTER_7_SOURCE_ACTIVITY_ATOMS).toHaveLength(4);
+    [
+      'entering a telephone number',
+      'entering a pupil’s name',
+      'xxx999, when x must be a letter and 9 must be a digit',
+      'normal test data: 50, 50, 50, 50, 50, 50, 50, 50, 50, 50',
+      'expected result: 50',
+      'erroneous/abnormal data: -12, eleven',
+      'extreme data: 0, 100',
+      'boundary data for 0: -1, 0',
+      'end-of-term examinations are now marked out of 20',
+    ].forEach((needle) => expect(presenter, needle).toContain(needle));
   });
 
   it('preserves exact source terminology, values, examples and pseudocode fragments', () => {
