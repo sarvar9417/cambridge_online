@@ -59,6 +59,13 @@ const transcriptUrl = (path: string) => {
   return `${base.endsWith('/') ? base : `${base}/`}${path}`;
 };
 
+const decodeBase64 = (value: string) => {
+  const binary = atob(value.replace(/\s+/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+};
+
 const concatBytes = (parts: Uint8Array<ArrayBuffer>[]) => {
   const totalLength = parts.reduce((total, part) => total + part.byteLength, 0);
   const bytes = new Uint8Array(totalLength);
@@ -82,12 +89,12 @@ export const loadSourceTranscript = (chapter: SourceTranscriptChapter) => {
 
   const meta = SOURCE_TRANSCRIPT_BUNDLES[chapter];
   const pending = (async () => {
-    // These static files are raw contiguous gzip byte chunks. The historical
-    // .b64 suffix is retained to avoid another asset-path migration.
+    // Each static asset is an independently base64-encoded contiguous chunk of
+    // the same gzip stream. Decode each chunk before concatenating its bytes.
     const partBytes = await Promise.all(meta.paths.map(async path => {
       const response = await fetch(transcriptUrl(path));
       if (!response.ok) throw new Error(`Source transcript request failed for ${path} (${response.status})`);
-      return new Uint8Array(await response.arrayBuffer());
+      return decodeBase64(await response.text());
     }));
     const compressed = concatBytes(partBytes);
     const actualGzipSha256 = await sha256Hex(compressed);
