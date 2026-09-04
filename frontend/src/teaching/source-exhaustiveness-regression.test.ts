@@ -4,7 +4,7 @@ import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { CHAPTER_7_SOURCE_PAGE_AUDIT } from './chapter7-source-page-audit';
 import { CHAPTER_7_SOURCE_EXHAUSTIVENESS_GUARDS } from './chapter7-source-exhaustive';
 
-const text = (value: unknown) => JSON.stringify(value);
+const text = (value: unknown) => JSON.stringify(value).replaceAll('\\"', '"');
 const byId = <T extends { id: string }>(items: T[], id: string) => {
   const found = items.find((item) => item.id === id);
   expect(found, `Missing source-completeness target ${id}`).toBeTruthy();
