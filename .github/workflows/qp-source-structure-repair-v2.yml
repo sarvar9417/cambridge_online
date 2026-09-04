@@ -17,9 +17,12 @@ on:
     paths:
       - 'backend/scripts/qp-source-structure-repair-v2.py'
       - 'backend/scripts/qp-source-structure-repair-v3.py'
+      - 'backend/scripts/qp-source-structure-repair-v4.py'
       - 'backend/scripts/tools/pdftotext'
       - '.github/workflows/qp-source-structure-repair-v2.yml'
+      - '.source-structure-apply'
       - 'backend/src/database/migrations/0111_source_fidelity_repair_v2.sql'
+      - 'backend/src/database/migrations/0112_broad_source_fidelity_audit.sql'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
 
 permissions:
@@ -41,12 +44,23 @@ jobs:
         run: |
           chmod +x backend/scripts/tools/pdftotext
           echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
+      - name: Determine repair mode
+        id: mode
+        shell: bash
+        run: |
+          apply=NO
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
+            apply=YES
+          elif [[ -f .source-structure-apply ]] && grep -qx 'APPLY_SOURCE_STRUCTURE_REPAIR_V4=YES' .source-structure-apply; then
+            apply=YES
+          fi
+          echo "apply=$apply" >> "$GITHUB_OUTPUT"
       - name: Build verified source repair plan
         env:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
-          SOURCE_STRUCTURE_APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || 'NO' }}
+          SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
           SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
-        run: python3 backend/scripts/qp-source-structure-repair-v3.py
+        run: python3 backend/scripts/qp-source-structure-repair-v4.py
       - name: Upload repair plan
         if: always()
         uses: actions/upload-artifact@v4

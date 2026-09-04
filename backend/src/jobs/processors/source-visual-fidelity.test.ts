@@ -34,9 +34,12 @@ const parent = (assets: ExtractedQuestion['assets'] = []): ExtractedQuestion => 
 });
 
 describe('source visual fidelity', () => {
-  it('recognises an explicit printed-visual reference without confusing a rendered truth table with a circuit', () => {
+  it('recognises explicit Cambridge visual wording without confusing a rendered truth table with a circuit', () => {
     expect(requiresSourceVisual('Write the logic expressions for the following logic circuit.')).toBe(true);
     expect(requiresSourceVisual('A logic circuit is shown:\nA B C X\nComplete the truth table.')).toBe(true);
+    expect(requiresSourceVisual('This flowchart represents an algorithm.')).toBe(true);
+    expect(requiresSourceVisual('The diagram below shows a circular queue.')).toBe(true);
+    expect(requiresSourceVisual('Using the graph, calculate the shortest path.')).toBe(true);
     expect(requiresSourceVisual('The truth table for a logic circuit is shown.\nA B X\n0 0 1')).toBe(false);
     expect(requiresSourceVisual('Draw a logic circuit for the expression X = A AND B.')).toBe(false);
   });
@@ -46,6 +49,12 @@ describe('source visual fidelity', () => {
     const leaf = result.find((item) => item.path === '1.a')!;
     expect(leaf.issues).toContain(SOURCE_VISUAL_MISSING_ISSUE);
     expect(leaf.confidence).toBe(0.79);
+  });
+
+  it('flags a flattened flowchart that uses represents wording', () => {
+    const leaf = question({ stemMd: 'This flowchart represents an algorithm. Complete the trace table.', answerKind: 'table' });
+    const result = enforceSourceVisualFidelity([parent(), leaf]);
+    expect(result[1]?.issues).toContain(SOURCE_VISUAL_MISSING_ISSUE);
   });
 
   it('accepts a renderable SVG attached directly to the leaf', () => {

@@ -30,10 +30,14 @@ const parent = (assets: ExtractedQuestion['assets'] = []): ExtractedQuestion => 
 });
 
 describe('source structure fidelity', () => {
-  it('recognises complete-table, tick-grid and matching prompts', () => {
+  it('recognises complete-table, tick-grid, trace-table, K-map and matching prompts', () => {
     expect(requiredSourceStructures('Complete the table by writing the answer for each statement.')).toEqual(['table']);
     expect(requiredSourceStructures('Put one tick (3) in each row to identify the minimum number of bits.')).toEqual(['table']);
+    expect(requiredSourceStructures('Complete the trace table using the input data.')).toEqual(['table']);
+    expect(requiredSourceStructures('The truth table below contains three errors.')).toEqual(['table']);
+    expect(requiredSourceStructures('Complete the Karnaugh map (K-map).')).toEqual(['table']);
     expect(requiredSourceStructures('Draw a line to match each device to its description.')).toEqual(['layout']);
+    expect(requiredSourceStructures('Draw a line to connect each bus to its correct description.')).toEqual(['layout']);
   });
 
   it('does not treat ordinary prose about a database table as a required printed layout', () => {
@@ -45,6 +49,12 @@ describe('source structure fidelity', () => {
     const leaf = result.find((item) => item.path === '3.a')!;
     expect(leaf.issues).toContain(`${SOURCE_STRUCTURE_MISSING_PREFIX}table`);
     expect(leaf.confidence).toBe(0.79);
+  });
+
+  it('treats answerKind=table as a fail-closed signal even with uncommon wording', () => {
+    const leaf = question({ stemMd: 'Evaluate each expression and record your answers.', answerKind: 'table' });
+    const result = enforceSourceStructureFidelity([parent(), leaf]);
+    expect(result[1]?.issues).toContain(`${SOURCE_STRUCTURE_MISSING_PREFIX}table`);
   });
 
   it('accepts a semantic Markdown table attached to the leaf', () => {
