@@ -9,13 +9,13 @@ const chapter7BookWithCheckpoints = withChapter7PastPaperCheckpoints(CHAPTER_7_S
  *
  * Invariant: the original guided-discovery lesson remains first and unchanged.
  * The coursebook deep-dive is source-atom-complete in the same sense as the
- * Chapter 1/13 routes: exact source terms, examples, values/code fragments and
- * named book elements are pinned to real teaching slides before live Cambridge
- * 0478 checkpoints are inserted after each 7.1–7.9 part.
+ * Chapter 1/13 routes: exact source terms, formal definitions, examples,
+ * values/code fragments and named book elements are pinned to real teaching
+ * slides before live Cambridge 0478 checkpoints are inserted after each 7.1–7.9 part.
  */
 export const CHAPTER_7 = {
   ...DISCOVERY_CHAPTER_7,
-  subtitle: 'Guided discovery first, then a source-atom-complete Chapter 7 coursebook deep dive with textbook terminology, worked values and live Cambridge 0478 past-paper checkpoints.',
+  subtitle: 'Guided discovery first, then a source-atom-complete Chapter 7 coursebook deep dive with textbook terminology, formal definitions, worked values and live Cambridge 0478 past-paper checkpoints.',
   subtopics: [
     '7.1 Program development life cycle',
     '7.2 Systems, decomposition & algorithm design',
@@ -27,7 +27,7 @@ export const CHAPTER_7 = {
     '7.8 Identifying errors',
     '7.9 Writing & amending algorithms',
   ],
-  coverage: `15-slide discovery lesson + ${CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES.length}-slide source-atom-complete book deep dive + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages atom-audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.activities}/20 activities · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.figures}/22 figures · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.tables}/6 tables · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.examQuestions}/9 exam-style questions · key terms source-pinned · regression protected`,
+  coverage: `15-slide discovery lesson + ${CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES.length}-slide source-atom-complete book deep dive + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages atom-audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.keyTerms}/30 formal key terms · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.activities}/20 activities · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.figures}/22 figures · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.tables}/6 tables · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.examQuestions}/9 exam-style questions · regression protected`,
   slides: [...DISCOVERY_CHAPTER_7.slides, ...chapter7BookWithCheckpoints],
 };
 
