@@ -12,15 +12,15 @@ describe('which sections a page shows', () => {
   });
 
   it('gives each student page its own sections', () => {
-    // StudentHome is currently the student surface controller; on vazifalar it
-    // delegates to StudentAssignments. This avoids touching App's teacher/admin
-    // section registry while the student shell is being extracted.
-    expect(student('vazifalar')).toEqual(['studentHome']);
+    expect(student('vazifalar')).toEqual(['studentAssignments']);
     expect(student('natijalar')).toEqual(['studentResults']);
     expect(student('organish')).toEqual(['studentLearning']);
   });
 
   it('never shows the same section on two teaching pages', () => {
+    // The complaint that started this: every section rendered on every screen,
+    // so choosing "Vazifalar" also showed the classes, the appeals and the
+    // grading queue underneath.
     const pages = ['vazifalar', 'tekshirish', 'oquvchilar'];
     const seen = new Map<SectionName, string>();
     for (const page of pages) {
@@ -40,11 +40,11 @@ describe('which sections a page shows', () => {
     }
   });
 
-  it('puts every active student surface on some page', () => {
+  it('puts every student section on some page', () => {
     const reachable = new Set(
       ['vazifalar', 'natijalar', 'organish', ''].flatMap((page) => student(page)),
     );
-    for (const section of ['studentHome', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
+    for (const section of ['studentHome', 'studentAssignments', 'studentResults', 'studentLearning', 'studentProfile'] as SectionName[]) {
       expect(reachable.has(section)).toBe(true);
     }
   });
@@ -56,13 +56,17 @@ describe('which sections a page shows', () => {
   });
 
   it('shows a teacher nothing on a student URL, not an empty student screen', () => {
+    // The rail keeps roles apart, but a URL can be typed or shared.
     expect(sectionsFor('oquvchi', 'natijalar', 'teacher')).toEqual([]);
     expect(sectionsFor('oquvchi', 'organish', 'owner')).toEqual([]);
   });
 
   it('gives a student their own page when a teaching URL names one they have', () => {
+    // The role decides which set of sections exists; the page name only picks
+    // among that role's pages. A student following a stale /oqitish link gets
+    // their own assignments, never a teacher's.
     expect(sectionsFor('oqitish', 'natijalar', 'student')).toEqual(['studentResults']);
-    expect(sectionsFor('oqitish', 'vazifalar', 'student')).toEqual(['studentHome']);
+    expect(sectionsFor('oqitish', 'vazifalar', 'student')).toEqual(['studentAssignments']);
   });
 
   it('falls back to the student home for a page only teachers have', () => {
