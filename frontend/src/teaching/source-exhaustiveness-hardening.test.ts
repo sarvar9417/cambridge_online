@@ -6,6 +6,7 @@ import {
   CHAPTER_7_SOURCE_EXHAUSTIVENESS_GUARDS,
 } from './chapter7-source-exhaustive';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
+import { CHAPTER_7_SOURCE_PAGE_AUDIT } from './chapter7-source-page-audit';
 
 const json = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -83,6 +84,17 @@ describe('source-exhaustiveness hardening for IGCSE Chapter 7', () => {
       ...Object.values(CHAPTER_7_SOURCE_MAP.bookExtras),
     ];
     mapped.forEach((id) => expect(ids.has(id), `Missing mapped Chapter 7 source slide ${id}`).toBe(true));
+  });
+
+  it('traces every printed Chapter 7 source page from 258 through 298 to real presenter slides', () => {
+    const expectedPages = Array.from({ length: 41 }, (_, index) => 258 + index);
+    expect(CHAPTER_7_SOURCE_PAGE_AUDIT.map((item) => item.printedPage)).toEqual(expectedPages);
+    const ids = new Set(CHAPTER_7_SOURCE_EXHAUSTIVE_SLIDES.map((slide) => slide.id));
+    for (const page of CHAPTER_7_SOURCE_PAGE_AUDIT) {
+      expect(page.targetSlideIds.length, `Page ${page.printedPage} has no source target`).toBeGreaterThan(0);
+      page.targetSlideIds.forEach((id) => expect(ids.has(id), `Page ${page.printedPage} points to missing slide ${id}`).toBe(true));
+    }
+    expect(CHAPTER_7.coverage).toContain('41/41 source pages audited');
   });
 
   it('pins every previously missing prose/detail guard to a real source-exhaustive lesson slide', () => {
