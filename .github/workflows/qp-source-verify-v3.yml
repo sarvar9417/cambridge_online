@@ -1,0 +1,38 @@
+name: Exact 9618 QP source verification v3
+
+on:
+  push:
+    branches: [fix/9618-full-source-audit]
+    paths:
+      - .github/workflows/qp-source-verify-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CORPUS_AUDIT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-audit-runner
+      SOURCE_VERIFY_REPORT: source-verify-v3-report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install layout extraction dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Verify all 118 QPs and 2,985 leaves exactly against source
+        run: python backend/scripts/qp-source-verify-v3.py
+      - name: Upload exact verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-source-verify-v3-report
+          path: source-verify-v3-report.json
+          if-no-files-found: warn

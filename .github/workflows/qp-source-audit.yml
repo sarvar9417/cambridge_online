@@ -1,0 +1,54 @@
+name: Full 9618 QP source audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: Optional paper key, e.g. 2024-MJ-13
+        required: false
+        type: string
+      strict:
+        description: Fail when any normalized text mismatch is found
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [fix/9618-full-source-audit]
+    paths:
+      - backend/scripts/qp-source-audit-runner.py
+      - backend/scripts/qp-source-repair.py
+      - backend/src/database/migrations/0106_qp_source_audit_runner_bootstrap.sql
+      - scripts/test_qp_source_audit.py
+      - .github/workflows/qp-source-audit.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CORPUS_AUDIT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-audit-runner
+      SOURCE_AUDIT_ONLY: ${{ inputs.only || '' }}
+      SOURCE_AUDIT_STRICT: ${{ inputs.strict && '1' || '0' }}
+      SOURCE_AUDIT_REPORT: source-audit-report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install layout extraction dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Audit all official QPs against the database snapshot
+        run: python backend/scripts/qp-source-audit-runner.py
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-source-audit-report
+          path: source-audit-report.json
+          if-no-files-found: warn
