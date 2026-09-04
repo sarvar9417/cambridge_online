@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { lessonChapter } from './lesson-content-source-complete';
 import { COMPLETE_SOURCE_ATOMS } from './lesson-source-atom-registry';
+import { SUPPLIED_PDF_DETAIL_ATOMS } from './lesson-source-atoms-supplied-pdf-detail';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { CHAPTER_7_PAGE_SOURCE_ATOMS } from './chapter7-source-atoms';
 import {
@@ -43,6 +44,13 @@ describe('exact supplied PDF fidelity contract',()=>{
     CHAPTER_13_SOURCE_FILE_MANIFEST.pages.forEach(page=>expect(chapter13Pages.has(page.printedPage),`Chapter 13 p.${page.printedPage}`).toBe(true));
   });
 
+  it('has an explicit supplied-PDF detail atom on every Chapter 1 and Chapter 13 page',()=>{
+    const chapter1Pages=new Set(SUPPLIED_PDF_DETAIL_ATOMS.filter(atom=>atom.chapter===1).map(atom=>atom.page));
+    const chapter13Pages=new Set(SUPPLIED_PDF_DETAIL_ATOMS.filter(atom=>atom.chapter===13).map(atom=>atom.page));
+    expect([...chapter1Pages].sort((a,b)=>a-b)).toEqual(Array.from({length:26},(_,index)=>index+1));
+    expect([...chapter13Pages].sort((a,b)=>a-b)).toEqual(Array.from({length:24},(_,index)=>index+1));
+  });
+
   it('requires every fingerprinted Chapter 7 page to remain represented by a page source atom',()=>{
     const pages=new Set(CHAPTER_7_PAGE_SOURCE_ATOMS.map(atom=>atom.printedPage));
     CHAPTER_7_SOURCE_FILE_MANIFEST.pages.forEach(page=>expect(pages.has(page.printedPage),`Chapter 7 p.${page.printedPage}`).toBe(true));
@@ -63,6 +71,39 @@ describe('exact supplied PDF fidelity contract',()=>{
     expect(ch13).toContain('serial/sequential/random file organisation');
     expect(chapter1?.coverage).toContain('26/26 page fingerprints');
     expect(chapter13?.coverage).toContain('24/24 page fingerprints');
+  });
+
+  it('keeps source-specific Chapter 1 definitions, relationships, tables and worked values visible',()=>{
+    const chapter=text(lessonChapter(1));
+    [
+      'binary – base two number system based on the values 0 and 1 only.',
+      'two’s complement – each binary digit is reversed and 1 is added in right-most position',
+      '31421 = 3×10000 + 1×1000 + 4×100 + 2×10 + 1',
+      '11101110 = 128 + 64 + 32 + 8 + 4 + 2 = 238',
+      '0000=0=0; 0001=1=1',
+      '00990f60: 54 68 69 73 20 69 73 20',
+      'unicode consortium set up in 1991',
+      'bit-map image – system that uses pixels to make up an image.',
+      'sound needs a medium and cannot travel in a vacuum',
+      'aaaaabbbbccddddd → 05 97 04 98 02 99 05 100',
+      '192 uncompressed rgb values',
+    ].forEach(needle=>expect(chapter,needle).toContain(needle));
+  });
+
+  it('keeps source-specific Chapter 13 definitions, pseudocode, worked methods and boundary details visible',()=>{
+    const chapter=text(lessonChapter(13));
+    [
+      'user-defined data type – a data type based on an existing data type',
+      'type <pointer> = ^<typename>',
+      'serial file organisation – records are physically stored one after another',
+      'customer 6 search stops at customer 7',
+      '01011010 00000100',
+      '5.88 ≈ 0101.11100001',
+      'positive normalised mantissa must begin 0.1',
+      '0.399999',
+      '1.21×10^100',
+      'all three file organisation methods must be different',
+    ].forEach(needle=>expect(chapter,needle).toContain(needle));
   });
 
   it('keeps Chapter 7 source-atom route intact and adds exact supplied-file locking',()=>{
