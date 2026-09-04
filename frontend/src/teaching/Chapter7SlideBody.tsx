@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LessonSlide } from './lesson-content-full';
 import { Chapter7BookVisual } from './Chapter7BookVisual';
+import { Chapter7SourceTranscriptPanel } from './Chapter7SourceTranscript';
 import './chapter7-lesson.css';
 
 const facts = [
@@ -166,6 +167,7 @@ export function Chapter7SlideBody({ slide }: { slide:LessonSlide }) {
       {slide.example&&<div className="ch7-answer ch7-worked-example"><b>WORKED EXAMPLE</b><strong>{slide.example.title}</strong><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p>{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<div className="ch7-question"><span>INSTRUCTION</span><p>{slide.teacherPrompt}</p></div>}
       {slide.activity&&<div className="ch7-task"><span>YOUR TASK</span><strong>{slide.activity.title}</strong><p>{slide.activity.prompt}</p></div>}
+      {isBookSlide&&<Chapter7SourceTranscriptPanel slideId={slide.id}/>}
       {hasReveal&&<button type="button" className="ch7-reveal-button" onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide answer':'Show answer / example'}</button>}
       {revealed&&slide.activity?.reveal&&<div className="ch7-answer"><b>EXAMPLE</b><p>{slide.activity.reveal}</p></div>}
     </div>
