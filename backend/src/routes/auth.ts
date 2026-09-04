@@ -103,25 +103,39 @@ export function createAuthRouter(auth: AuthService) {
     validateBody(registerSchema), async (req, res) => {
       try {
         const user = await auth.register(req.body);
-        res.status(202).json({ user });
+        res.status(202).json({
+          status: user.status,
+          message: 'Ariza qabul qilindi. O‘qituvchi tasdiqlagach hisobingiz faollashadi.',
+        });
       } catch (error) { sendAuthError(res, error); }
     });
 
+  /**
+   * Always 202, whether or not the address is registered. The response is
+   * identical either way so it cannot be used to discover which emails have
+   * accounts; `emailConfigured` describes the server, not the address.
+   */
   router.post('/password/forgot',
-    rateLimit({ windowMs: 60 * 60_000, max: 5, key: (req) => `forgot:${req.ip}:${String(req.body?.email).toLowerCase()}` }),
+    rateLimit({ windowMs: 60 * 60_000, max: 5, key: (req) => `forgot:${req.ip}` }),
     validateBody(forgotPasswordSchema), async (req, res) => {
-      try {
-        const result = await auth.forgotPassword(req.body.email);
-        res.json(result);
-      } catch (error) { sendAuthError(res, error); }
+      const { emailConfigured } = await auth.requestPasswordReset(req.body);
+      res.status(202).json({
+        emailConfigured,
+        message: emailConfigured
+          ? 'Agar bu email ro‘yxatdan o‘tgan bo‘lsa, tiklash havolasi yuborildi.'
+          : 'Email xizmati hozir ulanmagan. O‘qituvchingizdan tiklash kodini so‘rang.',
+      });
     });
 
   router.post('/password/reset',
     rateLimit({ windowMs: 60 * 60_000, max: 10, key: (req) => `reset:${req.ip}` }),
     validateBody(resetPasswordSchema), async (req, res) => {
       try {
-        const result = await auth.resetPassword(req.body.token, req.body.password);
-        res.json(result);
+        await auth.resetPassword(req.body);
+        // Every session is gone, including this browser's, so there is nothing
+        // to keep: the user signs in with the new password.
+        res.clearCookie(COOKIE, { path: '/api/v1/auth' });
+        res.status(204).end();
       } catch (error) { sendAuthError(res, error); }
     });
 
@@ -129,48 +143,33 @@ export function createAuthRouter(auth: AuthService) {
     rateLimit({ windowMs: 60 * 60_000, max: 20, key: (req) => `verify:${req.ip}` }),
     validateBody(verifyEmailSchema), async (req, res) => {
       try {
-        const result = await auth.verifyEmail(req.body.token);
-        res.json(result);
+        await auth.verifyEmail(req.body.token);
+        res.status(204).end();
       } catch (error) { sendAuthError(res, error); }
     });
 
+  /**
+   * Same shape whatever the address is, for the same reason the password reset
+   * endpoint has: the response must not reveal which emails are registered.
+   */
   router.post('/email/resend',
-    rateLimit({ windowMs: 60 * 60_000, max: 5, key: (req) => `verify-resend:${req.ip}` }),
-    requireAuth, async (req, res) => {
-      try {
-        const result = await auth.resendVerification(req.user!.id);
-        res.json(result);
-      } catch (error) { sendAuthError(res, error); }
+    rateLimit({ windowMs: 60 * 60_000, max: 5, key: (req) => `resend:${req.ip}` }),
+    validateBody(forgotPasswordSchema), async (req, res) => {
+      const { emailConfigured } = await auth.resendVerification(req.body.email);
+      res.status(202).json({
+        emailConfigured,
+        message: emailConfigured
+          ? 'Agar bu email ro‘yxatdan o‘tgan bo‘lsa, tasdiqlash havolasi qayta yuborildi.'
+          : 'Email xizmati ulanmagan. O‘qituvchingizdan hisobingizni tasdiqlashni so‘rang.',
+      });
     });
 
-  router.post('/logout', async (req, res) => {
-    try {
-      const rawToken = req.cookies?.[COOKIE];
-      if (rawToken) await auth.logout(rawToken);
-      res.clearCookie(COOKIE, { path: '/api/v1/auth' });
-      res.status(204).end();
-    } catch (error) { sendAuthError(res, error); }
+  router.post('/logout', requireAuth(auth), async (req, res) => {
+    await auth.logout(req.cookies?.[COOKIE]);
+    res.clearCookie(COOKIE, { path: '/api/v1/auth' });
+    res.status(204).end();
   });
-
-  router.get('/me', requireAuth, async (req, res) => {
-    try {
-      const user = await auth.me(req.user!.id);
-      res.json({ user });
-    } catch (error) { sendAuthError(res, error); }
-  });
-
-  const inviteSchema = z.object({
-    role: z.enum(['student', 'teacher', 'school_admin', 'platform_admin']),
-    classId: z.string().uuid().optional(),
-    expiresInDays: z.number().int().min(1).max(30).optional(),
-  });
-
-  router.post('/invites', requireAuth, validateBody(inviteSchema), async (req, res) => {
-    try {
-      const invite = await auth.createInvite(req.user!, req.body);
-      res.status(201).json(invite);
-    } catch (error) { sendAuthError(res, error); }
-  });
+  router.post('/change-password',requireAuth(auth),async(req,res)=>{try{const body=z.object({currentPassword:z.string().min(8),newPassword:z.string().min(8).max(200)}).parse(req.body);await auth.changePassword(req.actor!.id,body.currentPassword,body.newPassword);res.clearCookie(COOKIE,{path:'/api/v1/auth'});res.status(204).end()}catch(error){sendAuthError(res,error)}});
 
   return router;
 }
