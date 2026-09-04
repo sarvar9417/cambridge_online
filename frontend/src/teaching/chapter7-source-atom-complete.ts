@@ -2,13 +2,16 @@ import type { LessonSlide } from './lesson-content-full';
 import { CHAPTER_7_FINAL_SOURCE_SLIDES } from './chapter7-source-final-hardening';
 import { CHAPTER_7_SOURCE_ATOMS } from './chapter7-source-atoms';
 import { CHAPTER_7_SOURCE_ACTIVITY_ATOMS } from './chapter7-source-activity-atoms';
+import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_SOURCE_PAGE_AUDIT } from './chapter7-source-page-audit';
 import { CHAPTER_7_SOURCE_KEY_TERMS, withChapter7SourceKeyTerms } from './chapter7-source-keyterms';
+import { CHAPTER_7_SOURCE_FILE_MANIFEST } from './source-file-fidelity-manifest';
 
 export const CHAPTER_7_ALL_SOURCE_ATOMS = [
   ...CHAPTER_7_SOURCE_ATOMS,
   ...CHAPTER_7_SOURCE_ACTIVITY_ATOMS,
+  ...CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS,
 ];
 
 const atomsBySlide = new Map<string, typeof CHAPTER_7_ALL_SOURCE_ATOMS>();
@@ -48,6 +51,11 @@ const sourceBlock = (slide: LessonSlide): LessonSlide => {
  * fragments, activity prompts/data, figures, tables, review items and exam-style
  * question identifiers are attached to the presenter route rather than being
  * represented only by a page-level summary.
+ *
+ * The supplied-file manifest additionally fingerprints all 41 source pages so
+ * this audit cannot silently drift to a different edition/copy of Chapter 7.
+ * Source-PDF detail atoms preserve source sidebars/cross-links and the complete
+ * task wording/data for the book's exam-style question sequence.
  */
 export const CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES: LessonSlide[] =
   withChapter7SourceKeyTerms(CHAPTER_7_FINAL_SOURCE_SLIDES).map(sourceBlock);
@@ -55,6 +63,9 @@ export const CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES: LessonSlide[] =
 export const CHAPTER_7_SOURCE_ATOM_COVERAGE = {
   atoms: CHAPTER_7_ALL_SOURCE_ATOMS.length,
   pages: CHAPTER_7_SOURCE_PAGE_AUDIT.length,
+  sourceFilePages: CHAPTER_7_SOURCE_FILE_MANIFEST.pageCount,
+  sourceFileSha256: CHAPTER_7_SOURCE_FILE_MANIFEST.sourceFileSha256,
+  sourcePdfDetailAtoms: CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS.length,
   keyTerms: CHAPTER_7_SOURCE_KEY_TERMS.length,
   activities: Object.keys(CHAPTER_7_SOURCE_MAP.activities).length,
   figures: Object.keys(CHAPTER_7_SOURCE_MAP.figures).length,
