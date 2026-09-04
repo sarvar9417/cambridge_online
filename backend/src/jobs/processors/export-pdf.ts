@@ -6,10 +6,16 @@ import { config } from '../../config.js';
 import { toAssignmentExportQuestion } from '../../lib/assignment-export.js';
 import { buildDocx } from '../../lib/export-docx.js';
 import { assertPaperTotal, renderPaperHtml, type ExportMode, type ExportQuestion } from '../../lib/export-html.js';
+import { materializeStoredExportAssets } from '../../lib/materialize-export-assets.js';
+import { SupabaseAssetStore } from '../asset-store.js';
 import type { Job } from '../job-queue.js';
 
 type FrozenSelectionReview={totalMarks:number;items:Array<{role:'graded'|'context_only';freshRef:string;sourceRef:string;effectiveMarks:number;portable:{leaf:{id:string;stem:string;marks:number;answerLines?:number|null};contextBlocks:Array<{displayRef?:string;context?:string|null;assets?:Array<{kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}>}>}}>};
 type SchemeExport={status:string;points:ExportQuestion['points']};
+
+function hasStorageOnlyAsset(questions:ExportQuestion[]){
+  return questions.some(question=>(question.contextBlocks??[]).some(block=>(block.assets??[]).some(asset=>Boolean(asset.storagePath&&!asset.contentMd))));
+}
 
 export function createExportPdfProcessor(pool:Pool){
   return async(job:Job)=>{
@@ -45,6 +51,11 @@ export function createExportPdfProcessor(pool:Pool){
 
     await pool.query(`update exports set status='running',error=null where id=$1`,[exportId]);
     try{
+      if(hasStorageOnlyAsset(questions)){
+        if(!config.SUPABASE_URL||!config.SUPABASE_STORAGE_SECRET_KEY)throw new Error('export_asset_storage_configuration_missing');
+        const assetStore=new SupabaseAssetStore({url:config.SUPABASE_URL,secretKey:config.SUPABASE_STORAGE_SECRET_KEY,bucket:config.ASSET_STORAGE_BUCKET});
+        questions=await materializeStoredExportAssets(questions,assetStore);
+      }
       const dir=process.env.VERCEL?'/tmp/campath-exports':resolve(config.EXPORT_DIR);await mkdir(dir,{recursive:true});
       const mode=exp.kind as ExportMode;
       if(format==='docx'){
