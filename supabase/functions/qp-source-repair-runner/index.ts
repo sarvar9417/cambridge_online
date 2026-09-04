@@ -100,6 +100,7 @@ async function uploadPng(input:{questionId:string;sourcePaperId:string;asset:Rec
     contentHash:hash,
     cropStatus:'ready',
     sizeBytes:bytes.byteLength,
+    satisfiesRules:Array.isArray(input.asset.satisfiesRules)?input.asset.satisfiesRules:[],
   }
 }
 
@@ -126,6 +127,7 @@ async function materializeManifest(raw:Record<string,unknown>) {
           kind:'table',contentMd:asset.contentMd,altText:asset.altText,
           sourcePage:asset.sourcePage??null,sourceBbox:asset.sourceBbox??null,
           contentHash:asset.contentHash??null,cropStatus:'not_needed',
+          satisfiesRules:Array.isArray(asset.satisfiesRules)?asset.satisfiesRules:[],
         })
       }
     }
