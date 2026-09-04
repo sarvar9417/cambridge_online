@@ -2,7 +2,7 @@ import { structureQuestionText } from './question-structure.js';
 import type { StructuredQuestionContent } from './structured-question-content.js';
 import { renderStructuredQuestionHtml,structuredQuestionPrintCss } from './structured-question-export.js';
 
-const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]!));
 
 export type ExportMode='question_paper'|'mark_scheme'|'combined'|'feedback';
 export interface ExportAsset{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}
@@ -10,7 +10,7 @@ export interface ExportContextBlock{displayRef?:string;context?:string|null;asse
 export interface ExportQuestion{displayRef:string;sourceRef?:string;stem:string;contentJson?:StructuredQuestionContent|null;context?:string;contextBlocks?:ExportContextBlock[];marks:number;answerLines?:number|null;role?:'graded'|'context_only';schemeStatus?:string;points?:Array<{code:string;text:string;marks:number}>}
 
 export function assertPaperTotal(questions:ExportQuestion[],expected:number){const actual=questions.reduce((sum,q)=>sum+(q.role==='context_only'?0:q.marks),0);if(actual!==expected)throw new Error(`export_total_mismatch:${actual}/${expected}`);return actual}
-export function assertPortableAssetCoverage(questions:ExportQuestion[]){for(const q of questions)for(const b of q.contextBlocks??[])for(const a of b.assets??[])if(a.storagePath&&!a.contentMd)throw new Error(`export_asset_unavailable:${q.sourceRef??q.displayRef}:${a.altText??a.kind}`)}
+export function assertPortableAssetCoverage(questions:ExportQuestion[]){for(const q of questions){const assets=(q.contextBlocks??[]).flatMap(b=>b.assets??[]);for(const a of assets)if(a.storagePath&&!a.contentMd)throw new Error(`export_asset_unavailable:${q.sourceRef??q.displayRef}:${a.altText??a.kind}`);if(q.contentJson){const available=new Set(assets.filter(a=>a.id&&a.contentMd).map(a=>a.id));for(const block of q.contentJson.blocks)if(block.type==='asset'&&!available.has(block.assetId))throw new Error(`export_structured_asset_unavailable:${q.sourceRef??q.displayRef}:${block.assetId}`)}}}
 
 function markdownTable(value:string){const lines=value.trim().split(/\r?\n/).filter(Boolean);if(lines.length<2||!lines[0]?.includes('|')||!/^\s*\|?\s*:?-{3,}/.test(lines[1]??''))return null;const rows=[lines[0]!,...lines.slice(2)].map(line=>line.trim().replace(/^\||\|$/g,'').split('|').map(cell=>cell.trim()));return `<table>${rows.map((row,ri)=>`<tr>${row.map(cell=>ri===0?`<th>${esc(cell)}</th>`:`<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</table>`}
 const isSvg=(value:string)=>/^\s*<svg\b/i.test(value);
