@@ -1,6 +1,6 @@
--- Retroactive corpus safety gate for QP leaves whose printed semantics require a
--- table/tick-grid/matching layout but whose leaf -> root chain has no structured
--- table or source-faithful visual asset.
+-- Retroactive corpus safety gate for source-backed QP leaves whose printed
+-- semantics require a table/tick-grid/matching layout or an explicit source
+-- visual, but whose leaf -> root chain has no renderable structured asset.
 --
 -- This is intentionally fail-closed: affected approved leaves are moved to
 -- needs_review and receive an unresolved validation finding. No question text is
@@ -108,8 +108,104 @@ BEGIN
   RAISE NOTICE '0109 source structure fidelity: % unresolved QP leaves, % moved from approved to needs_review',v_total,v_downgraded;
 END $$;
 
+-- 0104 originally protected 9618 source visuals. Re-run the same principle over
+-- every source-backed QP so 0478 and newly-ingested 9618 rows receive the same
+-- fail-closed treatment.
+DO $$
+DECLARE
+  v_total integer;
+  v_downgraded integer;
+BEGIN
+  CREATE TEMP TABLE _source_visual_missing_all(
+    question_id uuid PRIMARY KEY,
+    display_ref text NOT NULL,
+    syllabus_code text NOT NULL
+  ) ON COMMIT DROP;
+
+  INSERT INTO _source_visual_missing_all(question_id,display_ref,syllabus_code)
+  WITH RECURSIVE eligible AS (
+    SELECT
+      q.id,q.parent_id,q.display_ref,sy.code syllabus_code,
+      regexp_replace(lower(coalesce(q.stem_md,'') || ' ' || coalesce(q.context_md,'')),'[[:space:]]+',' ','g') AS source_text
+    FROM questions q
+    JOIN source_papers sp ON sp.id=q.source_paper_id AND sp.kind='QP'
+    JOIN syllabi sy ON sy.id=sp.syllabus_id
+    WHERE q.marks IS NOT NULL
+      AND q.status IN ('approved','needs_review')
+  ), required AS (
+    SELECT * FROM eligible
+    WHERE source_text ~ (
+      'following (logic )?circuit'
+      || '|logic circuit (is )?shown|circuit shown (below|above)'
+      || '|following diagram|diagram (is )?shown|diagram shown (below|above)'
+      || '|shown in (the )?(diagram|figure)|figure[[:space:]]+[0-9]+(\.[0-9]+)?[[:space:]]+(shows|is shown)'
+      || '|following flowchart|flowchart (is )?shown|flowchart shown (below|above)'
+      || '|following graph|graph (is )?shown|graph shown (below|above)'
+      || '|following (bitmap )?image|image (is )?shown|image shown (below|above)'
+      || '|complete (the )?(following )?(diagram|flowchart|logic circuit)'
+      || '|complete (the )?(e-r|entity[- ]relationship) diagram'
+    )
+  ), chain AS (
+    SELECT r.id leaf_id,r.id node_id,r.parent_id
+    FROM required r
+    UNION ALL
+    SELECT c.leaf_id,p.id,p.parent_id
+    FROM chain c
+    JOIN questions p ON p.id=c.parent_id
+  )
+  SELECT r.id,r.display_ref,r.syllabus_code
+  FROM required r
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM chain c
+    JOIN question_assets qa ON qa.question_id=c.node_id
+    WHERE c.leaf_id=r.id
+      AND qa.kind IN ('diagram','image')
+      AND (
+        nullif(trim(coalesce(qa.content_md,'')),'') IS NOT NULL
+        OR nullif(trim(coalesce(qa.storage_path,'')),'') IS NOT NULL
+        OR nullif(trim(coalesce(qa.svg_markup,'')),'') IS NOT NULL
+      )
+  );
+
+  SELECT count(*) INTO v_total FROM _source_visual_missing_all;
+  SELECT count(*) INTO v_downgraded
+  FROM _source_visual_missing_all m
+  JOIN questions q ON q.id=m.question_id
+  WHERE q.status='approved';
+
+  INSERT INTO validation_findings(rule_code,severity,ref_table,ref_id,message,details)
+  SELECT
+    'source_visual_required_but_missing',
+    'error',
+    'questions',
+    m.question_id,
+    'The question explicitly depends on a printed source visual, but no renderable diagram/image asset exists on the question or its ancestor context.',
+    jsonb_build_object('displayRef',m.display_ref,'syllabusCode',m.syllabus_code,'audit','all-qp-source-visual-fidelity-0109')
+  FROM _source_visual_missing_all m
+  WHERE NOT EXISTS (
+    SELECT 1 FROM validation_findings vf
+    WHERE vf.ref_table='questions'
+      AND vf.ref_id=m.question_id
+      AND vf.rule_code='source_visual_required_but_missing'
+      AND vf.resolved_at IS NULL
+  );
+
+  UPDATE questions q
+  SET status=CASE WHEN q.status='approved' THEN 'needs_review'::review_status ELSE q.status END,
+      notes=CASE
+        WHEN coalesce(q.notes,'') LIKE '%source-visual-fidelity:%' THEN q.notes
+        ELSE concat_ws(E'\n',nullif(q.notes,''),'source-visual-fidelity: original QP visual required; asset/context must be restored and verified before approval.')
+      END,
+      updated_at=now()
+  FROM _source_visual_missing_all m
+  WHERE q.id=m.question_id;
+
+  RAISE NOTICE '0109 all-QP source visual fidelity: % unresolved leaves, % moved from approved to needs_review',v_total,v_downgraded;
+END $$;
+
 -- Read-only, service-role-only repair manifest. A repair runner can use this to
--- download exactly the source papers that still contain unresolved structure
+-- download exactly the source papers that still contain unresolved source-fidelity
 -- findings without exposing source URLs to normal application roles.
 CREATE OR REPLACE FUNCTION public.source_structure_repair_bootstrap_v1()
 RETURNS jsonb
@@ -129,7 +225,11 @@ AS $function$
     JOIN syllabi sy ON sy.id=sp.syllabus_id
     JOIN components c ON c.id=sp.component_id
     WHERE vf.resolved_at IS NULL
-      AND vf.rule_code IN ('source_structure_required_but_missing_table','source_structure_required_but_missing_layout')
+      AND vf.rule_code IN (
+        'source_structure_required_but_missing_table',
+        'source_structure_required_but_missing_layout',
+        'source_visual_required_but_missing'
+      )
       AND sp.source_url IS NOT NULL
       AND nullif(trim(coalesce(sp.sha256,'')),'') IS NOT NULL
   ), sources AS (
