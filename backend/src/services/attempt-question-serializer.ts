@@ -31,7 +31,11 @@ export function serializeAttemptQuestion(
 ) {
   const contentJson=parseAttemptStructuredContent(row);
   const assetIds=attemptQuestionAssetIds(contentJson);
-  const assetUrls=Object.fromEntries(assetIds.flatMap((id)=>signedAssetUrls[id]?[[id,signedAssetUrls[id]!]]:[]));
+  const assetUrls=Object.fromEntries(
+    assetIds
+      .filter((id)=>Boolean(signedAssetUrls[id]))
+      .map((id)=>[id,signedAssetUrls[id]!] as const),
+  );
   return {
     id:row.id,
     displayRef:row.display_ref,
