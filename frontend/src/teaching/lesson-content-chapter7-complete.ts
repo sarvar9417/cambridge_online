@@ -11,6 +11,7 @@ const chapter7BookWithCheckpoints = withChapter7PastPaperCheckpoints(CHAPTER_7_F
  * Invariant: the original guided-discovery lesson remains first and unchanged.
  * The source-exhaustive coursebook deep-dive receives final source hardening,
  * with live Cambridge 0478 checkpoints inserted after the final slide of each 7.1–7.9 part.
+ * Source-completeness regressions are protected by page-audit and exact-detail tests.
  */
 export const CHAPTER_7 = {
   ...DISCOVERY_CHAPTER_7,
@@ -26,7 +27,7 @@ export const CHAPTER_7 = {
     '7.8 Identifying errors',
     '7.9 Writing & amending algorithms',
   ],
-  coverage: `15-slide discovery lesson + ${CHAPTER_7_FINAL_SOURCE_SLIDES.length}-slide source-exhaustive book deep dive with final source hardening + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_PAGE_AUDIT.length}/41 source pages audited`,
+  coverage: `15-slide discovery lesson + ${CHAPTER_7_FINAL_SOURCE_SLIDES.length}-slide source-exhaustive book deep dive with final source hardening + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_PAGE_AUDIT.length}/41 source pages audited · source-completeness regression protected`,
   slides: [...DISCOVERY_CHAPTER_7.slides, ...chapter7BookWithCheckpoints],
 };
 
