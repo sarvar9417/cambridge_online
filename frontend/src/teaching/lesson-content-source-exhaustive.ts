@@ -88,7 +88,7 @@ chapter1Slides = patch(chapter1Slides, 'h1-115-ascii', (slide) => {
       kind: 'paragraph',
       text: 'Hodder’s historical source detail: ASCII was established for communication/computer systems in 1963 and a newer version was published in 1986. Standard ASCII uses 7-bit values 0–127; codes 0–31 are control codes. Extended ASCII uses 8-bit values 128–255, allowing additional non-English and drawing characters.',
     },
-  ], ['ASCII 1963/1986 historical detail', 'Extended ASCII 128–255 purpose']),
+  ], ['ASCII 1963/1986 historical detail', 'Extended ASCII 128–255 purpose']);
 });
 
 chapter1Slides = patch(chapter1Slides, 'h1-115-unicode', (slide) => {
@@ -108,7 +108,7 @@ chapter1Slides = patch(chapter1Slides, 'h1-115-unicode', (slide) => {
         'Hodder explicitly notes that ASCII tables/extensions are not fully standardised and that variants other than its Tables 1.5–1.6 exist.',
       ],
     },
-  ], ['Unicode Consortium 1991 and five goals', 'ASCII-table non-standardisation nuance', 'Unicode private-use space']),
+  ], ['Unicode Consortium 1991 and five goals', 'ASCII-table non-standardisation nuance', 'Unicode private-use space']);
 });
 
 chapter1Slides = patch(chapter1Slides, 'h1-bitmap-resolution', (slide) =>
