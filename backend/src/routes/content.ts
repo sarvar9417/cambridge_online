@@ -19,7 +19,11 @@ export function createContentRouter(service: ContentService) {
       slideId: z.string().trim().min(1).max(160),
       completed: z.boolean().default(false),
     }).strict().parse(req.body);
-    res.json(await service.touchLesson(req.actor!, body));
+    res.json(await service.touchLesson(req.actor!, {
+      chapterNo: body.chapterNo!,
+      slideId: body.slideId,
+      completed: body.completed,
+    }));
   });
 
   router.get('/flashcards/due', async (req, res) => res.json({ data: await service.due(req.actor!) }));
