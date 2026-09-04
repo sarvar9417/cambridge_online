@@ -1,4 +1,36 @@
-/* Keep writable Lesson Studio exam fields readable regardless of the surrounding theme. */
+/*
+ * Lesson Studio past-paper contrast contract.
+ *
+ * The redesigned preview cards and focused workspace are deliberately light
+ * surfaces. Pin their semantic text/surface variables locally so a surrounding
+ * dark theme cannot turn text white while these surfaces remain white.
+ */
+.lesson-exam-card,
+.lesson-exam-card.lesson-exam-launcher {
+  --lesson-ink: #172033;
+  --lesson-muted: #687386;
+  --text: #172033;
+  --text-muted: #687386;
+  --surface: #fff;
+  --surface-soft: #f8fafc;
+  --border: #e3e8f1;
+  --border-strong: #cbd5e1;
+  color: #172033;
+  color-scheme: light;
+}
+
+.lesson-question-workspace {
+  --text: #172033;
+  --text-muted: #667085;
+  --surface: #fff;
+  --surface-soft: #f8fafc;
+  --border: #d9e0ea;
+  --border-strong: #c4ccd8;
+  color: #172033;
+  color-scheme: light;
+}
+
+/* Writable exam fields: typed text, caret and browser autofill must stay dark. */
 .lesson-question-workspace .lesson-workspace-response textarea,
 .lesson-question-workspace .lesson-workspace-answer-slots input,
 .lesson-question-workspace .lesson-workspace-table-answer input {
@@ -20,4 +52,33 @@
 .lesson-question-workspace .lesson-workspace-table-answer input:-webkit-autofill {
   -webkit-text-fill-color: #172033;
   caret-color: #172033;
+}
+
+/* Explicit light controls/surfaces that previously depended on global theme text. */
+.lesson-question-workspace .lesson-workspace-nav,
+.lesson-question-workspace .lesson-workspace-close,
+.lesson-question-workspace .lesson-workspace-close-error {
+  color: #172033;
+}
+
+.lesson-question-workspace .lesson-workspace-source,
+.lesson-question-workspace .lesson-workspace-scheme-meta,
+.lesson-question-workspace .lesson-workspace-scheme-groups span,
+.lesson-question-workspace .lesson-workspace-section-heading > span,
+.lesson-question-workspace .lesson-workspace-contexts article > strong,
+.lesson-question-workspace .lesson-workspace-asset figcaption,
+.lesson-question-workspace .lesson-workspace-choice-grid legend {
+  color: #667085;
+}
+
+.lesson-question-workspace .lesson-workspace-section-heading > strong,
+.lesson-question-workspace .lesson-workspace-choice-text,
+.lesson-question-workspace .lesson-workspace-word-bank p,
+.lesson-question-workspace .lesson-workspace-passage,
+.lesson-question-workspace .lesson-workspace-drawing-note,
+.lesson-question-workspace .lesson-workspace-dependencies,
+.lesson-question-workspace .lesson-workspace-contexts article,
+.lesson-question-workspace .qtext-code,
+.lesson-question-workspace .qtext-table {
+  color: #172033;
 }
