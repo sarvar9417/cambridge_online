@@ -5,8 +5,9 @@ import type{Classification,DetectedDependency,ExtractedQuestion,ExtractedScheme}
 
 type Artifact=Record<string,unknown>;
 type Finding={code:string;severity:'error'|'warning';message:string;details?:unknown};
-type CrossCheck={path:string;agrees:boolean;disagreements?:unknown;confidence:number;promptVersion?:string};
-type SourceMeta={qpPaperId:string;msPaperId:string|null;componentId:string;syllabusCode:string;component:number;variant:number;year:number;series:'FM'|'MJ'|'ON'};
+type CrossCheckEvidence={sourceMode?:string;qpPaperId?:string;qpSha256?:string;msPaperId?:string;msSha256?:string;qpPages?:unknown;msPages?:unknown};
+type CrossCheck={path:string;agrees:boolean;disagreements?:unknown;confidence:number;promptVersion?:string;evidence?:CrossCheckEvidence};
+type SourceMeta={qpPaperId:string;qpSha256:string;msPaperId:string|null;msSha256:string|null;componentId:string;syllabusCode:string;component:number;variant:number;year:number;series:'FM'|'MJ'|'ON'};
 type MarkSchemeReviewReason={code:string;message:string;details:Record<string,unknown>};
 
 export interface PersistPaperResult{questionCount:number;leafCount:number;approvedCount:number;needsReviewCount:number;findingCount:number;pendingAssetCount:number;readyAssetCount:number;failedAssetCount:number}
@@ -25,8 +26,8 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
  const questions=asArray<ExtractedQuestion>(input.questions),schemes=asArray<ExtractedScheme>(input.markSchemes),classifications=asArray<Classification>(input.classifications),dependencies=asArray<DetectedDependency>(input.dependencies),findings=asFindings(input.validationFindings),crossChecks=asArray<CrossCheck>(input.crossChecks),storedAssets=asArray<StoredAssetRecord>(input.storedAssets);
  if(!questions.length)throw new Error('ingestion_persist_no_questions');
  const storedByKey=indexStoredAssets(questions,storedAssets),meta=await sourceMeta(pool,input),classificationByPath=new Map(classifications.map(item=>[item.path,item])),qpPromptVersion=artifactPromptVersion(input,'qp','extract-question.v1');
- const globalError=findings.some(item=>item.severity==='error');
- const crossCheckReady=crossChecks.length>0&&crossChecks.every(item=>item.agrees&&item.confidence>=.8);
+ const globalError=findings.some(item=>item.severity==='error'),leafPaths=questions.filter(item=>item.marks!==null).map(item=>item.path),checkByPath=new Map(crossChecks.map(item=>[item.path,item]));
+ const crossCheckReady=leafPaths.length>0&&checkByPath.size===leafPaths.length&&leafPaths.every(path=>{const item=checkByPath.get(path);return Boolean(item&&item.agrees&&item.confidence>=.8&&sourceEvidenceMatches(item,meta))});
  const paperCanAutoApprove=input.reviewStatus==='approved_candidate'&&!globalError&&crossCheckReady;
  const client=await pool.connect();
  try{
@@ -105,7 +106,7 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
   }
 
   for(const finding of findings)await client.query(`insert into validation_findings(rule_code,severity,ref_table,ref_id,message,details) values($1,$2,'source_papers',$3,$4,$5::jsonb)`,[finding.code,finding.severity,meta.qpPaperId,finding.message,finding.details===undefined?null:JSON.stringify(finding.details)]);
-  for(const check of crossChecks){const questionId=idByPath.get(check.path);if(!questionId)continue;await client.query(`insert into cross_checks(ref_table,ref_id,checker_prompt_version,agrees,disagreement,confidence) values('questions',$1,$2,$3,$4::jsonb,$5)`,[questionId,check.promptVersion??'cross-check.v1',check.agrees,check.disagreements===undefined?null:JSON.stringify(check.disagreements),check.confidence])}
+  for(const check of crossChecks){const questionId=idByPath.get(check.path);if(!questionId)continue;await client.query(`insert into cross_checks(ref_table,ref_id,checker_prompt_version,agrees,disagreement,confidence,source_evidence) values('questions',$1,$2,$3,$4::jsonb,$5,$6::jsonb)`,[questionId,check.promptVersion??'cross-check.v1',check.agrees,check.disagreements===undefined?null:JSON.stringify(check.disagreements),check.confidence,check.evidence===undefined?null:JSON.stringify(check.evidence)])}
 
   await client.query('commit');
   const leaves=questions.filter(question=>question.marks!==null),approvedCount=paperCanAutoApprove?leaves.filter(question=>!question.issues.length&&!classificationByPath.get(question.path)?.issues.length&&!hasUnreadyBinaryAsset(question,storedByKey)).length:0;
@@ -116,16 +117,18 @@ export async function persistPaperArtifact(pool:Pool,input:Artifact):Promise<Art
 }
 
 function reviewReason(code:string,message:string,path:string,source:string):MarkSchemeReviewReason{return{code,message,details:{path,source}}}
+function sourceEvidenceMatches(check:CrossCheck,meta:SourceMeta){const e=check.evidence;return check.promptVersion==='cross-check.v3'&&Boolean(e&&e.sourceMode==='page_image+text_layer'&&e.qpPaperId===meta.qpPaperId&&e.msPaperId===meta.msPaperId&&e.qpSha256===meta.qpSha256&&e.msSha256===meta.msSha256&&validPages(e.qpPages)&&validPages(e.msPages))}
+function validPages(value:unknown){return Array.isArray(value)&&value.length>0&&value.every(page=>Number.isInteger(page)&&Number(page)>0)}
 function indexStoredAssets(questions:ExtractedQuestion[],storedAssets:StoredAssetRecord[]){const questionByPath=new Map(questions.map(question=>[question.path,question])),map=new Map<string,StoredAssetRecord>();for(const stored of storedAssets){const question=questionByPath.get(stored.questionPath);if(!question||!question.assets[stored.assetIndex])throw new Error(`ingestion_persist_stored_asset_orphan:${stored.questionPath}:${stored.assetIndex}`);const key=assetKey(stored.questionPath,stored.assetIndex);if(map.has(key))throw new Error(`ingestion_persist_stored_asset_duplicate:${stored.questionPath}:${stored.assetIndex}`);map.set(key,stored)}return map}
 function hasUnreadyBinaryAsset(question:ExtractedQuestion,storedByKey:Map<string,StoredAssetRecord>){return question.assets.some((asset,index)=>!asset.contentMd&&!storedByKey.has(assetKey(question.path,index)))}
-function assetKey(path:string,index:number){return`${path}#${index}`}
+function assetKey(path:string,index){return`${path}#${index}`}
 async function assertSourcePaperQuestionsUnused(client:PoolClient,sourcePaperId:string){
  const result=await client.query(`select count(*)::int in_use from questions q where q.source_paper_id=$1 and (exists(select 1 from assignment_questions aq where aq.question_id=q.id) or exists(select 1 from answers a where a.question_id=q.id))`,[sourcePaperId]);
  const inUse=Number(result.rows[0]?.in_use??0);if(inUse>0)throw new Error(`ingestion_persist_question_in_use:${inUse}`);
 }
 async function sourceMeta(pool:Pool,input:Artifact):Promise<SourceMeta>{
  const qpPaperId=paperId(input,'qp');if(!qpPaperId)throw new Error('ingestion_persist_missing_qp');const msPaperId=paperId(input,'ms');
- const result=await pool.query(`select sp.id qp_paper_id,sp.component_id,sp.year,sp.series::text series,sp.variant,s.code syllabus_code,c.number component from source_papers sp join syllabi s on s.id=sp.syllabus_id join components c on c.id=sp.component_id where sp.id=$1`,[qpPaperId]);if(!result.rowCount)throw new Error('ingestion_paper_not_found');const row=result.rows[0];return{qpPaperId,msPaperId,componentId:String(row.component_id),syllabusCode:String(row.syllabus_code),component:Number(row.component),variant:Number(row.variant),year:Number(row.year),series:row.series};
+ const result=await pool.query(`select sp.id qp_paper_id,sp.sha256 qp_sha256,sp.component_id,sp.year,sp.series::text series,sp.variant,s.code syllabus_code,c.number component,ms.sha256 ms_sha256 from source_papers sp join syllabi s on s.id=sp.syllabus_id join components c on c.id=sp.component_id left join source_papers ms on ms.id=$2 where sp.id=$1`,[qpPaperId,msPaperId]);if(!result.rowCount)throw new Error('ingestion_paper_not_found');const row=result.rows[0],qpSha256=String(row.qp_sha256??'').trim(),msSha256=row.ms_sha256===null||row.ms_sha256===undefined?null:String(row.ms_sha256).trim();return{qpPaperId,qpSha256,msPaperId,msSha256,componentId:String(row.component_id),syllabusCode:String(row.syllabus_code),component:Number(row.component),variant:Number(row.variant),year:Number(row.year),series:row.series};
 }
 function artifactPromptVersion(input:Artifact,side:'qp'|'ms',fallback:string){const value=input[side];if(!value||typeof value!=='object')return fallback;const extraction=(value as Record<string,unknown>).extraction;if(!extraction||typeof extraction!=='object')return fallback;const version=(extraction as Record<string,unknown>).promptVersion;return typeof version==='string'&&version.trim()?version:fallback}
 function fullDisplayRef(meta:SourceMeta,path:string){const paper=meta.variant>=10?meta.variant:meta.component*10+meta.variant,series=meta.series==='MJ'?'M/J':meta.series==='ON'?'O/N':'F/M',year=String(meta.year).slice(-2);return`${meta.syllabusCode}/${paper}/${series}/${year} Q${refFromPath(path)}`}
