@@ -1,0 +1,51 @@
+name: QP Source Structure Repair V2
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply verified repairs (YES to write; otherwise plan only)'
+        required: false
+        default: 'NO'
+      only:
+        description: 'Optional sourcePaperId, paper key, or syllabus code'
+        required: false
+        default: ''
+  push:
+    branches:
+      - fix/source-structure-repair-v2
+    paths:
+      - 'backend/scripts/qp-source-structure-repair-v2.py'
+      - '.github/workflows/qp-source-structure-repair-v2.yml'
+      - 'backend/src/database/migrations/0111_source_fidelity_repair_v2.sql'
+      - 'supabase/functions/qp-source-repair-runner/index.ts'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  repair-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PDF and image tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python3 -m pip install --disable-pip-version-check pillow
+      - name: Build verified source repair plan
+        env:
+          CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
+          SOURCE_STRUCTURE_APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || 'NO' }}
+          SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
+        run: python3 backend/scripts/qp-source-structure-repair-v2.py
+      - name: Upload repair plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-structure-repair-plan
+          path: source-structure-repair-plan.json
+          if-no-files-found: warn
+          retention-days: 14
