@@ -18,6 +18,7 @@ on:
       - 'backend/scripts/qp-source-structure-repair-v2.py'
       - 'backend/scripts/qp-source-structure-repair-v3.py'
       - 'backend/scripts/qp-source-structure-repair-v4.py'
+      - 'backend/scripts/qp-source-structure-repair-v5.py'
       - 'backend/scripts/tools/pdftotext'
       - '.github/workflows/qp-source-structure-repair-v2.yml'
       - '.source-structure-apply'
@@ -60,7 +61,7 @@ jobs:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
           SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
-        run: python3 backend/scripts/qp-source-structure-repair-v4.py
+        run: python3 backend/scripts/qp-source-structure-repair-v5.py
       - name: Upload repair plan
         if: always()
         uses: actions/upload-artifact@v4
