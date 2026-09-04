@@ -41,4 +41,31 @@ describe('results detail authorization', () => {
       contentJson:null,contentVersion:null,assetUrls:{},
     }]);
   });
+
+  it('returns source-backed result content with only short-lived signed assets', async () => {
+    const assetId='22222222-2222-4222-8222-222222222222';
+    const content={
+      version:1,
+      source:{paperId:'11111111-1111-4111-8111-111111111111',sha256:'b'.repeat(64)},
+      blocks:[
+        {type:'text',style:'task',text:'Use the diagram.',source:{page:2}},
+        {type:'asset',kind:'diagram',assetId,altText:'Logic diagram',source:{page:2}},
+      ],
+    };
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{
+        id:'33333333-3333-4333-8333-333333333333',grading_id:'grading-2',appeal_status:null,
+        display_ref:'2(a)',stem_md:'Legacy',marks:2,text:'Answer',final_score:'2',teacher_feedback_md:null,points:[],
+        content_json:content,content_version:1,
+      }]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:assetId,storage_path:'supabase://question-assets/q/diagram.png'}]});
+    const signer={signStoragePath:vi.fn().mockResolvedValue('https://signed.example/diagram.png')};
+
+    const [detail]=await new ResultsService({query} as unknown as Pool,signer).detail(student,'submission-a');
+    expect(detail?.contentVersion).toBe(1);
+    expect(detail?.contentJson).toEqual(content);
+    expect(detail?.assetUrls).toEqual({[assetId]:'https://signed.example/diagram.png'});
+    expect(signer.signStoragePath).toHaveBeenCalledWith('supabase://question-assets/q/diagram.png',300);
+    expect(JSON.stringify(detail)).not.toContain('supabase://');
+  });
 });
