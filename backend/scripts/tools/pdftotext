@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_PDFTOTEXT=/usr/bin/pdftotext
+"$REAL_PDFTOTEXT" "$@"
+
+is_bbox=0
+for arg in "$@"; do
+  if [[ "$arg" == "-bbox-layout" ]]; then
+    is_bbox=1
+    break
+  fi
+done
+
+if [[ "$is_bbox" == "1" ]]; then
+  out="${@: -1}"
+  if [[ "$out" != "-" && -f "$out" ]]; then
+    python3 - "$out" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8", errors="replace")
+# Poppler can emit embedded C0/C1 font residue inside <word> nodes. Those
+# bytes are not legal XML 1.0 characters and make ElementTree fail before the
+# source-fidelity parser can even inspect the page. They carry no printable
+# question semantics, so strip only XML-illegal control characters.
+clean = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+if clean != text:
+    path.write_text(clean, encoding="utf-8")
+PY
+  fi
+fi

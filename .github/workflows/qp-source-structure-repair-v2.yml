@@ -16,6 +16,8 @@ on:
       - fix/source-structure-repair-v2
     paths:
       - 'backend/scripts/qp-source-structure-repair-v2.py'
+      - 'backend/scripts/qp-source-structure-repair-v3.py'
+      - 'backend/scripts/tools/pdftotext'
       - '.github/workflows/qp-source-structure-repair-v2.yml'
       - 'backend/src/database/migrations/0111_source_fidelity_repair_v2.sql'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
@@ -27,7 +29,7 @@ permissions:
 jobs:
   repair-plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Install PDF and image tooling
@@ -35,12 +37,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y poppler-utils
           python3 -m pip install --disable-pip-version-check pillow
+      - name: Enable XML-safe pdftotext shim
+        run: |
+          chmod +x backend/scripts/tools/pdftotext
+          echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
       - name: Build verified source repair plan
         env:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || 'NO' }}
           SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
-        run: python3 backend/scripts/qp-source-structure-repair-v2.py
+        run: python3 backend/scripts/qp-source-structure-repair-v3.py
       - name: Upload repair plan
         if: always()
         uses: actions/upload-artifact@v4
