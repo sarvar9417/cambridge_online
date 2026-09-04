@@ -19,7 +19,8 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
 
   override async findOne(actor: Actor, id: string) {
     const result = await this.detailPool.query(
-      `select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.ao,q.answer_kind,
+      `select q.id,q.display_ref,q.stem_md,q.context_md,q.content_json,q.content_version,
+        q.command_word,q.marks,q.ao,q.answer_kind,
         json_build_object('id',p.id,'displayRef',p.display_ref,'contextMd',p.context_md) parent,
         case when $2<>'student' then true else exists(
           select 1 from submissions s join assignment_questions aq on aq.assignment_id=s.assignment_id
