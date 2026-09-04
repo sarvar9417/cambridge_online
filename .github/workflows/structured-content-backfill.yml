@@ -17,6 +17,9 @@ on:
       - main
     paths:
       - 'backend/scripts/structured_content_backfill.py'
+      - 'backend/scripts/structured_content_backfill_v2.py'
+      - 'backend/scripts/qp-source-repair.py'
+      - 'backend/scripts/qp-source-repair-v3.py'
       - 'backend/scripts/tools/pdftotext'
       - 'scripts/test_structured_content_backfill.py'
       - 'backend/src/database/migrations/0114_structured_content_backfill_contract.sql'
@@ -63,7 +66,7 @@ jobs:
           STRUCTURED_CONTENT_APPLY: ${{ steps.mode.outputs.apply }}
           STRUCTURED_CONTENT_ONLY: ${{ matrix.syllabus }}
           STRUCTURED_CONTENT_REPORT: structured-content-backfill-${{ matrix.syllabus }}.json
-        run: python3 backend/scripts/structured_content_backfill.py
+        run: python3 backend/scripts/structured_content_backfill_v2.py
       - name: Upload backfill evidence
         if: always()
         uses: actions/upload-artifact@v4
