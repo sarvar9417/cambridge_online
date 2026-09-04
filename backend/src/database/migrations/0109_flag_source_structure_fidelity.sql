@@ -117,32 +117,12 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path TO 'public','pg_temp'
 AS $function$
-  SELECT jsonb_build_object(
-    'version','source-structure-repair-v1',
-    'questionCount',count(distinct q.id),
-    'paperCount',count(distinct sp.id),
-    'sources',coalesce(jsonb_agg(src ORDER BY (src->>'syllabusCode'),(src->>'year')::integer,src->>'series',(src->>'component')::integer,(src->>'variant')::integer),'[]'::jsonb)
-  )
-  FROM (
-    SELECT jsonb_build_object(
-      'sourcePaperId',sp.id,
-      'sourceUrl',sp.source_url,
-      'sourceSha256',sp.sha256,
-      'syllabusCode',sy.code,
-      'component',c.number,
-      'variant',sp.variant,
-      'series',sp.series,
-      'year',sp.year,
-      'leaves',jsonb_agg(
-        jsonb_build_object(
-          'questionId',q.id,
-          'path',q.path,
-          'displayRef',q.display_ref,
-          'ruleCode',vf.rule_code,
-          'details',vf.details
-        ) ORDER BY q.sort_order,q.id
-      )
-    ) src
+  WITH affected AS (
+    SELECT
+      q.id question_id,q.path,q.display_ref,q.sort_order,
+      sp.id source_paper_id,sp.source_url,sp.sha256 source_sha256,
+      sy.code syllabus_code,c.number component,sp.variant,sp.series::text series,sp.year,
+      vf.rule_code,vf.details
     FROM validation_findings vf
     JOIN questions q ON vf.ref_table='questions' AND vf.ref_id=q.id
     JOIN source_papers sp ON sp.id=q.source_paper_id AND sp.kind='QP'
@@ -152,19 +132,47 @@ AS $function$
       AND vf.rule_code IN ('source_structure_required_but_missing_table','source_structure_required_but_missing_layout')
       AND sp.source_url IS NOT NULL
       AND nullif(trim(coalesce(sp.sha256,'')),'') IS NOT NULL
-    GROUP BY sp.id,sp.source_url,sp.sha256,sy.code,c.number,sp.variant,sp.series,sp.year
-  ) grouped
-  CROSS JOIN LATERAL (
-    SELECT q2.id
-    FROM questions q2
-    JOIN validation_findings vf2 ON vf2.ref_table='questions' AND vf2.ref_id=q2.id
-    WHERE vf2.resolved_at IS NULL
-      AND vf2.rule_code IN ('source_structure_required_but_missing_table','source_structure_required_but_missing_layout')
-    LIMIT 1
-  ) q_dummy
-  CROSS JOIN LATERAL (SELECT q_dummy.id AS id) q
-  CROSS JOIN LATERAL (SELECT NULL::uuid AS id) sp_dummy
-  CROSS JOIN LATERAL (SELECT sp_dummy.id AS id) sp;
+  ), sources AS (
+    SELECT
+      source_paper_id,source_url,source_sha256,syllabus_code,component,variant,series,year,
+      jsonb_agg(
+        jsonb_build_object(
+          'questionId',question_id,
+          'path',path,
+          'displayRef',display_ref,
+          'ruleCode',rule_code,
+          'details',details
+        ) ORDER BY sort_order,question_id
+      ) AS leaves
+    FROM affected
+    GROUP BY source_paper_id,source_url,source_sha256,syllabus_code,component,variant,series,year
+  ), totals AS (
+    SELECT count(distinct question_id)::integer question_count,
+           count(distinct source_paper_id)::integer paper_count
+    FROM affected
+  )
+  SELECT jsonb_build_object(
+    'version','source-structure-repair-v1',
+    'questionCount',totals.question_count,
+    'paperCount',totals.paper_count,
+    'sources',coalesce((
+      SELECT jsonb_agg(
+        jsonb_build_object(
+          'sourcePaperId',source_paper_id,
+          'sourceUrl',source_url,
+          'sourceSha256',source_sha256,
+          'syllabusCode',syllabus_code,
+          'component',component,
+          'variant',variant,
+          'series',series,
+          'year',year,
+          'leaves',leaves
+        ) ORDER BY syllabus_code,year,series,component,variant
+      )
+      FROM sources
+    ),'[]'::jsonb)
+  )
+  FROM totals;
 $function$;
 
 REVOKE ALL ON FUNCTION public.source_structure_repair_bootstrap_v1() FROM PUBLIC,anon,authenticated;
