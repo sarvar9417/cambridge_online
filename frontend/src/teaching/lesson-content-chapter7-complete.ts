@@ -9,12 +9,12 @@ const chapter7BookWithCheckpoints = withChapter7PastPaperCheckpoints(CHAPTER_7_F
  * Complete Chapter 7 presenter route.
  *
  * Invariant: the original guided-discovery lesson remains first and unchanged.
- * The source-hardened coursebook deep-dive is appended only after that sequence,
+ * The source-exhaustive coursebook deep-dive receives final source hardening,
  * with live Cambridge 0478 checkpoints inserted after the final slide of each 7.1–7.9 part.
  */
 export const CHAPTER_7 = {
   ...DISCOVERY_CHAPTER_7,
-  subtitle: 'Guided discovery first, then the source-hardened Chapter 7 coursebook deep dive with live Cambridge 0478 past-paper checkpoints.',
+  subtitle: 'Guided discovery first, then the source-exhaustive Chapter 7 coursebook deep dive with final source hardening and live Cambridge 0478 past-paper checkpoints.',
   subtopics: [
     '7.1 Program development life cycle',
     '7.2 Systems, decomposition & algorithm design',
@@ -26,7 +26,7 @@ export const CHAPTER_7 = {
     '7.8 Identifying errors',
     '7.9 Writing & amending algorithms',
   ],
-  coverage: `15-slide discovery lesson + ${CHAPTER_7_FINAL_SOURCE_SLIDES.length}-slide source-hardened book deep dive + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_PAGE_AUDIT.length}/41 source pages audited`,
+  coverage: `15-slide discovery lesson + ${CHAPTER_7_FINAL_SOURCE_SLIDES.length}-slide source-exhaustive book deep dive with final source hardening + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} live 0478 checkpoints · ${CHAPTER_7_SOURCE_PAGE_AUDIT.length}/41 source pages audited`,
   slides: [...DISCOVERY_CHAPTER_7.slides, ...chapter7BookWithCheckpoints],
 };
 
