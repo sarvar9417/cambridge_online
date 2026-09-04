@@ -11,7 +11,9 @@ import {
   SOURCE_FILE_FIDELITY_MANIFESTS,
 } from './source-file-fidelity-manifest';
 
-const text=(value:unknown)=>JSON.stringify(value).toLowerCase();
+const text=(value:unknown)=>JSON.stringify(value).toLowerCase()
+  .replace(/\\\"/g,'"')
+  .replace(/\\\\/g,'\\');
 const shaPattern=/^[0-9a-f]{64}$/;
 
 describe('exact supplied PDF fidelity contract',()=>{
