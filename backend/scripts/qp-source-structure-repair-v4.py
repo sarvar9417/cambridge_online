@@ -6,6 +6,10 @@ textless/preceding visual recovery. It broadens the source cue vocabulary to the
 wording used across historical 0478/9618 papers and normalises repaired context
 ownership so shared tables/diagrams live on parent nodes instead of being
 flattened repeatedly into leaf context.
+
+The production broad-fidelity migration deliberately runs before this planner;
+every run therefore re-reads the live repair bootstrap instead of trusting an
+older artifact or hard-coded corpus count.
 """
 from __future__ import annotations
 
@@ -85,21 +89,15 @@ def build_rows_v4(pdf, source, work):
         text = row.setdefault("text", {})
         repaired = text.get("stemMd")
         if target.get("marks") is None:
-            # Parent/context nodes own shared printed material. Put the repaired
-            # prose back into contextMd so portable rendering inherits it once.
             if repaired:
                 text.pop("stemMd", None)
                 text["contextMd"] = repaired
         else:
-            # Historical source-text repair duplicated ancestor context onto
-            # leaves. The source event segment already contains the complete
-            # local leaf wording, so clear duplicated context on repaired leaves.
             if target.get("currentContext") is not None:
                 text["contextMd"] = None
     return rows, plan
 
 
-# v3 main resolves BASE["build_rows"] dynamically for every paper.
 BASE["build_rows"] = build_rows_v4
 
 
