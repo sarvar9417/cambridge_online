@@ -46,13 +46,13 @@ Deno.serve(async (req: Request) => {
     const body = await req.json()
     const action = String(body?.action || '')
     if (action === 'source_audit_bootstrap') {
-      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_bootstrap_v1')})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_bootstrap_v2')})
     }
     if (action === 'record_source_audit') {
       if (!Array.isArray(body?.audits) || body.audits.length < 1 || body.audits.length > 100) {
         return Response.json({ok:false,error:'audit_batch_must_contain_1_to_100_rows'},{status:400})
       }
-      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_record_v1',{p_audits:body.audits})})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_record_v2',{p_audits:body.audits})})
     }
     return Response.json({ok:false,error:'unknown_action'},{status:400})
   } catch (error) {
