@@ -26,7 +26,7 @@ BEGIN
           AND jsonb_typeof(content_json)='object'
           AND content_json->>'version'='1'
           AND jsonb_typeof(content_json->'source')='object'
-          AND nullif(btrim(content_json->'source'->>'paperId'),'') IS NOT NULL
+          AND content_json->'source'->>'paperId'=source_paper_id::text
           AND (content_json->'source'->>'sha256') ~ '^[0-9A-Fa-f]{64}$'
           AND jsonb_typeof(content_json->'blocks')='array'
           AND jsonb_array_length(content_json->'blocks')>0
