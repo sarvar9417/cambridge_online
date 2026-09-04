@@ -14,6 +14,7 @@ import {
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { CHAPTER_7_SOURCE_ACTIVITY_ATOMS } from './chapter7-source-activity-atoms';
+import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
 
 const text = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -115,6 +116,34 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     ].forEach((needle) => expect(presenter, needle).toContain(needle));
   });
 
+  it('preserves source-only sidebars, cross-links and the fifth life-cycle stage', () => {
+    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    expect(CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS.length).toBeGreaterThan(10);
+    [
+      'analysis, design, coding, testing and maintenance',
+      'draw a structure diagram for cleaning your teeth',
+      'for more on arrays see chapter 8',
+      'find an isbn and show that its check digit is correct',
+      'parity checks and checksums are used when data is transferred',
+      'write and test programs for examples 1 and 2',
+    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+  });
+
+  it('preserves the full exam-style task data instead of only question identifiers', () => {
+    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    [
+      'modulo 11 check digit for numbers from 4 to 20 digits in length',
+      'up to 12 diners and bills from $10 to $500',
+      'online form data: name · date of birth · password · phone number',
+      'trace data: 15, 10, 20, 17, 32, 10, 30, 35, 30, 15, 30, 28, 25, 25, 20, 15, 40, 20, 12, 10',
+      'until number < 0; total ← total + counter; counter ← counter + 1; output total; next number',
+      'input data: 5, 7, +, 6, 2, -, 4, 3, *, 7, 8, ?, 0, 0, /',
+      'paper 22 q3, june 2018',
+      'routine stores contributor name, email address and password',
+      'paper 22 q4, june 2018',
+    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+  });
+
   it('makes source atoms visible in the actual presenter route and reports them in coverage', () => {
     const route = text(CHAPTER_7);
     [
@@ -128,6 +157,7 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
       'exam-style question 1',
       'exam-style question 9',
       'abstract data type (adt)',
+      'modulo 11 check digit for numbers from 4 to 20 digits in length',
     ].forEach((needle) => expect(route, needle).toContain(needle));
 
     expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned`);
