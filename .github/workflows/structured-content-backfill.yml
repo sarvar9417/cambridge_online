@@ -8,7 +8,7 @@ on:
         required: false
         default: 'NO'
       only:
-        description: 'Optional 0478, 9618, sourcePaperId, or paper key'
+        description: 'Optional 0478 or 9618. Leave blank to process both in parallel.'
         required: false
         default: ''
   push:
@@ -30,8 +30,13 @@ permissions:
 
 jobs:
   source-backfill:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only == '' || inputs.only == matrix.syllabus }}
+    strategy:
+      fail-fast: false
+      matrix:
+        syllabus: ['0478', '9618']
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Install PDF tooling
@@ -57,13 +62,14 @@ jobs:
         env:
           STRUCTURED_CONTENT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/structured-content-runner
           STRUCTURED_CONTENT_APPLY: ${{ steps.mode.outputs.apply }}
-          STRUCTURED_CONTENT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
+          STRUCTURED_CONTENT_ONLY: ${{ matrix.syllabus }}
+          STRUCTURED_CONTENT_REPORT: structured-content-backfill-${{ matrix.syllabus }}.json
         run: python3 backend/scripts/structured_content_backfill.py
       - name: Upload backfill evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: structured-content-backfill-report
-          path: structured-content-backfill-report.json
+          name: structured-content-backfill-${{ matrix.syllabus }}
+          path: structured-content-backfill-${{ matrix.syllabus }}.json
           if-no-files-found: warn
           retention-days: 30
