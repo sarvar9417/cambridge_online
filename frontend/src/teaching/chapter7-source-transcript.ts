@@ -1,5 +1,6 @@
 import { CHAPTER_7_SOURCE_TRANSCRIPT_258_268 } from './chapter7-source-transcript-258-268';
 import { CHAPTER_7_SOURCE_TRANSCRIPT_269_279 } from './chapter7-source-transcript-269-279';
+import { CHAPTER_7_SOURCE_TRANSCRIPT_CORRECTIONS_274_279 } from './chapter7-source-transcript-corrections-274-279';
 import { CHAPTER_7_SOURCE_TRANSCRIPT_280_289 } from './chapter7-source-transcript-280-289';
 import { CHAPTER_7_SOURCE_TRANSCRIPT_290_298 } from './chapter7-source-transcript-290-298';
 
@@ -29,13 +30,18 @@ const importedTranscript: Chapter7SourcePageTranscript[] = [
   ...CHAPTER_7_SOURCE_TRANSCRIPT_290_298,
 ];
 
-// Import repair only: one accidental capitalisation was introduced while moving
-// the extracted p.277 text into the repository. The supplied PDF/source extract
-// has lowercase “the number of”; restore that exact source wording before use.
-export const CHAPTER_7_SOURCE_TRANSCRIPT: Chapter7SourcePageTranscript[] = importedTranscript.map((page) =>
-  page.printedPage === 277
-    ? { ...page, text: page.text.replace('\nTHE number of', '\nthe number of') }
-    : page,
+// The original 269-279 transport lost several PDF text-layer annotations on
+// pp.274-276 and changed one source character on p.277. Keep the original chunk
+// for history, but replace those affected pages with byte-verified source text.
+const correctionByPage = new Map<number, Chapter7SourcePageTranscript>(
+  CHAPTER_7_SOURCE_TRANSCRIPT_CORRECTIONS_274_279.map((page) => [
+    page.printedPage,
+    { printedPage: page.printedPage, text: page.text, sha256: page.sha256 },
+  ]),
+);
+
+export const CHAPTER_7_SOURCE_TRANSCRIPT: Chapter7SourcePageTranscript[] = importedTranscript.map(
+  (page) => correctionByPage.get(page.printedPage) ?? page,
 );
 
 export const CHAPTER_7_SOURCE_TRANSCRIPT_BY_PAGE = new Map(
