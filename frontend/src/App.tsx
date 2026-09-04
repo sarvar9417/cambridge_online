@@ -34,6 +34,8 @@ import { SystemPage } from './admin/SystemPage';
 import { QuestionBankPage } from './QuestionBankPage';
 import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
+import { StudentAssignments } from './student/StudentAssignments';
+import { StudentAttemptWorkspace } from './student/StudentAttemptWorkspace';
 import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
 import { ClassesPage } from './teaching/ClassesPage';
@@ -42,7 +44,6 @@ import { GradingQueue } from './teaching/GradingQueue';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
-import { AttemptContext } from './AttemptContext';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -499,56 +500,27 @@ export function App() {
   // The whole signed-out surface -- sign in, register, recover a password --
   // lives in AuthScreens, which owns its own errors and loading state.
   if (!user) return <AuthScreens onSignedIn={loadData} />;
-  if (attempt)
+  if (attempt) {
     return (
-      <main className="attempt">
-        <header>
-          <button
-            className="back"
-            title="Orqaga"
-            onClick={() => setAttempt(null)}
-          >
-            ←
-          </button>
-          <strong>
-            Vazifa · {attempt.questions.length} savol{" "}
-            {remainingSeconds !== null &&
-              `· ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`}
-          </strong>
-          <button onClick={()=>setSubmitConfirm(true)} disabled={remainingSeconds === 0}>
-            Topshirish
-          </button>
-        </header>
-        <div className={`sync-state ${online?'online':'offline'}`}>{online?'Sinxronlandi':'Oflayn — javoblaring saqlanmoqda'}</div>
-        {error && <p className="attempt-error">{error}</p>}
-        <div className="attempt-progress" aria-label={`${attemptIndex+1} / ${attempt.questions.length}`}>{attempt.questions.map((question,index)=><button title={`${index+1}. ${question.displayRef}`} aria-label={`${index+1}-savol`} className={(answers[question.id]??'').trim()?'answered':''} onClick={()=>setAttemptIndex(index)} key={question.id} />)}</div>
-        {(()=>{const question=attempt.questions[attemptIndex]!;return <>
-          <section className="question" key={question.id}>
-            <p className="ref">
-              {attemptIndex + 1}. {question.displayRef} · {question.commandWord} ·{" "}
-              {question.marks} ball
-            </p>
-            {question.contextMd && <AttemptContext value={question.contextMd} />}
-            <h2>{question.stemMd}</h2>
-            <textarea className={question.answerKind==='code'||question.answerKind==='pseudocode'?'code-answer':''}
-              disabled={remainingSeconds === 0}
-              value={answers[question.id] ?? ""}
-              onChange={(event) => change(question.id, event.target.value)}
-              placeholder="Javobingni yoz..."
-            />
-            <small>
-              {
-                (answers[question.id] ?? "").trim().split(/\s+/).filter(Boolean)
-                  .length
-              }{" "}
-              so‘z · avtomatik saqlanadi
-            </small>
-          </section>
-          <nav className="attempt-nav"><button className="secondary" disabled={attemptIndex===0} onClick={()=>setAttemptIndex(value=>value-1)}>← Oldingi</button><span>{attemptIndex+1} / {attempt.questions.length}</span><button disabled={attemptIndex===attempt.questions.length-1} onClick={()=>setAttemptIndex(value=>value+1)}>Keyingi →</button></nav>
-        </>})()}
-        {submitConfirm&&<div className="modal-backdrop" role="presentation"><section className="submit-dialog" role="dialog" aria-modal="true" aria-labelledby="submit-title"><h2 id="submit-title">Topshirishga tayyormisan?</h2><p>Javob berilgan: <strong>{attempt.questions.filter(question=>(answers[question.id]??'').trim()).length} / {attempt.questions.length}</strong></p>{attempt.questions.some(question=>!(answers[question.id]??'').trim())&&<p>Bo‘sh: {attempt.questions.filter(question=>!(answers[question.id]??'').trim()).map(question=>question.displayRef).join(', ')}</p>}<p>Topshirgandan keyin javobni o‘zgartira olmaysan.</p><div><button className="secondary" onClick={()=>setSubmitConfirm(false)}>Ortga</button><button onClick={submit}>Topshirish</button></div></section></div>}
-      </main>
+      <StudentAttemptWorkspace
+        attempt={attempt}
+        index={attemptIndex}
+        answers={answers}
+        remainingSeconds={remainingSeconds}
+        online={online}
+        error={error}
+        submitConfirm={submitConfirm}
+        onBack={() => { setAttempt(null); setSubmitConfirm(false); }}
+        onSelect={setAttemptIndex}
+        onAnswerChange={change}
+        onPrevious={() => setAttemptIndex((value) => Math.max(0, value - 1))}
+        onNext={() => setAttemptIndex((value) => Math.min(attempt.questions.length - 1, value + 1))}
+        onRequestSubmit={() => setSubmitConfirm(true)}
+        onCancelSubmit={() => setSubmitConfirm(false)}
+        onSubmit={submit}
+      />
     );
+  }
 
   /*
    * The sections, named and routed.
@@ -562,45 +534,9 @@ export function App() {
    * a teacher who types a student URL should get nothing, not an empty
    * student screen.
    */
-  const studentAssignments = (
-    <>
-        {user.role === "student" && (
-          <section id="student-assignments">
-            <h2>Vazifalar</h2>
-            <div className="table">
-              {assignments.map((assignment) => {
-                const closed = Boolean(
-                  assignment.submissionStatus &&
-                    assignment.submissionStatus !== "in_progress" &&
-                    assignment.submissionStatus !== "not_started",
-                );
-                return (
-                  <div className="tr assignment" key={assignment.id}>
-                    <div>
-                      <strong>{assignment.title}</strong>
-                      <small>
-                        {assignment.className} · {assignment.totalMarks} ball
-                      </small>
-                    </div>
-                    <span>{assignment.submissionStatus ?? "Boshlanmagan"}</span>
-                    <button
-                      disabled={closed}
-                      onClick={() => start(assignment.id)}
-                    >
-                      {assignment.submissionStatus === "in_progress"
-                        ? "Davom etish"
-                        : closed
-                          ? "Yakunlangan"
-                          : "Boshlash"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-    </>
-  );
+  const studentAssignments = user.role === "student"
+    ? <StudentAssignments assignments={assignments} onStart={start} />
+    : null;
 
   const studentResults = (
     <StudentResults
