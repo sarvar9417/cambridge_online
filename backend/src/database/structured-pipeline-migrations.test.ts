@@ -15,11 +15,13 @@ describe('structured question migration contracts',()=>{
     expect(sql).not.toMatch(/SET\s+status\s*=\s*['\"]approved/i);
   });
 
-  it('enriches only printed Boolean expressions and rejects answer placeholders',()=>{
+  it('enriches only printed Boolean expressions and preserves the matched audit line',()=>{
     const sql=migration('0118_boolean_expression_semantics.sql');
     expect(sql).toContain("'semantics','boolean_expression'");
     expect(sql).toContain("candidate !~ '(_{3,}|\\.{3,})'");
     expect(sql).toContain('boolean_source_to_latex_v1');
+    expect(sql).toContain('v_expression := v_line');
+    expect(sql).toContain('v_source_page,v_expression,v_latex');
     expect(sql).toContain('set_question_structured_content_v1');
     expect(sql).toContain("'status','no_printed_expression'");
     expect(sql).toContain('boolean_expression_semantic_audits');
