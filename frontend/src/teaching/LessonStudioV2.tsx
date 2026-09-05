@@ -10,6 +10,8 @@ import {
 } from './lesson-content-source-complete';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
+import { FullSourceTranscript } from './FullSourceTranscript';
+import type { SourceTranscriptChapter } from './source-transcript-bundles';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
 import './lesson-studio-presenter-fix.css';
@@ -80,10 +82,10 @@ function RichBlock({ block }: { block:LessonRichBlock }) {
   return <div className="hodder-table-wrap"><table className="hodder-table"><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,index)=><td key={`${rowIndex}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-function SourceTrace({ slide }: { slide:LessonSlide }) {
+function SourceTrace({ slide,chapter }: { slide:LessonSlide; chapter:SourceTranscriptChapter }) {
   const pages=slide.sourcePages??[],elements=slide.sourceElements??[];
   if(!pages.length&&!elements.length)return null;
-  return <details className="lesson-source-trace"><summary>{slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
+  return <details className="lesson-source-trace"><summary>{slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div>{pages.length>0&&<FullSourceTranscript chapter={chapter} sourcePages={pages}/>}</details>;
 }
 
 function ExamPractice({ slide }: { slide:LessonSlide }) {
@@ -137,7 +139,7 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
   </>;
 }
 
-function SlideBody({ slide }: { slide:LessonSlide }) {
+function SlideBody({ slide,chapter }: { slide:LessonSlide; chapter:SourceTranscriptChapter }) {
   return <>
     <div className="lesson-copy hodder-copy">
       <p className="lesson-eyebrow">{slide.eyebrow}</p>
@@ -150,7 +152,7 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
       {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<aside className="lesson-prompt"><span>DISCUSS</span><p>{slide.teacherPrompt}</p></aside>}
       {slide.activity&&<details className="lesson-activity"><summary><span>CLASS ACTIVITY</span><strong>{slide.activity.title}</strong></summary><p>{slide.activity.prompt}</p>{slide.activity.reveal&&<div className="lesson-activity-answer"><span>ANSWER / GUIDE</span><p>{slide.activity.reveal}</p></div>}</details>}
-      <SourceTrace slide={slide}/>
+      <SourceTrace slide={slide} chapter={chapter}/>
     </div>
     <Visual kind={slide.visual}/>
   </>;
@@ -175,12 +177,13 @@ export function LessonStudio({ user }: { user:User }) {
   if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Elektron doska uchun source-audited Hodder lessons. Chapter 1 va 13 uploaded source bo‘yicha page-by-page qayta qurilgan.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} chapter</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer></button>)}</div></section>;
   if(!slide)return null;
 
+  const sourceChapter=chosen.number as SourceTranscriptChapter;
   const sectionStart=sections.map(section=>chosen.slides.findIndex(item=>item.section===section));
   return <section ref={studioRef} className={`lesson-studio hodder-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
     <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number}</span><strong>{chosen.title}</strong></div><div className="lesson-toolbar-actions"><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Presenter’dan chiqish':'Doskada ochish ↗'}</button></div></header>
     <div className="lesson-progress"><span style={{width:`${((index+1)/chosen.slides.length)*100}%`}}/></div>
     <div className="lesson-workspace"><aside className="lesson-outline"><p>CHAPTER {chosen.number}</p>{sections.map((section,i)=><button className={slide.section===section?'active':''} key={section} onClick={()=>setIndex(sectionStart[i]!)}><span>{String(i+1).padStart(2,'0')}</span>{section}</button>)}</aside>
-      <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>{slide.examPractice?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><div><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1></div><p>{slide.lead}</p></div><ExamPractice slide={slide}/><SourceTrace slide={slide}/></div>:slide.id.startsWith('ch7-')?<Chapter7SlideBody slide={slide}/>:<SlideBody slide={slide}/>}<div className="lesson-slide-watermark">CamPath · {chosen.level}</div></main>
+      <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>{slide.examPractice?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><div><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1></div><p>{slide.lead}</p></div><ExamPractice slide={slide}/><SourceTrace slide={slide} chapter={sourceChapter}/></div>:slide.id.startsWith('ch7-')?<><Chapter7SlideBody slide={slide}/><SourceTrace slide={slide} chapter={sourceChapter}/></>:<SlideBody slide={slide} chapter={sourceChapter}/>}<div className="lesson-slide-watermark">CamPath · {chosen.level}</div></main>
     </div>
     <footer className="lesson-nav"><button disabled={index===0} onClick={()=>setIndex(value=>Math.max(0,value-1))}>← Oldingi</button><div>{chosen.slides.map((item,i)=><button key={item.id} aria-label={`${i+1}-slide`} className={i===index?'active':item.section===slide.section?'same-section':''} onClick={()=>setIndex(i)}/>)}</div><button disabled={index===chosen.slides.length-1} onClick={()=>setIndex(value=>Math.min(chosen.slides.length-1,value+1))}>Keyingi →</button></footer>
   </section>;

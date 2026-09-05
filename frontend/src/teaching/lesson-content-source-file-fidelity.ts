@@ -23,7 +23,7 @@ const addFileFingerprints = (chapter:HodderLessonChapter, manifest:SourceFileFid
   const detailPages=suppliedDetailPageCount(chapter.number);
   return {
     ...chapter,
-    coverage:`${chapter.coverage} · exact supplied PDF locked (${manifest.pageCount}/${manifest.pageCount} page fingerprints) · ${detailPages}/${manifest.pageCount} supplied-PDF detail pages`,
+    coverage:`${chapter.coverage} · exact supplied PDF locked (${manifest.pageCount}/${manifest.pageCount} page fingerprints) · ${detailPages}/${manifest.pageCount} supplied-PDF detail pages · ${manifest.pageCount}/${manifest.pageCount} full source transcript pages`,
     slides:chapter.slides.map(slide=>{
       const printedPages=(slide.sourcePages??[]).map(page=>chapter.number===13?page+303:page);
       const fingerprints=printedPages.flatMap(page=>{
