@@ -26,4 +26,13 @@ describe('user management hardening migration', () => {
     expect(sql).toContain('a.archived_at is null');
     expect(sql).toContain('on conflict do nothing');
   });
+
+  it('redacts user profile snapshots when a permanent purge is audited', () => {
+    expect(sql).toContain('redact_user_purge_audit_v1');
+    expect(sql).toContain("new.action = 'admin.user_purge'");
+    expect(sql).toContain("where ref_table = 'users' and ref_id = new.ref_id");
+    expect(sql).toContain("'{\"redacted\":true}'::jsonb");
+    expect(sql).toContain("'role', new.before -> 'role'");
+    expect(sql).toContain("'status', new.before -> 'status'");
+  });
 });
