@@ -100,9 +100,9 @@ describe('granular part checkpoints',()=>{
 });
 
 describe('semantic source fidelity',()=>{
-  it('turns the memory-prefix gap into a real exact historical-LO checkpoint',()=>{
+  it('keeps the memory-prefix checkpoint on the current target LO while historical questions resolve through compatibility',()=>{
     const c=lessonChapter(1)!;const checkpoint=slide(c,'h1-cp-memory-prefixes');
-    expect(checkpoint.learningObjectiveCodes).toEqual(['1.1-lo-00']);
+    expect(checkpoint.learningObjectiveCodes).toEqual(['1.1.1']);
     expect(checkpoint.checkpointUnavailableReason).toBeUndefined();
     expect(blockText(slide(c,'h1-memory-units').richBlocks)).toContain('kibi/kilo');
     expect(blockText(slide(c,'h1-memory-units').richBlocks)).toContain('tebi/tera');
