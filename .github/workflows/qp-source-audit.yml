@@ -7,6 +7,10 @@ on:
         description: Optional paper key, e.g. 2024-MJ-13
         required: false
         type: string
+      year:
+        description: Optional exam year, e.g. 2026
+        required: false
+        type: string
       strict:
         description: Fail when any normalized text mismatch is found
         required: false
@@ -16,8 +20,10 @@ on:
     branches: [fix/9618-full-source-audit]
     paths:
       - backend/scripts/qp-source-audit-runner.py
+      - backend/scripts/qp-source-audit-runner-v2.py
       - backend/scripts/qp-source-repair.py
       - backend/src/database/migrations/0106_qp_source_audit_runner_bootstrap.sql
+      - backend/src/database/migrations/0123_source_verified_corpus_completion.sql
       - scripts/test_qp_source_audit.py
       - .github/workflows/qp-source-audit.yml
 
@@ -28,10 +34,11 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       CORPUS_AUDIT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-audit-runner
       SOURCE_AUDIT_ONLY: ${{ inputs.only || '' }}
+      SOURCE_AUDIT_YEAR: ${{ inputs.year || '' }}
       SOURCE_AUDIT_STRICT: ${{ inputs.strict && '1' || '0' }}
       SOURCE_AUDIT_REPORT: source-audit-report.json
     steps:
@@ -43,8 +50,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-      - name: Audit all official QPs against the database snapshot
-        run: python backend/scripts/qp-source-audit-runner.py
+      - name: Audit official QPs against the database snapshot
+        run: python backend/scripts/qp-source-audit-runner-v2.py
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
