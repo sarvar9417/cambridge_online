@@ -23,7 +23,8 @@ The existing **Boshqaruv → Odamlar** approval queue is the single owner-facing
 
 - privileged management routes remain owner-only
 - the teacher reset-link exception is deliberately narrow: a teacher may issue a reset link only for an **active student in the same school**; staff and cross-school accounts are blocked
-- owners administer only their own school; unassigned pending/rejected registrations are visible only as the onboarding queue
+- owners administer only their own school
+- tenant-less pending/rejected registrations are exposed as an onboarding queue only while the installation has exactly **one** school; if a second school exists, that ambiguous queue fails closed until registration has an explicit school-selection/invite mechanism
 - an owner cannot change their own role/status or delete/purge their own account
 - passwords are Argon2 hashes and never returned by the API
 - password, email or username changes invalidate stale sessions and one-shot reset material; changing an email also invalidates old verification tokens and requires the new address to be verified
@@ -32,9 +33,10 @@ The existing **Boshqaruv → Odamlar** approval queue is the single owner-facing
 - changing a user into a student removes teacher-class links; classes they owned are transferred to the acting owner
 - moving a student closes any other active enrolment before opening the selected class
 - every active enrolment path backfills submissions for already-published, non-archived assignments
-- a group must belong to the selected class, and class/group assignment cannot cross school boundaries
+- a group must belong to the selected class, can be assigned only to a student, and class/group assignment cannot cross school boundaries
 - safe delete discovers direct user foreign keys from PostgreSQL metadata and refuses accounts with meaningful academic/administrative data
-- irreversible purge requires the literal confirmation `DELETE`; user-owned `ON DELETE CASCADE` data is deleted, nullable historical references are cleared, and required historical ownership is transferred to the acting owner
+- irreversible purge requires the literal confirmation `DELETE`; user-owned `ON DELETE CASCADE` data is deleted and nullable historical references are cleared
+- required `NO ACTION`/`RESTRICT` references transfer to the acting owner **only** for the explicit ownership allowlist (`assignments.created_by`, `classes.owner_id`, `exports.requested_by`, `invites.created_by`); any unknown future required user FK fails closed and blocks purge
 - when a permanent purge is audited, user-profile snapshots in that user's audit history are redacted so deleted name/email/username data is not retained inside audit JSON
 - every sensitive management action is written to `audit_log`
 
@@ -61,3 +63,5 @@ After deploying account-lifecycle changes:
 2. apply all pending database migrations, including `0119_user_identity_and_enrollment_hardening.sql`
 3. run `backend/src/database/audits/admin-user-management.sql`; every query must return zero rows
 4. smoke-test the People surface for search/pagination, approve/reject, role/class changes, password/session controls, safe delete and purge confirmation
+
+The `0119` DDL has also been syntax- and behavior-validated against the production Supabase schema inside a transaction that is rolled back: identity changes revoke stale session/reset/verification material, username-only accounts remain sign-in capable, purge audit snapshots redact profile PII, and enrollment backfill creates submissions for already-published assignments when such an assignment exists.
