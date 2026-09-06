@@ -116,7 +116,7 @@ Deno.serve(async(req:Request)=>{
   try{
     if(req.method!=='POST')return Response.json({error:'method_not_allowed'},{status:405})
     const claims=await authenticate(req),body=await req.json(),action=String(body?.action||'')
-    const writeAction=['apply','repair','stage','catalog'].includes(action)
+    const writeAction=['apply','repair','stage','catalog','flag_fidelity','approve'].includes(action)
     if(writeAction&&REVOKED_WRITE_RUNS.has(String(claims.run_id||'')))return Response.json({ok:false,error:'workflow_run_write_revoked'},{status:409})
 
     if(action==='catalog'){
@@ -127,13 +127,17 @@ Deno.serve(async(req:Request)=>{
 
     if(action==='stage'){
       const sources=body?.sources
+      const requestedCode=String(body?.syllabus_code||'').trim()
       if(!Array.isArray(sources)||sources.length===0||sources.length>12)return Response.json({error:'invalid_stage_payload'},{status:400})
       const results=[]
       for(const src of sources){
         const sourceUrl=String(src?.source_url||''),filename=String(src?.filename||'')
+        const code=String(src?.syllabus_code||requestedCode).trim()
+        if(!['0478','9618'].includes(code))return Response.json({error:'invalid_stage_syllabus'},{status:400})
         if(!sourceUrl||!filename)return Response.json({error:'invalid_stage_item'},{status:400})
         const bytes=await fetchPdf(sourceUrl),sha=await sha256Hex(bytes),pdf=await getDocumentProxy(bytes)
-        results.push(await rpc('stage_0478_remote_source_v1',{
+        const fn=code==='9618'?'stage_9618_remote_source_v1':'stage_0478_remote_source_v1'
+        results.push(await rpc(fn,{
           p_year:Number(src.year),p_series:String(src.series),p_component:Number(src.component),
           p_variant:Number(src.variant),p_kind:String(src.kind),p_filename:filename,
           p_source_url:sourceUrl,p_sha256:sha,p_page_count:pdf.numPages
@@ -166,11 +170,25 @@ Deno.serve(async(req:Request)=>{
 
     if(action==='apply'||action==='repair'){
       const qpId=String(body?.qp_id||''),msId=String(body?.ms_id||''),rows=body?.rows
+      const code=String(body?.syllabus_code||'').trim()
       if(!qpId||!msId||!Array.isArray(rows)||rows.length===0)return Response.json({error:'invalid_apply_payload'},{status:400})
       if(rows.length>80)return Response.json({error:'too_many_rows'},{status:413})
       if(action==='repair')return Response.json({ok:true,result:await rpc('repair_source_backfill_paper_v1',{p_qp_id:qpId,p_ms_id:msId,p_rows:rows,p_prompt:'source-backed-oidc-repair-v1'})})
-      const is0478=String(body?.syllabus_code||'')==='0478',fn=is0478?'ingest_source_backfill_paper_v3':'ingest_source_backfill_paper_v2'
-      return Response.json({ok:true,result:await rpc(fn,{p_qp_id:qpId,p_ms_id:msId,p_rows:rows,p_prompt:is0478?'source-backed-0478-oidc-v1':'source-backed-oidc-backfill-v1'})})
+      if(!['0478','9618'].includes(code))return Response.json({error:'invalid_apply_syllabus'},{status:400})
+      const prompt=code==='0478'?'source-backed-0478-oidc-v2':'source-backed-9618-oidc-v2'
+      return Response.json({ok:true,result:await rpc('ingest_source_backfill_paper_v4',{p_qp_id:qpId,p_ms_id:msId,p_rows:rows,p_prompt:prompt})})
+    }
+
+    if(action==='flag_fidelity'){
+      const code=String(body?.syllabus_code||'').trim(),year=Number(body?.year)
+      if(!['0478','9618'].includes(code)||!Number.isInteger(year))return Response.json({error:'invalid_fidelity_scope'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('flag_source_fidelity_requirements_v1',{p_syllabus_code:code,p_year:year})})
+    }
+
+    if(action==='approve'){
+      const code=String(body?.syllabus_code||'').trim(),year=Number(body?.year)
+      if(!['0478','9618'].includes(code)||!Number.isInteger(year))return Response.json({error:'invalid_approval_scope'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('approve_source_verified_structured_questions_v1',{p_syllabus_code:code,p_year:year})})
     }
 
     return Response.json({error:'unknown_action'},{status:400})
