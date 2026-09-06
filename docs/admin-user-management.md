@@ -60,8 +60,8 @@ The existing approval, rejection, status, role, reset-code, email-verification, 
 After deploying account-lifecycle changes:
 
 1. run the repository test/typecheck/build gate (`npm run verify`)
-2. apply all pending database migrations, including `0119_user_identity_and_enrollment_hardening.sql`
+2. apply all pending database migrations, including `0120_user_identity_and_enrollment_hardening.sql`
 3. run `backend/src/database/audits/admin-user-management.sql`; every query must return zero rows
 4. smoke-test the People surface for search/pagination, approve/reject, role/class changes, password/session controls, safe delete and purge confirmation
 
-The `0119` DDL has also been syntax- and behavior-validated against the production Supabase schema inside a transaction that is rolled back: identity changes revoke stale session/reset/verification material, username-only accounts remain sign-in capable, purge audit snapshots redact profile PII, and enrollment backfill creates submissions for already-published assignments when such an assignment exists.
+The `0120` DDL has also been syntax- and behavior-validated against the production Supabase schema inside a transaction that is rolled back: identity changes revoke stale session/reset/verification material, username-only accounts remain sign-in capable, purge audit snapshots redact profile PII, and enrollment backfill creates submissions for already-published assignments when such an assignment exists.
