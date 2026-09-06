@@ -64,6 +64,15 @@ Deno.serve(async (req: Request) => {
     if (action === 'structured_content_bootstrap') {
       const syllabus = String(body?.syllabus || '')
       if (!['0478','9618'].includes(syllabus)) return Response.json({ok:false,error:'invalid_syllabus'},{status:400})
+      const hasWindow = body?.year_from !== undefined || body?.year_to !== undefined
+      if (hasWindow) {
+        const yearFrom = Number(body?.year_from)
+        const yearTo = Number(body?.year_to)
+        if (!Number.isInteger(yearFrom) || !Number.isInteger(yearTo)) return Response.json({ok:false,error:'invalid_year_window'},{status:400})
+        return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('structured_content_backfill_bootstrap_v2',{
+          p_syllabus_code:syllabus,p_year_from:yearFrom,p_year_to:yearTo,
+        })})
+      }
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('structured_content_backfill_bootstrap_v1',{p_syllabus_code:syllabus})})
     }
     if (action === 'structured_content_apply') {
