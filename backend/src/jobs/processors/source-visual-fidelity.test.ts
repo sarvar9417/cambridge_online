@@ -41,6 +41,15 @@ describe('source visual fidelity', () => {
     expect(requiresSourceVisual('Draw a logic circuit for the expression X = A AND B.')).toBe(false);
   });
 
+  it('recognises Cambridge structures whose geometry carries source meaning', () => {
+    expect(requiresSourceVisual('Complete the program flowchart to represent the algorithm.')).toBe(true);
+    expect(requiresSourceVisual('Complete the class diagram for Appointment.')).toBe(true);
+    expect(requiresSourceVisual('Complete the binary tree, including null pointers.')).toBe(true);
+    expect(requiresSourceVisual('During the design, a state-transition diagram is produced.')).toBe(true);
+    expect(requiresSourceVisual(null, 'A structure chart has Main calling Sub_A or Sub_B.')).toBe(true);
+    expect(requiresSourceVisual(null, 'Syntax diagrams define upper, lower and digit.')).toBe(true);
+  });
+
   it('flags a leaf that requires a source visual when the full ancestor chain has none', () => {
     const result = enforceSourceVisualFidelity([parent(), question()]);
     const leaf = result.find((item) => item.path === '1.a')!;
