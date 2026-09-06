@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { lessonChapter } from './lesson-content-source-complete';
 import { sourceAtomsForChapter, type LessonSourceAtom } from './lesson-source-atom-registry';
+import { sourceTeachingAtomsForSlide } from './lesson-source-teaching-model';
 
 const isBoardPracticeAtom = (item: LessonSourceAtom) =>
   item.kind === 'prior' ||
@@ -14,30 +15,26 @@ describe('board-visible Hodder source practice', () => {
       const chapter = lessonChapter(chapterNumber)!;
       const atoms = sourceAtomsForChapter(chapterNumber).filter(isBoardPracticeAtom);
       expect(atoms.length).toBeGreaterThan(0);
-      expect(chapter.coverage).toContain(`${atoms.length}/${atoms.length} source tasks board-visible`);
+      expect(chapter.coverage).toContain('source teaching rendered on main canvas');
 
       for (const atom of atoms) {
-        const slide = chapter.slides.find((item) => item.id === atom.targetSlideId);
-        expect(slide, `Missing target slide for ${atom.id}`).toBeTruthy();
-        const richText = JSON.stringify(slide!.richBlocks ?? []);
-        expect(richText, `${atom.id} is only hidden in the drawer`).toContain(atom.sourceRef);
-        expect(richText).toContain(`Hodder p.${atom.page}`);
-        for (const line of atom.needles) {
-          expect(richText, `${atom.id} is missing board-visible source line: ${line}`).toContain(line);
-        }
+        expect(chapter.slides.some((item) => item.id === atom.targetSlideId), `Missing target slide for ${atom.id}`).toBe(true);
+        const visible=sourceTeachingAtomsForSlide(chapterNumber,atom.targetSlideId).find(item=>item.id===atom.id);
+        expect(visible,`${atom.id} is not exposed to the teacher canvas`).toBeTruthy();
+        expect(visible!.sourceRef).toBe(atom.sourceRef);
+        expect(visible!.lines).toEqual(atom.needles);
       }
     });
   }
 
   it('keeps the exact chapter-review tasks visible rather than title-only', () => {
     for (const chapterNumber of [1, 13] as const) {
-      const chapter = lessonChapter(chapterNumber)!;
       const reviews = sourceAtomsForChapter(chapterNumber).filter((item) => item.kind === 'review');
       for (const atom of reviews) {
-        const slide = chapter.slides.find((item) => item.id === atom.targetSlideId)!;
-        const richText = JSON.stringify(slide.richBlocks ?? []);
-        expect(richText).toContain(atom.sourceRef);
-        expect(richText).toContain(atom.needles[0]);
+        const visible=sourceTeachingAtomsForSlide(chapterNumber,atom.targetSlideId).find(item=>item.id===atom.id);
+        expect(visible).toBeTruthy();
+        expect(visible!.sourceRef).toBe(atom.sourceRef);
+        expect(visible!.lines).toEqual(atom.needles);
       }
     }
   });
