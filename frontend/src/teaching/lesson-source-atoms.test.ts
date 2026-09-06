@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { lessonChapter } from './lesson-content-source-complete';
 import { COMPLETE_SOURCE_ATOMS, sourceAtomsForChapter } from './lesson-source-atom-registry';
+import { sourceTeachingAtomsForChapter, sourceTeachingAtomsForSlide } from './lesson-source-teaching-model';
 
 const expectedPages = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
@@ -46,15 +47,20 @@ describe('source atom registry', () => {
     }
   });
 
-  it('keeps exact source data in the collapsed activity drawer instead of flooding the main rich-block canvas', () => {
+  it('exposes every source atom on the normal teacher canvas instead of treating the collapsed drawer as completion', () => {
     for (const chapterNumber of [1, 13] as const) {
-      const chapter = lessonChapter(chapterNumber)!;
-      const atomSlideIds = new Set(sourceAtomsForChapter(chapterNumber).map((item) => item.targetSlideId));
+      const registered=sourceAtomsForChapter(chapterNumber);
+      const visible=sourceTeachingAtomsForChapter(chapterNumber);
+      expect(visible.map(item=>item.id).sort()).toEqual(registered.map(item=>item.id).sort());
+
+      const atomSlideIds = new Set(registered.map((item) => item.targetSlideId));
       for (const slideId of atomSlideIds) {
-        const slide = chapter.slides.find((item) => item.id === slideId)!;
-        expect(slide.activity?.title).toMatch(/BOOK PRACTICE|SOURCE DETAIL/);
-        expect(slide.activity?.prompt).toContain('Hodder p.');
-        expect(JSON.stringify(slide.richBlocks ?? [])).not.toContain('SOURCE ATOM');
+        const onSlide=sourceTeachingAtomsForSlide(chapterNumber,slideId);
+        expect(onSlide.length,`${slideId} has no main-canvas source material`).toBeGreaterThan(0);
+        onSlide.forEach(atom=>{
+          expect(atom.lines.length,`${atom.id} has no visible content`).toBeGreaterThan(0);
+          expect(atom.pageLabel).toContain('Hodder p.');
+        });
       }
     }
   });
