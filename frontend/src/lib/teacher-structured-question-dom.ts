@@ -5,11 +5,16 @@ import {
   type StructuredQuestionContent,
 } from './structured-question-content';
 import { renderStructuredQuestionContent } from './structured-question-renderer';
+import {
+  materializePortableSourceAssets,
+  portableAssetsForContent,
+  unresolvedVisualAsset,
+  type PortableSourceAsset,
+} from './portable-source-assets';
 
-type PortableAsset = { id:string;url?:string|null };
 type PortableQuestion = {
   leaf:{ contentJson?:unknown };
-  contextBlocks:Array<{ context?:unknown;assets:PortableAsset[] }>;
+  contextBlocks:Array<{ context?:unknown;assets:PortableSourceAsset[] }>;
 };
 type RefResponse = {
   detail:{ contentJson?:unknown };
@@ -44,12 +49,8 @@ function loadByRef(ref:string){
   return pending;
 }
 
-function assetUrls(portable:PortableQuestion){
-  const urls:Record<string,string>={};
-  for(const block of portable.contextBlocks??[])for(const asset of block.assets??[]){
-    if(asset.id&&asset.url)urls[asset.id]=asset.url;
-  }
-  return urls;
+function allPortableAssets(portable:PortableQuestion){
+  return (portable.contextBlocks??[]).flatMap((block)=>block.assets??[]);
 }
 
 function canonicalContent(value:RefResponse):StructuredQuestionContent|null{
@@ -59,10 +60,6 @@ function canonicalContent(value:RefResponse):StructuredQuestionContent|null{
 
 function canonicalAssetIds(content:StructuredQuestionContent){
   return new Set(content.blocks.filter((block):block is AssetBlock=>block.type==='asset').map((block)=>block.assetId));
-}
-
-function missingAsset(content:StructuredQuestionContent,urls:Record<string,string>):AssetBlock|undefined{
-  return content.blocks.find((block):block is AssetBlock=>block.type==='asset'&&!urls[block.assetId]);
 }
 
 function hideDuplicateAssetNodes(target:Element,content:StructuredQuestionContent,portable:PortableQuestion){
@@ -101,9 +98,14 @@ function alertHost(message:string){
   return host;
 }
 
-function renderCanonical(target:Element,content:StructuredQuestionContent,portable:PortableQuestion){
-  const urls=assetUrls(portable);
-  const missing=missingAsset(content,urls);
+function renderCanonical(target:Element,canonical:StructuredQuestionContent,portable:PortableQuestion){
+  const assets=allPortableAssets(portable);
+  // Older source-backed rows sometimes point at a semantic table/pseudocode
+  // through an asset block even though the asset has no storage URL. Upgrade
+  // those in memory; do not mutate provenance or silently flatten them.
+  const content=materializePortableSourceAssets(canonical,assets);
+  const urls=portableAssetsForContent(assets);
+  const missing=unresolvedVisualAsset(content,urls);
   const host=document.createElement('div');
   host.className='structured-question-view teacher-structured-question';
   host.dataset.contentVersion='1';
@@ -113,7 +115,10 @@ function renderCanonical(target:Element,content:StructuredQuestionContent,portab
     host.append(renderStructuredQuestionContent(content,{resolveAsset:(id)=>urls[id]??null}));
   }
 
-  hideDuplicateAssetNodes(target,content,portable);
+  // Deduplication is based on the original canonical ids. A semantic table may
+  // have been materialized above, but its legacy context-node rendering must
+  // still be hidden so the question is not shown twice.
+  hideDuplicateAssetNodes(target,canonical,portable);
   if(target.matches('.lesson-question-workspace .lesson-workspace-stem')){
     target.replaceChildren(host);
   }else{

@@ -1,4 +1,5 @@
 import type { ExtractedQuestion } from './ingestion-contract.js';
+import { isFaithfulVisualAsset } from './source-visual-fidelity.js';
 
 export type SourceStructureKind = 'table' | 'layout';
 export const SOURCE_STRUCTURE_MISSING_PREFIX = 'source_structure_required_but_missing:';
@@ -26,13 +27,24 @@ export function requiredSourceStructures(stemMd: string | null, contextMd: strin
   return [...required];
 }
 
+/** A semantic table must actually contain a pipe-delimited grid, not prose saying a table exists. */
+export function isSemanticTableContent(value: string | null | undefined) {
+  const rows = (value ?? '').split(/\r?\n/).map((line) => line.trim()).filter((line) => line.includes('|'));
+  return rows.some((line) => {
+    const body = line.replace(/^\|/, '').replace(/\|$/, '');
+    return body.split('|').length >= 2;
+  });
+}
+
 function hasRenderableAsset(question: ExtractedQuestion, kind: SourceStructureKind) {
   return question.assets.some((asset) => {
-    const hasContent = Boolean(asset.contentMd?.trim());
-    const hasCrop = Boolean(asset.page && asset.bbox);
-    const visual = asset.kind === 'diagram' || asset.kind === 'image';
-    if (kind === 'table') return (asset.kind === 'table' && hasContent) || (visual && (hasContent || hasCrop));
-    return (asset.kind === 'table' && hasContent) || (visual && (hasContent || hasCrop));
+    if (kind === 'table') {
+      if (asset.kind === 'table' && isSemanticTableContent(asset.contentMd)) return true;
+      return isFaithfulVisualAsset(asset);
+    }
+    // Matching/positional layouts carry meaning in their geometry. A prose or
+    // ASCII approximation is not sufficient; preserve it as SVG or a source crop.
+    return isFaithfulVisualAsset(asset);
   });
 }
 
@@ -53,8 +65,8 @@ function ancestorChain(question: ExtractedQuestion, byPath: Map<string, Extracte
 /**
  * Preserve source layouts that carry answer semantics. A table/tick grid/matching
  * layout may live on the leaf or an ancestor context node. We accept either a
- * semantic table transcription or a source-faithful visual crop; plain text is
- * deliberately not sufficient because column/row relationships are meaningful.
+ * semantic table transcription or a source-faithful visual crop/SVG; plain text
+ * is deliberately not sufficient because column/row relationships are meaningful.
  */
 export function enforceSourceStructureFidelity(questions: ExtractedQuestion[]) {
   const byPath = new Map(questions.map((question) => [question.path, question]));

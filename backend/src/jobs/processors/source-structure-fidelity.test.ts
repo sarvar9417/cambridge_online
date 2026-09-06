@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ExtractedQuestion } from './ingestion-contract.js';
 import {
   enforceSourceStructureFidelity,
+  isSemanticTableContent,
   requiredSourceStructures,
   SOURCE_STRUCTURE_MISSING_PREFIX,
 } from './source-structure-fidelity.js';
@@ -63,5 +64,32 @@ describe('source structure fidelity', () => {
     const root = parent([{ kind: 'image', contentMd: null, altText: 'Printed tick grid', bbox: [80, 420, 1480, 1540], page: 5 }]);
     const result = enforceSourceStructureFidelity([root, question()]);
     expect(result[1]?.issues).not.toContain(`${SOURCE_STRUCTURE_MISSING_PREFIX}table`);
+  });
+
+  it('recognises legacy pipe grids even when the Markdown separator row is absent', () => {
+    expect(isSemanticTableContent('| 0 | 0 | 1 | 1 | 0 | 1 | 0 | 1 |')).toBe(true);
+  });
+
+  it('rejects prose stored under table kind because it does not preserve rows and columns', () => {
+    const leaf = question({ assets: [{
+      kind: 'table',
+      contentMd: 'The source paper contains a truth table. Use the PDF for the exact layout.',
+      altText: 'Truth table summary', bbox: null, page: 5,
+    }] });
+    const result = enforceSourceStructureFidelity([parent(), leaf]);
+    expect(result[1]?.issues).toContain(`${SOURCE_STRUCTURE_MISSING_PREFIX}table`);
+  });
+
+  it('rejects an ASCII/prose substitute for a matching layout', () => {
+    const leaf = question({
+      stemMd: 'Draw a line to match each device to its description.',
+      assets: [{
+        kind: 'diagram',
+        contentMd: 'Device A -> Description 1\nDevice B -> Description 2',
+        altText: 'Matching layout summary', bbox: null, page: 5,
+      }],
+    });
+    const result = enforceSourceStructureFidelity([parent(), leaf]);
+    expect(result[1]?.issues).toContain(`${SOURCE_STRUCTURE_MISSING_PREFIX}layout`);
   });
 });
