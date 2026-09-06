@@ -118,6 +118,12 @@ export class AdminUsersService {
     if (actor.role !== 'owner') throw new AdminUsersError('forbidden', 403);
   }
 
+  private async userFromClient(client: PoolClient, userId: string) {
+    const result = await client.query(`${managedSelect} where u.id = $1 and u.is_active = true`, [userId]);
+    if (!result.rows[0]) throw new AdminUsersError('user_not_found', 404);
+    return mapUser(result.rows[0]);
+  }
+
   private async audit(
     client: PoolClient,
     actorId: string,
@@ -194,14 +200,14 @@ export class AdminUsersService {
     try {
       await client.query('begin');
       const passwordHash = await argon2.hash(input.password);
-      let created;
+      let userId = '';
       try {
-        created = await client.query(
+        const created = await client.query(
           `insert into users (
              school_id, role, status, full_name, email, username, password_hash,
              email_verified_at, approved_at, approved_by
            ) values ($1, $2, 'active', $3, $4, $5, $6, now(), now(), $7)
-           returning id, school_id, role, status, full_name, email, username, created_at`,
+           returning id`,
           [
             actor.schoolId,
             input.role,
@@ -212,10 +218,10 @@ export class AdminUsersService {
             actor.id,
           ],
         );
+        userId = String(created.rows[0].id);
       } catch (error) {
         this.rethrowUnique(error);
       }
-      const userId = String(created!.rows[0].id);
       if (input.classId) {
         await this.assignClassTx(client, userId, input.role, input.classId, input.groupId);
       }
@@ -227,8 +233,9 @@ export class AdminUsersService {
         classId: input.classId ?? null,
         groupId: input.groupId ?? null,
       });
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -282,8 +289,9 @@ export class AdminUsersService {
         email: current.email,
         username: current.username,
       }, input);
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -374,8 +382,9 @@ export class AdminUsersService {
       await this.audit(client, actor.id, `admin.user_${status === 'suspended' ? 'suspend' : 'activate'}`, userId,
         { status: before.rows[0].status, reason: before.rows[0].status_reason },
         { status, reason: reason ?? null });
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -421,8 +430,9 @@ export class AdminUsersService {
       }
       await this.audit(client, actor.id, 'admin.user_role_change', userId,
         { role: previous }, { role, sessionsRevoked: previous !== role });
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -444,8 +454,9 @@ export class AdminUsersService {
       await this.audit(client, actor.id, 'admin.user_class_assign', userId, undefined, {
         classId, groupId: groupId ?? null, role,
       });
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -472,8 +483,9 @@ export class AdminUsersService {
         await client.query('delete from class_teachers where class_id = $1 and teacher_id = $2', [classId, userId]);
       }
       await this.audit(client, actor.id, 'admin.user_class_remove', userId, { classId, role }, undefined);
+      const user = await this.userFromClient(client, userId);
       await client.query('commit');
-      return await this.getUser(actor, userId);
+      return user;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -577,7 +589,11 @@ export class AdminUsersService {
         if (!deleted.rowCount) throw new AdminUsersError('user_not_found', 404);
       } catch (error) {
         if (typeof error === 'object' && error && 'code' in error && error.code === '23503') {
-          throw new AdminUsersError('user_purge_blocked', 409, String((error as { constraint?: string }).constraint ?? 'foreign_key'));
+          throw new AdminUsersError(
+            'user_purge_blocked',
+            409,
+            String((error as { constraint?: string }).constraint ?? 'foreign_key'),
+          );
         }
         throw error;
       }
@@ -628,7 +644,10 @@ export class AdminUsersService {
         [classId, userId],
       );
     }
-    await client.query('update users set school_id = $2, updated_at = now() where id = $1', [userId, klass.rows[0].school_id]);
+    await client.query(
+      'update users set school_id = $2, updated_at = now() where id = $1',
+      [userId, klass.rows[0].school_id],
+    );
   }
 
   private rethrowUnique(error: unknown): never {
