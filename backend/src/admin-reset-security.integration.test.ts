@@ -88,7 +88,7 @@ describe('admin reset-link authorization boundaries', () => {
     expect(repository.resetTokens).toHaveLength(0);
   });
 
-  it('does not reveal or reset a user from another school', async () => {
+  it('does not reveal or reset an active user from another school', async () => {
     const teacherResponse = await request(app)
       .post(`/api/v1/admin/users/${OTHER_STUDENT_ID}/reset-code`)
       .set('authorization', `Bearer ${await token(TEACHER_ID, 'teacher')}`)
@@ -105,7 +105,24 @@ describe('admin reset-link authorization boundaries', () => {
     expect(repository.resetTokens).toHaveLength(0);
   });
 
-  it('returns the inactive-state response without issuing a token', async () => {
+  it('does not disclose that an inactive user exists in another school', async () => {
+    const inactiveId = randomUUID();
+    repository.add({
+      id: inactiveId, schoolId: OTHER_SCHOOL_ID, role: 'student', fullName: 'Other Suspended Student',
+      username: 'other-suspended', passwordHash, status: 'suspended',
+    });
+
+    const response = await request(app)
+      .post(`/api/v1/admin/users/${inactiveId}/reset-code`)
+      .set('authorization', `Bearer ${await token(OWNER_ID, 'owner')}`)
+      .send({});
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('user_not_found');
+    expect(repository.resetTokens).toHaveLength(0);
+  });
+
+  it('returns the inactive-state response for a same-school suspended account without issuing a token', async () => {
     const inactiveId = randomUUID();
     repository.add({
       id: inactiveId, schoolId: SCHOOL_ID, role: 'student', fullName: 'Suspended Student',
