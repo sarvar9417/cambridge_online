@@ -123,6 +123,17 @@ const EPHEMERAL_USER_FKS = new Set([
   'refresh_tokens.user_id',
   'idempotency_records.actor_id',
 ]);
+
+// Only these required NO ACTION/RESTRICT references are semantically ownership
+// pointers. Unknown future required FKs must fail closed instead of silently
+// rewriting e.g. a future student_id to the acting owner.
+const TRANSFERABLE_OWNER_FKS = new Set([
+  'assignments.created_by',
+  'classes.owner_id',
+  'exports.requested_by',
+  'invites.created_by',
+]);
+
 const DEPENDENT_LABELS: Record<string, string> = {
   'app_settings.updated_by': 'Sozlamalar',
   'assignments.created_by': 'Yaratgan vazifalar',
@@ -164,8 +175,10 @@ export class AdminUsersService {
   }
 
   /**
-   * Owners administer their own school. Unassigned pending/rejected registrations
-   * are the one exception: they are the onboarding queue and have no school yet.
+   * Owners administer their own school. An unassigned pending/rejected account is
+   * accepted only while the installation has exactly one school. Once a second
+   * school exists, tenant-less onboarding fails closed until registration has an
+   * explicit school-selection/invite mechanism.
    */
   private async assertManageable(client: PoolClient, actor: Actor, userId: string, lock = false) {
     const schoolId = this.ownerSchool(actor);
@@ -174,7 +187,13 @@ export class AdminUsersService {
               email_verified_at, registration_note, created_at, last_login_at
        from users
        where id = $1 and is_active = true
-         and (school_id = $2 or (school_id is null and status in ('pending', 'rejected')))
+         and (
+           school_id = $2
+           or (
+             school_id is null and status in ('pending', 'rejected')
+             and (select count(*) from schools) = 1
+           )
+         )
        ${lock ? 'for update' : ''}`,
       [userId, schoolId],
     );
@@ -187,7 +206,13 @@ export class AdminUsersService {
     const result = await client.query(
       `${managedSelect}
        where u.id = $1 and u.is_active = true
-         and (u.school_id = $2 or (u.school_id is null and u.status in ('pending', 'rejected')))`,
+         and (
+           u.school_id = $2
+           or (
+             u.school_id is null and u.status in ('pending', 'rejected')
+             and (select count(*) from schools) = 1
+           )
+         )`,
       [userId, schoolId],
     );
     if (!result.rows[0]) throw new AdminUsersError('user_not_found', 404);
@@ -216,9 +241,9 @@ export class AdminUsersService {
   }
 
   async recordAction(actor: Actor, action: string, targetId: string, before?: unknown, after?: unknown) {
-    this.ownerSchool(actor);
     const client = await this.pool.connect();
     try {
+      await this.assertManageable(client, actor, targetId);
       await this.audit(client, actor.id, action, targetId, before, after);
     } finally {
       client.release();
@@ -233,7 +258,13 @@ export class AdminUsersService {
     const result = await this.pool.query(
       `${managedSelect}
        where u.is_active = true
-         and (u.school_id = $6 or (u.school_id is null and u.status in ('pending', 'rejected')))
+         and (
+           u.school_id = $6
+           or (
+             u.school_id is null and u.status in ('pending', 'rejected')
+             and (select count(*) from schools) = 1
+           )
+         )
          and ($1::user_status is null or u.status = $1)
          and ($2::user_role is null or u.role = $2)
          and ($3::text = '' or u.full_name ilike '%' || $3 || '%'
@@ -248,7 +279,13 @@ export class AdminUsersService {
       `select count(*)::int total
        from users u
        where u.is_active = true
-         and (u.school_id = $4 or (u.school_id is null and u.status in ('pending', 'rejected')))
+         and (
+           u.school_id = $4
+           or (
+             u.school_id is null and u.status in ('pending', 'rejected')
+             and (select count(*) from schools) = 1
+           )
+         )
          and ($1::user_status is null or u.status = $1)
          and ($2::user_role is null or u.role = $2)
          and ($3::text = '' or u.full_name ilike '%' || $3 || '%'
@@ -285,6 +322,9 @@ export class AdminUsersService {
 
   async createUser(actor: Actor, input: CreateInput) {
     const schoolId = this.ownerSchool(actor);
+    if (input.groupId && input.role !== 'student') {
+      throw new AdminUsersError('group_student_only', 409);
+    }
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -327,6 +367,9 @@ export class AdminUsersService {
 
   async approveUser(actor: Actor, userId: string, input: ApprovalInput) {
     const schoolId = this.ownerSchool(actor);
+    if (input.groupId && input.role !== 'student') {
+      throw new AdminUsersError('group_student_only', 409);
+    }
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -424,6 +467,7 @@ export class AdminUsersService {
     try {
       await client.query('begin');
       const before = await this.assertManageable(client, actor, userId, true);
+      if (!before.email) throw new AdminUsersError('email_required', 409);
       await client.query(
         `update users set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
          where id = $1`,
@@ -620,6 +664,7 @@ export class AdminUsersService {
         throw new AdminUsersError('invalid_user_state', 409);
       }
       const role = target.role as ManagedUserRole;
+      if (groupId && role !== 'student') throw new AdminUsersError('group_student_only', 409);
       await this.assignClassTx(client, userId, role, classId, groupId, schoolId);
       await this.audit(client, actor.id, 'admin.user_class_assign', userId, undefined, {
         classId, groupId: groupId ?? null, role,
@@ -743,8 +788,9 @@ export class AdminUsersService {
 
   /**
    * Irreversible account purge. CASCADE relations disappear; nullable historical
-   * pointers are cleared and required historical ownership transfers to the
-   * acting owner so unrelated academic records survive.
+   * pointers are cleared. Only an explicit allowlist of required ownership
+   * pointers may transfer to the acting owner; unknown required references fail
+   * closed so future schema additions cannot silently rewrite academic identity.
    */
   async purgeUser(actor: Actor, userId: string) {
     if (actor.id === userId) throw new AdminUsersError('cannot_delete_self', 409);
@@ -758,10 +804,21 @@ export class AdminUsersService {
       for (const row of foreignKeys) {
         const behavior = String(row.confdeltype);
         if (!['a', 'r'].includes(behavior)) continue;
+        const key = `${String(row.table_name)}.${String(row.column_name)}`;
         const schema = quoteIdent(String(row.schema_name));
         const table = quoteIdent(String(row.table_name));
         const column = quoteIdent(String(row.column_name));
         if (Boolean(row.attnotnull)) {
+          if (!TRANSFERABLE_OWNER_FKS.has(key)) {
+            const count = await client.query(
+              `select count(*)::int n from ${schema}.${table} where ${column} = $1`,
+              [userId],
+            );
+            if (Number(count.rows[0]?.n ?? 0) > 0) {
+              throw new AdminUsersError('user_purge_blocked', 409, key);
+            }
+            continue;
+          }
           const changed = await client.query(
             `update ${schema}.${table} set ${column} = $2 where ${column} = $1`,
             [userId, actor.id],
