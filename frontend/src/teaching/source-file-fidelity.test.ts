@@ -82,7 +82,7 @@ describe('exact supplied PDF fidelity contract',()=>{
     expect(chapter13).not.toBeNull();
     expect(teachingText(1)).toContain('00110101 + 01001000');
     expect(teachingText(1)).toContain('2777 + acf1');
-    expect(teachingText(1)).toContain('binary magnitudes and decimal/binary prefixes');
+    expect(teachingText(1)).toContain('binary magnitudes, binary prefixes and decimal prefixes');
     expect(teachingText(13)).toContain('whether the animal was born in the zoo or not');
     expect(teachingText(13)).toContain('append a line at the end');
     expect(teachingText(13)).toContain('serial/sequential/random file organisation');
