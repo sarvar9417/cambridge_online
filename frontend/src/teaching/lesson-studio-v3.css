@@ -1,0 +1,384 @@
+/* Lesson Studio v3 — classroom-first polish layered on the existing source-complete lesson data. */
+
+.lesson-studio {
+  --lesson-panel: color-mix(in srgb, var(--surface, #fff) 94%, var(--lesson-accent, #4f46e5) 6%);
+  --lesson-soft-border: color-mix(in srgb, var(--border, #d8dee8) 82%, transparent);
+}
+
+.lesson-toolbar-title {
+  min-width: 0;
+}
+
+.lesson-toolbar-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-source-complete-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, #0f9f72 32%, var(--border, #d8dee8));
+  border-radius: 999px;
+  background: color-mix(in srgb, #0f9f72 8%, #fff);
+  color: #087653;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.lesson-source-complete-badge::before {
+  content: '✓';
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #0f9f72;
+  color: #fff;
+  font-size: 10px;
+}
+
+.lesson-outline button {
+  position: relative;
+}
+
+.lesson-outline button.active::after {
+  content: '';
+  position: absolute;
+  inset: 8px 5px 8px auto;
+  width: 3px;
+  border-radius: 4px;
+  background: var(--lesson-accent, #4f46e5);
+}
+
+/* Replace a row of dozens of tiny slide dots with one board-friendly scrubber. */
+.lesson-nav > div:not(.lesson-v3-nav-center) {
+  display: none !important;
+}
+
+.lesson-v3-nav-center {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: min(680px, 58vw);
+}
+
+.lesson-v3-nav-range {
+  width: 100%;
+  accent-color: var(--lesson-accent, #4f46e5);
+  cursor: pointer;
+}
+
+.lesson-v3-nav-label {
+  min-width: 96px;
+  padding: 6px 9px;
+  border: 1px solid var(--lesson-soft-border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #667085);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.lesson-v3-nav-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: rgba(17,24,39,.88);
+  color: #fff;
+  font-size: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+
+.lesson-nav:hover .lesson-v3-nav-hint {
+  opacity: 1;
+}
+
+.lesson-exam-card {
+  position: relative;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.lesson-exam-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--lesson-accent, #4f46e5) 34%, var(--border, #d8dee8));
+  box-shadow: 0 12px 32px rgba(15,23,42,.08);
+}
+
+.lesson-question-card-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--lesson-soft-border);
+}
+
+.lesson-question-open {
+  min-height: 38px;
+  padding-inline: 14px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, #4f46e5) 32%, var(--border, #d8dee8));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--lesson-accent, #4f46e5) 7%, #fff);
+  color: color-mix(in srgb, var(--lesson-accent, #4f46e5) 84%, #111827);
+  font-weight: 800;
+}
+
+.lesson-question-open:hover {
+  background: color-mix(in srgb, var(--lesson-accent, #4f46e5) 12%, #fff);
+}
+
+/* Canonical exam-paper body. */
+.lesson-v3-source-paper {
+  overflow: visible;
+}
+
+.lesson-v3-canonical-question {
+  color: #111827;
+  font-family: var(--font-read, "Source Serif 4 Variable", Georgia, serif);
+  font-size: clamp(17px, 1.5vw, 21px);
+  line-height: 1.7;
+}
+
+.lesson-v3-canonical-question .structured-question-text,
+.lesson-v3-canonical-question .structured-question-list,
+.lesson-v3-canonical-question .structured-question-code,
+.lesson-v3-canonical-question .structured-question-table,
+.lesson-v3-canonical-question .structured-question-matching,
+.lesson-v3-canonical-question .structured-question-asset,
+.lesson-v3-canonical-question .structured-question-answer-area {
+  margin-block: 16px;
+}
+
+.lesson-v3-canonical-question .structured-question-task {
+  font-weight: 650;
+}
+
+.lesson-v3-canonical-question .structured-question-code {
+  overflow: auto;
+  padding: 16px 18px;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: pre-wrap;
+}
+
+.lesson-v3-canonical-question .structured-question-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.lesson-v3-canonical-question .structured-question-table th,
+.lesson-v3-canonical-question .structured-question-table td {
+  padding: 10px 12px;
+  border: 1px solid #cfd7e3;
+  color: #111827;
+  vertical-align: top;
+}
+
+.lesson-v3-canonical-question .structured-question-table th {
+  background: #f3f6fa;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+}
+
+.lesson-v3-canonical-question .structured-question-asset img {
+  display: block;
+  width: min(100%, 900px);
+  max-height: 580px;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.lesson-v3-canonical-question .structured-question-answer-area {
+  min-height: 96px;
+  border: 1px solid #dfe5ed;
+  border-radius: 7px;
+  background: repeating-linear-gradient(to bottom,#fff 0,#fff 31px,#e3e8ef 32px);
+}
+
+.lesson-v3-canonical-question .structured-question-answer-drawing {
+  min-height: 260px;
+  background: #fff;
+}
+
+.lesson-v3-fidelity-error {
+  padding: 18px 20px;
+  border: 1px solid #efb4ad;
+  border-radius: 10px;
+  background: #fff4f2;
+  color: #9b2c24;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.lesson-v3-context-text,
+.lesson-v3-context-semantic {
+  margin: 10px 0 0;
+  color: #273244;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.lesson-v3-context-semantic {
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid #dde4ec;
+  border-radius: 7px;
+  background: #f8fafc;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Mark-scheme trust state is explicit instead of making review-pending data look official. */
+.lesson-v3-ms-trust {
+  padding: 14px 15px;
+  border: 1px solid #d8e0ea;
+  border-radius: 11px;
+  background: #fff;
+  color: #273244;
+}
+
+.lesson-v3-ms-trust .lesson-v3-trust-label {
+  display: inline-flex;
+  margin-bottom: 7px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.lesson-v3-ms-trust strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #172033;
+  font-size: 13px;
+}
+
+.lesson-v3-ms-trust p,
+.lesson-v3-ms-trust li {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.lesson-v3-ms-trust.is-approved {
+  border-color: #b8e1d1;
+  background: #f3fbf7;
+}
+.lesson-v3-ms-trust.is-approved .lesson-v3-trust-label {
+  background: #d9f3e7;
+  color: #087653;
+}
+.lesson-v3-ms-trust.is-review {
+  border-color: #ead39d;
+  background: #fffaf0;
+}
+.lesson-v3-ms-trust.is-review .lesson-v3-trust-label {
+  background: #fae9bd;
+  color: #875d0a;
+}
+.lesson-v3-ms-trust.is-missing {
+  border-color: #efc4bf;
+  background: #fff6f4;
+}
+.lesson-v3-ms-trust.is-missing .lesson-v3-trust-label {
+  background: #f8ddd9;
+  color: #9b2c24;
+}
+
+.lesson-v3-ms-trust details {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.lesson-v3-ms-trust summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lesson-v3-ms-trust ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+}
+
+.lesson-v3-levels {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px 16px;
+}
+
+.lesson-v3-levels > strong {
+  color: #344054;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.lesson-v3-levels article {
+  padding: 10px 11px;
+  border: 1px solid #dde4ec;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.lesson-v3-levels b,
+.lesson-v3-levels p,
+.lesson-v3-levels small,
+.lesson-v3-mark-notes {
+  display: block;
+  color: #273244;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.lesson-v3-mark-notes {
+  margin-top: 6px;
+  color: #697586;
+}
+
+/* Projector: question occupies the board; source/trust controls remain accessible. */
+.lesson-studio:fullscreen .lesson-source-complete-badge {
+  min-height: 34px;
+  font-size: 12px;
+}
+
+.lesson-studio:fullscreen .lesson-v3-canonical-question {
+  font-size: clamp(21px, 2.15vw, 30px);
+  line-height: 1.65;
+}
+
+.lesson-studio:fullscreen .lesson-v3-canonical-question .structured-question-answer-area {
+  min-height: 130px;
+}
+
+.lesson-studio:fullscreen .lesson-v3-ms-trust {
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .lesson-source-complete-badge { display: none; }
+  .lesson-v3-nav-center { width: min(520px, 52vw); }
+}
+
+@media (max-width: 720px) {
+  .lesson-v3-nav-center { width: min(48vw, 280px); grid-template-columns: 1fr; gap: 3px; }
+  .lesson-v3-nav-label { display: none; }
+  .lesson-v3-canonical-question { font-size: 16px; }
+}
