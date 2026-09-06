@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const sql = readFileSync(
-  new URL('./migrations/0119_user_identity_and_enrollment_hardening.sql', import.meta.url),
+  new URL('./migrations/0120_user_identity_and_enrollment_hardening.sql', import.meta.url),
   'utf8',
 );
 
