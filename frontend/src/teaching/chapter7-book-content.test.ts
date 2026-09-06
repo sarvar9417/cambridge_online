@@ -33,17 +33,19 @@ describe('0478 Chapter 7 complete presenter route', () => {
     }
   });
 
-  it('uses exact historical/current 0478 LO sets and never the 9618 checkpoint scope', () => {
+  it('uses one current 0478 target LO per 7.1–7.9 checkpoint and leaves historical expansion to compatibility', () => {
     const byCode = new Map(CHAPTER_7_PAST_PAPER_CHECKPOINTS.map((slide) => [slide.subtopicCode, slide]));
-    expect(byCode.get('7.1')?.learningObjectiveCodes).toEqual(['7-lo-01']);
-    expect(byCode.get('7.3')?.learningObjectiveCodes).toEqual(['7-lo-03','2.1.1-lo-03']);
-    expect(byCode.get('7.5')?.learningObjectiveCodes).toEqual(['7-lo-05','2.1.1-lo-06']);
-    expect(byCode.get('7.7')?.learningObjectiveCodes).toEqual(['7-lo-07','2.1.1-lo-07']);
-    expect(byCode.get('7.9')?.learningObjectiveCodes).toEqual(['7-lo-09','2.1.1-lo-09','2.1.1-lo-10']);
+    for(let index=1;index<=9;index+=1){
+      expect(byCode.get(`7.${index}`)?.learningObjectiveCodes).toEqual([`7-lo-0${index}`]);
+    }
+    const text=JSON.stringify(CHAPTER_7_PAST_PAPER_CHECKPOINTS);
+    expect(text).not.toContain('2.1.1-lo-');
+    expect(text).not.toContain('2.1.2-lo-');
     CHAPTER_7_PAST_PAPER_CHECKPOINTS.forEach((slide) => {
       expect(slide.checkpointSyllabusCode).toBe('0478');
       expect(slide.checkpointYearTo).toBe(2026);
       expect(slide.examPractice).toBe(true);
+      expect(slide.sourceElements).toContain('Explicit historical LO compatibility');
     });
     expect(byCode.get('7.1')?.checkpointYearFrom).toBe(2023);
     expect(byCode.get('7.2')?.checkpointYearFrom).toBe(2015);
