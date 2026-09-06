@@ -1,3 +1,0 @@
-- destructive duplicate candidates must be zero unless explicitly reviewed
-- source-equivalent cross-variant occurrences must remain preserved
-- duplicate display_ref rows must be zero
