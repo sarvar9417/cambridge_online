@@ -1,1 +1,0 @@
-Final gate: open PR, run CI, inspect failures, fix until green, then merge.
