@@ -22,13 +22,18 @@ export function browserAssetUrl(value: string | null | undefined) {
   }
 }
 
+function assetLabel(asset: Element) {
+  return asset.querySelector(':scope > span')?.textContent?.trim()
+    || asset.querySelector(':scope > figcaption')?.textContent?.trim()
+    || '';
+}
+
 function assetKind(asset: Element) {
   return asset.querySelector(':scope > strong')?.textContent?.trim().toLowerCase() ?? '';
 }
 
 function sourcePage(asset: Element) {
-  const label = asset.querySelector(':scope > span')?.textContent ?? '';
-  const match = label.match(/source page\s+(\d+)/i);
+  const match = assetLabel(asset).match(/source page\s+(\d+)/i);
   return match ? Number(match[1]) : 1;
 }
 
@@ -36,7 +41,7 @@ function replaceWithImage(asset: Element, source: Element, url: string) {
   const image = document.createElement('img');
   image.className = 'qb-asset-image';
   image.src = url;
-  image.alt = asset.querySelector(':scope > span')?.textContent?.split(' · source page')[0]?.trim() || 'Question diagram';
+  image.alt = assetLabel(asset).split(' · source page')[0]?.trim() || 'Question diagram';
   image.loading = 'eager';
   image.decoding = 'async';
   source.replaceWith(image);
@@ -49,7 +54,9 @@ function unavailable(source: Element, kind: string) {
   notice.dataset.sourceAssetUnavailable = 'true';
   notice.textContent = kind === 'table'
     ? 'Original jadval yuklanmadi.'
-    : 'Original diagramma yuklanmadi.';
+    : kind === 'diagram' || kind === 'image'
+      ? 'Original diagramma yuklanmadi.'
+      : 'Original savol elementi yuklanmadi.';
   source.replaceWith(notice);
 }
 
@@ -57,12 +64,12 @@ function renderTable(asset: Element, source: Element, value: string) {
   const block = portableTableBlock({
     id: '00000000-0000-4000-8000-000000000000',
     kind: 'table',
-    altText: asset.querySelector(':scope > span')?.textContent ?? 'Table',
+    altText: assetLabel(asset) || 'Table',
     contentMd: value,
   }, { page: sourcePage(asset) });
   if (!block) {
     unavailable(source, 'table');
-    return;
+    return false;
   }
 
   const table = document.createElement('table');
@@ -95,6 +102,7 @@ function renderTable(asset: Element, source: Element, value: string) {
   });
   table.append(tbody);
   source.replaceWith(table);
+  return true;
 }
 
 function renderCode(source: Element, value: string) {
@@ -107,6 +115,12 @@ function renderCode(source: Element, value: string) {
   code.textContent = (fenced?.[2] ?? value).trim();
   pre.append(code);
   source.replaceWith(pre);
+}
+
+function looksLikeCode(value: string) {
+  const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) return false;
+  return lines.filter((line) => /^(INPUT|OUTPUT|PRINT|DECLARE|TYPE|ENDTYPE|IF\b|THEN\b|ELSE\b|ENDIF\b|FOR\b|NEXT\b|WHILE\b|ENDWHILE\b|REPEAT\b|UNTIL\b|CASE\b|ENDCASE\b|PROCEDURE\b|ENDPROCEDURE\b|FUNCTION\b|ENDFUNCTION\b|RETURN\b|CALL\b)/i.test(line)).length >= 2;
 }
 
 export function enhanceQuestionAsset(asset: Element) {
@@ -126,12 +140,33 @@ export function enhanceQuestionAsset(asset: Element) {
     } else if (kind === 'pseudocode' || kind === 'code') {
       renderCode(source, value);
     } else if (kind === 'diagram' || kind === 'image') {
-      // A prose/ASCII description is repair evidence, not the Cambridge visual.
-      // Never show it to teachers/students as if it were the original diagram.
       unavailable(source, kind);
     }
   }
   asset.setAttribute('data-visual-enhanced', 'true');
+}
+
+export function enhanceLessonContextAsset(asset: Element) {
+  if (asset.getAttribute('data-semantic-enhanced') === 'true') return;
+  const source = asset.querySelector(':scope > pre.lesson-v3-context-semantic');
+  if (!source) {
+    asset.setAttribute('data-semantic-enhanced', 'true');
+    return;
+  }
+  const value = source.textContent ?? '';
+  // Lesson Studio's legacy context figure does not expose the DB kind in DOM.
+  // Recover only structures that can be identified without guessing; anything
+  // else is a missing visual/table and must not leak as raw repair prose.
+  if (value.includes('|') && renderTable(asset, source, value)) {
+    asset.setAttribute('data-semantic-enhanced', 'true');
+    return;
+  }
+  if (looksLikeCode(value)) {
+    renderCode(source, value);
+  } else {
+    unavailable(source, 'unknown');
+  }
+  asset.setAttribute('data-semantic-enhanced', 'true');
 }
 
 function clarifyDiagramAction(card: Element) {
@@ -144,17 +179,27 @@ function clarifyDiagramAction(card: Element) {
   }
 }
 
+function simplifyLessonExamHeading(section: Element) {
+  const heading = section.querySelector(':scope > .lesson-workspace-section-heading');
+  if (!heading || heading.getAttribute('data-classroom-heading') === 'true') return;
+  const strong = heading.querySelector('strong');
+  if (strong) strong.textContent = 'Past paper question';
+  heading.querySelector('span')?.remove();
+  heading.setAttribute('data-classroom-heading', 'true');
+}
+
 function enhance(root: ParentNode = document) {
   root.querySelectorAll('.qb-asset').forEach(enhanceQuestionAsset);
+  root.querySelectorAll('.lesson-v3-context-asset').forEach(enhanceLessonContextAsset);
+  root.querySelectorAll('.lesson-v3-source-paper').forEach(simplifyLessonExamHeading);
   root.querySelectorAll('.qb-question-card').forEach(clarifyDiagramAction);
 }
 
 /**
- * Question Bank already receives portable assets from the backend. This layer
- * makes source-backed visuals and semantic context render as the question
- * actually needs them: images/SVG as images, tables as tables and pseudocode
- * as code. Flattened diagram descriptions fail closed instead of leaking into
- * the classroom as a false visual substitute.
+ * Shared compatibility layer for Question Bank and Lesson Studio context.
+ * Source-backed visuals are images, semantic grids are tables and pseudocode is
+ * code. Flattened diagram/table descriptions fail closed instead of appearing
+ * on the classroom board as if they were Cambridge source content.
  */
 export function installQuestionAssetFidelityEnhancer() {
   let scheduled = false;
