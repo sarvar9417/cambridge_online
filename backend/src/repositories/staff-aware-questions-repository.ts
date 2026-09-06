@@ -12,6 +12,10 @@ interface AssetUrlSigner {
  * Staff question detail is allowed to inspect a source-backed mark scheme that
  * is still waiting for corpus review. Approved schemes always win. Students
  * remain approved-only, so this does not relax assignment/grading visibility.
+ *
+ * Lesson Studio needs to distinguish a reviewed mark scheme from an extracted
+ * scheme that is still waiting for source reconciliation. Keep that trust state
+ * in the API rather than styling every scheme as "official" in the browser.
  */
 export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
   constructor(private readonly detailPool: Pool, assetUrlSigner?: AssetUrlSigner) {
@@ -36,7 +40,18 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
           'groups',coalesce((select jsonb_agg(jsonb_build_object(
             'id',msg.id,'label',msg.label,'nRequired',msg.n_required,
             'marksPerPoint',msg.marks_per_point,'maxMarks',msg.max_marks
-          ) order by msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
+          ) order by msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb),
+          'levels',coalesce((select jsonb_agg(jsonb_build_object(
+            'id',msl.id,'levelNumber',msl.level_number,'minMarks',msl.min_marks,
+            'maxMarks',msl.max_marks,'descriptorMd',msl.descriptor_md,
+            'indicativeContentMd',msl.indicative_content_md
+          ) order by msl.level_number desc,msl.id) from mark_scheme_levels msl where msl.mark_scheme_id=ms.id),'[]'::jsonb),
+          'sourceAudit',(select jsonb_build_object(
+            'result',msa.result,'sourcePage',msa.source_page,'auditedAt',msa.audited_at,'evidence',msa.evidence
+          ) from mark_scheme_source_audits msa
+            where msa.mark_scheme_id=ms.id
+            order by msa.audited_at desc,msa.id desc
+            limit 1)
         )
         from mark_schemes ms
         where ms.question_id=q.id

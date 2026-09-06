@@ -1,0 +1,63 @@
+.lesson-exam-insight {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, #4f46e5) 24%, #d8dee8);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--lesson-accent, #4f46e5) 4%, #fff);
+  box-shadow: 0 8px 22px rgba(15,23,42,.045);
+  color: #273244;
+}
+
+.lesson-exam-insight header {
+  display: grid;
+  gap: 3px;
+}
+
+.lesson-exam-insight header span {
+  color: var(--lesson-accent, #4f46e5);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.lesson-exam-insight header strong {
+  color: #172033;
+  font-size: clamp(14px, 1.25vw, 17px);
+}
+
+.lesson-exam-insight ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.lesson-exam-insight li {
+  padding-left: 2px;
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.lesson-exam-insight small {
+  padding-top: 9px;
+  border-top: 1px solid color-mix(in srgb, var(--lesson-accent, #4f46e5) 12%, #e3e8ef);
+  color: #788397;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.lesson-studio:fullscreen .lesson-exam-insight {
+  padding: 20px 24px;
+}
+
+.lesson-studio:fullscreen .lesson-exam-insight header strong {
+  font-size: clamp(18px, 1.55vw, 23px);
+}
+
+.lesson-studio:fullscreen .lesson-exam-insight li {
+  font-size: clamp(14px, 1.15vw, 17px);
+}
