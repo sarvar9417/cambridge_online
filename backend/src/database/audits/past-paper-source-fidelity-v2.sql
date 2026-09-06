@@ -1,14 +1,16 @@
 -- Past-paper source fidelity v2 audit
 --
--- Detects failure modes that the original visual/structure findings could miss:
---   * prose/ASCII stored under diagram/image kind with no real SVG or source crop;
---   * semantic table assets still referenced as generic image/asset blocks;
+-- Detects failure modes that can otherwise survive a leaf-only audit:
+--   * prose/ASCII stored under diagram/image kind with no renderable source visual;
+--   * a broken parent/context visual that makes one or more marked leaves incomplete;
+--   * flattened table summaries that cannot be rebuilt as a semantic table;
+--   * semantic table assets still not represented as canonical table blocks;
 --   * canonical asset ids that no longer resolve to question_assets;
 --   * legacy/null canonical content in otherwise answerable QP leaves.
 --
 -- Run read-only against production after every source repair/backfill.
--- Zero is the release target for the unresolved_* columns within the selected
--- syllabus/year range, except rows deliberately recorded as manual-only.
+-- Zero is the release target for unresolved_* findings within the selected
+-- syllabus/year range, except deliberately documented manual-only cases.
 
 with recursive qp_scope as (
   select
@@ -35,22 +37,45 @@ with recursive qp_scope as (
     and sp.year between 2021 and 2026
     and q.marks is not null
 ),
+context_chain as (
+  select
+    q.id as leaf_id,
+    q.id as node_id,
+    q.parent_id,
+    q.syllabus_code,q.year,q.series,q.component,q.variant,q.path,q.display_ref
+  from qp_scope q
+  union all
+  select
+    c.leaf_id,
+    p.id,
+    p.parent_id,
+    c.syllabus_code,c.year,c.series,c.component,c.variant,c.path,c.display_ref
+  from context_chain c
+  join questions p on p.id = c.parent_id
+),
 asset_scope as (
   select
-    q.syllabus_code,q.year,q.series,q.component,q.variant,q.path,q.display_ref,
-    q.content_json,
+    c.leaf_id,
+    c.syllabus_code,c.year,c.series,c.component,c.variant,c.path,c.display_ref,
+    c.node_id as asset_owner_question_id,
     qa.id as asset_id,
     qa.kind::text as asset_kind,
     qa.alt_text,
     qa.storage_path,
     qa.content_md,
+    qa.svg_markup,
     qa.source_page,
     qa.source_bbox,
     qa.crop_status::text as crop_status,
-    (qa.content_md ~* '^\\s*<svg(?:\\s|>)') as has_inline_svg,
-    (qa.source_page is not null and qa.source_bbox is not null) as has_source_crop
-  from qp_scope q
-  join question_assets qa on qa.question_id = q.id
+    (
+      coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)'
+      or coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)'
+    ) as has_inline_svg,
+    (nullif(btrim(coalesce(qa.storage_path,'')),'') is not null) as has_storage_visual,
+    (qa.source_page is not null and qa.source_bbox is not null) as has_source_geometry,
+    (coalesce(qa.content_md,'') like '%|%') as has_pipe_table
+  from context_chain c
+  join question_assets qa on qa.question_id = c.node_id
 ),
 canonical_asset_refs as (
   select
@@ -72,31 +97,45 @@ canonical_tables as (
   )
 ),
 findings as (
-  -- A text description of a diagram is evidence for repair, not a renderable visual.
-  select
-    'unresolved_flattened_visual'::text as finding,
+  -- Report from the marked leaf perspective. A prose/ASCII description on an
+  -- ancestor is not a visual and must not make that leaf appear diagram-ready.
+  select distinct
+    'unresolved_context_visual_for_leaf'::text as finding,
     a.syllabus_code,a.year,a.series,a.component,a.variant,a.path,a.display_ref,
     a.asset_id::text as asset_id,
-    a.asset_kind as detail
+    coalesce(a.alt_text,a.asset_kind) as detail
   from asset_scope a
   where a.asset_kind in ('diagram','image')
     and not a.has_inline_svg
-    and a.storage_path is null
-    and not a.has_source_crop
+    and not a.has_storage_visual
 
   union all
 
-  -- A table exists semantically in question_assets but canonical content still
-  -- points to it as a generic asset/image instead of a structured table block.
-  select
-    'unresolved_table_not_structured',
+  -- A table prose summary has neither a source image nor a parseable row/column
+  -- representation. Never display that prose as if it were the printed table.
+  select distinct
+    'unresolved_context_table_for_leaf',
     a.syllabus_code,a.year,a.series,a.component,a.variant,a.path,a.display_ref,
     a.asset_id::text,
     coalesce(a.alt_text,'table')
   from asset_scope a
-  join qp_scope q on q.display_ref = a.display_ref
   where a.asset_kind = 'table'
-    and a.content_md like '%|%'
+    and not a.has_pipe_table
+    and not a.has_storage_visual
+
+  union all
+
+  -- A semantic table attached directly to an answerable leaf should eventually
+  -- be canonical instead of relying forever on the browser compatibility bridge.
+  select
+    'unresolved_table_not_structured',
+    q.syllabus_code,q.year,q.series,q.component,q.variant,q.path,q.display_ref,
+    qa.id::text,
+    coalesce(qa.alt_text,'table')
+  from qp_scope q
+  join question_assets qa on qa.question_id = q.id
+  where qa.kind = 'table'
+    and coalesce(qa.content_md,'') like '%|%'
     and not exists (select 1 from canonical_tables t where t.question_id = q.id)
 
   union all
@@ -140,7 +179,7 @@ select jsonb_build_object(
       select *
       from findings
       order by syllabus_code,year,series,component,variant,path,finding
-      limit 250
+      limit 350
     ) x
   ), '[]'::jsonb)
 ) as past_paper_source_fidelity_v2;
