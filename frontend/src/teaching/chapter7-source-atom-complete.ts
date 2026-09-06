@@ -14,51 +14,14 @@ export const CHAPTER_7_ALL_SOURCE_ATOMS = [
   ...CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS,
 ];
 
-const atomsBySlide = new Map<string, typeof CHAPTER_7_ALL_SOURCE_ATOMS>();
-for (const atom of CHAPTER_7_ALL_SOURCE_ATOMS) {
-  const current = atomsBySlide.get(atom.targetSlideId) ?? [];
-  atomsBySlide.set(atom.targetSlideId, [...current, atom]);
-}
-
-const sourceBlock = (slide: LessonSlide): LessonSlide => {
-  const atoms = atomsBySlide.get(slide.id) ?? [];
-  if (!atoms.length) return slide;
-
-  const sourceLines = atoms.map((atom) =>
-    `[${atom.sourceRef} · p.${atom.printedPage}] ${atom.needles.join(' · ')}`,
-  );
-  const existing = slide.activity;
-
-  return {
-    ...slide,
-    activity: {
-      title: existing ? `${existing.title} · BOOK SOURCE` : 'BOOK SOURCE',
-      prompt: [
-        ...(existing ? [existing.prompt] : []),
-        ...sourceLines,
-      ].join('\n'),
-      ...(existing?.reveal ? { reveal: existing.reveal } : {}),
-    },
-  };
-};
-
 /**
- * Chapter 7 source-atom-complete presenter layer.
- *
- * Chapters 1 and 13 already protect source details by pinning semantic atoms to
- * real teaching slides. Chapter 7 now uses the same architecture: source-level
- * terms, formal key-term definitions, named examples, exact values/code
- * fragments, activity prompts/data, figures, tables, review items and exam-style
- * question identifiers are attached to the presenter route rather than being
- * represented only by a page-level summary.
- *
- * The supplied-file manifest additionally fingerprints all 41 source pages so
- * this audit cannot silently drift to a different edition/copy of Chapter 7.
- * Source-PDF detail atoms preserve source sidebars/cross-links and the complete
- * task wording/data for the book's exam-style question sequence.
+ * Chapter 7 keeps its authored discovery/book slides clean. Exact source atoms
+ * are no longer concatenated into `activity.prompt` as a fake BOOK SOURCE task;
+ * the dedicated Lesson Studio source-teaching layer renders every atom on the
+ * normal teacher canvas with its page/reference and semantic kind.
  */
 export const CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES: LessonSlide[] =
-  withChapter7SourceKeyTerms(CHAPTER_7_FINAL_SOURCE_SLIDES).map(sourceBlock);
+  withChapter7SourceKeyTerms(CHAPTER_7_FINAL_SOURCE_SLIDES);
 
 export const CHAPTER_7_SOURCE_ATOM_COVERAGE = {
   atoms: CHAPTER_7_ALL_SOURCE_ATOMS.length,
