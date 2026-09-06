@@ -76,9 +76,9 @@ async function visualPresence(pool: Pool, ids: string[]) {
          qa.id is not null
          and qa.kind in ('diagram','image')
          and (
-           nullif(qa.content_md,'') is not null
-           or nullif(qa.storage_path,'') is not null
-           or nullif(qa.svg_markup,'') is not null
+           nullif(btrim(coalesce(qa.storage_path,'')),'') is not null
+           or coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)'
+           or coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)'
          )
        ) has_visual
      from chain c
@@ -115,9 +115,10 @@ export function applyVisualPresence(body: unknown, presence: Map<string, boolean
 /**
  * Browser-facing fidelity layer for the Question Bank.
  *
- * - The repository historically considered only assets attached directly to a
- *   leaf. Cambridge diagrams often live on a parent/context node, so list chips
- *   and the hasDiagram filter are corrected against the whole ancestor chain.
+ * - Cambridge diagrams often live on a parent/context node, so list chips and
+ *   the hasDiagram filter are computed across the whole ancestor chain.
+ * - Only a real source crop/storage object or actual SVG counts as a visual.
+ *   Prose/ASCII repair notes must never make a question look diagram-ready.
  * - Private storage assets already receive short-lived URLs from the repository.
  *   The projection exposes that URL through contentMd only in HTTP responses so
  *   the existing React/DOM renderer can display it without changing persisted
