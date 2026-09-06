@@ -33,6 +33,7 @@ interface ResetToken {
 
 const toPending = (user: MemoryUser): PendingUser => ({
   id: user.id,
+  schoolId: user.schoolId,
   fullName: user.fullName,
   email: user.email,
   username: user.username,
