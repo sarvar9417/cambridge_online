@@ -10,7 +10,7 @@ export type StructuredQuestionBlock =
   | { type:'list';items:string[];source:SourceLocation }
   | {
       type:'table';
-      kind:'table'|'truth_table'|'tick_grid'|'selection_grid';
+      kind:'table'|'truth_table'|'tick_grid'|'selection_grid'|'k_map'|'trace_table';
       headers:string[];
       rows:Array<Array<string|null>>;
       editableCells:Array<[number,number]>;
@@ -69,7 +69,7 @@ export function isStructuredQuestionContent(value:unknown):value is StructuredQu
       case 'code': return (candidate.language===null||typeof candidate.language==='string')&&typeof candidate.text==='string'&&candidate.text.length>0;
       case 'list': return Array.isArray(candidate.items)&&candidate.items.length>0&&candidate.items.every((item)=>typeof item==='string'&&item.length>0);
       case 'table': {
-        if(!['table','truth_table','tick_grid','selection_grid'].includes(String(candidate.kind)))return false;
+        if(!['table','truth_table','tick_grid','selection_grid','k_map','trace_table'].includes(String(candidate.kind)))return false;
         if(!Array.isArray(candidate.headers)||!candidate.headers.every((item)=>typeof item==='string')||!Array.isArray(candidate.rows)||!candidate.rows.length)return false;
         const first=Array.isArray(candidate.rows[0])?candidate.rows[0]:[];
         const width=candidate.headers.length||first.length;
