@@ -76,6 +76,41 @@ export const sourceTeachingAtomsForChapter = (chapter: SourceTeachingChapter): S
   return normalize9618(chapter);
 };
 
+/**
+ * Split a dense source set into projector-sized pages without dropping or
+ * truncating any source atom. A long worked/example/task atom is allowed to
+ * occupy a page by itself; otherwise we keep at most three cards and roughly
+ * twelve source lines on one source page.
+ */
+export const sourceTeachingDeckPages = (
+  atoms: SourceTeachingAtom[],
+  maxLines = 12,
+  maxCards = 3,
+): SourceTeachingAtom[][] => {
+  if (!atoms.length) return [];
+  const pages: SourceTeachingAtom[][] = [];
+  let page: SourceTeachingAtom[] = [];
+  let lines = 0;
+
+  const flush = () => {
+    if (!page.length) return;
+    pages.push(page);
+    page = [];
+    lines = 0;
+  };
+
+  for (const atom of atoms) {
+    const cost = Math.max(1, atom.lines.length);
+    const wouldOverflow = page.length > 0 && (page.length >= maxCards || lines + cost > maxLines);
+    if (wouldOverflow) flush();
+    page.push(atom);
+    lines += cost;
+    if (cost >= maxLines || page.length >= maxCards) flush();
+  }
+  flush();
+  return pages;
+};
+
 export const sourceTeachingKindLabel = (kind: SourceTeachingKind) => {
   switch (kind) {
     case 'objective': return 'CHAPTER OBJECTIVE';
