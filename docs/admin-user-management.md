@@ -4,7 +4,7 @@ The existing **Boshqaruv → Odamlar** approval queue is the single owner-facing
 
 ## Owner capabilities
 
-- search and filter by account status and role
+- search and filter by account status and role with server-side pagination
 - create an already-approved account with an initial role and optional class/group
 - edit full name, email and username
 - change a user's password directly; all existing sessions are revoked
@@ -21,15 +21,21 @@ The existing **Boshqaruv → Odamlar** approval queue is the single owner-facing
 
 ## Safety rules
 
-- privileged management routes remain owner-only; the pre-existing teacher reset-link exception remains unchanged
+- privileged management routes remain owner-only
+- the teacher reset-link exception is deliberately narrow: a teacher may issue a reset link only for an **active student in the same school**; staff and cross-school accounts are blocked
+- owners administer only their own school; unassigned pending/rejected registrations are visible only as the onboarding queue
 - an owner cannot change their own role/status or delete/purge their own account
 - passwords are Argon2 hashes and never returned by the API
-- direct password changes, suspension and role changes invalidate existing sessions
+- password, email or username changes invalidate stale sessions and one-shot reset material; changing an email also invalidates old verification tokens and requires the new address to be verified
+- username-only accounts remain usable when an email address is removed
+- suspension and role changes invalidate existing sessions
 - changing a user into a student removes teacher-class links; classes they owned are transferred to the acting owner
 - moving a student closes any other active enrolment before opening the selected class
-- a group must belong to the selected class
-- safe delete refuses accounts with dependent academic/administrative data
-- irreversible purge requires the literal confirmation `DELETE`; cascade-owned data follows database rules, nullable historical references are cleared, and required historical ownership is transferred to the acting owner
+- every active enrolment path backfills submissions for already-published, non-archived assignments
+- a group must belong to the selected class, and class/group assignment cannot cross school boundaries
+- safe delete discovers direct user foreign keys from PostgreSQL metadata and refuses accounts with meaningful academic/administrative data
+- irreversible purge requires the literal confirmation `DELETE`; user-owned `ON DELETE CASCADE` data is deleted, nullable historical references are cleared, and required historical ownership is transferred to the acting owner
+- when a permanent purge is audited, user-profile snapshots in that user's audit history are redacted so deleted name/email/username data is not retained inside audit JSON
 - every sensitive management action is written to `audit_log`
 
 ## API additions
@@ -46,3 +52,12 @@ Under `/api/v1/admin/users`:
 - `POST /:id/purge` — irreversible account purge (`{"confirm":"DELETE"}`)
 
 The existing approval, rejection, status, role, reset-code, email-verification, reinstate and safe-delete endpoints remain in place and are reused by the expanded UI.
+
+## Operational verification
+
+After deploying account-lifecycle changes:
+
+1. run the repository test/typecheck/build gate (`npm run verify`)
+2. apply all pending database migrations, including `0119_user_identity_and_enrollment_hardening.sql`
+3. run `backend/src/database/audits/admin-user-management.sql`; every query must return zero rows
+4. smoke-test the People surface for search/pagination, approve/reject, role/class changes, password/session controls, safe delete and purge confirmation
