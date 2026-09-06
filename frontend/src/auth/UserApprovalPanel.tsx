@@ -61,6 +61,12 @@ interface CreateDraft {
   groupId: string;
 }
 
+interface ActOptions {
+  remove?: boolean;
+  patch?: Partial<ManagedUser>;
+  invalidateResetLink?: boolean;
+}
+
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -125,6 +131,7 @@ interface UserQuery {
   q: string;
   offset: number;
   preferredId?: string;
+  preserveFeedback?: boolean;
 }
 
 export function UserApprovalPanel({ classes, currentUserId }: {
@@ -153,6 +160,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
   const [audit, setAudit] = useState<Record<string, AuditEvent[]>>({});
   const [auditLoading, setAuditLoading] = useState<string | null>(null);
   const requestSequence = useRef(0);
+  const groupRequests = useRef(new Set<string>());
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -171,13 +179,20 @@ export function UserApprovalPanel({ classes, currentUserId }: {
   });
 
   const loadGroups = useCallback(async (classId: string) => {
-    if (!classId || groups[classId]) return;
+    if (!classId || groups[classId] || groupRequests.current.has(classId)) return;
+    groupRequests.current.add(classId);
     try {
-      const result = await api<{ groups: Array<{ id: string; name: string }> }>(`/admin/users/groups/${classId}`);
+      const result = await api<{ groups: Array<{ id: string; name: string }> }>(
+        `/admin/users/groups/${classId}`,
+        { cache: 'no-store' },
+      );
       setGroups((current) => ({ ...current, [classId]: result.groups }));
     } catch (cause) {
-      setGroups((current) => ({ ...current, [classId]: [] }));
+      // Do not cache a failed request as an empty group list. The next selection
+      // must be allowed to retry instead of getting stuck until a page reload.
       setError(cause instanceof Error ? cause.message : 'Guruhlar yuklanmadi.');
+    } finally {
+      groupRequests.current.delete(classId);
     }
   }, [groups]);
 
@@ -191,14 +206,24 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       if (query.q) params.set('q', query.q);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(query.offset));
-      const result = await api<{ users: ManagedUser[]; total?: number }>(`/admin/users?${params.toString()}`);
-      if (requestId !== requestSequence.current) return;
+      const result = await api<{ users: ManagedUser[]; total?: number }>(
+        `/admin/users?${params.toString()}`,
+        { cache: 'no-store' },
+      );
+      if (requestId !== requestSequence.current) return false;
       const nextTotal = result.total ?? result.users.length;
       if (result.users.length === 0 && nextTotal > 0 && query.offset > 0) {
         const lastOffset = Math.floor((nextTotal - 1) / PAGE_SIZE) * PAGE_SIZE;
         if (lastOffset !== query.offset) {
+          // Never leave the previous page's rows visible while correcting an
+          // out-of-range offset (most visible after deleting the last row).
+          setUsers([]);
+          setTotal(nextTotal);
+          setSelected(new Set());
+          setSelectedUserId(null);
           setOffset(lastOffset);
-          return;
+          if (!query.preserveFeedback) setError(null);
+          return true;
         }
       }
       setUsers(result.users);
@@ -207,11 +232,13 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       if (query.preferredId && result.users.some((user) => user.id === query.preferredId)) {
         setSelectedUserId(query.preferredId);
       }
-      setError(null);
+      if (!query.preserveFeedback) setError(null);
+      return true;
     } catch (cause) {
       if (requestId === requestSequence.current) {
         setError(cause instanceof Error ? cause.message : 'Ro‘yxat yuklanmadi.');
       }
+      return false;
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
@@ -258,16 +285,102 @@ export function UserApprovalPanel({ classes, currentUserId }: {
     ...current,
     [user.id]: { ...emptyDraftFor(user), ...(current[user.id] ?? {}), ...patch },
   }));
+  const clearDraftFor = (userId: string) => setDraft((current) => {
+    if (!(userId in current)) return current;
+    const next = { ...current };
+    delete next[userId];
+    return next;
+  });
 
-  const act = async (id: string, action: () => Promise<unknown>, success?: string) => {
+  const matchesCurrentQuery = (user: ManagedUser) => {
+    if (filter !== 'all' && user.status !== filter) return false;
+    if (roleFilter !== 'all' && user.role !== roleFilter) return false;
+    const needle = debouncedSearch.trim().toLocaleLowerCase('uz-UZ');
+    if (!needle) return true;
+    return [user.fullName, user.email ?? '', user.username ?? '']
+      .some((value) => value.toLocaleLowerCase('uz-UZ').includes(needle));
+  };
+
+  const removeLocalUser = (userId: string) => {
+    const wasVisible = users.some((user) => user.id === userId);
+    setUsers((current) => current.filter((user) => user.id !== userId));
+    if (wasVisible) setTotal((current) => Math.max(0, current - 1));
+    setSelected((current) => {
+      if (!current.has(userId)) return current;
+      const next = new Set(current);
+      next.delete(userId);
+      return next;
+    });
+    setSelectedUserId((current) => current === userId ? null : current);
+    setIssuedCode((current) => current?.userId === userId ? null : current);
+    clearDraftFor(userId);
+    setAudit((current) => {
+      if (!(userId in current)) return current;
+      const next = { ...current };
+      delete next[userId];
+      return next;
+    });
+    return wasVisible;
+  };
+
+  const reconcileLocalUser = (user: ManagedUser) => {
+    const wasVisible = users.some((item) => item.id === user.id);
+    if (!matchesCurrentQuery(user)) {
+      removeLocalUser(user.id);
+      return wasVisible;
+    }
+    setUsers((current) => current.map((item) => item.id === user.id ? user : item));
+    return false;
+  };
+
+  const act = async (
+    id: string,
+    action: () => Promise<unknown>,
+    success?: string,
+    options: ActOptions = {},
+  ) => {
     setBusyId(id);
     setError(null);
     setNotice(null);
     try {
-      await action();
+      const result = await action();
       invalidateAudit(id);
+      if (options.invalidateResetLink) {
+        setIssuedCode((current) => current?.userId === id ? null : current);
+      }
+
+      const resultUser = result && typeof result === 'object' && 'user' in result
+        ? (result as { user?: ManagedUser }).user
+        : undefined;
+      const resultDeleted = Boolean(
+        result && typeof result === 'object' && 'deleted' in result
+        && (result as { deleted?: boolean }).deleted,
+      );
+      let removedFromPage = false;
+      if (options.remove || resultDeleted) {
+        removedFromPage = removeLocalUser(id);
+      } else if (resultUser) {
+        clearDraftFor(id);
+        removedFromPage = reconcileLocalUser(resultUser);
+      } else if (options.patch) {
+        const currentUser = users.find((user) => user.id === id);
+        if (currentUser) removedFromPage = reconcileLocalUser({ ...currentUser, ...options.patch });
+      }
+
       if (success) setNotice(success);
-      await fetchUsers({ status: filter, role: roleFilter, q: debouncedSearch, offset });
+
+      // Revalidate in the background, but the visible UI has already been
+      // reconciled from the successful mutation. A transient GET failure must
+      // never make a deleted/status-changed user look unchanged.
+      let refreshOffset = offset;
+      if (removedFromPage && users.length === 1 && offset > 0) {
+        refreshOffset = Math.max(0, offset - PAGE_SIZE);
+        setOffset(refreshOffset);
+      }
+      void fetchUsers({
+        status: filter, role: roleFilter, q: debouncedSearch, offset: refreshOffset,
+        preserveFeedback: true,
+      });
     } catch (cause) {
       setError(cause instanceof ApiError
         ? [cause.message, cause.detail].filter(Boolean).join(' — ')
@@ -294,20 +407,40 @@ export function UserApprovalPanel({ classes, currentUserId }: {
     const results = await Promise.allSettled(eligible.map(async (user) => {
       if (kind === 'revoke') {
         await api(`/admin/users/${user.id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({}) });
-      } else {
-        await api(`/admin/users/${user.id}/status`, {
-          method: 'POST',
-          body: JSON.stringify({ status: kind === 'suspend' ? 'suspended' : 'active' }),
-        });
+        return { id: user.id, user: null as ManagedUser | null };
       }
-      invalidateAudit(user.id);
+      const result = await api<{ user: ManagedUser }>(`/admin/users/${user.id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: kind === 'suspend' ? 'suspended' : 'active' }),
+      });
+      return { id: user.id, user: result.user };
     }));
+
+    let removedVisible = 0;
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue;
+      invalidateAudit(result.value.id);
+      if (result.value.user) {
+        clearDraftFor(result.value.id);
+        if (reconcileLocalUser(result.value.user)) removedVisible += 1;
+      }
+    }
+
     const succeeded = results.filter((result) => result.status === 'fulfilled').length;
     const failed = results.length - succeeded;
     setSelected(new Set());
     if (failed) setError(`${succeeded} ta bajarildi, ${failed} ta bajarilmadi${skipped ? `, ${skipped} ta mos kelmagani uchun o‘tkazib yuborildi` : ''}.`);
     else setNotice(`${succeeded} ta foydalanuvchida amal bajarildi${skipped ? `, ${skipped} ta mos kelmagani uchun o‘tkazib yuborildi` : ''}.`);
-    await fetchUsers({ status: filter, role: roleFilter, q: debouncedSearch, offset });
+
+    let refreshOffset = offset;
+    if (removedVisible >= users.length && users.length > 0 && offset > 0) {
+      refreshOffset = Math.max(0, offset - PAGE_SIZE);
+      setOffset(refreshOffset);
+    }
+    void fetchUsers({
+      status: filter, role: roleFilter, q: debouncedSearch, offset: refreshOffset,
+      preserveFeedback: true,
+    });
   };
 
   const createUser = async () => {
@@ -327,6 +460,9 @@ export function UserApprovalPanel({ classes, currentUserId }: {
           ...(createDraft.role === 'student' && createDraft.classId && createDraft.groupId ? { groupId: createDraft.groupId } : {}),
         }),
       });
+      const wasKnown = users.some((user) => user.id === result.user.id);
+      setUsers((current) => [result.user, ...current.filter((user) => user.id !== result.user.id)].slice(0, PAGE_SIZE));
+      if (!wasKnown) setTotal((current) => Math.max(current + 1, 1));
       setCreateDraft(emptyCreate());
       setShowCreate(false);
       setFilter('all');
@@ -337,7 +473,10 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       setNotice('Yangi foydalanuvchi yaratildi.');
       setSelectedUserId(result.user.id);
       setActiveTab('profile');
-      await fetchUsers({ status: 'all', role: 'all', q: '', offset: 0, preferredId: result.user.id });
+      await fetchUsers({
+        status: 'all', role: 'all', q: '', offset: 0, preferredId: result.user.id,
+        preserveFeedback: true,
+      });
     } catch (cause) {
       setError(cause instanceof ApiError ? [cause.message, cause.detail].filter(Boolean).join(' — ') : 'Foydalanuvchi yaratilmadi.');
     } finally { setBusyId(null); }
@@ -347,7 +486,10 @@ export function UserApprovalPanel({ classes, currentUserId }: {
     if (audit[userId] && !force) return;
     setAuditLoading(userId);
     try {
-      const result = await api<{ events: AuditEvent[] }>(`/admin/users/${userId}/audit`);
+      const result = await api<{ events: AuditEvent[] }>(
+        `/admin/users/${userId}/audit`,
+        { cache: 'no-store' },
+      );
       setAudit((current) => ({ ...current, [userId]: result.events }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Audit tarixi yuklanmadi.');
@@ -443,25 +585,25 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                   <label className="ua-control"><span>Rol</span><select value={selectedCurrent.role} onChange={(e) => setDraftFor(selectedUser, { role: e.target.value as Role, groupId: '' })}>{(Object.keys(ROLE_LABEL) as Role[]).map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}</select></label>
                   <label className="ua-control"><span>Sinf</span><select value={selectedCurrent.classId} onChange={(e) => { const classId = e.target.value; setDraftFor(selectedUser, { classId, groupId: '' }); void loadGroups(classId); }}><option value="">— tanlanmagan —</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
                   {selectedCurrent.classId && selectedCurrent.role === 'student' && (groups[selectedCurrent.classId]?.length ?? 0) > 0 ? <label className="ua-control"><span>Guruh</span><select value={selectedCurrent.groupId} onChange={(e) => setDraftFor(selectedUser, { groupId: e.target.value })}><option value="">— tanlanmagan —</option>{groups[selectedCurrent.classId]!.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label> : null}
-                </div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/approve`, { method: 'POST', body: JSON.stringify({ role: selectedCurrent.role, ...(selectedCurrent.classId ? { classId: selectedCurrent.classId } : {}), ...(selectedCurrent.classId && selectedCurrent.groupId && selectedCurrent.role === 'student' ? { groupId: selectedCurrent.groupId } : {}) }) }), 'Foydalanuvchi tasdiqlandi.')}>Tasdiqlash</button>{selectedUser.email && !selectedUser.emailVerified ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/verify-email`, { method: 'POST', body: JSON.stringify({}) }), 'Email tasdiqlandi.')}>Emailni tasdiqlash</button> : null}</div></section>
+                </div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/approve`, { method: 'POST', body: JSON.stringify({ role: selectedCurrent.role, ...(selectedCurrent.classId ? { classId: selectedCurrent.classId } : {}), ...(selectedCurrent.classId && selectedCurrent.groupId && selectedCurrent.role === 'student' ? { groupId: selectedCurrent.groupId } : {}) }) }), 'Foydalanuvchi tasdiqlandi.')}>Tasdiqlash</button>{selectedUser.email && !selectedUser.emailVerified ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/verify-email`, { method: 'POST', body: JSON.stringify({}) }), 'Email tasdiqlandi.', { patch: { emailVerified: true } })}>Emailni tasdiqlash</button> : null}</div></section>
                 <section className="ua-card ua-card--warning"><div className="ua-card-heading"><div><span className="ua-eyebrow">Rad etish</span><h3>Arizani yopish</h3></div></div><label className="ua-control"><span>Sabab</span><textarea className="ua-textarea" placeholder="Rad etish sababini yozing" value={selectedCurrent.reason} maxLength={300} onChange={(e) => setDraftFor(selectedUser, { reason: e.target.value })}/></label><div className="ua-card-actions"><button type="button" className="ua-button ua-button--warning" disabled={selectedBusy || !selectedCurrent.reason.trim()} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/reject`, { method: 'POST', body: JSON.stringify({ reason: selectedCurrent.reason.trim() }) }), 'Ariza rad etildi.')}>Rad etish</button></div></section>
-                <section className="ua-card ua-card--danger"><div className="ua-card-heading"><div><span className="ua-eyebrow">Keraksiz ariza</span><h3>Arizani o‘chirish</h3></div><span className="ua-card-hint">Bog‘liq ma’lumoti bo‘lmasa, hisob xavfsiz o‘chiriladi.</span></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--danger-ghost" disabled={selectedBusy} onClick={() => { if (!confirm(`${selectedUser.fullName} arizasini o‘chirasizmi?`)) return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'DELETE' }), 'Ariza o‘chirildi.'); }}>Arizani o‘chirish</button></div></section>
+                <section className="ua-card ua-card--danger"><div className="ua-card-heading"><div><span className="ua-eyebrow">Keraksiz ariza</span><h3>Arizani o‘chirish</h3></div><span className="ua-card-hint">Bog‘liq ma’lumoti bo‘lmasa, hisob xavfsiz o‘chiriladi.</span></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--danger-ghost" disabled={selectedBusy} onClick={() => { if (!confirm(`${selectedUser.fullName} arizasini o‘chirasizmi?`)) return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'DELETE' }), 'Ariza o‘chirildi.', { remove: true }); }}>Arizani o‘chirish</button></div></section>
               </div> : <>
                 <nav className="ua-tabs" role="tablist" aria-label="Foydalanuvchini boshqarish bo‘limlari">{(Object.keys(TAB_LABEL) as ManageTab[]).map((tab) => <button type="button" role="tab" aria-selected={activeTab === tab} key={tab} className={activeTab === tab ? 'is-active' : ''} onClick={() => { setActiveTab(tab); if (tab === 'audit') void loadAudit(selectedUser.id); }}>{TAB_LABEL[tab]}</button>)}</nav>
                 {selectedSelf ? <div className="ua-callout"><strong>Bu sizning hisobingiz</strong><span>Profil va xavfsizlik amallari mavjud. O‘z rolingiz, holatingiz yoki hisobingizni o‘chirish bloklangan.</span></div> : null}
 
-                {activeTab === 'profile' ? <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Identity</span><h3>Profil ma’lumotlari</h3></div><span className="ua-card-hint">Email yoki username o‘zgarsa eski sessiya va reset havolalari bekor qilinadi. Yangi email qayta tasdiqlanishi kerak.</span></div><div className="ua-form-grid"><label className="ua-control"><span>To‘liq ism</span><input value={selectedCurrent.fullName} onChange={(e) => setDraftFor(selectedUser, { fullName: e.target.value })}/></label><label className="ua-control"><span>Email</span><input type="email" value={selectedCurrent.email} onChange={(e) => setDraftFor(selectedUser, { email: e.target.value })}/></label><label className="ua-control"><span>Username</span><input value={selectedCurrent.username} onChange={(e) => setDraftFor(selectedUser, { username: e.target.value })}/></label></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.fullName.trim() || (!selectedCurrent.email.trim() && !selectedCurrent.username.trim())} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'PATCH', body: JSON.stringify({ fullName: selectedCurrent.fullName.trim(), email: selectedCurrent.email.trim() || null, username: selectedCurrent.username.trim() || null }) }), 'Profil yangilandi.')}>O‘zgarishlarni saqlash</button></div></section> : null}
+                {activeTab === 'profile' ? <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Identity</span><h3>Profil ma’lumotlari</h3></div><span className="ua-card-hint">Email yoki username o‘zgarsa eski sessiya va reset havolalari bekor qilinadi. Yangi email qayta tasdiqlanishi kerak.</span></div><div className="ua-form-grid"><label className="ua-control"><span>To‘liq ism</span><input value={selectedCurrent.fullName} onChange={(e) => setDraftFor(selectedUser, { fullName: e.target.value })}/></label><label className="ua-control"><span>Email</span><input type="email" value={selectedCurrent.email} onChange={(e) => setDraftFor(selectedUser, { email: e.target.value })}/></label><label className="ua-control"><span>Username</span><input value={selectedCurrent.username} onChange={(e) => setDraftFor(selectedUser, { username: e.target.value })}/></label></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.fullName.trim() || (!selectedCurrent.email.trim() && !selectedCurrent.username.trim())} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'PATCH', body: JSON.stringify({ fullName: selectedCurrent.fullName.trim(), email: selectedCurrent.email.trim() || null, username: selectedCurrent.username.trim() || null }) }), 'Profil yangilandi.', { invalidateResetLink: true })}>O‘zgarishlarni saqlash</button></div></section> : null}
 
                 {activeTab === 'access' ? <div className="ua-panel-stack"><section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Authorization</span><h3>Rol</h3></div><span className="ua-card-hint">Rol o‘zgarsa eski sessiyalar avtomatik bekor qilinadi.</span></div><div className="ua-inline-form"><label className="ua-control"><span>Joriy rol</span><select value={selectedCurrent.role} disabled={selectedSelf || !['active', 'suspended'].includes(selectedUser.status)} onChange={(e) => setDraftFor(selectedUser, { role: e.target.value as Role, groupId: '' })}>{(Object.keys(ROLE_LABEL) as Role[]).map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}</select></label><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || selectedSelf || !['active', 'suspended'].includes(selectedUser.status) || selectedCurrent.role === selectedUser.role} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/role`, { method: 'POST', body: JSON.stringify({ role: selectedCurrent.role }) }), 'Rol yangilandi.')}>Rolni yangilash</button></div></section>
                   <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Membership</span><h3>Sinf va guruhlar</h3></div></div><div className="ua-memberships">{memberships.length ? memberships.map((m) => <span key={`${m.kind}-${m.classId}`} className="ua-class-chip">{m.className}{m.groupName ? ` · ${m.groupName}` : ''}</span>) : <span className="ua-no-class">Sinf biriktirilmagan</span>}</div>{!selectedSelf && ['active', 'suspended'].includes(selectedUser.status) ? <div className="ua-inline-form ua-inline-form--top"><label className="ua-control"><span>{selectedCurrent.role === 'student' ? 'Sinfga ko‘chirish' : 'Sinfga qo‘shish'}</span><select value={selectedCurrent.classId} onChange={(e) => { const classId = e.target.value; setDraftFor(selectedUser, { classId, groupId: '' }); void loadGroups(classId); }}><option value="">— sinfni tanlang —</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{selectedCurrent.role === 'student' && selectedCurrent.classId && (groups[selectedCurrent.classId]?.length ?? 0) > 0 ? <label className="ua-control"><span>Guruh</span><select value={selectedCurrent.groupId} onChange={(e) => setDraftFor(selectedUser, { groupId: e.target.value })}><option value="">— tanlanmagan —</option>{groups[selectedCurrent.classId]!.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label> : null}<button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.classId} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/classes`, { method: 'POST', body: JSON.stringify({ classId: selectedCurrent.classId, ...(selectedCurrent.role === 'student' && selectedCurrent.groupId ? { groupId: selectedCurrent.groupId } : {}) }) }), 'Sinf biriktirildi.')}>Biriktirish</button></div> : selectedUser.status === 'rejected' ? <div className="ua-muted-box">Rad etilgan hisobni avval “Danger zone” orqali navbatga qaytaring va qayta tasdiqlang.</div> : null}{memberships.length > 0 && !selectedSelf && ['active', 'suspended'].includes(selectedUser.status) ? <div className="ua-membership-list">{memberships.map((m) => <div key={`${m.kind}-${m.classId}`}><div><strong>{m.className}</strong><span>{m.groupName ?? (m.kind === 'teacher' ? 'O‘qituvchi' : 'Guruhsiz')}</span></div><button type="button" className="ua-button ua-button--danger-ghost ua-button--small" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/classes/${m.classId}`, { method: 'DELETE' }), 'Sinfdan chiqarildi.')}>Chiqarish</button></div>)}</div> : null}</section></div> : null}
 
-                {activeTab === 'security' ? <div className="ua-panel-stack"><section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Credentials</span><h3>Parol</h3></div><span className="ua-card-hint">Yangi parol o‘rnatilganda barcha eski sessiya va avvalgi reset havolalari bekor qilinadi.</span></div><div className="ua-inline-form"><label className="ua-control ua-control--grow"><span>Yangi parol</span><input type="password" minLength={8} placeholder="Kamida 8 belgi" value={selectedCurrent.password} onChange={(e) => setDraftFor(selectedUser, { password: e.target.value })}/></label><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || selectedCurrent.password.length < 8} onClick={() => void act(selectedUser.id, async () => { await api(`/admin/users/${selectedUser.id}/password`, { method: 'POST', body: JSON.stringify({ password: selectedCurrent.password }) }); setDraftFor(selectedUser, { password: '' }); }, 'Parol almashtirildi va eski sessiyalar yopildi.')}>Parolni almashtirish</button></div></section>
-                  <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Sessions</span><h3>Kirish sessiyalari</h3></div></div><div className="ua-card-actions"><button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({}) }), 'Barcha sessiyalar bekor qilindi.')}>Barcha qurilmalardan chiqarish</button>{selectedUser.status === 'active' ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, async () => { const result = await api<{ link: string; expiresInMinutes: number }>(`/admin/users/${selectedUser.id}/reset-code`, { method: 'POST', body: JSON.stringify({}) }); setIssuedCode({ userId: selectedUser.id, link: result.link, minutes: result.expiresInMinutes }); })}>Tiklash havolasi yaratish</button> : null}{selectedUser.email && !selectedUser.emailVerified ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/verify-email`, { method: 'POST', body: JSON.stringify({}) }), 'Email tasdiqlandi.')}>Emailni tasdiqlash</button> : null}</div>{issuedCode?.userId === selectedUser.id ? <div className="ua-code"><div><strong>Bir martalik tiklash havolasi</strong><span>{issuedCode.minutes} daqiqa amal qiladi.</span></div><code>{issuedCode.link}</code><div className="ua-card-actions"><button type="button" className="ua-button ua-button--small" onClick={() => void navigator.clipboard?.writeText(issuedCode.link)}>Nusxalash</button><button type="button" className="ua-button ua-button--small" onClick={() => setIssuedCode(null)}>Yopish</button></div></div> : null}</section></div> : null}
+                {activeTab === 'security' ? <div className="ua-panel-stack"><section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Credentials</span><h3>Parol</h3></div><span className="ua-card-hint">Yangi parol o‘rnatilganda barcha eski sessiya va avvalgi reset havolalari bekor qilinadi.</span></div><div className="ua-inline-form"><label className="ua-control ua-control--grow"><span>Yangi parol</span><input type="password" minLength={8} placeholder="Kamida 8 belgi" value={selectedCurrent.password} onChange={(e) => setDraftFor(selectedUser, { password: e.target.value })}/></label><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || selectedCurrent.password.length < 8} onClick={() => void act(selectedUser.id, async () => { await api(`/admin/users/${selectedUser.id}/password`, { method: 'POST', body: JSON.stringify({ password: selectedCurrent.password }) }); setDraftFor(selectedUser, { password: '' }); }, 'Parol almashtirildi va eski sessiyalar yopildi.', { invalidateResetLink: true })}>Parolni almashtirish</button></div></section>
+                  <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Sessions</span><h3>Kirish sessiyalari</h3></div></div><div className="ua-card-actions"><button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({}) }), 'Barcha sessiyalar bekor qilindi.')}>Barcha qurilmalardan chiqarish</button>{selectedUser.status === 'active' ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, async () => { const result = await api<{ link: string; expiresInMinutes: number }>(`/admin/users/${selectedUser.id}/reset-code`, { method: 'POST', body: JSON.stringify({}) }); setIssuedCode({ userId: selectedUser.id, link: result.link, minutes: result.expiresInMinutes }); })}>Tiklash havolasi yaratish</button> : null}{selectedUser.email && !selectedUser.emailVerified ? <button type="button" className="ua-button" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/verify-email`, { method: 'POST', body: JSON.stringify({}) }), 'Email tasdiqlandi.', { patch: { emailVerified: true } })}>Emailni tasdiqlash</button> : null}</div>{issuedCode?.userId === selectedUser.id ? <div className="ua-code"><div><strong>Bir martalik tiklash havolasi</strong><span>{issuedCode.minutes} daqiqa amal qiladi.</span></div><code>{issuedCode.link}</code><div className="ua-card-actions"><button type="button" className="ua-button ua-button--small" onClick={() => void navigator.clipboard?.writeText(issuedCode.link)}>Nusxalash</button><button type="button" className="ua-button ua-button--small" onClick={() => setIssuedCode(null)}>Yopish</button></div></div> : null}</section></div> : null}
 
                 {activeTab === 'audit' ? <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Audit log</span><h3>Account faoliyati</h3></div><button type="button" className="ua-button ua-button--small" disabled={auditLoading === selectedUser.id} onClick={() => void loadAudit(selectedUser.id, true)}>Yangilash</button></div>{auditLoading === selectedUser.id ? <div className="ua-audit-empty">Audit tarixi yuklanmoqda…</div> : (audit[selectedUser.id] ?? []).length === 0 ? <div className="ua-audit-empty">Audit yozuvi yo‘q.</div> : <div className="ua-timeline">{(audit[selectedUser.id] ?? []).map((event) => <div className="ua-timeline-item" key={event.id}><span className="ua-timeline-dot"/><div><strong>{ACTION_LABEL[event.action] ?? event.action}</strong><span>{event.actorName} · {formatDate(event.createdAt)}</span></div></div>)}</div>}</section> : null}
 
                 {activeTab === 'danger' ? <div className="ua-panel-stack"><section className="ua-card ua-card--warning"><div className="ua-card-heading"><div><span className="ua-eyebrow">Account state</span><h3>Hisob holati</h3></div></div>{!selectedSelf ? <><label className="ua-control"><span>Sabab</span><textarea className="ua-textarea" placeholder="To‘xtatish sababi (ixtiyoriy)" value={selectedCurrent.reason} maxLength={300} onChange={(e) => setDraftFor(selectedUser, { reason: e.target.value })}/></label><div className="ua-card-actions">{selectedUser.status === 'active' ? <button type="button" className="ua-button ua-button--warning" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended', reason: selectedCurrent.reason.trim() || undefined }) }), 'Hisob vaqtincha yopildi.')}>Vaqtincha yopish</button> : null}{selectedUser.status === 'suspended' ? <button type="button" className="ua-button ua-button--primary" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/status`, { method: 'POST', body: JSON.stringify({ status: 'active' }) }), 'Hisob qayta faollashtirildi.')}>Qayta faollashtirish</button> : null}{selectedUser.status === 'rejected' ? <button type="button" className="ua-button ua-button--primary" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/reinstate`, { method: 'POST', body: JSON.stringify({}) }), 'Ariza qayta navbatga qo‘yildi.')}>Navbatga qaytarish</button> : null}</div></> : <div className="ua-muted-box">O‘z hisobingiz holatini bu paneldan o‘zgartira olmaysiz.</div>}</section>
-                  <section className="ua-card ua-card--danger"><div className="ua-card-heading"><div><span className="ua-eyebrow">Irreversible</span><h3>Hisobni o‘chirish</h3></div></div>{!selectedSelf ? <div className="ua-danger-actions"><div><div><strong>Oddiy o‘chirish</strong><span>Academic yoki administrative tarix mavjud bo‘lsa server bu amalni bloklaydi va sababini ko‘rsatadi.</span></div><button type="button" className="ua-button ua-button--danger-ghost" disabled={selectedBusy} onClick={() => { if (!confirm(`${selectedUser.fullName} hisobini oddiy usulda o‘chirasizmi?`)) return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'DELETE' }), 'Hisob o‘chirildi.'); }}>O‘chirish</button></div><div><div><strong>Permanent purge</strong><span>Qaytarib bo‘lmaydi: userga tegishli CASCADE ma’lumotlar o‘chadi; shared tarixdagi nullable havolalar tozalanadi, majburiy ownership ownerga o‘tkaziladi.</span></div><button type="button" className="ua-button ua-button--danger" disabled={selectedBusy} onClick={() => { if (!confirm('Bu amal hisob va unga tegishli CASCADE ma’lumotlarni qaytarib bo‘lmaydigan tarzda o‘chiradi. Davom etasizmi?')) return; const typed = prompt('Tasdiqlash uchun DELETE deb yozing'); if (typed !== 'DELETE') return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'DELETE' }) }), 'Hisob va unga tegishli CASCADE ma’lumotlar butunlay o‘chirildi.'); }}>Butunlay o‘chirish</button></div></div> : <div className="ua-muted-box">O‘z hisobingizni o‘chirish bloklangan.</div>}</section></div> : null}
+                  <section className="ua-card ua-card--danger"><div className="ua-card-heading"><div><span className="ua-eyebrow">Irreversible</span><h3>Hisobni o‘chirish</h3></div></div>{!selectedSelf ? <div className="ua-danger-actions"><div><div><strong>Oddiy o‘chirish</strong><span>Academic yoki administrative tarix mavjud bo‘lsa server bu amalni bloklaydi va sababini ko‘rsatadi.</span></div><button type="button" className="ua-button ua-button--danger-ghost" disabled={selectedBusy} onClick={() => { if (!confirm(`${selectedUser.fullName} hisobini oddiy usulda o‘chirasizmi?`)) return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'DELETE' }), 'Hisob o‘chirildi.', { remove: true }); }}>O‘chirish</button></div><div><div><strong>Permanent purge</strong><span>Qaytarib bo‘lmaydi: userga tegishli CASCADE ma’lumotlar o‘chadi; shared tarixdagi nullable havolalar tozalanadi, majburiy ownership ownerga o‘tkaziladi.</span></div><button type="button" className="ua-button ua-button--danger" disabled={selectedBusy} onClick={() => { if (!confirm('Bu amal hisob va unga tegishli CASCADE ma’lumotlarni qaytarib bo‘lmaydigan tarzda o‘chiradi. Davom etasizmi?')) return; const typed = prompt('Tasdiqlash uchun DELETE deb yozing'); if (typed !== 'DELETE') return; void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'DELETE' }) }), 'Hisob va unga tegishli CASCADE ma’lumotlar butunlay o‘chirildi.', { remove: true }); }}>Butunlay o‘chirish</button></div></div> : <div className="ua-muted-box">O‘z hisobingizni o‘chirish bloklangan.</div>}</section></div> : null}
               </>}
             </div>
           </>}
