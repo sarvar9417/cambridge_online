@@ -1,0 +1,162 @@
+.lesson-source-teaching {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, #4f46e5) 18%, var(--border, #d8dee8));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--lesson-accent-soft, #eef0ff) 24%, #fff);
+  color: #172033;
+}
+
+.lesson-source-teaching-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--lesson-accent, #4f46e5) 14%, var(--border, #d8dee8));
+}
+
+.lesson-source-teaching-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.lesson-source-teaching-heading span {
+  color: var(--lesson-accent, #4f46e5);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.lesson-source-teaching-heading strong {
+  color: #172033;
+  font-size: 14px;
+}
+
+.lesson-source-teaching-heading small {
+  color: #687386;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.lesson-source-teaching-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 10px;
+}
+
+.lesson-source-teaching-card {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 4px 14px rgba(15,23,42,.035);
+}
+
+.lesson-source-teaching-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.lesson-source-teaching-card > header > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lesson-source-teaching-card > header span {
+  color: var(--lesson-accent, #4f46e5);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.lesson-source-teaching-card > header strong {
+  color: #172033;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.lesson-source-teaching-card > header small {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #f3f6fa;
+  color: #687386;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.lesson-source-teaching-card ul,
+.lesson-source-teaching-card ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: #273244;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.lesson-source-teaching-card li::marker {
+  color: var(--lesson-accent, #4f46e5);
+  font-weight: 800;
+}
+
+.lesson-source-teaching-card.source-kind-example {
+  border-left: 4px solid #3b82f6;
+}
+
+.lesson-source-teaching-card.source-kind-activity,
+.lesson-source-teaching-card.source-kind-prior,
+.lesson-source-teaching-card.source-kind-review,
+.lesson-source-teaching-card.source-kind-exam {
+  border-left: 4px solid #10b981;
+}
+
+.lesson-source-teaching-card.source-kind-extension {
+  border-left: 4px solid #f59e0b;
+}
+
+.lesson-source-teaching-card.source-kind-table,
+.lesson-source-teaching-card.source-kind-figure {
+  border-left: 4px solid #8b5cf6;
+}
+
+.lesson-studio:fullscreen .lesson-source-teaching,
+.lesson-studio:-webkit-full-screen .lesson-source-teaching {
+  gap: 16px;
+  margin-block: 24px;
+  padding: 20px;
+}
+
+.lesson-studio:fullscreen .lesson-source-teaching-heading strong,
+.lesson-studio:-webkit-full-screen .lesson-source-teaching-heading strong {
+  font-size: clamp(16px, 1.35vw, 21px);
+}
+
+.lesson-studio:fullscreen .lesson-source-teaching-card > header strong,
+.lesson-studio:-webkit-full-screen .lesson-source-teaching-card > header strong {
+  font-size: clamp(14px, 1.05vw, 18px);
+}
+
+.lesson-studio:fullscreen .lesson-source-teaching-card ul,
+.lesson-studio:fullscreen .lesson-source-teaching-card ol,
+.lesson-studio:-webkit-full-screen .lesson-source-teaching-card ul,
+.lesson-studio:-webkit-full-screen .lesson-source-teaching-card ol {
+  font-size: clamp(14px, 1.15vw, 18px);
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  .lesson-source-teaching { padding: 12px; border-radius: 13px; }
+  .lesson-source-teaching-heading { align-items: flex-start; }
+  .lesson-source-teaching-grid { grid-template-columns: 1fr; }
+}
