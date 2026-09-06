@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - main
+      - fix/source-structure-repair-v2
     paths:
       - 'backend/scripts/qp-source-structure-repair-v2.py'
       - 'backend/scripts/qp-source-structure-repair-v3.py'
@@ -49,7 +50,9 @@ jobs:
         shell: bash
         run: |
           apply=NO
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/fix/source-structure-repair-v2" ]]; then
+            apply=YES
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
             apply=YES
           fi
           echo "apply=$apply" >> "$GITHUB_OUTPUT"
@@ -57,7 +60,7 @@ jobs:
         env:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
-          SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
+          SOURCE_STRUCTURE_ONLY: ${{ github.ref == 'refs/heads/fix/source-structure-repair-v2' && '9618' || (github.event_name == 'workflow_dispatch' && inputs.only || '') }}
         run: python3 backend/scripts/qp-source-structure-repair-v6.py
       - name: Upload repair plan
         if: always()
