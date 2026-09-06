@@ -75,12 +75,61 @@ export const updateProfileSchema = z.object({
   locale: z.enum(['uz', 'en', 'ru']).optional(),
 }).strict().refine((input) => Object.keys(input).length > 0, 'At least one profile field is required');
 
+const adminUsername = z.string().trim().min(3).max(40)
+  .regex(/^[a-zA-Z0-9._-]+$/, 'Username can contain only letters, digits, dot, underscore and hyphen');
+
+/** Owner-only creation of an already managed account. */
+export const adminCreateUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
+  username: adminUsername.nullable().optional(),
+  password: z.string().min(8).max(200),
+  role: z.enum(['owner', 'teacher', 'student']),
+  emailVerified: z.boolean().default(true),
+  classIds: z.array(z.string().uuid()).max(50).default([]),
+  groupId: z.string().uuid().nullable().optional(),
+}).strict()
+  .refine((input) => Boolean(input.email || input.username), {
+    message: 'Email or username is required', path: ['email'],
+  })
+  .refine((input) => input.role === 'student' || !input.groupId, {
+    message: 'A group can only be assigned to a student', path: ['groupId'],
+  })
+  .refine((input) => !input.groupId || input.classIds.length === 1, {
+    message: 'A student group requires exactly one class', path: ['groupId'],
+  });
+
+/** Editable identity fields. `null` clears the optional identifier. */
+export const adminUpdateUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(120).optional(),
+  email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
+  username: adminUsername.nullable().optional(),
+}).strict().refine((input) => Object.keys(input).length > 0, 'At least one user field is required');
+
+export const adminSetPasswordSchema = z.object({
+  password: z.string().min(8).max(200),
+}).strict();
+
+/**
+ * Students belong to one current class; staff may teach multiple classes.
+ * `groupId` is only meaningful for a student and must belong to their class.
+ */
+export const adminSetClassesSchema = z.object({
+  classIds: z.array(z.string().uuid()).max(50),
+  groupId: z.string().uuid().nullable().optional(),
+}).strict().refine((input) => !input.groupId || input.classIds.length === 1, {
+  message: 'A group requires exactly one class', path: ['groupId'],
+});
+
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ApproveUserInput = z.infer<typeof approveUserSchema>;
 export type SetUserStatusInput = z.infer<typeof setUserStatusSchema>;
+export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>;
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+export type AdminSetClassesInput = z.infer<typeof adminSetClassesSchema>;
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
