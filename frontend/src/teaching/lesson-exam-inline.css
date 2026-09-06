@@ -1,0 +1,442 @@
+/* Lesson Studio inline past-paper flow.
+ * The complete source-faithful question is visible in-place; only the mark
+ * scheme remains hidden until the teacher reveals it.
+ */
+
+.lesson-exam-card.lesson-exam-inline {
+  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 16px;
+  row-gap: 12px;
+  overflow: visible;
+  padding: 18px 18px 18px 14px;
+}
+
+.lesson-exam-card.lesson-exam-inline .lesson-exam-number {
+  grid-column: 1;
+  grid-row: 1 / 4;
+}
+
+.lesson-exam-card.lesson-exam-inline > .lesson-exam-meta {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.lesson-exam-card.lesson-exam-inline > .lesson-question-context,
+.lesson-exam-card.lesson-exam-inline > p,
+.lesson-exam-card.lesson-exam-inline > .qtext-host,
+.lesson-exam-card.lesson-exam-inline > .lesson-question-card-actions {
+  display: none !important;
+}
+
+.lesson-exam-card.lesson-exam-inline > footer {
+  grid-column: 2;
+  grid-row: 3;
+  margin-top: 0;
+}
+
+.lesson-inline-question {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: #172033;
+}
+
+.lesson-inline-question-shell {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lesson-inline-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin: 0 0 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--lesson-line, #dfe5ee) 86%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, #fff 94%, var(--lesson-accent-soft, #eef0ff) 6%);
+  box-shadow: 0 5px 16px rgba(15,23,42,.045);
+  backdrop-filter: blur(10px);
+}
+
+.lesson-inline-source-meta,
+.lesson-inline-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.lesson-inline-source-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #f6f8fb;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.lesson-inline-ms-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid #d9e0e8;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.lesson-inline-ms-status.is-approved {
+  border-color: #b8e1d1;
+  background: #eef9f3;
+  color: #087653;
+}
+
+.lesson-inline-ms-status.is-review {
+  border-color: #ead39d;
+  background: #fff8e8;
+  color: #875d0a;
+}
+
+.lesson-inline-ms-status.is-missing {
+  border-color: #efc4bf;
+  background: #fff3f1;
+  color: #9b2c24;
+}
+
+.lesson-inline-ms-toggle,
+.lesson-inline-retry {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--lesson-accent, #5b5ce2) 32%, #dbe2ea);
+  border-radius: 9px;
+  background: var(--lesson-accent, #5b5ce2);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--lesson-accent, #5b5ce2) 18%, transparent);
+  transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
+}
+
+.lesson-inline-ms-toggle:hover,
+.lesson-inline-retry:hover {
+  transform: translateY(-1px);
+  filter: brightness(.98);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--lesson-accent, #5b5ce2) 23%, transparent);
+}
+
+.lesson-inline-ms-toggle:focus-visible,
+.lesson-inline-retry:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--lesson-accent, #5b5ce2) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.lesson-inline-context {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid #dfe5ee;
+  border-left: 4px solid color-mix(in srgb, var(--lesson-accent, #5b5ce2) 72%, #fff);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.lesson-inline-context-label {
+  color: #667085;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .09em;
+}
+
+.lesson-inline-context article {
+  display: grid;
+  gap: 7px;
+}
+
+.lesson-inline-context article > strong {
+  color: #344054;
+  font-size: 11px;
+}
+
+.lesson-inline-context .lesson-v3-context-text {
+  margin: 0;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.lesson-inline-context-asset {
+  margin: 4px 0 0;
+}
+
+.lesson-inline-context-asset img {
+  display: block;
+  max-width: min(100%, 900px);
+  max-height: 520px;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.lesson-inline-source-paper {
+  min-width: 0;
+  padding: 2px 2px 4px;
+}
+
+.lesson-inline-canonical-question {
+  color: #111827;
+  font-family: var(--font-read, "Source Serif 4 Variable", Georgia, serif);
+  font-size: clamp(17px, 1.55vw, 21px);
+  line-height: 1.72;
+}
+
+.lesson-inline-canonical-question .structured-question-text,
+.lesson-inline-canonical-question .structured-question-list,
+.lesson-inline-canonical-question .structured-question-code,
+.lesson-inline-canonical-question .structured-question-table,
+.lesson-inline-canonical-question .structured-question-matching,
+.lesson-inline-canonical-question .structured-question-asset,
+.lesson-inline-canonical-question .structured-question-answer-area {
+  margin-block: 14px;
+}
+
+.lesson-inline-canonical-question .structured-question-task {
+  font-weight: 680;
+}
+
+.lesson-inline-canonical-question .structured-question-code {
+  overflow-x: auto;
+  padding: 14px 16px;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: pre-wrap;
+}
+
+.lesson-inline-canonical-question .structured-question-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.lesson-inline-canonical-question .structured-question-table th,
+.lesson-inline-canonical-question .structured-question-table td {
+  padding: 10px 12px;
+  border: 1px solid #cfd7e3;
+  color: #111827;
+  vertical-align: top;
+}
+
+.lesson-inline-canonical-question .structured-question-table th {
+  background: #f3f6fa;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+}
+
+.lesson-inline-canonical-question .structured-question-asset img {
+  display: block;
+  width: min(100%, 900px);
+  max-height: 600px;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.lesson-inline-canonical-question .structured-question-answer-area {
+  min-height: 90px;
+  border: 1px solid #dfe5ed;
+  border-radius: 7px;
+  background: repeating-linear-gradient(to bottom,#fff 0,#fff 31px,#e3e8ef 32px);
+}
+
+.lesson-inline-canonical-question .structured-question-answer-drawing {
+  min-height: 240px;
+  background: #fff;
+}
+
+.lesson-inline-dependencies {
+  padding: 9px 11px;
+  border: 1px solid #e2e7ee;
+  border-radius: 9px;
+  background: #fafbfc;
+  color: #667085;
+}
+
+.lesson-inline-dependencies summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lesson-inline-dependencies p {
+  margin: 7px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.lesson-inline-mark-scheme {
+  display: grid;
+  gap: 12px;
+  margin-top: 2px;
+  padding: 16px;
+  border: 1px solid #b8e1d1;
+  border-radius: 12px;
+  background: linear-gradient(180deg,#f5fbf8,#fff);
+  color: #172033;
+  box-shadow: inset 0 3px 0 #0f9f72;
+}
+
+.lesson-inline-mark-scheme[hidden] {
+  display: none !important;
+}
+
+.lesson-exam-card.is-ms-open {
+  border-color: color-mix(in srgb, #0f9f72 30%, var(--lesson-line, #dfe5ee));
+  box-shadow: 0 14px 34px rgba(15,159,114,.08);
+}
+
+.lesson-inline-loading {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0 8px;
+}
+
+.lesson-inline-loading-line {
+  display: block;
+  width: 72%;
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,#eef1f5 25%,#f8fafc 50%,#eef1f5 75%);
+  background-size: 200% 100%;
+  animation: lesson-inline-shimmer 1.3s linear infinite;
+}
+
+.lesson-inline-loading-line.is-wide {
+  width: 94%;
+}
+
+@keyframes lesson-inline-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.lesson-inline-error {
+  display: grid;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 1px solid #efc4bf;
+  border-radius: 10px;
+  background: #fff6f4;
+  color: #8f2f27;
+}
+
+.lesson-inline-error strong {
+  font-size: 12px;
+}
+
+.lesson-inline-error p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.lesson-inline-error .lesson-inline-retry {
+  justify-self: start;
+  min-height: 32px;
+  background: #fff;
+  color: #8f2f27;
+  box-shadow: none;
+}
+
+html.lesson-presenting .lesson-inline-toolbar,
+.lesson-studio:fullscreen .lesson-inline-toolbar,
+.lesson-studio:-webkit-full-screen .lesson-inline-toolbar {
+  min-height: 56px;
+  padding: 10px 12px;
+}
+
+html.lesson-presenting .lesson-inline-canonical-question,
+.lesson-studio:fullscreen .lesson-inline-canonical-question,
+.lesson-studio:-webkit-full-screen .lesson-inline-canonical-question {
+  font-size: clamp(21px, 2.15vw, 30px);
+  line-height: 1.68;
+}
+
+html.lesson-presenting .lesson-inline-ms-toggle,
+.lesson-studio:fullscreen .lesson-inline-ms-toggle,
+.lesson-studio:-webkit-full-screen .lesson-inline-ms-toggle {
+  min-height: 42px;
+  padding-inline: 16px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .lesson-exam-card.lesson-exam-inline {
+    grid-template-columns: 48px minmax(0,1fr);
+    padding: 16px 15px 16px 10px;
+  }
+
+  .lesson-inline-toolbar {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .lesson-exam-card.lesson-exam-inline {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    padding: 14px;
+  }
+
+  .lesson-exam-card.lesson-exam-inline .lesson-exam-number,
+  .lesson-exam-card.lesson-exam-inline > .lesson-exam-meta,
+  .lesson-exam-card.lesson-exam-inline > .lesson-inline-question,
+  .lesson-exam-card.lesson-exam-inline > footer {
+    grid-column: 1;
+  }
+
+  .lesson-exam-card.lesson-exam-inline .lesson-exam-number {
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .lesson-exam-card.lesson-exam-inline > .lesson-exam-meta { grid-row: 2; }
+  .lesson-exam-card.lesson-exam-inline > .lesson-inline-question { grid-row: 3; }
+  .lesson-exam-card.lesson-exam-inline > footer { grid-row: 4; }
+
+  .lesson-inline-toolbar {
+    position: static;
+    display: grid;
+    gap: 9px;
+  }
+
+  .lesson-inline-toolbar-actions {
+    justify-content: space-between;
+  }
+
+  .lesson-inline-ms-toggle {
+    flex: 1;
+  }
+
+  .lesson-inline-canonical-question {
+    font-size: 16px;
+  }
+}
