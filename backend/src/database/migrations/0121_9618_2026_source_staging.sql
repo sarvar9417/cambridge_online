@@ -115,6 +115,8 @@ DECLARE
   v_expected_name text;
   v_letter text;
   v_kind text;
+  v_existing public.source_papers%ROWTYPE;
+  v_referenced boolean := false;
 BEGIN
   IF p_year<2021 OR p_year>2029 THEN RAISE EXCEPTION '9618_year_out_of_range:%',p_year; END IF;
   IF p_series NOT IN ('FM','MJ','ON') THEN RAISE EXCEPTION '9618_bad_series:%',p_series; END IF;
@@ -147,6 +149,26 @@ BEGIN
   WHERE c.syllabus_id=v_syllabus AND c.number=p_component;
   IF v_component IS NULL THEN RAISE EXCEPTION '9618_component_missing:%:%',p_year,p_component; END IF;
 
+  SELECT sp.* INTO v_existing
+  FROM public.source_papers sp
+  WHERE sp.syllabus_id=v_syllabus AND sp.component_id=v_component
+    AND sp.year=p_year AND sp.series=p_series::exam_series
+    AND sp.variant=p_variant AND sp.kind=v_kind::paper_kind
+  FOR UPDATE;
+
+  IF v_existing.id IS NOT NULL THEN
+    IF v_kind='QP' THEN
+      SELECT EXISTS(SELECT 1 FROM public.questions q WHERE q.source_paper_id=v_existing.id)
+      INTO v_referenced;
+    ELSE
+      SELECT EXISTS(SELECT 1 FROM public.mark_schemes ms WHERE ms.source_paper_id=v_existing.id)
+      INTO v_referenced;
+    END IF;
+    IF v_referenced AND lower(v_existing.sha256)<>lower(p_sha256) THEN
+      RAISE EXCEPTION '9618_staged_source_hash_is_frozen_after_ingestion:%',v_existing.id;
+    END IF;
+  END IF;
+
   INSERT INTO public.source_papers(
     syllabus_id,component_id,year,series,variant,kind,storage_path,sha256,page_count,source_url
   ) VALUES(
@@ -156,7 +178,16 @@ BEGIN
   ON CONFLICT(syllabus_id,component_id,year,series,variant,kind)
   DO UPDATE SET
     storage_path=excluded.storage_path,
-    sha256=excluded.sha256,
+    sha256=CASE
+      WHEN (
+        source_papers.kind='QP'::paper_kind
+        AND EXISTS(SELECT 1 FROM public.questions q WHERE q.source_paper_id=source_papers.id)
+      ) OR (
+        source_papers.kind='MS'::paper_kind
+        AND EXISTS(SELECT 1 FROM public.mark_schemes ms WHERE ms.source_paper_id=source_papers.id)
+      ) THEN source_papers.sha256
+      ELSE excluded.sha256
+    END,
     page_count=coalesce(excluded.page_count,public.source_papers.page_count),
     source_url=excluded.source_url
   RETURNING id INTO v_id;
