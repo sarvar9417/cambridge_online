@@ -24,7 +24,7 @@ def main() -> int:
     verified = None
     if int(approval.get("stillBlocked", -1)) == 0:
         verified = RUNNER(
-            "assert_year", {"syllus_code":"9618","syllabus_code":"9618","year":2026}, timeout=180
+            "assert_year", {"syllabus_code":"9618","year":2026}, timeout=180
         ).get("result")
 
     report = {"fidelity": fidelity, "approval": approval, "yearGate": verified}
