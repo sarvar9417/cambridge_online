@@ -85,7 +85,7 @@ describe('exact supplied PDF fidelity contract',()=>{
     expect(teachingText(1)).toContain('binary magnitudes, binary prefixes and decimal prefixes');
     expect(teachingText(13)).toContain('whether born in the zoo');
     expect(teachingText(13)).toContain('append a line at the end');
-    expect(teachingText(13)).toContain('serial/sequential/random file organisation');
+    expect(teachingText(13)).toContain('methods of file organisation, such as serial, sequential and random');
     expect(chapter1?.coverage).toContain('26/26 page fingerprints');
     expect(chapter1?.coverage).toContain('26/26 supplied-PDF detail pages');
     expect(chapter13?.coverage).toContain('24/24 page fingerprints');
