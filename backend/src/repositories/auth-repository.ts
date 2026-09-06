@@ -18,9 +18,10 @@ export interface AuthUser {
   email: string | null;
 }
 
-/** A registration waiting on a decision, as the approver needs to see it. */
+/** A registration/account row as the approver needs to see it. */
 export interface PendingUser {
   id: string;
+  schoolId: string | null;
   fullName: string;
   email: string | null;
   username: string | null;
@@ -94,6 +95,7 @@ const mapUser = (row: Record<string, unknown>): AuthUser => ({
 
 const mapPending = (row: Record<string, unknown>): PendingUser => ({
   id: String(row.id),
+  schoolId: row.school_id ? String(row.school_id) : null,
   fullName: String(row.full_name),
   email: row.email ? String(row.email) : null,
   username: row.username ? String(row.username) : null,
@@ -242,9 +244,6 @@ export class PgAuthRepository implements AuthRepository {
   }
 
   async register(input: { fullName:string; email:string; username:string; passwordHash:string; note?:string }) {
-    // status is spelled out rather than left to the column default, which is
-    // 'active' for the invite path. A self-registered account must never be
-    // usable before someone decides it should be.
     const result = await this.pool.query(
       `insert into users (role, status, full_name, email, username, password_hash, registration_note)
        values ('student', 'pending', $1, $2, $3, $4, $5)
@@ -267,9 +266,6 @@ export class PgAuthRepository implements AuthRepository {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
-      // One live token at a time. Issuing a new one has to invalidate the old,
-      // or a link from an hour ago still works after the user asked for another
-      // because the first went astray.
       await client.query(
         `update password_reset_tokens set used_at = now()
          where user_id = $1 and used_at is null`, [input.userId]);
@@ -281,12 +277,6 @@ export class PgAuthRepository implements AuthRepository {
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
   }
 
-  /**
-   * Claims the token and sets the password in one transaction, so two people
-   * racing the same link cannot both succeed. Bumping token_version and clearing
-   * refresh tokens signs out every existing session -- whoever forced the reset
-   * loses their access along with the legitimate owner's old devices.
-   */
   async consumeResetToken(tokenHash: string, passwordHash: string) {
     const client = await this.pool.connect();
     try {
@@ -309,7 +299,8 @@ export class PgAuthRepository implements AuthRepository {
 
   async listUsers(filter: { status?: UserStatus }) {
     const result = await this.pool.query(
-      `select id, full_name, email, username, status, status_reason, registration_note, created_at
+      `select id, school_id, full_name, email, username, status, status_reason,
+              email_verified_at, registration_note, created_at
        from users
        where is_active = true and ($1::user_status is null or status = $1)
        order by case when status = 'pending' then 0 else 1 end, created_at desc
@@ -334,8 +325,6 @@ export class PgAuthRepository implements AuthRepository {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
-      // Only a pending row may be approved, so a second approver clicking the
-      // same row cannot re-enrol someone or silently change a live user's role.
       const updated = await client.query(
         `update users set status = 'active', role = $2, approved_at = now(), approved_by = $3,
                 status_reason = null, updated_at = now()
@@ -348,14 +337,10 @@ export class PgAuthRepository implements AuthRepository {
       if (input.classId) {
         const klass = await client.query('select school_id from classes where id = $1', [input.classId]);
         if (!klass.rowCount) throw new Error('class_not_found');
-        // The class decides the school; a self-registered user has none yet.
         await client.query('update users set school_id = $2 where id = $1',
           [input.userId, klass.rows[0].school_id]);
         if (input.role === 'student') {
           if (input.groupId) {
-            // The composite foreign key would reject a group from another class,
-            // but as a constraint violation rather than something the approver
-            // can read. Checked here so the answer names the problem.
             const group = await client.query(
               'select 1 from groups where id = $1 and class_id = $2 and archived_at is null',
               [input.groupId, input.classId]);
@@ -392,128 +377,60 @@ export class PgAuthRepository implements AuthRepository {
     try {
       await client.query('begin');
       const result = await client.query(
-        `update users set status = $2, status_reason = $3, updated_at = now()
-         where id = $1 and status in ('active', 'suspended') returning *`,
-        [input.userId, input.status, input.reason ?? null],
-      );
-      if (!result.rowCount) throw new Error('user_not_found');
-      if (input.status === 'suspended') {
-        // findById already refuses a suspended user, but ending the sessions
-        // outright means no access token survives even for its remaining minutes.
-        await client.query('update users set token_version = token_version + 1 where id = $1', [input.userId]);
-        await client.query(
-          `update refresh_tokens set revoked_at = coalesce(revoked_at, now()) where user_id = $1`, [input.userId]);
+        `update users set status=$2,status_reason=$3,updated_at=now()
+         where id=$1 and is_active=true and status in ('active','suspended') returning *`,
+        [input.userId,input.status,input.reason??null]);
+      if(!result.rowCount)throw new Error('user_not_found');
+      if(input.status==='suspended'){
+        await client.query('update users set token_version=token_version+1 where id=$1',[input.userId]);
+        await client.query('update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1',[input.userId]);
       }
       await client.query('commit');
       return mapPending(result.rows[0]);
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
   async setUserRole(input: { userId:string; role:AuthUser['role'] }) {
-    const client = await this.pool.connect();
-    try {
+    const client=await this.pool.connect();
+    try{
       await client.query('begin');
-      const result = await client.query(
-        // token_version moves so the old access token, which carries the old
-        // role in its claims, stops being accepted immediately.
-        `update users set role = $2, token_version = token_version + 1, updated_at = now()
-         where id = $1 and is_active = true returning *`,
-        [input.userId, input.role],
-      );
-      if (!result.rowCount) throw new Error('user_not_found');
+      const current=await client.query('select role from users where id=$1 and is_active=true',[input.userId]);
+      if(!current.rowCount)throw new Error('user_not_found');
+      if(current.rows[0].role==='student'&&input.role!=='student')await client.query('update enrollments set left_at=coalesce(left_at,now()) where student_id=$1 and left_at is null',[input.userId]);
+      if(input.role==='student')await client.query('delete from class_teachers where teacher_id=$1',[input.userId]);
+      const result=await client.query('update users set role=$2,token_version=token_version+1,updated_at=now() where id=$1 returning *',[input.userId,input.role]);
+      await client.query('update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1',[input.userId]);
       await client.query('commit');
       return mapPending(result.rows[0]);
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
   async createVerificationToken(input: { userId:string; tokenHash:string; expiresAt:Date }) {
-    const client = await this.pool.connect();
-    try {
-      await client.query('begin');
-      // One live link at a time, so a resend invalidates the first.
-      await client.query(
-        `update email_verification_tokens set used_at = now() where user_id = $1 and used_at is null`,
-        [input.userId]);
-      await client.query(
-        `insert into email_verification_tokens (user_id, token_hash, expires_at) values ($1, $2, $3)`,
-        [input.userId, input.tokenHash, input.expiresAt]);
-      await client.query('commit');
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    const client=await this.pool.connect();
+    try{await client.query('begin');await client.query('update email_verification_tokens set used_at=now() where user_id=$1 and used_at is null',[input.userId]);await client.query('insert into email_verification_tokens(user_id,token_hash,expires_at) values($1,$2,$3)',[input.userId,input.tokenHash,input.expiresAt]);await client.query('commit')}catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
-  async consumeVerificationToken(tokenHash: string) {
-    const client = await this.pool.connect();
-    try {
-      await client.query('begin');
-      const claimed = await client.query(
-        `update email_verification_tokens set used_at = now()
-         where token_hash = $1 and used_at is null and expires_at > now()
-         returning user_id`, [tokenHash]);
-      if (!claimed.rowCount) { await client.query('rollback'); return null; }
-      const userId = String(claimed.rows[0].user_id);
-      await client.query(
-        `update users set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
-         where id = $1`, [userId]);
-      await client.query('commit');
-      return { userId };
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  async consumeVerificationToken(tokenHash:string){const result=await this.pool.query(`update email_verification_tokens set used_at=now() where token_hash=$1 and used_at is null and expires_at>now() returning user_id`,[tokenHash]);if(!result.rowCount)return null;const userId=String(result.rows[0].user_id);await this.pool.query('update users set email_verified_at=coalesce(email_verified_at,now()),updated_at=now() where id=$1',[userId]);return{userId}}
+
+  async markEmailVerified(userId:string){const result=await this.pool.query('update users set email_verified_at=coalesce(email_verified_at,now()),updated_at=now() where id=$1 and is_active=true returning id',[userId]);if(!result.rowCount)throw new Error('user_not_found')}
+
+  async countDependents(userId:string){
+    const checks=[
+      ['Topshiriqlar',`select count(*)::int n from submissions where student_id=$1`],
+      ['Vazifalar',`select count(*)::int n from assignments where created_by=$1`],
+      ['Baholashlar',`select count(*)::int n from gradings where graded_by=$1`],
+      ['Sinf egaligi',`select count(*)::int n from classes where owner_id=$1`],
+      ['Sinf a’zoligi',`select count(*)::int n from enrollments where student_id=$1`],
+      ['O‘qituvchi sinflari',`select count(*)::int n from class_teachers where teacher_id=$1`],
+    ] as const;
+    const result:Array<{what:string;count:number}>=[];
+    for(const [what,sql]of checks){const count=await this.pool.query(sql,[userId]);const n=Number(count.rows[0]?.n??0);if(n>0)result.push({what,count:n})}
+    return result;
   }
 
-  async markEmailVerified(userId: string) {
-    const result = await this.pool.query(
-      `update users set email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
-       where id = $1 and is_active = true returning id`, [userId]);
-    if (!result.rowCount) throw new Error('user_not_found');
-  }
+  async deleteUser(userId:string){const result=await this.pool.query('delete from users where id=$1 returning id',[userId]);if(!result.rowCount)throw new Error('user_not_found')}
 
-  /**
-   * Everything that would be destroyed or would block a delete.
-   *
-   * submissions, enrollments and the rest cascade, so deleting a student who has
-   * answered anything would silently take their whole graded history with them.
-   * assignments, classes and gradings do not cascade, so deleting the teacher
-   * who created them fails with a constraint error the operator cannot read.
-   * Either way the answer is the same: name what is attached and refuse.
-   */
-  async countDependents(userId: string) {
-    const result = await this.pool.query(`
-      select 'Topshiriqlar' what, count(*) n from submissions where student_id = $1
-      union all select 'Sinfga a\u2018zolik', count(*) from enrollments where student_id = $1
-      union all select 'O\u2018qituvchi sifatida sinflar', count(*) from class_teachers where teacher_id = $1
-      union all select 'Yaratgan vazifalar', count(*) from assignments where created_by = $1
-      union all select 'Egalik qilgan sinflar', count(*) from classes where owner_id = $1
-      union all select 'Qo\u2018ygan baholar', count(*) from gradings where graded_by = $1
-      union all select 'Tekshirgan savollar', count(*) from questions where reviewed_by = $1
-      union all select 'Tanlovlar', count(*) from selections where owner_id = $1
-      union all select 'Apellyatsiyalar', count(*) from grading_appeals where student_id = $1 or resolved_by = $1
-      union all select 'Yuklagan paperlar', count(*) from source_papers where uploaded_by = $1
-      union all select 'Tasdiqlagan foydalanuvchilar', count(*) from users where approved_by = $1
-      union all select 'Jurnal yozuvlari', count(*) from audit_log where actor_id = $1`,
-      [userId]);
-    return result.rows
-      .map((row) => ({ what: String(row.what), count: Number(row.n) }))
-      .filter((row) => row.count > 0);
-  }
+  async reinstateUser(userId:string){const result=await this.pool.query(`update users set status='pending',status_reason=null,approved_at=null,approved_by=null,updated_at=now() where id=$1 and status='rejected' returning *`,[userId]);if(!result.rowCount)throw new Error('user_not_rejected');return mapPending(result.rows[0])}
 
-  async deleteUser(userId: string) {
-    const result = await this.pool.query('delete from users where id = $1 returning id', [userId]);
-    if (!result.rowCount) throw new Error('user_not_found');
-  }
-
-  /** Puts a rejected application back in the queue, which is otherwise a dead end. */
-  async reinstateUser(userId: string) {
-    const result = await this.pool.query(
-      `update users set status = 'pending', status_reason = null, approved_at = null,
-              approved_by = null, updated_at = now()
-       where id = $1 and status = 'rejected' returning *`, [userId]);
-    if (!result.rowCount) throw new Error('user_not_rejected');
-    return mapPending(result.rows[0]);
-  }
-
-  private async insertRefresh(client: PoolClient, userId: string, rawToken: string, expiresAt: Date) {
-    await client.query(
-      'insert into refresh_tokens (user_id, token_hash, expires_at) values ($1, $2, $3)',
-      [userId, hashToken(rawToken), expiresAt],
-    );
-  }
+  private async insertRefresh(client: PoolClient,userId:string,rawToken:string,expiresAt:Date,deviceLabel?:string){await client.query('insert into refresh_tokens(user_id,token_hash,expires_at,device_label)values($1,$2,$3,$4)',[userId,hashToken(rawToken),expiresAt,deviceLabel??null])}
 }
