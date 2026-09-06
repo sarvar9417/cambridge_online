@@ -41,6 +41,8 @@ function separatorRow(cells: string[]) {
 
 function tableKind(asset: PortableSourceAsset): TableBlock['kind'] {
   const label = `${asset.altText ?? ''}\n${asset.contentMd ?? ''}`.toLowerCase();
+  if (label.includes('karnaugh') || label.includes('k-map')) return 'k_map';
+  if (label.includes('trace table') || label.includes('trace-table')) return 'trace_table';
   if (label.includes('truth table')) return 'truth_table';
   if (label.includes('tick') || label.includes('checkbox')) return 'tick_grid';
   if (label.includes('selection') || label.includes('select one')) return 'selection_grid';
