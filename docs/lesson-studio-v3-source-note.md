@@ -1,0 +1,1 @@
+The source-book baseline for Lesson Studio v3 remains the exact supplied-PDF manifests already committed in `source-file-fidelity-manifest.ts`. Exam enrichment is additive; it must never replace, delete or silently rewrite those source-backed lesson atoms.
