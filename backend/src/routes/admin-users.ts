@@ -30,6 +30,9 @@ const createManagedUserSchema = z.object({
   })
   .refine((input) => !input.groupId || Boolean(input.classId), {
     message: 'Guruh faqat sinf bilan birga tanlanadi.', path: ['groupId'],
+  })
+  .refine((input) => !input.groupId || input.role === 'student', {
+    message: 'Guruh faqat o‘quvchi uchun tanlanadi.', path: ['groupId'],
   });
 
 const updateManagedUserSchema = z.object({
@@ -86,6 +89,8 @@ export function createAdminUsersRouter(
       class_not_found: 'Sinf topilmadi.',
       membership_not_found: 'Bu sinf biriktirilmagan.',
       group_not_in_class: 'Bu guruh tanlangan sinfga tegishli emas.',
+      group_student_only: 'Guruh faqat o‘quvchiga biriktiriladi.',
+      email_required: 'Tasdiqlash uchun hisobda email manzili bo‘lishi kerak.',
       email_taken: 'Bu email boshqa hisobda ishlatilgan.',
       username_taken: 'Bu username boshqa hisobda ishlatilgan.',
       duplicate_user: 'Bu ma’lumot bilan foydalanuvchi allaqachon mavjud.',
@@ -340,6 +345,24 @@ export function createAdminUsersRouter(
     const id = targetId(req.params);
     const target = await repository.findById(id);
     if (!target) {
+      // Production owner requests use the richer service so exact lookup, school
+      // scoping and the single-school onboarding rule stay in one place rather
+      // than scanning a capped user list.
+      if (management && req.actor!.role === 'owner') {
+        try {
+          const managed = await management.getUser(req.actor!, id);
+          if (managed.status !== 'active') {
+            res.status(409).json({ error: { code: 'user_not_active', message: 'Faol bo‘lmagan hisob uchun parol tiklanmaydi.' } });
+            return;
+          }
+        } catch (error) {
+          if (!managementError(res, error)) throw error;
+          return;
+        }
+      }
+
+      // Compatibility fallback for the no-database test/offline app. Teachers
+      // still learn nothing about cross-school users.
       const inactive = (await repository.listUsers({})).find((user) => user.id === id);
       const sameSchool = Boolean(
         inactive && req.actor!.schoolId && inactive.schoolId && inactive.schoolId === req.actor!.schoolId,
