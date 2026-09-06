@@ -21,12 +21,50 @@ export function readableBooleanLatex(latex:string){
     .replaceAll('\\oplus','⊕')
     .replaceAll('\\neg','¬')
     .replaceAll('\\cdot','·')
-    .replace(/\\operatorname\{NAND\}/g,'NAND')
-    .replace(/\\operatorname\{NOR\}/g,'NOR')
-    .replace(/\\operatorname\{XOR\}/g,'XOR')
-    .replace(/\\mathrm\{(AND|OR|NOT|NAND|NOR|XOR)\}/g,'$1')
+    .replaceAll('\\,',' ')
+    .replace(/\\operatorname\{([^{}]+)\}/g,'$1')
+    .replace(/\\mathrm\{([^{}]+)\}/g,'$1')
+    .replace(/\\text\{([^{}]+)\}/g,'$1')
+    .replace(/[{}]/g,'')
     .replace(/\s+/g,' ')
     .trim();
+}
+
+export function readableMathLatex(latex:string){
+  return latex
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g,'($1)/($2)')
+    .replace(/\\sqrt\{([^{}]+)\}/g,'√($1)')
+    .replaceAll('\\times','×')
+    .replaceAll('\\div','÷')
+    .replaceAll('\\pm','±')
+    .replaceAll('\\leq','≤')
+    .replaceAll('\\le','≤')
+    .replaceAll('\\geq','≥')
+    .replaceAll('\\ge','≥')
+    .replaceAll('\\neq','≠')
+    .replaceAll('\\cdot','·')
+    .replaceAll('\\,',' ')
+    .replace(/\\operatorname\{([^{}]+)\}/g,'$1')
+    .replace(/\\mathrm\{([^{}]+)\}/g,'$1')
+    .replace(/\\text\{([^{}]+)\}/g,'$1')
+    .replace(/\^\{([^{}]+)\}/g,'^$1')
+    .replace(/_\{([^{}]+)\}/g,'_$1')
+    .replace(/[{}]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function renderKMapCorner(th:HTMLTableCellElement){
+  th.className='structured-question-k-map-corner';
+  th.setAttribute('aria-label','Karnaugh map axes: AB columns, CD rows');
+  const axis=document.createElement('span');
+  axis.className='structured-question-k-map-axis';
+  const columns=document.createElement('b');
+  columns.textContent='AB';
+  const rows=document.createElement('b');
+  rows.textContent='CD';
+  axis.append(columns,rows);
+  th.append(axis);
 }
 
 function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
@@ -38,12 +76,16 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
   if(block.headers.length){
     const thead=document.createElement('thead');
     const row=document.createElement('tr');
-    for(const header of block.headers){
+    block.headers.forEach((header,columnIndex)=>{
       const th=document.createElement('th');
       th.scope='col';
-      th.textContent=header;
+      if(block.kind==='k_map'&&columnIndex===0){
+        renderKMapCorner(th);
+      }else{
+        th.textContent=header;
+      }
       row.append(th);
-    }
+    });
     thead.append(row);
     table.append(thead);
   }
@@ -53,7 +95,9 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
   block.rows.forEach((cells,rowIndex)=>{
     const row=document.createElement('tr');
     cells.forEach((value,columnIndex)=>{
-      const cell=document.createElement('td');
+      const isKMapRowHeader=block.kind==='k_map'&&columnIndex===0;
+      const cell=document.createElement(isKMapRowHeader?'th':'td');
+      if(isKMapRowHeader)(cell as HTMLTableCellElement).scope='row';
       const key=`${rowIndex}:${columnIndex}`;
       cell.textContent=value??'';
       if(editable.has(key)){
@@ -94,6 +138,64 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   return wrapper;
 }
 
+function openAssetZoom(url:string,altText:string){
+  const dialog=document.createElement('dialog');
+  dialog.className='structured-question-asset-dialog';
+  dialog.setAttribute('aria-label',altText||'Question visual');
+
+  const toolbar=document.createElement('div');
+  toolbar.className='structured-question-asset-dialog-toolbar';
+  const title=document.createElement('strong');
+  title.textContent=altText||'Question visual';
+  const close=document.createElement('button');
+  close.type='button';
+  close.textContent='Close';
+  close.addEventListener('click',()=>dialog.close());
+  toolbar.append(title,close);
+
+  const image=document.createElement('img');
+  image.src=url;
+  image.alt=altText;
+  dialog.append(toolbar,image);
+  dialog.addEventListener('click',(event)=>{
+    if(event.target===dialog)dialog.close();
+  });
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  document.body.append(dialog);
+  if(typeof dialog.showModal==='function')dialog.showModal();
+  else dialog.setAttribute('open','');
+}
+
+function renderAsset(block:Extract<StructuredQuestionBlock,{type:'asset'}>,options:StructuredQuestionRenderOptions){
+  const figure=document.createElement('figure');
+  figure.className=`structured-question-asset structured-question-${block.kind.replaceAll('_','-')}`;
+  figure.dataset.questionBlock='asset';
+  figure.dataset.assetId=block.assetId;
+  const url=options.resolveAsset?.(block.assetId);
+  if(url){
+    const image=document.createElement('img');
+    image.src=url;
+    image.alt=block.altText;
+    image.loading='lazy';
+    image.tabIndex=0;
+    image.setAttribute('role','button');
+    image.setAttribute('aria-label',`${block.altText||'Question visual'} — open larger view`);
+    image.addEventListener('click',()=>openAssetZoom(url,block.altText));
+    image.addEventListener('keydown',(event)=>{
+      if(event.key==='Enter'||event.key===' '){
+        event.preventDefault();
+        openAssetZoom(url,block.altText);
+      }
+    });
+    figure.append(image);
+  }else{
+    const fallback=text('structured-question-asset-missing',block.altText||'Source visual');
+    fallback.dataset.assetMissing='true';
+    figure.append(fallback);
+  }
+  return figure;
+}
+
 function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRenderOptions){
   switch(block.type){
     case 'text': {
@@ -110,7 +212,7 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
       node.dataset.latex=block.latex;
       node.setAttribute('role','math');
       node.setAttribute('aria-label',block.semantics==='boolean_expression'?'Boolean expression':'Mathematical expression');
-      node.textContent=block.semantics==='boolean_expression'?readableBooleanLatex(block.latex):block.latex;
+      node.textContent=block.semantics==='boolean_expression'?readableBooleanLatex(block.latex):readableMathLatex(block.latex);
       return node;
     }
     case 'code': {
@@ -136,25 +238,7 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
     }
     case 'table': return renderTable(block);
     case 'matching': return renderMatching(block);
-    case 'asset': {
-      const figure=document.createElement('figure');
-      figure.className=`structured-question-asset structured-question-${block.kind.replaceAll('_','-')}`;
-      figure.dataset.questionBlock='asset';
-      figure.dataset.assetId=block.assetId;
-      const url=options.resolveAsset?.(block.assetId);
-      if(url){
-        const image=document.createElement('img');
-        image.src=url;
-        image.alt=block.altText;
-        image.loading='lazy';
-        figure.append(image);
-      }else{
-        const fallback=text('structured-question-asset-missing',block.altText||'Source visual');
-        fallback.dataset.assetMissing='true';
-        figure.append(fallback);
-      }
-      return figure;
-    }
+    case 'asset': return renderAsset(block,options);
     case 'answer_area': {
       const area=document.createElement('div');
       area.className=`structured-question-answer-area structured-question-answer-${block.kind.replaceAll('_','-')}`;
