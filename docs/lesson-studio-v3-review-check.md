@@ -1,1 +1,0 @@
-Merge only after repository CI (`npm run verify`) is green and the Lesson Studio preview is checked on a classroom-sized display.
