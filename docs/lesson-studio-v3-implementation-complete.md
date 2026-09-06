@@ -1,1 +1,0 @@
-The branch implementation is complete. Remaining work is CI validation and any fixes identified by CI.
