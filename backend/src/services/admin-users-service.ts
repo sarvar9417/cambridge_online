@@ -47,10 +47,6 @@ const mapSummary = (row: Record<string, unknown>): ManagedUserSummary => ({
 
 const unique = (values: string[]) => [...new Set(values)];
 
-/**
- * Owner-facing account lifecycle operations that are intentionally kept out of
- * AuthService. AuthService proves identity; this service administrates identity.
- */
 export class AdminUsersService {
   constructor(private readonly pool: Pool) {}
 
@@ -90,7 +86,6 @@ export class AdminUsersService {
        where ct.teacher_id=$1 and c.archived_at is null
        order by class_name`, [userId]);
 
-    const audit = await this.audit(userId, 40);
     return {
       user: mapSummary(profile.rows[0]),
       memberships: memberships.rows.map((row) => ({
@@ -99,7 +94,7 @@ export class AdminUsersService {
         groupName: row.group_name ? String(row.group_name) : null,
         kind: String(row.kind) as ManagedMembership['kind'],
       })),
-      audit,
+      audit: await this.audit(userId, 40),
     };
   }
 
@@ -107,14 +102,13 @@ export class AdminUsersService {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
-      const passwordHash = await argon2.hash(input.password);
       const created = await client.query(
         `insert into users(role,status,full_name,email,username,password_hash,email_verified_at,
                            approved_at,approved_by)
          values($1,'active',$2,$3,$4,$5,case when $6 then now() else null end,now(),$7)
          returning *`,
-        [input.role, input.fullName, input.email ?? null, input.username ?? null, passwordHash,
-          input.emailVerified, actorId],
+        [input.role, input.fullName, input.email ?? null, input.username ?? null,
+          await argon2.hash(input.password), input.emailVerified, actorId],
       );
       const userId = String(created.rows[0].id);
       await this.applyClasses(client, userId, input.role, input.classIds, input.groupId ?? null);
@@ -135,21 +129,24 @@ export class AdminUsersService {
       const locked = await client.query('select * from users where id=$1 and is_active=true for update', [userId]);
       if (!locked.rowCount) throw new Error('user_not_found');
       const before = locked.rows[0];
-      const nextEmail = Object.prototype.hasOwnProperty.call(input, 'email') ? input.email ?? null : before.email;
-      const nextUsername = Object.prototype.hasOwnProperty.call(input, 'username') ? input.username ?? null : before.username;
+      const hasEmail = Object.prototype.hasOwnProperty.call(input, 'email');
+      const hasUsername = Object.prototype.hasOwnProperty.call(input, 'username');
+      const nextEmail = hasEmail ? input.email ?? null : before.email;
+      const nextUsername = hasUsername ? input.username ?? null : before.username;
       if (!nextEmail && !nextUsername) throw new Error('identifier_required');
+      const emailChanged = hasEmail && (input.email ?? null) !== (before.email ?? null);
 
       const result = await client.query(
         `update users set
            full_name=case when $2 then $3 else full_name end,
            email=case when $4 then $5 else email end,
            username=case when $6 then $7 else username end,
+           email_verified_at=case when $8 then null else email_verified_at end,
            updated_at=now()
          where id=$1 returning *`,
         [userId,
           Object.prototype.hasOwnProperty.call(input, 'fullName'), input.fullName ?? null,
-          Object.prototype.hasOwnProperty.call(input, 'email'), input.email ?? null,
-          Object.prototype.hasOwnProperty.call(input, 'username'), input.username ?? null],
+          hasEmail, input.email ?? null, hasUsername, input.username ?? null, emailChanged],
       );
       await this.auditTx(client, actorId, 'user.profile_updated', userId,
         this.safeSnapshot(before), this.safeSnapshot(result.rows[0]));
@@ -168,10 +165,9 @@ export class AdminUsersService {
       await client.query('begin');
       const exists = await client.query('select id from users where id=$1 and is_active=true for update', [userId]);
       if (!exists.rowCount) throw new Error('user_not_found');
-      const passwordHash = await argon2.hash(password);
       await client.query(
         `update users set password_hash=$2,token_version=token_version+1,updated_at=now() where id=$1`,
-        [userId, passwordHash]);
+        [userId, await argon2.hash(password)]);
       await client.query(`update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1`, [userId]);
       await client.query(`update password_reset_tokens set used_at=coalesce(used_at,now()) where user_id=$1`, [userId]);
       await this.auditTx(client, actorId, 'user.password_set', userId, null, { sessionsRevoked: true });
@@ -199,19 +195,14 @@ export class AdminUsersService {
       await client.query('begin');
       const current = await client.query('select * from users where id=$1 and is_active=true for update', [userId]);
       if (!current.rowCount) throw new Error('user_not_found');
-      const before = current.rows[0];
       const result = await client.query(
         `update users set role=$2,token_version=token_version+1,updated_at=now() where id=$1 returning *`,
         [userId, role]);
       await client.query(`update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where user_id=$1`, [userId]);
-      // Memberships from the old role must not continue to grant access.
-      if (role === 'student') {
-        await client.query('delete from class_teachers where teacher_id=$1', [userId]);
-      } else {
-        await client.query('update enrollments set left_at=coalesce(left_at,now()) where student_id=$1 and left_at is null', [userId]);
-      }
+      if (role === 'student') await client.query('delete from class_teachers where teacher_id=$1', [userId]);
+      else await client.query('update enrollments set left_at=coalesce(left_at,now()) where student_id=$1 and left_at is null', [userId]);
       await this.auditTx(client, actorId, 'user.role_changed', userId,
-        { role: before.role }, { role });
+        { role: current.rows[0].role }, { role });
       await client.query('commit');
       return mapSummary(result.rows[0]);
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
@@ -223,9 +214,8 @@ export class AdminUsersService {
       await client.query('begin');
       const current = await client.query('select role from users where id=$1 and is_active=true for update', [userId]);
       if (!current.rowCount) throw new Error('user_not_found');
-      const role = current.rows[0].role as ManagedRole;
       const before = await this.membershipsTx(client, userId);
-      await this.applyClasses(client, userId, role, input.classIds, input.groupId ?? null);
+      await this.applyClasses(client, userId, current.rows[0].role as ManagedRole, input.classIds, input.groupId ?? null);
       const after = await this.membershipsTx(client, userId);
       await this.auditTx(client, actorId, 'user.classes_changed', userId, before, after);
       await client.query('commit');
@@ -237,8 +227,7 @@ export class AdminUsersService {
     await this.pool.query(
       `insert into audit_log(actor_id,action,ref_table,ref_id,before,after)
        values($1,$2,'users',$3,$4::jsonb,$5::jsonb)`,
-      [actorId, action, userId, before == null ? null : JSON.stringify(before), after == null ? null : JSON.stringify(after)],
-    );
+      [actorId, action, userId, before == null ? null : JSON.stringify(before), after == null ? null : JSON.stringify(after)]);
   }
 
   async audit(userId: string, limit = 40) {
@@ -248,18 +237,12 @@ export class AdminUsersService {
        where a.ref_table='users' and a.ref_id=$1
        order by a.created_at desc limit $2`, [userId, Math.max(1, Math.min(limit, 100))]);
     return result.rows.map((row) => ({
-      id: String(row.id), action: String(row.action),
-      actorId: row.actor_id ? String(row.actor_id) : null,
+      id: String(row.id), action: String(row.action), actorId: row.actor_id ? String(row.actor_id) : null,
       actorName: row.actor_name ? String(row.actor_name) : null,
-      before: row.before ?? null, after: row.after ?? null,
-      createdAt: new Date(String(row.created_at)),
+      before: row.before ?? null, after: row.after ?? null, createdAt: new Date(String(row.created_at)),
     }));
   }
 
-  /**
-   * Privacy-safe erasure for an account whose academic/ownership references make
-   * a hard DELETE unsafe. The row remains only as a referential anchor.
-   */
   async anonymize(actorId: string, userId: string) {
     const client = await this.pool.connect();
     try {
@@ -280,44 +263,44 @@ export class AdminUsersService {
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
   }
 
-  private async applyClasses(
-    client: PoolClient, userId: string, role: ManagedRole, rawClassIds: string[], groupId: string | null,
-  ) {
+  private async applyClasses(client: PoolClient, userId: string, role: ManagedRole, rawClassIds: string[], groupId: string | null) {
     const classIds = unique(rawClassIds);
     if (role === 'student' && classIds.length > 1) throw new Error('student_one_class');
     if (role !== 'student' && groupId) throw new Error('group_student_only');
 
-    let classes: Array<{ id:string; school_id:string }> = [];
     if (classIds.length) {
       const result = await client.query(
         `select id,school_id from classes where id=any($1::uuid[]) and archived_at is null`, [classIds]);
       if (result.rowCount !== classIds.length) throw new Error('class_not_found');
-      classes = result.rows as Array<{ id:string; school_id:string }>;
-      await client.query('update users set school_id=$2,updated_at=now() where id=$1', [userId, classes[0].school_id]);
+      const classes = result.rows as Array<{ id:string; school_id:string }>;
+      const primaryClass = classes[0];
+      if (!primaryClass) throw new Error('class_not_found');
+      await client.query('update users set school_id=$2,updated_at=now() where id=$1', [userId, primaryClass.school_id]);
     }
 
     if (role === 'student') {
       await client.query('delete from class_teachers where teacher_id=$1', [userId]);
       await client.query('update enrollments set left_at=coalesce(left_at,now()) where student_id=$1 and left_at is null', [userId]);
       if (!classIds.length) return;
+      const studentClassId = classIds[0];
+      if (!studentClassId) throw new Error('class_not_found');
       if (groupId) {
         const group = await client.query(
-          'select 1 from groups where id=$1 and class_id=$2 and archived_at is null', [groupId, classIds[0]]);
+          'select 1 from groups where id=$1 and class_id=$2 and archived_at is null', [groupId, studentClassId]);
         if (!group.rowCount) throw new Error('group_not_in_class');
       }
       await client.query(
         `insert into enrollments(class_id,student_id,group_id,left_at)
          values($1,$2,$3,null)
          on conflict(class_id,student_id) do update set left_at=null,group_id=excluded.group_id`,
-        [classIds[0], userId, groupId]);
+        [studentClassId, userId, groupId]);
       return;
     }
 
     await client.query('update enrollments set left_at=coalesce(left_at,now()) where student_id=$1 and left_at is null', [userId]);
     await client.query('delete from class_teachers where teacher_id=$1', [userId]);
     for (const classId of classIds) {
-      await client.query(
-        `insert into class_teachers(class_id,teacher_id) values($1,$2) on conflict do nothing`, [classId, userId]);
+      await client.query(`insert into class_teachers(class_id,teacher_id) values($1,$2) on conflict do nothing`, [classId, userId]);
     }
   }
 
@@ -332,8 +315,7 @@ export class AdminUsersService {
        where ct.teacher_id=$1 and c.archived_at is null order by class_name`, [userId]);
     return result.rows.map((row) => ({
       classId: String(row.class_id), className: String(row.class_name),
-      groupId: row.group_id ? String(row.group_id) : null,
-      groupName: row.group_name ? String(row.group_name) : null,
+      groupId: row.group_id ? String(row.group_id) : null, groupName: row.group_name ? String(row.group_name) : null,
       kind: String(row.kind),
     }));
   }
@@ -341,24 +323,18 @@ export class AdminUsersService {
   private safeSnapshot(row: Record<string, unknown>) {
     return {
       id: String(row.id), role: row.role, fullName: row.full_name,
-      email: row.email ?? null, username: row.username ?? null,
-      status: row.status, schoolId: row.school_id ?? null,
+      email: row.email ?? null, username: row.username ?? null, status: row.status, schoolId: row.school_id ?? null,
     };
   }
 
-  private async auditTx(
-    client: PoolClient, actorId: string, action: string, userId: string, before: unknown, after: unknown,
-  ) {
+  private async auditTx(client: PoolClient, actorId: string, action: string, userId: string, before: unknown, after: unknown) {
     await client.query(
       `insert into audit_log(actor_id,action,ref_table,ref_id,before,after)
        values($1,$2,'users',$3,$4::jsonb,$5::jsonb)`,
-      [actorId, action, userId, before == null ? null : JSON.stringify(before), after == null ? null : JSON.stringify(after)],
-    );
+      [actorId, action, userId, before == null ? null : JSON.stringify(before), after == null ? null : JSON.stringify(after)]);
   }
 
   private translateUnique(error: unknown): never | void {
-    if (typeof error === 'object' && error && 'code' in error && error.code === '23505') {
-      throw new Error('identifier_taken');
-    }
+    if (typeof error === 'object' && error && 'code' in error && error.code === '23505') throw new Error('identifier_taken');
   }
 }
