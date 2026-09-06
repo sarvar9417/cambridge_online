@@ -7,11 +7,13 @@ import { config } from './config.js';
 import { MemoryAuthRepository } from './repositories/auth-repository.memory.js';
 import { AuthService } from './services/auth-service.js';
 import type { AdminUsersService, ManagedUser } from './services/admin-users-service.js';
+import type { Actor } from './lib/actor.js';
 
 const OWNER_ID = '22605ad7-b3df-4249-9b58-052f5d830fd8';
 const TARGET_ID = 'a3b08f8b-0d6d-4f5e-88db-29f084166255';
 const SCHOOL_ID = '3b55a939-fba8-48f3-b54a-68949aa6e898';
 const CLASS_ID = 'f0c8f1cb-9a5c-4f5b-9a45-3f9b0f4b2d11';
+type Role = ManagedUser['role'];
 
 const managedUser = (overrides: Partial<ManagedUser> = {}): ManagedUser => ({
   id: TARGET_ID,
@@ -35,22 +37,34 @@ function managementDouble() {
   return {
     listUsers: vi.fn(async () => ({ users: [user], total: 1 })),
     getUser: vi.fn(async () => user),
-    createUser: vi.fn(async (_actor, input) => managedUser({
+    createUser: vi.fn(async (
+      _actor: Actor,
+      input: { fullName: string; email?: string | null; username?: string | null; role: Role },
+    ) => managedUser({
       id: randomUUID(),
       fullName: input.fullName,
       email: input.email ?? null,
       username: input.username ?? null,
       role: input.role,
     })),
-    updateUser: vi.fn(async (_actor, _id, input) => managedUser({
+    updateUser: vi.fn(async (
+      _actor: Actor,
+      _id: string,
+      input: { fullName?: string; email?: string | null; username?: string | null },
+    ) => managedUser({
       fullName: input.fullName ?? user.fullName,
       email: input.email === undefined ? user.email : input.email,
       username: input.username === undefined ? user.username : input.username,
     })),
     setPassword: vi.fn(async () => ({ ok: true })),
     revokeSessions: vi.fn(async () => ({ ok: true })),
-    setStatus: vi.fn(async (_actor, _id, status, reason) => managedUser({ status, statusReason: reason ?? null })),
-    setRole: vi.fn(async (_actor, _id, role) => managedUser({ role })),
+    setStatus: vi.fn(async (
+      _actor: Actor,
+      _id: string,
+      status: 'active' | 'suspended',
+      reason?: string,
+    ) => managedUser({ status, statusReason: reason ?? null })),
+    setRole: vi.fn(async (_actor: Actor, _id: string, role: Role) => managedUser({ role })),
     assignClass: vi.fn(async () => managedUser({ memberships: [{
       classId: CLASS_ID, className: '9618/1A', kind: 'student', groupId: null, groupName: null,
     }] })),
