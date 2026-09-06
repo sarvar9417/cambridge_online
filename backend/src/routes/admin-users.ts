@@ -45,16 +45,6 @@ const classMembershipSchema = z.object({
 }).strict();
 const purgeSchema = z.object({ confirm: z.literal('DELETE') }).strict();
 
-/**
- * Deciding who gets in and managing the full account lifecycle.
- *
- * Approval existed before the full management surface. The optional management
- * service deliberately sits on top of that path rather than replacing it: test
- * doubles and the registration flow keep using AuthRepository, while production
- * gets profile editing, direct password changes, class placement, session
- * revocation, audit history and irreversible purge through the PostgreSQL-backed
- * service.
- */
 export function createAdminUsersRouter(
   auth: AuthService,
   repository: AuthRepository,
@@ -63,8 +53,6 @@ export function createAdminUsersRouter(
   const router = Router();
   router.use(requireAuth(auth));
 
-  // Express 5 types a route param as string | string[]. Parsing it as a UUID
-  // both narrows the type and rejects a malformed id before it reaches a query.
   const idParam = z.string().uuid();
   const targetId = (params: Record<string, unknown>, key = 'id') => idParam.parse(params[key]);
 
@@ -93,15 +81,21 @@ export function createAdminUsersRouter(
     if (!(error instanceof AdminUsersError)) return false;
     const messages: Record<string, string> = {
       forbidden: 'Bu amal faqat administrator uchun.',
+      owner_school_required: 'Administrator maktabga biriktirilmagan.',
       user_not_found: 'Foydalanuvchi topilmadi.',
       class_not_found: 'Sinf topilmadi.',
+      membership_not_found: 'Bu sinf biriktirilmagan.',
       group_not_in_class: 'Bu guruh tanlangan sinfga tegishli emas.',
       email_taken: 'Bu email boshqa hisobda ishlatilgan.',
       username_taken: 'Bu username boshqa hisobda ishlatilgan.',
       duplicate_user: 'Bu ma’lumot bilan foydalanuvchi allaqachon mavjud.',
       identifier_required: 'Email yoki username dan kamida bittasi qolishi kerak.',
       invalid_user_state: 'Bu hisob holatida amalni bajarib bo‘lmaydi.',
+      cannot_change_self: 'O‘z hisobingizning rol yoki holatini o‘zgartira olmaysiz.',
       cannot_delete_self: 'O‘z hisobingizni o‘chira olmaysiz.',
+      user_has_data: 'Bu hisobga bog‘liq ma’lumot bor. Oddiy o‘chirish o‘rniga to‘xtating yoki “Butunlay o‘chirish”dan foydalaning.',
+      user_not_pending: 'Bu foydalanuvchi allaqachon ko‘rib chiqilgan.',
+      user_not_rejected: 'Bu foydalanuvchi rad etilganlar orasida emas.',
       user_purge_blocked: 'Hisobni to‘liq o‘chirishga bog‘liq ma’lumot to‘sqinlik qildi.',
     };
     res.status(error.status).json({
@@ -131,13 +125,14 @@ export function createAdminUsersRouter(
       offset: z.coerce.number().int().min(0).optional(),
     }).parse(req.query);
     if (management) {
-      res.json(await management.listUsers(req.actor!, query));
+      try {
+        res.json(await management.listUsers(req.actor!, query));
+      } catch (error) { if (!managementError(res, error)) throw error; }
       return;
     }
     res.json({ users: await repository.listUsers({ status: query.status }) });
   });
 
-  /** Owner-created accounts are immediately approved and email-trusted. */
   router.post('/', requireRoles('owner'), validateBody(createManagedUserSchema), async (req, res) => {
     if (managementRequired(res)) return;
     try {
@@ -145,12 +140,15 @@ export function createAdminUsersRouter(
     } catch (error) { if (!managementError(res, error)) throw error; }
   });
 
-  /**
-   * The groups of one class, so approval and later placement can offer a valid
-   * group rather than relying on the administrator to remember its parent class.
-   */
   router.get('/groups/:id', requireRoles('owner'), async (req, res) => {
-    res.json({ groups: await repository.listGroups(targetId(req.params)) });
+    const classId = targetId(req.params);
+    if (management) {
+      try {
+        res.json({ groups: await management.listGroups(req.actor!, classId) });
+      } catch (error) { if (!managementError(res, error)) throw error; }
+      return;
+    }
+    res.json({ groups: await repository.listGroups(classId) });
   });
 
   router.patch('/:id', requireRoles('owner'), validateBody(updateManagedUserSchema), async (req, res) => {
@@ -203,6 +201,10 @@ export function createAdminUsersRouter(
 
   router.post('/:id/approve', requireRoles('owner'), validateBody(approveUserSchema), async (req, res) => {
     try {
+      if (management) {
+        res.json({ user: await management.approveUser(req.actor!, targetId(req.params), req.body) });
+        return;
+      }
       const user = await repository.approveUser({
         userId: targetId(req.params),
         role: req.body.role,
@@ -210,13 +212,6 @@ export function createAdminUsersRouter(
         groupId: req.body.groupId,
         approvedBy: req.actor!.id,
       });
-      if (management) {
-        await management.recordAction(req.actor!, 'admin.user_approve', user.id, undefined, {
-          role: req.body.role,
-          classId: req.body.classId ?? null,
-          groupId: req.body.groupId ?? null,
-        });
-      }
       res.json({ user });
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;
@@ -225,12 +220,13 @@ export function createAdminUsersRouter(
 
   router.post('/:id/reject', requireRoles('owner'), validateBody(rejectUserSchema), async (req, res) => {
     try {
+      if (management) {
+        res.json({ user: await management.rejectUser(req.actor!, targetId(req.params), req.body.reason) });
+        return;
+      }
       const user = await repository.rejectUser({
         userId: targetId(req.params), reason: req.body.reason, approvedBy: req.actor!.id,
       });
-      if (management) {
-        await management.recordAction(req.actor!, 'admin.user_reject', user.id, undefined, { reason: req.body.reason });
-      }
       res.json({ user });
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;
@@ -240,8 +236,6 @@ export function createAdminUsersRouter(
   router.post('/:id/status', requireRoles('owner'), validateBody(setUserStatusSchema), async (req, res) => {
     try {
       const id = targetId(req.params);
-      // Locking yourself out is not a decision anyone means to make, and there
-      // may be no second owner to undo it.
       if (id === req.actor!.id) {
         res.status(409).json({ error: { code: 'cannot_change_self', message: 'O‘z hisobingiz holatini o‘zgartira olmaysiz.' } });
         return;
@@ -258,8 +252,6 @@ export function createAdminUsersRouter(
   router.post('/:id/role', requireRoles('owner'), validateBody(setUserRoleSchema), async (req, res) => {
     try {
       const id = targetId(req.params);
-      // Same reason: demoting yourself from owner leaves nobody who can promote
-      // anyone back.
       if (id === req.actor!.id) {
         res.status(409).json({ error: { code: 'cannot_change_self', message: 'O‘z rolingizni o‘zgartira olmaysiz.' } });
         return;
@@ -273,16 +265,17 @@ export function createAdminUsersRouter(
     }
   });
 
-  /**
-   * Safe delete keeps the old behaviour: if academic or administrative data is
-   * attached, it refuses and names the blockers. The separate /purge endpoint is
-   * the explicit, irreversible option for an owner who really means to remove
-   * the account and transfer required historical ownership.
-   */
   router.delete('/:id', requireRoles('owner'), async (req, res) => {
     const id = targetId(req.params);
     if (id === req.actor!.id) {
       res.status(409).json({ error: { code: 'cannot_delete_self', message: 'O‘z hisobingizni o‘chira olmaysiz.' } });
+      return;
+    }
+    if (management) {
+      try {
+        await management.safeDeleteUser(req.actor!, id);
+        res.status(204).end();
+      } catch (error) { if (!managementError(res, error)) throw error; }
       return;
     }
     const blockers = await repository.countDependents(id);
@@ -297,12 +290,10 @@ export function createAdminUsersRouter(
       return;
     }
     try {
-      const before = management ? await management.getUser(req.actor!, id) : undefined;
       await repository.deleteUser(id);
-      if (management) await management.recordAction(req.actor!, 'admin.user_delete', id, before, { deleted: true });
       res.status(204).end();
     } catch (error) {
-      if (!notFound(res, error) && !managementError(res, error)) throw error;
+      if (!notFound(res, error)) throw error;
     }
   });
 
@@ -318,26 +309,23 @@ export function createAdminUsersRouter(
     } catch (error) { if (!managementError(res, error)) throw error; }
   });
 
-  /** Puts a rejected application back in the queue, which is otherwise final. */
   router.post('/:id/reinstate', requireRoles('owner'), async (req, res) => {
     try {
-      const user = await repository.reinstateUser(targetId(req.params));
-      if (management) await management.recordAction(req.actor!, 'admin.user_reinstate', user.id, undefined, { status: 'pending' });
-      res.json({ user });
+      if (management) {
+        res.json({ user: await management.reinstateUser(req.actor!, targetId(req.params)) });
+        return;
+      }
+      res.json({ user: await repository.reinstateUser(targetId(req.params)) });
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;
     }
   });
 
-  /**
-   * Marks the address proven without an email round trip. For a user whose mail
-   * never arrived or an account created before a provider was configured.
-   */
   router.post('/:id/verify-email', requireRoles('owner'), async (req, res) => {
     try {
       const id = targetId(req.params);
-      await repository.markEmailVerified(id);
-      if (management) await management.recordAction(req.actor!, 'admin.user_email_verify', id, undefined, { verified: true });
+      if (management) await management.verifyEmail(req.actor!, id);
+      else await repository.markEmailVerified(id);
       res.status(204).end();
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;
@@ -345,19 +333,29 @@ export function createAdminUsersRouter(
   });
 
   /**
-   * The manual half of password recovery: a teacher can issue the same one-shot,
-   * one-hour reset link for an active student. Owners may do this for any active
-   * account; direct password assignment remains owner-only above.
+   * Owners can issue a reset link inside their own school. Teachers can issue one
+   * only for an active student in the same school; they cannot reset staff.
    */
   router.post('/:id/reset-code', requireRoles('owner', 'teacher'), async (req, res) => {
-    const users = await repository.listUsers({});
-    const target = users.find((user) => user.id === targetId(req.params));
+    const id = targetId(req.params);
+    const target = await repository.findById(id);
     if (!target) {
+      const inactive = (await repository.listUsers({})).find((user) => user.id === id);
+      if (inactive) {
+        res.status(409).json({ error: { code: 'user_not_active', message: 'Faol bo‘lmagan hisob uchun parol tiklanmaydi.' } });
+      } else {
+        res.status(404).json({ error: { code: 'user_not_found', message: 'Topilmadi.' } });
+      }
+      return;
+    }
+    if (!req.actor!.schoolId || !target.schoolId || req.actor!.schoolId !== target.schoolId) {
       res.status(404).json({ error: { code: 'user_not_found', message: 'Topilmadi.' } });
       return;
     }
-    if (target.status !== 'active') {
-      res.status(409).json({ error: { code: 'user_not_active', message: 'Faol bo‘lmagan hisob uchun parol tiklanmaydi.' } });
+    if (req.actor!.role === 'teacher' && target.role !== 'student') {
+      res.status(403).json({
+        error: { code: 'teacher_reset_forbidden', message: 'O‘qituvchi faqat o‘quvchi parolini tiklay oladi.' },
+      });
       return;
     }
     const result = await auth.issueResetToken(target.id, req.actor!.id);
