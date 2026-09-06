@@ -1,5 +1,6 @@
 import {
   sourceTeachingAtomsForSlide,
+  sourceTeachingDeckPages,
   sourceTeachingIsTask,
   sourceTeachingIsWorked,
   sourceTeachingKindLabel,
@@ -10,6 +11,7 @@ import './lesson-source-teaching-material.css';
 
 let installed = false;
 let scheduled = false;
+const sourcePageState = new Map<string, number>();
 
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value?: string) {
   const element = document.createElement(tag);
@@ -52,10 +54,14 @@ function renderAtom(atom: SourceTeachingAtom) {
   return article;
 }
 
-function renderSection(atoms: SourceTeachingAtom[], slideId: string) {
+function renderSection(chapter: SourceTeachingChapter, atoms: SourceTeachingAtom[], slideId: string) {
   const section = node('section', 'lesson-source-teaching');
   section.dataset.sourceTeachingSlide = slideId;
   section.setAttribute('aria-label', 'Complete textbook source material');
+
+  const pages = sourceTeachingDeckPages(atoms);
+  const stateKey = `${chapter}:${slideId}`;
+  let pageIndex = Math.min(sourcePageState.get(stateKey) ?? 0, Math.max(0, pages.length - 1));
 
   const heading = node('header', 'lesson-source-teaching-heading');
   const title = node('div');
@@ -63,10 +69,54 @@ function renderSection(atoms: SourceTeachingAtom[], slideId: string) {
     node('span', '', 'TEXTBOOK SOURCE'),
     node('strong', '', 'Source material for this teaching step'),
   );
-  heading.append(title, node('small', '', `${atoms.length} source item${atoms.length === 1 ? '' : 's'}`));
+
+  const status = node('small', 'lesson-source-teaching-status');
+  const controls = node('div', 'lesson-source-teaching-controls');
+  const previous = node('button', 'lesson-source-teaching-nav', 'Previous');
+  const next = node('button', 'lesson-source-teaching-nav', 'Next');
+  previous.type = 'button';
+  next.type = 'button';
+  previous.setAttribute('aria-label', 'Previous textbook source page');
+  next.setAttribute('aria-label', 'Next textbook source page');
+  const counter = node('span', 'lesson-source-teaching-counter');
+  controls.append(previous, counter, next);
+
   const grid = node('div', 'lesson-source-teaching-grid');
-  atoms.forEach((atom) => grid.append(renderAtom(atom)));
+
+  const paintPage = () => {
+    const page = pages[pageIndex] ?? [];
+    grid.replaceChildren(...page.map(renderAtom));
+    sourcePageState.set(stateKey, pageIndex);
+    const pageLabel = pages.length > 1 ? `Source page ${pageIndex + 1} / ${pages.length}` : 'Source page 1 / 1';
+    status.textContent = `${atoms.length} source item${atoms.length === 1 ? '' : 's'}`;
+    counter.textContent = pageLabel;
+    previous.disabled = pageIndex <= 0;
+    next.disabled = pageIndex >= pages.length - 1;
+    controls.hidden = pages.length <= 1;
+    section.dataset.sourceTeachingPage = String(pageIndex + 1);
+    section.dataset.sourceTeachingPages = String(Math.max(1, pages.length));
+  };
+
+  previous.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (pageIndex <= 0) return;
+    pageIndex -= 1;
+    paintPage();
+  });
+  next.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (pageIndex >= pages.length - 1) return;
+    pageIndex += 1;
+    paintPage();
+  });
+
+  const headingRight = node('div', 'lesson-source-teaching-heading-right');
+  headingRight.append(status, controls);
+  heading.append(title, headingRight);
   section.append(heading, grid);
+  paintPage();
   return section;
 }
 
@@ -104,7 +154,7 @@ async function enhance(studio: HTMLElement) {
   }
   if (existing?.dataset.sourceTeachingSlide === slideId) return;
 
-  const source = renderSection(atoms, slideId);
+  const source = renderSection(chapter, atoms, slideId);
   const trace = host.querySelector('.lesson-source-trace');
   if (trace) host.insertBefore(source, trace);
   else host.append(source);
@@ -129,7 +179,8 @@ function schedule() {
  *
  * Source registries/fingerprints remain audit infrastructure; this enhancer is
  * the presentation contract that makes every mapped PDF atom visible without
- * opening a source drawer or transcript.
+ * opening a source drawer or transcript. Dense source sets are paged into a
+ * small projector-friendly deck instead of creating a long classroom scroll.
  */
 export function installLessonSourceTeachingVisibility() {
   if (installed || typeof document === 'undefined') return;
