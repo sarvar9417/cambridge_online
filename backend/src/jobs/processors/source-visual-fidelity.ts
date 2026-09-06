@@ -29,11 +29,20 @@ export function requiresSourceVisual(stemMd: string | null, contextMd: string | 
   return SOURCE_VISUAL_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+/**
+ * Text that merely describes a diagram is not the diagram. A DB-resident visual
+ * is faithful only when it is actual SVG markup; otherwise the ingestion record
+ * must point to a crop region so the source page can be materialized exactly.
+ */
+export function isFaithfulVisualAsset(asset: ExtractedQuestion['assets'][number]) {
+  if (asset.kind !== 'diagram' && asset.kind !== 'image') return false;
+  const inlineSvg = /^\s*<svg(?:\s|>)/i.test(asset.contentMd ?? '');
+  const cropReady = Boolean(asset.page && asset.bbox);
+  return inlineSvg || cropReady;
+}
+
 function isRenderableVisual(question: ExtractedQuestion) {
-  return question.assets.some((asset) =>
-    (asset.kind === 'diagram' || asset.kind === 'image') &&
-    (Boolean(asset.contentMd?.trim()) || Boolean(asset.page && asset.bbox)),
-  );
+  return question.assets.some(isFaithfulVisualAsset);
 }
 
 function ancestorChain(question: ExtractedQuestion, byPath: Map<string, ExtractedQuestion>) {
