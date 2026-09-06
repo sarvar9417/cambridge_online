@@ -341,7 +341,17 @@ export function createAdminUsersRouter(
     const target = await repository.findById(id);
     if (!target) {
       const inactive = (await repository.listUsers({})).find((user) => user.id === id);
-      if (!inactive || !req.actor!.schoolId || !inactive.schoolId || inactive.schoolId !== req.actor!.schoolId) {
+      const sameSchool = Boolean(
+        inactive && req.actor!.schoolId && inactive.schoolId && inactive.schoolId === req.actor!.schoolId,
+      );
+      const ownerCanSeeUnassignedOnboarding = Boolean(
+        inactive
+        && req.actor!.role === 'owner'
+        && req.actor!.schoolId
+        && inactive.schoolId === null
+        && ['pending', 'rejected'].includes(inactive.status),
+      );
+      if (!inactive || (!sameSchool && !ownerCanSeeUnassignedOnboarding)) {
         res.status(404).json({ error: { code: 'user_not_found', message: 'Topilmadi.' } });
       } else {
         res.status(409).json({ error: { code: 'user_not_active', message: 'Faol bo‘lmagan hisob uchun parol tiklanmaydi.' } });
