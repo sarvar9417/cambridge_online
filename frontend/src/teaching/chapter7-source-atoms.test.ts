@@ -15,42 +15,40 @@ import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { CHAPTER_7_SOURCE_ACTIVITY_ATOMS } from './chapter7-source-activity-atoms';
 import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
+import { sourceTeachingAtomsForChapter, sourceTeachingAtomsForSlide } from './lesson-source-teaching-model';
 
 const text = (value: unknown) => JSON.stringify(value).toLowerCase()
   .replace(/\\\"/g, '"')
   .replace(/\\\\/g, '\\');
+const sourceText=()=>text(sourceTeachingAtomsForChapter(7));
 
 describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
   it('atom-audits every printed source page from 258 through 298', () => {
     const expectedPages = Array.from({ length: 41 }, (_, index) => 258 + index);
     const actualPages = [...new Set(CHAPTER_7_PAGE_SOURCE_ATOMS.map((atom) => atom.printedPage))].sort((a, b) => a - b);
     expect(actualPages).toEqual(expectedPages);
-    expectedPages.forEach((page) => {
-      expect(CHAPTER_7_PAGE_SOURCE_ATOMS.some((atom) => atom.printedPage === page)).toBe(true);
-    });
+    expect([...new Set(sourceTeachingAtomsForChapter(7).map(atom=>atom.page))].sort((a,b)=>a-b)).toEqual(expectedPages);
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.pages).toBe(41);
   });
 
-  it('pins every source atom to a real student-facing book slide', () => {
+  it('maps every source atom to a real book slide and to the visible teaching model', () => {
     const ids = new Set(CHAPTER_7_FINAL_SOURCE_SLIDES.map((slide) => slide.id));
-    CHAPTER_7_ALL_SOURCE_ATOMS.forEach((atom) => expect(ids.has(atom.targetSlideId), atom.id).toBe(true));
+    CHAPTER_7_ALL_SOURCE_ATOMS.forEach((atom) => {
+      expect(ids.has(atom.targetSlideId), atom.id).toBe(true);
+      const visible=sourceTeachingAtomsForSlide(7,atom.targetSlideId).find(item=>item.id===atom.id);
+      expect(visible,`${atom.id} not teacher-visible`).toBeTruthy();
+      expect(visible!.lines).toEqual(atom.needles);
+    });
     expect(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES).toHaveLength(CHAPTER_7_FINAL_SOURCE_SLIDES.length);
   });
 
   it('reconciles every named Activity, Figure, Table, exam question and book extra', () => {
     const byKindAndRef = new Set(CHAPTER_7_SOURCE_INVENTORY_ATOMS.map((atom) => `${atom.kind}:${atom.sourceRef}`));
-
-    Object.keys(CHAPTER_7_SOURCE_MAP.activities).forEach((ref) =>
-      expect(byKindAndRef.has(`activity:Activity ${ref}`)).toBe(true));
-    Object.keys(CHAPTER_7_SOURCE_MAP.figures).forEach((ref) =>
-      expect(byKindAndRef.has(`figure:Figure ${ref}`)).toBe(true));
-    Object.keys(CHAPTER_7_SOURCE_MAP.tables).forEach((ref) =>
-      expect(byKindAndRef.has(`table:Table ${ref}`)).toBe(true));
-    Object.keys(CHAPTER_7_SOURCE_MAP.examQuestions).forEach((ref) =>
-      expect(byKindAndRef.has(`exam:Exam-style Question ${ref}`)).toBe(true));
-    Object.keys(CHAPTER_7_SOURCE_MAP.bookExtras).forEach((ref) =>
-      expect(CHAPTER_7_SOURCE_INVENTORY_ATOMS.some((atom) => atom.sourceRef === ref)).toBe(true));
-
+    Object.keys(CHAPTER_7_SOURCE_MAP.activities).forEach((ref) => expect(byKindAndRef.has(`activity:Activity ${ref}`)).toBe(true));
+    Object.keys(CHAPTER_7_SOURCE_MAP.figures).forEach((ref) => expect(byKindAndRef.has(`figure:Figure ${ref}`)).toBe(true));
+    Object.keys(CHAPTER_7_SOURCE_MAP.tables).forEach((ref) => expect(byKindAndRef.has(`table:Table ${ref}`)).toBe(true));
+    Object.keys(CHAPTER_7_SOURCE_MAP.examQuestions).forEach((ref) => expect(byKindAndRef.has(`exam:Exam-style Question ${ref}`)).toBe(true));
+    Object.keys(CHAPTER_7_SOURCE_MAP.bookExtras).forEach((ref) => expect(CHAPTER_7_SOURCE_INVENTORY_ATOMS.some((atom) => atom.sourceRef === ref)).toBe(true));
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.activities).toBe(20);
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.figures).toBe(22);
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.tables).toBe(6);
@@ -62,19 +60,18 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
     const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
     expect(CHAPTER_7_SOURCE_KEY_TERMS).toHaveLength(30);
     expect(CHAPTER_7_SOURCE_ATOM_COVERAGE.keyTerms).toBe(30);
-
     for (const term of CHAPTER_7_REQUIRED_KEY_TERMS) {
       expect(page294, term).toContain(term.toLowerCase());
-      expect(presenter, term).toContain(term.toLowerCase());
+      expect(sourceText(), term).toContain(term.toLowerCase());
     }
     for (const item of CHAPTER_7_SOURCE_KEY_TERMS) {
       expect(presenter, item.term).toContain(item.definition.toLowerCase());
     }
   });
 
-  it('pins the textbook values and prompts inside Activities 7.8–7.11, not just their labels', () => {
-    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+  it('keeps exact values and prompts inside Activities 7.8–7.11, not just labels', () => {
     expect(CHAPTER_7_SOURCE_ACTIVITY_ATOMS).toHaveLength(4);
+    const visible=sourceText();
     [
       'entering a telephone number',
       'entering a pupil’s name',
@@ -85,11 +82,11 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
       'extreme data: 0, 100',
       'boundary data for 0: -1, 0',
       'end-of-term examinations are now marked out of 20',
-    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+    ].forEach((needle) => expect(visible, needle).toContain(needle));
   });
 
   it('preserves exact source terminology, values, examples and pseudocode fragments', () => {
-    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    const visible=sourceText();
     [
       'requirements specification',
       'software · data · hardware · communications · people',
@@ -115,11 +112,11 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
       'queue = fifo',
       'stack pop removes 79',
       'queue dequeue removes 27',
-    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+    ].forEach((needle) => expect(visible, needle).toContain(needle));
   });
 
   it('preserves source-only sidebars, cross-links and the fifth life-cycle stage', () => {
-    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    const visible=sourceText();
     expect(CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS.length).toBeGreaterThan(10);
     [
       'analysis, design, coding, testing and maintenance',
@@ -128,18 +125,18 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
       'find an isbn and show that its check digit is correct',
       'parity checks and checksums are used when data is transferred',
       'write and test programs for examples 1 and 2',
-    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+    ].forEach((needle) => expect(visible, needle).toContain(needle));
   });
 
-  it('makes every Chapter 7 supplied-PDF detail atom visible in presenter data', () => {
-    const presenter=text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+  it('makes every Chapter 7 supplied-PDF detail atom teacher-visible', () => {
+    const visible=sourceText();
     for(const atom of CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS){
-      atom.needles.forEach(needle=>expect(presenter,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
+      atom.needles.forEach(needle=>expect(visible,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
     }
   });
 
   it('preserves the full exam-style task data instead of only question identifiers', () => {
-    const presenter = text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    const visible=sourceText();
     [
       'modulo 11 check digit for numbers from 4 to 20 digits in length',
       'up to 12 diners and bills from $10 to $500',
@@ -150,25 +147,16 @@ describe('0478 Chapter 7 source-atom parity with Chapters 1 and 13', () => {
       'paper 22 q3, june 2018',
       'routine stores contributor name, email address and password',
       'paper 22 q4, june 2018',
-    ].forEach((needle) => expect(presenter, needle).toContain(needle));
+    ].forEach((needle) => expect(visible, needle).toContain(needle));
   });
 
-  it('makes source atoms visible in the actual presenter route and reports them in coverage', () => {
-    const route = text(CHAPTER_7);
-    [
-      'requirements specification',
-      'activity 7.1',
-      'activity 7.20',
-      'figure 7.1',
-      'figure 7.22',
-      'table 7.1',
-      'table 7.6',
-      'exam-style question 1',
-      'exam-style question 9',
-      'abstract data type (adt)',
-      'modulo 11 check digit for numbers from 4 to 20 digits in length',
-    ].forEach((needle) => expect(route, needle).toContain(needle));
+  it('does not duplicate the source registry into authored YOUR TASK prompts',()=>{
+    const presenter=text(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    expect(presenter).not.toContain('· book source');
+    expect(presenter).not.toContain('[chapter objectives · p.258]');
+  });
 
+  it('reports complete source and book inventory coverage on the actual lesson route', () => {
     expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned`);
     expect(CHAPTER_7.coverage).toContain(`${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms} source-PDF detail atoms`);
     expect(CHAPTER_7.coverage).toContain('41/41 source pages atom-audited');
