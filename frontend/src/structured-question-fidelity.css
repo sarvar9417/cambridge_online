@@ -1,0 +1,212 @@
+/* Shared rendering rules for canonical Cambridge past-paper structures.
+   These styles are deliberately global so Question Bank, Lesson Studio and the
+   student attempt workspace render the same source-backed geometry. */
+
+.structured-question-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  color: var(--text, #172033);
+  background: var(--surface, #fff);
+}
+
+.structured-question-table th,
+.structured-question-table td {
+  min-width: 2.8rem;
+  padding: .52rem .62rem;
+  border: 1px solid var(--border-strong, #8b95a7);
+  color: inherit;
+  background: var(--surface, #fff);
+  text-align: center;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.structured-question-table thead th {
+  background: var(--surface-soft, #f4f6f9);
+  font-weight: 800;
+}
+
+.structured-question-table td[data-editable="true"] {
+  min-height: 2.45rem;
+  background: color-mix(in srgb, var(--surface, #fff) 93%, var(--accent, #4f46e5));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #4f46e5) 16%, transparent);
+}
+
+/* Cambridge K-map: Gray-code column/row labels and a visually distinct axis
+   corner. The actual cell values remain semantic table data. */
+.structured-question-k-map {
+  width: min(100%, 620px);
+  margin-inline: auto;
+  table-layout: fixed;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.structured-question-k-map th,
+.structured-question-k-map td {
+  height: 3.6rem;
+  min-width: 4.4rem;
+  padding: .35rem;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.structured-question-k-map tbody th {
+  background: var(--surface-soft, #f4f6f9);
+  font-weight: 800;
+}
+
+.structured-question-k-map-corner {
+  position: relative;
+  min-width: 6rem !important;
+  overflow: hidden;
+  background:
+    linear-gradient(to top right,
+      transparent calc(50% - .7px),
+      var(--border-strong, #8b95a7) 50%,
+      transparent calc(50% + .7px)),
+    var(--surface, #fff) !important;
+}
+
+.structured-question-k-map-axis {
+  position: absolute;
+  inset: .35rem .5rem;
+  pointer-events: none;
+}
+
+.structured-question-k-map-axis b:first-child {
+  position: absolute;
+  top: 0;
+  right: .1rem;
+}
+
+.structured-question-k-map-axis b:last-child {
+  position: absolute;
+  left: .1rem;
+  bottom: 0;
+}
+
+/* Trace tables need stable columns and enough writing space on a board. */
+.structured-question-trace-table {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.structured-question-trace-table th,
+.structured-question-trace-table td {
+  min-width: 4.2rem;
+  height: 2.7rem;
+  text-align: center;
+}
+
+.structured-question-trace-table th:first-child,
+.structured-question-trace-table td:first-child {
+  min-width: 8.6rem;
+}
+
+.structured-question-truth-table th,
+.structured-question-truth-table td,
+.structured-question-tick-grid th,
+.structured-question-tick-grid td,
+.structured-question-selection-grid th,
+.structured-question-selection-grid td {
+  text-align: center;
+}
+
+/* Source visuals are part of the question, not decorative thumbnails. */
+.structured-question-asset img {
+  display: block;
+  max-width: 100%;
+  max-height: min(68vh, 760px);
+  height: auto;
+  object-fit: contain;
+  cursor: zoom-in;
+  background: #fff;
+}
+
+.structured-question-asset img:focus-visible {
+  outline: 3px solid var(--focus-ring, #4f46e5);
+  outline-offset: 4px;
+}
+
+.structured-question-asset-dialog {
+  width: min(96vw, 1500px);
+  max-width: none;
+  height: min(94vh, 1100px);
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong, #8b95a7);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  color: var(--text, #172033);
+  box-shadow: 0 32px 100px rgba(15, 23, 42, .35);
+}
+
+.structured-question-asset-dialog::backdrop {
+  background: rgba(15, 23, 42, .72);
+  backdrop-filter: blur(5px);
+}
+
+.structured-question-asset-dialog-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border, #d9dfeb);
+  background: color-mix(in srgb, var(--surface, #fff) 95%, transparent);
+}
+
+.structured-question-asset-dialog-toolbar strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.structured-question-asset-dialog-toolbar button {
+  min-height: 38px;
+  padding: 0 .9rem;
+  border: 1px solid var(--border-strong, #8b95a7);
+  border-radius: 9px;
+  background: var(--surface, #fff);
+  color: var(--text, #172033);
+  font: 750 .82rem/1 var(--font-ui, system-ui, sans-serif);
+  cursor: pointer;
+}
+
+.structured-question-asset-dialog > img {
+  display: block;
+  width: 100%;
+  height: calc(100% - 58px);
+  padding: 1rem;
+  object-fit: contain;
+  background: #fff;
+}
+
+/* Never let canonical question content inherit an accidental white foreground
+   from surrounding cards/dialogs. This closes the white-on-white regression on
+   answer grids and source blocks without hard-coding a theme-specific colour. */
+.structured-question-view,
+.lesson-v3-canonical-question,
+.lesson-workspace-stem,
+.qb-canonical-question {
+  color: var(--text, #172033);
+}
+
+@media (max-width: 700px) {
+  .structured-question-k-map,
+  .structured-question-trace-table {
+    min-width: 560px;
+  }
+
+  .structured-question-view:has(.structured-question-k-map),
+  .structured-question-view:has(.structured-question-trace-table) {
+    overflow-x: auto;
+  }
+}
