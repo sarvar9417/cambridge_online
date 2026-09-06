@@ -9,6 +9,7 @@ import './lesson-question-workspace-controls';
 import './lesson-exam-workspace-v3';
 import './lesson-studio-professional-controls';
 import './lesson-exam-insights';
+import './lesson-exam-insight-trust';
 import './lesson-source-teaching-visible';
 import './lesson-library-card-fix.css';
 
