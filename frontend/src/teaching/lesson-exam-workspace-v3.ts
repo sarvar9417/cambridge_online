@@ -8,6 +8,7 @@ import {
   unresolvedVisualAsset,
   type PortableSourceAsset,
 } from '../lib/portable-source-assets';
+import './lesson-exam-inline.css';
 
 type MarkSchemePoint = {
   code:string;
@@ -92,9 +93,10 @@ type PortableQuestion = {
 type RefResponse={detail:QuestionDetail;portable:PortableQuestion};
 
 const cache=new Map<string,Promise<RefResponse>>();
-let requestSerial=0;
+const hydrating=new WeakSet<Element>();
 let installed=false;
 let scanScheduled=false;
+let visibilityObserver:IntersectionObserver|null=null;
 
 function normalized(value:string){return value.replace(/\s+/g,' ').trim()}
 function text(tag:string,className:string,value:string){
@@ -121,7 +123,6 @@ function syllabus(card:Element){
   const level=normalized(studio?.querySelector('.lesson-toolbar-title span')?.textContent??'');
   return /IGCSE/i.test(level)?'0478':'9618';
 }
-function allCards(card:Element){return [...(card.closest('.lesson-studio')??document).querySelectorAll('.lesson-exam-card')]}
 
 function load(ref:string){
   let pending=cache.get(ref);
@@ -130,25 +131,6 @@ function load(ref:string){
     cache.set(ref,pending);
   }
   return pending;
-}
-
-function ensureDialog(host:Element){
-  const existing=host.querySelector<HTMLDialogElement>('.lesson-question-workspace-v3');
-  if(existing)return existing;
-  const dialog=document.createElement('dialog');
-  dialog.className='lesson-question-workspace lesson-question-workspace-v3';
-  dialog.addEventListener('click',(event)=>{if(event.target===dialog)dialog.close()});
-  host.append(dialog);
-  return dialog;
-}
-
-function workspaceHeader(ref:string,marks:number|string,position:string){
-  const header=document.createElement('header');
-  header.className='lesson-workspace-header';
-  const identity=document.createElement('div');
-  identity.append(text('span','lesson-workspace-position',position),text('h2','',ref));
-  header.append(identity,text('span','lesson-workspace-marks',`${marks} mark${String(marks)==='1'?'':'s'}`));
-  return header;
 }
 
 function allAssets(portable:PortableQuestion){
@@ -162,18 +144,11 @@ function canonicalContent(response:RefResponse):StructuredQuestionContent|null{
 
 function renderCanonicalQuestion(response:RefResponse){
   const section=document.createElement('section');
-  section.className='lesson-workspace-question lesson-v3-source-paper';
-  const heading=document.createElement('div');
-  heading.className='lesson-workspace-section-heading';
-  heading.append(
-    text('strong','','Source-faithful exam question'),
-    text('span','','Canonical structured QP content · source page geometry retained'),
-  );
-  section.append(heading);
+  section.className='lesson-inline-source-paper';
 
   const canonical=canonicalContent(response);
   if(!canonical){
-    const blocked=text('div','lesson-v3-fidelity-error','Canonical structured question content is missing. A flattened fallback is intentionally not shown.');
+    const blocked=text('div','lesson-v3-fidelity-error','Canonical structured question content is missing. The incomplete question is intentionally blocked.');
     blocked.setAttribute('role','alert');
     section.append(blocked);
     return section;
@@ -191,7 +166,7 @@ function renderCanonicalQuestion(response:RefResponse){
   }
 
   const body=document.createElement('div');
-  body.className='lesson-v3-canonical-question';
+  body.className='lesson-v3-canonical-question lesson-inline-canonical-question';
   body.append(renderStructuredQuestionContent(content,{resolveAsset:(id)=>urls[id]??null}));
   section.append(body);
   return section;
@@ -199,7 +174,7 @@ function renderCanonicalQuestion(response:RefResponse){
 
 function renderContextAsset(asset:PortableSourceAsset){
   const figure=document.createElement('figure');
-  figure.className='lesson-workspace-asset lesson-v3-context-asset';
+  figure.className='lesson-workspace-asset lesson-v3-context-asset lesson-inline-context-asset';
   const url=portableAssetUrl(asset);
   if(url){
     const image=document.createElement('img');
@@ -221,18 +196,13 @@ function renderContext(portable:PortableQuestion){
   const useful=portable.contextBlocks.filter(block=>Boolean(block.context)||block.assets.length>0);
   if(!useful.length)return null;
   const section=document.createElement('section');
-  section.className='lesson-workspace-contexts';
-  const heading=document.createElement('div');
-  heading.className='lesson-workspace-section-heading';
-  heading.append(text('strong','','Required parent context'),text('span','','Text, tables and visuals travel with the selected leaf.'));
-  section.append(heading);
+  section.className='lesson-inline-context';
+  const label=text('span','lesson-inline-context-label','REQUIRED CONTEXT');
+  section.append(label);
   for(const block of useful){
     const article=document.createElement('article');
     article.append(text('strong','',block.displayRef));
-    if(block.context){
-      const context=text('p','lesson-v3-context-text',block.context);
-      article.append(context);
-    }
+    if(block.context)article.append(text('p','lesson-v3-context-text',block.context));
     block.assets.forEach(asset=>article.append(renderContextAsset(asset)));
     section.append(article);
   }
@@ -261,6 +231,12 @@ function auditReasons(audit:SourceAudit|null|undefined){
   });
 }
 
+function trustLabel(scheme:MarkScheme|null|undefined){
+  if(scheme?.status==='approved')return 'MS approved';
+  if(scheme)return 'MS review pending';
+  return 'MS unavailable';
+}
+
 function renderTrust(scheme:MarkScheme|null|undefined){
   const panel=document.createElement('section');
   panel.className=`lesson-v3-ms-trust ${scheme?.status==='approved'?'is-approved':scheme?'is-review':'is-missing'}`;
@@ -271,9 +247,9 @@ function renderTrust(scheme:MarkScheme|null|undefined){
     return panel;
   }
   if(scheme.status==='approved'){
-    panel.append(text('strong','','Reviewed scheme available'),text('p','','The lesson can reveal the stored reviewed mark points after students attempt the question.'));
+    panel.append(text('strong','','Reviewed scheme available'));
   }else{
-    panel.append(text('strong','','Extracted scheme — not promoted to approved'),text('p','','The source-backed extraction is visible to staff for review, but Lesson Studio does not label it as verified or official.'));
+    panel.append(text('strong','','Extracted scheme — not promoted to approved'));
     const reasons=auditReasons(scheme.sourceAudit);
     if(scheme.sourceAudit||reasons.length){
       const details=document.createElement('details');
@@ -293,17 +269,15 @@ function renderTrust(scheme:MarkScheme|null|undefined){
 
 function renderScheme(scheme:MarkScheme|null|undefined){
   const section=document.createElement('section');
-  section.className='lesson-workspace-scheme lesson-v3-mark-scheme';
+  section.className='lesson-workspace-scheme lesson-v3-mark-scheme lesson-inline-mark-scheme';
   section.hidden=true;
-  if(!scheme){
-    section.append(text('p','','No mark scheme is available for this question.'));
-    return section;
-  }
+  section.append(renderTrust(scheme));
+  if(!scheme)return section;
 
   const heading=document.createElement('div');
   heading.className='lesson-workspace-section-heading';
   heading.append(
-    text('strong','',scheme.status==='approved'?'Reviewed mark scheme':'Extracted mark scheme'),
+    text('strong','',scheme.status==='approved'?'Mark scheme':'Extracted mark scheme'),
     text('span','lesson-workspace-scheme-meta',`${scheme.schemeType.replaceAll('_',' ')} · ${scheme.maxMarks} marks`),
   );
   section.append(heading);
@@ -356,108 +330,152 @@ function renderScheme(scheme:MarkScheme|null|undefined){
 
 function renderDependencies(portable:PortableQuestion){
   if(!portable.dependencies.length)return null;
-  const aside=document.createElement('aside');
-  aside.className='lesson-workspace-dependencies';
-  aside.append(text('strong','','Question dependency'));
+  const details=document.createElement('details');
+  details.className='lesson-inline-dependencies';
+  details.append(text('summary','',`Dependency context · ${portable.dependencies.length}`));
   for(const dependency of portable.dependencies){
-    aside.append(text('p','',[dependency.displayRef,dependency.kind,dependency.strength,dependency.evidence].filter(Boolean).join(' · ')));
+    details.append(text('p','',[dependency.displayRef,dependency.kind,dependency.strength,dependency.evidence].filter(Boolean).join(' · ')));
   }
-  return aside;
+  return details;
 }
 
-async function openCard(card:Element){
-  const studio=card.closest('.lesson-studio')??document.body;
-  const dialog=ensureDialog(studio);
-  const cards=allCards(card);
-  const index=Math.max(0,cards.indexOf(card));
-  const ref=displayRef(card);
-  const serial=++requestSerial;
+function collapseOtherSchemes(card:Element){
+  const studio=card.closest('.lesson-studio')??document;
+  studio.querySelectorAll<HTMLElement>('.lesson-exam-card.is-ms-open').forEach(other=>{
+    if(other===card)return;
+    other.classList.remove('is-ms-open');
+    const scheme=other.querySelector<HTMLElement>('.lesson-inline-mark-scheme');
+    const toggle=other.querySelector<HTMLButtonElement>('.lesson-inline-ms-toggle');
+    if(scheme)scheme.hidden=true;
+    if(toggle){toggle.textContent='Mark scheme';toggle.setAttribute('aria-expanded','false');}
+  });
+}
 
+function renderToolbar(card:Element,response:RefResponse,scheme:HTMLElement){
+  const toolbar=document.createElement('div');
+  toolbar.className='lesson-inline-toolbar';
+  const meta=document.createElement('div');
+  meta.className='lesson-inline-source-meta';
+  meta.append(
+    text('span','',`${syllabus(card)} · ${year(card)}`),
+    text('span','',response.detail.commandWord??'Question'),
+  );
+  const codes=loCodes(card);
+  if(codes.length)meta.append(text('span','',codes.join(' · ')));
+
+  const actions=document.createElement('div');
+  actions.className='lesson-inline-toolbar-actions';
+  const trust=text('span',`lesson-inline-ms-status ${response.detail.markScheme?.status==='approved'?'is-approved':response.detail.markScheme?'is-review':'is-missing'}`,trustLabel(response.detail.markScheme));
+  const reveal=button('lesson-inline-ms-toggle','Mark scheme');
+  const schemeId=`lesson-ms-${response.detail.id}`;
+  scheme.id=schemeId;
+  reveal.setAttribute('aria-controls',schemeId);
+  reveal.setAttribute('aria-expanded','false');
+  reveal.addEventListener('click',(event)=>{
+    event.stopPropagation();
+    const opening=scheme.hidden;
+    if(opening)collapseOtherSchemes(card);
+    scheme.hidden=!opening;
+    card.classList.toggle('is-ms-open',opening);
+    reveal.textContent=opening?'Mark schemeni yashirish':'Mark scheme';
+    reveal.setAttribute('aria-expanded',String(opening));
+  });
+  actions.append(trust,reveal);
+  toolbar.append(meta,actions);
+  return toolbar;
+}
+
+function loadingState(){
   const loading=document.createElement('div');
-  loading.className='lesson-workspace-loading';
-  loading.append(workspaceHeader(ref,card.querySelector('.lesson-exam-meta b')?.textContent?.replace(/\D+/g,'')||'',`Question ${index+1} / ${cards.length}`));
-  loading.append(text('p','','Canonical QP content, source context and mark scheme are loading…'));
-  dialog.replaceChildren(loading);
-  if(!dialog.open)dialog.showModal();
+  loading.className='lesson-inline-loading';
+  loading.setAttribute('aria-label','Full source question loading');
+  loading.append(text('span','lesson-inline-loading-line',''),text('span','lesson-inline-loading-line is-wide',''),text('span','lesson-inline-loading-line',''));
+  return loading;
+}
 
+function errorState(card:Element,cause:unknown){
+  const wrapper=document.createElement('div');
+  wrapper.className='lesson-inline-error';
+  wrapper.append(text('strong','','Savolning source-faithful ko‘rinishi yuklanmadi.'),text('p','',cause instanceof Error?cause.message:'Question could not be loaded.'));
+  const retry=button('lesson-inline-retry','Qayta urinish');
+  retry.addEventListener('click',()=>{
+    cache.delete(displayRef(card));
+    void hydrateCard(card,true);
+  });
+  wrapper.append(retry);
+  return wrapper;
+}
+
+function renderInlineQuestion(card:Element,response:RefResponse){
+  const shell=document.createElement('div');
+  shell.className='lesson-inline-question-shell';
+  const scheme=renderScheme(response.detail.markScheme);
+  shell.append(renderToolbar(card,response,scheme));
+  const context=renderContext(response.portable);
+  if(context)shell.append(context);
+  shell.append(renderCanonicalQuestion(response));
+  const dependencies=renderDependencies(response.portable);
+  if(dependencies)shell.append(dependencies);
+  shell.append(scheme);
+  return shell;
+}
+
+async function hydrateCard(card:Element,force=false){
+  const article=card as HTMLElement;
+  const mount=article.querySelector<HTMLElement>('.lesson-inline-question');
+  if(!mount||hydrating.has(card))return;
+  if(article.dataset.inlineSourceReady==='true'&&!force)return;
+  const ref=displayRef(card);
+  if(!ref){
+    mount.replaceChildren(errorState(card,new Error('Savol manbasi aniqlanmadi.')));
+    return;
+  }
+  hydrating.add(card);
+  article.dataset.inlineSourceReady='loading';
+  mount.replaceChildren(loadingState());
   try{
     const response=await load(ref);
-    if(serial!==requestSerial)return;
-    const shell=document.createElement('div');
-    shell.className='lesson-workspace-shell lesson-v3-workspace-shell';
-    shell.append(workspaceHeader(ref,response.detail.marks,`Question ${index+1} / ${cards.length}`));
-
-    const close=button('lesson-workspace-close','Close');
-    close.setAttribute('aria-label','Close question workspace');
-    close.addEventListener('click',()=>dialog.close());
-    shell.append(close);
-
-    const toolbar=document.createElement('div');
-    toolbar.className='lesson-workspace-toolbar';
-    toolbar.append(
-      text('span','lesson-workspace-source',`${syllabus(card)} · ${year(card)} · ${response.detail.commandWord??'Question'} · ${response.detail.answerKind}`),
-      text('span','lesson-workspace-lo',loCodes(card).join(' · ')),
-    );
-    shell.append(toolbar);
-
-    const body=document.createElement('div');
-    body.className='lesson-workspace-body';
-    const questionColumn=document.createElement('main');
-    questionColumn.className='lesson-workspace-question-column';
-    const context=renderContext(response.portable);
-    if(context)questionColumn.append(context);
-    questionColumn.append(renderCanonicalQuestion(response));
-
-    const sideColumn=document.createElement('aside');
-    sideColumn.className='lesson-workspace-side-column';
-    sideColumn.append(renderTrust(response.detail.markScheme));
-    const dependencies=renderDependencies(response.portable);
-    if(dependencies)sideColumn.append(dependencies);
-    const reveal=button('lesson-workspace-reveal','Mark schemeni ko‘rsatish');
-    const scheme=renderScheme(response.detail.markScheme);
-    reveal.addEventListener('click',()=>{
-      scheme.hidden=!scheme.hidden;
-      reveal.textContent=scheme.hidden?'Mark schemeni ko‘rsatish':'Mark schemeni yashirish';
-    });
-    sideColumn.append(reveal,scheme);
-    body.append(questionColumn,sideColumn);
-    shell.append(body);
-
-    const navigation=document.createElement('nav');
-    navigation.className='lesson-workspace-navigation';
-    const previous=button('lesson-workspace-nav','← Previous question');
-    const next=button('lesson-workspace-nav','Next question →');
-    previous.disabled=index===0;
-    next.disabled=index>=cards.length-1;
-    previous.addEventListener('click',()=>{const target=cards[index-1];if(target)void openCard(target)});
-    next.addEventListener('click',()=>{const target=cards[index+1];if(target)void openCard(target)});
-    navigation.append(previous,next);
-    shell.append(navigation);
-    dialog.replaceChildren(shell);
+    if(!article.isConnected)return;
+    mount.replaceChildren(renderInlineQuestion(card,response));
+    article.dataset.inlineSourceReady='true';
   }catch(cause){
-    if(serial!==requestSerial)return;
-    const error=document.createElement('div');
-    error.className='lesson-workspace-error';
-    error.append(workspaceHeader(ref,'',`Question ${index+1} / ${cards.length}`));
-    error.append(text('p','',cause instanceof Error?cause.message:'Question could not be opened.'));
-    const close=button('lesson-workspace-close-error','Close');
-    close.addEventListener('click',()=>dialog.close());
-    error.append(close);
-    dialog.replaceChildren(error);
+    if(article.isConnected){
+      mount.replaceChildren(errorState(card,cause));
+      article.dataset.inlineSourceReady='error';
+    }
+  }finally{
+    hydrating.delete(card);
   }
+}
+
+function getVisibilityObserver(){
+  if(visibilityObserver||typeof IntersectionObserver==='undefined')return visibilityObserver;
+  visibilityObserver=new IntersectionObserver(entries=>{
+    for(const entry of entries){
+      if(!entry.isIntersecting)continue;
+      visibilityObserver?.unobserve(entry.target);
+      void hydrateCard(entry.target);
+    }
+  },{rootMargin:'700px 0px'});
+  return visibilityObserver;
 }
 
 function enhanceCard(card:Element){
   const article=card as HTMLElement;
   if(article.dataset.examWorkspaceV3==='true')return;
-  const legacy=article.querySelector<HTMLButtonElement>('.lesson-question-open');
-  if(!legacy)return;
   article.dataset.examWorkspaceV3='true';
-  const replacement=legacy.cloneNode(true) as HTMLButtonElement;
-  replacement.textContent='Open full source question';
-  replacement.title='Canonical question · required context · mark scheme';
-  replacement.addEventListener('click',(event)=>{event.stopPropagation();void openCard(card)});
-  legacy.replaceWith(replacement);
+  article.dataset.questionWorkspaceReady='true';
+  article.classList.add('lesson-exam-inline');
+  article.querySelector('.lesson-question-card-actions')?.remove();
+
+  const mount=document.createElement('section');
+  mount.className='lesson-inline-question';
+  mount.append(loadingState());
+  article.append(mount);
+
+  const observer=getVisibilityObserver();
+  if(observer)observer.observe(article);
+  else void hydrateCard(article);
 }
 
 function scan(){document.querySelectorAll('.lesson-exam-card').forEach(enhanceCard)}
@@ -468,10 +486,10 @@ function schedule(){
 }
 
 /**
- * Lesson-specific exam workspace. It deliberately resolves by exact Cambridge
- * display reference rather than re-querying a checkpoint with an implicit
- * syllabus default. That removes the 0478→9618 resolver bug and gives the
- * teacher one source-faithful QP/MS surface for all three audited chapters.
+ * Lesson Studio past-paper flow is intentionally inline: the complete canonical
+ * question is visible in the lesson card and the teacher needs only one action
+ * to reveal/hide the mark scheme. No modal, answer-entry workspace or second
+ * navigation layer is introduced during classroom teaching.
  */
 export function installLessonExamWorkspaceV3(){
   if(installed||typeof document==='undefined')return;
