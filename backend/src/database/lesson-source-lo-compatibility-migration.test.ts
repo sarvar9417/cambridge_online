@@ -23,7 +23,7 @@ describe('0122 lesson-source LO compatibility completion',()=>{
 
   it('maps 0478 current Topic 7 through explicit historical compatibility',()=>{
     expect(sql).toContain("target_s.code='0478' AND target_s.version_label='2026-2028'");
-    expect(sql).toContain("source_s.version_label='0478'").toBe(false);
+    expect(sql).not.toContain("source_s.version_label='0478'");
     expect(sql).toContain("source_s.code='0478' AND source_s.version_label='2015-2022'");
     [
       "('7-lo-03','2.1.1-lo-03','equivalent'",
