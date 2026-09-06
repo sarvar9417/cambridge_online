@@ -133,13 +133,12 @@ function load(ref:string){
 }
 
 function ensureDialog(host:Element){
-  let dialog=host.querySelector<HTMLDialogElement>('.lesson-question-workspace-v3');
-  if(!dialog){
-    dialog=document.createElement('dialog');
-    dialog.className='lesson-question-workspace lesson-question-workspace-v3';
-    dialog.addEventListener('click',(event)=>{if(event.target===dialog)dialog.close()});
-    host.append(dialog);
-  }
+  const existing=host.querySelector<HTMLDialogElement>('.lesson-question-workspace-v3');
+  if(existing)return existing;
+  const dialog=document.createElement('dialog');
+  dialog.className='lesson-question-workspace lesson-question-workspace-v3';
+  dialog.addEventListener('click',(event)=>{if(event.target===dialog)dialog.close()});
+  host.append(dialog);
   return dialog;
 }
 
