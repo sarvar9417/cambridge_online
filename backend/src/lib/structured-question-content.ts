@@ -35,7 +35,7 @@ const listBlockSchema = z.object({
 
 const tableBlockSchema = z.object({
   type: z.literal('table'),
-  kind: z.enum(['table', 'truth_table', 'tick_grid', 'selection_grid']),
+  kind: z.enum(['table', 'truth_table', 'tick_grid', 'selection_grid', 'k_map', 'trace_table']),
   headers: z.array(z.string()),
   rows: z.array(z.array(z.string().nullable())).min(1),
   editableCells: z.array(z.tuple([
