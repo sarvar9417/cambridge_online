@@ -59,4 +59,17 @@ describe('source visual fidelity', () => {
     const result = enforceSourceVisualFidelity([root, question()]);
     expect(result[1]?.issues).not.toContain(SOURCE_VISUAL_MISSING_ISSUE);
   });
+
+  it('rejects prose or ASCII substitutes that describe a visual but do not preserve its geometry', () => {
+    const leaf = question({ assets: [{
+      kind: 'diagram',
+      contentMd: '**Logic circuit source context**\nUse the original PDF for exact gate symbols.\nA -> B -> X',
+      altText: 'Logic circuit summary',
+      bbox: null,
+      page: 2,
+    }] });
+    const result = enforceSourceVisualFidelity([parent(), leaf]);
+    expect(result[1]?.issues).toContain(SOURCE_VISUAL_MISSING_ISSUE);
+    expect(result[1]?.confidence).toBe(0.79);
+  });
 });
