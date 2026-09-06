@@ -1,0 +1,78 @@
+name: Full 9618 2026 corpus backfill
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.9618-2026-apply'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: full-9618-2026-corpus-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
+      STRUCTURED_CONTENT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/structured-content-runner
+      CORPUS_AUDIT_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-audit-runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-backed corpus tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --upgrade pip
+          pip install 'gdown==5.2.0' numpy scikit-learn pillow
+          chmod +x backend/scripts/tools/pdftotext
+          echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
+
+      - name: Stage and ingest official 9618 May/June 2026 QP/MS
+        run: python backend/scripts/full-9618-2026-corpus-backfill.py
+
+      - name: Restore every required printed table, layout and visual
+        env:
+          SOURCE_STRUCTURE_APPLY: 'YES'
+          SOURCE_STRUCTURE_ONLY: '9618'
+        run: python backend/scripts/qp-source-structure-repair-v6.py
+
+      - name: Build canonical structured content from the verified 2026 QPs
+        env:
+          STRUCTURED_CONTENT_APPLY: 'YES'
+          STRUCTURED_CONTENT_ONLY: '9618'
+          STRUCTURED_CONTENT_REPORT: structured-content-backfill-9618-2026.json
+        run: python backend/scripts/structured_content_backfill_2026.py
+
+      - name: Promote only fully source-verified 2026 leaves
+        run: python backend/scripts/finalize-9618-2026-corpus.py
+
+      - name: Re-audit 2026 QP identity and source semantics
+        env:
+          SOURCE_AUDIT_YEAR: '2026'
+          SOURCE_AUDIT_STRICT: '0'
+          SOURCE_AUDIT_REPORT: source-audit-9618-2026.json
+        run: python backend/scripts/qp-source-audit-runner-v2.py
+
+      - name: Upload corpus evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-2026-corpus-evidence
+          path: |
+            9618-2026-backfill-report.json
+            source-structure-repair-plan.json
+            structured-content-backfill-9618-2026.json
+            9618-2026-finalization-report.json
+            source-audit-9618-2026.json
+          if-no-files-found: warn
+          retention-days: 30
