@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { browserAssetUrl, enhanceQuestionAsset, isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
+import { browserAssetUrl, enhanceLessonContextAsset, enhanceQuestionAsset, isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
 
 function asset(kind: string, value: string, label = 'Source asset · source page 7') {
   const host = document.createElement('div');
@@ -12,6 +12,18 @@ function asset(kind: string, value: string, label = 'Source asset · source page
   pre.textContent = value;
   host.append(strong, span, pre);
   return host;
+}
+
+function lessonAsset(value: string, caption = 'Question context · Source page 7') {
+  const figure = document.createElement('figure');
+  figure.className = 'lesson-v3-context-asset';
+  const pre = document.createElement('pre');
+  pre.className = 'lesson-v3-context-semantic';
+  pre.textContent = value;
+  const figcaption = document.createElement('figcaption');
+  figcaption.textContent = caption;
+  figure.append(pre, figcaption);
+  return figure;
 }
 
 describe('question asset fidelity helpers', () => {
@@ -68,5 +80,25 @@ describe('question asset fidelity helpers', () => {
     enhanceQuestionAsset(host);
     expect(host.textContent).not.toContain('Database table with columns');
     expect(host.querySelector('[data-source-asset-unavailable="true"]')?.textContent).toBe('Original jadval yuklanmadi.');
+  });
+
+  it('turns Lesson Studio pipe-grid context into a real table', () => {
+    const host = lessonAsset('| A | B | X |\n| --- | --- | --- |\n| 0 | 0 | |\n| 0 | 1 | 1 |');
+    enhanceLessonContextAsset(host);
+    expect(host.querySelector('table.structured-question-table')).not.toBeNull();
+    expect(host.querySelector('pre.lesson-v3-context-semantic')).toBeNull();
+  });
+
+  it('turns Lesson Studio pseudocode context into a code block', () => {
+    const host = lessonAsset('INPUT X\nIF X > 0 THEN\n  OUTPUT X\nENDIF');
+    enhanceLessonContextAsset(host);
+    expect(host.querySelector('pre.structured-question-code code')?.textContent).toContain('OUTPUT X');
+  });
+
+  it('blocks unidentifiable Lesson Studio repair prose instead of showing it on the board', () => {
+    const host = lessonAsset('Preserve the original PDF for exact arrows and gate geometry.');
+    enhanceLessonContextAsset(host);
+    expect(host.textContent).not.toContain('Preserve the original PDF');
+    expect(host.querySelector('[data-source-asset-unavailable="true"]')).not.toBeNull();
   });
 });
