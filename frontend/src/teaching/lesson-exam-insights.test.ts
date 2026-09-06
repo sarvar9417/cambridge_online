@@ -20,13 +20,19 @@ describe('Lesson Studio exam enrichment coverage',()=>{
     for(const chapterNo of [1,13]){
       const chapter=lessonChapter(chapterNo);
       expect(chapter).not.toBeNull();
-      const checkpoints=chapter!.slides.filter(slide=>slide.examPractice);
+      const checkpoints=chapter!.slides.filter(slide=>slide.examPractice&&Boolean(slide.learningObjectiveCodes?.length));
       expect(checkpoints.length).toBeGreaterThan(8);
       checkpoints.forEach(slide=>{
         expect(slide.checkpointSyllabusCode??'9618').toBe('9618');
         expect(slide.learningObjectiveCodes?.length).toBeGreaterThan(0);
         expect(slide.checkpointYearFrom).toBe(2021);
         expect(slide.checkpointYearTo).toBe(2025);
+      });
+
+      const noDirect=chapter!.slides.filter(slide=>slide.examPractice&&Boolean(slide.checkpointUnavailableReason));
+      noDirect.forEach(slide=>{
+        expect(slide.learningObjectiveCodes).toBeUndefined();
+        expect(slide.checkpointUnavailableReason?.length).toBeGreaterThan(0);
       });
     }
   });
