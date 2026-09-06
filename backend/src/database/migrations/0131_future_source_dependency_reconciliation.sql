@@ -52,7 +52,7 @@ BEGIN
     SELECT s.*,
       (regexp_match(
         s.source_text,
-        '(?:answer (?:to|from|for)|use your answer (?:from|to|for)|using your answer (?:from|to|for))[[:space:]]+part[[:space:]]*(?:[0-9]+[[:space:]]*)?\\(?([a-z])\\)?(?:[[:space:]]*\\(([ivx]+)\\))?'
+        '(?:answer (?:to|from|for)|use your answer (?:from|to|for)|using your answer (?:from|to|for))[[:space:]]+part[[:space:]]*(?:[0-9]+[[:space:]]*)?[(]?([a-z])[)]?(?:[[:space:]]*[(]([ivx]+)[)])?'
       )) m
     FROM _source_dep_scope s
     WHERE s.source_text ~
@@ -116,11 +116,11 @@ BEGIN
     SELECT s.*,
       (regexp_match(
         s.source_text,
-        '(?:using|use|refer to|shown in|given in|from)[^.;]{0,120}(?:table|diagram|structure chart|flowchart|pseudocode|code|data|information)?[^.;]{0,80}part[[:space:]]*(?:[0-9]+[[:space:]]*)?\\(?([a-z])\\)?(?:[[:space:]]*\\(([ivx]+)\\))?'
+        '(?:using|use|refer to|shown in|given in|from)[^.;]{0,120}(?:table|diagram|structure chart|flowchart|pseudocode|code|data|information)?[^.;]{0,80}part[[:space:]]*(?:[0-9]+[[:space:]]*)?[(]?([a-z])[)]?(?:[[:space:]]*[(]([ivx]+)[)])?'
       )) m
     FROM _source_dep_scope s
     WHERE s.source_text ~
-      '(using|use|refer to|shown in|given in|from).{0,220}part[[:space:]]*(?:[0-9]+[[:space:]]*)?\\(?[a-z]\\)?'
+      '(using|use|refer to|shown in|given in|from).{0,220}part[[:space:]]*(?:[0-9]+[[:space:]]*)?[(]?[a-z][)]?'
       AND s.source_text !~
       '(answer (to|from|for) part|use your answer (from|to|for) part|using your answer (from|to|for) part)'
   ), targets AS (
