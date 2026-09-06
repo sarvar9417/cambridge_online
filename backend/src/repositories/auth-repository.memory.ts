@@ -51,7 +51,6 @@ export class MemoryAuthRepository implements AuthRepository {
   groups = new Map<string, { classId: string; name: string }>();
   revokedAll = 0;
 
-  /** The account the login tests act as. Kept for readability at call sites. */
   get user() {
     return [...this.users.values()][0]!;
   }
@@ -63,8 +62,6 @@ export class MemoryAuthRepository implements AuthRepository {
     const full: MemoryUser = {
       schoolId: null, role: 'student', fullName: 'Test User', tokenVersion: 1, isActive: true,
       status: 'active', statusReason: null, email: null, username: null, note: null,
-      // Existing accounts got in through an invite, so their address was already
-      // accepted by a person; only a self-registration starts unverified.
       emailVerifiedAt: new Date(), createdAt: new Date(), ...user,
     };
     this.users.set(full.id, full);
@@ -145,8 +142,6 @@ export class MemoryAuthRepository implements AuthRepository {
         || user.username?.toLowerCase() === input.username.toLowerCase(),
     );
     if (clash) {
-      // Shaped like the driver's unique-violation so the service's branch on
-      // `constraint` is exercised rather than bypassed.
       const taken = clash.email?.toLowerCase() === input.email.toLowerCase();
       throw Object.assign(new Error('duplicate key'), {
         code: '23505', constraint: taken ? 'users_email_lower_key' : 'users_username_lower_key',
@@ -254,13 +249,13 @@ export class MemoryAuthRepository implements AuthRepository {
   }) {
     const user = this.users.get(input.userId);
     if (!user || user.status !== 'pending') throw new Error('user_not_pending');
+    const approver = this.users.get(input.approvedBy);
+    if (approver?.schoolId) user.schoolId = approver.schoolId;
     if (input.classId) {
       const klass = this.classes.get(input.classId);
-      if (!klass) throw new Error('class_not_found');
+      if (!klass || (approver?.schoolId && klass.schoolId !== approver.schoolId)) throw new Error('class_not_found');
       const isStudent = input.role === 'student';
       if (isStudent && input.groupId) {
-        // Mirrors the composite foreign key: a group only counts inside its own
-        // class.
         const group = this.groups.get(input.groupId);
         if (!group || group.classId !== input.classId) throw new Error('group_not_in_class');
       }
