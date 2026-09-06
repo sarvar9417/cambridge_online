@@ -21,7 +21,10 @@ function transactionalPool(handler: (sql: string, values?: unknown[]) => Promise
   } as unknown as PoolClient;
   const pool = {
     connect: vi.fn(async () => client),
-    query: vi.fn(async (sql: string, values?: unknown[]) => handler(sql, values)),
+    query: vi.fn(async (sql: string, values?: unknown[]) => {
+      if (values) params.push(values);
+      return handler(sql, values);
+    }),
   } as unknown as Pool;
   return { pool, client, statements, params };
 }
