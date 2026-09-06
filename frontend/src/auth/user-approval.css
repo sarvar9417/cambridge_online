@@ -1,203 +1,117 @@
-/*
- * The approval queue. Same tokens as the rest of the product; this is a working
- * screen for the teacher rather than a first impression, so it is quiet where
- * the sign-in surface is lively.
- */
-
+/* People / account administration. Built on the original approval queue styles. */
 .ua { display: grid; gap: 1rem; }
+.ua-header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:.75rem; }
+.ua-header h2 { margin:0; font-size:1.15rem; letter-spacing:-.01em; }
+.ua-sub { margin:.2rem 0 0; color:var(--text-muted); font-size:.86rem; }
 
-.ua-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.75rem;
+.ua-primary,
+.ua-manage,
+.ua-search button {
+  border:1px solid var(--border); border-radius:var(--radius); padding:.45rem .85rem;
+  font:inherit; font-size:.84rem; font-weight:650; cursor:pointer; background:var(--surface); color:var(--text);
 }
+.ua-primary { background:var(--accent); border-color:var(--accent); color:var(--accent-contrast); }
+.ua-manage { color:var(--accent); border-color:var(--accent); }
 
-.ua-header h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.01em; }
-.ua-sub { margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.86rem; }
-
-.ua-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-
-.ua-filters button {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  border-radius: 999px;
-  padding: 0.3rem 0.75rem;
-  font: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
+.ua-create,
+.ua-manager {
+  border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface-soft);
+  padding:1rem; display:grid; gap:.9rem;
 }
-
-.ua-filters button.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
+.ua-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; justify-content:space-between; }
+.ua-search { display:flex; flex:1 1 28rem; gap:.4rem; }
+.ua-search input {
+  flex:1; min-width:12rem; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--bg); color:var(--text); padding:.48rem .65rem; font:inherit;
 }
+.ua-role-filter { color:var(--text-muted); font-size:.8rem; display:flex; align-items:center; gap:.4rem; }
+.ua-role-filter select { border:1px solid var(--border); border-radius:var(--radius); background:var(--bg); color:var(--text); padding:.42rem .55rem; font:inherit; }
 
-.ua-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.ua-filters { display:flex; flex-wrap:wrap; gap:.3rem; }
+.ua-filters button { border:1px solid var(--border); background:var(--surface); color:var(--text-muted); border-radius:999px; padding:.3rem .75rem; font:inherit; font-size:.82rem; cursor:pointer; }
+.ua-filters button.is-active { background:var(--accent); border-color:var(--accent); color:var(--accent-contrast); }
 
-.ua-row {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 0.85rem 1rem;
-  display: grid;
-  gap: 0.6rem;
-}
-
-/* A waiting row is the only one that needs attention, so it is the only one
-   that draws any. */
-.ua-row--pending { border-left: 3px solid var(--uncertain); }
+.ua-list { list-style:none; margin:0; padding:0; display:grid; gap:.65rem; }
+.ua-row { border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface); padding:.9rem 1rem; display:grid; gap:.65rem; }
+.ua-row--pending { border-left:3px solid var(--uncertain); }
 .ua-row--suspended,
-.ua-row--rejected { opacity: 0.75; }
-
-.ua-identity {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.ua-identity > div { display: grid; min-width: 0; }
-.ua-identity strong { font-size: 0.95rem; }
-
-.ua-avatar {
-  flex: none;
-  width: 2.1rem;
-  height: 2.1rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 650;
-}
-
-.ua-meta {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ua-badge {
-  margin-left: auto;
-  flex: none;
-  border-radius: 999px;
-  padding: 0.15rem 0.55rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.ua-badge--pending { background: var(--uncertain-bg); color: var(--uncertain); }
-.ua-badge--active { background: var(--awarded-bg); color: var(--awarded); }
+.ua-row--rejected { opacity:.88; }
+.ua-identity { display:flex; align-items:center; gap:.7rem; }
+.ua-identity > div { display:grid; min-width:0; }
+.ua-identity strong { font-size:.95rem; }
+.ua-avatar { flex:none; width:2.2rem; height:2.2rem; display:grid; place-items:center; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:700; }
+.ua-meta { color:var(--text-muted); font-size:.78rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ua-badges { margin-left:auto; display:flex; flex-wrap:wrap; gap:.3rem; justify-content:flex-end; }
+.ua-badge { flex:none; border-radius:999px; padding:.16rem .55rem; font-size:.72rem; font-weight:650; }
+.ua-badge--pending { background:var(--uncertain-bg); color:var(--uncertain); }
+.ua-badge--active { background:var(--awarded-bg); color:var(--awarded); }
 .ua-badge--rejected,
-.ua-badge--suspended { background: var(--missed-bg); color: var(--missed); }
+.ua-badge--suspended { background:var(--missed-bg); color:var(--missed); }
+.ua-badge--unverified { background:var(--uncertain-bg); color:var(--uncertain); }
 
 .ua-note,
-.ua-reason {
-  margin: 0;
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius);
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
+.ua-reason { margin:0; padding:.45rem .7rem; border-radius:var(--radius); font-size:.85rem; line-height:1.45; }
+.ua-note { background:var(--surface-soft); color:var(--text); font-style:italic; }
+.ua-reason { background:var(--missed-bg); color:var(--missed); }
 
-.ua-note { background: var(--surface-soft); color: var(--text); font-style: italic; }
-.ua-reason { background: var(--missed-bg); color: var(--missed); }
+.ua-actions { display:flex; flex-wrap:wrap; align-items:flex-end; gap:.5rem; }
+.ua-actions button { border:1px solid var(--border); border-radius:var(--radius); padding:.42rem .82rem; font:inherit; font-size:.84rem; font-weight:650; cursor:pointer; background:var(--surface); color:var(--text); }
+.ua-actions button:disabled { opacity:.5; cursor:not-allowed; }
+.ua-actions .ua-approve { background:var(--accent); border-color:var(--accent); color:var(--accent-contrast); }
+.ua-actions .ua-reject { color:var(--missed); border-color:var(--missed); }
+.ua-actions .ua-secondary { color:var(--text-muted); }
+.ua-actions .ua-danger { color:var(--missed); border-color:var(--missed); background:var(--surface); }
 
-.ua-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-
-.ua-control { display: grid; gap: 0.2rem; font-size: 0.78rem; color: var(--text-muted); }
-
+.ua-control { display:grid; gap:.22rem; font-size:.78rem; color:var(--text-muted); }
 .ua-control select,
-.ua-reason-input {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  padding: 0.4rem 0.5rem;
-  font: inherit;
-  font-size: 0.86rem;
-}
+.ua-control input,
+.ua-reason-input { border:1px solid var(--border); border-radius:var(--radius); background:var(--bg); color:var(--text); padding:.43rem .55rem; font:inherit; font-size:.86rem; }
+.ua-reason-input { flex:1 1 12rem; min-width:0; }
+.ua-password { min-width:14rem; flex:1 1 16rem; }
+.ua-form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.65rem; }
+.ua-check { display:flex; align-items:center; gap:.4rem; color:var(--text); font-size:.82rem; cursor:pointer; }
+.ua-check input { accent-color:var(--accent); }
+.ua-class-picker { display:grid; gap:.45rem; }
+.ua-label { color:var(--text-muted); font-size:.78rem; font-weight:650; }
+.ua-class-options { display:flex; flex-wrap:wrap; gap:.45rem .8rem; padding:.55rem .65rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); }
+.ua-inline-control { width:min(20rem,100%); }
+.ua-current-memberships { display:flex; flex-wrap:wrap; gap:.35rem; }
+.ua-chip { background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:.2rem .55rem; font-size:.74rem; font-weight:650; }
+.ua-muted { margin:0; color:var(--text-muted); font-size:.82rem; }
 
-.ua-reason-input { flex: 1 1 12rem; min-width: 0; }
+.ua-row-footer { display:flex; align-items:center; justify-content:space-between; gap:.5rem; border-top:1px solid var(--border); padding-top:.55rem; }
+.ua-self { margin:0; color:var(--text-muted); font-size:.8rem; }
+.ua-manager { margin-top:.1rem; background:var(--bg); }
+.ua-manager-section { display:grid; gap:.65rem; padding:.75rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+.ua-section-title { display:grid; gap:.12rem; }
+.ua-section-title strong { font-size:.9rem; color:var(--text); }
+.ua-section-title span { font-size:.76rem; color:var(--text-muted); line-height:1.35; }
+.ua-danger-zone { border-color:color-mix(in srgb, var(--missed) 45%, var(--border)); background:var(--missed-bg); }
 
-.ua-actions button {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.42rem 0.85rem;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--surface);
-  color: var(--text);
-}
+.ua-code { display:grid; gap:.4rem; padding:.6rem .8rem; border:1px dashed var(--accent); border-radius:var(--radius); background:var(--accent-soft); }
+.ua-code p { margin:0; font-size:.82rem; color:var(--text); }
+.ua-code code { font-family:var(--font-mono); font-size:.76rem; word-break:break-all; background:var(--bg); color:var(--text); padding:.4rem .5rem; border-radius:var(--radius); }
 
-.ua-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ua-audit { list-style:none; margin:0; padding:0; display:grid; gap:.45rem; }
+.ua-audit li { display:grid; grid-template-columns:.6rem 1fr; gap:.55rem; align-items:start; }
+.ua-audit-dot { width:.5rem; height:.5rem; border-radius:50%; background:var(--accent); margin-top:.36rem; }
+.ua-audit li div { display:grid; }
+.ua-audit strong { font-size:.8rem; color:var(--text); }
+.ua-audit span { font-size:.74rem; color:var(--text-muted); }
 
-.ua-approve {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-}
+.ua-empty { margin:0; color:var(--text-muted); font-size:.88rem; }
+.ua-error,
+.ua-notice { margin:0; padding:.6rem .8rem; border-radius:var(--radius); font-size:.84rem; }
+.ua-error { background:var(--missed-bg); color:var(--missed); }
+.ua-notice { background:var(--awarded-bg); color:var(--awarded); }
 
-.ua-reject { color: var(--missed); border-color: var(--missed); }
-.ua-secondary { color: var(--text-muted); }
-
-.ua-self { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
-
-.ua-code {
-  display: grid;
-  gap: 0.4rem;
-  padding: 0.6rem 0.8rem;
-  border: 1px dashed var(--accent);
-  border-radius: var(--radius);
-  background: var(--accent-soft);
-}
-
-.ua-code p { margin: 0; font-size: 0.82rem; }
-
-.ua-code code {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  /* The link is long and must stay copyable in one piece. */
-  word-break: break-all;
-  background: var(--bg);
-  padding: 0.4rem 0.5rem;
-  border-radius: var(--radius);
-}
-
-.ua-code button { justify-self: start; }
-
-.ua-empty { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
-
-.ua-error {
-  margin: 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  background: var(--missed-bg);
-  color: var(--missed);
-  font-size: 0.86rem;
-}
-
-.ua-badges { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: flex-end; }
-.ua-badges .ua-badge { margin-left: 0; }
-
-/* An unverified address is the one thing worth seeing before approving: it is
-   the only self-service route back into a forgotten account. */
-.ua-badge--unverified { background: var(--uncertain-bg); color: var(--uncertain); }
-
-.ua-danger {
-  color: var(--missed);
-  border-color: var(--missed);
-  background: var(--surface);
+@media (max-width: 720px) {
+  .ua-identity { align-items:flex-start; flex-wrap:wrap; }
+  .ua-badges { width:100%; margin-left:2.9rem; justify-content:flex-start; }
+  .ua-toolbar, .ua-search { align-items:stretch; }
+  .ua-search { flex-wrap:wrap; }
+  .ua-search input { flex-basis:100%; }
+  .ua-row { padding:.8rem; }
+  .ua-manager, .ua-create { padding:.7rem; }
+  .ua-actions > button { flex:1 1 auto; }
 }
