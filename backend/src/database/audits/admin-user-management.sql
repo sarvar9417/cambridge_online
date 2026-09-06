@@ -62,3 +62,41 @@ select
   u.full_name
 from users u
 where u.is_active = true and u.email is null and u.username is null;
+
+-- Approved/usable accounts must belong to a school. Only the pre-decision
+-- onboarding queue is allowed to have school_id = null.
+select
+  'active_user_without_school' as finding,
+  u.id as user_id,
+  u.full_name,
+  u.role::text as role
+from users u
+where u.is_active = true and u.status = 'active' and u.school_id is null;
+
+-- Student membership and identity must never cross school boundaries.
+select
+  'student_cross_school_enrolment' as finding,
+  u.id as user_id,
+  u.full_name,
+  u.school_id as user_school_id,
+  c.id as class_id,
+  c.school_id as class_school_id
+from users u
+join enrollments e on e.student_id = u.id and e.left_at is null
+join classes c on c.id = e.class_id
+where u.is_active = true
+  and u.school_id is distinct from c.school_id;
+
+-- Teacher membership is equally tenant-scoped.
+select
+  'teacher_cross_school_membership' as finding,
+  u.id as user_id,
+  u.full_name,
+  u.school_id as user_school_id,
+  c.id as class_id,
+  c.school_id as class_school_id
+from users u
+join class_teachers ct on ct.teacher_id = u.id
+join classes c on c.id = ct.class_id
+where u.is_active = true
+  and u.school_id is distinct from c.school_id;
