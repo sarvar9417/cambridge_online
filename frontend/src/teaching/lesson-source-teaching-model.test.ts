@@ -6,6 +6,7 @@ import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail'
 import {
   sourceTeachingAtomsForChapter,
   sourceTeachingAtomsForSlide,
+  sourceTeachingDeckPages,
   type SourceTeachingChapter,
 } from './lesson-source-teaching-model';
 
@@ -50,5 +51,24 @@ describe('Lesson Studio visible textbook-source model',()=>{
     const pages=sourceTeachingAtomsForChapter(13).map(atom=>atom.page);
     expect(Math.min(...pages)).toBe(304);
     expect(Math.max(...pages)).toBe(327);
+  });
+
+  it('splits dense slide source material into projector-sized pages without dropping or duplicating atoms',()=>{
+    for(const chapter of [1,7,13] as SourceTeachingChapter[]){
+      const all=sourceTeachingAtomsForChapter(chapter);
+      const slideIds=[...new Set(all.map(atom=>atom.targetSlideId))];
+      for(const slideId of slideIds){
+        const atoms=sourceTeachingAtomsForSlide(chapter,slideId);
+        const pages=sourceTeachingDeckPages(atoms);
+        expect(pages.length,`${chapter}:${slideId}`).toBeGreaterThan(0);
+        expect(ids(pages.flat())).toEqual(ids(atoms));
+        pages.forEach((page,index)=>{
+          expect(page.length,`${chapter}:${slideId} source page ${index+1}`).toBeLessThanOrEqual(3);
+          if(page.length>1){
+            expect(page.reduce((sum,atom)=>sum+Math.max(1,atom.lines.length),0)).toBeLessThanOrEqual(12);
+          }
+        });
+      }
+    }
   });
 });
