@@ -2,21 +2,59 @@
 """Dynamic wrapper for the full 9618 source-fidelity audit.
 
 The original audit implementation remains the comparison engine. v2 replaces
-only its historical fixed corpus constants with the source-backed baseline
-returned by the database and optionally narrows execution to one exam year.
+its historical fixed corpus constants with the source-backed database baseline,
+uses the production v3 source parser, and optionally narrows execution to one
+exam year.
 """
 from __future__ import annotations
 
 import os
+import re
 import runpy
 
 AUDIT = runpy.run_path(
     "backend/scripts/qp-source-audit-runner.py",
     run_name="qp_source_audit_v2_impl",
 )
+PARSER = runpy.run_path(
+    "backend/scripts/qp-source-repair-v3.py",
+    run_name="qp_source_repair_v3_for_dynamic_audit",
+)
+PSEUDOCODE_HEADS = PARSER["PSEUDOCODE_HEADS"]
+
+
+def main_candidate_current(raw: str, expected_number: int):
+    match = re.match(r"^(\s*)(\d{1,2})\s+(.+)$", raw)
+    if not match:
+        return None
+    token = match.group(2)
+    if len(token) > 1 and token.startswith("0"):
+        return None
+    indent = len(match.group(1))
+    number = int(token)
+    rest = match.group(3).strip()
+    if number != expected_number or re.match(r"^hours?\b", rest, re.I):
+        return None
+    if not re.match(r"^(?:\([a-z]\)|[A-Za-z])", rest, re.I):
+        return None
+    if indent <= 12:
+        pass
+    elif 24 <= indent <= 42:
+        if len(rest) < 18 or len(rest.split()) < 4:
+            return None
+    else:
+        return None
+    first = re.match(r"[A-Za-z]+", rest)
+    if first and first.group(0).upper() in PSEUDOCODE_HEADS and first.group(0).isupper():
+        return None
+    return indent, number, rest
+
+
+PARSER["detect_events"].__globals__["main_candidate"] = main_candidate_current
 MAIN = AUDIT["main"]
 GLOBALS = MAIN.__globals__
 ORIGINAL_RUNNER = GLOBALS["runner"]
+GLOBALS["PARSER"] = PARSER
 GLOBALS["AUDIT_VERSION"] = "9618-source-audit-v2"
 
 
