@@ -73,8 +73,10 @@ describe('AdminUsersService', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  it('scopes owner lists to their school while retaining the unassigned onboarding queue', async () => {
+  it('scopes owner lists to their school and only permits tenant-less onboarding in a single-school install', async () => {
+    const statements: string[] = [];
     const { pool, params } = transactionalPool((sql) => {
+      statements.push(sql);
       if (sql.includes('select count(*)::int total')) return { rows: [{ total: 1 }], rowCount: 1 };
       if (sql.includes('from users u')) return { rows: [richRow()], rowCount: 1 };
       return { rows: [], rowCount: 0 };
@@ -83,6 +85,7 @@ describe('AdminUsersService', () => {
     expect(result.total).toBe(1);
     expect(result.users).toHaveLength(1);
     expect(params.some((values) => values.includes('school-1'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('(select count(*) from schools) = 1'))).toBe(true);
   });
 
   it('hides a target from an owner when it is outside their school', async () => {
@@ -138,6 +141,19 @@ describe('AdminUsersService', () => {
     expect(statements.at(-1)).toBe('rollback');
   });
 
+  it('does not accept a student group for a staff account', async () => {
+    const classId = '00000000-0000-4000-8000-000000000004';
+    const groupId = '00000000-0000-4000-8000-000000000005';
+    const { pool, statements } = transactionalPool(scopedHandler((sql) => {
+      if (sql.includes('select id, school_id, full_name')) return { rows: [richRow({ role: 'teacher' })], rowCount: 1 };
+      return undefined;
+    }));
+    await expect(new AdminUsersService(pool).assignClass(owner, target, classId, groupId))
+      .rejects.toMatchObject({ code: 'group_student_only', status: 409 });
+    expect(statements.some((sql) => sql.includes('insert into class_teachers'))).toBe(false);
+    expect(statements.at(-1)).toBe('rollback');
+  });
+
   it('changing a teacher into a student removes teaching links, transfers owned classes and revokes sessions', async () => {
     const { pool, statements } = transactionalPool(scopedHandler((sql) => {
       if (sql.includes('select id, school_id, full_name')) return { rows: [richRow({ role: 'teacher' })], rowCount: 1 };
@@ -159,6 +175,17 @@ describe('AdminUsersService', () => {
     expect(update).toContain('then null');
   });
 
+  it('does not let email verification manufacture an email for a username-only account', async () => {
+    const { pool, statements } = transactionalPool(scopedHandler((sql) => {
+      if (sql.includes('select id, school_id, full_name')) return { rows: [richRow({ email: null })], rowCount: 1 };
+      return undefined;
+    }));
+    await expect(new AdminUsersService(pool).verifyEmail(owner, target))
+      .rejects.toMatchObject({ code: 'email_required', status: 409 });
+    expect(statements.some((sql) => sql.includes('update users set email_verified_at'))).toBe(false);
+    expect(statements.at(-1)).toBe('rollback');
+  });
+
   it('safe delete detects meaningful user foreign keys dynamically, including future academic tables', async () => {
     const { pool, statements } = transactionalPool(scopedHandler((sql) => {
       if (sql.includes('from pg_constraint')) return {
@@ -177,7 +204,7 @@ describe('AdminUsersService', () => {
     expect(statements.at(-1)).toBe('rollback');
   });
 
-  it('purge preserves required historical references by transferring them and clears nullable ones', async () => {
+  it('purge preserves allowlisted ownership references and clears nullable historical ones', async () => {
     const { pool, statements } = transactionalPool(scopedHandler((sql) => {
       if (sql.includes('from pg_constraint')) return {
         rows: [
@@ -198,6 +225,25 @@ describe('AdminUsersService', () => {
     expect(statements.some((sql) => sql.startsWith('update "public"."gradings"'))).toBe(true);
     expect(statements.some((sql) => sql.includes('submissions') && sql.startsWith('update'))).toBe(false);
     expect(statements.at(-1)).toBe('commit');
+  });
+
+  it('fails closed instead of transferring an unknown future required user reference to the owner', async () => {
+    const { pool, statements } = transactionalPool(scopedHandler((sql) => {
+      if (sql.includes('from pg_constraint')) return {
+        rows: [{ schema_name: 'public', table_name: 'future_results', column_name: 'student_id', attnotnull: true, confdeltype: 'a' }],
+        rowCount: 1,
+      };
+      if (sql.startsWith('select count(*)::int n from "public"."future_results"')) {
+        return { rows: [{ n: 1 }], rowCount: 1 };
+      }
+      return undefined;
+    }));
+    await expect(new AdminUsersService(pool).purgeUser(owner, target)).rejects.toMatchObject({
+      code: 'user_purge_blocked', status: 409, detail: 'future_results.student_id',
+    });
+    expect(statements.some((sql) => sql.startsWith('update "public"."future_results"'))).toBe(false);
+    expect(statements.some((sql) => sql.startsWith('delete from users'))).toBe(false);
+    expect(statements.at(-1)).toBe('rollback');
   });
 
   it('rolls back a destructive action if PostgreSQL refuses the final delete', async () => {
