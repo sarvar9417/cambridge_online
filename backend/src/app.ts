@@ -16,6 +16,7 @@ import { QualityService } from './services/quality-service.js';
 import { SystemService } from './services/system-service.js';
 import { CorpusService } from './services/corpus-service.js';
 import { OverviewService } from './services/overview-service.js';
+import { AdminUsersService } from './services/admin-users-service.js';
 import { PgClassesRepository, type ClassesRepository } from './repositories/classes-repository.js';
 import { PgQuestionsRepository } from './repositories/questions-repository.js';
 import { PgStaffAwareQuestionsRepository } from './repositories/staff-aware-questions-repository.js';
@@ -60,7 +61,14 @@ import { createQuestionVisualFidelityMiddleware } from './middleware/question-vi
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
 
-export function createApp(auth?: AuthService, classesRepository?: ClassesRepository, questionsRepository?: PgQuestionsRepository, authRepository?: AuthRepository, assetUrlSigner?:AssetUrlSigner) {
+export function createApp(
+  auth?: AuthService,
+  classesRepository?: ClassesRepository,
+  questionsRepository?: PgQuestionsRepository,
+  authRepository?: AuthRepository,
+  assetUrlSigner?: AssetUrlSigner,
+  adminUsersService?: AdminUsersService,
+) {
   const app = express();
   const routeMounts: Array<{ path:string; public:boolean }> = [];
   app.locals.routeMounts = routeMounts;
@@ -125,7 +133,10 @@ export function createApp(auth?: AuthService, classesRepository?: ClassesReposit
   // The specific admin paths mount before the general one. Express tries
   // prefixes in order, so a future '/:id' route inside createAdminRouter would
   // otherwise swallow /admin/users and /admin/overview.
-  if (auth && authRepository) mountPrivate('/api/v1/admin/users', createAdminUsersRouter(auth, authRepository));
+  if (auth && authRepository) mountPrivate(
+    '/api/v1/admin/users',
+    createAdminUsersRouter(auth, authRepository, adminUsersService),
+  );
   if (pool) mountPrivate('/api/v1/admin/overview', createOverviewRouter(new OverviewService(pool)));
   if (pool) mountPrivate('/api/v1/admin/corpus', createCorpusRouter(new CorpusService(pool)));
   if (pool) mountPrivate('/api/v1/admin/system', createSystemRouter(new SystemService(pool)));
@@ -178,4 +189,12 @@ const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
     })
   : undefined;
 const questionsRepository = pool ? new PgStaffAwareQuestionsRepository(pool, assetSigner) : undefined;
-export const app = createApp(auth, classesRepository, questionsRepository, authRepository, assetSigner);
+const adminUsersService = pool ? new AdminUsersService(pool) : undefined;
+export const app = createApp(
+  auth,
+  classesRepository,
+  questionsRepository,
+  authRepository,
+  assetSigner,
+  adminUsersService,
+);
