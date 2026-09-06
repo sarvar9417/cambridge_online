@@ -1,11 +1,14 @@
--- Harden account-identity changes and class enrolment side effects.
+-- Harden account identity, class-enrolment side effects and irreversible purge privacy.
 --
--- 1) Changing a login identifier must invalidate stale proof/reset material and
+-- 1) Changing a login identifier invalidates stale proof/reset material and
 --    existing sessions. A verification token issued for an old email must never
 --    verify a newly assigned email address.
--- 2) Every active enrolment must receive submissions for already-published
+-- 2) Every active enrolment receives submissions for already-published
 --    assignments, regardless of whether the enrolment came from Classes or the
 --    admin People surface.
+-- 3) A permanent user purge keeps the audit action/actor/time for accountability
+--    but strips user-profile snapshots so the deleted email/name are not retained
+--    inside audit_log JSON.
 
 create or replace function enforce_user_identity_security_v1()
 returns trigger
@@ -71,3 +74,31 @@ drop trigger if exists trg_backfill_published_submissions_on_enrolment_v1 on enr
 create trigger trg_backfill_published_submissions_on_enrolment_v1
 after insert or update of left_at on enrollments
 for each row execute function backfill_published_submissions_on_enrolment_v1();
+
+create or replace function redact_user_purge_audit_v1()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.action = 'admin.user_purge' and new.ref_table = 'users' then
+    -- Earlier lifecycle entries can contain full_name/email/username in before
+    -- or after JSON. Keep the immutable audit envelope but redact its payload.
+    update audit_log
+       set before = case when before is null then null else '{"redacted":true}'::jsonb end,
+           after  = case when after  is null then null else '{"redacted":true}'::jsonb end
+     where ref_table = 'users' and ref_id = new.ref_id;
+
+    new.before := case when new.before is null then null else jsonb_build_object(
+      'redacted', true,
+      'role', new.before -> 'role',
+      'status', new.before -> 'status'
+    ) end;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_redact_user_purge_audit_v1 on audit_log;
+create trigger trg_redact_user_purge_audit_v1
+before insert on audit_log
+for each row execute function redact_user_purge_audit_v1();
