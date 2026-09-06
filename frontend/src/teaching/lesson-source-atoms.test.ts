@@ -5,20 +5,6 @@ import { sourceTeachingAtomsForChapter, sourceTeachingAtomsForSlide } from './le
 
 const expectedPages = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
-/** Normalize JSON escaping so source atoms containing quotes/backslashes are
- * compared to what the presenter actually renders, not JSON's wire encoding. */
-const normalizeSerializedText = (value: unknown) => JSON.stringify(value)
-  .replace(/\\\"/g, '"')
-  .replace(/\\\\/g, '\\');
-
-const slideText = (chapter: 1 | 13, slideId: string) => {
-  const source = lessonChapter(chapter);
-  expect(source, `Missing chapter ${chapter}`).toBeTruthy();
-  const slide = source!.slides.find((item) => item.id === slideId);
-  expect(slide, `Missing target slide ${slideId} for Chapter ${chapter}`).toBeTruthy();
-  return { slide: slide!, text: normalizeSerializedText(slide) };
-};
-
 describe('source atom registry', () => {
   it('uses unique atom ids', () => {
     const ids = COMPLETE_SOURCE_ATOMS.map((item) => item.id);
@@ -37,21 +23,25 @@ describe('source atom registry', () => {
     expect(lessonChapter(13)!.coverage).toContain('24/24 atom-audited pages');
   });
 
-  it('pins every curated atom and all of its exact source needles to a real lesson slide', () => {
+  it('pins every curated atom to a real lesson slide and exposes every exact source needle to teaching', () => {
     for (const atom of COMPLETE_SOURCE_ATOMS) {
-      const { slide, text } = slideText(atom.chapter, atom.targetSlideId);
-      for (const needle of atom.needles) {
-        expect(text, `${atom.id} is missing source value: ${needle}`).toContain(needle);
-      }
-      expect(slide.sourceElements?.some((item) => item.includes(atom.id)), `${atom.id} is not visible in source trace`).toBe(true);
+      const chapter=lessonChapter(atom.chapter)!;
+      const slide=chapter.slides.find(item=>item.id===atom.targetSlideId);
+      expect(slide, `Missing target slide ${atom.targetSlideId} for ${atom.id}`).toBeTruthy();
+      expect(slide!.sourceElements?.some((item) => item.includes(atom.id)), `${atom.id} is not pinned in source trace`).toBe(true);
+
+      const visible=sourceTeachingAtomsForSlide(atom.chapter,atom.targetSlideId).find(item=>item.id===atom.id);
+      expect(visible,`${atom.id} is absent from visible teaching model`).toBeTruthy();
+      expect(visible!.lines).toEqual(atom.needles);
     }
   });
 
-  it('exposes every source atom on the normal teacher canvas instead of treating the collapsed drawer as completion', () => {
+  it('exposes every source atom on the normal teacher canvas instead of treating a collapsed drawer as completion', () => {
     for (const chapterNumber of [1, 13] as const) {
       const registered=sourceAtomsForChapter(chapterNumber);
       const visible=sourceTeachingAtomsForChapter(chapterNumber);
       expect(visible.map(item=>item.id).sort()).toEqual(registered.map(item=>item.id).sort());
+      expect(lessonChapter(chapterNumber)!.coverage).toContain('source teaching rendered on main canvas');
 
       const atomSlideIds = new Set(registered.map((item) => item.targetSlideId));
       for (const slideId of atomSlideIds) {
@@ -62,6 +52,15 @@ describe('source atom registry', () => {
           expect(atom.pageLabel).toContain('Hodder p.');
         });
       }
+    }
+  });
+
+  it('does not replace authored classroom activities with an audit/source dump',()=>{
+    for(const chapterNumber of [1,13] as const){
+      const chapter=lessonChapter(chapterNumber)!;
+      chapter.slides.forEach(slide=>{
+        expect(slide.activity?.title ?? '').not.toMatch(/^BOOK PRACTICE|^SOURCE DETAIL/);
+      });
     }
   });
 
