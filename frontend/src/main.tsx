@@ -16,6 +16,7 @@ import './theme.css';
 import './styles.css';
 import './question-structure.css';
 import './question-asset-fidelity.css';
+import './structured-question-fidelity.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
