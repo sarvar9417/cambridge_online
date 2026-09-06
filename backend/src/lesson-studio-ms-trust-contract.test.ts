@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
 import { PgStaffAwareQuestionsRepository } from './repositories/staff-aware-questions-repository.js';
 
-const teacher={id:'00000000-0000-4000-8000-000000000001',role:'teacher' as const,schoolId:'00000000-0000-4000-8000-000000000002'};
+const teacher={
+  id:'00000000-0000-4000-8000-000000000001',
+  role:'teacher' as const,
+  schoolId:'00000000-0000-4000-8000-000000000002',
+  fullName:'Teacher',
+};
 
 describe('Lesson Studio mark-scheme trust contract',()=>{
   it('requests level descriptors and latest source-audit evidence for staff detail',async()=>{
