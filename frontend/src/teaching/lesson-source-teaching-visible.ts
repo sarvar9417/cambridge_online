@@ -25,7 +25,8 @@ function chapterNumber(studio: Element): SourceTeachingChapter | null {
 }
 
 function currentSlideIndex(studio: Element) {
-  const value = studio.querySelector('.lesson-toolbar-actions > span')?.textContent ?? '';
+  const counters = [...studio.querySelectorAll<HTMLElement>('.lesson-toolbar-actions > span')];
+  const value = counters.map(item=>item.textContent?.trim() ?? '').find(item=>/^\d+\s*\/\s*\d+$/.test(item)) ?? '';
   const position = Number(value.match(/^(\d+)\s*\//)?.[1] ?? 0);
   return Number.isInteger(position) && position > 0 ? position - 1 : -1;
 }
