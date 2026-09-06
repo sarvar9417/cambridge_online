@@ -30,31 +30,6 @@ function currentSlideIndex(studio: Element) {
   return Number.isInteger(position) && position > 0 ? position - 1 : -1;
 }
 
-function slideIdFromNav(studio: Element, index: number) {
-  const dots = [...studio.querySelectorAll<HTMLButtonElement>('.lesson-nav > div > button')];
-  return dots[index]?.getAttribute('aria-label') ?? '';
-}
-
-/**
- * React does not currently expose the semantic slide id in the rendered DOM.
- * The compact presenter control keeps one active navigation button in source
- * order, so this function resolves the current id from the chapter model by
- * index without relying on translated titles or visible source text.
- */
-function sourceSlideId(studio: Element, chapter: SourceTeachingChapter) {
-  const index = currentSlideIndex(studio);
-  if (index < 0) return '';
-
-  // The aria label is retained only as an observable guard; the real source id
-  // is attached by the data model lookup below in source-model-index.
-  const label = slideIdFromNav(studio, index);
-  if (!label) return '';
-
-  const registry = document.documentElement.dataset.lessonSourceModelIndex;
-  if (!registry) return `@index:${chapter}:${index}`;
-  return `@index:${chapter}:${index}`;
-}
-
 function renderAtom(atom: SourceTeachingAtom) {
   const article = node('article', `lesson-source-teaching-card source-kind-${atom.kind}`);
   article.dataset.sourceAtomId = atom.id;
@@ -109,10 +84,12 @@ async function enhance(studio: HTMLElement) {
   if (!chapter) return;
   const index = currentSlideIndex(studio);
   if (index < 0) return;
-  if (!sourceSlideId(studio, chapter)) return;
 
   const slideId = await resolveSlideId(chapter, index);
-  if (!slideId) return;
+  // A quick keyboard/page change can happen while the dynamic chapter module is
+  // resolving. Never attach the previous slide's source block to the new slide.
+  if (!slideId || currentSlideIndex(studio) !== index) return;
+
   const slide = studio.querySelector<HTMLElement>('.lesson-slide');
   if (!slide || slide.classList.contains('lesson-slide-exam')) return;
   const host = slide.querySelector<HTMLElement>(chapter === 7 ? '.ch7-copy' : '.hodder-copy');
