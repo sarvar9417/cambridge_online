@@ -26,7 +26,28 @@ export class LessonCheckpointService {
     syllabusCode: '9618' | '0478' = '9618',
   ) {
     const result = await this.pool.query(
-      `select
+      `with requested_lo as (
+         select distinct lo.id,lo.code
+         from learning_objectives lo
+         join subtopics st on st.id=lo.subtopic_id
+         join topics t on t.id=st.topic_id
+         join syllabi syllabus on syllabus.id=t.syllabus_id
+         where syllabus.code=$4
+           and lo.code=any($1::text[])
+       ), eligible_lo as (
+         select id,code from requested_lo
+         union
+         select distinct source_lo.id,source_lo.code
+         from learning_objective_compatibility compat
+         join requested_lo target_lo on target_lo.id=compat.target_lo_id
+         join learning_objectives source_lo on source_lo.id=compat.source_lo_id
+         join subtopics source_st on source_st.id=source_lo.subtopic_id
+         join topics source_t on source_t.id=source_st.topic_id
+         join syllabi source_syllabus on source_syllabus.id=source_t.syllabus_id
+         where compat.relation in('equivalent','subtopic_compatible')
+           and source_syllabus.code=$4
+       )
+       select
          q.id,
          q.display_ref,
          coalesce(q.stem_md,'') stem,
@@ -53,12 +74,12 @@ export class LessonCheckpointService {
        join components component on component.id=q.component_id
        join question_learning_objectives qlo on qlo.question_id=q.id
        join learning_objectives lo on lo.id=qlo.lo_id
+       join eligible_lo eligible on eligible.id=lo.id
        left join questions parent on parent.id=q.parent_id
        where q.marks is not null
          and q.status='approved'
          and syllabus.code=$4
          and sp.year between $2 and $3
-         and lo.code=any($1::text[])
        group by q.id,parent.id,sp.year,sp.series,sp.variant,component.number
        order by sp.year,sp.series,component.number,sp.variant,q.sort_order,q.display_ref`,
       [learningObjectiveCodes, yearFrom, yearTo, syllabusCode],
