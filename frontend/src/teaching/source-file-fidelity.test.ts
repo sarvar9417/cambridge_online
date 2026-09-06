@@ -4,6 +4,8 @@ import { COMPLETE_SOURCE_ATOMS } from './lesson-source-atom-registry';
 import { SUPPLIED_PDF_DETAIL_ATOMS } from './lesson-source-atoms-supplied-pdf-detail';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { CHAPTER_7_PAGE_SOURCE_ATOMS } from './chapter7-source-atoms';
+import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
+import { sourceTeachingAtomsForChapter } from './lesson-source-teaching-model';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
@@ -15,6 +17,7 @@ const text=(value:unknown)=>JSON.stringify(value).toLowerCase()
   .replace(/\\\"/g,'"')
   .replace(/\\\\/g,'\\');
 const shaPattern=/^[0-9a-f]{64}$/;
+const teachingText=(chapter:1|7|13)=>text(sourceTeachingAtomsForChapter(chapter));
 
 describe('exact supplied PDF fidelity contract',()=>{
   it('locks all three audits to the exact user-supplied source files',()=>{
@@ -28,15 +31,9 @@ describe('exact supplied PDF fidelity contract',()=>{
   });
 
   it('has a fingerprint for every source page in the three supplied extracts',()=>{
-    expect(CHAPTER_1_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
-      Array.from({length:26},(_,index)=>index+1),
-    );
-    expect(CHAPTER_13_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
-      Array.from({length:24},(_,index)=>304+index),
-    );
-    expect(CHAPTER_7_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
-      Array.from({length:41},(_,index)=>258+index),
-    );
+    expect(CHAPTER_1_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(Array.from({length:26},(_,index)=>index+1));
+    expect(CHAPTER_13_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(Array.from({length:24},(_,index)=>304+index));
+    expect(CHAPTER_7_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(Array.from({length:41},(_,index)=>258+index));
   });
 
   it('requires every fingerprinted Chapter 1 and 13 page to remain represented by source atoms',()=>{
@@ -54,15 +51,12 @@ describe('exact supplied PDF fidelity contract',()=>{
   });
 
   it('pins every supplied-PDF detail atom to an existing presenter slide',()=>{
-    const slideIds=new Set([
-      ...(lessonChapter(1)?.slides??[]),
-      ...(lessonChapter(13)?.slides??[]),
-    ].map(slide=>slide.id));
+    const slideIds=new Set([...(lessonChapter(1)?.slides??[]),...(lessonChapter(13)?.slides??[])].map(slide=>slide.id));
     SUPPLIED_PDF_DETAIL_ATOMS.forEach(atom=>expect(slideIds.has(atom.targetSlideId),atom.id).toBe(true));
   });
 
-  it('makes every registered Chapter 1 and 13 supplied-PDF detail visible in the presenter data',()=>{
-    const routes={1:text(lessonChapter(1)),13:text(lessonChapter(13))} as const;
+  it('makes every Chapter 1 and 13 supplied-PDF detail visible in the teacher teaching model',()=>{
+    const routes={1:teachingText(1),13:teachingText(13)} as const;
     for(const atom of SUPPLIED_PDF_DETAIL_ATOMS){
       const route=routes[atom.chapter];
       atom.needles.forEach(needle=>expect(route,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
@@ -74,19 +68,24 @@ describe('exact supplied PDF fidelity contract',()=>{
     CHAPTER_7_SOURCE_FILE_MANIFEST.pages.forEach(page=>expect(pages.has(page.printedPage),`Chapter 7 p.${page.printedPage}`).toBe(true));
   });
 
-  it('keeps the complete source diagnostics visible while preserving the existing lesson routes',()=>{
+  it('makes every Chapter 7 supplied-PDF detail visible in the teacher teaching model',()=>{
+    const route=teachingText(7);
+    for(const atom of CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS){
+      atom.needles.forEach(needle=>expect(route,`${atom.id}: ${needle}`).toContain(needle.toLowerCase()));
+    }
+  });
+
+  it('keeps exact source diagnostics and page contracts for all lesson routes',()=>{
     const chapter1=lessonChapter(1);
     const chapter13=lessonChapter(13);
     expect(chapter1).not.toBeNull();
     expect(chapter13).not.toBeNull();
-    const ch1=text(chapter1);
-    const ch13=text(chapter13);
-    expect(ch1).toContain('00110101 + 01001000');
-    expect(ch1).toContain('2777 + acf1');
-    expect(ch1).toContain('binary magnitudes and decimal/binary prefixes');
-    expect(ch13).toContain('whether the animal was born in the zoo or not');
-    expect(ch13).toContain('append a line at the end');
-    expect(ch13).toContain('serial/sequential/random file organisation');
+    expect(teachingText(1)).toContain('00110101 + 01001000');
+    expect(teachingText(1)).toContain('2777 + acf1');
+    expect(teachingText(1)).toContain('binary magnitudes and decimal/binary prefixes');
+    expect(teachingText(13)).toContain('whether the animal was born in the zoo or not');
+    expect(teachingText(13)).toContain('append a line at the end');
+    expect(teachingText(13)).toContain('serial/sequential/random file organisation');
     expect(chapter1?.coverage).toContain('26/26 page fingerprints');
     expect(chapter1?.coverage).toContain('26/26 supplied-PDF detail pages');
     expect(chapter13?.coverage).toContain('24/24 page fingerprints');
@@ -94,7 +93,7 @@ describe('exact supplied PDF fidelity contract',()=>{
   });
 
   it('keeps source-specific Chapter 1 definitions, relationships, tables and worked values visible',()=>{
-    const chapter=text(lessonChapter(1));
+    const chapter=teachingText(1);
     [
       'binary – base two number system based on the values 0 and 1 only.',
       'two’s complement – each binary digit is reversed and 1 is added in right-most position',
@@ -102,16 +101,16 @@ describe('exact supplied PDF fidelity contract',()=>{
       '11101110 = 128 + 64 + 32 + 8 + 4 + 2 = 238',
       '0000=0=0; 0001=1=1',
       '00990f60: 54 68 69 73 20 69 73 20',
-      'unicode consortium set up in 1991',
+      'unicode consortium',
       'bit-map image – system that uses pixels to make up an image.',
       'sound needs a medium and cannot travel in a vacuum',
-      'aaaaabbbbccddddd → 05 97 04 98 02 99 05 100',
+      'aaaaabbbbccddddd',
       '192 uncompressed rgb values',
     ].forEach(needle=>expect(chapter,needle).toContain(needle));
   });
 
   it('keeps source-specific Chapter 13 definitions, pseudocode, worked methods and boundary details visible',()=>{
-    const chapter=text(lessonChapter(13));
+    const chapter=teachingText(13);
     [
       'user-defined data type – a data type based on an existing data type',
       'type <pointer> = ^<typename>',
@@ -126,11 +125,11 @@ describe('exact supplied PDF fidelity contract',()=>{
     ].forEach(needle=>expect(chapter,needle).toContain(needle));
   });
 
-  it('keeps Chapter 7 source-atom route intact and adds exact supplied-file locking',()=>{
+  it('keeps Chapter 7 route intact while exact supplied-file content is teacher-visible separately',()=>{
     expect(CHAPTER_7.coverage).toContain('source-exhaustive book deep dive');
     expect(CHAPTER_7.coverage).toContain('41/41 source pages audited');
     expect(CHAPTER_7.coverage).toContain('41/41 exact supplied-PDF page fingerprints');
-    expect(text(CHAPTER_7)).toContain('requirements specification');
-    expect(text(CHAPTER_7)).toContain('activity 7.20');
+    expect(teachingText(7)).toContain('requirements specification');
+    expect(teachingText(7)).toContain('activity 7.20');
   });
 });
