@@ -29,6 +29,10 @@ Then start the complete frontend and backend with one command:
 npm run dev
 ```
 
+The backend uses Node's watch mode with the `tsx` TypeScript loader so it
+restarts on source changes and avoids `tsx watch` startup hangs on Windows.
+If PowerShell blocks `npm.ps1`, use `npm.cmd run dev`.
+
 - Frontend: http://localhost:5173
 - Backend health: http://localhost:3001/api/v1/health
 

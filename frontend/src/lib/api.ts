@@ -6,6 +6,7 @@ let accessToken: string | null = null;
 export const setAccessToken = (token: string | null) => { accessToken = token; };
 export const AUTH_EXPIRED_EVENT = 'campath:auth-expired';
 let refreshPromise: Promise<string> | null = null;
+let refreshRequest: Promise<Response> | null = null;
 
 export class ApiError extends Error {
   constructor(message: string, readonly code: string, readonly detail?: string, readonly status?: number) {
@@ -26,7 +27,7 @@ function expireSession() {
 async function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const response = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const response = await send('/auth/refresh', { method: 'POST' }, null);
       const body = await parseBody(response);
       if (!response.ok || typeof body?.accessToken !== 'string') throw new Error(body?.error?.message ?? 'Sessiya muddati tugagan.');
       accessToken = body.accessToken;
@@ -40,6 +41,14 @@ function send(path: string, init: RequestInit, token: string | null) {
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body) headers.set('Content-Type', 'application/json');
+  if (path === '/auth/refresh' && init.method?.toUpperCase() === 'POST') {
+    // Refresh cookies are single-use. Share the request across startup effects
+    // (including StrictMode's replay) and automatic access-token refreshes.
+    refreshRequest ??= fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' })
+      .finally(() => { refreshRequest = null; });
+    // Each caller parses its own body; a Response stream can only be read once.
+    return refreshRequest.then((response) => response.clone());
+  }
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
 }
 

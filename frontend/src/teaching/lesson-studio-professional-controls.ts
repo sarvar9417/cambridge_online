@@ -36,8 +36,12 @@ function ensureSourceBadge(studio:HTMLElement){
     badge.className='lesson-source-complete-badge';
     actions.insertBefore(badge,actions.firstChild);
   }
-  badge.textContent=`${pages}/${pages} supplied PDF pages audited`;
-  badge.title='Every supplied source page is pinned by the lesson source-fidelity contract.';
+  const text=`${pages}/${pages} supplied PDF pages audited`;
+  // Even assigning the same text replaces its text node and triggers our
+  // MutationObserver again. Leave unchanged controls alone so scans settle.
+  if(badge.textContent!==text)badge.textContent=text;
+  const title='Every supplied source page is pinned by the lesson source-fidelity contract.';
+  if(badge.title!==title)badge.title=title;
 }
 
 function ensureCompactNavigation(studio:HTMLElement){
@@ -75,11 +79,13 @@ function ensureCompactNavigation(studio:HTMLElement){
   }
 
   if(!range||!label)return;
-  range.max=String(dots.length);
-  range.value=String(index+1);
+  const max=String(dots.length),value=String(index+1);
+  if(range.max!==max)range.max=max;
+  if(range.value!==value)range.value=value;
   const section=activeSection(studio);
-  label.textContent=`${index+1} / ${dots.length}${section?` · ${section}`:''}`;
-  range.setAttribute('aria-valuetext',label.textContent);
+  const text=`${index+1} / ${dots.length}${section?` · ${section}`:''}`;
+  if(label.textContent!==text)label.textContent=text;
+  if(range.getAttribute('aria-valuetext')!==text)range.setAttribute('aria-valuetext',text);
 }
 
 function enrichOutline(studio:HTMLElement){

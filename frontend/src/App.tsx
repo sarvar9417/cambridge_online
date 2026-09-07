@@ -100,6 +100,7 @@ export function App() {
   }, []);
 
   const loadData = async (session: { accessToken: string; user: User }) => {
+    setError('');
     setAccessToken(session.accessToken);
     setUser(session.user);
     const [classData, assignmentData, resultData] = await Promise.all([
@@ -135,12 +136,14 @@ export function App() {
   };
 
   useEffect(() => {
+    let active = true;
     api<{ accessToken: string; user: User }>("/auth/refresh", {
       method: "POST",
     },{suppressAuthExpired:true})
-      .then(loadData)
+      .then((session) => { if (active) return loadData(session); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   // A bare URL has no route. Each role gets a home it is allowed to open --

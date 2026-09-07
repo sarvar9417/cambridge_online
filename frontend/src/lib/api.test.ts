@@ -12,6 +12,47 @@ afterEach(() => {
 });
 
 describe('API access token refresh', () => {
+  it('shares one refresh when startup effects request the same session concurrently', async () => {
+    const session = { accessToken: 'restored-token', user: { id: 'student' } };
+    const fetchMock = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return json(200, session);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(Promise.all([
+      api('/auth/refresh', { method: 'POST' }, { suppressAuthExpired: true }),
+      api('/auth/refresh', { method: 'POST' }, { suppressAuthExpired: true }),
+    ])).resolves.toEqual([session, session]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Only in-flight requests are shared; a later refresh must rotate again.
+    await api('/auth/refresh', { method: 'POST' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares a startup refresh with an automatic refresh after a 401', async () => {
+    const session = { accessToken: 'new-token', user: { id: 'student' } };
+    let refreshCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith('/auth/refresh')) {
+        refreshCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return json(200, session);
+      }
+      return (init?.headers as Headers).get('Authorization') === 'Bearer new-token'
+        ? json(200, { data: [] })
+        : json(401, { error: { message: 'expired' } });
+    }));
+    setAccessToken('old-token');
+
+    await expect(Promise.all([
+      api('/auth/refresh', { method: 'POST' }, { suppressAuthExpired: true }),
+      api('/classes'),
+    ])).resolves.toEqual([session, { data: [] }]);
+    expect(refreshCalls).toBe(1);
+  });
+
   it('adds the in-memory access token to requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue(json(200, { data:[] }));
     vi.stubGlobal('fetch', fetchMock);
