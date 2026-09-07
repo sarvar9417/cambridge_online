@@ -11,7 +11,7 @@ const querySchema = z.object({
   loCodes,
   syllabusCode: z.enum(['9618','0478']).default('9618'),
   yearFrom: z.coerce.number().int().min(2015).max(2035).default(2021),
-  yearTo: z.coerce.number().int().min(2015).max(2035).default(2025),
+  yearTo: z.coerce.number().int().min(2015).max(2035).default(2026),
 }).superRefine((value, ctx) => {
   if (value.yearFrom > value.yearTo) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['yearTo'], message: 'yearTo must be >= yearFrom' });

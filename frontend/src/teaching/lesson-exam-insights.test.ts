@@ -5,18 +5,20 @@ import { lessonChapter } from './lesson-content-source-complete';
 const text=(value:unknown)=>JSON.stringify(value);
 
 describe('Lesson Studio exam enrichment coverage',()=>{
-  it('keeps an exam checkpoint for every IGCSE Chapter 7 subtopic',()=>{
+  it('keeps a current-target exam checkpoint for every IGCSE Chapter 7 subtopic',()=>{
     expect(CHAPTER_7_PAST_PAPER_CHECKPOINTS.map(slide=>slide.subtopicCode)).toEqual([
       '7.1','7.2','7.3','7.4','7.5','7.6','7.7','7.8','7.9',
     ]);
     CHAPTER_7_PAST_PAPER_CHECKPOINTS.forEach(slide=>{
       expect(slide.checkpointSyllabusCode).toBe('0478');
       expect(slide.learningObjectiveCodes?.length).toBeGreaterThan(0);
+      expect(slide.learningObjectiveCodes?.every(code=>/^7-lo-0[1-9]$/.test(code))).toBe(true);
+      expect(slide.checkpointYearTo).toBe(2026);
       expect(slide.examPractice).toBe(true);
     });
   });
 
-  it('keeps exact-LO past-paper checkpoints throughout both 9618 lessons',()=>{
+  it('keeps current-target past-paper checkpoints throughout both 9618 lessons',()=>{
     for(const chapterNo of [1,13]){
       const chapter=lessonChapter(chapterNo);
       expect(chapter).not.toBeNull();
@@ -25,8 +27,9 @@ describe('Lesson Studio exam enrichment coverage',()=>{
       checkpoints.forEach(slide=>{
         expect(slide.checkpointSyllabusCode??'9618').toBe('9618');
         expect(slide.learningObjectiveCodes?.length).toBeGreaterThan(0);
+        expect(slide.learningObjectiveCodes?.some(code=>code.includes('-lo-'))).toBe(false);
         expect(slide.checkpointYearFrom).toBe(2021);
-        expect(slide.checkpointYearTo).toBe(2025);
+        expect(slide.checkpointYearTo).toBe(2026);
       });
 
       const noDirect=chapter!.slides.filter(slide=>slide.examPractice&&Boolean(slide.checkpointUnavailableReason));
