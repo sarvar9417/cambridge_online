@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json()
     const action = String(body?.action || '')
     if (action === 'source_audit_bootstrap') {
-      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_bootstrap_v2')})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_bootstrap_v3')})
     }
     if (action === 'record_source_audit') {
       if (!Array.isArray(body?.audits) || body.audits.length < 1 || body.audits.length > 100) {
@@ -55,7 +55,10 @@ Deno.serve(async (req: Request) => {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_record_v2',{p_audits:body.audits})})
     }
     if (action === 'promote_verified') {
-      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_promote_verified_v2')})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_promote_verified_v3')})
+    }
+    if (action === 'promote_questions') {
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('approve_source_verified_historical_questions_v1')})
     }
     return Response.json({ok:false,error:'unknown_action'},{status:400})
   } catch (error) {
