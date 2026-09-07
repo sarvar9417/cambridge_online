@@ -42,6 +42,15 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("local_ms_mark_column_corrected", source)
         self.assertIn("V2[\"main\"].__globals__[\"local_ms_rows\"]", source)
 
+    def test_complete_edge_ms_is_cross_checked_but_not_augmented(self) -> None:
+        source = self.read("backend/scripts/full-9618-2026-corpus-backfill-v3.py")
+        self.assertIn("def reconcile_ms_rows_v3", source)
+        self.assertIn("if edge_total != expected_marks", source)
+        self.assertIn("return ORIGINAL_RECONCILE_MS_ROWS(edge_rows, local_rows, expected_marks)", source)
+        self.assertIn("ms_source_disagreement", source)
+        self.assertIn("return list(edge_rows), []", source)
+        self.assertIn("V2[\"main\"].__globals__[\"reconcile_ms_rows\"]", source)
+
     def test_legacy_seed_keeps_ids_but_frees_official_refs(self) -> None:
         sql = self.read("backend/src/database/migrations/0127_legacy_2026_question_display_refs.sql")
         self.assertIn("LEGACY/", sql)
