@@ -30,7 +30,7 @@ claim that it is GitHub's live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0153_source_fidelity_bootstrap_evidence.sql",
+    "latest_migration": "0154_predeploy_9618_audit_reconciliation.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -111,10 +111,14 @@ claim that it is GitHub's live branch head.
     "backend/src/database/migrations/0150_canonical_occurrence_ledger_reconcile.sql",
     "backend/src/database/migrations/0151_source_variant_distinctness_reviews.sql",
     "backend/src/database/migrations/0152_distinctness_ledger_reconcile.sql",
+    "backend/src/database/migrations/0152_source_fidelity_detector_v3.sql",
+    "backend/src/database/migrations/0153_source_fidelity_bootstrap_evidence.sql",
+    "backend/src/database/migrations/0154_predeploy_9618_audit_reconciliation.sql",
     "backend/src/database/audits/question-source-occurrence-equivalence.sql",
     "backend/src/database/audits/9618-corpus-completion.sql",
     "backend/src/database/audits/9618-question-export-readiness.sql",
     "backend/src/database/question-source-identity-cleanup-migration.test.ts",
+    "backend/src/database/predeploy-9618-audit-reconciliation.test.ts",
     "frontend/src/hooks/useOfflineAnswerSync.ts",
     "frontend/src/hooks/useAttemptTiming.ts",
     "frontend/src/hooks/useStaffExportPolling.ts",
@@ -180,6 +184,11 @@ Migration 0150 baselines those filenames only after durable postconditions pass.
 0151 persists four source-verified distinct same-shape decisions; 0152 verifies those
 postconditions and closes replay risk. Production has corresponding application-ledger
 entries through 0152.
+
+Migration `0154_predeploy_9618_audit_reconciliation.sql` is the repository candidate that
+closes the remaining historical Paper 1 LO catalog edge and deterministic 2025 dependency
+reconciliation before deployment. It must pass candidate CI and production postconditions
+before runtime evidence is advanced.
 
 ## Remaining external release/admin gates
 
