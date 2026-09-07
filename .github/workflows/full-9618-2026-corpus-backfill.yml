@@ -37,8 +37,11 @@ jobs:
           chmod +x backend/scripts/tools/pdftotext
           echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
 
+      - name: Test printed mark-column fallback
+        run: python -m unittest scripts.test_9618_ms_column_marks
+
       - name: Stage and ingest official 9618 May/June 2026 QP/MS
-        run: python backend/scripts/full-9618-2026-corpus-backfill-v2.py
+        run: python backend/scripts/full-9618-2026-corpus-backfill-v3.py
 
       - name: Reconcile source-backed 2026 question dependencies
         run: python backend/scripts/reconcile-9618-2026-dependencies.py
