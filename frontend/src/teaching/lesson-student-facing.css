@@ -87,27 +87,6 @@
   letter-spacing: .1em;
 }
 
-/* Source wording can teach an exam-safe distinction, but internal audit jargon
- * should not become the lesson itself. */
-.hodder-source-note > header > span {
-  font-size: 0;
-}
-.hodder-source-note > header > span::after {
-  content: 'EXAM NOTE';
-  font-size: 10px;
-}
-
-.hodder-callout.tone-activity > span,
-.hodder-callout.tone-extension > span,
-.hodder-callout.tone-info > span,
-.hodder-callout:not(.tone-activity):not(.tone-extension) > span {
-  font-size: 0;
-}
-.hodder-callout.tone-activity > span::after { content: 'TRY IT'; font-size: 10px; }
-.hodder-callout.tone-extension > span::after { content: 'GO FURTHER'; font-size: 10px; }
-.hodder-callout.tone-info > span::after,
-.hodder-callout:not(.tone-activity):not(.tone-extension) > span::after { content: 'KEY IDEA'; font-size: 10px; }
-
 /* Provenance remains in the data and teacher chrome, never in the student canvas. */
 .lesson-slide .lesson-source-trace,
 .lesson-exam-slide > .lesson-source-trace {
@@ -218,29 +197,6 @@
 .lesson-question-workspace .lesson-workspace-shell[data-audience="student"] .lesson-v3-source-paper > .lesson-workspace-section-heading > span::after {
   content: 'Original question structure, table and visual context are preserved.';
   font-size: 10px;
-}
-
-/* Chapter 7 keeps its discovery pedagogy, but instructions read as learner tasks. */
-.ch7-question > span {
-  font-size: 0 !important;
-}
-.ch7-question > span::after {
-  content: 'THINK / EXPLAIN';
-  font-size: 10px;
-}
-.ch7-task > span {
-  font-size: 0 !important;
-}
-.ch7-task > span::after {
-  content: 'YOUR TURN';
-  font-size: 10px;
-}
-.ch7-answer > b {
-  font-size: 0 !important;
-}
-.ch7-answer > b::after {
-  content: 'MODEL ANSWER';
-  font-size: 11px;
 }
 
 /* Board mode: students see the lesson, not the content-production audit. */
