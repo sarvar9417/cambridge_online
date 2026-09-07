@@ -40,7 +40,7 @@ describe('historical 9618 MS source matcher v4',()=>{
   });
 
   it('keeps matching deterministic and rejects fuzzy semantic matching',()=>{
-    expect(matcher).toContain('contiguous in the source');
+    expect(matcher).toContain('def _contiguous_token_proof');
     expect(matcher).toContain('_binary_source_proof');
     expect(matcher).toContain('_source_has_cap');
     expect(matcher).toContain('mark_match.start() >= 60');
