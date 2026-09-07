@@ -216,13 +216,42 @@ function enhance(contract:Element){
 
 function scan(){document.querySelectorAll('.lesson-checkpoint-contract').forEach(enhance)}
 let scheduled=false;
-function schedule(){if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;scan()})}
+let consumers=0;
+let teardown:(()=>void)|null=null;
 
-export function installLessonExamInsights(){
-  if(typeof document==='undefined')return;
+function schedule(){
+  if(scheduled)return;
+  scheduled=true;
+  queueMicrotask(()=>{
+    scheduled=false;
+    if(teardown)scan();
+  });
+}
+
+function setup(){
   schedule();
   const observer=new MutationObserver(schedule);
   observer.observe(document.documentElement,{childList:true,subtree:true});
+  teardown=()=>{
+    observer.disconnect();
+    scheduled=false;
+    teardown=null;
+  };
 }
 
-installLessonExamInsights();
+/**
+ * Install the progressive exam-lens enrichment only while Lesson Studio owns
+ * the surface. Importing this module is intentionally side-effect free.
+ */
+export function installLessonExamInsights(){
+  if(typeof document==='undefined')return()=>{};
+  consumers+=1;
+  if(!teardown)setup();
+  let released=false;
+  return()=>{
+    if(released)return;
+    released=true;
+    consumers=Math.max(0,consumers-1);
+    if(consumers===0)teardown?.();
+  };
+}
