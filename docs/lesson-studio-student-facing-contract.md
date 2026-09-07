@@ -46,3 +46,7 @@ Board mode prioritises:
 - consistent labels: LEARN, WORKED EXAMPLE, YOUR TURN, THINK / EXPLAIN, CAMBRIDGE PRACTICE, MODEL ANSWER.
 
 Regression tests must protect the student-facing wording contract and source-fidelity separation.
+
+## Release verification
+
+Production release verification must include both the student-facing regression suite and a Board-mode smoke check so classroom presentation behavior is validated alongside source fidelity.
