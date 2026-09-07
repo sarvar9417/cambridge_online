@@ -101,13 +101,18 @@ describe('formal Book Completeness Audit', () => {
       .map((key) => `<section class="exam-host"><div class="lesson-checkpoint-contract"><strong>${key}</strong></div></section>`)
       .join('');
     vi.resetModules();
-    await import('./lesson-exam-insights');
-    while(pending.length)pending.shift()!();
+    const { installLessonExamInsights } = await import('./lesson-exam-insights');
+    const release = installLessonExamInsights();
+    try {
+      while(pending.length)pending.shift()!();
 
-    const hosts=[...document.querySelectorAll<HTMLElement>('.exam-host')];
-    expect(hosts).toHaveLength(keys.length);
-    hosts.forEach((host,index)=>{
-      expect(host.querySelector('.lesson-exam-insight'), `Missing Cambridge Exam Lens key ${keys[index]}`).not.toBeNull();
-    });
+      const hosts=[...document.querySelectorAll<HTMLElement>('.exam-host')];
+      expect(hosts).toHaveLength(keys.length);
+      hosts.forEach((host,index)=>{
+        expect(host.querySelector('.lesson-exam-insight'), `Missing Cambridge Exam Lens key ${keys[index]}`).not.toBeNull();
+      });
+    } finally {
+      release();
+    }
   });
 });
