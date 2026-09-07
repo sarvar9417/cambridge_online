@@ -99,7 +99,7 @@ merge.
     "database": "production Supabase is realized and application-ledgered through repository migration 0143; 17 late migration filenames (0127..0143, excluding nonexistent 0141) were baselined only after durable postconditions passed; mutable-search-path WARN findings remain cleared and nine workload-prioritized FK indexes are valid/ready",
     "storage": "private question-assets bucket is live; fresh production export audit at 2026-09-07T08:14:26Z verifies all 457 source-backed 9618 assets are renderable and 3302/3302 mark-bearing leaves are staff-searchable; Vercel readiness rechecked at 2026-09-07T10:58:06Z returned status=ok and database=ok but durableStorage=false, tracked by issue #135",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "application release evidence is main SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f with CI #2673 success. At the latest deployment inspection, Vercel production was still READY on older main SHA 78aca4fe0c85bb30ff9055c7c94045356cd5a2e3; no deployment for the release evidence SHA had appeared yet, so the final Lesson Studio deployment acceptance item remains intentionally open"
+    "deployment": "application release evidence is main SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f with CI #2673 success. Vercel attempted that release at 2026-09-07T11:02:03Z but GitHub status reported failure: Deployment rate limited — retry in 24 hours. Latest READY production remains older main SHA 78aca4fe0c85bb30ff9055c7c94045356cd5a2e3, so the final Lesson Studio deployment acceptance item remains intentionally open"
   },
   "evidence_files": [
     "00-README.md",
@@ -168,9 +168,10 @@ mistaken for the same count or approval claim.
 
 The final scoped application-hardening merge is PR #137, main SHA
 `f3011e88bd3cd7fc59d11346815e306e2a2cd11f`. Full main CI run **#2673 succeeded**.
-`docs/lesson-studio-v3-acceptance.md` remains **17/18** only because Vercel had not yet
-created a preview/production deployment for that release evidence SHA at the latest
-inspection. CI success is not substituted for deployment evidence.
+`docs/lesson-studio-v3-acceptance.md` remains **17/18** because the Vercel status attached
+to that release SHA failed before build with **“Deployment rate limited — retry in 24
+hours.”** This is a hosting-plan deployment gate, not a failed application build, and CI
+success is not substituted for deployment evidence.
 
 The release-level HTTP regression added in PR #122 protects one Cambridge question identity
 through selection, assignment, student attempt, answer, submission, grading, released
@@ -259,9 +260,10 @@ Application-code hardening is green on main SHA
 external release/administration gates and must not be represented as code defects already
 fixed by documentation:
 
-- **Vercel release deployment:** obtain a READY preview/production deployment for the
-  verified release evidence SHA and smoke the serving runtime before checking Lesson Studio
-  18/18.
+- **Vercel release deployment:** the release-SHA deployment attempt was rejected by the
+  provider's Hobby build-rate limit (`retry in 24 hours`). After the limit window opens,
+  retry a deployment of the verified release and smoke the serving runtime before checking
+  Lesson Studio 18/18.
 - **Vercel durable storage — issue #135:** configure server-only runtime storage so
   `/api/v1/ready` reports `capabilities.durableStorage=true`, then prove one private
   source-backed asset render/export path.
