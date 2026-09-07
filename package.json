@@ -13,8 +13,10 @@
     "test": "npm run test -w backend && npm run test -w frontend",
     "test:inventory": "python3 -m unittest discover -s scripts -p 'test_*.py'",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend && tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck 'api/[...path].ts' api/maintenance.ts",
+    "project:state:check": "node scripts/project-state.mjs --check",
+    "project:state:refresh": "node scripts/project-state.mjs --write",
     "vercel-build": "npm run build -w frontend",
-    "verify": "npm run typecheck && npm test && npm run test:inventory && npm run build"
+    "verify": "npm run project:state:check && npm run typecheck && npm test && npm run test:inventory && npm run build"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

@@ -4,7 +4,11 @@
 **Sana:** 2026-08-13  
 **Asosiy arxitektura qarori:** sodda `frontend/` + `backend/`
 
-**Joriy implementatsiya dalillari:** [`IMPLEMENTATION-STATUS.md`](./IMPLEMENTATION-STATUS.md)
+**Joriy loyiha/release holati (canonical):** [`PROJECT-STATE.md`](./PROJECT-STATE.md)  
+**Tarixiy implementatsiya snapshoti:** [`IMPLEMENTATION-STATUS.md`](./IMPLEMENTATION-STATUS.md)
+
+> Current holat, corpus window/count, acceptance yoki infrastructure bo'yicha eski hujjat
+> `PROJECT-STATE.md` bilan zid bo'lsa, `PROJECT-STATE.md` ustun hisoblanadi.
 
 ## Bu nima
 
@@ -19,6 +23,7 @@ boshqaruvidagi platforma:
 
 | Fayl | Mazmun |
 |---|---|
+| `PROJECT-STATE.md` | Joriy product/release/corpus/acceptance holatining yagona canonical manifesti |
 | `00-README.md` | Arxitektura va agent qoidalari |
 | `01-overview.md` | Mahsulot doirasi va rollar |
 | `02-data-model.md` | PostgreSQL sxemasi va authorization |

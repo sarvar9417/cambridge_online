@@ -1,5 +1,9 @@
 # CamPath implementation status
 
+> **Historical snapshot — Updated 2026-08-14.** For current product, corpus,
+> acceptance and infrastructure state use [`PROJECT-STATE.md`](./PROJECT-STATE.md).
+> This file remains implementation evidence and must not override the canonical manifest.
+
 Updated: 2026-08-14
 
 This file records verified implementation evidence. Requirements remain in
