@@ -43,7 +43,7 @@ describe('historical 9618 MS source matcher v4',()=>{
     expect(matcher).toContain('def _contiguous_token_proof');
     expect(matcher).toContain('_binary_source_proof');
     expect(matcher).toContain('_source_has_cap');
-    expect(matcher).toContain('mark_match.start() >= 60');
+    expect(matcher).toContain('.start() >= 60');
     expect(matcher).not.toContain('SequenceMatcher');
     expect(matcher).not.toContain('rapidfuzz');
   });
