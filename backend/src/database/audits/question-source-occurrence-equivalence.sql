@@ -1,116 +1,121 @@
--- Source-equivalent Cambridge question occurrence audit.
+-- Canonical question/source-occurrence integrity audit.
 --
--- This report intentionally groups identical QUESTION CONTENT across different
--- official source papers. These are not deletion candidates: each row preserves
--- a distinct Cambridge source occurrence (variant/year/series/ref).
---
--- Use this to understand why the Question Bank can contain identical-looking
--- content while the source corpus is still correct.
+-- A source-verified exact Cambridge variant must not own a second physical
+-- questions tree. Its official references are retained in
+-- question_source_occurrences and point to the one canonical tree.
 
+DO $$
+DECLARE
+  v_physical_on_equivalent integer;
+  v_bad_occurrence_state integer;
+  v_path_mismatch integer;
+BEGIN
+  SELECT count(*) INTO v_physical_on_equivalent
+  FROM public.source_paper_equivalences e
+  JOIN public.source_papers sp ON sp.id=e.source_paper_id
+  WHERE e.equivalence_kind='exact_content'
+    AND sp.kind='QP'::paper_kind
+    AND EXISTS(SELECT 1 FROM public.questions q WHERE q.source_paper_id=e.source_paper_id);
+
+  SELECT count(*) INTO v_bad_occurrence_state
+  FROM public.question_source_occurrences o
+  LEFT JOIN public.source_paper_equivalences e
+    ON e.source_paper_id=o.source_paper_id
+   AND e.canonical_source_paper_id=(SELECT q.source_paper_id FROM public.questions q WHERE q.id=o.question_id)
+   AND e.equivalence_kind='exact_content'
+  WHERE o.equivalence_basis='source_verified_exact'
+    AND (o.is_primary OR e.source_paper_id IS NULL);
+
+  SELECT count(*) INTO v_path_mismatch
+  FROM public.source_paper_equivalences e
+  JOIN public.source_papers sp ON sp.id=e.source_paper_id AND sp.kind='QP'::paper_kind
+  WHERE e.equivalence_kind='exact_content'
+    AND (
+      EXISTS(
+        SELECT o.source_path
+        FROM public.question_source_occurrences o
+        WHERE o.source_paper_id=e.source_paper_id
+        EXCEPT
+        SELECT q.path
+        FROM public.questions q
+        WHERE q.source_paper_id=e.canonical_source_paper_id
+      )
+      OR EXISTS(
+        SELECT q.path
+        FROM public.questions q
+        WHERE q.source_paper_id=e.canonical_source_paper_id
+        EXCEPT
+        SELECT o.source_path
+        FROM public.question_source_occurrences o
+        WHERE o.source_paper_id=e.source_paper_id
+      )
+    );
+
+  IF v_physical_on_equivalent<>0 OR v_bad_occurrence_state<>0 OR v_path_mismatch<>0 THEN
+    RAISE EXCEPTION
+      'question occurrence equivalence audit failed physical_on_equivalent=% bad_occurrence_state=% path_mismatch=%',
+      v_physical_on_equivalent,v_bad_occurrence_state,v_path_mismatch;
+  END IF;
+END $$;
+
+-- Diagnostic report: exact source-equivalent papers and their retained occurrence
+-- counts. This is the expected post-canonicalization state, not a duplicate list.
+SELECT
+  s.code AS syllabus_code,
+  c.number AS component,
+  src.year,
+  src.series::text AS series,
+  src.variant AS source_variant,
+  canon.variant AS canonical_variant,
+  e.source_paper_id,
+  e.canonical_source_paper_id,
+  (SELECT count(*) FROM public.question_source_occurrences o WHERE o.source_paper_id=e.source_paper_id) AS source_occurrences,
+  (SELECT count(*) FROM public.questions q WHERE q.source_paper_id=e.canonical_source_paper_id) AS canonical_questions,
+  e.verified_at,
+  e.evidence
+FROM public.source_paper_equivalences e
+JOIN public.source_papers src ON src.id=e.source_paper_id AND src.kind='QP'::paper_kind
+JOIN public.source_papers canon ON canon.id=e.canonical_source_paper_id
+JOIN public.syllabi s ON s.id=src.syllabus_id
+JOIN public.components c ON c.id=src.component_id
+WHERE e.equivalence_kind='exact_content'
+ORDER BY src.year,src.series,c.number,src.variant;
+
+-- Unverified physical duplicates remain review candidates only. Do not merge them
+-- without original-source QP + MS verification.
 WITH normalized AS (
   SELECT
-    q.id,
-    q.source_paper_id,
-    q.display_ref,
-    s.code AS syllabus_code,
-    c.number AS component,
-    sp.year,
-    sp.series::text AS series,
-    sp.variant,
-    md5(
-      jsonb_build_object(
-        'stem_md', q.stem_md,
-        'context_md', q.context_md,
-        'command_word', q.command_word,
-        'marks', q.marks,
-        'ao', q.ao,
-        'answer_kind', q.answer_kind,
-        'answer_lines', q.answer_lines,
-        'stem_latex', q.stem_latex,
-        'context_latex', q.context_latex,
-        'body_format', q.body_format,
-        'content_blocks', COALESCE((
-          SELECT jsonb_agg((block.elem - 'source' - 'assetId' - 'altText') ORDER BY block.ord)
-          FROM jsonb_array_elements(COALESCE(q.content_json->'blocks', '[]'::jsonb))
-            WITH ORDINALITY AS block(elem, ord)
-        ), '[]'::jsonb),
-        'assets', COALESCE((
-          SELECT jsonb_agg(
-            jsonb_build_object(
-              'kind', qa.kind,
-              'content_hash', qa.content_hash,
-              'content_md', qa.content_md,
-              'latex_source', qa.latex_source,
-              'svg_markup', qa.svg_markup,
-              'sort_order', qa.sort_order
-            )
-            ORDER BY qa.sort_order, qa.content_hash
-          )
-          FROM question_assets qa
-          WHERE qa.question_id = q.id
-        ), '[]'::jsonb),
-        'mark_schemes', COALESCE((
-          SELECT jsonb_agg(
-            jsonb_build_object(
-              'scheme_type', ms.scheme_type,
-              'max_marks', ms.max_marks,
-              'guidance_md', ms.guidance_md,
-              'guidance_latex', ms.guidance_latex,
-              'body_format', ms.body_format
-            )
-            ORDER BY ms.scheme_type::text, ms.max_marks, COALESCE(ms.guidance_md, '')
-          )
-          FROM mark_schemes ms
-          WHERE ms.question_id = q.id
-        ), '[]'::jsonb)
-      )::text
-    ) AS content_hash
+    q.id,q.source_paper_id,q.display_ref,s.code AS syllabus_code,c.number AS component,
+    sp.year,sp.series::text AS series,sp.variant,
+    md5(jsonb_build_object(
+      'stem_md',q.stem_md,'context_md',q.context_md,'marks',q.marks,
+      'answer_kind',q.answer_kind,'answer_lines',q.answer_lines,
+      'assets',coalesce((SELECT jsonb_agg(jsonb_build_object(
+        'kind',qa.kind,'content_hash',qa.content_hash,'content_md',qa.content_md,
+        'sort_order',qa.sort_order
+      ) ORDER BY qa.sort_order,qa.id) FROM question_assets qa WHERE qa.question_id=q.id),'[]'::jsonb)
+    )::text) AS content_hash
   FROM questions q
-  JOIN source_papers sp ON sp.id = q.source_paper_id
-  JOIN syllabi s ON s.id = sp.syllabus_id
-  JOIN components c ON c.id = q.component_id
+  JOIN source_papers sp ON sp.id=q.source_paper_id
+  JOIN syllabi s ON s.id=sp.syllabus_id
+  JOIN components c ON c.id=q.component_id
   WHERE q.marks IS NOT NULL
 ), groups AS (
-  SELECT
-    content_hash,
-    count(*) AS occurrence_count,
-    count(DISTINCT source_paper_id) AS paper_count,
-    count(DISTINCT syllabus_code) AS syllabus_count,
-    count(DISTINCT component) AS component_count,
-    count(DISTINCT year) AS year_count,
-    count(DISTINCT series) AS series_count,
-    count(DISTINCT variant) AS variant_count
+  SELECT content_hash,count(*) occurrence_count
   FROM normalized
   GROUP BY content_hash
-  HAVING count(*) > 1
+  HAVING count(*)>1
 )
-SELECT
-  g.content_hash,
-  g.occurrence_count,
-  CASE
-    WHEN g.syllabus_count = 1
-     AND g.component_count = 1
-     AND g.year_count = 1
-     AND g.series_count = 1
-     AND g.variant_count > 1
-      THEN 'official_same_session_cross_variant'
-    ELSE 'review_required'
-  END AS classification,
-  jsonb_agg(
-    jsonb_build_object(
-      'question_id', n.id,
-      'source_paper_id', n.source_paper_id,
-      'display_ref', n.display_ref,
-      'syllabus', n.syllabus_code,
-      'component', n.component,
-      'year', n.year,
-      'series', n.series,
-      'variant', n.variant
-    )
-    ORDER BY n.year, n.series, n.component, n.variant, n.display_ref
-  ) AS occurrences
+SELECT g.content_hash,g.occurrence_count,
+       jsonb_agg(jsonb_build_object(
+         'questionId',n.id,'sourcePaperId',n.source_paper_id,'displayRef',n.display_ref,
+         'syllabus',n.syllabus_code,'component',n.component,'year',n.year,
+         'series',n.series,'variant',n.variant
+       ) ORDER BY n.year,n.series,n.component,n.variant,n.display_ref) AS review_candidates
 FROM groups g
-JOIN normalized n ON n.content_hash = g.content_hash
-GROUP BY g.content_hash, g.occurrence_count, g.syllabus_count,
-         g.component_count, g.year_count, g.series_count, g.variant_count
-ORDER BY g.occurrence_count DESC, g.content_hash;
+JOIN normalized n ON n.content_hash=g.content_hash
+WHERE NOT EXISTS(
+  SELECT 1 FROM source_paper_equivalences e WHERE e.source_paper_id=n.source_paper_id
+)
+GROUP BY g.content_hash,g.occurrence_count
+ORDER BY g.occurrence_count DESC,g.content_hash;

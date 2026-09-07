@@ -9,6 +9,10 @@
 -- A private storage crop is therefore not "non-renderable" merely because its
 -- content_md is blank. In production we also prove every referenced Supabase
 -- object exists in durable storage.
+--
+-- Search/export quality checks operate on canonical physical questions once.
+-- Per-paper 75-mark completeness operates on official source occurrences so an
+-- exact equivalent variant remains complete after its duplicate tree is removed.
 DO $$
 DECLARE n integer; total_leaves integer; searchable_leaves integer;
 BEGIN
@@ -94,8 +98,10 @@ BEGIN
 
   SELECT count(*) INTO n FROM (
     SELECT sp.id,coalesce(sum(q.marks),0) total
-    FROM source_papers sp JOIN syllabi s ON s.id=sp.syllabus_id
-    LEFT JOIN questions q ON q.source_paper_id=sp.id AND q.marks>0
+    FROM source_papers sp
+    JOIN syllabi s ON s.id=sp.syllabus_id
+    LEFT JOIN question_source_occurrences occ ON occ.source_paper_id=sp.id
+    LEFT JOIN questions q ON q.id=occ.question_id AND q.marks>0
     WHERE sp.kind='QP'::paper_kind AND s.code='9618' AND sp.source_url IS NOT NULL
     GROUP BY sp.id HAVING coalesce(sum(q.marks),0)<>75
   ) bad_qp;
