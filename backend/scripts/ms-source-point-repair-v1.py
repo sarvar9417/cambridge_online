@@ -218,7 +218,6 @@ def plan_source(source: dict[str, Any], root: Path) -> tuple[dict[str, Any] | No
             new_text = str(repair["newText"])
             rows.append({
                 "markSchemeId": scheme["markSchemeId"],
-                "pointId": point.get("id"),
                 "pointCode": code,
                 "expectedOldText": old_text,
                 "newText": new_text,
@@ -253,7 +252,6 @@ def plan_source(source: dict[str, Any], root: Path) -> tuple[dict[str, Any] | No
 def _report_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "markSchemeId": row["markSchemeId"],
-        "pointId": row["pointId"],
         "pointCode": row["pointCode"],
         "displayRef": row.get("displayRef"),
         "sourcePage": row["sourcePage"],
