@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
 import { BOOK_COMPLETENESS_AUDITS } from './book-completeness-audit';
 import { BOOK_COMPLETENESS_BASELINES, type BookAuditChapter } from './book-completeness-baseline';
 
@@ -71,23 +70,31 @@ describe('formal Book Completeness Audit', () => {
     it(`fails closed unless every Chapter ${chapter} completeness category is covered`, () => {
       const audit = BOOK_COMPLETENESS_AUDITS[chapter];
       expect(audit.checksExpected).toBeGreaterThan(0);
-      expect(audit.checksCovered).toBe(audit.checksExpected);
-      expect(audit.complete).toBe(true);
       for (const [category, result] of Object.entries(audit.categories)) {
         expect(result.missing, `${category}: ${result.missing.join(' | ')}`).toEqual([]);
         expect(result.covered, category).toBe(result.expected);
         expect(result.complete, category).toBe(true);
       }
+      expect(audit.checksCovered).toBe(audit.checksExpected);
+      expect(audit.complete).toBe(true);
     });
   }
 
-  it('keeps every declared past-paper enrichment key implemented in the Cambridge Exam Lens', () => {
-    const insightPath = fileURLToPath(new URL('./lesson-exam-insights.ts', import.meta.url));
-    const insightSource = readFileSync(insightPath, 'utf8');
-    for (const chapter of [1, 7, 13] as const) {
-      for (const key of BOOK_COMPLETENESS_BASELINES[chapter].examEnrichmentKeys) {
-        expect(insightSource, `Missing Cambridge Exam Lens key ${key}`).toContain(`'${key}'`);
-      }
-    }
+  it('keeps every declared past-paper enrichment key implemented in the Cambridge Exam Lens', async () => {
+    document.body.innerHTML = [1, 7, 13]
+      .flatMap((chapter) => BOOK_COMPLETENESS_BASELINES[chapter as BookAuditChapter].examEnrichmentKeys)
+      .map((key) => `<section class="exam-host"><div class="lesson-checkpoint-contract"><strong>${key}</strong></div></section>`)
+      .join('');
+    vi.resetModules();
+    await import('./lesson-exam-insights');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const hosts=[...document.querySelectorAll<HTMLElement>('.exam-host')];
+    const keys=[1,7,13].flatMap((chapter)=>BOOK_COMPLETENESS_BASELINES[chapter as BookAuditChapter].examEnrichmentKeys);
+    expect(hosts).toHaveLength(keys.length);
+    hosts.forEach((host,index)=>{
+      expect(host.querySelector('.lesson-exam-insight'), `Missing Cambridge Exam Lens key ${keys[index]}`).not.toBeNull();
+    });
   });
 });
