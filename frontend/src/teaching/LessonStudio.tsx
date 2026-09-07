@@ -5,6 +5,7 @@ import './lesson-question-workspace-controls.css';
 import './lesson-question-answer-contrast.css';
 import './lesson-studio-v3.css';
 import './lesson-exam-insights.css';
+import './lesson-student-facing.css';
 import './lesson-question-workspace-controls';
 import './lesson-exam-workspace-v3';
 import './lesson-studio-professional-controls';
