@@ -4,7 +4,7 @@ import { installExportPolling, shouldPollExports } from './useStaffExportPolling
 describe('staff export polling contract', () => {
   it('polls only staff sessions with work still in flight', () => {
     expect(shouldPollExports('student', [{ status: 'running' }])).toBe(false);
-    expect(shouldPollExports('teacher', [{ status: 'ready' }])).toBe(false);
+    expect(shouldPollExports('teacher', [{ status: 'succeeded' }])).toBe(false);
     expect(shouldPollExports('teacher', [{ status: 'queued' }])).toBe(true);
     expect(shouldPollExports('owner', [{ status: 'running' }])).toBe(true);
     expect(shouldPollExports(null, [{ status: 'running' }])).toBe(false);
