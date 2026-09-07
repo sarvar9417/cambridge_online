@@ -80,9 +80,9 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("BACKWARD_VISUAL_RE", source)
         self.assertIn('label_kind = "visual" if required_kind == "visual" else required_kind', source)
         self.assertIn("Preceding Cambridge source {label_kind}", source)
+        self.assertIn('"satisfiesRules": [rule]', source)
+        self.assertIn('"trueRules": [rule]', source)
         self.assertIn("sourcePlacement", source)
-        # v7 delegates writes to the proven v3 two-phase runner rather than
-        # creating a new unguarded write path.
         self.assertIn('raise SystemExit(V3["main"]())', source)
         self.assertNotIn("execute_sql", source)
 
@@ -103,6 +103,14 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("after_source_visual_cue", sql)
         self.assertIn("set_question_structured_content_v1", sql)
         self.assertIn("structured_source_provenance_mismatch", sql)
+
+    def test_source_asset_resolution_is_explicitly_rule_scoped(self) -> None:
+        sql = self.read("backend/src/database/migrations/0154_source_asset_rule_scoped_resolution.sql")
+        self.assertIn("satisfiesRules", sql)
+        self.assertIn("v_satisfies_rules", sql)
+        self.assertIn("rule_code=ANY(v_satisfies_rules)", sql)
+        self.assertIn("declaredRules", sql)
+        self.assertIn("a non-visual asset cannot satisfy a visual fidelity rule", sql)
 
     def test_workflow_uses_correct_runner_for_source_repairs(self) -> None:
         workflow = self.read(".github/workflows/full-9618-2026-corpus-backfill.yml")
