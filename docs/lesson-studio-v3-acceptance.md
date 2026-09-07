@@ -20,5 +20,5 @@
 - [x] Existing progressive mark-point reveal, Student/Teacher view and Projector controls remain compatible.
 - [x] Long source-complete lessons use a compact board-friendly slide scrubber rather than relying on dozens of tiny dots.
 - [x] Presenter toolbar shows the formal Book Completeness Audit result for the active chapter rather than treating page count alone as proof of completeness.
-- [x] CI `npm run verify` — merged main SHA `0f02491cfc3cbdffbde434848e1812031d3ee0c9`, CI run #2530: success; production migration ledger reconciled through repository migration 0143 with fresh release/export audits green.
+- [x] CI `npm run verify` — final scoped application-hardening main SHA `f3011e88bd3cd7fc59d11346815e306e2a2cd11f`, CI run #2673: success; App lifecycle extraction and all inventoried Lesson Studio import-time DOM lifecycle conversions are included in this verification.
 - [ ] Vercel preview / production deployment — verify after CI.

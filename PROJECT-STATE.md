@@ -23,7 +23,8 @@ silently replace them with historical counts or assumptions.
 `release.evidence_base_sha` is deliberately the **last explicitly verified merged main
 commit**, not a promise that the file contains GitHub's live current branch head. The
 actual current head must be read from GitHub. This distinction prevents an older verified
-SHA from being mislabeled as the current repository head after a later merge.
+SHA from being mislabeled as the current repository head after a later documentation-only
+merge.
 
 ## Machine-readable state
 
@@ -34,7 +35,7 @@ SHA from being mislabeled as the current repository head after a later merge.
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "45557d6be21d52786531db1b8dc5ae383d9f80ac",
+    "evidence_base_sha": "f3011e88bd3cd7fc59d11346815e306e2a2cd11f",
     "maturity": "late_product_integration_and_production_hardening",
     "latest_migration": "0143_fk_workload_indexes.sql",
     "corpus_window": {
@@ -64,7 +65,7 @@ SHA from being mislabeled as the current repository head after a later merge.
   },
   "product": {
     "question_bank": "implemented; source-fidelity and fail-closed rules are active",
-    "lesson_studio": "implemented; three supplied-book lessons are source-complete and released on current 2026 targets; professional navigation controls now have React-owned lifecycle cleanup",
+    "lesson_studio": "implemented; three supplied-book lessons are source-complete and released on current 2026 targets; all inventoried import-time global DOM enhancers now use explicit React-owned lifecycle cleanup",
     "assignments": "implemented",
     "submissions": "implemented",
     "marking": "implemented with guarded mark-scheme visibility and source review",
@@ -76,14 +77,14 @@ SHA from being mislabeled as the current repository head after a later merge.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "last_verified_main": "merged PR #126 main SHA 45557d6be21d52786531db1b8dc5ae383d9f80ac passed CI run 2576"
+      "last_verified_main": "merged PR #137 main SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f passed CI run 2673"
     },
     "ci": {
-      "latest_verified_merged_pr": 126,
-      "verified_sha": "45557d6be21d52786531db1b8dc5ae383d9f80ac",
-      "run_number": 2576,
+      "latest_verified_merged_pr": 137,
+      "verified_sha": "f3011e88bd3cd7fc59d11346815e306e2a2cd11f",
+      "run_number": 2673,
       "conclusion": "success",
-      "note": "Review hardening now includes the selection-to-mastery release regression (PR #122), explicit last-verified evidence semantics (PR #123), current-target versus historical Data Master Plan alignment (PR #125), and the first React-owned Lesson Studio side-effect lifecycle cleanup (PR #126)."
+      "note": "Final scoped application hardening includes the closed-loop release regression, canonical state semantics, current-target Data Master Plan alignment, App lifecycle extractions in PRs #130/#131/#132/#134, and React-owned Lesson Studio DOM lifecycles in PRs #126/#133/#137."
     },
     "lesson_studio": {
       "checked": 17,
@@ -96,9 +97,9 @@ SHA from being mislabeled as the current repository head after a later merge.
   },
   "infrastructure": {
     "database": "production Supabase is realized and application-ledgered through repository migration 0143; 17 late migration filenames (0127..0143, excluding nonexistent 0141) were baselined only after durable postconditions passed; mutable-search-path WARN findings remain cleared and nine workload-prioritized FK indexes are valid/ready",
-    "storage": "private question-assets bucket is live; fresh production export audit at 2026-09-07T08:14:26Z verifies all 457 source-backed 9618 assets are renderable and 3302/3302 mark-bearing leaves are staff-searchable; Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
+    "storage": "private question-assets bucket is live; fresh production export audit at 2026-09-07T08:14:26Z verifies all 457 source-backed 9618 assets are renderable and 3302/3302 mark-bearing leaves are staff-searchable; Vercel readiness rechecked at 2026-09-07T10:58:06Z returned status=ok and database=ok but durableStorage=false, tracked by issue #135",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "last explicitly verified merged main is PR #126 SHA 45557d6be21d52786531db1b8dc5ae383d9f80ac, CI #2576 success. Vercel deployment/runtime verification remains the only unchecked Lesson Studio acceptance item and is intentionally not claimed complete"
+    "deployment": "application release evidence is main SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f with CI #2673 success. Vercel attempted that release at 2026-09-07T11:02:03Z but GitHub status reported failure: Deployment rate limited — retry in 24 hours. Latest READY production remains older main SHA 78aca4fe0c85bb30ff9055c7c94045356cd5a2e3, so the final Lesson Studio deployment acceptance item remains intentionally open"
   },
   "evidence_files": [
     "00-README.md",
@@ -113,8 +114,15 @@ SHA from being mislabeled as the current repository head after a later merge.
     "backend/src/database/audits/late-migration-ledger-reconcile.sql",
     "backend/src/database/audits/9618-current-release-state.sql",
     "backend/src/database/audits/9618-question-export-readiness.sql",
+    "frontend/src/hooks/useOfflineAnswerSync.ts",
+    "frontend/src/hooks/useAttemptTiming.ts",
+    "frontend/src/hooks/useStaffExportPolling.ts",
+    "frontend/src/hooks/useSessionLifecycle.ts",
     "frontend/src/teaching/lesson-studio-professional-controls.ts",
-    "frontend/src/teaching/lesson-studio-professional-controls.test.ts"
+    "frontend/src/teaching/lesson-question-workspace-controls.ts",
+    "frontend/src/teaching/lesson-exam-workspace-v3.ts",
+    "frontend/src/teaching/lesson-exam-insights.ts",
+    "frontend/src/teaching/lesson-dom-lifecycles.test.ts"
   ]
 }
 ```
@@ -146,37 +154,40 @@ Cambridge source provenance, database rules or guarded human/automated approval.
 
 The repository is beyond an early MVP. Question Bank, Lesson Studio, assignments,
 submissions, marking, exports/reports and analytics foundations exist. Current work is
-primarily integration, corpus/source hardening, visual fidelity, acceptance evidence and
-production reliability.
+primarily release operations, source/runtime reliability and infrastructure governance
+rather than adding more application-level feature surface.
 
 The 2026 Lesson Studio compatibility release moved active lesson targets onto the current
 2026-2028 objective set while preserving historical 2021-2025 9618 questions through
 explicit compatibility edges. Chapter 7 uses the same principle for historical 0478
-questions. `docs/DATA-MASTER-PLAN.md` now explicitly separates this historical/source-backed
+questions. `docs/DATA-MASTER-PLAN.md` explicitly separates this historical/source-backed
 inventory from the strict current-target release gate so those two scopes cannot be
 mistaken for the same count or approval claim.
 
 ## Acceptance state
 
-`docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. The last explicitly
-verified merged main evidence is PR #126, SHA
-`45557d6be21d52786531db1b8dc5ae383d9f80ac`, full CI run **#2576: success**.
-The only remaining Lesson Studio acceptance item is a Vercel runtime verification on a
-release SHA.
+The final scoped application-hardening merge is PR #137, main SHA
+`f3011e88bd3cd7fc59d11346815e306e2a2cd11f`. Full main CI run **#2673 succeeded**.
+`docs/lesson-studio-v3-acceptance.md` remains **17/18** because the Vercel status attached
+to that release SHA failed before build with **“Deployment rate limited — retry in 24
+hours.”** This is a hosting-plan deployment gate, not a failed application build, and CI
+success is not substituted for deployment evidence.
 
 The release-level HTTP regression added in PR #122 protects one Cambridge question identity
 through selection, assignment, student attempt, answer, submission, grading, released
 result and mastery evidence. This does not replace lower-level SQL or authorization tests;
 it closes the cross-domain regression gap identified in the project review.
 
-PR #123 also makes CI evidence semantics explicit: a verified SHA is recorded as **last
-verified main**, never implicitly claimed to be GitHub's live current head. PR #126 begins
-the incremental Lesson Studio maintainability cleanup by removing import-time auto-install
-for professional navigation controls and binding their global observer/fullscreen lifecycle
-to the React Lesson Studio owner with regression coverage.
+The App hardening scope is complete: PRs #130, #131, #132 and #134 moved offline answer
+sync, attempt countdown/heartbeat, export polling and session/bootstrap lifecycle out of
+`App.tsx` into focused hooks with regression coverage.
 
-No deployment-only evidence is inferred from database or CI success. The serving Vercel
-runtime must be verified independently before 18/18 can be claimed.
+The Lesson Studio import-time side-effect scope is also complete: PR #126 moved
+professional controls to a React-owned lifecycle, PR #133 did the same for workspace
+controls, and PR #137 converted the remaining audited `lesson-exam-workspace-v3` and
+`lesson-exam-insights` MutationObservers to side-effect-free imports with explicit,
+reference-counted cleanup. New DOM lifecycle regression coverage proves import-without-
+effects, cleanup and reinstall behavior.
 
 ## Corpus state rule
 
@@ -199,14 +210,17 @@ ledgered.
 
 The private `question-assets` bucket remains non-public; referenced private objects were
 verified present rather than weakening storage authorization. This does **not** imply
-Vercel runtime storage readiness, which remains a separate deployment-environment concern.
+Vercel runtime storage readiness. A fresh Vercel readiness request at **2026-09-07
+10:58:06 UTC** returned HTTP 200 with `status=ok`, `database=ok`, but
+`capabilities.durableStorage=false`. Issue #135 tracks the required server-only runtime
+configuration and acceptance evidence.
 
 ## Security hardening state
 
-Migration `0142_security_function_search_path.sql` is merged, applied and now application-
+Migration `0142_security_function_search_path.sql` is merged, applied and application-
 ledgered in production. The three trigger functions have exact `search_path=public,
 pg_temp` configuration. A fresh Supabase security-advisor pass at **2026-09-07 08:14:33
-UTC** reports no WARN-level security finding; remaining RLS-without-policy notices are
+UTC** reported no WARN-level security finding; remaining RLS-without-policy notices are
 INFO-level and are not being converted into permissive policies because many affected
 relations are intentionally server/internal-only.
 
@@ -214,8 +228,8 @@ Reference: https://supabase.com/docs/guides/database/database-linter?lint=0008_r
 
 ## FK performance state
 
-Migration `0143_fk_workload_indexes.sql` is merged, applied and now application-ledgered
-in production. All nine selected indexes were checked directly in `pg_index` and are
+Migration `0143_fk_workload_indexes.sql` is merged, applied and application-ledgered in
+production. All nine selected indexes were checked directly in `pg_index` and are
 `indisvalid=true` and `indisready=true`. The corresponding unindexed-FK advisor findings
 were cleared.
 
@@ -239,21 +253,23 @@ for each of the **17** repository filenames from 0127 through 0143, then baselin
 those exact names transactionally. Production reconciliation completed at **2026-09-07
 08:12:39 UTC**, and all 17 expected rows are present in `public.schema_migrations`.
 
-## Required next release gates
+## Remaining release/admin gates
 
-A release candidate should not be declared until all of the following are true:
+Application-code hardening is green on main SHA
+`f3011e88bd3cd7fc59d11346815e306e2a2cd11f` / CI #2673. The remaining non-green items are
+external release/administration gates and must not be represented as code defects already
+fixed by documentation:
 
-- `npm run project:state:check` passes on the final SHA.
-- `npm run verify` passes on the final SHA.
-- Lesson Studio acceptance reaches 18/18, or any intentionally waived item is documented.
-- Vercel preview or production smoke verification succeeds on the release SHA with the
-  required database environment available.
-- Vercel runtime durable storage is enabled for the environment that performs source-asset
-  rendering/export, or the affected feature is explicitly blocked from release.
-
-Repository governance is tracked separately in issue #124: `main` should be protected by
-PR + required CI policy. Until GitHub reports that protection/ruleset evidence, the
-presence of green CI alone must not be called an enforced governance gate.
+- **Vercel release deployment:** the release-SHA deployment attempt was rejected by the
+  provider's Hobby build-rate limit (`retry in 24 hours`). After the limit window opens,
+  retry a deployment of the verified release and smoke the serving runtime before checking
+  Lesson Studio 18/18.
+- **Vercel durable storage — issue #135:** configure server-only runtime storage so
+  `/api/v1/ready` reports `capabilities.durableStorage=true`, then prove one private
+  source-backed asset render/export path.
+- **GitHub governance — issue #124:** protect `main` with PR + required `CI / verify`, block
+  force pushes/deletion and avoid routine bypass. The connected GitHub interface lacks the
+  administration write capability required to enforce this setting.
 
 ## Maintaining this manifest
 
