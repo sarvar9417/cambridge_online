@@ -1,7 +1,7 @@
 import type { LessonRichBlock, LessonSlide } from './lesson-content-source-complete';
 
 export const TEACHER_DIRECTIVE_PATTERN = /\b(?:ask learners|ask students|ask the class|invite a student|invite learners|tell learners|have learners|show learners|before teaching|teacher prompt|teacher activity)\b/i;
-export const AUTHORING_META_PATTERN = /\b(?:Hodder (?:opens|begins|teaches|uses|asks|compares|first establishes)|source-atom-complete|source-audited|historical LO|learning objective codes|approved .* leaves explicitly mapped)\b/i;
+export const AUTHORING_META_PATTERN = /\b(?:Hodder\b|CamPath\b|source-atom-complete|source-audited|historical (?:LO|learning objective)|learning objective codes|approved .* leaves explicitly mapped|live checkpoints? query)\b/i;
 
 function capitalise(value:string){
   const text=value.trim();
@@ -42,6 +42,22 @@ export function studentFacingText(value:string){
     return 'Discover how a problem becomes a working program, then learn the formal Cambridge terms through examples, design tasks and past-paper practice.';
   }
 
+  if(/^Hodder labels this video material as beyond the 9618 syllabus/i.test(text)){
+    return 'Video is included here as an extension beyond the assessed 9618 content. No unrelated multimedia question is substituted when there is no exact Cambridge past-paper match.';
+  }
+  if(/no exact 2021[–-]2025 historical LO dedicated to editing operations/i.test(text)){
+    return 'Sound-editing operations are included for complete understanding, but the approved 2021–2025 past-paper set has no exact question for this learning point. No unrelated sampling question is substituted.';
+  }
+  if(/historical corpus has compression LOs, but no exact LO representing this combined/i.test(text)){
+    return 'This section combines several ways to reduce image, sound and video size. The approved past-paper set has no single exact question covering the whole combined list, so no loosely related question is substituted.';
+  }
+  if(/^These source questions remain visible as a chapter-review map/i.test(text)){
+    return 'Use these mixed review prompts to connect ideas from the whole chapter. Current Cambridge past-paper practice appears separately at the relevant learning points.';
+  }
+  if(/^The Hodder review includes older exam-style material/i.test(text)){
+    return 'Use the coursebook review for broad retrieval. Use the Cambridge practice screens for approved past-paper questions matched to each learning point.';
+  }
+
   const diagnostic=text.match(/^Hodder opens with a diagnostic on (.+)$/i);
   if(diagnostic)return `Before you start, check your understanding of ${stripTerminalPeriod(diagnostic[1]!)}.`;
 
@@ -53,6 +69,9 @@ export function studentFacingText(value:string){
 
   const usesToShow=text.match(/^Hodder uses (.+?) to show (.+)$/i);
   if(usesToShow)return `Use ${usesToShow[1]!.trim()} to understand ${stripTerminalPeriod(usesToShow[2]!)}.`;
+
+  const uses=text.match(/^Hodder uses (.+)$/i);
+  if(uses)return `Study ${stripTerminalPeriod(uses[1]!)}.`;
 
   const firstEstablishes=text.match(/^Hodder first establishes (.+)$/i);
   if(firstEstablishes)return `Start with this idea: ${stripTerminalPeriod(firstEstablishes[1]!)}.`;
@@ -100,6 +119,14 @@ export function studentFacingText(value:string){
   if(/^Hodder p\.\s*\d+\s*·\s*complete file-I\/O diagnostic/i.test(text)){
     return 'Before you start · File I/O knowledge check';
   }
+  text=text.replace(/^Hodder p\.\s*\d+\s*·\s*/i,'');
+
+  // Where a source-specific quantitative/example statement needs attribution,
+  // keep the distinction in learner language without exposing authoring metadata.
+  text=text.replace(/\bHodder’s\b/g,'The coursebook’s');
+  text=text.replace(/\bHodder\b/g,'The coursebook');
+  text=text.replace(/\bCamPath intentionally does not substitute\b/gi,'This lesson does not substitute');
+  text=text.replace(/\bCamPath keeps\b/gi,'This lesson keeps');
 
   text=capitalise(text);
   if(/^(?:Why|How|What)\b/i.test(text)){
