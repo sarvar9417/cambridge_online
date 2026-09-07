@@ -1,21 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { lessonChapter } from './lesson-content-source-complete';
+import { lessonChapter, type LessonSlide } from './lesson-content-source-complete';
 import { COMPLETE_SOURCE_ATOMS, sourceAtomsForChapter } from './lesson-source-atom-registry';
+import { studentFacingSlide } from './lesson-student-facing';
 
 const expectedPages = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
-/** Normalize JSON escaping so source atoms containing quotes/backslashes are
- * compared to what the presenter actually renders, not JSON's wire encoding. */
-const normalizeSerializedText = (value: unknown) => JSON.stringify(value)
-  .replace(/\\\"/g, '"')
-  .replace(/\\\\/g, '\\');
-
-const slideText = (chapter: 1 | 13, slideId: string) => {
+const targetSlide = (chapter: 1 | 13, slideId: string) => {
   const source = lessonChapter(chapter);
   expect(source, `Missing chapter ${chapter}`).toBeTruthy();
   const slide = source!.slides.find((item) => item.id === slideId);
   expect(slide, `Missing target slide ${slideId} for Chapter ${chapter}`).toBeTruthy();
-  return { slide: slide!, text: normalizeSerializedText(slide) };
+  return slide!;
 };
 
 describe('source atom registry', () => {
@@ -36,27 +31,46 @@ describe('source atom registry', () => {
     expect(lessonChapter(13)!.coverage).toContain('24/24 atom-audited pages');
   });
 
-  it('pins every curated atom and all of its exact source needles to a real lesson slide', () => {
+  it('pins every curated atom and all exact lines to teacher/system source evidence', () => {
     for (const atom of COMPLETE_SOURCE_ATOMS) {
-      const { slide, text } = slideText(atom.chapter, atom.targetSlideId);
-      for (const needle of atom.needles) {
-        expect(text, `${atom.id} is missing source value: ${needle}`).toContain(needle);
-      }
+      const slide = targetSlide(atom.chapter, atom.targetSlideId);
+      const evidence = slide.sourceAtomEvidence?.find((item) => item.id === atom.id);
+      expect(evidence, `${atom.id} is missing sourceAtomEvidence`).toBeTruthy();
+      expect(evidence?.sourceRef).toBe(atom.sourceRef);
+      expect(evidence?.page).toBe(atom.page);
+      expect(evidence?.kind).toBe(atom.kind);
+      expect(evidence?.lines).toEqual(atom.needles);
       expect(slide.sourceElements?.some((item) => item.includes(atom.id)), `${atom.id} is not visible in source trace`).toBe(true);
     }
   });
 
-  it('keeps exact source data in the collapsed activity drawer instead of flooding the main rich-block canvas', () => {
+  it('does not flatten source metadata or concept atoms into learner activity prompts', () => {
     for (const chapterNumber of [1, 13] as const) {
       const chapter = lessonChapter(chapterNumber)!;
-      const atomSlideIds = new Set(sourceAtomsForChapter(chapterNumber).map((item) => item.targetSlideId));
-      for (const slideId of atomSlideIds) {
-        const slide = chapter.slides.find((item) => item.id === slideId)!;
-        expect(slide.activity?.title).toMatch(/BOOK PRACTICE|SOURCE DETAIL/);
-        expect(slide.activity?.prompt).toContain('Hodder p.');
-        expect(JSON.stringify(slide.richBlocks ?? [])).not.toContain('SOURCE ATOM');
+      for (const sourceSlide of chapter.slides) {
+        const slide = studentFacingSlide(sourceSlide as LessonSlide);
+        expect(slide.activity?.title ?? '').not.toMatch(/BOOK PRACTICE|SOURCE DETAIL|exact Hodder|exact The coursebook/i);
+        expect(slide.activity?.prompt ?? '').not.toMatch(/\[.+(?:Hodder|The coursebook) p\.\d+\]|SOURCE ATOM|In this chapter, you will learn about/i);
       }
     }
+  });
+
+  it('projects the Chapter 1 prior check as two clear tasks while keeping chapter objectives out of the task', () => {
+    const source = targetSlide(1, 'h1-prior');
+    const slide = studentFacingSlide(source as LessonSlide);
+    const learnerText = JSON.stringify({ activity: slide.activity, richBlocks: slide.richBlocks });
+
+    expect(slide.activity?.title).toBe('Prior knowledge check');
+    expect(slide.activity?.prompt).toContain('2 prior-knowledge tasks');
+    expect(learnerText).toContain('Prior knowledge · Q2');
+    expect(learnerText).toContain('a) 00110101 + 01001000');
+    expect(learnerText).toContain('Prior knowledge · Q4');
+    expect(learnerText).toContain('a) 107 + 257');
+    expect(learnerText).not.toContain('In this chapter, you will learn about');
+    expect(learnerText).not.toContain('Chapter source scope:');
+
+    const objectives = source.sourceAtomEvidence?.find((item) => item.id === 'ch1-p1-file-objectives');
+    expect(objectives?.lines).toContain('binary magnitudes, binary prefixes and decimal prefixes');
   });
 
   it('pins all Hodder activity and extension families instead of title-only summaries', () => {
