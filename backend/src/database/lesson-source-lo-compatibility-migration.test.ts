@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const sql=readFileSync(new URL('./migrations/0127_lesson_source_lo_compatibility_completion.sql',import.meta.url),'utf8');
+const sql=readFileSync(new URL('./migrations/0132_lesson_source_lo_compatibility_completion.sql',import.meta.url),'utf8');
 
-describe('0127 lesson-source LO compatibility completion',()=>{
+describe('0132 lesson-source LO compatibility completion',()=>{
   it('completes the missing 9618 Chapter 1 and 13 current-to-historical edges',()=>{
     [
       "('1.1.3','1.1-lo-01','equivalent'",
@@ -19,7 +19,7 @@ describe('0127 lesson-source LO compatibility completion',()=>{
     expect(sql).toContain("target_s.code='9618' AND target_s.version_label='2026-2028'");
     expect(sql).toContain("source_s.version_label IN ('2021-2023','2024-2025')");
     expect(sql).toContain('v_9618_targets<>29');
-    expect(sql).toContain('lesson-source-compatibility-0127');
+    expect(sql).toContain('lesson-source-compatibility-0132');
   });
 
   it('maps 0478 current Topic 7 through explicit historical compatibility',()=>{
