@@ -49,7 +49,7 @@ class MarkSchemeSourcePointRepairV2Tests(unittest.TestCase):
     def test_removes_terminal_published_footer_only_when_exact_source_proves_body(self):
         old = "screenshot showing the expected output Published 2023"
         source = "screenshot showing the expected output"
-        result = self.derive(old, source, path="9.a")
+        result = self.derive(old, source, path="9.a", year=2023)
         self.assertIsNotNone(result)
         self.assertTrue(result["removedPublishedFooter"])
         self.assertEqual(result["newText"], "screenshot showing the expected output")
