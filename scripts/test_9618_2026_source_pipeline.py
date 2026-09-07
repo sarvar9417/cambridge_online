@@ -21,6 +21,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
             "backend/scripts/reconcile-9618-2026-dependencies.py",
             "backend/scripts/sync-9618-repaired-assets.py",
             "backend/scripts/finalize-9618-2026-corpus.py",
+            "backend/scripts/qp-source-audit-runner-v2.py",
         ):
             with self.subTest(relative=relative):
                 ast.parse(self.read(relative), filename=relative)
@@ -50,6 +51,13 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("ms_source_disagreement", source)
         self.assertIn("return list(edge_rows), []", source)
         self.assertIn("V2[\"main\"].__globals__[\"reconcile_ms_rows\"]", source)
+
+    def test_final_qp_audit_reexports_v3_pdf_extractor(self) -> None:
+        source = self.read("backend/scripts/qp-source-audit-runner-v2.py")
+        self.assertIn('if "pdftotext_layout" not in PARSER:', source)
+        self.assertIn('PARSER["pdftotext_layout"] = PARSER["BASE"]["pdftotext_layout"]', source)
+        self.assertIn('GLOBALS["PARSER"] = PARSER', source)
+        self.assertIn('GLOBALS["AUDIT_VERSION"] = "9618-source-audit-v2"', source)
 
     def test_legacy_seed_keeps_ids_but_frees_official_refs(self) -> None:
         sql = self.read("backend/src/database/migrations/0127_legacy_2026_question_display_refs.sql")
