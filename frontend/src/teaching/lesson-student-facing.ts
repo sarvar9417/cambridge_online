@@ -27,7 +27,17 @@ export function studentFacingText(value:string){
   if(/^(?:this checkpoint is loaded live|only approved .* leaves explicitly mapped|approved .* leaves)/i.test(text)){
     return 'Apply what you have just learned to real Cambridge past-paper questions. Attempt each question before the mark scheme is revealed.';
   }
+  if(/^complete Hodder Chapter 1 teaching route/i.test(text)){
+    return 'Numbers, text, graphics, sound and compression — explained with clear examples, visual models and Cambridge practice.';
+  }
+  if(/^complete Hodder Chapter 13 route/i.test(text)){
+    return 'User-defined data types, file organisation, hashing and floating-point representation — explained step by step with Cambridge practice.';
+  }
+  if(/^guided discovery first, then a source-atom-complete Chapter 7/i.test(text)){
+    return 'Discover how a problem becomes a working program, then learn the formal Cambridge terms through examples, design tasks and past-paper practice.';
+  }
 
+  text=text.replace(/^CAMBRIDGE CHECKPOINT\b/i,'CAMBRIDGE PAST-PAPER PRACTICE');
   text=text.replace(/^Start with (?:one )?question:\s*/i,'');
   text=unwrapPromptQuotes(text);
 
@@ -39,6 +49,10 @@ export function studentFacingText(value:string){
   }
 
   text=text.replace(/^Ask (?:learners|students|the class) to\s+/i,'');
+  text=text.replace(/^Ask (?:learners|students|the class) why\s+/i,'Why ');
+  text=text.replace(/^Ask (?:learners|students|the class) how\s+/i,'How ');
+  text=text.replace(/^Ask (?:learners|students|the class) what\s+/i,'What ');
+  text=text.replace(/^Ask (?:learners|students|the class) whether\s+/i,'Decide whether ');
   text=text.replace(/^Invite (?:a student|learners|students) to\s+/i,'');
   text=text.replace(/^Tell (?:learners|students|the class) to\s+/i,'');
   text=text.replace(/^Have (?:learners|students|the class)\s+/i,'');
@@ -48,6 +62,13 @@ export function studentFacingText(value:string){
   text=text.replace(/^Discuss with (?:learners|students|the class):?\s*/i,'Discuss: ');
   text=text.replace(/^Chapter source scope:\s*/i,'In this chapter: ');
 
+  // Third-person authoring narration is changed only where it explicitly talks
+  // about what the classroom/exam asks the learner to do.
+  text=text.replace(/\bmay ask learners to\b/gi,'may require you to');
+  text=text.replace(/\basks learners to\b/gi,'requires you to');
+  text=text.replace(/\bask learners to\b/gi,'require you to');
+  text=unwrapPromptQuotes(text);
+
   if(/^Hodder p\.\s*\d+\s*·\s*complete prior-knowledge diagnostic/i.test(text)){
     return 'Before you start · Prior knowledge check';
   }
@@ -56,7 +77,7 @@ export function studentFacingText(value:string){
   }
 
   text=capitalise(text);
-  if(/^Why\b/i.test(text)&&!/[?!]$/.test(text))text+='?';
+  if(/^(?:Why|How|What)\b/i.test(text)&&!/[?!]$/.test(text))text+='?';
   return text;
 }
 
