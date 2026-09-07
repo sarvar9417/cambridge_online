@@ -28,9 +28,9 @@ jobs:
       - name: Install PDF text tools
         run: sudo apt-get update -qq && sudo apt-get install -y poppler-utils
       - name: Unit test audit gates
-        run: python3 -m unittest scripts.test_ms_source_audit scripts.test_ms_source_audit_v3
+        run: python3 -m unittest scripts.test_ms_source_audit scripts.test_ms_source_audit_v3 scripts.test_ms_source_audit_v4
       - name: Audit every current historical 9618 MS review target and promote strict matches
-        run: python3 backend/scripts/ms-source-audit-runner-v3.py
+        run: python3 backend/scripts/ms-source-audit-runner-v4.py
       - name: Publish audit summary
         if: always()
         run: |
@@ -38,7 +38,7 @@ jobs:
             python3 - <<'PY'
           import json, os
           report=json.load(open(os.environ['SOURCE_AUDIT_REPORT'],encoding='utf-8'))
-          summary={k:report.get(k) for k in ('targetCount','sourceCount','audited','verified','needsReview','recorded','matcherVersion','promotion')}
+          summary={k:report.get(k) for k in ('targetCount','sourceCount','audited','verified','needsReview','recorded','matcherVersion','promotion','questionPromotion')}
           print(summary)
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as out:
               out.write('## 9618 historical mark scheme source audit\n\n')

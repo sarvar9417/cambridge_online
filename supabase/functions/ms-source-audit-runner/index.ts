@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_record_v2',{p_audits:body.audits})})
     }
     if (action === 'promote_verified') {
-      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_promote_verified_v3')})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_promote_verified_v4')})
     }
     if (action === 'promote_questions') {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('approve_source_verified_historical_questions_v1')})
