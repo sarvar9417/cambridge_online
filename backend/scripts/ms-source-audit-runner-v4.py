@@ -2,19 +2,9 @@
 """Source-safe matcher v4 for historical Cambridge 9618 mark schemes.
 
 V4 only recovers deterministic false negatives that can be proved against the
-exact official MS PDF already pinned by SHA-256:
-* generated rubric-group labels are treated as internal structure; any_n_from_m
-  still requires an explicit source cap and any thematic label tokens;
-* punctuation/layout-only differences can match as an exact contiguous token run;
-* short numeric and binary answers can match exactly inside the exact question
-  section;
-* parser-missed sections can be recovered from the printed question path only
-  when the expected mark is visible in the right-hand marks column.
-
-No fuzzy or semantic paraphrase matching is used. Accept/reject/prose requirements
-remain source-authoritative. Legacy extract confidence below 0.95 is superseded
-only when every other source/structure gate is clean and every grading phrase is
-proved by the official source.
+exact official MS PDF already pinned by SHA-256. The production runner fetches
+its DB bootstrap in bounded source-paper batches so large historical corpora do
+not depend on one oversized PostgREST statement.
 """
 from __future__ import annotations
 
@@ -23,6 +13,7 @@ import json
 import os
 import re
 import runpy
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +27,8 @@ V3_SUPPORTED = V3["supported_v3"]
 V3_AUDIT_SCHEME = V3["audit_scheme_v3"]
 ORIGINAL_AUDIT_SCHEME = V3["ORIGINAL_AUDIT_SCHEME"]
 MATCHER_VERSION = "9618-ms-source-matcher-v4"
+AUDIT_VERSION = "9618-ms-source-audit-v2"
+BOOTSTRAP_VERSION = "9618-ms-source-audit-bootstrap-v4"
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+", re.I)
 _SHORT_NUMBER_RE = re.compile(r"^-?\d{2,}$")
@@ -104,20 +97,14 @@ def _source_has_cap(source_text: str, required: int, max_marks: int) -> bool:
         word = _NUMBER_WORDS.get(value)
         n = re.escape(str(value))
         patterns = [
-            rf"\bmax(?:imum)?\s*{n}\b",
-            rf"\bto\s+max(?:imum)?\s*{n}\b",
-            rf"\bup\s+to\s+{n}\b",
-            rf"\bany\s+{n}\b",
-            rf"\b{n}\s+from\b",
+            rf"\bmax(?:imum)?\s*{n}\b", rf"\bto\s+max(?:imum)?\s*{n}\b",
+            rf"\bup\s+to\s+{n}\b", rf"\bany\s+{n}\b", rf"\b{n}\s+from\b",
         ]
         if word:
             w = re.escape(word)
             patterns.extend([
-                rf"\bmax(?:imum)?\s*{w}\b",
-                rf"\bto\s+max(?:imum)?\s*{w}\b",
-                rf"\bup\s+to\s+{w}\b",
-                rf"\bany\s+{w}\b",
-                rf"\b{w}\s+from\b",
+                rf"\bmax(?:imum)?\s*{w}\b", rf"\bto\s+max(?:imum)?\s*{w}\b",
+                rf"\bup\s+to\s+{w}\b", rf"\bany\s+{w}\b", rf"\b{w}\s+from\b",
             ])
         if any(re.search(pattern, source) for pattern in patterns):
             return True
@@ -186,9 +173,7 @@ def _recalculate_result(result: dict[str, Any], recovered_group_count: int) -> d
 
 
 def audit_scheme_v4(
-    scheme: dict[str, Any],
-    section: dict[str, Any] | None,
-    source: dict[str, Any],
+    scheme: dict[str, Any], section: dict[str, Any] | None, source: dict[str, Any]
 ) -> dict[str, Any]:
     result = V3_AUDIT_SCHEME(scheme, section, source)
     evidence = result["evidence"]
@@ -210,10 +195,8 @@ def audit_scheme_v4(
 
 def _path_from_prefix(match: re.Match[str]) -> str:
     bits = [match.group(1)]
-    if match.group(2):
-        bits.append(match.group(2).lower())
-    if match.group(3):
-        bits.append(match.group(3).lower())
+    if match.group(2): bits.append(match.group(2).lower())
+    if match.group(3): bits.append(match.group(3).lower())
     return ".".join(bits)
 
 
@@ -227,9 +210,7 @@ def _clean_section_lines(lines: list[str]) -> str:
 
 
 def resolve_section_v4(
-    scheme: dict[str, Any],
-    pages: list[list[str]],
-    parsed: dict[str, dict[str, Any]],
+    scheme: dict[str, Any], pages: list[list[str]], parsed: dict[str, dict[str, Any]]
 ) -> dict[str, Any] | None:
     path = str(scheme.get("path") or "")
     expected = int(scheme.get("maxMarks") or 0)
@@ -242,29 +223,20 @@ def resolve_section_v4(
             match = _PRINTED_PATH_RE.match(raw)
             if not match or _path_from_prefix(match) != path:
                 continue
-
             block = [raw]
             for line in page[start + 1 :]:
                 next_match = _PRINTED_PATH_RE.match(line)
                 if next_match and _path_from_prefix(next_match) != path:
                     break
                 block.append(line)
-
-            mark_proved = False
-            for line in block:
-                stripped = line.rstrip()
-                mark_match = re.search(rf"\b{expected}\s*$", stripped)
-                if mark_match and mark_match.start() >= 60:
-                    mark_proved = True
-                    break
-            if not mark_proved:
+            if not any(
+                (m := re.search(rf"\b{expected}\s*$", line.rstrip())) and m.start() >= 60
+                for line in block
+            ):
                 continue
-
             return {
-                "page": page_no,
-                "marks": expected,
-                "text": _clean_section_lines(block),
-                "parserFallback": True,
+                "page": page_no, "marks": expected,
+                "text": _clean_section_lines(block), "parserFallback": True,
             }
     return current
 
@@ -288,34 +260,126 @@ def audit_source_v4(source: dict[str, Any], root: Path) -> tuple[list[dict[str, 
         audits.append(audit_scheme_v4(scheme, section, source))
 
     return audits, {
-        "key": key,
-        "schemes": len(audits),
+        "key": key, "schemes": len(audits),
         "verified": sum(1 for item in audits if item["result"] == "verified"),
         "needsReview": sum(1 for item in audits if item["result"] != "verified"),
-        "parsedSections": len(parsed),
-        "parserFallbacks": fallback_count,
+        "parsedSections": len(parsed), "parserFallbacks": fallback_count,
     }
 
 
 ORIGINAL_AUDIT_SCHEME.__globals__["supported"] = supported_v4
-BASE["audit_source"] = audit_source_v4
-BASE["main"].__globals__["audit_source"] = audit_source_v4
+
+
+def _source_failure_rows(source: dict[str, Any], exc: Exception) -> list[dict[str, Any]]:
+    detail = str(exc)[:500]
+    return [
+        {
+            "auditVersion": AUDIT_VERSION,
+            "markSchemeId": scheme["markSchemeId"],
+            "sourcePaperId": source["sourcePaperId"],
+            "sourceSha256": source["sourceSha256"],
+            "sourcePage": None,
+            "result": "needs_review",
+            "evidence": {
+                "strict": False,
+                "matcherVersion": MATCHER_VERSION,
+                "path": scheme.get("path"),
+                "rubricPhrasesChecked": 0,
+                "rubricPhrasesMatched": 0,
+                "reasons": [{"code": "source_audit_error", "detail": detail}],
+                "warnings": [],
+            },
+        }
+        for scheme in source.get("schemes") or []
+    ]
 
 
 def main() -> int:
-    rc = BASE["main"]()
-    if os.getenv("SOURCE_AUDIT_RECORD", "").strip().lower() in {"1", "true", "yes"}:
+    index = BASE["edge"]("source_audit_index", timeout=180)["data"]
+    if index.get("auditVersion") != AUDIT_VERSION:
+        raise RuntimeError("source_audit_index_version_mismatch")
+    if index.get("bootstrapVersion") != BOOTSTRAP_VERSION:
+        raise RuntimeError("source_audit_bootstrap_version_mismatch")
+
+    source_refs = list(index.get("sources") or [])
+    if len(source_refs) != int(index.get("sourceCount") or 0):
+        raise RuntimeError(f"source_index_count_mismatch:{len(source_refs)}:{index.get('sourceCount')}")
+
+    batch_size = max(1, min(8, int(os.getenv("SOURCE_AUDIT_SOURCE_BATCH_SIZE", "4"))))
+    all_audits: list[dict[str, Any]] = []
+    papers: list[dict[str, Any]] = []
+    source_failures: list[dict[str, str]] = []
+
+    with tempfile.TemporaryDirectory(prefix="ms-source-audit-v4-") as tmp:
+        root = Path(tmp)
+        for start in range(0, len(source_refs), batch_size):
+            requested = source_refs[start : start + batch_size]
+            requested_ids = [str(item["sourcePaperId"]) for item in requested]
+            payload = BASE["edge"](
+                "source_audit_batch", {"sourcePaperIds": requested_ids}, timeout=180
+            )["data"]
+            if payload.get("auditVersion") != AUDIT_VERSION or payload.get("bootstrapVersion") != BOOTSTRAP_VERSION:
+                raise RuntimeError("source_audit_batch_version_mismatch")
+            sources = list(payload.get("sources") or [])
+            returned_ids = [str(item.get("sourcePaperId")) for item in sources]
+            if set(returned_ids) != set(requested_ids) or len(returned_ids) != len(requested_ids):
+                raise RuntimeError(f"source_audit_batch_identity_mismatch:{requested_ids}:{returned_ids}")
+
+            for source in sources:
+                try:
+                    audits, summary = audit_source_v4(source, root)
+                    all_audits.extend(audits)
+                    papers.append(summary)
+                    print(json.dumps(summary, separators=(",", ":")))
+                except Exception as exc:
+                    key = f"{source.get('year')}-{source.get('series')}-{source.get('component')}{source.get('variant')}"
+                    source_failures.append({"key": key, "error": str(exc)[:1000]})
+                    all_audits.extend(_source_failure_rows(source, exc))
+
+    verified = sum(1 for item in all_audits if item["result"] == "verified")
+    needs_review = len(all_audits) - verified
+    recorded = 0
+    should_record = os.getenv("SOURCE_AUDIT_RECORD", "").strip().lower() in {"1", "true", "yes"}
+    if should_record:
+        recorded = BASE["record_batches"](all_audits)
+
+    report: dict[str, Any] = {
+        "auditVersion": AUDIT_VERSION,
+        "bootstrapVersion": BOOTSTRAP_VERSION,
+        "matcherVersion": MATCHER_VERSION,
+        "targetCount": int(index.get("targetCount") or 0),
+        "sourceCount": int(index.get("sourceCount") or 0),
+        "sourceBatchSize": batch_size,
+        "audited": len(all_audits),
+        "verified": verified,
+        "needsReview": needs_review,
+        "recorded": recorded,
+        "sourceFailures": source_failures,
+        "papers": papers,
+        "audits": all_audits,
+    }
+    output = Path(os.getenv("SOURCE_AUDIT_REPORT", "ms-source-audit-report.json"))
+    output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    if len(all_audits) != report["targetCount"]:
+        raise RuntimeError(f"audit_target_count_mismatch:{len(all_audits)}:{report['targetCount']}")
+    if should_record and recorded != len(all_audits):
+        raise RuntimeError(f"audit_record_count_mismatch:{recorded}:{len(all_audits)}")
+    if os.getenv("SOURCE_AUDIT_STRICT", "").strip().lower() in {"1", "true", "yes"} and source_failures:
+        raise RuntimeError(f"source_failures:{len(source_failures)}")
+
+    if should_record:
         promotion = BASE["edge"]("promote_verified", timeout=180).get("data")
         question_promotion = BASE["edge"]("promote_questions", timeout=180).get("data")
-        output = Path(os.getenv("SOURCE_AUDIT_REPORT", "ms-source-audit-report.json"))
-        if output.exists():
-            report = json.loads(output.read_text(encoding="utf-8"))
-            report["matcherVersion"] = MATCHER_VERSION
-            report["promotion"] = promotion
-            report["questionPromotion"] = question_promotion
-            output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        report["promotion"] = promotion
+        report["questionPromotion"] = question_promotion
+        output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(json.dumps({"promotion": promotion, "questionPromotion": question_promotion}, separators=(",", ":")))
-    return rc
+
+    print(json.dumps({key: report.get(key) for key in (
+        "targetCount", "sourceCount", "audited", "verified", "needsReview", "recorded"
+    )}, separators=(",", ":")))
+    return 0
 
 
 if __name__ == "__main__":
