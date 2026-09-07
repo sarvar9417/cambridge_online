@@ -31,13 +31,13 @@ that evidence is collected.
     "branch": "main",
     "evidence_base_sha": "ae2979e2022fdece09cf6fe639bc95cd71e5bce9",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0138_9618_ms_source_matcher_v5.sql",
+    "latest_migration": "0140_9618_ms_embedded_layout_repair_contract.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
       "note": "Do not infer a complete production corpus count from the checkpoint windows."
     },
-    "corpus_version": "2026 current-target compatibility + source matcher v5",
+    "corpus_version": "2026 current-target compatibility + source matcher v5 + guarded MS point repair v2",
     "expected_papers": null,
     "complete_papers": null,
     "policy_blocked": null,
@@ -87,7 +87,7 @@ that evidence is collected.
     }
   },
   "infrastructure": {
-    "database": "repository schema reaches migration 0138; production migration state requires runtime verification",
+    "database": "repository schema reaches migration 0140; production migration state requires runtime verification",
     "storage": "source/asset tooling exists; current durable-provider production state requires runtime verification",
     "worker": "corpus jobs and audit workflows exist; current production worker/provider state requires runtime verification",
     "deployment": "Vercel/Supabase were historically verified; current-main deployment requires fresh verification"
@@ -98,7 +98,7 @@ that evidence is collected.
     "docs/DATA-MASTER-PLAN.md",
     "docs/lesson-studio-v3-acceptance.md",
     "backend/package.json",
-    "backend/src/database/migrations/0138_9618_ms_source_matcher_v5.sql"
+    "backend/src/database/migrations/0140_9618_ms_embedded_layout_repair_contract.sql"
   ]
 }
 ```
@@ -137,7 +137,8 @@ The 2026 Lesson Studio compatibility release moved active lesson targets onto th
 2026-2028 objective set while preserving historical 2021-2025 9618 questions through
 explicit compatibility edges. Chapter 7 uses the same principle for historical 0478
 questions. Historical mark-scheme review has continued through deterministic source
-matcher v5 without relaxing source identity, rubric prose or promotion gates.
+matcher v5 and guarded exact-source point-repair passes without relaxing source identity,
+rubric prose or promotion gates.
 
 ## Acceptance state
 
