@@ -9,6 +9,8 @@ const normalize = (value: string) => value
   .toLowerCase()
   .replace(/[’‘]/g, "'")
   .replace(/[–—]/g, '-')
+  .replace(/\\"/g, '"')
+  .replace(/\\\\/g, '\\')
   .replace(/\s+/g, ' ')
   .trim();
 
@@ -31,6 +33,17 @@ const visibleSlideText = (slide: LessonSlide) => normalize(JSON.stringify({
   activity: slide.activity,
   richBlocks: slide.richBlocks,
 }));
+
+const wholeChapterVisibleText = (slides: LessonSlide[]) => normalize(JSON.stringify(slides.map((slide) => ({
+  title: slide.title,
+  lead: slide.lead,
+  bullets: slide.bullets,
+  keyTerms: slide.keyTerms,
+  formula: slide.formula,
+  example: slide.example,
+  activity: slide.activity,
+  richBlocks: slide.richBlocks,
+}))));
 
 describe('supplied PDF content is learner-visible, not only audit-visible', () => {
   for (const chapterNumber of [1, 13] as const) {
@@ -58,11 +71,19 @@ describe('supplied PDF content is learner-visible, not only audit-visible', () =
       const baseline = BOOK_COMPLETENESS_BASELINES[chapterNumber].keyTerms;
 
       for (const term of baseline) {
-        expect(termNames, `Missing learner-visible key term: ${term}`).toContain(normalize(term));
+        expect(termNames.has(normalize(term)), `Missing learner-visible key term: ${term}`).toBe(true);
         const item = terms.find((candidate) => normalize(candidate.term) === normalize(term));
         expect(item?.definition.trim().length, `Missing definition for ${term}`).toBeGreaterThan(0);
       }
       expect(termNames.size).toBeGreaterThanOrEqual(baseline.length);
+    });
+
+    it(`keeps every Chapter ${chapterNumber} semantic emphasis anchor learner-visible`, () => {
+      const chapter = lessonChapter(chapterNumber)!;
+      const visible = wholeChapterVisibleText(chapter.slides as LessonSlide[]);
+      for (const anchor of BOOK_COMPLETENESS_BASELINES[chapterNumber].semanticEmphasisAnchors) {
+        expect(visible, `Missing emphasised source concept: ${anchor}`).toContain(normalize(anchor));
+      }
     });
   }
 
@@ -87,6 +108,13 @@ describe('supplied PDF content is learner-visible, not only audit-visible', () =
       const actual = byName.get(normalize(expected.term));
       expect(actual, `Missing Chapter 7 key term ${expected.term}`).toBeTruthy();
       expect(normalize(actual!.definition)).toBe(normalize(expected.definition));
+    }
+  });
+
+  it('keeps every Chapter 7 semantic emphasis anchor learner-visible', () => {
+    const visible = wholeChapterVisibleText(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
+    for (const anchor of BOOK_COMPLETENESS_BASELINES[7].semanticEmphasisAnchors) {
+      expect(visible, `Missing Chapter 7 emphasised source concept: ${anchor}`).toContain(normalize(anchor));
     }
   });
 });
