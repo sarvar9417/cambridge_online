@@ -29,9 +29,9 @@ silently replace them with historical counts or assumptions.
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "d01de8fd9d06db46d9b939c3f0b9ff44b8c43159",
+    "evidence_base_sha": "26e3210052aa30f6a98308cfea46091083fe6ad7",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0142_security_function_search_path.sql",
+    "latest_migration": "0143_fk_workload_indexes.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -71,14 +71,14 @@ silently replace them with historical counts or assumptions.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "current_main": "merged PR #115 main SHA d01de8fd9d06db46d9b939c3f0b9ff44b8c43159 passed CI run 2505; security hardening candidate must pass its own final-SHA CI"
+      "current_main": "merged PR #116 main SHA 26e3210052aa30f6a98308cfea46091083fe6ad7 passed CI run 2514; FK performance candidate must pass its own final-SHA CI"
     },
     "ci": {
-      "latest_verified_merged_pr": 115,
-      "head_sha": "d01de8fd9d06db46d9b939c3f0b9ff44b8c43159",
-      "run_number": 2505,
+      "latest_verified_merged_pr": 116,
+      "head_sha": "26e3210052aa30f6a98308cfea46091083fe6ad7",
+      "run_number": 2514,
       "conclusion": "success",
-      "note": "PR #115 merged release hardening is green on main. Migration 0142 is a follow-up security-lint hardening candidate and must independently pass before merge."
+      "note": "PR #116 merged security search-path hardening is green on main. Migration 0143 is a workload-backed FK-index candidate and must independently pass before merge."
     },
     "lesson_studio": {
       "checked": 17,
@@ -90,10 +90,10 @@ silently replace them with historical counts or assumptions.
     }
   },
   "infrastructure": {
-    "database": "production Supabase is verified through migration 0140; migration 0142 pins three SECURITY INVOKER trigger-function search paths and is pending merge/application",
+    "database": "production Supabase has migration 0142 applied; the three mutable-search-path WARN findings are cleared. Migration 0143 is a workload-backed FK index candidate pending merge/application",
     "storage": "private question-assets bucket is live; production export audit verifies all 457 source-backed 9618 assets are renderable, while Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "current main CI is green, but Vercel has not deployed the merged release SHA because the Hobby project hit its build-rate limit; the serving production deployment remains older and reports database=ok, durableStorage=false"
+    "deployment": "current main CI is green, but Vercel has not deployed the merged release SHA; the serving production deployment remains older and reports database=ok, durableStorage=false"
   },
   "evidence_files": [
     "00-README.md",
@@ -102,6 +102,7 @@ silently replace them with historical counts or assumptions.
     "docs/lesson-studio-v3-acceptance.md",
     "backend/package.json",
     "backend/src/database/migrations/0142_security_function_search_path.sql",
+    "backend/src/database/migrations/0143_fk_workload_indexes.sql",
     "backend/src/database/audits/9618-current-release-state.sql",
     "backend/src/database/audits/9618-question-export-readiness.sql"
   ]
@@ -148,13 +149,13 @@ rubric prose or promotion gates.
 ## Acceptance state
 
 `docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. The merged
-release-hardening main SHA `d01de8fd9d06db46d9b939c3f0b9ff44b8c43159` passed full
-CI run **#2505**. The only remaining Lesson Studio item is a Vercel runtime verification
-on the release SHA.
+security-hardening main SHA `26e3210052aa30f6a98308cfea46091083fe6ad7` passed full
+CI run **#2514**. The only remaining Lesson Studio item is a Vercel runtime verification
+on a current release SHA.
 
-That runtime verification is currently blocked by the Vercel Hobby build-rate limit, not
-by GitHub CI. The serving production deployment is still an older SHA, so 18/18 is not
-claimed.
+The serving production deployment is still an older main SHA, so 18/18 is not claimed.
+Production `/api/v1/ready` is healthy for the database but still reports durable storage
+as unavailable.
 
 ## Corpus state rule
 
@@ -180,11 +181,23 @@ runtime credential remains an operational blocker.
 
 ## Security hardening state
 
-A production Supabase security-advisor review identified three trigger functions with a
-mutable caller-controlled `search_path`. Migration `0142_security_function_search_path.sql`
-pins those SECURITY INVOKER functions to `public, pg_temp`. The DDL and exact `proconfig`
-postcondition were transaction-tested against production and rolled back; production is
-not changed until the migration is reviewed, merged and applied.
+Migration `0142_security_function_search_path.sql` is merged and applied to production.
+The three trigger functions now have exact `search_path=public, pg_temp` configuration,
+and a fresh Supabase security-advisor check no longer reports any WARN-level
+`function_search_path_mutable` finding. Remaining RLS-without-policy notices are INFO-level
+and are not being converted into permissive policies because many of these relations are
+intentionally server/internal-only.
+
+## FK performance state
+
+A fresh production audit combined the Supabase performance advisor, relation statistics,
+and `pg_stat_statements` evidence. The immediate index set is deliberately limited to
+active high-value FK columns used by Question Bank/Lesson Studio asset probes, taxonomy
+joins, mark-scheme grouping, and source-audit/history joins. Low-value reviewer/actor FKs
+and empty or near-empty tables remain deferred until workload evidence justifies them.
+
+Migration `0143_fk_workload_indexes.sql` contains this prioritized set and a fail-closed
+postcondition. It must pass final-SHA CI before merge and production application.
 
 ## Required next release gates
 
