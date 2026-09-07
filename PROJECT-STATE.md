@@ -71,21 +71,20 @@ silently replace them with historical counts or assumptions.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "current_main": "latest merged PR #114 head passed CI; this release-hardening candidate must pass its own CI before acceptance is checked"
+      "current_main": "release-hardening candidate 4773ad49228ce39c7517e76011d7ecd336444586 passed CI run 2494; final state-sync commit must remain green"
     },
     "ci": {
       "latest_verified_merged_pr": 114,
-      "head_sha": "24db165465639b7dc16dcba6cf469bb3c2985f71",
-      "run_number": 2483,
+      "head_sha": "4773ad49228ce39c7517e76011d7ecd336444586",
+      "run_number": 2494,
       "conclusion": "success",
-      "note": "PR #114 was merged into main as a254658c01944286f281c9550aa7b5e61d95f0d7. The current hardening branch adds runtime release evidence and export-asset audit corrections and requires a fresh green candidate run."
+      "note": "PR #115 candidate passed npm run verify on SHA 4773ad49228ce39c7517e76011d7ecd336444586. The checklist now records that evidence; subsequent state-sync commits must also pass before merge."
     },
     "lesson_studio": {
-      "checked": 16,
+      "checked": 17,
       "total": 18,
-      "pending": 2,
+      "pending": 1,
       "pending_items": [
-        "CI npm run verify — must be green before merge.",
         "Vercel preview / production deployment — verify after CI."
       ]
     }
@@ -94,7 +93,7 @@ silently replace them with historical counts or assumptions.
     "database": "production Supabase has migration 0140 applied and the 2026 strict source-verified release gate passes 12/12 QP and 12/12 MS",
     "storage": "private question-assets bucket is live; 410/410 referenced storage-backed 9618 assets were found, but Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "release-hardening preview builds can become READY, but Preview /api/v1/ready currently reports database=missing because preview database variables are not configured; production readiness reports database=ok but durableStorage=false"
+    "deployment": "release-hardening preview builds can become READY, but Preview /api/v1/ready currently reports database=missing because preview database variables are not configured; production readiness reports database=ok but durableStorage=false; current Vercel build capacity/rate limiting can also delay new preview builds"
   },
   "evidence_files": [
     "00-README.md",
@@ -148,15 +147,15 @@ rubric prose or promotion gates.
 
 ## Acceptance state
 
-`docs/lesson-studio-v3-acceptance.md` currently contains **16/18 checked items**.
-The two remaining acceptance items are operational: a green candidate `npm run verify`
-and a release-SHA Vercel runtime smoke verification.
+`docs/lesson-studio-v3-acceptance.md` now contains **17/18 checked items**.
+Candidate SHA `4773ad49228ce39c7517e76011d7ecd336444586` passed full CI run **#2494**,
+so the CI acceptance item is backed by executable evidence. The only remaining checklist
+item is Vercel preview/production runtime verification.
 
-The latest explicitly verified merged PR evidence is now **PR #114 / CI run #2483:
-success**. This release-hardening branch is based on that merged state and adds current
-production corpus evidence, export-asset readiness corrections, documentation alignment
-and regression tests. Its own CI result must still be green before the checklist item can
-be marked complete.
+The latest explicitly verified merged-PR evidence remains **PR #114 / CI run #2483:
+success**. PR #115 is the release-hardening candidate. Any commits made after the recorded
+#2494 SHA still need a green run before merge; the prior run is evidence for the checklist,
+not permission to ignore final-SHA CI.
 
 ## Corpus state rule
 
@@ -185,8 +184,8 @@ runtime credential remains an operational blocker.
 
 A release candidate should not be declared until all of the following are true:
 
-- `npm run project:state:check` passes.
-- `npm run verify` passes on the release SHA.
+- `npm run project:state:check` passes on the final SHA.
+- `npm run verify` passes on the final SHA.
 - Lesson Studio acceptance reaches 18/18, or any intentionally waived item is documented.
 - Vercel preview or production smoke verification succeeds on the release SHA with the
   required database environment available.
