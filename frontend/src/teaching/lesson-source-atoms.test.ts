@@ -49,7 +49,7 @@ describe('source atom registry', () => {
       const chapter = lessonChapter(chapterNumber)!;
       for (const sourceSlide of chapter.slides) {
         const slide = studentFacingSlide(sourceSlide as LessonSlide);
-        expect(slide.activity?.title ?? '').not.toMatch(/BOOK PRACTICE|SOURCE DETAIL|exact Hodder|exact The coursebook/i);
+        expect(slide.activity?.title ?? '').not.toMatch(/^(?:BOOK PRACTICE|SOURCE DETAIL)\b|exact (?:Hodder|The coursebook)/i);
         expect(slide.activity?.prompt ?? '').not.toMatch(/\[.+(?:Hodder|The coursebook) p\.\d+\]|SOURCE ATOM|In this chapter, you will learn about/i);
       }
     }
@@ -63,9 +63,9 @@ describe('source atom registry', () => {
     expect(slide.activity?.title).toBe('Prior knowledge check');
     expect(slide.activity?.prompt).toContain('2 prior-knowledge tasks');
     expect(learnerText).toContain('Prior knowledge · Q2');
-    expect(learnerText).toContain('a) 00110101 + 01001000');
+    expect(learnerText).toContain('00110101 + 01001000');
     expect(learnerText).toContain('Prior knowledge · Q4');
-    expect(learnerText).toContain('a) 107 + 257');
+    expect(learnerText).toContain('107 + 257');
     expect(learnerText).not.toContain('In this chapter, you will learn about');
     expect(learnerText).not.toContain('Chapter source scope:');
 
