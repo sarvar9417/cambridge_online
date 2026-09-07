@@ -1,8 +1,8 @@
+import { bookCompletenessAudit } from './book-completeness-audit';
+
 let scheduled=false;
 let teardown:VoidFunction|null=null;
 let consumers=0;
-
-const sourcePages:Record<number,number>={1:26,7:41,13:24};
 
 function chapterNumber(studio:Element){
   const value=studio.querySelector('.lesson-toolbar-title span')?.textContent??'';
@@ -29,17 +29,25 @@ function ensureSourceBadge(studio:HTMLElement){
   const actions=studio.querySelector('.lesson-toolbar-actions');
   if(!actions)return;
   const chapter=chapterNumber(studio);
-  const pages=sourcePages[chapter];
-  if(!pages)return;
+  const audit=bookCompletenessAudit(chapter);
+  if(!audit)return;
   let badge=actions.querySelector<HTMLElement>('.lesson-source-complete-badge');
   if(!badge){
     badge=document.createElement('span');
     badge.className='lesson-source-complete-badge';
     actions.insertBefore(badge,actions.firstChild);
   }
-  const text=`${pages}/${pages} supplied PDF pages audited`;
+  const text=audit.complete
+    ? `${audit.checksCovered}/${audit.checksExpected} book completeness checks`
+    : `Book audit ${audit.checksCovered}/${audit.checksExpected}`;
   if(badge.textContent!==text)badge.textContent=text;
-  const title='Every supplied source page is pinned by the lesson source-fidelity contract.';
+  badge.dataset.complete=String(audit.complete);
+  const missing=Object.entries(audit.categories)
+    .filter(([,result])=>!result.complete)
+    .map(([category,result])=>`${category}: ${result.missing.join('; ')}`);
+  const title=audit.complete
+    ? 'Source Complete: exact supplied-PDF pages, objectives/prior knowledge, key terms, semantic emphasis, examples, activities, extensions, figures, tables, sidebars/links, pseudocode, chapter review and Cambridge checkpoints all pass the formal book audit.'
+    : `Source Complete is blocked. Missing book evidence: ${missing.join(' | ')}`;
   if(badge.title!==title)badge.title=title;
 }
 

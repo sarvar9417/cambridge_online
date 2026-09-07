@@ -4,10 +4,10 @@
 > [`../PROJECT-STATE.md`](../PROJECT-STATE.md). This checklist remains the detailed
 > acceptance evidence consumed by `npm run project:state:check`.
 
-- [x] Exact supplied-PDF source coverage remains enforced for 9618 Chapter 1 (26/26), 9618 Chapter 13 (24/24) and 0478 Chapter 7 (41/41).
-- [x] Existing examples, activities, tables, figures, keywords and source diagnostics remain in presenter data.
+- [x] Exact supplied-PDF source coverage plus the formal Book Completeness Audit remains enforced for 9618 Chapter 1 (26/26), 9618 Chapter 13 (24/24) and 0478 Chapter 7 (41/41); `Source Complete` is blocked if any audited category is incomplete.
+- [x] Existing chapter objectives/prior knowledge, formal key terms, semantic/emphasised concepts, definitions, worked examples, activities, extension activities, figures, tables, source sidebars/`Find out more`/`Link` material where present, pseudocode/code evidence, chapter review and source diagnostics remain represented in presenter/source evidence; Cambridge Exam Lens enrichment is additive and separately checked.
 - [x] Every Chapter 7 subtopic 7.1–7.9 retains an explicit Cambridge past-paper checkpoint.
-- [x] 9618 checkpoints remain exact-LO and 2021–2025 scoped.
+- [x] 9618 checkpoints remain current-target/exact-compatibility mapped and 2021–2026 scoped.
 - [x] 0478 checkpoints remain explicit historical/current-LO mappings and do not substitute loosely related questions.
 - [x] Exam checkpoint slides include a concise exam-focus teaching layer, separate from source-book content.
 - [x] Past-paper opening resolves the exact Cambridge display reference, avoiding an implicit syllabus fallback.
@@ -19,6 +19,6 @@
 - [x] Accept/reject/requires/BOD details are retained in the teacher scheme workspace where present.
 - [x] Existing progressive mark-point reveal, Student/Teacher view and Projector controls remain compatible.
 - [x] Long source-complete lessons use a compact board-friendly slide scrubber rather than relying on dozens of tiny dots.
-- [x] Presenter toolbar shows the exact supplied-PDF page audit count for the active chapter.
+- [x] Presenter toolbar shows the formal Book Completeness Audit result for the active chapter rather than treating page count alone as proof of completeness.
 - [x] CI `npm run verify` — merged main SHA `0f02491cfc3cbdffbde434848e1812031d3ee0c9`, CI run #2530: success; production migration ledger reconciled through repository migration 0143 with fresh release/export audits green.
 - [ ] Vercel preview / production deployment — verify after CI.
