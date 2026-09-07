@@ -18,6 +18,7 @@ proved by the official source.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -40,7 +41,7 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+", re.I)
 _SHORT_NUMBER_RE = re.compile(r"^-?\d{2,}$")
 _BINARY_RE = re.compile(r"^[01]{4,}$")
 _PRINTED_PATH_RE = re.compile(
-    r"^\s*(\d{1,2})(?:\s*\(([a-z])\))?(?:\s*\(([ivx]+)\))?\b",
+    r"^\s*(\d{1,2})(?:\s*\(([a-z])\))?(?:\s*\(([ivx]+)\))?(?=\s|$)",
     re.I,
 )
 _GENERIC_GROUP_WORDS = {
@@ -73,7 +74,6 @@ def _contiguous_token_proof(candidate: str, source_text: str) -> bool:
 def _binary_source_proof(candidate: str, source_text: str) -> bool:
     if not _BINARY_RE.fullmatch(candidate):
         return False
-    # Only collapse whitespace between binary digits; punctuation/letters stop a run.
     collapsed = re.sub(r"(?<=[01])\s+(?=[01])", "", str(source_text))
     return re.search(rf"(?<![01]){re.escape(candidate)}(?![01])", collapsed) is not None
 
@@ -91,8 +91,6 @@ def supported_v4(phrase: object, source_text: str) -> tuple[bool, str]:
     if _binary_source_proof(key, source_text):
         return True, key
 
-    # Exact lexical order after punctuation/layout removal. This is not fuzzy:
-    # every alphanumeric token must be identical and contiguous in the source.
     if _contiguous_token_proof(key, source_text):
         return True, key
 
@@ -141,8 +139,6 @@ def _group_reason_is_internal(scheme: dict[str, Any], source_text: str, detail: 
     if group is None:
         return False
 
-    # Group labels are canonical graph metadata, not Cambridge grading prose.
-    # For a capped pool, however, the cap itself must still be printed in source.
     if str(scheme.get("schemeType")) == "any_n_from_m":
         required = int(group.get("nRequired") or 0)
         max_marks = int(group.get("maxMarks") or 0)
@@ -171,8 +167,6 @@ def _recalculate_result(result: dict[str, Any], recovered_group_count: int) -> d
         )
     reasons = list(evidence.get("reasons") or [])
 
-    # A legacy confidence heuristic can be superseded only by a fresh exact-source
-    # audit in which all grading phrases and every other gate are clean.
     non_confidence = [reason for reason in reasons if reason.get("code") != "low_extract_confidence"]
     checked = int(evidence.get("rubricPhrasesChecked") or 0)
     matched = int(evidence.get("rubricPhrasesMatched") or 0)
@@ -256,9 +250,6 @@ def resolve_section_v4(
                     break
                 block.append(line)
 
-            # The Cambridge Marks column is right-aligned. Do not infer marks from
-            # arbitrary digits in prose/code; require the expected value at EOL in
-            # the right-hand column of at least one raw layout line.
             mark_proved = False
             for line in block:
                 stripped = line.rstrip()
@@ -282,7 +273,6 @@ def audit_source_v4(source: dict[str, Any], root: Path) -> tuple[list[dict[str, 
     key = f"{source['year']}-{source['series']}-{source['component']}{source['variant']}"
     pdf = root / f"9618-ms-{key}.pdf"
     BASE["download"](str(source["sourceUrl"]), pdf)
-    import hashlib
     actual_sha = hashlib.sha256(pdf.read_bytes()).hexdigest()
     if actual_sha != str(source["sourceSha256"]):
         raise RuntimeError(f"source_sha_mismatch:{actual_sha}:{source['sourceSha256']}")
@@ -307,9 +297,6 @@ def audit_source_v4(source: dict[str, Any], root: Path) -> tuple[list[dict[str, 
     }
 
 
-# V3 ultimately delegates source audit/main bookkeeping into the V2 globals.
-# Patch only deterministic source matching and section resolution; DB recording
-# and target-count reconciliation remain unchanged.
 ORIGINAL_AUDIT_SCHEME.__globals__["supported"] = supported_v4
 BASE["audit_source"] = audit_source_v4
 BASE["main"].__globals__["audit_source"] = audit_source_v4
