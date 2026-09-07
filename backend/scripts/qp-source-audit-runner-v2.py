@@ -45,7 +45,11 @@ def main_candidate_current(raw: str, expected_number: int):
     if indent <= 12:
         pass
     elif 24 <= indent <= 42:
-        if len(rest) < 18 or len(rest.split()) < 4:
+        # Cambridge 9618/23 Q1 is a genuine deeply-indented short heading:
+        # "Study the pseudocode." Keep the same source-safe gate as the 2026
+        # ingestion parser: sequential expected number + alphabetic phrase,
+        # while still rejecting short numeric/table data rows such as "4 Wasp".
+        if len(rest) < 8 or len(rest.split()) < 2:
             return None
     else:
         return None
