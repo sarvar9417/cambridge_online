@@ -48,11 +48,12 @@ describe('historical 9618 MS source matcher v4',()=>{
     expect(matcher).not.toContain('rapidfuzz');
   });
 
-  it('routes production through matcher v4 and its guarded promotion RPC',()=>{
-    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v4')");
+  it('keeps the v4 source contract available while production advances to a stricter successor',()=>{
     expect(edge).toContain("rpc('ms_source_audit_record_v2'");
+    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v5')");
     expect(workflow).toContain('scripts.test_ms_source_audit_v4');
-    expect(workflow).toContain('backend/scripts/ms-source-audit-runner-v4.py');
+    expect(workflow).toContain('scripts.test_ms_source_audit_v5');
+    expect(workflow).toContain('backend/scripts/ms-source-audit-runner-v5.py');
     expect(workflow).toContain("branches: [main]");
     expect(workflow).toContain("'.9618-ms-source-audit-apply'");
   });
