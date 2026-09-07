@@ -1,0 +1,2 @@
+Run the strict historical Cambridge 9618 mark-scheme source audit after migration 0134 and ms-source-audit-runner v4.
+Expected bootstrap at trigger time: 1,755 review targets across 99 official 2021-2025 MS PDFs.
