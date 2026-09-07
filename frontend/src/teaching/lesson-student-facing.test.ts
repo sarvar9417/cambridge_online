@@ -100,7 +100,9 @@ describe('student-facing lesson projection',()=>{
     expect(studio).toContain('1 · Attempt independently');
     expect(studio).toContain('3 · Check the mark scheme');
     expect(entry).toContain("import './lesson-exam-workspace-v3';");
-    expect(entry).toContain("import './lesson-question-workspace-controls';");
+    expect(entry).toContain("import { installLessonQuestionWorkspaceControls } from './lesson-question-workspace-controls';");
+    expect(entry).toContain('installLessonQuestionWorkspaceControls()');
+    expect(entry).not.toContain("import './lesson-question-workspace-controls';");
     expect(css).toContain('.lesson-exam-technical');
     expect(css).toContain('.lesson-toolbar .lesson-teacher-evidence');
     expect(chapter7).toContain('THINK / EXPLAIN');

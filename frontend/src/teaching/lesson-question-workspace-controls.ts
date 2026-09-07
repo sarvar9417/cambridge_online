@@ -1,7 +1,8 @@
 type WorkspaceAudience = 'student' | 'teacher';
 
 let preferredAudience: WorkspaceAudience = 'student';
-let installed = false;
+let installCount = 0;
+let observer: MutationObserver | null = null;
 let scanScheduled = false;
 
 function createButton(className: string, text: string) {
@@ -199,13 +200,24 @@ function scheduleScan() {
 }
 
 export function installLessonQuestionWorkspaceControls() {
-  if (installed || typeof document === 'undefined') return;
-  installed = true;
-  scan();
+  if (typeof document === 'undefined') return () => {};
+  installCount += 1;
+  if (installCount === 1) {
+    scan();
+    observer = new MutationObserver(scheduleScan);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('fullscreenchange', updateProjectorLabels);
+  }
 
-  const observer = new MutationObserver(scheduleScan);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-  document.addEventListener('fullscreenchange', updateProjectorLabels);
+  let cleaned = false;
+  return () => {
+    if (cleaned) return;
+    cleaned = true;
+    installCount = Math.max(0, installCount - 1);
+    if (installCount !== 0) return;
+    observer?.disconnect();
+    observer = null;
+    scanScheduled = false;
+    document.removeEventListener('fullscreenchange', updateProjectorLabels);
+  };
 }
-
-installLessonQuestionWorkspaceControls();
