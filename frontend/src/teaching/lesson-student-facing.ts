@@ -1,10 +1,15 @@
 import type { LessonRichBlock, LessonSlide } from './lesson-content-source-complete';
 
 export const TEACHER_DIRECTIVE_PATTERN = /\b(?:ask learners|ask students|ask the class|invite a student|invite learners|tell learners|have learners|show learners|before teaching|teacher prompt|teacher activity)\b/i;
+export const AUTHORING_META_PATTERN = /\b(?:Hodder (?:opens|begins|teaches|uses|asks|compares|first establishes)|source-atom-complete|source-audited|historical LO|learning objective codes|approved .* leaves explicitly mapped)\b/i;
 
 function capitalise(value:string){
   const text=value.trim();
   return text ? text[0]!.toUpperCase()+text.slice(1) : text;
+}
+
+function stripTerminalPeriod(value:string){
+  return value.trim().replace(/\.+$/,'');
 }
 
 function unwrapPromptQuotes(value:string){
@@ -35,6 +40,26 @@ export function studentFacingText(value:string){
   }
   if(/^guided discovery first, then a source-atom-complete Chapter 7/i.test(text)){
     return 'Discover how a problem becomes a working program, then learn the formal Cambridge terms through examples, design tasks and past-paper practice.';
+  }
+
+  const diagnostic=text.match(/^Hodder opens with a diagnostic on (.+)$/i);
+  if(diagnostic)return `Before you start, check your understanding of ${stripTerminalPeriod(diagnostic[1]!)}.`;
+
+  const priorCheck=text.match(/^Hodder begins by checking whether learners can (.+)$/i);
+  if(priorCheck)return `Before you start, check that you can ${stripTerminalPeriod(priorCheck[1]!)}.`;
+
+  const teaches=text.match(/^Hodder teaches (.+)$/i);
+  if(teaches)return `Learn ${stripTerminalPeriod(teaches[1]!)}.`;
+
+  const usesToShow=text.match(/^Hodder uses (.+?) to show (.+)$/i);
+  if(usesToShow)return `Use ${usesToShow[1]!.trim()} to understand ${stripTerminalPeriod(usesToShow[2]!)}.`;
+
+  const firstEstablishes=text.match(/^Hodder first establishes (.+)$/i);
+  if(firstEstablishes)return `Start with this idea: ${stripTerminalPeriod(firstEstablishes[1]!)}.`;
+
+  const compares=text.match(/^Hodder compares (.+)$/i);
+  if(compares){
+    text=`Compare ${stripTerminalPeriod(compares[1]!)}.`;
   }
 
   text=text.replace(/^CAMBRIDGE CHECKPOINT\b/i,'CAMBRIDGE PAST-PAPER PRACTICE');
@@ -77,7 +102,10 @@ export function studentFacingText(value:string){
   }
 
   text=capitalise(text);
-  if(/^(?:Why|How|What)\b/i.test(text)&&!/[?!]$/.test(text))text+='?';
+  if(/^(?:Why|How|What)\b/i.test(text)){
+    text=stripTerminalPeriod(text);
+    if(!/[?!]$/.test(text))text+='?';
+  }
   return text;
 }
 
