@@ -2,7 +2,7 @@
 
 Updated: 2026-09-07
 
-This plan turns the risks found in the current project review into small, evidence-backed changes. It deliberately avoids a large rewrite. Each stage must leave `main` deployable and must pass `npm run verify` before merge.
+This plan turns the risks found in the current project review into small, evidence-backed changes. It deliberately avoids a large rewrite. Each application-code stage leaves `main` deployable and passes `npm run verify` before it is treated as complete.
 
 ## Priority order
 
@@ -20,7 +20,7 @@ Required repository setting for `main`:
 
 Evidence condition: GitHub reports `main` as protected/ruleset-covered with required status checks enabled.
 
-Status: **blocked on GitHub repository-administration capability**. Issue #124 tracks the exact repository setting and acceptance evidence. The connected repository interface can read rulesets/protection state but cannot create or update them. No documentation or workflow-only substitute is accepted as a fake fix.
+Status: **externally blocked on GitHub repository-administration capability**. Issue #124 tracks the exact repository setting and acceptance evidence. The connected repository interface can read rulesets/protection state but cannot create or update them. No documentation or workflow-only substitute is accepted as a fake fix.
 
 ### P0 — Canonical closed-loop regression
 
@@ -40,9 +40,9 @@ Question selection
   -> mastery evidence
 ```
 
-The regression must prove that the same source question identity remains traceable through the whole HTTP handoff. Repository/service unit tests remain responsible for SQL and authorization details; this test protects the inter-domain contract.
+The regression proves that the same source question identity remains traceable through the whole HTTP handoff. Repository/service unit tests remain responsible for SQL and authorization details; this test protects the inter-domain contract.
 
-Status: **complete**. PR #122 merged `backend/src/release-learning-loop.integration.test.ts`; merged main SHA `653e4aedef652c644353879bc6e66f1fc3e2b53f` passed CI #2553. The regression remains part of root `npm run verify`.
+Status: **complete**. PR #122 merged `backend/src/release-learning-loop.integration.test.ts`; the regression remains part of root `npm run verify` and is included in the final application hardening verification on main CI #2673.
 
 ### P1 — Canonical state evidence cannot be mislabeled as current head
 
@@ -56,9 +56,9 @@ Implemented contract:
 4. keep live database/deployment facts manual and timestamped — never manufacture runtime evidence from Git history;
 5. state clearly that GitHub is authoritative for the live current branch head.
 
-Status: **complete**. PR #123 merged the schema-v2 evidence semantics and fail-closed checker. Its merged main SHA `adb622b1d8eae8ff69e38826b95083801fb0e2a3` passed CI #2566.
+Status: **complete**. PR #123 merged the schema-v2 evidence semantics and fail-closed checker. The checker remains green in final main CI #2673.
 
-Acceptance rule: an older verified SHA may remain recorded after a later merge, but it must be labeled as last verified evidence and can never be presented as the live current head.
+Acceptance rule: an older verified SHA may remain recorded after a later documentation-only merge, but it must be labeled as last verified evidence and can never be presented as the live current head.
 
 ### P1 — Data Master Plan v2 alignment
 
@@ -72,46 +72,55 @@ Implemented contract:
 4. point current counts to executable audits/`PROJECT-STATE.md` rather than hard-coded historical totals;
 5. keep source hierarchy, leaf-question, dependency and fail-closed rules unchanged.
 
-Status: **complete**. PR #125 aligned `docs/DATA-MASTER-PLAN.md`; merged main SHA `bc593689ea3c5a6d3dcdd342266b4b11f0fc27b5` passed CI #2573.
-
-Acceptance: the plan now explicitly separates historical/source-backed inventory from the strict current-target release gate and preserves original source identity across reviewed compatibility mappings.
+Status: **complete**. PR #125 aligned `docs/DATA-MASTER-PLAN.md`; the strict current-target versus historical/source-backed distinction remains part of the canonical project-state contract.
 
 ### P2 — `App.tsx` incremental modularization
 
 Goal: reduce global-component coupling without changing routing, API contracts or UX.
 
-First extraction candidates:
+Completed extractions:
 
-- session/bootstrap and auth-expiry state;
-- student attempt timer + heartbeat;
-- offline answer queue synchronization;
-- staff export polling.
+- **PR #130** — offline answer synchronization moved into `useOfflineAnswerSync`;
+- **PR #131** — student attempt countdown + heartbeat lifecycle moved into `useAttemptTiming`;
+- **PR #132** — queued/running staff export polling moved into `useStaffExportPolling`;
+- **PR #134** — startup refresh + auth-expiry subscription moved into `useSessionLifecycle`.
 
-Rules:
+Rules preserved throughout:
 
 - no router rewrite;
 - no new state-management framework;
-- one behavior extraction per PR;
-- preserve existing tests and add focused hook/helper tests where useful.
+- behavior moved in small PRs;
+- existing API/route/UX contracts retained;
+- focused regression tests added for each extracted lifecycle.
 
-Status: **in progress**. Offline answer synchronization is the first selected extraction because it has a narrow browser-event/API boundary and existing queue-level regression coverage. It is not counted complete until `App.tsx` is actually simplified and the final integration PR passes `npm run verify`.
-
-Acceptance: `App.tsx` loses orchestration detail while behavior and routes remain unchanged.
+Status: **complete for the scoped hardening plan**. The final application-hardening main SHA `f3011e88bd3cd7fc59d11346815e306e2a2cd11f` passed CI **#2673**. `App.tsx` still owns product-level orchestration by design, but the four browser/session lifecycles identified by the review no longer live as global component effects.
 
 ### P2 — Lesson Studio side-effect cleanup
 
-Goal: reduce dependence on DOM installers and patch-style side-effect modules.
+Goal: reduce dependence on import-time DOM installers and bind global observers/listeners to a React owner.
 
-Steps:
+Completed lifecycle conversions:
 
-1. inventory each `lesson-*` side-effect import and classify it as CSS-only, DOM behavior, or compatibility shim;
-2. move one DOM behavior at a time into explicit React-owned lifecycle;
-3. preserve current source-complete rendering and student-facing acceptance contracts;
-4. delete a shim only after its replacement has executable regression coverage.
+1. **PR #126** — professional navigation controls moved from import-time installation to React-owned install/cleanup;
+2. **PR #133** — question-workspace audience/projector controls moved to an explicit reference-counted lifecycle;
+3. **PR #137** — the remaining audited import-time `lesson-exam-workspace-v3` and `lesson-exam-insights` MutationObservers became side-effect-free imports with explicit reference-counted cleanup owned by `LessonStudio`.
 
-Status: **in progress with first behavior complete**. PR #126 removed import-time auto-installation for `lesson-studio-professional-controls`, bound it to the React Lesson Studio lifecycle, added reference-counted cleanup for global observers/fullscreen listeners, and extended the existing regression for cleanup/remount behavior. Merged main SHA `45557d6be21d52786531db1b8dc5ae383d9f80ac` passed CI #2576. Other DOM enhancers remain intentionally unchanged until handled in separate evidence-backed PRs.
+Regression coverage now proves import-without-effects, install, cleanup, idempotent release and reinstall behavior while preserving source-complete rendering, exact question resolution, mark-scheme trust/reveal behavior and the formal Book Completeness Audit.
 
-Acceptance: fewer imperative import-time installers with no visual/source-fidelity regression.
+Status: **complete for the inventoried import-time installer risk**. PR #137 merged as main SHA `f3011e88bd3cd7fc59d11346815e306e2a2cd11f`; main CI **#2673** completed successfully.
+
+### P1 — Vercel durable question-asset storage
+
+Goal: ensure the production serverless runtime can access durable private source assets for runtime rendering/export rather than relying only on database/storage audits performed outside that runtime.
+
+Status: **externally blocked on Vercel environment configuration** and tracked in issue #135. Fresh production readiness still returns `status=ok`, `database=ok`, but `capabilities.durableStorage=false`. The code and production storage inventory are source-safe/fail-closed; the missing Vercel runtime credential/configuration must not be hidden by making the private bucket public.
+
+Acceptance evidence for issue #135:
+
+- intended production deployment is READY;
+- `GET /api/v1/ready` returns `capabilities.durableStorage=true`;
+- a private source-backed asset can be rendered/exported through the application runtime;
+- no storage secret is committed to Git or exposed to the browser.
 
 ## Definition of green
 
@@ -121,6 +130,6 @@ A risk becomes green only when the relevant evidence exists:
 - executable test for behavior risks;
 - production/runtime audit for live-data risks;
 - canonical documentation plus checker for state/documentation risks;
-- green `npm run verify` on the final PR SHA.
+- green `npm run verify` on the final code SHA.
 
-Vercel deployment/runtime remains a separate external release gate and is not counted as completed by any of the work above.
+As of the final code-hardening merge, **application-code risks in this plan are green**. Two infrastructure-admin gates remain deliberately non-green rather than being papered over: GitHub branch protection (#124) and Vercel durable runtime storage (#135). Vercel release-SHA deployment/smoke evidence is also recorded separately in `PROJECT-STATE.md` and the Lesson Studio acceptance checklist.
