@@ -55,7 +55,7 @@ const practiceParts = (atom: LessonSourceAtom) => {
 };
 
 const taskItemsNeedCodeLayout = (items: string[]) =>
-  items.some((line) => /←|^\s*(?:DECLARE|TYPE|FOR|NEXT|OUTPUT|INPUT|IF|ELSE|ENDIF|ENDFOR|WHILE|ENDWHILE)\b/i.test(line));
+  items.some((line) => /←|^\s*(?:DECLARE|TYPE|FOR|NEXT|OUTPUT|INPUT|IF|ELSE|ENDIF|ENDFOR|WHILE|ENDWHILE|REPEAT|UNTIL|CASE|ENDCASE|PROCEDURE|FUNCTION|RETURN)\b/i.test(line));
 
 const boardPracticeBlocks = (atoms: LessonSourceAtom[]): LessonRichBlock[] =>
   atoms.filter(isBoardPracticeAtom).flatMap((atom) => {
@@ -77,6 +77,42 @@ const boardPracticeBlocks = (atoms: LessonSourceAtom[]): LessonRichBlock[] =>
     return blocks;
   });
 
+const sourceKindLabel = (atom: LessonSourceAtom) => {
+  if (atom.kind === 'example') return 'WORKED SOURCE EXAMPLE';
+  if (atom.kind === 'table') return 'COURSEBOOK TABLE';
+  if (atom.kind === 'figure') return 'COURSEBOOK FIGURE';
+  if (atom.kind === 'extension') return 'EXTENSION DETAIL';
+  return 'COURSEBOOK DETAIL';
+};
+
+/**
+ * The earlier source-complete layer pinned non-task atoms only as hidden
+ * evidence. That satisfied audit coverage but did not satisfy the classroom
+ * requirement: learners could still miss definitions, table values, worked
+ * constants, figure relationships and source-only nuances. Every non-practice
+ * source atom is now projected into the lesson itself.
+ */
+const boardKnowledgeBlocks = (atoms: LessonSourceAtom[]): LessonRichBlock[] =>
+  atoms.filter((atom) => !isBoardPracticeAtom(atom)).flatMap((atom) => {
+    const lines = atom.needles.map((line) => stripPrintedHeading(atom, line)).filter(Boolean);
+    if (!lines.length) return [];
+    const [first, ...rest] = lines;
+    const blocks: LessonRichBlock[] = [
+      {
+        kind: 'callout',
+        tone: atom.kind === 'extension' ? 'extension' : 'info',
+        title: `${sourceKindLabel(atom)} · ${atom.sourceRef}`,
+        text: first!,
+      },
+    ];
+    if (rest.length) {
+      blocks.push(taskItemsNeedCodeLayout(rest)
+        ? { kind: 'code', title: atom.kind === 'example' ? 'Worked steps / source code' : 'Source code / notation', lines: rest }
+        : { kind: 'bullets', items: rest });
+    }
+    return blocks;
+  });
+
 const sourceAtomEvidence = (atoms: LessonSourceAtom[]): LessonSourceAtomEvidence[] =>
   atoms.map((atom) => ({
     id: atom.id,
@@ -85,6 +121,38 @@ const sourceAtomEvidence = (atoms: LessonSourceAtom[]): LessonSourceAtomEvidence
     sourceRef: atom.sourceRef,
     lines: [...atom.needles],
   }));
+
+const sourceKeyTerms = (atoms: LessonSourceAtom[]) => {
+  const terms = atoms
+    .filter((atom) => /key terms/i.test(atom.sourceRef))
+    .flatMap((atom) => atom.needles)
+    .map((line) => line.match(/^(.+?)\s+[–—-]\s+(.+)$/))
+    .filter((match): match is RegExpMatchArray => Boolean(match?.[1] && match?.[2]))
+    .map((match) => ({ term: match[1]!.trim(), definition: match[2]!.trim() }));
+  const seen = new Set<string>();
+  return terms.filter((item) => {
+    const key = item.term.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const mergeKeyTerms = (
+  existing: HodderLessonSlide['keyTerms'],
+  source: ReturnType<typeof sourceKeyTerms>,
+): HodderLessonSlide['keyTerms'] => {
+  const result = [...(existing ?? [])];
+  const seen = new Set(result.map((item) => item.term.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()));
+  for (const item of source) {
+    const key = item.term.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!seen.has(key)) {
+      result.push(item);
+      seen.add(key);
+    }
+  }
+  return result.length ? result : undefined;
+};
 
 const learnerActivity = (
   slide: HodderLessonSlide,
@@ -115,7 +183,9 @@ const enrichSlide = (slide: HodderLessonSlide): HodderLessonSlide => {
   const atoms = sourceAtomsForSlide(slide.id);
   if (!atoms.length) return slide;
   const practiceAtoms = atoms.filter(isBoardPracticeAtom);
+  const visibleKnowledge = boardKnowledgeBlocks(atoms);
   const visiblePractice = boardPracticeBlocks(practiceAtoms);
+  const visibleBlocks = [...visibleKnowledge, ...visiblePractice];
   return {
     ...slide,
     sourceElements: [
@@ -126,8 +196,9 @@ const enrichSlide = (slide: HodderLessonSlide): HodderLessonSlide => {
       ...(slide.sourceAtomEvidence ?? []),
       ...sourceAtomEvidence(atoms),
     ],
-    richBlocks: visiblePractice.length
-      ? [...(slide.richBlocks ?? []), ...visiblePractice]
+    keyTerms: mergeKeyTerms(slide.keyTerms, sourceKeyTerms(atoms)),
+    richBlocks: visibleBlocks.length
+      ? [...(slide.richBlocks ?? []), ...visibleBlocks]
       : slide.richBlocks,
     activity: learnerActivity(slide, practiceAtoms),
   };
@@ -137,9 +208,11 @@ const enrichChapter = (chapter: HodderLessonChapter): HodderLessonChapter => {
   const atoms = sourceAtomsForChapter(chapter.number);
   const pages = new Set(atoms.map((item) => item.page));
   const boardPracticeCount = atoms.filter(isBoardPracticeAtom).length;
+  const boardKnowledgeCount = atoms.length - boardPracticeCount;
+  const formalKeyTermCount = sourceKeyTerms(atoms).length;
   return {
     ...chapter,
-    coverage: `${chapter.coverage} · ${atoms.length}/${atoms.length} source atoms pinned · ${pages.size}/${chapter.number === 1 ? 26 : 24} atom-audited pages · ${boardPracticeCount}/${boardPracticeCount} source tasks board-visible`,
+    coverage: `${chapter.coverage} · ${atoms.length}/${atoms.length} source atoms pinned · ${pages.size}/${chapter.number === 1 ? 26 : 24} atom-audited pages · ${boardKnowledgeCount}/${boardKnowledgeCount} source teaching atoms board-visible · ${boardPracticeCount}/${boardPracticeCount} source tasks board-visible · ${formalKeyTermCount} formal key terms board-visible`,
     slides: chapter.slides.map(enrichSlide),
   };
 };
