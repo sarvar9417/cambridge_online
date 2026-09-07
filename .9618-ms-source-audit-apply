@@ -1,2 +1,2 @@
-Run the strict historical Cambridge 9618 mark-scheme source audit after pagination migration 0135 and ms-source-audit-runner v6.
-Use source-safe matcher v4 in bounded source-paper batches: deterministic official-MS proof only, exact SHA/canonical/dependency gates, no fuzzy semantic matching, manual_only remains fail-closed.
+Run the strict historical Cambridge 9618 mark-scheme source audit after matcher-v5 migration 0138 and ms-source-audit-runner v7.
+Use source-safe matcher v5 in bounded source-paper batches: canonical group labels and exact intra-scheme point-code requires are internal metadata only; all official MS prose, printed caps, exact SHA/canonical/dependency gates remain fail-closed; no fuzzy semantic matching; manual_only remains excluded from automated promotion.
