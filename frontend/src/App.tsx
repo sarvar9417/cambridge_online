@@ -21,6 +21,7 @@ import {
 import { queueAnswer } from "./lib/offline-queue";
 import { useOfflineAnswerSync } from './hooks/useOfflineAnswerSync';
 import { useAttemptTiming } from './hooks/useAttemptTiming';
+import { useStaffExportPolling } from './hooks/useStaffExportPolling';
 import { ThemeToggle } from './components/ThemeToggle';
 import { AuthScreens } from './auth/AuthScreens';
 import { UserApprovalPanel } from './auth/UserApprovalPanel';
@@ -91,6 +92,7 @@ export function App() {
     },
     onAssignmentsRefreshed: setAssignments,
   });
+  useStaffExportPolling(user?.role, exports, setExports);
 
   useEffect(() => {
     const expired = () => {
@@ -191,23 +193,6 @@ export function App() {
       // A failed badge fetch must not break the page it decorates.
       .catch(() => {});
   }, [user, route.path]);
-
-  useEffect(() => {
-    if (
-      !user ||
-      user.role === "student" ||
-      !exports.some(
-        (item) => item.status === "queued" || item.status === "running",
-      )
-    )
-      return;
-    const refresh = () =>
-      void api<{ data: ExportItem[] }>("/exports")
-        .then((response) => setExports(response.data))
-        .catch(() => {});
-    const timer = window.setInterval(refresh, 2_000);
-    return () => window.clearInterval(timer);
-  }, [user, exports]);
 
   const logout = async () => {
     await api("/auth/logout", { method: "POST" });
