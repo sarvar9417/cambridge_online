@@ -2,13 +2,13 @@ import { BOOK_COMPLETENESS_BASELINES, type BookAuditChapter, type BookFeatureAnc
 import { sourceAtomsForChapter } from './lesson-source-atom-registry';
 import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
+import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
   CHAPTER_13_SOURCE_FILE_MANIFEST,
 } from './source-file-fidelity-manifest';
 import { lessonChapter } from './lesson-content-source-complete';
-import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 
 export type BookCompletenessCategory = {
   expected: number;
@@ -108,7 +108,7 @@ function pageFingerprintCategory(chapter: BookAuditChapter, expected: number) {
 
 function checkpointCategory(chapter: BookAuditChapter, expected: number) {
   const count = chapter === 7
-    ? CHAPTER_7.slides.filter((slide) => slide.examPractice && Boolean(slide.learningObjectiveCodes?.length)).length
+    ? CHAPTER_7_PAST_PAPER_CHECKPOINTS.length
     : (lessonChapter(chapter)?.slides ?? []).filter((slide) => slide.examPractice && Boolean(slide.learningObjectiveCodes?.length)).length;
   const missing = count === expected ? [] : [`checkpoint count ${count} != ${expected}`];
   return { expected, covered: Math.min(count, expected), missing, complete: count === expected };
