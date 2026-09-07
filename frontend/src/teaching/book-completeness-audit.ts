@@ -2,6 +2,7 @@ import { BOOK_COMPLETENESS_BASELINES, type BookAuditChapter, type BookFeatureAnc
 import { sourceAtomsForChapter } from './lesson-source-atom-registry';
 import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
+import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
@@ -37,6 +38,8 @@ const normalise = (value: string) => value
 const ch7KeyTermText = CHAPTER_7_SOURCE_KEY_TERMS
   .map((item) => `${item.term} ${item.definition}`)
   .join(' ');
+
+const ch7FigureMap = CHAPTER_7_SOURCE_MAP.figures as Record<string, string>;
 
 function chapterAtoms(chapter: BookAuditChapter) {
   return chapter === 7 ? CHAPTER_7_ALL_SOURCE_ATOMS : sourceAtomsForChapter(chapter);
@@ -75,6 +78,9 @@ function pageHasKind(chapter: BookAuditChapter, page: number, kind: string) {
  * only bridge equivalent source wording and never infer an absent concept.
  */
 const SOURCE_EQUIVALENT_ANCHORS: Record<string, readonly string[]> = {
+  'mpeg-3 (mp3)': ['mp3/mp4 files', 'mp3'],
+  'mpeg-4 (mp4)': ['mp3/mp4 files', 'mp4'],
+  'vector graphic images': ['vector graphics', 'vector formats'],
   'binary floating-point representation': ['binary floating-point number'],
   'positive number': ['positive normalised mantissa', 'positive normalised mantissas'],
   'negative number': ['negative normalised mantissa', 'negative normalised mantissas'],
@@ -131,6 +137,21 @@ function anchorCategory(chapter: BookAuditChapter, anchors: readonly BookFeature
   return categoryFromMissing(anchors.length, missing);
 }
 
+function figureCategory(chapter: BookAuditChapter, anchors: readonly BookFeatureAnchor[]) {
+  if (chapter !== 7) return anchorCategory(chapter, anchors);
+  const missing = anchors
+    .filter(({ page, anchor }) => {
+      if (sourceContainsAnchor(pageSourceText(chapter, page), anchor)) return false;
+      const match = anchor.match(/^Figure\s+(7\.\d+)$/i);
+      // Chapter 7 maintains a dedicated, independently tested figure→presenter
+      // source map for all 7.1–7.22. It is explicit evidence when a compact atom
+      // carries the figure content but omits the individual figure label.
+      return !match || !ch7FigureMap[match[1]!];
+    })
+    .map(({ page, anchor }) => `p.${page}: ${anchor}`);
+  return categoryFromMissing(anchors.length, missing);
+}
+
 function globalAnchorCategory(chapter: BookAuditChapter, anchors: readonly string[]) {
   const source = globalSourceText(chapter);
   const missing = anchors.filter((anchor) => !sourceContainsAnchor(source, anchor));
@@ -178,7 +199,7 @@ function buildAudit(chapter: BookAuditChapter): BookCompletenessAudit {
     worked_examples: anchorCategory(chapter, baseline.examples),
     activities: anchorCategory(chapter, baseline.activities),
     extension_activities: anchorCategory(chapter, baseline.extensionActivities),
-    figures: anchorCategory(chapter, baseline.figures),
+    figures: figureCategory(chapter, baseline.figures),
     tables: anchorCategory(chapter, baseline.tables),
     find_out_more: anchorCategory(chapter, baseline.findOutMore),
     links: anchorCategory(chapter, baseline.links),
