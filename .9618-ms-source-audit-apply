@@ -1,2 +1,2 @@
-Run the strict historical Cambridge 9618 mark-scheme source audit after migrations 0134-0136 and ms-source-audit-runner v4.
-Retrigger after bootstrap indexes and the verified 2023 MJ11/MJ12/MJ13 MS SHA refreshes. Current source-safe matcher remains v3 and all promotion gates remain fail-closed.
+Run the strict historical Cambridge 9618 mark-scheme source audit after migrations 0134-0137 and ms-source-audit-runner v5.
+Use source-safe matcher v4: deterministic official-MS proof only, exact SHA/canonical/dependency gates, no fuzzy semantic matching, manual_only remains fail-closed.
