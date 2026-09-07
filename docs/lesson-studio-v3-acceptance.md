@@ -1,5 +1,9 @@
 # Lesson Studio v3 acceptance checklist
 
+> Current release-level interpretation and pending gates are tracked in
+> [`../PROJECT-STATE.md`](../PROJECT-STATE.md). This checklist remains the detailed
+> acceptance evidence consumed by `npm run project:state:check`.
+
 - [x] Exact supplied-PDF source coverage remains enforced for 9618 Chapter 1 (26/26), 9618 Chapter 13 (24/24) and 0478 Chapter 7 (41/41).
 - [x] Existing examples, activities, tables, figures, keywords and source diagnostics remain in presenter data.
 - [x] Every Chapter 7 subtopic 7.1–7.9 retains an explicit Cambridge past-paper checkpoint.
