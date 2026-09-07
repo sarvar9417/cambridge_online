@@ -26,6 +26,8 @@ export function studentFacingText(value:string){
   text=text.replace(/^HODDER CHAPTER\s+(\d+)\s*·\s*SOURCE-FAITHFUL$/i,'CHAPTER $1 · CORE LESSON');
   text=text.replace(/\bHODDER EXTENSION\b/gi,'EXTENSION');
   text=text.replace(/^HODDER END-OF-CHAPTER QUESTIONS$/i,'END-OF-CHAPTER REVIEW');
+  if(/^(?:BOOK|COURSEBOOK) PRACTICE\b/i.test(text))return 'Coursebook practice';
+  if(/^SOURCE DETAIL\b/i.test(text))return 'Source detail';
 
   if(/^use this as (?:a|an) .*retrieval check before teaching/i.test(text))return 'Before we start, check what you already know.';
   if(/^(?:this checkpoint is loaded live|only approved .* leaves explicitly mapped|approved .* leaves)/i.test(text))return 'Apply what you have just learned to real Cambridge past-paper questions. Attempt each question before the mark scheme is revealed.';
@@ -104,6 +106,14 @@ export function studentFacingText(value:string){
   return text;
 }
 
+/** Source-fidelity audit blocks can be exact and useful to teachers without being useful learner copy. */
+function isLearnerBlock(block:LessonRichBlock){
+  if(block.kind==='steps' && block.title && /^Hodder p\.\s*\d+\s*·\s*complete (?:prior-knowledge|file-I\/O) diagnostic/i.test(block.title))return false;
+  if(block.kind==='bullets' && block.items.length===1 && /^Chapter source scope:/i.test(block.items[0]??''))return false;
+  if(block.kind==='callout' && /^Board diagnostic$/i.test(block.title))return false;
+  return true;
+}
+
 function projectRichBlock(block:LessonRichBlock):LessonRichBlock{
   if(block.kind==='paragraph')return {...block,text:studentFacingText(block.text)};
   if(block.kind==='bullets')return {...block,items:block.items.map(studentFacingText)};
@@ -126,7 +136,7 @@ export function studentFacingSlide<T extends LessonSlide>(slide:T):T{
     example:slide.example?{...slide.example,title:studentFacingText(slide.example.title),lines:slide.example.lines.map(studentFacingText),answer:slide.example.answer?studentFacingText(slide.example.answer):slide.example.answer}:slide.example,
     teacherPrompt:slide.teacherPrompt?studentFacingText(slide.teacherPrompt):slide.teacherPrompt,
     activity:slide.activity?{...slide.activity,title:studentFacingText(slide.activity.title),prompt:studentFacingText(slide.activity.prompt),reveal:slide.activity.reveal?studentFacingText(slide.activity.reveal):slide.activity.reveal}:slide.activity,
-    richBlocks:slide.richBlocks?.map(projectRichBlock),
+    richBlocks:slide.richBlocks?.filter(isLearnerBlock).map(projectRichBlock),
   };
 }
 
