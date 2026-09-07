@@ -5,6 +5,7 @@ import runpy
 import unittest
 
 AUDIT = runpy.run_path("backend/scripts/qp-source-audit-runner.py", run_name="qp_source_audit_test")
+AUDIT_V2 = runpy.run_path("backend/scripts/qp-source-audit-runner-v2.py", run_name="qp_source_audit_v2_test")
 
 
 class SourceAuditTests(unittest.TestCase):
@@ -54,6 +55,11 @@ class SourceAuditTests(unittest.TestCase):
     def test_audit_main_candidate_rejects_deep_queue_data_row(self):
         candidate = AUDIT["audit_main_candidate"]
         self.assertIsNone(candidate("                                4      Wasp", 4))
+
+    def test_v2_adapter_exposes_layout_extractor_from_v3_base(self):
+        parser = AUDIT_V2["PARSER"]
+        self.assertIn("pdftotext_layout", parser)
+        self.assertIs(parser["pdftotext_layout"], parser["BASE"]["pdftotext_layout"])
 
 
 if __name__ == "__main__":
