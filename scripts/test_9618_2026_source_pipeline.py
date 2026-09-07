@@ -14,6 +14,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
     def test_new_python_entrypoints_parse(self) -> None:
         for relative in (
             "backend/scripts/full-9618-2026-corpus-backfill-v2.py",
+            "backend/scripts/full-9618-2026-corpus-backfill-v3.py",
             "backend/scripts/structured_content_backfill_v4.py",
             "backend/scripts/structured_content_backfill_2026.py",
             "backend/scripts/flag-9618-source-fidelity.py",
@@ -32,6 +33,14 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("ms_extract_gate_after_fallback", source)
         self.assertIn("if total != expected_marks", source)
         self.assertIn("if len(rest) < 8 or len(rest.split()) < 2", source)
+
+    def test_local_ms_fallback_reads_the_published_marks_column(self) -> None:
+        source = self.read("backend/scripts/full-9618-2026-corpus-backfill-v3.py")
+        self.assertIn("published_marks_from_layout", source)
+        self.assertIn('line[marks_x:guidance_x]', source)
+        self.assertIn("published_marks_column_conflict", source)
+        self.assertIn("local_ms_mark_column_corrected", source)
+        self.assertIn("V2[\"main\"].__globals__[\"local_ms_rows\"]", source)
 
     def test_legacy_seed_keeps_ids_but_frees_official_refs(self) -> None:
         sql = self.read("backend/src/database/migrations/0127_legacy_2026_question_display_refs.sql")
@@ -56,7 +65,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
 
     def test_workflow_uses_correct_runner_for_source_repairs(self) -> None:
         workflow = self.read(".github/workflows/full-9618-2026-corpus-backfill.yml")
-        self.assertIn("full-9618-2026-corpus-backfill-v2.py", workflow)
+        self.assertIn("full-9618-2026-corpus-backfill-v3.py", workflow)
         self.assertIn("reconcile-9618-2026-dependencies.py", workflow)
         self.assertIn("flag-9618-source-fidelity.py", workflow)
         self.assertIn("qp-source-repair-runner", workflow)
