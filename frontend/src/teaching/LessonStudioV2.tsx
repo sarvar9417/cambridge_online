@@ -101,7 +101,7 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
   const codes=slide.learningObjectiveCodes??[];
   const syllabusCode=slide.checkpointSyllabusCode??'9618';
   const yearFrom=slide.checkpointYearFrom??2021;
-  const yearTo=slide.checkpointYearTo??2025;
+  const yearTo=slide.checkpointYearTo??2026;
   const [questions,setQuestions]=useState<ExamPart[]>([]),[loading,setLoading]=useState(Boolean(codes.length)),[error,setError]=useState('');
 
   useEffect(()=>{
