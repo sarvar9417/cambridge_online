@@ -65,6 +65,32 @@ function pageSourceText(chapter: BookAuditChapter, page: number) {
   return chapter === 7 && page === 294 ? `${content} ${normalise(ch7KeyTermText)}` : content;
 }
 
+/**
+ * Source atoms sometimes intentionally combine adjacent printed items, e.g.
+ * `Figures 13.10–13.13` or `Example 2–3`. Treat those range atoms as explicit
+ * evidence for each member of the range rather than forcing duplicate atoms.
+ */
+function sourceContainsAnchor(sourceValue: string, anchorValue: string) {
+  const source = normalise(sourceValue);
+  const anchor = normalise(anchorValue);
+  if (source.includes(anchor)) return true;
+
+  const target = anchor.match(/^(figure|example)\s+(?:(\d+)\.)?(\d+)$/);
+  if (!target) return false;
+  const [, kind, targetMajor, targetMinorRaw] = target;
+  const targetMinor = Number(targetMinorRaw);
+  const rangePattern = new RegExp(`\\b${kind}s?\\s+(?:(\\d+)\\.)?(\\d+)\\s*-\\s*(?:(\\d+)\\.)?(\\d+)`, 'g');
+  for (const match of source.matchAll(rangePattern)) {
+    const startMajor = match[1] ?? '';
+    const startMinor = Number(match[2]);
+    const endMajor = match[3] ?? startMajor;
+    const endMinor = Number(match[4]);
+    if ((targetMajor ?? '') !== startMajor || (targetMajor ?? '') !== endMajor) continue;
+    if (targetMinor >= Math.min(startMinor, endMinor) && targetMinor <= Math.max(startMinor, endMinor)) return true;
+  }
+  return false;
+}
+
 function categoryFromMissing(expected: number, missing: string[]): BookCompletenessCategory {
   const covered = Math.max(0, expected - missing.length);
   return { expected, covered, missing, complete: missing.length === 0 && covered === expected };
@@ -72,14 +98,14 @@ function categoryFromMissing(expected: number, missing: string[]): BookCompleten
 
 function anchorCategory(chapter: BookAuditChapter, anchors: readonly BookFeatureAnchor[]) {
   const missing = anchors
-    .filter(({ page, anchor }) => !pageSourceText(chapter, page).includes(normalise(anchor)))
+    .filter(({ page, anchor }) => !sourceContainsAnchor(pageSourceText(chapter, page), anchor))
     .map(({ page, anchor }) => `p.${page}: ${anchor}`);
   return categoryFromMissing(anchors.length, missing);
 }
 
 function globalAnchorCategory(chapter: BookAuditChapter, anchors: readonly string[]) {
   const source = globalSourceText(chapter);
-  const missing = anchors.filter((anchor) => !source.includes(normalise(anchor)));
+  const missing = anchors.filter((anchor) => !sourceContainsAnchor(source, anchor));
   return categoryFromMissing(anchors.length, missing);
 }
 
