@@ -11,7 +11,7 @@ function richText(block:LessonRichBlock):string[]{
   if(block.kind==='callout')return[block.title,block.text];
   if(block.kind==='comparison')return[block.leftTitle,block.rightTitle,...block.rows.flat()];
   if(block.kind==='source-note')return[block.title,block.sourceLabel,block.sourceText,block.examSafeLabel,block.examSafeText];
-  if(block.kind==='table')return[block.table.caption,...block.table.headers,...block.table.rows.flat()];
+  if(block.kind==='table')return[block.table.caption??'',...block.table.headers,...block.table.rows.flat()];
   return[];
 }
 
