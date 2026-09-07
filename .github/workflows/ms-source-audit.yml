@@ -12,6 +12,7 @@ on:
       - backend/src/database/migrations/0109_9618_ms_source_audit.sql
       - supabase/functions/ms-source-audit-runner/index.ts
       - .github/workflows/ms-source-audit.yml
+      - .9618-ms-source-audit-apply
 
 permissions:
   contents: read
