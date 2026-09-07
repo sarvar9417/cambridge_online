@@ -88,4 +88,24 @@ describe('student-facing lesson projection',()=>{
     expect(source).not.toContain('SOURCE FIDELITY');
     expect(source).not.toContain('slides · {chapter.coverage}');
   });
+
+  it('keeps the learner task visible, the answer gated, and the canonical Cambridge workspace installed',()=>{
+    const studio=readFileSync(join(process.cwd(),'src/teaching/LessonStudioV2.tsx'),'utf8');
+    const entry=readFileSync(join(process.cwd(),'src/teaching/LessonStudio.tsx'),'utf8');
+    const css=readFileSync(join(process.cwd(),'src/teaching/lesson-student-facing.css'),'utf8');
+    const chapter7=readFileSync(join(process.cwd(),'src/teaching/Chapter7SlideBody.tsx'),'utf8');
+
+    expect(studio).toContain('<p>{activity.prompt}</p>');
+    expect(studio).toContain("revealed&&<div className=\"lesson-student-model-answer\"");
+    expect(studio).toContain('1 · Attempt independently');
+    expect(studio).toContain('3 · Check the mark scheme');
+    expect(entry).toContain("import './lesson-exam-workspace-v3';");
+    expect(entry).toContain("import './lesson-question-workspace-controls';");
+    expect(css).toContain('.lesson-exam-technical');
+    expect(css).toContain('.lesson-toolbar .lesson-teacher-evidence');
+    expect(chapter7).toContain('THINK / EXPLAIN');
+    expect(chapter7).toContain('YOUR TURN');
+    expect(chapter7).toContain('MODEL ANSWER');
+    expect(chapter7).not.toContain('<span>INSTRUCTION</span>');
+  });
 });
