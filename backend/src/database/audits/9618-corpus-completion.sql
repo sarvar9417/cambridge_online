@@ -2,6 +2,10 @@
 -- Read-only: raises on structural/taxonomy/manual-boundary/scorer/dependency integrity failures.
 -- Scorer checks mirror recompute_grading_point_awards(): group caps are local and the
 -- mark-scheme max is a separate global cap, so aggregate rubric capacity may exceed max_marks.
+--
+-- Source-paper completeness is occurrence-aware: an official equivalent paper keeps
+-- all of its Cambridge appearances through question_source_occurrences even when its
+-- duplicate physical question tree has been canonicalized away.
 
 do $$
 declare
@@ -20,7 +24,8 @@ begin
       count(q.id) filter(where q.marks>0 and (select count(*) from question_subtopics qs where qs.question_id=q.id and qs.is_primary)<>1) bad_primary,
       count(q.id) filter(where q.marks>0 and not exists(select 1 from question_learning_objectives qlo where qlo.question_id=q.id)) bad_lo
     from source_papers sp
-    left join questions q on q.source_paper_id=sp.id
+    left join question_source_occurrences o on o.source_paper_id=sp.id
+    left join questions q on q.id=o.question_id
     left join mark_schemes ms on ms.question_id=q.id
     where sp.kind='QP'::paper_kind and sp.source_url is not null
     group by sp.id

@@ -16,6 +16,11 @@ const occurrenceAudit = readFileSync(
   'utf8',
 );
 
+const distinctnessMigration = readFileSync(
+  new URL('./migrations/0151_source_variant_distinctness_reviews.sql', import.meta.url),
+  'utf8',
+);
+
 describe('question source identity and dedupe contracts', () => {
   it('repairs the one ambiguous display ref and fails closed on future collisions', () => {
     expect(migration).toContain("path = '6.a'");
@@ -35,10 +40,22 @@ describe('question source identity and dedupe contracts', () => {
     expect(exactDuplicateAudit).not.toMatch(/DELETE\s+FROM\s+questions/i);
   });
 
-  it('keeps official cross-variant equivalent occurrences distinct', () => {
-    expect(occurrenceAudit).toContain('official_same_session_cross_variant');
-    expect(occurrenceAudit).toContain("count(DISTINCT source_paper_id)");
-    expect(occurrenceAudit).toContain("count(DISTINCT variant)");
+  it('canonicalizes source-verified cross-variant equivalents while preserving official occurrences', () => {
+    expect(occurrenceAudit).toContain('source_paper_equivalences');
+    expect(occurrenceAudit).toContain('question_source_occurrences');
+    expect(occurrenceAudit).toContain("e.equivalence_kind='exact_content'");
+    expect(occurrenceAudit).toContain('v_physical_on_equivalent');
+    expect(occurrenceAudit).toContain('source_occurrences');
+    expect(occurrenceAudit).toContain('canonical_questions');
     expect(occurrenceAudit).not.toMatch(/DELETE\s+FROM\s+questions/i);
+  });
+
+  it('persists source-verified decisions for same-shape variants that are materially distinct', () => {
+    expect(distinctnessMigration).toContain('source_paper_distinctness_reviews');
+    expect(distinctnessMigration).toContain("result='distinct_content'");
+    expect(distinctnessMigration).toContain("'sourceVerified',true");
+    expect(distinctnessMigration).toContain('v_unreviewed');
+    expect(distinctnessMigration).toContain('unreviewed same-shape 9618 source variant candidates');
+    expect(distinctnessMigration).not.toMatch(/DELETE\s+FROM\s+questions/i);
   });
 });
