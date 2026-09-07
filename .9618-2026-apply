@@ -1,1 +1,2 @@
 Trigger the source-verified Cambridge 9618 May/June 2026 corpus backfill after migrations 0122-0126 and Edge Function deployment.
+Resume v2 after audited 9618/23 QP heading and 9618/42 MS extraction fallback hardening.
