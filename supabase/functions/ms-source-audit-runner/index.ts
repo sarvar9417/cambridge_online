@@ -63,6 +63,15 @@ Deno.serve(async (req: Request) => {
       }
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_record_v2',{p_audits:body.audits})})
     }
+    if (action === 'source_point_repair_apply') {
+      const manifest=body?.manifest
+      const rows=manifest?.rows
+      if (!manifest || typeof manifest !== 'object' || manifest.version !== '9618-ms-point-source-repair-v1'
+          || !Array.isArray(rows) || rows.length < 1 || rows.length > 80) {
+        return Response.json({ok:false,error:'invalid_source_point_repair_manifest'},{status:400})
+      }
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('apply_ms_source_point_repair_v1',{p_manifest:manifest})})
+    }
     if (action === 'promote_verified') {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_promote_verified_v5')})
     }
