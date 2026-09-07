@@ -28,9 +28,9 @@ jobs:
       - name: Install PDF text tools
         run: sudo apt-get update -qq && sudo apt-get install -y poppler-utils
       - name: Unit test audit gates
-        run: python3 -m unittest scripts.test_ms_source_audit scripts.test_ms_source_audit_v3 scripts.test_ms_source_audit_v4 scripts.test_ms_source_audit_v5
+        run: python3 -m unittest scripts.test_ms_source_audit scripts.test_ms_source_audit_v3 scripts.test_ms_source_audit_v4 scripts.test_ms_source_audit_v5 scripts.test_ms_source_audit_v6
       - name: Audit every current historical 9618 MS review target and promote strict matches
-        run: python3 backend/scripts/ms-source-audit-runner-v5.py
+        run: python3 backend/scripts/ms-source-audit-runner-v6.py
       - name: Publish audit summary
         if: always()
         run: |
