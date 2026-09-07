@@ -1,4 +1,5 @@
 import { bookCompletenessAudit } from './book-completeness-audit';
+import { SOURCE_EVERYTHING_AUDITS } from './source-everything-contract';
 
 let scheduled=false;
 let teardown:VoidFunction|null=null;
@@ -7,6 +8,13 @@ let consumers=0;
 function chapterNumber(studio:Element){
   const value=studio.querySelector('.lesson-toolbar-title span')?.textContent??'';
   return Number(value.match(/Chapter\s+(\d+)/i)?.[1]??0);
+}
+
+function sourceFileAuditForChapter(chapter:number){
+  if(chapter===1)return SOURCE_EVERYTHING_AUDITS['9618-ch1-upload'];
+  if(chapter===7)return SOURCE_EVERYTHING_AUDITS['0478-full-book-upload'];
+  if(chapter===13)return SOURCE_EVERYTHING_AUDITS['9618-ch13-upload'];
+  return null;
 }
 
 function originalDots(studio:Element){
@@ -49,6 +57,28 @@ function ensureSourceBadge(studio:HTMLElement){
     ? 'Source Complete: exact supplied-PDF pages, objectives/prior knowledge, key terms, semantic emphasis, examples, activities, extensions, figures, tables, sidebars/links, pseudocode, chapter review and Cambridge checkpoints all pass the formal book audit.'
     : `Source Complete is blocked. Missing book evidence: ${missing.join(' | ')}`;
   if(badge.title!==title)badge.title=title;
+}
+
+function ensureSourceIntakeBadge(studio:HTMLElement){
+  const actions=studio.querySelector('.lesson-toolbar-actions');
+  if(!actions)return;
+  const audit=sourceFileAuditForChapter(chapterNumber(studio));
+  if(!audit)return;
+  let badge=actions.querySelector<HTMLElement>('.lesson-source-intake-badge');
+  if(!badge){
+    badge=document.createElement('span');
+    badge.className='lesson-source-intake-badge lesson-teacher-evidence';
+    const sourceBadge=actions.querySelector('.lesson-source-complete-badge');
+    if(sourceBadge?.nextSibling)actions.insertBefore(badge,sourceBadge.nextSibling);else actions.append(badge);
+  }
+  const text=audit.complete
+    ? `${audit.deliveredPages}/${audit.requiredDeliveryPages} uploaded-source pages`
+    : `Uploaded source ${audit.deliveredPages}/${audit.requiredDeliveryPages}`;
+  if(badge.textContent!==text)badge.textContent=text;
+  badge.dataset.complete=String(audit.complete);
+  badge.title=audit.complete
+    ? 'Every teaching/support page in this exact uploaded source file has a delivery destination.'
+    : `This uploaded source file is not fully represented yet. Missing lesson destinations: ${audit.missingDestinations.join(' | ')}`;
 }
 
 function ensureCompactNavigation(studio:HTMLElement){
@@ -111,6 +141,7 @@ function updateFullscreenState(){
 
 function enhance(studio:HTMLElement){
   ensureSourceBadge(studio);
+  ensureSourceIntakeBadge(studio);
   ensureCompactNavigation(studio);
   enrichOutline(studio);
 }
