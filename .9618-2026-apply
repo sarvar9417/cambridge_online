@@ -1,2 +1,2 @@
-Trigger the source-verified Cambridge 9618 May/June 2026 corpus backfill after migrations 0127-0131, corpus-runner v12, and merged PR #93.
-Run the complete v3 pipeline: ingest the remaining official papers using source-pinned complete-Edge/column-aware fallback reconciliation, reconcile dependencies, sweep/repair source fidelity, sync canonical assets, build structured content, guarded approval, and final year audit.
+Trigger the source-verified Cambridge 9618 May/June 2026 corpus backfill after migrations 0127-0132, source-dependency-reconcile-v2, and merged PRs #93/#94/#97.
+Run the complete v3 pipeline: verify official QP/MS ingestion, reconcile cross-part dependencies, sweep/repair source fidelity, sync canonical assets, rebuild structured content, guarded approval, assert the 2026 year gate, and execute the corrected source identity/semantics audit using the v3 parser adapter.
