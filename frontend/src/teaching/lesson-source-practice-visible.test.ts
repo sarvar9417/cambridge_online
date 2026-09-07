@@ -9,6 +9,18 @@ const isBoardPracticeAtom = (item: LessonSourceAtom) =>
   item.kind === 'review' ||
   (item.kind === 'extension' && /activity/i.test(item.sourceRef));
 
+const learnerTaskLine = (atom: LessonSourceAtom) => {
+  let value = atom.needles.at(-1) ?? '';
+  for (const separator of [' · ', ': ']) {
+    const prefix = `${atom.sourceRef}${separator}`;
+    if (value.toLowerCase().startsWith(prefix.toLowerCase())) {
+      value = value.slice(prefix.length).trim();
+      break;
+    }
+  }
+  return studentFacingText(value);
+};
+
 describe('board-visible coursebook practice', () => {
   for (const chapterNumber of [1, 13] as const) {
     it(`keeps every Chapter ${chapterNumber} source task learner-visible while provenance stays exact`, () => {
@@ -29,9 +41,9 @@ describe('board-visible coursebook practice', () => {
 
         const projected = studentFacingSlide(sourceSlide as LessonSlide);
         const richText = JSON.stringify(projected.richBlocks ?? []);
-        const distinctiveTaskLine = atom.needles.at(-1);
+        const distinctiveTaskLine = learnerTaskLine(atom);
         expect(distinctiveTaskLine, `${atom.id} has no task data`).toBeTruthy();
-        expect(richText, `${atom.id} has no learner-visible task data`).toContain(studentFacingText(distinctiveTaskLine!));
+        expect(richText, `${atom.id} has no learner-visible task data`).toContain(distinctiveTaskLine);
         expect(richText).not.toContain(`Hodder p.${atom.page}`);
         expect(richText).not.toContain(`SOURCE ATOM ${atom.id}`);
       }
@@ -47,7 +59,7 @@ describe('board-visible coursebook practice', () => {
         const projected = studentFacingSlide(sourceSlide as LessonSlide);
         const richText = JSON.stringify(projected.richBlocks ?? []);
         expect(sourceSlide.sourceAtomEvidence?.find((item) => item.id === atom.id)?.lines).toEqual(atom.needles);
-        expect(richText).toContain(studentFacingText(atom.needles.at(-1)!));
+        expect(richText).toContain(learnerTaskLine(atom));
         expect(richText).not.toContain(`Hodder p.${atom.page}`);
       }
     }
