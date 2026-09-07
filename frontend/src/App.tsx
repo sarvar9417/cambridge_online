@@ -20,6 +20,7 @@ import {
 } from "./lib/api";
 import { queueAnswer } from "./lib/offline-queue";
 import { useOfflineAnswerSync } from './hooks/useOfflineAnswerSync';
+import { useAttemptTiming } from './hooks/useAttemptTiming';
 import { ThemeToggle } from './components/ThemeToggle';
 import { AuthScreens } from './auth/AuthScreens';
 import { UserApprovalPanel } from './auth/UserApprovalPanel';
@@ -60,7 +61,6 @@ export function App() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [openResultId, setOpenResultId] = useState<string | null>(null);
   const [mastery, setMastery] = useState<MasteryItem[]>([]);
@@ -84,6 +84,13 @@ export function App() {
   const [gradingView,setGradingView]=useState<'by_question'|'by_student'|'confidence'>('by_question');
   const saveTimers = useRef<Record<string, number>>({});
   const { online, flushPending } = useOfflineAnswerSync();
+  const remainingSeconds = useAttemptTiming(attempt, {
+    onClosed: (message) => {
+      setAttempt(null);
+      setError(message);
+    },
+    onAssignmentsRefreshed: setAssignments,
+  });
 
   useEffect(() => {
     const expired = () => {
@@ -184,61 +191,6 @@ export function App() {
       // A failed badge fetch must not break the page it decorates.
       .catch(() => {});
   }, [user, route.path]);
-
-  useEffect(() => {
-    if (!attempt) return;
-    const initial = attempt.deadline
-      ? Math.max(
-          0,
-          Math.floor(
-            (new Date(attempt.deadline).getTime() -
-              new Date(attempt.serverNow).getTime()) /
-              1000,
-          ),
-        )
-      : null;
-    setRemainingSeconds(initial);
-    const heartbeat = async () => {
-      try {
-        const state = await api<{ remainingSeconds: number | null; status:string }>(
-          `/submissions/${attempt.submissionId}/heartbeat`,
-          {
-            method: "POST",
-            body: JSON.stringify({ activeSessionId: attempt.activeSessionId }),
-          },
-        );
-        setRemainingSeconds(state.remainingSeconds);
-        if (state.remainingSeconds === 0 || !["not_started", "in_progress"].includes(state.status)) {
-          setAttempt(null);
-          setError("Vaqt tugadi. Javoblaringiz avtomatik topshirildi.");
-          setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
-        }
-      } catch (cause) {
-        setAttempt(null);
-        setError(cause instanceof Error && cause.message !== "So‘rov bajarilmadi."
-          ? cause.message
-          : "Urinish yopildi. Javoblaringiz saqlandi.");
-        void api<{ data: Assignment[] }>("/assignments")
-          .then((response) => setAssignments(response.data))
-          .catch(() => {});
-      }
-    };
-    const timer = window.setInterval(heartbeat, 30_000);
-    void heartbeat();
-    return () => window.clearInterval(timer);
-  }, [attempt]);
-
-  useEffect(() => {
-    if (remainingSeconds === null || remainingSeconds <= 0) return;
-    const timer = window.setInterval(
-      () =>
-        setRemainingSeconds((value) =>
-          value === null ? null : Math.max(0, value - 1),
-        ),
-      1000,
-    );
-    return () => window.clearInterval(timer);
-  }, [remainingSeconds === null]);
 
   useEffect(() => {
     if (
