@@ -74,7 +74,7 @@ function projectRichBlock(block:LessonRichBlock):LessonRichBlock{
     examSafeLabel:'Exam-ready wording',
     examSafeText:studentFacingText(block.examSafeText),
   };
-  if(block.kind==='table')return {...block,table:{...block.table,caption:studentFacingText(block.table.caption),headers:block.table.headers.map(studentFacingText),rows:block.table.rows.map(row=>row.map(studentFacingText))}};
+  if(block.kind==='table')return {...block,table:{...block.table,caption:block.table.caption?studentFacingText(block.table.caption):block.table.caption,headers:block.table.headers.map(studentFacingText),rows:block.table.rows.map(row=>row.map(studentFacingText))}};
   // Program code and source-backed figure geometry are intentionally not rewritten.
   return block;
 }
