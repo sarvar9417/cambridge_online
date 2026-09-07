@@ -78,7 +78,8 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("following\\s+(?:vector\\s+)?logo", source)
         self.assertIn("this\\s+logo", source)
         self.assertIn("BACKWARD_VISUAL_RE", source)
-        self.assertIn("Preceding Cambridge source visual", source)
+        self.assertIn('label_kind = "visual" if required_kind == "visual" else required_kind', source)
+        self.assertIn("Preceding Cambridge source {label_kind}", source)
         self.assertIn("sourcePlacement", source)
         # v7 delegates writes to the proven v3 two-phase runner rather than
         # creating a new unguarded write path.
