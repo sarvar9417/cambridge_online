@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { LESSON_CHAPTERS, type LessonRichBlock, type LessonSlide } from './lesson-content-source-complete';
-import { studentFacingSlide, studentFacingText, TEACHER_DIRECTIVE_PATTERN } from './lesson-student-facing';
+import {
+  AUTHORING_META_PATTERN,
+  studentFacingSlide,
+  studentFacingText,
+  TEACHER_DIRECTIVE_PATTERN,
+} from './lesson-student-facing';
 
 function richText(block:LessonRichBlock):string[]{
   if(block.kind==='paragraph')return[block.text];
@@ -10,19 +16,23 @@ function richText(block:LessonRichBlock):string[]{
   if(block.kind==='steps')return[block.title??'',...block.items];
   if(block.kind==='callout')return[block.title,block.text];
   if(block.kind==='comparison')return[block.leftTitle,block.rightTitle,...block.rows.flat()];
-  if(block.kind==='source-note')return[block.title,block.sourceLabel,block.sourceText,block.examSafeLabel,block.examSafeText];
+  if(block.kind==='source-note')return[]; // attribution is intentional inside the learner-facing Exam note.
   if(block.kind==='table')return[block.table.caption??'',...block.table.headers,...block.table.rows.flat()];
   return[];
 }
 
-function directiveFields(slide:LessonSlide){
+function primaryLearnerFields(slide:LessonSlide){
   return [
+    slide.eyebrow,
+    slide.title,
     slide.lead,
     slide.teacherPrompt??'',
     slide.activity?.title??'',
     slide.activity?.prompt??'',
+    ...(slide.bullets??[]),
+    ...(slide.keyTerms??[]).map(item=>item.definition),
     ...(slide.richBlocks??[]).flatMap(richText),
-  ].filter(Boolean);
+  ].filter((value):value is string=>Boolean(value));
 }
 
 describe('student-facing lesson projection',()=>{
@@ -32,16 +42,20 @@ describe('student-facing lesson projection',()=>{
     expect(studentFacingText('Ask why hardware designers prefer reusing adder circuitry.')).toBe('Why hardware designers prefer reusing adder circuitry?');
     expect(studentFacingText('Start with one question: “What tells the computer how to interpret those bits?”')).toBe('What tells the computer how to interpret those bits?');
     expect(studentFacingText('Use this as a five-minute retrieval check before teaching the chapter.')).toBe('Before we start, check what you already know.');
+    expect(studentFacingText('Hodder begins by checking whether learners can select primitive types and define a record.')).toBe('Before you start, check that you can select primitive types and define a record.');
+    expect(studentFacingText('Hodder teaches two denary-to-binary routes: weighted columns and repeated division by 2.')).toBe('Learn two denary-to-binary routes: weighted columns and repeated division by 2.');
   });
 
-  it('projects every active lesson away from teacher-directed classroom language',()=>{
+  it('projects every active lesson away from teacher-directed and authoring-meta language',()=>{
     const chapters=[...LESSON_CHAPTERS,CHAPTER_7];
     const violations:string[]=[];
     for(const chapter of chapters){
       for(const sourceSlide of chapter.slides){
         const slide=studentFacingSlide(sourceSlide as LessonSlide);
-        for(const text of directiveFields(slide)){
-          if(TEACHER_DIRECTIVE_PATTERN.test(text))violations.push(`${chapter.number}:${slide.id}:${text}`);
+        for(const text of primaryLearnerFields(slide)){
+          if(TEACHER_DIRECTIVE_PATTERN.test(text)||AUTHORING_META_PATTERN.test(text)){
+            violations.push(`${chapter.number}:${slide.id}:${text}`);
+          }
         }
       }
     }
@@ -63,7 +77,7 @@ describe('student-facing lesson projection',()=>{
   });
 
   it('locks the presenter against the old teacher-guide and corpus-dashboard labels',()=>{
-    const source=readFileSync(new URL('./LessonStudioV2.tsx',import.meta.url),'utf8');
+    const source=readFileSync(join(process.cwd(),'src/teaching/LessonStudioV2.tsx'),'utf8');
     expect(source).toContain('CAMBRIDGE PAST-PAPER PRACTICE');
     expect(source).toContain('THINK / EXPLAIN');
     expect(source).toContain('YOUR TURN');
