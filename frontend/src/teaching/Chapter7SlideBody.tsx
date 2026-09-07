@@ -164,10 +164,10 @@ export function Chapter7SlideBody({ slide }: { slide:LessonSlide }) {
       {slide.bullets&&<ul>{slide.bullets.map(item=><li key={item}>{item}</li>)}</ul>}
       {slide.keyTerms&&<div className="ch7-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><span>{item.definition}</span></article>)}</div>}
       {slide.example&&<div className="ch7-answer ch7-worked-example"><b>WORKED EXAMPLE</b><strong>{slide.example.title}</strong><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p>{slide.example.answer}</p>}</div>}
-      {slide.teacherPrompt&&<div className="ch7-question"><span>INSTRUCTION</span><p>{slide.teacherPrompt}</p></div>}
-      {slide.activity&&<div className="ch7-task"><span>YOUR TASK</span><strong>{slide.activity.title}</strong><p>{slide.activity.prompt}</p></div>}
-      {hasReveal&&<button type="button" className="ch7-reveal-button" onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide answer':'Show answer / example'}</button>}
-      {revealed&&slide.activity?.reveal&&<div className="ch7-answer"><b>EXAMPLE</b><p>{slide.activity.reveal}</p></div>}
+      {slide.teacherPrompt&&<div className="ch7-question"><span>THINK / EXPLAIN</span><p>{slide.teacherPrompt}</p></div>}
+      {slide.activity&&<div className="ch7-task"><span>YOUR TURN</span><strong>{slide.activity.title}</strong><p>{slide.activity.prompt}</p></div>}
+      {hasReveal&&<button type="button" className="ch7-reveal-button" onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide model answer':'Show model answer / example'}</button>}
+      {revealed&&slide.activity?.reveal&&<div className="ch7-answer"><b>MODEL ANSWER</b><p>{slide.activity.reveal}</p></div>}
     </div>
     <div className="ch7-visual-panel">{isBookSlide?<Chapter7BookVisual slide={slide} revealed={revealed}/>:<VisualForSlide id={slide.id} revealed={revealed}/>}</div>
   </div>;
