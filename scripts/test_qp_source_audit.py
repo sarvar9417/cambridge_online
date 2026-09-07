@@ -61,6 +61,11 @@ class SourceAuditTests(unittest.TestCase):
         self.assertIn("pdftotext_layout", parser)
         self.assertIs(parser["pdftotext_layout"], parser["BASE"]["pdftotext_layout"])
 
+    def test_v2_candidate_accepts_short_deep_9618_23_heading_but_rejects_data_row(self):
+        candidate = AUDIT_V2["main_candidate_current"]
+        self.assertIsNotNone(candidate("                                1 Study the pseudocode.", 1))
+        self.assertIsNone(candidate("                                4 Wasp", 4))
+
 
 if __name__ == "__main__":
     unittest.main()
