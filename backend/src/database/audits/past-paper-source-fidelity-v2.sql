@@ -35,7 +35,10 @@ with recursive qp_scope as (
   join components c on c.id = sp.component_id
   where s.code in ('0478','9618')
     and sp.year between 2021 and 2026
+    and sp.variant between 1 and 3
+    and sp.source_url is not null
     and q.marks is not null
+    and q.status in ('approved','needs_review')
 ),
 context_chain as (
   select
@@ -68,8 +71,8 @@ asset_scope as (
     qa.source_bbox,
     qa.crop_status::text as crop_status,
     (
-      coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)'
-      or coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)'
+      coalesce(qa.content_md,'') ~* '^\s*<svg(?:\s|>)'
+      or coalesce(qa.svg_markup,'') ~* '^\s*<svg(?:\s|>)'
     ) as has_inline_svg,
     (nullif(btrim(coalesce(qa.storage_path,'')),'') is not null) as has_storage_visual,
     (qa.source_page is not null and qa.source_bbox is not null) as has_source_geometry,
@@ -112,7 +115,7 @@ findings as (
   union all
 
   -- A table prose summary has neither a source image nor a parseable row/column
-  -- representation. Never display that prose as if it were the printed table.
+  -- representation. An inline SVG source crop is also a valid source-backed table.
   select distinct
     'unresolved_context_table_for_leaf',
     a.syllabus_code,a.year,a.series,a.component,a.variant,a.path,a.display_ref,
@@ -121,6 +124,7 @@ findings as (
   from asset_scope a
   where a.asset_kind = 'table'
     and not a.has_pipe_table
+    and not a.has_inline_svg
     and not a.has_storage_visual
 
   union all
