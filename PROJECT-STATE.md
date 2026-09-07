@@ -81,8 +81,8 @@ that evidence is collected.
       "total": 18,
       "pending": 2,
       "pending_items": [
-        "CI npm run verify must be green before merge",
-        "Vercel preview / production deployment verification"
+        "CI npm run verify — must be green before merge.",
+        "Vercel preview / production deployment — verify after CI."
       ]
     }
   },
