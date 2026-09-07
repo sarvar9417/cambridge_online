@@ -23,16 +23,17 @@ describe('9618 release audit contracts', () => {
   it('reports current-target counts separately from the historical source-backed corpus', () => {
     expect(currentRelease).toContain("'expectedPapers',12");
     expect(currentRelease).toContain("'sourceCompleteQuestions'");
-    expect(currentRelease).toContain("sp.year BETWEEN 2021 AND 2026");
+    expect(currentRelease).toContain('sp.year BETWEEN 2021 AND 2026');
     expect(currentRelease).toContain("'historicalSourceBackedQuestions'");
   });
 
   it('accepts only materializable private Supabase assets instead of blanket-rejecting storage-backed visuals', () => {
-    expect(exportReadiness).toContain("qa.storage_path !~ '^supabase://[^/]+/.+$'");
+    expect(exportReadiness).toContain("qa.storage_path !~ '^supabase://[^/]+/.+'");
     expect(exportReadiness).toContain("to_regclass('storage.objects') IS NOT NULL");
-    expect(exportReadiness).toContain("split_part(qa.storage_path,'/',3)");
-    expect(exportReadiness).toContain("string_agg(parts[i],'/')");
-    expect(exportReadiness).toContain('required assets are neither inline-renderable nor valid Supabase storage objects');
+    expect(exportReadiness).toContain("o.bucket_id=split_part(replace(qa.storage_path,'supabase://',''),'/',1)");
+    expect(exportReadiness).toContain("o.name=regexp_replace(replace(qa.storage_path,'supabase://',''),'^[^/]+/','')");
+    expect(exportReadiness).toContain('required assets have neither inline content nor a valid private storage path');
+    expect(exportReadiness).toContain('private asset storage objects are missing');
   });
 
   it('retains fail-closed export integrity gates', () => {
