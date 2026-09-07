@@ -50,9 +50,23 @@ export type LessonRichBlock =
   | { kind: 'source-note'; title: string; sourceLabel: string; sourceText: string; examSafeLabel: string; examSafeText: string }
   | { kind: 'figure'; figure: LessonFigure };
 
+/**
+ * Exact source atoms are teacher/system evidence, not learner copy.
+ * Keeping them in a separate field prevents source-completeness data from being
+ * flattened into student activity prompts while retaining every verified line.
+ */
+export type LessonSourceAtomEvidence = {
+  id: string;
+  page: number;
+  kind: 'prior' | 'concept' | 'example' | 'activity' | 'extension' | 'table' | 'figure' | 'review';
+  sourceRef: string;
+  lines: string[];
+};
+
 export type HodderLessonSlide = LessonSlide & {
   sourcePages?: number[];
   sourceElements?: string[];
+  sourceAtomEvidence?: LessonSourceAtomEvidence[];
   sourceLabel?: string;
   richBlocks?: LessonRichBlock[];
   learningObjectiveCodes?: string[];
