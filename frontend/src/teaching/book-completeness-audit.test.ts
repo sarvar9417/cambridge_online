@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOK_COMPLETENESS_AUDITS } from './book-completeness-audit';
 import { BOOK_COMPLETENESS_BASELINES, type BookAuditChapter } from './book-completeness-baseline';
 
@@ -48,6 +48,12 @@ const expectedInventory: Record<BookAuditChapter, Record<string, number>> = {
   },
 };
 
+afterEach(()=>{
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe('formal Book Completeness Audit', () => {
   for (const chapter of [1, 7, 13] as const) {
     it(`locks Chapter ${chapter} to the independently inventoried supplied PDF`, () => {
@@ -81,17 +87,24 @@ describe('formal Book Completeness Audit', () => {
   }
 
   it('keeps every declared past-paper enrichment key implemented in the Cambridge Exam Lens', async () => {
-    document.body.innerHTML = [1, 7, 13]
-      .flatMap((chapter) => BOOK_COMPLETENESS_BASELINES[chapter as BookAuditChapter].examEnrichmentKeys)
+    const pending: VoidFunction[]=[];
+    vi.stubGlobal('queueMicrotask',(callback:VoidFunction)=>pending.push(callback));
+    vi.stubGlobal('MutationObserver',class {
+      constructor(_callback:MutationCallback){}
+      observe(){}
+      disconnect(){}
+      takeRecords(){return [] as MutationRecord[];}
+    });
+
+    const keys=[1,7,13].flatMap((chapter)=>BOOK_COMPLETENESS_BASELINES[chapter as BookAuditChapter].examEnrichmentKeys);
+    document.body.innerHTML = keys
       .map((key) => `<section class="exam-host"><div class="lesson-checkpoint-contract"><strong>${key}</strong></div></section>`)
       .join('');
     vi.resetModules();
     await import('./lesson-exam-insights');
-    await Promise.resolve();
-    await Promise.resolve();
+    while(pending.length)pending.shift()!();
 
     const hosts=[...document.querySelectorAll<HTMLElement>('.exam-host')];
-    const keys=[1,7,13].flatMap((chapter)=>BOOK_COMPLETENESS_BASELINES[chapter as BookAuditChapter].examEnrichmentKeys);
     expect(hosts).toHaveLength(keys.length);
     hosts.forEach((host,index)=>{
       expect(host.querySelector('.lesson-exam-insight'), `Missing Cambridge Exam Lens key ${keys[index]}`).not.toBeNull();
