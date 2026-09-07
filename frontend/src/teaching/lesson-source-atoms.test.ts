@@ -73,7 +73,7 @@ describe('source atom registry', () => {
     // student's two prior-knowledge tasks.
     expect(practiceText).not.toContain('In this chapter, you will learn about');
     expect(lessonDetailText).toContain('In this chapter, you will learn about');
-    expect(lessonDetailText).toContain('binary magnitudes, binary prefixes and decimal prefixes');
+    expect(lessonDetailText).toContain('Binary magnitudes, binary prefixes and decimal prefixes');
     expect(learnerText).not.toContain('Chapter source scope:');
 
     const objectives = source.sourceAtomEvidence?.find((item) => item.id === 'ch1-p1-file-objectives');
