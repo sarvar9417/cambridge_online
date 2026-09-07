@@ -18,11 +18,8 @@ import {
   type ResultItem,
   type User,
 } from "./lib/api";
-import {
-  flushAnswers,
-  queueAnswer,
-  type PendingAnswer,
-} from "./lib/offline-queue";
+import { queueAnswer } from "./lib/offline-queue";
+import { useOfflineAnswerSync } from './hooks/useOfflineAnswerSync';
 import { ThemeToggle } from './components/ThemeToggle';
 import { AuthScreens } from './auth/AuthScreens';
 import { UserApprovalPanel } from './auth/UserApprovalPanel';
@@ -60,7 +57,6 @@ export function App() {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [attemptIndex,setAttemptIndex]=useState(0);
   const [submitConfirm,setSubmitConfirm]=useState(false);
-  const [online,setOnline]=useState(()=>navigator.onLine);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -87,6 +83,7 @@ export function App() {
   const [gradingClass,setGradingClass]=useState('');
   const [gradingView,setGradingView]=useState<'by_question'|'by_student'|'confidence'>('by_question');
   const saveTimers = useRef<Record<string, number>>({});
+  const { online, flushPending } = useOfflineAnswerSync();
 
   useEffect(() => {
     const expired = () => {
@@ -242,24 +239,6 @@ export function App() {
     );
     return () => window.clearInterval(timer);
   }, [remainingSeconds === null]);
-  const sendPending = (answer: PendingAnswer) =>
-    api(
-      `/submissions/${answer.submissionId}/answers/${answer.questionId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          text: answer.text,
-          activeSessionId: answer.activeSessionId,
-        }),
-      },
-    ).then(() => {});
-  useEffect(() => {
-    const sync = () => {setOnline(true);void flushAnswers(localStorage, sendPending)};
-    const offline=()=>setOnline(false);
-    window.addEventListener("online", sync);window.addEventListener('offline',offline);
-    sync();
-    return () => {window.removeEventListener("online", sync);window.removeEventListener('offline',offline)};
-  }, []);
 
   useEffect(() => {
     if (
@@ -338,7 +317,7 @@ export function App() {
     });
     window.clearTimeout(saveTimers.current[id]);
     saveTimers.current[id] = window.setTimeout(
-      () => flushAnswers(localStorage, sendPending),
+      () => { void flushPending(); },
       1000,
     );
   };
@@ -428,8 +407,7 @@ export function App() {
       (current) =>
         current?.map((entry) =>
           entry.gradingId === item.gradingId
-            ? { ...entry, appealStatus: "open" }
-            : entry,
+            ? { ...entry, appealStatus: "open" } : entry,
         ) ?? null,
     );
     setAppealDraft((current) => ({ ...current, [item.gradingId]: "" }));
