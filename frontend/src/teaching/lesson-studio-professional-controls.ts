@@ -1,5 +1,6 @@
-let installed=false;
 let scheduled=false;
+let teardown:VoidFunction|null=null;
+let consumers=0;
 
 const sourcePages:Record<number,number>={1:26,7:41,13:24};
 
@@ -37,8 +38,6 @@ function ensureSourceBadge(studio:HTMLElement){
     actions.insertBefore(badge,actions.firstChild);
   }
   const text=`${pages}/${pages} supplied PDF pages audited`;
-  // Even assigning the same text replaces its text node and triggers our
-  // MutationObserver again. Leave unchanged controls alone so scans settle.
   if(badge.textContent!==text)badge.textContent=text;
   const title='Every supplied source page is pinned by the lesson source-fidelity contract.';
   if(badge.title!==title)badge.title=title;
@@ -112,18 +111,43 @@ function scan(){document.querySelectorAll<HTMLElement>('.lesson-studio').forEach
 function schedule(){
   if(scheduled)return;
   scheduled=true;
-  queueMicrotask(()=>{scheduled=false;scan()});
+  queueMicrotask(()=>{
+    scheduled=false;
+    if(teardown)scan();
+  });
 }
 
-/** Keep teacher navigation compact even when source-complete lessons contain dozens of slides. */
-export function installLessonStudioProfessionalControls(){
-  if(installed||typeof document==='undefined')return;
-  installed=true;
+function setup(){
   schedule();
   const observer=new MutationObserver(schedule);
   observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
-  document.addEventListener('fullscreenchange',()=>{updateFullscreenState();schedule()});
+  const fullscreen=()=>{updateFullscreenState();schedule()};
+  document.addEventListener('fullscreenchange',fullscreen);
   updateFullscreenState();
+
+  teardown=()=>{
+    observer.disconnect();
+    document.removeEventListener('fullscreenchange',fullscreen);
+    document.documentElement.classList.remove('lesson-presenting');
+    scheduled=false;
+    teardown=null;
+  };
 }
 
-installLessonStudioProfessionalControls();
+/**
+ * Keep teacher navigation compact even when source-complete lessons contain
+ * dozens of slides. Installation is tied to the React Lesson Studio lifecycle
+ * rather than module import, so tests/HMR/unmounts do not leave global observers.
+ */
+export function installLessonStudioProfessionalControls(){
+  if(typeof document==='undefined')return()=>{};
+  consumers+=1;
+  if(!teardown)setup();
+  let released=false;
+  return()=>{
+    if(released)return;
+    released=true;
+    consumers=Math.max(0,consumers-1);
+    if(consumers===0)teardown?.();
+  };
+}
