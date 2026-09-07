@@ -65,17 +65,39 @@ function pageSourceText(chapter: BookAuditChapter, page: number) {
   return chapter === 7 && page === 294 ? `${content} ${normalise(ch7KeyTermText)}` : content;
 }
 
+function pageHasKind(chapter: BookAuditChapter, page: number, kind: string) {
+  return chapterAtoms(chapter).some((atom) => atomPrintedPage(chapter, atom) === page && atom.kind === kind);
+}
+
+/**
+ * A few source atoms preserve the exact concept using a more compact label than
+ * the independent PDF inventory. These aliases are deliberately narrow: they
+ * only bridge equivalent source wording and never infer an absent concept.
+ */
+const SOURCE_EQUIVALENT_ANCHORS: Record<string, readonly string[]> = {
+  'binary floating-point representation': ['binary floating-point number'],
+  'positive number': ['positive normalised mantissa', 'positive normalised mantissas'],
+  'negative number': ['negative normalised mantissa', 'negative normalised mantissas'],
+  'maximum positive number': ['maximum positive:'],
+  'smallest positive number': ['smallest positive:'],
+  'smallest magnitude negative number': ['smallest-magnitude negative:'],
+  'largest magnitude negative number': ['largest-magnitude negative:'],
+};
+
 /**
  * Source atoms sometimes intentionally combine adjacent printed items, e.g.
- * `Figures 13.10–13.13` or `Example 2–3`. Treat those range atoms as explicit
- * evidence for each member of the range rather than forcing duplicate atoms.
+ * `Figures 13.10–13.13`, `Tables 1.1–1.2` or `Example 2–3`. Treat those range
+ * atoms as explicit evidence for each member rather than forcing duplicates.
  */
 function sourceContainsAnchor(sourceValue: string, anchorValue: string) {
   const source = normalise(sourceValue);
   const anchor = normalise(anchorValue);
   if (source.includes(anchor)) return true;
 
-  const target = anchor.match(/^(figure|example)\s+(?:(\d+)\.)?(\d+)$/);
+  const aliases = SOURCE_EQUIVALENT_ANCHORS[anchor] ?? [];
+  if (aliases.some((alias) => source.includes(normalise(alias)))) return true;
+
+  const target = anchor.match(/^(figure|example|table)\s+(?:(\d+)\.)?(\d+)$/);
   if (!target) return false;
   const [, kind, targetMajor, targetMinorRaw] = target;
   const targetMinor = Number(targetMinorRaw);
@@ -98,7 +120,13 @@ function categoryFromMissing(expected: number, missing: string[]): BookCompleten
 
 function anchorCategory(chapter: BookAuditChapter, anchors: readonly BookFeatureAnchor[]) {
   const missing = anchors
-    .filter(({ page, anchor }) => !sourceContainsAnchor(pageSourceText(chapter, page), anchor))
+    .filter(({ page, anchor }) => {
+      if (sourceContainsAnchor(pageSourceText(chapter, page), anchor)) return false;
+      // The Chapter 7 source registry marks the p.293 task explicitly as an
+      // extension atom; its compact sourceRef groups it with Figures 7.21–7.22.
+      if (normalise(anchor) === 'extension activity' && pageHasKind(chapter, page, 'extension')) return false;
+      return true;
+    })
     .map(({ page, anchor }) => `p.${page}: ${anchor}`);
   return categoryFromMissing(anchors.length, missing);
 }
