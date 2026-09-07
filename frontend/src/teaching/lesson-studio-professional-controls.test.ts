@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { bookCompletenessAudit } from './book-completeness-audit';
 
 describe('Lesson Studio board navigation contract',()=>{
   let pending: VoidFunction[];
@@ -60,13 +61,17 @@ describe('Lesson Studio board navigation contract',()=>{
     expect(pending, 'the controls must not keep reacting to their own DOM writes').toHaveLength(0);
   }
 
-  it.each([[1, 26], [7, 41], [13, 24]])('opens chapter %i and lets the observer settle', async (chapter, pages) => {
-    mountStudio(chapter!);
+  it.each([1, 7, 13])('opens chapter %i and lets the observer settle', async (chapter) => {
+    mountStudio(chapter);
     await install();
     await settle();
 
-    expect(document.querySelector('.lesson-source-complete-badge')?.textContent)
-      .toBe(`${pages}/${pages} supplied PDF pages audited`);
+    const audit=bookCompletenessAudit(chapter)!;
+    expect(audit.complete).toBe(true);
+    const badge=document.querySelector<HTMLElement>('.lesson-source-complete-badge');
+    expect(badge?.textContent).toBe(`${audit.checksCovered}/${audit.checksExpected} book completeness checks`);
+    expect(badge?.dataset.complete).toBe('true');
+    expect(badge?.title).toContain('Source Complete:');
     expect(document.querySelector('.lesson-v3-nav-label')?.textContent).toBe('1 / 3 · Introduction');
     expect(document.querySelectorAll('.lesson-v3-nav-center')).toHaveLength(1);
 
