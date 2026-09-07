@@ -10,6 +10,7 @@ import {
 } from './lesson-content-source-complete';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
+import { lessonPurpose, studentFacingSlide, studentFacingText } from './lesson-student-facing';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
 import './lesson-studio-presenter-fix.css';
@@ -73,17 +74,27 @@ function RichBlock({ block }: { block:LessonRichBlock }) {
   if(block.kind==='bullets') return <ul className="hodder-bullets">{block.items.map(item=><li key={item}>{item}</li>)}</ul>;
   if(block.kind==='code') return <div className="hodder-code"><strong>{block.title}</strong><pre>{block.lines.join('\n')}</pre></div>;
   if(block.kind==='steps') return <div className="hodder-steps">{block.title&&<strong>{block.title}</strong>}<ol>{block.items.map(item=><li key={item}>{item}</li>)}</ol></div>;
-  if(block.kind==='callout') return <aside className={`hodder-callout tone-${block.tone||'info'}`}><span>{block.tone==='extension'?'EXTENSION':block.tone==='activity'?'ACTIVITY':'NOTE'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
+  if(block.kind==='callout') return <aside className={`hodder-callout tone-${block.tone||'info'}`}><span>{block.tone==='extension'?'GO FURTHER':block.tone==='activity'?'TRY IT':'KEY IDEA'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
   if(block.kind==='comparison') return <div className="hodder-comparison"><div><strong>{block.leftTitle}</strong>{block.rows.map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</div><div><strong>{block.rightTitle}</strong>{block.rows.map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</div></div>;
-  if(block.kind==='source-note') return <aside className="hodder-source-note"><header><span>SOURCE FIDELITY</span><strong>{block.title}</strong></header><div><section><b>{block.sourceLabel}</b><p>{block.sourceText}</p></section><section><b>{block.examSafeLabel}</b><p>{block.examSafeText}</p></section></div></aside>;
+  if(block.kind==='source-note') return <aside className="hodder-source-note"><header><span>EXAM NOTE</span><strong>{block.title}</strong></header><div><section><b>{block.sourceLabel}</b><p>{block.sourceText}</p></section><section><b>{block.examSafeLabel}</b><p>{block.examSafeText}</p></section></div></aside>;
   if(block.kind==='figure') return <FigureBlock figure={block.figure}/>;
   return <div className="hodder-table-wrap"><table className="hodder-table"><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,index)=><td key={`${rowIndex}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-function SourceTrace({ slide }: { slide:LessonSlide }) {
+function SourceTrace({ slide, toolbar=false }: { slide:LessonSlide; toolbar?:boolean }) {
   const pages=slide.sourcePages??[],elements=slide.sourceElements??[];
   if(!pages.length&&!elements.length)return null;
-  return <details className="lesson-source-trace"><summary>{slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
+  return <details className={`lesson-source-trace${toolbar?' lesson-teacher-evidence':''}`}><summary>{toolbar?'Source evidence':slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
+}
+
+function ActivityCard({ slideId, activity }: { slideId:string; activity:NonNullable<LessonSlide['activity']> }){
+  const [revealed,setRevealed]=useState(false);
+  useEffect(()=>setRevealed(false),[slideId]);
+  return <section className="lesson-student-activity">
+    <header><span>YOUR TURN</span><strong>{activity.title}</strong></header>
+    <p>{activity.prompt}</p>
+    {activity.reveal&&<><button className="lesson-model-answer-toggle" type="button" aria-expanded={revealed} onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide model answer':'Show model answer'}</button>{revealed&&<div className="lesson-student-model-answer"><span>MODEL ANSWER</span><p>{activity.reveal}</p></div>}</>}
+  </section>;
 }
 
 function ExamPractice({ slide }: { slide:LessonSlide }) {
@@ -91,7 +102,6 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
   const syllabusCode=slide.checkpointSyllabusCode??'9618';
   const yearFrom=slide.checkpointYearFrom??2021;
   const yearTo=slide.checkpointYearTo??2025;
-  const is0478=syllabusCode==='0478';
   const [questions,setQuestions]=useState<ExamPart[]>([]),[loading,setLoading]=useState(Boolean(codes.length)),[error,setError]=useState('');
 
   useEffect(()=>{
@@ -104,33 +114,34 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
         codes.forEach(code=>qs.append('loCodes',code));
         const result=await api<CheckpointResponse>(`/lesson-checkpoints?${qs}`);
         if(!cancelled)setQuestions(result.data);
-      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:(is0478?'Questions could not be loaded.':'Savollar yuklanmadi.'));}
+      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Past-paper questions could not be loaded.');}
       finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true};
-  },[codes.join('|'),syllabusCode,yearFrom,yearTo,is0478]);
+  },[codes.join('|'),syllabusCode,yearFrom,yearTo]);
 
-  if(slide.checkpointUnavailableReason)return <div className="lesson-checkpoint-unavailable"><span>NO EXACT HISTORICAL LO</span><h2>{is0478?'No exact past-paper match is forced for this part':'Bu qism uchun savol majburan tanlanmadi'}</h2><p>{slide.checkpointUnavailableReason}</p></div>;
-  if(loading)return <div className="lesson-loading">{is0478?'Loading exact learning-objective past-paper questions…':'Exact learning-objective past-paper savollari yuklanmoqda…'}</div>;
+  const rangeLabel=`${yearFrom}–${yearTo}`;
+  if(slide.checkpointUnavailableReason)return <div className="lesson-checkpoint-unavailable"><span>PAST-PAPER CHECK</span><h2>No exact Cambridge question is shown for this learning point</h2><p>The approved corpus does not contain an exact match here, so a loosely related question is not substituted.</p></div>;
+  if(loading)return <div className="lesson-loading">Finding exact Cambridge past-paper questions for this learning point…</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
 
   const years=Array.from({length:Math.max(0,yearTo-yearFrom+1)},(_,index)=>yearFrom+index);
   const represented=new Set(questions.map(q=>q.year));
   const groups=years.map(year=>({year,questions:questions.filter(q=>q.year===year)})).filter(group=>group.questions.length);
-  const rangeLabel=`${yearFrom}–${yearTo}`;
   let ordinal=0;
   return <>
-    <div className="lesson-checkpoint-contract"><div><span>EXACT LO MATCH</span><strong>{slide.checkpointLabel||codes.join(' · ')}</strong></div><p>{is0478?`Only approved ${rangeLabel} Cambridge 0478 leaves explicitly mapped to these historical/current learning objective codes are shown.`:`Only approved ${rangeLabel} Cambridge 9618 leaves explicitly mapped to these historical learning objective codes are shown.`}</p></div>
-    <div className="lesson-exam-years"><strong>Paper coverage</strong>{years.map(year=><span className={represented.has(year)?'available':'missing'} key={year}>{year}</span>)}</div>
-    <div className="lesson-exam-summary"><strong>{is0478?`${questions.length} approved questions`:`${questions.length} ta approved savol`}</strong><span>{is0478?'All shown · grouped by year · scroll down':'Barchasi ko‘rsatiladi · yillar bo‘yicha guruhlangan · pastga scroll qiling'}</span></div>
-    {!questions.length?<div className="lesson-empty">{is0478?`No approved Cambridge 0478 question is currently mapped to this exact learning-objective set in the ${rangeLabel} corpus. CamPath does not substitute a loosely related question.`:`Bu exact learning objective uchun ${rangeLabel} corpusda approved savol yo‘q. CamPath boshqa subtopic savolini bu yerga aralashtirmaydi.`}</div>:
+    <div className="lesson-checkpoint-contract student-facing-contract"><div><span>CAMBRIDGE PAST-PAPER PRACTICE</span><strong>{slide.checkpointLabel||'Apply what you have learned'}</strong></div><p>Every question below is an approved Cambridge past-paper question matched to the concept you have just learned. Attempt it before checking the mark scheme.</p></div>
+    <div className="lesson-practice-cycle" aria-label="Past-paper learning cycle"><span>1 · Attempt independently</span><span>2 · Explain your reasoning</span><span>3 · Check the mark scheme</span><span>4 · Improve your answer</span></div>
+    <div className="lesson-exam-years"><strong>Past-paper years</strong>{years.map(year=><span className={represented.has(year)?'available':'missing'} key={year}>{year}</span>)}</div>
+    <div className="lesson-exam-summary"><strong>{questions.length} Cambridge question{questions.length===1?'':'s'}</strong><span>Open a question to see its complete original context, table or diagram.</span></div>
+    {!questions.length?<div className="lesson-empty">No exact approved Cambridge past-paper question is available for this learning point in the {rangeLabel} corpus.</div>:
     <div className="lesson-exam-scroll">{groups.map(group=><section className="lesson-exam-year-group" key={group.year}>
-      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{is0478?`${group.questions.length} questions`:`${group.questions.length} ta savol`}</span></div>
-      <div className="lesson-exam-grid">{group.questions.map(q=>{ordinal+=1;const flags=[q.hasDiagram?'Diagram':'',q.hasDependency?'Parent context':''].filter(Boolean);return <article className="lesson-exam-card" key={q.id}>
-        <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} {is0478?'marks':'ball'}</b></div>
+      <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} question{group.questions.length===1?'':'s'}</span></div>
+      <div className="lesson-exam-grid">{group.questions.map(q=>{ordinal+=1;const flags=[q.hasDiagram?'Original visual included':'',q.hasDependency?'Required context included':''].filter(Boolean);return <article className="lesson-exam-card" data-lo-codes={q.matchedLearningObjectiveCodes.join('|')} data-syllabus-code={syllabusCode} key={q.id}>
+        <div className="lesson-exam-meta"><span>{q.displayRef}</span><b>{q.marks} mark{q.marks===1?'':'s'}</b></div>
         {q.contextMd&&<div className="lesson-question-context">{q.contextMd}</div>}
         <p>{q.stem}</p>
-        <footer><span>{q.commandWord||'Question'}{flags.length?` · ${flags.join(' · ')}`:''}</span><span>{q.matchedLearningObjectiveCodes.join(', ')}</span></footer>
+        <footer><span>{q.commandWord||'Question'}{flags.length?` · ${flags.join(' · ')}`:''}</span><span className="lesson-exam-technical">{q.matchedLearningObjectiveCodes.join(', ')}</span></footer>
         <span className="lesson-exam-number">{String(ordinal).padStart(2,'0')}</span>
       </article>})}</div>
     </section>)}</div>}
@@ -140,6 +151,7 @@ function ExamPractice({ slide }: { slide:LessonSlide }) {
 function SlideBody({ slide }: { slide:LessonSlide }) {
   return <>
     <div className="lesson-copy hodder-copy">
+      <span className="lesson-screen-purpose">{lessonPurpose(slide)}</span>
       <p className="lesson-eyebrow">{slide.eyebrow}</p>
       <h1>{slide.title}</h1>
       <p className="lesson-lead">{slide.lead}</p>
@@ -148,9 +160,8 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
       {slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><p>{item.definition}</p></article>)}</div>}
       {slide.richBlocks&&<div className="hodder-rich-blocks">{slide.richBlocks.map((block,index)=><RichBlock block={block} key={`${block.kind}-${index}`}/>)}</div>}
       {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
-      {slide.teacherPrompt&&<aside className="lesson-prompt"><span>DISCUSS</span><p>{slide.teacherPrompt}</p></aside>}
-      {slide.activity&&<details className="lesson-activity"><summary><span>CLASS ACTIVITY</span><strong>{slide.activity.title}</strong></summary><p>{slide.activity.prompt}</p>{slide.activity.reveal&&<div className="lesson-activity-answer"><span>ANSWER / GUIDE</span><p>{slide.activity.reveal}</p></div>}</details>}
-      <SourceTrace slide={slide}/>
+      {slide.teacherPrompt&&<aside className="lesson-prompt student-facing-prompt"><span>THINK / EXPLAIN</span><p>{slide.teacherPrompt}</p></aside>}
+      {slide.activity&&<ActivityCard slideId={slide.id} activity={slide.activity}/>} 
     </div>
     <Visual kind={slide.visual}/>
   </>;
@@ -162,25 +173,26 @@ export function LessonStudio({ user }: { user:User }) {
   const chosen=LESSON_CHAPTERS.find(chapter=>chapter.number===chapterNo)??null;
   const [index,setIndex]=useState(0),[presenting,setPresenting]=useState(false);
   const studioRef=useRef<HTMLElement|null>(null);
-  const slide=chosen?.slides[index] as LessonSlide|undefined;
+  const sourceSlide=chosen?.slides[index] as LessonSlide|undefined;
+  const slide=useMemo(()=>sourceSlide?studentFacingSlide(sourceSlide):undefined,[sourceSlide]);
   const sections=useMemo(()=>chosen?[...new Set(chosen.slides.map(item=>item.section))]:[],[chosen]);
 
   useEffect(()=>{setIndex(0)},[chapterNo]);
   const leavePresenter=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{setPresenting(false)}};
   const enterPresenter=async()=>{const target=studioRef.current;if(!target)return;try{await target.requestFullscreen?.();setPresenting(document.fullscreenElement===target);}catch{setPresenting(false)}};
   useEffect(()=>{const sync=()=>setPresenting(document.fullscreenElement===studioRef.current);document.addEventListener('fullscreenchange',sync);return()=>document.removeEventListener('fullscreenchange',sync)},[]);
-  useEffect(()=>{if(!chosen)return;const onKey=(event:KeyboardEvent)=>{if(['ArrowRight','PageDown',' '].includes(event.key)){const target=event.target as HTMLElement|null;if(target?.closest('.lesson-exam-scroll,.hodder-table-wrap,details'))return;event.preventDefault();setIndex(value=>Math.min(chosen.slides.length-1,value+1));}if(['ArrowLeft','PageUp'].includes(event.key)){event.preventDefault();setIndex(value=>Math.max(0,value-1));}if(event.key==='Escape'&&presenting)void leavePresenter();};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[chosen,presenting]);
+  useEffect(()=>{if(!chosen)return;const onKey=(event:KeyboardEvent)=>{if(['ArrowRight','PageDown',' '].includes(event.key)){const target=event.target as HTMLElement|null;if(target?.closest('.lesson-exam-scroll,.hodder-table-wrap,details,input,textarea,button'))return;event.preventDefault();setIndex(value=>Math.min(chosen.slides.length-1,value+1));}if(['ArrowLeft','PageUp'].includes(event.key)){const target=event.target as HTMLElement|null;if(target?.closest('input,textarea,button'))return;event.preventDefault();setIndex(value=>Math.max(0,value-1));}if(event.key==='Escape'&&presenting)void leavePresenter();};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[chosen,presenting]);
 
   if(user.role==='student')return null;
-  if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">TEACHING STUDIO</p><h1>Darslar</h1><p>Elektron doska uchun source-audited Hodder lessons. Chapter 1 va 13 uploaded source bo‘yicha page-by-page qayta qurilgan.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} chapter</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} slides · {chapter.coverage}</b><span>Ochish →</span></footer></button>)}</div></section>;
-  if(!slide)return null;
+  if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">LESSON LIBRARY</p><h1>Darslar</h1><p>Board-ready lessons with clear explanations, worked examples, visual models, checks for understanding and Cambridge past-paper practice.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} board-ready chapters</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=><button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{studentFacingText(chapter.subtitle)}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{chapter.slides.length} learning screens</b><span>Ochish →</span></footer></button>)}</div></section>;
+  if(!slide||!sourceSlide)return null;
 
   const sectionStart=sections.map(section=>chosen.slides.findIndex(item=>item.section===section));
   return <section ref={studioRef} className={`lesson-studio hodder-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
-    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number}</span><strong>{chosen.title}</strong></div><div className="lesson-toolbar-actions"><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Presenter’dan chiqish':'Doskada ochish ↗'}</button></div></header>
+    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Chapters</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number}</span><strong>{chosen.title}</strong></div><div className="lesson-toolbar-actions"><SourceTrace slide={sourceSlide} toolbar/><span>{index+1}/{chosen.slides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Board mode’dan chiqish':'Board mode ↗'}</button></div></header>
     <div className="lesson-progress"><span style={{width:`${((index+1)/chosen.slides.length)*100}%`}}/></div>
     <div className="lesson-workspace"><aside className="lesson-outline"><p>CHAPTER {chosen.number}</p>{sections.map((section,i)=><button className={slide.section===section?'active':''} key={section} onClick={()=>setIndex(sectionStart[i]!)}><span>{String(i+1).padStart(2,'0')}</span>{section}</button>)}</aside>
-      <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>{slide.examPractice?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><div><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1></div><p>{slide.lead}</p></div><ExamPractice slide={slide}/><SourceTrace slide={slide}/></div>:slide.id.startsWith('ch7-')?<Chapter7SlideBody slide={slide}/>:<SlideBody slide={slide}/>}<div className="lesson-slide-watermark">CamPath · {chosen.level}</div></main>
+      <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>{slide.examPractice?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><div><span className="lesson-screen-purpose">CAMBRIDGE PRACTICE</span><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1></div><p>{slide.lead}</p></div><ExamPractice slide={slide}/></div>:slide.id.startsWith('ch7-')?<div className="lesson-student-ch7"><span className="lesson-screen-purpose">{lessonPurpose(slide)}</span><Chapter7SlideBody slide={slide}/></div>:<SlideBody slide={slide}/>}<div className="lesson-slide-watermark">CamPath · {chosen.level}</div></main>
     </div>
     <footer className="lesson-nav"><button disabled={index===0} onClick={()=>setIndex(value=>Math.max(0,value-1))}>← Oldingi</button><div>{chosen.slides.map((item,i)=><button key={item.id} aria-label={`${i+1}-slide`} className={i===index?'active':item.section===slide.section?'same-section':''} onClick={()=>setIndex(i)}/>)}</div><button disabled={index===chosen.slides.length-1} onClick={()=>setIndex(value=>Math.min(chosen.slides.length-1,value+1))}>Keyingi →</button></footer>
   </section>;
