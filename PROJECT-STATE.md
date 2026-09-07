@@ -84,7 +84,7 @@ claim that it is GitHub's live branch head.
       "total": 18,
       "pending": 1,
       "pending_items": [
-        "Vercel preview / production deployment — verify after provider rate-limit window and durable-storage configuration."
+        "Vercel preview / production deployment — verify after CI."
       ]
     }
   },
