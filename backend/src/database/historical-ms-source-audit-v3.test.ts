@@ -34,7 +34,7 @@ describe('historical 9618 MS source audit v3',()=>{
   it('keeps the v3 bootstrap and hardened v2 recorder while promotion advances to the stricter successor',()=>{
     expect(edge).toContain("rpc('ms_source_audit_bootstrap_v3')");
     expect(edge).toContain("rpc('ms_source_audit_record_v2'");
-    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v4')");
+    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v5')");
     expect(edge).toContain("rpc('approve_source_verified_historical_questions_v1')");
   });
 
