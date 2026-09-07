@@ -31,13 +31,13 @@ that evidence is collected.
     "branch": "main",
     "evidence_base_sha": "ae2979e2022fdece09cf6fe639bc95cd71e5bce9",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0140_9618_ms_embedded_layout_repair_contract.sql",
+    "latest_migration": "0141_9618_ms_source_matcher_v6.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
       "note": "Do not infer a complete production corpus count from the checkpoint windows."
     },
-    "corpus_version": "2026 current-target compatibility + source matcher v5 + guarded MS point repair v2",
+    "corpus_version": "2026 current-target compatibility + source matcher v6 + guarded MS point repair v2",
     "expected_papers": null,
     "complete_papers": null,
     "policy_blocked": null,
@@ -70,11 +70,11 @@ that evidence is collected.
       "current_main": "not_rerun_after_evidence_base_sha"
     },
     "ci": {
-      "latest_verified_merged_pr": 111,
-      "head_sha": "de9fac525412306c294a8dae78fc277fb6376a66",
-      "run_number": 2437,
+      "latest_verified_merged_pr": 114,
+      "head_sha": "24db165465639b7dc16dcba6cf469bb3c2985f71",
+      "run_number": 2485,
       "conclusion": "success",
-      "note": "The later direct main commit ae2979e has no PR-triggered workflow run recorded by this manifest."
+      "note": "PR #114 passed the full CI suite before merge; matcher-v6 requires its own green PR evidence before release."
     },
     "lesson_studio": {
       "checked": 16,
@@ -87,7 +87,7 @@ that evidence is collected.
     }
   },
   "infrastructure": {
-    "database": "repository schema reaches migration 0140; production migration state requires runtime verification",
+    "database": "repository schema reaches migration 0141; production migration state requires runtime verification",
     "storage": "source/asset tooling exists; current durable-provider production state requires runtime verification",
     "worker": "corpus jobs and audit workflows exist; current production worker/provider state requires runtime verification",
     "deployment": "Vercel/Supabase were historically verified; current-main deployment requires fresh verification"
@@ -98,7 +98,7 @@ that evidence is collected.
     "docs/DATA-MASTER-PLAN.md",
     "docs/lesson-studio-v3-acceptance.md",
     "backend/package.json",
-    "backend/src/database/migrations/0140_9618_ms_embedded_layout_repair_contract.sql"
+    "backend/src/database/migrations/0141_9618_ms_source_matcher_v6.sql"
   ]
 }
 ```
@@ -137,7 +137,7 @@ The 2026 Lesson Studio compatibility release moved active lesson targets onto th
 2026-2028 objective set while preserving historical 2021-2025 9618 questions through
 explicit compatibility edges. Chapter 7 uses the same principle for historical 0478
 questions. Historical mark-scheme review has continued through deterministic source
-matcher v5 and guarded exact-source point-repair passes without relaxing source identity,
+matcher v6 and guarded exact-source point-repair passes without relaxing source identity,
 rubric prose or promotion gates.
 
 ## Acceptance state
@@ -146,10 +146,9 @@ rubric prose or promotion gates.
 The two remaining acceptance items are operational: a green `npm run verify` and a
 Vercel preview/production verification.
 
-The latest explicitly verified merged PR evidence in this manifest is **PR #111 / CI run
-#2437: success**. The later direct `main` commit recorded as the evidence baseline has no
-PR-triggered workflow run attached, so this file intentionally does not claim that the
-exact current `main` SHA has passed the full suite.
+The latest explicitly verified merged PR evidence in this manifest is **PR #114**. The
+matcher-v6 branch must independently pass its own full CI suite before merge; this file
+does not pre-claim that result.
 
 ## Corpus state rule
 
