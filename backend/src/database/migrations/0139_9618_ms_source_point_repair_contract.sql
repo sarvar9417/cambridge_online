@@ -83,10 +83,10 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM jsonb_array_elements(v_rows) r
-    GROUP BY r->>'pointId'
+    GROUP BY r->>'markSchemeId',r->>'pointCode'
     HAVING count(*)>1
   ) THEN
-    RAISE EXCEPTION 'duplicate pointId in repair manifest' USING ERRCODE='22023';
+    RAISE EXCEPTION 'duplicate markSchemeId/pointCode in repair manifest' USING ERRCODE='22023';
   END IF;
 
   SELECT lower(trim(coalesce(sp.sha256,''))),sp.year,sp.kind::text,s.code
@@ -111,7 +111,6 @@ BEGIN
     END IF;
 
     BEGIN
-      v_point_id := (v_row->>'pointId')::uuid;
       v_mark_scheme_id := (v_row->>'markSchemeId')::uuid;
       v_source_page := (v_row->>'sourcePage')::integer;
     EXCEPTION WHEN OTHERS THEN
@@ -137,15 +136,15 @@ BEGIN
       RAISE EXCEPTION 'unsupported point repair proof mode' USING ERRCODE='22023';
     END IF;
 
-    SELECT p.text,p.code,ms.question_id,ms.scheme_type::text,ms.status::text,q.status::text
-    INTO v_current_text,v_point_code,v_question_id,v_scheme_type,v_scheme_status,v_question_status
+    SELECT p.id,p.text,ms.question_id,ms.scheme_type::text,ms.status::text,q.status::text
+    INTO v_point_id,v_current_text,v_question_id,v_scheme_type,v_scheme_status,v_question_status
     FROM public.mark_scheme_points p
     JOIN public.mark_schemes ms ON ms.id=p.mark_scheme_id
     JOIN public.questions q ON q.id=ms.question_id
     JOIN public.source_papers qp ON qp.id=q.source_paper_id AND qp.kind='QP'::paper_kind
     JOIN public.source_papers src ON src.id=ms.source_paper_id AND src.kind='MS'::paper_kind
-    WHERE p.id=v_point_id
-      AND p.mark_scheme_id=v_mark_scheme_id
+    WHERE p.mark_scheme_id=v_mark_scheme_id
+      AND p.code=v_point_code
       AND ms.source_paper_id=v_source_paper_id
       AND qp.syllabus_id=src.syllabus_id
       AND qp.year=src.year
@@ -155,9 +154,6 @@ BEGIN
 
     IF NOT FOUND THEN
       RAISE EXCEPTION 'repair row point/scheme/source identity mismatch' USING ERRCODE='22023';
-    END IF;
-    IF v_point_code<>coalesce(v_row->>'pointCode','') THEN
-      RAISE EXCEPTION 'repair row point code mismatch' USING ERRCODE='22023';
     END IF;
     IF v_scheme_status<>'needs_review' OR v_question_status NOT IN ('approved','needs_review')
        OR v_scheme_type='manual_only' THEN
@@ -210,15 +206,19 @@ BEGIN
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(v_rows)
   LOOP
-    v_point_id := (v_row->>'pointId')::uuid;
     v_mark_scheme_id := (v_row->>'markSchemeId')::uuid;
+    v_point_code := v_row->>'pointCode';
     v_old_text := v_row->>'expectedOldText';
     v_new_text := v_row->>'newText';
     v_source_page := (v_row->>'sourcePage')::integer;
     v_section_hash := lower(trim(v_row->>'sourceSectionHash'));
     v_proof_mode := v_row->>'proofMode';
 
-    SELECT text INTO v_current_text FROM public.mark_scheme_points WHERE id=v_point_id FOR UPDATE;
+    SELECT id,text INTO v_point_id,v_current_text
+    FROM public.mark_scheme_points
+    WHERE mark_scheme_id=v_mark_scheme_id AND code=v_point_code
+    FOR UPDATE;
+
     IF v_current_text=v_new_text THEN
       v_replayed := v_replayed+1;
       CONTINUE;
