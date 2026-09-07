@@ -26,6 +26,10 @@ export function studentFacingText(value:string){
   let text=value.trim();
   if(!text)return text;
 
+  text=text.replace(/^HODDER CHAPTER\s+(\d+)\s*·\s*SOURCE-FAITHFUL$/i,'CHAPTER $1 · CORE LESSON');
+  text=text.replace(/\bHODDER EXTENSION\b/gi,'EXTENSION');
+  text=text.replace(/^HODDER END-OF-CHAPTER QUESTIONS$/i,'END-OF-CHAPTER REVIEW');
+
   if(/^use this as (?:a|an) .*retrieval check before teaching/i.test(text)){
     return 'Before we start, check what you already know.';
   }
@@ -56,6 +60,12 @@ export function studentFacingText(value:string){
   }
   if(/^The Hodder review includes older exam-style material/i.test(text)){
     return 'Use the coursebook review for broad retrieval. Use the Cambridge practice screens for approved past-paper questions matched to each learning point.';
+  }
+  if(/^The source finishes with exam-style material\. CamPath preserves the coverage/i.test(text)){
+    return 'Finish with these mixed exam-style review prompts, then use the Cambridge practice screens for approved 2021–2025 past-paper questions.';
+  }
+  if(/^Some printed (?:Hodder|The coursebook) review items cite older 9608 papers/i.test(text)){
+    return 'Some coursebook review items cite older 9608 papers. Use them for broad topic review; the Cambridge practice screens use approved 2021–2025 9618 past-paper questions.';
   }
 
   const diagnostic=text.match(/^Hodder opens with a diagnostic on (.+)$/i);
@@ -106,8 +116,6 @@ export function studentFacingText(value:string){
   text=text.replace(/^Discuss with (?:learners|students|the class):?\s*/i,'Discuss: ');
   text=text.replace(/^Chapter source scope:\s*/i,'In this chapter: ');
 
-  // Third-person authoring narration is changed only where it explicitly talks
-  // about what the classroom/exam asks the learner to do.
   text=text.replace(/\bmay ask learners to\b/gi,'may require you to');
   text=text.replace(/\basks learners to\b/gi,'requires you to');
   text=text.replace(/\bask learners to\b/gi,'require you to');
@@ -121,12 +129,14 @@ export function studentFacingText(value:string){
   }
   text=text.replace(/^Hodder p\.\s*\d+\s*·\s*/i,'');
 
-  // Where a source-specific quantitative/example statement needs attribution,
-  // keep the distinction in learner language without exposing authoring metadata.
-  text=text.replace(/\bHodder’s\b/g,'The coursebook’s');
-  text=text.replace(/\bHodder\b/g,'The coursebook');
+  // Source-specific examples can retain attribution without exposing the
+  // authoring system or directing the teacher what to do.
+  text=text.replace(/\bHodder’s\b/gi,'The coursebook’s');
+  text=text.replace(/\bHodder\b/gi,'The coursebook');
+  text=text.replace(/\bCamPath[’']s\b/gi,'The current lesson’s');
   text=text.replace(/\bCamPath intentionally does not substitute\b/gi,'This lesson does not substitute');
   text=text.replace(/\bCamPath keeps\b/gi,'This lesson keeps');
+  text=text.replace(/\bCamPath preserves\b/gi,'This lesson preserves');
 
   text=capitalise(text);
   if(/^(?:Why|How|What)\b/i.test(text)){
