@@ -20,5 +20,5 @@
 - [x] Existing progressive mark-point reveal, Student/Teacher view and Projector controls remain compatible.
 - [x] Long source-complete lessons use a compact board-friendly slide scrubber rather than relying on dozens of tiny dots.
 - [x] Presenter toolbar shows the exact supplied-PDF page audit count for the active chapter.
-- [x] CI `npm run verify` — candidate SHA `4773ad49228ce39c7517e76011d7ecd336444586`, CI run #2494: success.
+- [x] CI `npm run verify` — merged main SHA `a166c70a08573d83fadf653184c36a352f2d833e`, CI run #2520: success.
 - [ ] Vercel preview / production deployment — verify after CI.
