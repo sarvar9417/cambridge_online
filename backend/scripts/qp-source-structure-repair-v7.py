@@ -135,7 +135,7 @@ def _canonical_preceding_row(pdf, work, lines, page_sizes, event: Any, target: d
         pdf, event.page, bbox, work,
         f"{str(target['questionId'])[:8]}-canonical-pre-{event.page}",
     )
-    rules = sorted(str(value) for value in target.get("rules") or [])
+    target_rules = sorted(str(value) for value in target.get("rules") or [])
     label_kind = "visual" if required_kind == "visual" else required_kind
     row = {
         "questionId": target["questionId"],
@@ -147,7 +147,7 @@ def _canonical_preceding_row(pdf, work, lines, page_sizes, event: Any, target: d
             "sourcePage": event.page,
             "sourceBbox": list(bbox),
             "contentHash": png_hash,
-            "satisfiesRules": rules,
+            "satisfiesRules": [rule],
             "sourcePlacement": "after_source_visual_cue",
         }],
         "resolveRules": [],
@@ -157,7 +157,8 @@ def _canonical_preceding_row(pdf, work, lines, page_sizes, event: Any, target: d
         "questionId": target["questionId"], "path": target["path"],
         "displayRef": target["displayRef"], "status": "asset_canonical_preceding_span",
         "assets": [{"page": event.page, "bbox": list(bbox), "bytes": len(png)}],
-        "trueRules": rules, "resolvedByText": [], "stemChanged": False,
+        "trueRules": [rule], "targetRules": target_rules,
+        "resolvedByText": [], "stemChanged": False,
         "sourcePlacement": "after_source_visual_cue", "canonicalCue": cue[:240],
         "canonicalRule": rule,
     }
