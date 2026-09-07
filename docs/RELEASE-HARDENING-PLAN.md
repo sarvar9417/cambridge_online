@@ -20,7 +20,7 @@ Required repository setting for `main`:
 
 Evidence condition: GitHub reports `main` as protected/ruleset-covered with required status checks enabled.
 
-Note: this is a repository administration setting, not an application-code change. It must not be faked with documentation or a permissive workflow workaround.
+Status: **blocked on GitHub repository-administration capability**. The connected repository interface can read rulesets but cannot create/update branch-protection settings. No fake code substitute is accepted for this item.
 
 ### P0 — Canonical closed-loop regression
 
@@ -42,20 +42,23 @@ Question selection
 
 The regression must prove that the same source question identity remains traceable through the whole HTTP handoff. Repository/service unit tests remain responsible for SQL and authorization details; this test protects the inter-domain contract.
 
-Status: **in progress** in `backend/src/release-learning-loop.integration.test.ts`.
+Status: **complete**. PR #122 merged `backend/src/release-learning-loop.integration.test.ts`; merged main SHA `653e4aedef652c644353879bc6e66f1fc3e2b53f` passed CI #2553.
 
-### P1 — Canonical state evidence cannot silently lag `main`
+### P1 — Canonical state evidence cannot be mislabeled as current head
 
-Goal: remove the current mismatch where `PROJECT-STATE.md` can describe a previously verified merge rather than the actual current head.
+Goal: remove the ambiguity where `PROJECT-STATE.md` could describe a previously verified merge using field names such as `current_main` or `head_sha`, which sound like live-current GitHub state.
 
 Steps:
 
-1. extend `scripts/project-state.mjs` so repository-derived evidence can distinguish `verified_sha` from `current_head_sha`;
-2. make `project:state:check` reject impossible claims such as a current-head CI claim for a different SHA;
-3. keep live database/deployment facts manual and timestamped — never manufacture runtime evidence from Git history;
-4. update the manifest schema/documentation accordingly.
+1. use explicit `last_verified_main` and `verified_sha` semantics;
+2. make `project:state:check` reject disagreement between the evidence-base SHA and the recorded verified CI SHA;
+3. make the checker reject ambiguous legacy keys (`current_main`, `head_sha`);
+4. keep live database/deployment facts manual and timestamped — never manufacture runtime evidence from Git history;
+5. state clearly that GitHub is authoritative for the live current branch head.
 
-Acceptance: the manifest may intentionally say "current head not runtime-verified", but it may not silently present an older SHA as the current verified head.
+Status: **in progress** on `fix/project-state-evidence-semantics-20260907`.
+
+Acceptance: an older verified SHA may remain recorded after a later merge, but it must be labeled as last verified evidence and can never be presented as the live current head.
 
 ### P1 — Data Master Plan v2 alignment
 

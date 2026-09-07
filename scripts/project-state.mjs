@@ -84,9 +84,50 @@ function same(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function checkEvidenceSemantics(state) {
+  if (state.schema_version !== 2) {
+    fail('schema_version must be 2 so CI evidence uses explicit last-verified semantics');
+  }
+
+  const evidenceBaseSha = state.release?.evidence_base_sha;
+  const ci = state.acceptance?.ci;
+  const verifiedSha = ci?.verified_sha;
+  const lastVerifiedMain = state.acceptance?.verify?.last_verified_main;
+
+  if (typeof evidenceBaseSha !== 'string' || !/^[0-9a-f]{40}$/.test(evidenceBaseSha)) {
+    fail('release.evidence_base_sha must be a full 40-character Git SHA');
+  }
+  if (typeof verifiedSha !== 'string' || !/^[0-9a-f]{40}$/.test(verifiedSha)) {
+    fail('acceptance.ci.verified_sha must be a full 40-character Git SHA');
+  }
+  if (evidenceBaseSha !== verifiedSha) {
+    fail('release.evidence_base_sha and acceptance.ci.verified_sha must describe the same verified main commit');
+  }
+  if (ci?.conclusion !== 'success') {
+    fail('acceptance.ci.conclusion must be success before a SHA is recorded as last verified main');
+  }
+  if (!Number.isInteger(ci?.run_number) || ci.run_number <= 0) {
+    fail('acceptance.ci.run_number must be a positive integer');
+  }
+  if (typeof lastVerifiedMain !== 'string' || !lastVerifiedMain.includes(evidenceBaseSha)) {
+    fail('acceptance.verify.last_verified_main must name release.evidence_base_sha explicitly');
+  }
+  if (!lastVerifiedMain.includes(String(ci.run_number))) {
+    fail('acceptance.verify.last_verified_main must name acceptance.ci.run_number explicitly');
+  }
+
+  if (Object.hasOwn(state.acceptance?.verify ?? {}, 'current_main')) {
+    fail('acceptance.verify.current_main is ambiguous; use last_verified_main');
+  }
+  if (Object.hasOwn(ci ?? {}, 'head_sha')) {
+    fail('acceptance.ci.head_sha is ambiguous; use verified_sha');
+  }
+}
+
 function checkRequiredShape(state) {
   const required = [
     ['release.branch', state.release?.branch],
+    ['release.evidence_base_sha', state.release?.evidence_base_sha],
     ['release.maturity', state.release?.maturity],
     ['release.corpus_window', state.release?.corpus_window],
     ['release.corpus_version', state.release?.corpus_version],
@@ -96,6 +137,8 @@ function checkRequiredShape(state) {
     ['product.reports', state.product?.reports],
     ['product.student_flow', state.product?.student_flow],
     ['acceptance.verify', state.acceptance?.verify],
+    ['acceptance.verify.last_verified_main', state.acceptance?.verify?.last_verified_main],
+    ['acceptance.ci.verified_sha', state.acceptance?.ci?.verified_sha],
     ['acceptance.lesson_studio', state.acceptance?.lesson_studio],
     ['infrastructure.database', state.infrastructure?.database],
     ['infrastructure.storage', state.infrastructure?.storage],
@@ -128,6 +171,8 @@ function checkRequiredShape(state) {
       if (!existsSync(join(root, file))) fail(`evidence file does not exist: ${file}`);
     }
   }
+
+  checkEvidenceSemantics(state);
 }
 
 function main() {
@@ -174,7 +219,7 @@ function main() {
     console.log(
       `PROJECT-STATE OK: migration ${evidence.latestMigration}; ` +
         `Lesson Studio ${evidence.lessonStudio.checked}/${evidence.lessonStudio.total}; ` +
-        `${evidence.verifyCommand}.`,
+        `last verified main ${state.release.evidence_base_sha}; ${evidence.verifyCommand}.`,
     );
   }
 }
