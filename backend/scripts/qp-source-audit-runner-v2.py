@@ -20,6 +20,11 @@ PARSER = runpy.run_path(
     "backend/scripts/qp-source-repair-v3.py",
     run_name="qp_source_repair_v3_for_dynamic_audit",
 )
+# qp-source-repair-v3 intentionally delegates the PDF layout extractor to its
+# legacy BASE module instead of re-exporting it. The v1 audit comparison engine
+# expects that utility on the parser namespace, so adapt the v3 module here
+# rather than reaching back to the obsolete parser implementation.
+PARSER["pdftotext_layout"] = PARSER["BASE"]["pdftotext_layout"]
 PSEUDOCODE_HEADS = PARSER["PSEUDOCODE_HEADS"]
 
 
