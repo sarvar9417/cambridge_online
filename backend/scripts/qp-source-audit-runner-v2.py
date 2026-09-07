@@ -20,6 +20,15 @@ PARSER = runpy.run_path(
     "backend/scripts/qp-source-repair-v3.py",
     run_name="qp_source_repair_v3_for_dynamic_audit",
 )
+
+# qp-source-repair-v3 intentionally exposes parser transforms at its own module
+# level while keeping the external pdftotext runner in its v2 BASE module.  The
+# audit comparison engine predates that split and still calls
+# PARSER["pdftotext_layout"].  Re-export the exact production helper instead of
+# maintaining a second PDF extraction path in the audit wrapper.
+if "pdftotext_layout" not in PARSER:
+    PARSER["pdftotext_layout"] = PARSER["BASE"]["pdftotext_layout"]
+
 PSEUDOCODE_HEADS = PARSER["PSEUDOCODE_HEADS"]
 
 
