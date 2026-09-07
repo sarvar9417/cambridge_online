@@ -4,6 +4,7 @@ import { VISUAL_COMPLETE_SOURCE_ATOMS } from './lesson-source-atoms-visual-compl
 import { EXAMPLE_COMPLETE_SOURCE_ATOMS } from './lesson-source-atoms-example-complete';
 import { SUPPLIED_PDF_DETAIL_ATOMS } from './lesson-source-atoms-supplied-pdf-detail';
 import { SOURCE_ATOM_LINE_OVERRIDES } from './lesson-source-atom-line-overrides';
+import { SOURCE_ATOM_VISIBLE_SOURCE_ADDITIONS } from './lesson-source-visible-source-additions';
 
 export type { LessonSourceAtom } from './lesson-source-atoms';
 
@@ -11,10 +12,12 @@ const correctAtom = (item: LessonSourceAtom): LessonSourceAtom => {
   let targetSlideId = item.targetSlideId;
   if (targetSlideId === 'h13-hashing') targetSlideId = 'h13-hash-address';
   if (targetSlideId === 'h13-hodder-review-3') targetSlideId = 'h13-hodder-review-2';
+  const baseNeedles = SOURCE_ATOM_LINE_OVERRIDES[item.id] ?? item.needles;
+  const sourceAdditions = SOURCE_ATOM_VISIBLE_SOURCE_ADDITIONS[item.id] ?? [];
   return {
     ...item,
     targetSlideId,
-    needles: SOURCE_ATOM_LINE_OVERRIDES[item.id] ?? item.needles,
+    needles: [...baseNeedles, ...sourceAdditions],
   };
 };
 
