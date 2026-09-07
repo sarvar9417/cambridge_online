@@ -32,7 +32,7 @@ describe('historical 9618 MS source audit pagination',()=>{
     expect(edge).toContain("rpc('ms_source_audit_batch_v4'");
     expect(edge).toContain('sourcePaperIds.length > 8');
     expect(edge).toContain("rpc('ms_source_audit_record_v2'");
-    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v4')");
+    expect(edge).toContain("rpc('ms_source_audit_promote_verified_v5')");
   });
 
   it('reconciles index, batch identities and total audited rows before promotion',()=>{
