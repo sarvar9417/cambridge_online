@@ -50,8 +50,8 @@ boshqaruvidagi platforma:
                               ┌─────────────────┼──────────────┐
                               ▼                 ▼              ▼
                        ┌────────────┐   ┌──────────────┐  ┌─────────┐
-                       │ PostgreSQL │   │ File storage │  │ Claude  │
-                       │ data + jobs│   │ hosted later │  │ API     │
+                       │ PostgreSQL │   │ Supabase     │  │ Claude  │
+                       │ data + jobs│   │ private files│  │ API     │
                        └────────────┘   └──────────────┘  └─────────┘
 ```
 
@@ -62,23 +62,28 @@ shu entrypoint alohida Node.js process qilib deploy qilinadi; repo tuzilmasi
 o'zgarmaydi.
 
 Productionda ikkala papka bitta Vercel projectdan chiqadi: React static build,
-Express esa `api/index.ts` orqali serverless Function bo'ladi. `/api/*` rewrite
-qilinadi, shu sabab foydalanuvchi uchun bitta domen va bitta deploy mavjud.
+Express esa `api/[...path].ts` catch-all serverless Function orqali ishlaydi.
+`/api/*` bir xil domen ostida backendga uzatiladi.
 
 ## Texnologiyalar
 
 ```text
-Frontend    React 19 · TypeScript · Vite · TanStack Query · React Router
+Frontend    React 19 · TypeScript · Vite · custom client-side router · fetch API client
 Backend     Node.js · Express 5 · TypeScript · node-postgres (pg) · Zod
-Database    PostgreSQL 16
-Jobs        PostgreSQL jobs jadvali (MVP)
-Storage     Local disk (dev) · S3-compatible hosted storage (Faza 2+)
+Database    PostgreSQL 16 / Supabase
+Jobs        PostgreSQL jobs jadvali
+Storage     Local disk (dev/export temp) · private Supabase Storage (source assets)
 Auth        JWT access 15 daqiqa · refresh 30 kun · argon2id
-AI          Anthropic Claude API (faqat backend)
-PDF         Puppeteer (Faza 3)
-Test        Vitest · Supertest · Playwright
+AI          Anthropic Claude API (faqat backend; configured bo'lsa)
+PDF/DOCX    Puppeteer/Chromium · DOCX renderer
+Test        Vitest · Supertest · browser smoke/audit fixtures
 Package     npm workspaces
 ```
+
+Frontendning current `package.json` faylida TanStack Query yoki React Router dependency
+yo'q. Routing `frontend/src/lib/router` orqali, API access esa loyiha fetch wrapperlari
+orqali amalga oshiriladi. Bu hujjat eski rejalashtirilgan stackni current implementation
+deb ko'rsatmasligi kerak.
 
 Express va `pg` loyiha egasiga tanish, oqimi ochiq va deploy'i sodda. Migration
 oddiy SQL bo'ladi; analitik so'rovlar yashirin ORM qatlamisiz bajariladi.
@@ -89,9 +94,12 @@ oddiy SQL bo'ladi; analitik so'rovlar yashirin ORM qatlamisiz bajariladi.
 campath/
 ├─ frontend/
 │  ├─ src/
-│  │  ├─ features/
+│  │  ├─ teaching/
+│  │  ├─ student/
 │  │  ├─ components/
-│  │  └─ lib/api.ts
+│  │  └─ lib/
+│  │     ├─ api.ts
+│  │     └─ router.ts
 │  └─ package.json
 ├─ backend/
 │  ├─ src/
@@ -101,11 +109,13 @@ campath/
 │  │  ├─ repositories/
 │  │  ├─ database/
 │  │  │  ├─ migrations/
-│  │  │  └─ seed/
+│  │  │  └─ audits/
 │  │  ├─ jobs/
 │  │  └─ lib/
 │  └─ package.json
+├─ api/
 ├─ prompts/
+├─ scripts/
 ├─ package.json
 └─ .env.example
 ```
@@ -118,8 +128,8 @@ frontenddagi hisob faqat optimistik ko'rinish.
 
 ### R1 — Fazadan chiqma
 
-`10-phases.md` tartibida ishlanadi. Faza N acceptance mezonlari tugamaguncha
-N+1 funksiyasi yozilmaydi.
+`10-phases.md` build-order va acceptance talablarini belgilaydi. Loyiha hozir boshlang'ich
+fazalardan o'tgan; current next-action va release gate uchun `PROJECT-STATE.md` ustun.
 
 ### R2 — Sxema yagona haqiqat manbai
 
@@ -141,8 +151,8 @@ Default qaror — rad etish. Ruxsat yo'q resurs ham mavjud bo'lmagan resurs kabi
 
 ### R4 — Authorization testlari deployni bloklaydi
 
-`backend/src/**/*.authz.test.ts` dagi 14 test va route-coverage testi majburiy.
-Auth middleware'dan tashqarida yopiq route topilsa test yiqiladi.
+Authorization va route-coverage testlari majburiy. Auth middleware'dan tashqarida
+yopiq route topilsa CI yiqilishi kerak.
 
 ### R5 — AI ball bermaydi
 
@@ -161,8 +171,8 @@ yangi o'zgarish yangi raqamli fayl bilan yoziladi.
 
 ### R8 — Seed majburiy
 
-Faza 0 uchun 1 maktab, 2 sinf, 12 o'quvchi va acceptance talabidagi 20 qo'lda
-kiritilgan savol bo'ladi.
+Development/acceptance seedlari production source corpus o'rnini bosmaydi. Current
+Cambridge release holati source-backed production audit bilan isbotlanadi.
 
 ### R9 — Til
 
@@ -181,8 +191,8 @@ maqsad bilan yoziladi.
 
 ### R12 — Sirlar kodda emas
 
-`.env` faqat local. `ANTHROPIC_API_KEY` faqat backend muhitida bo'ladi va hech
-qachon `VITE_` prefiksi bilan frontendga uzatilmaydi.
+`.env` faqat local. `ANTHROPIC_API_KEY`, database va private storage credentials faqat
+server muhitida bo'ladi va hech qachon `VITE_` prefiksi bilan frontendga uzatilmaydi.
 
 ### R13 — Promptlar faylda
 
@@ -201,4 +211,5 @@ npm run dev
 - Backend `http://localhost:3001`
 - Health `http://localhost:3001/api/v1/health`
 
-Keyingi ish tartibi: `10-phases.md` → Faza 0.
+Current keyingi ish tartibi va release blockerlar: [`PROJECT-STATE.md`](./PROJECT-STATE.md)
+`Required next release gates` bo'limi.
