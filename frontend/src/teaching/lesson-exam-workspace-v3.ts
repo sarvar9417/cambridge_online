@@ -93,8 +93,9 @@ type RefResponse={detail:QuestionDetail;portable:PortableQuestion};
 
 const cache=new Map<string,Promise<RefResponse>>();
 let requestSerial=0;
-let installed=false;
 let scanScheduled=false;
+let consumers=0;
+let teardown:(()=>void)|null=null;
 
 function normalized(value:string){return value.replace(/\s+/g,' ').trim()}
 function text(tag:string,className:string,value:string){
@@ -464,21 +465,38 @@ function scan(){document.querySelectorAll('.lesson-exam-card').forEach(enhanceCa
 function schedule(){
   if(scanScheduled)return;
   scanScheduled=true;
-  queueMicrotask(()=>{scanScheduled=false;scan()});
+  queueMicrotask(()=>{
+    scanScheduled=false;
+    if(teardown)scan();
+  });
+}
+
+function setup(){
+  schedule();
+  const observer=new MutationObserver(schedule);
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  teardown=()=>{
+    observer.disconnect();
+    scanScheduled=false;
+    teardown=null;
+  };
 }
 
 /**
  * Lesson-specific exam workspace. It deliberately resolves by exact Cambridge
  * display reference rather than re-querying a checkpoint with an implicit
- * syllabus default. That removes the 0478→9618 resolver bug and gives the
- * teacher one source-faithful QP/MS surface for all three audited chapters.
+ * syllabus default. Installation belongs to the React Lesson Studio lifecycle,
+ * so importing the module does not leave a global observer behind.
  */
 export function installLessonExamWorkspaceV3(){
-  if(installed||typeof document==='undefined')return;
-  installed=true;
-  schedule();
-  const observer=new MutationObserver(schedule);
-  observer.observe(document.documentElement,{childList:true,subtree:true});
+  if(typeof document==='undefined')return()=>{};
+  consumers+=1;
+  if(!teardown)setup();
+  let released=false;
+  return()=>{
+    if(released)return;
+    released=true;
+    consumers=Math.max(0,consumers-1);
+    if(consumers===0)teardown?.();
+  };
 }
-
-installLessonExamWorkspaceV3();
