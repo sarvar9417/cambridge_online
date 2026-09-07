@@ -28,7 +28,7 @@ claim that it is GitHub's live branch head.
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "f3011e88bd3cd7fc59d11346815e306e2a2cd11f",
+    "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
     "latest_migration": "0152_distinctness_ledger_reconcile.sql",
     "corpus_window": {
@@ -70,14 +70,14 @@ claim that it is GitHub's live branch head.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "last_verified_main": "merged PR #137 main SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f passed CI run 2673"
+      "last_verified_main": "merged PR #136 main SHA 58c43183940b7e2b1d8352b672c3393aaf542648 passed CI run 2721"
     },
     "ci": {
-      "latest_verified_merged_pr": 137,
-      "verified_sha": "f3011e88bd3cd7fc59d11346815e306e2a2cd11f",
-      "run_number": 2673,
+      "latest_verified_merged_pr": 136,
+      "verified_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
+      "run_number": 2721,
       "conclusion": "success",
-      "note": "Current application hardening includes the closed-loop release regression, explicit state semantics, current-target source accountability, focused App hooks and React-owned Lesson Studio DOM lifecycles. The canonical corpus PR must pass CI and merge before last-verified-main evidence advances."
+      "note": "Canonical source-occurrence release is merged and verified on main. CI #2721 covers project-state validation, typecheck, backend/frontend tests, inventory tests and production build while preserving the current source-accountability and Lesson Studio lifecycle hardening."
     },
     "lesson_studio": {
       "checked": 17,
@@ -92,7 +92,7 @@ claim that it is GitHub's live branch head.
     "database": "production Supabase is realized and application-ledgered through repository migration 0152; canonical source-occurrence identity, guarded source-verified merges, semantic canonicalization, canonical structured backfill, verified distinctness decisions and replay-safe ledger reconciliation are live",
     "storage": "private question-assets bucket is live; post-canonicalization production audit verifies 2773/2773 canonical mark-bearing 9618 leaves are staff-searchable, 398/398 canonical assets are renderable with zero missing storage objects, while 3302 official Cambridge leaf occurrences remain represented; Vercel readiness still reports durableStorage=false and is tracked by issue #135",
     "worker": "corpus/source-audit workflows and exact uploaded-source accountability exist; future ingestion preserves canonical question identity and fails closed on unverified equivalence",
-    "deployment": "last explicitly verified merged application evidence is PR #137 SHA f3011e88bd3cd7fc59d11346815e306e2a2cd11f with CI #2673 success. A Vercel release attempt was provider-rate-limited before build; latest READY production remains older and durableStorage=false, so deployment acceptance remains a separate external gate"
+    "deployment": "verified application release evidence is main SHA 58c43183940b7e2b1d8352b672c3393aaf542648 with CI #2721 success. Vercel deployment remains a separate external gate because the provider rate-limited the prior release attempt and runtime durableStorage is still false"
   },
   "evidence_files": [
     "00-README.md",
@@ -137,12 +137,11 @@ CamPath remains a source-grounded Cambridge Computer Science teaching platform. 
 source provenance, production database rules and guarded approval remain authoritative;
 AI is assistive only.
 
-Question identity is now canonical rather than paper-row identity. When Cambridge reuses
-exact assessed content across variants, one physical question tree is retained and every
-real paper appearance remains represented by `question_source_occurrences`. A physical
-merge is allowed only after source verification. Same-shape pairs verified as materially
-different remain separate and their decision is persisted in
-`source_paper_distinctness_reviews`.
+Question identity is canonical rather than paper-row identity. When Cambridge reuses exact
+assessed content across variants, one physical question tree is retained and every real
+paper appearance remains represented by `question_source_occurrences`. A physical merge is
+allowed only after source verification. Same-shape pairs verified as materially different
+remain separate and their decision is persisted in `source_paper_distinctness_reviews`.
 
 Fresh production postconditions verify:
 
@@ -160,13 +159,16 @@ Fresh production postconditions verify:
 The strict current 2026 release scope remains **12 QP papers, 12 MS papers and 317
 mark-bearing source-complete questions**, with zero blocked source/dependency failures.
 
-### Application hardening state
+### Verified repository state
 
-The App lifecycle extraction work and Lesson Studio import-time side-effect cleanup remain
-intact from the current main line. The release-level selection-to-mastery regression and
-source-accountability contracts remain part of `npm run verify`; the canonical occurrence
-regression now checks the new one-tree/many-occurrences model rather than the superseded
-physical-cross-variant-row model.
+PR #136 is merged on main as `58c43183940b7e2b1d8352b672c3393aaf542648`.
+Main CI run **#2721** completed successfully with the full `npm run verify` chain:
+project-state validation, typecheck, backend/frontend tests, inventory tests and build.
+The canonical occurrence regression validates the one-canonical-tree/many-official-source-
+occurrences contract and the persisted source-verified distinctness decisions.
+
+The App lifecycle extraction work, exact uploaded-source accountability and Lesson Studio
+import-time side-effect cleanup from the pre-existing main line remain intact.
 
 ### Migration ledger state
 
@@ -181,12 +183,11 @@ entries through 0152.
 
 ## Remaining external release/admin gates
 
-These are separate from the canonical corpus cleanup and are not represented as database
-or application-code defects:
+These are separate from the canonical corpus cleanup and are not database/application-code
+failures:
 
-- **Vercel deployment:** the verified release deployment attempt was rejected by the
-  provider's build-rate limit before build. Retry after the provider window opens and
-  smoke the serving release before checking Lesson Studio 18/18.
+- **Vercel deployment:** retry after the provider's build-rate-limit window opens and smoke
+  the serving release before checking Lesson Studio 18/18.
 - **Vercel durable storage — issue #135:** configure server-only runtime storage until
   `/api/v1/ready` reports `capabilities.durableStorage=true`, then verify a private
   source-backed render/export path.
