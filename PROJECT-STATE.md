@@ -34,7 +34,7 @@ SHA from being mislabeled as the current repository head after a later merge.
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "653e4aedef652c644353879bc6e66f1fc3e2b53f",
+    "evidence_base_sha": "45557d6be21d52786531db1b8dc5ae383d9f80ac",
     "maturity": "late_product_integration_and_production_hardening",
     "latest_migration": "0143_fk_workload_indexes.sql",
     "corpus_window": {
@@ -64,7 +64,7 @@ SHA from being mislabeled as the current repository head after a later merge.
   },
   "product": {
     "question_bank": "implemented; source-fidelity and fail-closed rules are active",
-    "lesson_studio": "implemented; three supplied-book lessons are source-complete and released on current 2026 targets",
+    "lesson_studio": "implemented; three supplied-book lessons are source-complete and released on current 2026 targets; professional navigation controls now have React-owned lifecycle cleanup",
     "assignments": "implemented",
     "submissions": "implemented",
     "marking": "implemented with guarded mark-scheme visibility and source review",
@@ -76,14 +76,14 @@ SHA from being mislabeled as the current repository head after a later merge.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "last_verified_main": "merged PR #122 main SHA 653e4aedef652c644353879bc6e66f1fc3e2b53f passed CI run 2553"
+      "last_verified_main": "merged PR #126 main SHA 45557d6be21d52786531db1b8dc5ae383d9f80ac passed CI run 2576"
     },
     "ci": {
-      "latest_verified_merged_pr": 122,
-      "verified_sha": "653e4aedef652c644353879bc6e66f1fc3e2b53f",
-      "run_number": 2553,
+      "latest_verified_merged_pr": 126,
+      "verified_sha": "45557d6be21d52786531db1b8dc5ae383d9f80ac",
+      "run_number": 2576,
       "conclusion": "success",
-      "note": "PR #122 added the release closed-loop academic identity regression; main CI is green and the verified selection-to-mastery HTTP contract is part of npm run verify."
+      "note": "Review hardening now includes the selection-to-mastery release regression (PR #122), explicit last-verified evidence semantics (PR #123), current-target versus historical Data Master Plan alignment (PR #125), and the first React-owned Lesson Studio side-effect lifecycle cleanup (PR #126)."
     },
     "lesson_studio": {
       "checked": 17,
@@ -98,7 +98,7 @@ SHA from being mislabeled as the current repository head after a later merge.
     "database": "production Supabase is realized and application-ledgered through repository migration 0143; 17 late migration filenames (0127..0143, excluding nonexistent 0141) were baselined only after durable postconditions passed; mutable-search-path WARN findings remain cleared and nine workload-prioritized FK indexes are valid/ready",
     "storage": "private question-assets bucket is live; fresh production export audit at 2026-09-07T08:14:26Z verifies all 457 source-backed 9618 assets are renderable and 3302/3302 mark-bearing leaves are staff-searchable; Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "last explicitly verified merged main is PR #122 SHA 653e4aedef652c644353879bc6e66f1fc3e2b53f, CI #2553 success. Vercel deployment/runtime verification remains the only unchecked Lesson Studio acceptance item and is intentionally not claimed complete"
+    "deployment": "last explicitly verified merged main is PR #126 SHA 45557d6be21d52786531db1b8dc5ae383d9f80ac, CI #2576 success. Vercel deployment/runtime verification remains the only unchecked Lesson Studio acceptance item and is intentionally not claimed complete"
   },
   "evidence_files": [
     "00-README.md",
@@ -112,7 +112,9 @@ SHA from being mislabeled as the current repository head after a later merge.
     "backend/src/database/migrations/0143_fk_workload_indexes.sql",
     "backend/src/database/audits/late-migration-ledger-reconcile.sql",
     "backend/src/database/audits/9618-current-release-state.sql",
-    "backend/src/database/audits/9618-question-export-readiness.sql"
+    "backend/src/database/audits/9618-question-export-readiness.sql",
+    "frontend/src/teaching/lesson-studio-professional-controls.ts",
+    "frontend/src/teaching/lesson-studio-professional-controls.test.ts"
   ]
 }
 ```
@@ -150,26 +152,28 @@ production reliability.
 The 2026 Lesson Studio compatibility release moved active lesson targets onto the current
 2026-2028 objective set while preserving historical 2021-2025 9618 questions through
 explicit compatibility edges. Chapter 7 uses the same principle for historical 0478
-questions. Historical mark-scheme review has continued through deterministic source
-matcher v5 and guarded exact-source point-repair passes without relaxing source identity,
-rubric prose or promotion gates.
+questions. `docs/DATA-MASTER-PLAN.md` now explicitly separates this historical/source-backed
+inventory from the strict current-target release gate so those two scopes cannot be
+mistaken for the same count or approval claim.
 
 ## Acceptance state
 
 `docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. The last explicitly
-verified merged main evidence is PR #122, SHA
-`653e4aedef652c644353879bc6e66f1fc3e2b53f`, full CI run **#2553: success**.
-The only remaining Lesson Studio item is a Vercel runtime verification on a release SHA.
+verified merged main evidence is PR #126, SHA
+`45557d6be21d52786531db1b8dc5ae383d9f80ac`, full CI run **#2576: success**.
+The only remaining Lesson Studio acceptance item is a Vercel runtime verification on a
+release SHA.
 
-PR #122 also adds a release-level HTTP regression that protects one Cambridge question
-identity through selection, assignment, student attempt, answer, submission, grading,
-released result and mastery evidence. This does not replace lower-level SQL or
-authorization tests; it closes the cross-domain regression gap identified in the project
-review.
+The release-level HTTP regression added in PR #122 protects one Cambridge question identity
+through selection, assignment, student attempt, answer, submission, grading, released
+result and mastery evidence. This does not replace lower-level SQL or authorization tests;
+it closes the cross-domain regression gap identified in the project review.
 
-The SHA above is intentionally labeled **last verified main**, not "current main". A later
-merge may advance GitHub's live `main` while this manifest still truthfully records the
-last commit for which CI evidence was explicitly written here.
+PR #123 also makes CI evidence semantics explicit: a verified SHA is recorded as **last
+verified main**, never implicitly claimed to be GitHub's live current head. PR #126 begins
+the incremental Lesson Studio maintainability cleanup by removing import-time auto-install
+for professional navigation controls and binding their global observer/fullscreen lifecycle
+to the React Lesson Studio owner with regression coverage.
 
 No deployment-only evidence is inferred from database or CI success. The serving Vercel
 runtime must be verified independently before 18/18 can be claimed.
@@ -246,6 +250,10 @@ A release candidate should not be declared until all of the following are true:
   required database environment available.
 - Vercel runtime durable storage is enabled for the environment that performs source-asset
   rendering/export, or the affected feature is explicitly blocked from release.
+
+Repository governance is tracked separately in issue #124: `main` should be protected by
+PR + required CI policy. Until GitHub reports that protection/ruleset evidence, the
+presence of green CI alone must not be called an enforced governance gate.
 
 ## Maintaining this manifest
 
