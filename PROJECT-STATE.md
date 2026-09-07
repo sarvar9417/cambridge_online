@@ -20,16 +20,21 @@ Live production values below are recorded only when they were freshly verified a
 the current production database/deployment. A later repository-only review must not
 silently replace them with historical counts or assumptions.
 
+`release.evidence_base_sha` is deliberately the **last explicitly verified merged main
+commit**, not a promise that the file contains GitHub's live current branch head. The
+actual current head must be read from GitHub. This distinction prevents an older verified
+SHA from being mislabeled as the current repository head after a later merge.
+
 ## Machine-readable state
 
 <!-- PROJECT_STATE:JSON:START -->
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "0f02491cfc3cbdffbde434848e1812031d3ee0c9",
+    "evidence_base_sha": "653e4aedef652c644353879bc6e66f1fc3e2b53f",
     "maturity": "late_product_integration_and_production_hardening",
     "latest_migration": "0143_fk_workload_indexes.sql",
     "corpus_window": {
@@ -71,14 +76,14 @@ silently replace them with historical counts or assumptions.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "current_main": "merged PR #119 main SHA 0f02491cfc3cbdffbde434848e1812031d3ee0c9 passed CI run 2530"
+      "last_verified_main": "merged PR #122 main SHA 653e4aedef652c644353879bc6e66f1fc3e2b53f passed CI run 2553"
     },
     "ci": {
-      "latest_verified_merged_pr": 119,
-      "head_sha": "0f02491cfc3cbdffbde434848e1812031d3ee0c9",
-      "run_number": 2530,
+      "latest_verified_merged_pr": 122,
+      "verified_sha": "653e4aedef652c644353879bc6e66f1fc3e2b53f",
+      "run_number": 2553,
       "conclusion": "success",
-      "note": "PR #119 added fail-closed late-migration ledger reconciliation; main CI is green and production schema_migrations is now aligned through repository migration 0143."
+      "note": "PR #122 added the release closed-loop academic identity regression; main CI is green and the verified selection-to-mastery HTTP contract is part of npm run verify."
     },
     "lesson_studio": {
       "checked": 17,
@@ -93,14 +98,16 @@ silently replace them with historical counts or assumptions.
     "database": "production Supabase is realized and application-ledgered through repository migration 0143; 17 late migration filenames (0127..0143, excluding nonexistent 0141) were baselined only after durable postconditions passed; mutable-search-path WARN findings remain cleared and nine workload-prioritized FK indexes are valid/ready",
     "storage": "private question-assets bucket is live; fresh production export audit at 2026-09-07T08:14:26Z verifies all 457 source-backed 9618 assets are renderable and 3302/3302 mark-bearing leaves are staff-searchable; Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "main CI #2530 is green. Vercel deployment/runtime verification remains the only unchecked Lesson Studio acceptance item and is intentionally not claimed complete"
+    "deployment": "last explicitly verified merged main is PR #122 SHA 653e4aedef652c644353879bc6e66f1fc3e2b53f, CI #2553 success. Vercel deployment/runtime verification remains the only unchecked Lesson Studio acceptance item and is intentionally not claimed complete"
   },
   "evidence_files": [
     "00-README.md",
     "IMPLEMENTATION-STATUS.md",
     "docs/DATA-MASTER-PLAN.md",
     "docs/lesson-studio-v3-acceptance.md",
+    "docs/RELEASE-HARDENING-PLAN.md",
     "backend/package.json",
+    "backend/src/release-learning-loop.integration.test.ts",
     "backend/src/database/migrations/0142_security_function_search_path.sql",
     "backend/src/database/migrations/0143_fk_workload_indexes.sql",
     "backend/src/database/audits/late-migration-ledger-reconcile.sql",
@@ -149,10 +156,20 @@ rubric prose or promotion gates.
 
 ## Acceptance state
 
-`docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. Merged PR #119
-main SHA `0f02491cfc3cbdffbde434848e1812031d3ee0c9` passed full CI run **#2530**.
-The only remaining Lesson Studio item is a Vercel runtime verification on a current
-release SHA.
+`docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. The last explicitly
+verified merged main evidence is PR #122, SHA
+`653e4aedef652c644353879bc6e66f1fc3e2b53f`, full CI run **#2553: success**.
+The only remaining Lesson Studio item is a Vercel runtime verification on a release SHA.
+
+PR #122 also adds a release-level HTTP regression that protects one Cambridge question
+identity through selection, assignment, student attempt, answer, submission, grading,
+released result and mastery evidence. This does not replace lower-level SQL or
+authorization tests; it closes the cross-domain regression gap identified in the project
+review.
+
+The SHA above is intentionally labeled **last verified main**, not "current main". A later
+merge may advance GitHub's live `main` while this manifest still truthfully records the
+last commit for which CI evidence was explicitly written here.
 
 No deployment-only evidence is inferred from database or CI success. The serving Vercel
 runtime must be verified independently before 18/18 can be claimed.
@@ -244,5 +261,10 @@ To refresh repository-derived fields after migrations or acceptance checklist ch
 npm run project:state:refresh
 ```
 
-The refresh command deliberately does not invent live database/deployment metrics. Live
-values must remain evidence-backed fields from a fresh runtime audit.
+The checker also enforces CI evidence semantics: `release.evidence_base_sha` and
+`acceptance.ci.verified_sha` must match, the recorded CI conclusion must be successful,
+and the human-readable `last_verified_main` line must name both the exact SHA and CI run.
+Legacy ambiguous keys such as `current_main` and `head_sha` are rejected.
+
+The refresh command deliberately does not invent live database/deployment metrics or a
+new verified SHA. Live/runtime and CI evidence must remain explicit, evidence-backed facts.
