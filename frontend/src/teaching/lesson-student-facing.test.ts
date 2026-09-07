@@ -99,9 +99,14 @@ describe('student-facing lesson projection',()=>{
     expect(studio).toContain("revealed&&<div className=\"lesson-student-model-answer\"");
     expect(studio).toContain('1 · Attempt independently');
     expect(studio).toContain('3 · Check the mark scheme');
-    expect(entry).toContain("import './lesson-exam-workspace-v3';");
+    expect(entry).toContain("import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';");
+    expect(entry).toContain("import { installLessonExamInsights } from './lesson-exam-insights';");
     expect(entry).toContain("import { installLessonQuestionWorkspaceControls } from './lesson-question-workspace-controls';");
+    expect(entry).toContain('installLessonExamWorkspaceV3()');
+    expect(entry).toContain('installLessonExamInsights()');
     expect(entry).toContain('installLessonQuestionWorkspaceControls()');
+    expect(entry).not.toContain("import './lesson-exam-workspace-v3';");
+    expect(entry).not.toContain("import './lesson-exam-insights';");
     expect(entry).not.toContain("import './lesson-question-workspace-controls';");
     expect(css).toContain('.lesson-exam-technical');
     expect(css).toContain('.lesson-toolbar .lesson-teacher-evidence');
