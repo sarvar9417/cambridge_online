@@ -38,13 +38,23 @@ jobs:
           echo "$PWD/backend/scripts/tools" >> "$GITHUB_PATH"
 
       - name: Stage and ingest official 9618 May/June 2026 QP/MS
-        run: python backend/scripts/full-9618-2026-corpus-backfill.py
+        run: python backend/scripts/full-9618-2026-corpus-backfill-v2.py
+
+      - name: Reconcile source-backed 2026 question dependencies
+        run: python backend/scripts/reconcile-9618-2026-dependencies.py
+
+      - name: Flag missing source structures across 2021-2026
+        run: python backend/scripts/flag-9618-source-fidelity.py
 
       - name: Restore every required printed table, layout and visual
         env:
+          CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: 'YES'
           SOURCE_STRUCTURE_ONLY: '9618'
         run: python backend/scripts/qp-source-structure-repair-v6.py
+
+      - name: Synchronize repaired historical visuals into canonical content
+        run: python backend/scripts/sync-9618-repaired-assets.py
 
       - name: Build canonical structured content from the verified 2026 QPs
         env:
@@ -70,7 +80,10 @@ jobs:
           name: 9618-2026-corpus-evidence
           path: |
             9618-2026-backfill-report.json
+            9618-2026-dependency-report.json
+            9618-source-fidelity-sweep.json
             source-structure-repair-plan.json
+            9618-source-asset-sync.json
             structured-content-backfill-9618-2026.json
             9618-2026-finalization-report.json
             source-audit-9618-2026.json

@@ -112,11 +112,16 @@ async function rpc(name:string,args:Record<string,unknown>={}){
   return text?JSON.parse(text):null
 }
 
+function validScope(body:any){
+  const code=String(body?.syllabus_code||'').trim(),year=Number(body?.year)
+  return {code,year,ok:['0478','9618'].includes(code)&&Number.isInteger(year)}
+}
+
 Deno.serve(async(req:Request)=>{
   try{
     if(req.method!=='POST')return Response.json({error:'method_not_allowed'},{status:405})
     const claims=await authenticate(req),body=await req.json(),action=String(body?.action||'')
-    const writeAction=['apply','repair','stage','catalog','flag_fidelity','approve'].includes(action)
+    const writeAction=['apply','repair','stage','catalog','flag_fidelity','approve','reconcile_dependencies','sync_structured_assets'].includes(action)
     if(writeAction&&REVOKED_WRITE_RUNS.has(String(claims.run_id||'')))return Response.json({ok:false,error:'workflow_run_write_revoked'},{status:409})
 
     if(action==='catalog'){
@@ -180,15 +185,33 @@ Deno.serve(async(req:Request)=>{
     }
 
     if(action==='flag_fidelity'){
-      const code=String(body?.syllabus_code||'').trim(),year=Number(body?.year)
-      if(!['0478','9618'].includes(code)||!Number.isInteger(year))return Response.json({error:'invalid_fidelity_scope'},{status:400})
+      const {code,year,ok}=validScope(body)
+      if(!ok)return Response.json({error:'invalid_fidelity_scope'},{status:400})
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('flag_source_fidelity_requirements_v1',{p_syllabus_code:code,p_year:year})})
     }
 
+    if(action==='reconcile_dependencies'){
+      const {code,year,ok}=validScope(body)
+      if(!ok)return Response.json({error:'invalid_dependency_scope'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('reconcile_source_question_dependencies_v1',{p_syllabus_code:code,p_year:year})})
+    }
+
+    if(action==='sync_structured_assets'){
+      const code=String(body?.syllabus_code||'').trim(),yearFrom=Number(body?.year_from),yearTo=Number(body?.year_to)
+      if(!['0478','9618'].includes(code)||!Number.isInteger(yearFrom)||!Number.isInteger(yearTo)||yearTo<yearFrom)return Response.json({error:'invalid_asset_sync_scope'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('sync_repaired_source_assets_v1',{p_syllabus_code:code,p_year_from:yearFrom,p_year_to:yearTo})})
+    }
+
     if(action==='approve'){
-      const code=String(body?.syllabus_code||'').trim(),year=Number(body?.year)
-      if(!['0478','9618'].includes(code)||!Number.isInteger(year))return Response.json({error:'invalid_approval_scope'},{status:400})
+      const {code,year,ok}=validScope(body)
+      if(!ok)return Response.json({error:'invalid_approval_scope'},{status:400})
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('approve_source_verified_structured_questions_v1',{p_syllabus_code:code,p_year:year})})
+    }
+
+    if(action==='assert_year'){
+      const {code,year,ok}=validScope(body)
+      if(!ok)return Response.json({error:'invalid_assert_scope'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('assert_source_verified_year_v1',{p_syllabus_code:code,p_year:year})})
     }
 
     return Response.json({error:'unknown_action'},{status:400})
