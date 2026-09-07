@@ -48,6 +48,15 @@ Deno.serve(async (req: Request) => {
     if (action === 'source_audit_bootstrap') {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_bootstrap_v3')})
     }
+    if (action === 'source_audit_index') {
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_index_v4')})
+    }
+    if (action === 'source_audit_batch') {
+      if (!Array.isArray(body?.sourcePaperIds) || body.sourcePaperIds.length < 1 || body.sourcePaperIds.length > 8) {
+        return Response.json({ok:false,error:'source_batch_must_contain_1_to_8_ids'},{status:400})
+      }
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('ms_source_audit_batch_v4',{p_source_ids:body.sourcePaperIds})})
+    }
     if (action === 'record_source_audit') {
       if (!Array.isArray(body?.audits) || body.audits.length < 1 || body.audits.length > 100) {
         return Response.json({ok:false,error:'audit_batch_must_contain_1_to_100_rows'},{status:400})
