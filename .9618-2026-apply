@@ -1,2 +1,2 @@
-Trigger the source-verified Cambridge 9618 May/June 2026 corpus backfill after migrations 0122-0126 and Edge Function deployment.
-Resume v2 after audited 9618/23 QP heading and 9618/42 MS extraction fallback hardening.
+Trigger the source-verified Cambridge 9618 May/June 2026 corpus backfill after migrations 0127-0131, corpus-runner v12, and merged PR #87.
+Run the complete v2 pipeline: ingest missing official papers, reconcile dependencies, sweep/repair source fidelity, sync canonical assets, build structured content, guarded approval, and final year audit.
