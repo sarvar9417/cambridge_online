@@ -29,9 +29,9 @@ silently replace them with historical counts or assumptions.
   "state_date": "2026-09-07",
   "release": {
     "branch": "main",
-    "evidence_base_sha": "a254658c01944286f281c9550aa7b5e61d95f0d7",
+    "evidence_base_sha": "d01de8fd9d06db46d9b939c3f0b9ff44b8c43159",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0140_9618_ms_embedded_layout_repair_contract.sql",
+    "latest_migration": "0142_security_function_search_path.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -71,14 +71,14 @@ silently replace them with historical counts or assumptions.
   "acceptance": {
     "verify": {
       "command": "npm run verify",
-      "current_main": "release-hardening candidate 4773ad49228ce39c7517e76011d7ecd336444586 passed CI run 2494; final state-sync commit must remain green"
+      "current_main": "merged PR #115 main SHA d01de8fd9d06db46d9b939c3f0b9ff44b8c43159 passed CI run 2505; security hardening candidate must pass its own final-SHA CI"
     },
     "ci": {
-      "latest_verified_merged_pr": 114,
-      "head_sha": "4773ad49228ce39c7517e76011d7ecd336444586",
-      "run_number": 2494,
+      "latest_verified_merged_pr": 115,
+      "head_sha": "d01de8fd9d06db46d9b939c3f0b9ff44b8c43159",
+      "run_number": 2505,
       "conclusion": "success",
-      "note": "PR #115 candidate passed npm run verify on SHA 4773ad49228ce39c7517e76011d7ecd336444586. The checklist now records that evidence; subsequent state-sync commits must also pass before merge."
+      "note": "PR #115 merged release hardening is green on main. Migration 0142 is a follow-up security-lint hardening candidate and must independently pass before merge."
     },
     "lesson_studio": {
       "checked": 17,
@@ -90,10 +90,10 @@ silently replace them with historical counts or assumptions.
     }
   },
   "infrastructure": {
-    "database": "production Supabase has migration 0140 applied and the 2026 strict source-verified release gate passes 12/12 QP and 12/12 MS",
-    "storage": "private question-assets bucket is live; 410/410 referenced storage-backed 9618 assets were found, but Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
+    "database": "production Supabase is verified through migration 0140; migration 0142 pins three SECURITY INVOKER trigger-function search paths and is pending merge/application",
+    "storage": "private question-assets bucket is live; production export audit verifies all 457 source-backed 9618 assets are renderable, while Vercel production readiness still reports durableStorage=false because runtime storage credentials are not configured there",
     "worker": "corpus and source-audit workflows exist and current source verification has been exercised against production",
-    "deployment": "release-hardening preview builds can become READY, but Preview /api/v1/ready currently reports database=missing because preview database variables are not configured; production readiness reports database=ok but durableStorage=false; current Vercel build capacity/rate limiting can also delay new preview builds"
+    "deployment": "current main CI is green, but Vercel has not deployed the merged release SHA because the Hobby project hit its build-rate limit; the serving production deployment remains older and reports database=ok, durableStorage=false"
   },
   "evidence_files": [
     "00-README.md",
@@ -101,7 +101,7 @@ silently replace them with historical counts or assumptions.
     "docs/DATA-MASTER-PLAN.md",
     "docs/lesson-studio-v3-acceptance.md",
     "backend/package.json",
-    "backend/src/database/migrations/0140_9618_ms_embedded_layout_repair_contract.sql",
+    "backend/src/database/migrations/0142_security_function_search_path.sql",
     "backend/src/database/audits/9618-current-release-state.sql",
     "backend/src/database/audits/9618-question-export-readiness.sql"
   ]
@@ -147,15 +147,14 @@ rubric prose or promotion gates.
 
 ## Acceptance state
 
-`docs/lesson-studio-v3-acceptance.md` now contains **17/18 checked items**.
-Candidate SHA `4773ad49228ce39c7517e76011d7ecd336444586` passed full CI run **#2494**,
-so the CI acceptance item is backed by executable evidence. The only remaining checklist
-item is Vercel preview/production runtime verification.
+`docs/lesson-studio-v3-acceptance.md` contains **17/18 checked items**. The merged
+release-hardening main SHA `d01de8fd9d06db46d9b939c3f0b9ff44b8c43159` passed full
+CI run **#2505**. The only remaining Lesson Studio item is a Vercel runtime verification
+on the release SHA.
 
-The latest explicitly verified merged-PR evidence remains **PR #114 / CI run #2483:
-success**. PR #115 is the release-hardening candidate. Any commits made after the recorded
-#2494 SHA still need a green run before merge; the prior run is evidence for the checklist,
-not permission to ignore final-SHA CI.
+That runtime verification is currently blocked by the Vercel Hobby build-rate limit, not
+by GitHub CI. The serving production deployment is still an older SHA, so 18/18 is not
+claimed.
 
 ## Corpus state rule
 
@@ -170,15 +169,22 @@ and gate used so historical inventory cannot be mistaken for current release evi
 
 ## Storage and export state
 
-Production data contains a private `question-assets` bucket. A live cross-check found all
-**410/410** referenced storage-backed 9618 assets. Export readiness now treats an inline
-asset or a valid materializable `supabase://` private object as renderable and still fails
-closed on missing/invalid assets, blank stems, taxonomy gaps, broken dependencies, empty
-mark schemes or wrong paper totals.
+Production export readiness has been executed from the merged audit contract: all **3302**
+source-backed 9618 mark-bearing leaves are staff-searchable, all **457/457** source-backed
+assets are renderable through inline content or verified private storage, all **3302** mark
+schemes are exportable, and both required export migrations are ledgered.
 
 This does **not** mean Vercel runtime storage is ready: production `/api/v1/ready` currently
 reports `durableStorage=false`. The data/provider path is healthy, while the serverless
 runtime credential remains an operational blocker.
+
+## Security hardening state
+
+A production Supabase security-advisor review identified three trigger functions with a
+mutable caller-controlled `search_path`. Migration `0142_security_function_search_path.sql`
+pins those SECURITY INVOKER functions to `public, pg_temp`. The DDL and exact `proconfig`
+postcondition were transaction-tested against production and rolled back; production is
+not changed until the migration is reviewed, merged and applied.
 
 ## Required next release gates
 
