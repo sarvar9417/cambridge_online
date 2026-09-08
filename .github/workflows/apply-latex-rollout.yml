@@ -1,0 +1,102 @@
+name: Apply LaTeX rollout wiring
+
+on:
+  push:
+    branches:
+      - feat/latex-corpus-rollout
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/latex-corpus-rollout
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Bring reviewed LaTeX foundation onto current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin feat/latex-corpus-foundation
+          for file in \
+            frontend/src/lib/structured-question-renderer.ts \
+            frontend/src/lib/structured-question-renderer.test.ts \
+            backend/scripts/latex-asset-compile.py \
+            backend/src/database/audits/9618-latex-coverage.sql \
+            docs/LATEX-CORPUS-CONVERSION.md; do
+            mkdir -p "$(dirname "$file")"
+            git show origin/feat/latex-corpus-foundation:"$file" > "$file"
+          done
+          npm install katex@^0.16.22 -w frontend --save --package-lock-only --ignore-scripts
+      - name: Wire LaTeX fields and compiled SVG assets through APIs and Question Bank
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p=Path(path)
+              text=p.read_text()
+              for old,new in replacements:
+                  if old not in text:
+                      raise SystemExit(f'missing patch anchor in {path}: {old[:100]!r}')
+                  text=text.replace(old,new)
+              p.write_text(text)
+
+          patch('backend/src/services/question-serializer.ts', [
+            ("  stem_md: string | null;\n  context_md: string | null;\n", "  stem_md: string | null;\n  context_md: string | null;\n  stem_latex?: string | null;\n  context_latex?: string | null;\n  body_format?: 'markdown' | 'latex' | null;\n"),
+            ("    stemMd: row.stem_md,\n    contextMd: row.context_md,\n", "    stemMd: row.stem_md,\n    contextMd: row.context_md,\n    stemLatex: row.stem_latex ?? null,\n    contextLatex: row.context_latex ?? null,\n    bodyFormat: row.body_format ?? 'markdown',\n"),
+          ])
+
+          patch('backend/src/services/selection-review.ts', [
+            ("    stem: string;\n    /** Source-backed v1 content frozen with the selection/assignment snapshot. */\n", "    stem: string;\n    stemLatex?: string | null;\n    bodyFormat?: 'markdown' | 'latex';\n    /** Source-backed v1 content frozen with the selection/assignment snapshot. */\n"),
+            ("    context: string | null;\n    assets: PortableAsset[];\n", "    context: string | null;\n    contextLatex?: string | null;\n    assets: PortableAsset[];\n"),
+          ])
+
+          repo=Path('backend/src/repositories/questions-repository.ts')
+          text=repo.read_text()
+          anchors=[
+            ("  stem: row.stem,\n  // Backward compatibility", "  stem: row.stem,\n  stemLatex: row.stem_latex ?? null,\n  bodyFormat: row.body_format ?? 'markdown',\n  // Backward compatibility"),
+            ("coalesce(q.stem_md,'') stem,q.command_word", "coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word"),
+            ("`select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.ao,q.answer_kind,", "`select q.id,q.display_ref,q.stem_md,q.context_md,q.stem_latex,q.context_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,"),
+            ("c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.context_md context,", "c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.context_md context,c.context_latex,"),
+            ("'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',qa.content_md,", "'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',coalesce(qa.svg_markup,qa.content_md),"),
+            ("        stem: leaf.stem,\n        commandWord:", "        stem: leaf.stem,\n        stemLatex: leaf.stem_latex,\n        bodyFormat: leaf.body_format ?? 'markdown',\n        commandWord:"),
+            ("        context: row.context,\n        assets:", "        context: row.context,\n        contextLatex: row.context_latex,\n        assets:"),
+            ("            stem: row.stem,\n            stemMd: row.stem,\n", "            stem: row.stem,\n            stemMd: row.stem,\n            stemLatex: row.stem_latex ?? null,\n            bodyFormat: row.body_format ?? 'markdown',\n"),
+          ]
+          for old,new in anchors:
+              if old not in text:
+                  raise SystemExit(f'missing repository anchor: {old[:100]!r}')
+              text=text.replace(old,new)
+          repo.write_text(text)
+
+          patch('frontend/src/QuestionBankPage.tsx', [
+            ("import { api, apiBlob, type User } from './lib/api';\n", "import { api, apiBlob, type User } from './lib/api';\nimport { LatexQuestionText } from './lib/latex-question-text';\n"),
+            ("    stem: string;\n    commandWord: string | null;\n", "    stem: string;\n    stemLatex?: string | null;\n    bodyFormat?: 'markdown' | 'latex';\n    commandWord: string | null;\n"),
+            ("    context: string | null;\n    assets: PortableAsset[];\n", "    context: string | null;\n    contextLatex?: string | null;\n    assets: PortableAsset[];\n"),
+            ("  stemMd?: string;\n  commandWord:", "  stemMd?: string;\n  stemLatex?: string | null;\n  bodyFormat?: 'markdown' | 'latex';\n  commandWord:"),
+            ("}<p>{part.stem}</p>{part.subtopics", "}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{part.subtopics"),
+            ("}<p>{part.stem}</p></div><span>{part.marks}", "}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} /></div><span>{part.marks}"),
+          ])
+          PY
+      - name: Commit rollout wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package.json package-lock.json frontend/src/lib/structured-question-renderer.ts frontend/src/lib/structured-question-renderer.test.ts backend/scripts/latex-asset-compile.py backend/src/database/audits/9618-latex-coverage.sql docs/LATEX-CORPUS-CONVERSION.md backend/src/services/question-serializer.ts backend/src/services/selection-review.ts backend/src/repositories/questions-repository.ts frontend/src/QuestionBankPage.tsx
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "feat(latex): wire reviewed corpus rendering"
+          git push origin HEAD:feat/latex-corpus-rollout
