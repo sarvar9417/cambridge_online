@@ -12,6 +12,30 @@ type CheckpointSlide = LessonSlide & {
   checkpointYearTo?: number;
 };
 
+type ExamAsset = {
+  id: string;
+  kind: string;
+  url: string | null;
+  contentMd: string | null;
+  altText: string;
+  sourcePage: number | null;
+};
+
+type ExamContextBlock = {
+  id: string;
+  displayRef: string;
+  contextMd: string | null;
+  assets: ExamAsset[];
+};
+
+type ExamDependency = {
+  id: string;
+  displayRef: string;
+  stem: string;
+  contextMd: string | null;
+  assets: ExamAsset[];
+};
+
 type ExamQuestion = {
   id: string;
   displayRef: string;
@@ -21,14 +45,43 @@ type ExamQuestion = {
   year: number;
   hasDiagram: boolean;
   hasDependency: boolean;
+  contextBlocks: ExamContextBlock[];
+  dependencies: ExamDependency[];
 };
 
 type CheckpointResponse = {
   data: ExamQuestion[];
-  learningObjectiveCodes: string[];
   yearFrom: number;
   yearTo: number;
 };
+
+function sourceAssetValue(asset:ExamAsset) {
+  if(asset.url)return `[[browser_asset_url:${encodeURIComponent(asset.url)}]]`;
+  return asset.contentMd??'';
+}
+
+function SourceAsset({ asset }: { asset:ExamAsset }) {
+  const value=sourceAssetValue(asset);
+  if(!value)return null;
+  const label=[asset.altText,asset.sourcePage?`Source page ${asset.sourcePage}`:''].filter(Boolean).join(' · ');
+  return <figure className="qb-asset student-topic-exam-asset">
+    <strong>{asset.kind}</strong>
+    <span>{label}</span>
+    <pre>{value}</pre>
+  </figure>;
+}
+
+function assetComplete(asset:ExamAsset) {
+  return Boolean(asset.url||asset.contentMd);
+}
+
+function questionComplete(question:ExamQuestion) {
+  const contextAssets=question.contextBlocks.flatMap(block=>block.assets);
+  const dependencyAssets=question.dependencies.flatMap(dependency=>dependency.assets);
+  if(question.hasDiagram&&![...contextAssets,...dependencyAssets].some(asset=>assetComplete(asset)))return false;
+  if(question.hasDependency&&!question.dependencies.length)return false;
+  return [...contextAssets,...dependencyAssets].every(asset=>assetComplete(asset));
+}
 
 function StudentQuestionCard({ question }: { question:ExamQuestion }) {
   return <article className="student-topic-exam-question">
@@ -36,7 +89,17 @@ function StudentQuestionCard({ question }: { question:ExamQuestion }) {
       <strong>{question.displayRef}</strong>
       <span className="student-topic-exam-marks">[{question.marks}]</span>
     </header>
-    {question.contextMd&&<p className="student-topic-exam-context">{question.contextMd}</p>}
+    {question.dependencies.map(dependency=><section className="student-topic-exam-required-context" key={dependency.id}>
+      <strong>{dependency.displayRef}</strong>
+      {dependency.contextMd&&<p>{dependency.contextMd}</p>}
+      {dependency.assets.map(asset=><SourceAsset asset={asset} key={asset.id}/>)}
+      {dependency.stem&&<p>{dependency.stem}</p>}
+    </section>)}
+    {question.contextBlocks.map(block=><section className="student-topic-exam-context-block" key={block.id}>
+      {block.contextMd&&<p className="student-topic-exam-context">{block.contextMd}</p>}
+      {block.assets.map(asset=><SourceAsset asset={asset} key={asset.id}/>)}
+    </section>)}
+    {!question.contextBlocks.length&&question.contextMd&&<p className="student-topic-exam-context">{question.contextMd}</p>}
     <p className="student-topic-exam-stem">{question.stem}</p>
   </article>;
 }
@@ -80,7 +143,7 @@ export function StudentTopicPastPaper({ page, topic }: { page:TopicPage; topic:L
     return()=>{cancelled=true;};
   },[codes.join('|'),mixedSyllabus,syllabusCode,yearFrom,yearTo]);
 
-  const completeQuestions=questions.filter(question=>!question.hasDiagram&&!question.hasDependency);
+  const completeQuestions=questions.filter(questionComplete);
 
   return <section className="student-topic-exam" aria-label={`${topic.code} Past Paper`}>
     {loading&&<div className="student-topic-exam-state">Past Paper savollari yuklanmoqda…</div>}
