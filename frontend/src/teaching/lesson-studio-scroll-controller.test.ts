@@ -22,6 +22,15 @@ describe('Lesson slide scroll controller', () => {
     expect(controller).toContain("attributeFilter: ['class']");
   });
 
+  it('rebinds when library or chapter-hub navigation mounts the studio later', () => {
+    const controller = source('lesson-studio-scroll-controller.ts');
+    expect(controller).toContain('const mountObserver = new MutationObserver(bindStudio);');
+    expect(controller).toContain("mountObserver.observe(document.body, { childList: true, subtree: true });");
+    expect(controller).toContain('if (nextStudio === currentStudio)');
+    expect(controller).toContain('syncActiveSlide();');
+    expect(controller).toContain('mountObserver.disconnect();');
+  });
+
   it('uses PageDown, PageUp and Space to scroll long screens before changing slides', () => {
     const controller = source('lesson-studio-scroll-controller.ts');
     expect(controller).toContain("['PageDown', 'PageUp', ' ']");
