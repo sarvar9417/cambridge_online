@@ -14,7 +14,7 @@ function render(content: StructuredQuestionContent) {
 }
 
 describe('structured question DOM renderer', () => {
-  it('renders mathematical LaTeX with KaTeX rather than exposing source code', () => {
+  it('renders mathematical LaTeX with KaTeX rather than exposing source code visually', () => {
     const latex = String.raw`\frac{2^{10}}{2^4}=2^6`;
     const host = render({
       version: 1,
@@ -26,7 +26,10 @@ describe('structured question DOM renderer', () => {
     expect(math?.dataset.latex).toBe(latex);
     expect(math?.querySelector('.katex')).not.toBeNull();
     expect(math?.querySelector('math')).not.toBeNull();
-    expect(math?.textContent).not.toContain(String.raw`\frac`);
+    // KaTeX deliberately keeps the original TeX inside a MathML annotation for
+    // accessibility/provenance. The visible HTML layer must not expose it.
+    expect(math?.querySelector('.katex-html')?.textContent).not.toContain(String.raw`\frac`);
+    expect(math?.querySelector('annotation[encoding="application/x-tex"]')?.textContent).toBe(latex);
     expect(math?.dataset.sourcePage).toBe('2');
   });
 
