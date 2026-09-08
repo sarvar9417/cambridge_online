@@ -4,6 +4,9 @@ export type PdfFirstSectionCode =
   | '7.1' | '7.2' | '7.3' | '7.4' | '7.5' | '7.6' | '7.7' | '7.8' | '7.9'
   | '13.1' | '13.2' | '13.3';
 
+/** Stable semantic alias used by the section-first lesson pipeline. */
+export type PdfFirstSectionId = PdfFirstSectionCode;
+
 export type PdfFirstSourceSegment = {
   chapter: PdfFirstChapter;
   pdfPage: number;
