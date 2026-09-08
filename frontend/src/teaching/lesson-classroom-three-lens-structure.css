@@ -1,8 +1,9 @@
 /* Structural guard for semantic Topic/Page classroom mode.
  * Legacy slide presentation CSS has highly-specific !important selectors that
- * intentionally hid .lesson-outline and forced a one-column workspace. Topic
- * lessons need the rail in projection, so these selectors deliberately outrank
- * the legacy slide contract. Keep this file last in LessonStudio.tsx. */
+ * intentionally hid .lesson-outline, forced a one-column workspace and turned
+ * Past Paper into nested horizontal carousels. Topic lessons use one vertical
+ * semantic-page model, so these selectors deliberately outrank that legacy
+ * slide contract. Keep this file last in LessonStudio.tsx. */
 
 html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-workspace.lesson-topic-workspace,
 .lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-workspace.lesson-topic-workspace,
@@ -45,6 +46,48 @@ html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-
   overflow-y: auto !important;
   align-items: start !important;
   align-content: start !important;
+}
+
+/* Past Paper is the final page of a Topic, so classroom projection keeps the
+ * same vertical reading/teaching behavior. This removes nested horizontal
+ * scroll areas that compete with PageDown/Space and projector remotes. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-scroll,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-scroll,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-scroll {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  scroll-snap-type: none !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-year-group,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-year-group,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-year-group {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 28px !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-grid,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-grid,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 20px !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  scroll-snap-type: none !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  scroll-snap-align: none !important;
 }
 
 @media (max-width: 720px) {
