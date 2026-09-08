@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LESSON_CHAPTERS } from './lesson-content-source-complete';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
-import { buildTopicPlan, flattenTopicPages } from './lesson-topic-plan';
+import { buildTopicPlan, flattenTopicPages, sourceFilePageForSlide } from './lesson-topic-plan';
 
 const chapters = [...LESSON_CHAPTERS, CHAPTER_7];
 
@@ -31,19 +31,41 @@ describe('book-like topic plan', () => {
     }
   });
 
-  it('groups source-backed teaching by source-file page instead of arbitrary 14-screen lessons', () => {
+  it('normalizes mixed printed/extract page numbers before grouping a physical source page', () => {
     for (const chapter of chapters) {
       const topics = buildTopicPlan(chapter.slides, chapter.subtopics);
       const studyPages = flattenTopicPages(topics).filter(item => item.page.kind === 'study');
       expect(studyPages.length, `Chapter ${chapter.number} study pages`).toBeGreaterThan(0);
-      studyPages.forEach(({ page }) => {
+      studyPages.forEach(({ topic, page }) => {
         if (page.bookPage == null) return;
-        expect(page.slides.every(slide => {
-          const evidencePages = slide.sourceAtomEvidence?.map(item => item.page) ?? [];
-          const fallbackPages = slide.sourcePages ?? [];
-          return evidencePages.includes(page.bookPage!) || (!evidencePages.length && fallbackPages.includes(page.bookPage!));
-        }), `${chapter.number} ${page.id} source-page grouping`).toBe(true);
+        expect(page.slides.every(slide => sourceFilePageForSlide(topic.code,slide)===page.bookPage), `${chapter.number} ${page.id} source-page grouping`).toBe(true);
       });
+    }
+  });
+
+  it('never mixes two physical source-file pages inside one exact transcript slide', () => {
+    for(const chapter of chapters){
+      const exact=chapter.slides.filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'));
+      expect(exact.length,`Chapter ${chapter.number} exact transcript pages`).toBeGreaterThan(0);
+      exact.forEach(slide=>{
+        const code=slide.subtopicCode!;
+        const evidencePages=new Set((slide.sourceAtomEvidence??[]).map(item=>sourceFilePageForSlide(code,{...slide,sourcePages:[],sourceAtomEvidence:[item]})));
+        expect(evidencePages.size,`${slide.id} physical source pages`).toBe(1);
+        expect(slide.sourcePages?.length,`${slide.id} printed source page`).toBe(1);
+      });
+    }
+  });
+
+  it('uses page vocabulary instead of stale screen/presentation vocabulary in exact source transcripts', () => {
+    for(const chapter of chapters){
+      chapter.slides
+        .filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'))
+        .forEach(slide=>{
+          expect(slide.eyebrow).toContain('COURSEBOOK SOURCE');
+          expect(slide.eyebrow).not.toContain('COURSEBOOK LESSON');
+          expect(slide.title.toLowerCase()).not.toContain('coursebook sequence');
+          expect(slide.lead.toLowerCase()).not.toContain('next screen');
+        });
     }
   });
 });
