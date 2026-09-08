@@ -6,7 +6,8 @@
 
 .lesson-topic-studio:fullscreen,
 .lesson-topic-studio.is-presenting {
-  --classroom-copy: min(1280px, calc(100vw - (var(--classroom-edge) * 2)));
+  --classroom-rail: clamp(190px, 14vw, 250px);
+  --classroom-copy: min(1180px, calc(100vw - var(--classroom-rail) - (var(--classroom-edge) * 2)));
   --classroom-text: clamp(21px, 1.45vw, 28px);
   --classroom-small: clamp(14px, .9vw, 17px);
   --classroom-heading: clamp(32px, 2.55vw, 46px);
@@ -14,7 +15,7 @@
 }
 
 /* ---------------- Teacher lens ---------------- */
-/* Keep orientation persistent, but make controls visually secondary. */
+/* Keep chapter/topic/page orientation persistent, but make controls secondary. */
 .lesson-topic-studio:fullscreen .lesson-toolbar,
 .lesson-topic-studio.is-presenting .lesson-toolbar {
   min-height: 56px !important;
@@ -39,7 +40,137 @@
   opacity: .82;
 }
 
-/* The teacher gets a quiet “current teaching segment” indicator while scrolling. */
+/* The left topic rail is part of the lesson model, not teacher-only chrome.
+ * Keep it in classroom mode so the teacher can jump quickly and students can
+ * see where the current page sits in the chapter. */
+.lesson-topic-studio:fullscreen .lesson-topic-workspace,
+.lesson-topic-studio.is-presenting .lesson-topic-workspace {
+  grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  place-items: stretch !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-outline,
+.lesson-topic-studio.is-presenting .lesson-topic-outline {
+  display: block !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 14px 10px 22px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-right: 1px solid #22324a !important;
+  border-bottom: 0 !important;
+  background: #0b1729 !important;
+  color: #e2e8f0 !important;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #0b1729;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-outline-head,
+.lesson-topic-studio.is-presenting .lesson-topic-outline-head {
+  display: block !important;
+  margin: 0 4px 8px !important;
+  padding: 2px 6px 12px !important;
+  border-bottom: 1px solid #26364e !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-outline-head p,
+.lesson-topic-studio.is-presenting .lesson-topic-outline-head p {
+  color: #93c5fd !important;
+  font-size: 10px !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-outline-head strong,
+.lesson-topic-studio.is-presenting .lesson-topic-outline-head strong {
+  color: #f8fafc !important;
+  font-size: 16px !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-group,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-group {
+  display: block !important;
+  min-width: 0 !important;
+  padding: 5px 0 !important;
+  border-bottom: 1px solid #1d2b40 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-topic,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-topic {
+  grid-template-columns: 42px minmax(0,1fr) auto !important;
+  gap: 7px !important;
+  min-height: 46px;
+  padding: 8px 7px !important;
+  color: #cbd5e1 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-topic > span,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-topic > span {
+  color: #93c5fd !important;
+  font-size: 11px !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-topic > b,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-topic > b {
+  color: inherit !important;
+  font-size: clamp(11px, .75vw, 13px) !important;
+  line-height: 1.3 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-topic > small,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-topic > small {
+  background: #17263a !important;
+  color: #94a3b8 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-group.active > .lesson-topic-nav-topic,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-group.active > .lesson-topic-nav-topic {
+  background: #132b4b !important;
+  color: #fff !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages {
+  display: grid !important;
+  max-height: none !important;
+  margin: 4px 0 4px 31px !important;
+  padding-left: 9px !important;
+  overflow: visible !important;
+  border-left: 1px solid #31445e !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button {
+  grid-template-columns: 24px minmax(0,1fr) !important;
+  padding: 6px 6px !important;
+  color: #94a3b8 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button > span,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button > span {
+  color: #64748b !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button > b,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button > b {
+  color: inherit !important;
+  font-size: clamp(10px, .68vw, 12px) !important;
+  line-height: 1.3 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button.active,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button.active {
+  background: #e8f1ff !important;
+  color: #0f3d73 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button > em,
+.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button > em {
+  background: #7c2d12 !important;
+  color: #ffedd5 !important;
+}
+
+/* The teacher gets a quiet current-segment indicator while scrolling. */
 .lesson-classroom-fragment-status {
   display: none;
 }
@@ -70,8 +201,7 @@
   display: none;
 }
 
-/* Do not dim non-focused content: students must still be able to read it.
- * Instead use one restrained accent rail to show where the teacher currently is. */
+/* Do not dim non-focused content: students must still be able to read it. */
 .lesson-topic-studio:fullscreen .lesson-page-fragment.classroom-fragment-focus,
 .lesson-topic-studio.is-presenting .lesson-page-fragment.classroom-fragment-focus {
   border-left-color: var(--lesson-accent, #2563eb) !important;
@@ -79,12 +209,18 @@
 }
 
 /* ---------------- Student lens ---------------- */
-/* Editorial page rhythm: fewer nested “app cards”, more textbook-like sections. */
+/* The helper sentence is useful in Teacher reading view, but it wastes projector
+ * space. Classroom mode already has a scroll cue, so show only learning identity. */
 .lesson-topic-studio:fullscreen .lesson-topic-page-head,
 .lesson-topic-studio.is-presenting .lesson-topic-page-head {
-  grid-template-columns: minmax(0,1.45fr) minmax(280px,.55fr) !important;
-  padding-top: clamp(24px, 2.7vh, 38px) !important;
-  padding-bottom: clamp(20px, 2.3vh, 32px) !important;
+  display: block !important;
+  padding-top: clamp(22px, 2.5vh, 34px) !important;
+  padding-bottom: clamp(18px, 2.1vh, 28px) !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page-head > p,
+.lesson-topic-studio.is-presenting .lesson-topic-page-head > p {
+  display: none !important;
 }
 
 .lesson-topic-studio:fullscreen .lesson-topic-page-head h1,
@@ -94,18 +230,13 @@
   line-height: 1.04 !important;
 }
 
-.lesson-topic-studio:fullscreen .lesson-topic-page-head > p,
-.lesson-topic-studio.is-presenting .lesson-topic-page-head > p {
-  max-width: 34ch;
-  font-size: clamp(17px, 1.15vw, 22px) !important;
-  line-height: 1.48 !important;
-}
-
 .lesson-topic-studio:fullscreen .lesson-topic-page-content,
 .lesson-topic-studio.is-presenting .lesson-topic-page-content {
+  width: var(--classroom-copy) !important;
   padding-top: clamp(14px, 2vh, 26px) !important;
 }
 
+/* Editorial page rhythm: fewer nested app cards, more textbook-like sections. */
 .lesson-topic-studio:fullscreen .lesson-page-fragment,
 .lesson-topic-studio.is-presenting .lesson-page-fragment {
   margin-bottom: clamp(14px, 1.8vh, 24px) !important;
@@ -351,8 +482,8 @@
 
   .lesson-topic-studio:fullscreen .lesson-topic-page-head,
   .lesson-topic-studio.is-presenting .lesson-topic-page-head {
-    padding-top: 18px !important;
-    padding-bottom: 16px !important;
+    padding-top: 16px !important;
+    padding-bottom: 14px !important;
   }
 
   .lesson-topic-studio:fullscreen .lesson-page-fragment,
@@ -362,15 +493,27 @@
 }
 
 @media (max-width: 1100px) {
-  .lesson-topic-studio:fullscreen .lesson-topic-page-head,
-  .lesson-topic-studio.is-presenting .lesson-topic-page-head {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+  .lesson-topic-studio:fullscreen,
+  .lesson-topic-studio.is-presenting {
+    --classroom-rail: 184px;
+    --classroom-edge: 22px;
   }
+}
 
-  .lesson-topic-studio:fullscreen .lesson-topic-page-head > p,
-  .lesson-topic-studio.is-presenting .lesson-topic-page-head > p {
-    max-width: 70ch;
+/* Small handheld fullscreen is not a classroom projector; restore the content-first
+ * layout there so the rail never crushes the learning page. */
+@media (max-width: 720px) {
+  .lesson-topic-studio:fullscreen,
+  .lesson-topic-studio.is-presenting {
+    --classroom-copy: calc(100vw - 24px);
+  }
+  .lesson-topic-studio:fullscreen .lesson-topic-workspace,
+  .lesson-topic-studio.is-presenting .lesson-topic-workspace {
+    grid-template-columns: 1fr !important;
+  }
+  .lesson-topic-studio:fullscreen .lesson-topic-outline,
+  .lesson-topic-studio.is-presenting .lesson-topic-outline {
+    display: none !important;
   }
 }
 
