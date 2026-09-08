@@ -19,7 +19,7 @@ function adminHeaders(): Record<string,string> {
   if (!raw) throw new Error('supabase_secret_key_missing')
   const key = JSON.parse(raw).default
   if (!key) throw new Error('default_secret_key_missing')
-  return {'Content-Type':'application/json','apikey':key}
+  return {'Content-Type':'application/json','apikey':key,'Authorization':`Bearer ${key}`}
 }
 
 async function authenticate(req: Request) {
@@ -158,6 +158,14 @@ Deno.serve(async (req: Request) => {
       const manifest = body?.manifest
       if (!manifest || manifest.parserVersion!=='qp-source-repair-v3') return Response.json({ok:false,error:'invalid_v3_manifest'},{status:400})
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('apply_qp_source_repair_manifest_v3',{p_manifest:manifest})})
+    }
+    if (action === 'missing_source_ingest_bootstrap') {
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('missing_qp_source_ingest_bootstrap_v1')})
+    }
+    if (action === 'missing_source_ingest_apply') {
+      const manifest=body?.manifest
+      if (!validManifest(manifest,'missing-qp-source-ingest-v1')) return Response.json({ok:false,error:'invalid_missing_source_ingest_manifest'},{status:400})
+      return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,result:await rpc('apply_missing_qp_source_ingest_v1',{p_manifest:manifest})})
     }
     if (action === 'source_structure_bootstrap_v2') {
       return Response.json({ok:true,actor:claims.actor,run_id:claims.run_id,data:await rpc('source_structure_repair_bootstrap_v2')})
