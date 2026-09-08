@@ -4,6 +4,8 @@ import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
+import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES } from './coursebook-page-slides';
+import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
@@ -31,6 +33,8 @@ const normalise = (value: string) => value
   .replace(/[’‘]/g, "'")
   .replace(/[–—−]/g, '-')
   .replace(/…/g, '...')
+  .replace(/\\"/g, '"')
+  .replace(/\\\\/g, '\\')
   .replace(/\s+/g, ' ')
   .trim()
   .toLowerCase();
@@ -181,6 +185,51 @@ function pageFingerprintCategory(chapter: BookAuditChapter, expected: number) {
   return categoryFromMissing(expected, missing);
 }
 
+function visibleSlideText(slide: {
+  title?: string;
+  lead?: string;
+  bullets?: string[];
+  keyTerms?: Array<{ term: string; definition: string }>;
+  formula?: string;
+  example?: unknown;
+  activity?: unknown;
+  richBlocks?: unknown;
+}) {
+  return normalise(JSON.stringify({
+    title: slide.title,
+    lead: slide.lead,
+    bullets: slide.bullets,
+    keyTerms: slide.keyTerms,
+    formula: slide.formula,
+    example: slide.example,
+    activity: slide.activity,
+    richBlocks: slide.richBlocks,
+  }));
+}
+
+/**
+ * Independent typography-derived completeness gate.
+ *
+ * This intentionally checks the actual learner-visible page screens rather than
+ * the source-atom registry. A bold/emphasised item extracted directly from the
+ * supplied PDF therefore cannot be marked complete merely because hidden audit
+ * metadata exists somewhere else.
+ */
+function rawPdfEmphasisCategory(chapter: BookAuditChapter) {
+  const anchors = rawPdfEmphasisForChapter(chapter);
+  const missing = anchors.filter((anchor) => {
+    if (chapter === 7) {
+      const slide = CHAPTER_7_COURSEBOOK_PAGE_SLIDES.find((item) => item.id === `ch7-source-page-${anchor.printedPage}`);
+      return !slide || !visibleSlideText(slide).includes(normalise(anchor.text));
+    }
+    const slide = (lessonChapter(chapter)?.slides ?? []).find((item) =>
+      item.id === `h${chapter}-coursebook-page-${String(anchor.page).padStart(2, '0')}`,
+    );
+    return !slide || !visibleSlideText(slide).includes(normalise(anchor.text));
+  }).map((anchor) => `p.${anchor.printedPage}: ${anchor.text}`);
+  return categoryFromMissing(anchors.length, missing);
+}
+
 function checkpointCategory(chapter: BookAuditChapter, expected: number) {
   const count = chapter === 7
     ? CHAPTER_7_PAST_PAPER_CHECKPOINTS.length
@@ -193,6 +242,7 @@ function buildAudit(chapter: BookAuditChapter): BookCompletenessAudit {
   const baseline = BOOK_COMPLETENESS_BASELINES[chapter];
   const categories: Record<string, BookCompletenessCategory> = {
     source_page_fingerprints: pageFingerprintCategory(chapter, baseline.pageCount),
+    raw_pdf_emphasis: rawPdfEmphasisCategory(chapter),
     chapter_objectives: anchorCategory(chapter, baseline.objectiveAnchors),
     prior_knowledge: anchorCategory(chapter, baseline.priorKnowledgeAnchors),
     key_terms: globalAnchorCategory(chapter, baseline.keyTerms),

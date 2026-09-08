@@ -2,10 +2,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOK_COMPLETENESS_AUDITS } from './book-completeness-audit';
 import { BOOK_COMPLETENESS_BASELINES, type BookAuditChapter } from './book-completeness-baseline';
+import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 
 const expectedInventory: Record<BookAuditChapter, Record<string, number>> = {
   1: {
     pages: 26,
+    rawPdfEmphasis: 42,
     keyTerms: 31,
     examples: 8,
     activities: 9,
@@ -20,6 +22,7 @@ const expectedInventory: Record<BookAuditChapter, Record<string, number>> = {
   },
   7: {
     pages: 41,
+    rawPdfEmphasis: 77,
     keyTerms: 30,
     examples: 7,
     activities: 20,
@@ -34,6 +37,7 @@ const expectedInventory: Record<BookAuditChapter, Record<string, number>> = {
   },
   13: {
     pages: 24,
+    rawPdfEmphasis: 51,
     keyTerms: 18,
     examples: 9,
     activities: 9,
@@ -60,6 +64,7 @@ describe('formal Book Completeness Audit', () => {
       const baseline = BOOK_COMPLETENESS_BASELINES[chapter];
       const expected = expectedInventory[chapter];
       expect(baseline.pageCount).toBe(expected.pages);
+      expect(rawPdfEmphasisForChapter(chapter)).toHaveLength(expected.rawPdfEmphasis);
       expect(baseline.keyTerms).toHaveLength(expected.keyTerms);
       expect(baseline.examples).toHaveLength(expected.examples);
       expect(baseline.activities).toHaveLength(expected.activities);
@@ -76,6 +81,8 @@ describe('formal Book Completeness Audit', () => {
     it(`fails closed unless every Chapter ${chapter} completeness category is covered`, () => {
       const audit = BOOK_COMPLETENESS_AUDITS[chapter];
       expect(audit.checksExpected).toBeGreaterThan(0);
+      expect(audit.categories.raw_pdf_emphasis?.expected).toBe(expectedInventory[chapter].rawPdfEmphasis);
+      expect(audit.categories.raw_pdf_emphasis?.covered).toBe(expectedInventory[chapter].rawPdfEmphasis);
       for (const [category, result] of Object.entries(audit.categories)) {
         expect(result.missing, `${category}: ${result.missing.join(' | ')}`).toEqual([]);
         expect(result.covered, category).toBe(result.expected);
