@@ -29,7 +29,25 @@ const normalise = (value:string) => value
   .trim()
   .toLowerCase();
 
-const visibleSlideText = (slide:unknown) => normalise(JSON.stringify(slide));
+const visibleSlideText = (slide:{
+  title?:string;
+  lead?:string;
+  bullets?:string[];
+  keyTerms?:Array<{term:string;definition:string}>;
+  formula?:string;
+  example?:unknown;
+  activity?:unknown;
+  richBlocks?:unknown;
+}) => normalise(JSON.stringify({
+  title:slide.title,
+  lead:slide.lead,
+  bullets:slide.bullets,
+  keyTerms:slide.keyTerms,
+  formula:slide.formula,
+  example:slide.example,
+  activity:slide.activity,
+  richBlocks:slide.richBlocks,
+}));
 
 const category = (expected:number, missing:string[]):SourceSemanticFidelityCategory => ({
   expected,
