@@ -4,38 +4,41 @@ import { describe, expect, it } from 'vitest';
 
 const source = (name: string) => readFileSync(resolve(process.cwd(), `src/teaching/${name}`), 'utf8');
 
-describe('Lessons classroom course UI', () => {
-  it('opens a chapter hub before opening one bounded classroom lesson', () => {
+describe('Lessons topic/page UI', () => {
+  it('routes a chapter directly into book-like topics and pages', () => {
     const studio = source('LessonStudioV2.tsx');
-    expect(studio).toContain("const lessonNo=Number(route.params.get('lesson')||0);");
-    expect(studio).toContain('if(!activeUnit)return <section className={`lesson-chapter-hub chapter-${chosen.number}`}');
-    expect(studio).toContain('classroom lessons');
-    expect(studio).toContain('MAX_LESSON_SCREENS');
+    expect(studio).toContain("const topicParam=route.params.get('topic')||'';");
+    expect(studio).toContain("const pageParam=Number(route.params.get('page')||1);");
+    expect(studio).toContain('buildTopicPlan(chosen.slides,chosen.subtopics)');
+    expect(studio).toContain('lesson-topic-outline');
+    expect(studio).toContain('lesson-topic-nav-pages');
+    expect(studio).not.toContain('MAX_LESSON_SCREENS');
+    expect(studio).not.toContain('classroom lessons');
   });
 
-  it('uses only the active lesson slides for progress, dots and next navigation', () => {
+  it('renders one scrollable page with topic-scoped previous and next navigation', () => {
     const studio = source('LessonStudioV2.tsx');
-    expect(studio).toContain('const activeSlides=activeUnit?.slides??[];');
-    expect(studio).toContain('index+1}/{activeSlides.length}');
-    expect(studio).toContain('activeSlides.map((item,i)');
-    expect(studio).toContain("'Keyingi dars →'");
-    expect(studio).toContain('lesson-${lessonNo}-slide-${i+1}');
+    expect(studio).toContain('data-page-id={activePage.id}');
+    expect(studio).toContain("activePage.kind==='practice'");
+    expect(studio).toContain("'Keyingi topic →'");
+    expect(studio).toContain("'Keyingi page →'");
+    expect(studio).toContain('activeTopic.pages.map((page,pageIndex)');
   });
 
-  it('loads the chapter-course visual layer before the established scroll repairs', () => {
+  it('loads the topic-page visual layer after the established scroll repairs', () => {
     const wrapper = source('LessonStudio.tsx');
-    const course = wrapper.indexOf("import './lesson-course-structure.css';");
-    const scroll = wrapper.indexOf("import './lesson-studio-scroll-fix.css';");
-    expect(course).toBeGreaterThan(-1);
-    expect(scroll).toBeGreaterThan(course);
+    const scroll = wrapper.indexOf("import './lesson-studio-board-scroll-fix.css';");
+    const topic = wrapper.indexOf("import './lesson-topic-pages.css';");
+    expect(scroll).toBeGreaterThan(-1);
+    expect(topic).toBeGreaterThan(scroll);
   });
 
-  it('provides responsive section and lesson catalogue layouts', () => {
-    const css = source('lesson-course-structure.css');
-    expect(css).toContain('.lesson-chapter-hub');
-    expect(css).toContain('.lesson-course-section');
-    expect(css).toContain('.lesson-course-units');
-    expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
-    expect(css).toContain('@media (max-width: 600px)');
+  it('provides a real vertical reading surface and responsive topic rail', () => {
+    const css = source('lesson-topic-pages.css');
+    expect(css).toContain('.lesson-topic-outline');
+    expect(css).toContain('.lesson-topic-nav-pages');
+    expect(css).toContain('.lesson-slide.lesson-topic-page');
+    expect(css).toContain('overflow-y: auto !important;');
+    expect(css).toContain('@media (max-width: 860px)');
   });
 });
