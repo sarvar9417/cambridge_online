@@ -50,11 +50,25 @@ describe('lesson checkpoint route',()=>{
     expect(list).toHaveBeenCalledWith(['1.1.3'],2021,2026,'9618');
   });
 
-  it('is staff-only and rejects invalid year order',async()=>{
-    const list=vi.fn();const app=express();let actor:typeof teacher|typeof student=student;
-    app.use((req,_res,next)=>{req.actor=actor;next()});app.use('/lesson-checkpoints',createLessonCheckpointsRouter({list} as unknown as LessonCheckpointService));
-    await request(app).get('/lesson-checkpoints').query({loCodes:'1.1.3'}).expect(403);
-    actor=teacher;
+  it('allows students to read approved question previews but redacts internal LO matching metadata',async()=>{
+    const list=vi.fn().mockResolvedValue({
+      data:[{
+        id:'q1',displayRef:'9618/31/M/J/24 Q1(a)',stem:'Question',contextMd:'Context',commandWord:'Explain',marks:2,
+        year:2024,series:'MJ',variant:1,component:3,hasDiagram:false,hasDependency:false,matchedLearningObjectiveCodes:['13.2-lo-04'],
+      }],
+      learningObjectiveCodes:['13.2-lo-04'],syllabusCode:'9618',yearFrom:2021,yearTo:2026,
+    });
+    const app=express();app.use((req,_res,next)=>{req.actor=student;next()});app.use('/lesson-checkpoints',createLessonCheckpointsRouter({list} as unknown as LessonCheckpointService));
+    const response=await request(app).get('/lesson-checkpoints').query({loCodes:'13.2-lo-04'}).expect(200);
+    expect(response.body.data[0]).toMatchObject({displayRef:'9618/31/M/J/24 Q1(a)',stem:'Question',marks:2});
+    expect(response.body.data[0]).not.toHaveProperty('matchedLearningObjectiveCodes');
+    expect(response.body).not.toHaveProperty('learningObjectiveCodes');
+    expect(response.body).toMatchObject({syllabusCode:'9618',yearFrom:2021,yearTo:2026});
+  });
+
+  it('rejects invalid year order before calling the service',async()=>{
+    const list=vi.fn();const app=express();
+    app.use((req,_res,next)=>{req.actor=teacher;next()});app.use('/lesson-checkpoints',createLessonCheckpointsRouter({list} as unknown as LessonCheckpointService));
     await request(app).get('/lesson-checkpoints').query({loCodes:'1.1.3',yearFrom:2026,yearTo:2021}).expect(400);
     expect(list).not.toHaveBeenCalled();
   });

@@ -22,23 +22,30 @@ export function createLessonCheckpointsRouter(service: LessonCheckpointService) 
   const router = Router();
 
   router.get('/', async (req, res) => {
-    if (req.actor!.role === 'student') {
-      res.status(403).json({ error: { code: 'forbidden', message: 'Bu amal faqat o‘qituvchi yoki owner uchun.' } });
-      return;
-    }
-
     const parsed = querySchema.safeParse(req.query);
     if (!parsed.success) {
       res.status(400).json({ error: { code: 'validation_error', message: 'Checkpoint filtrlarini tekshiring.', details: parsed.error.flatten() } });
       return;
     }
 
-    res.json(await service.list(
+    const result = await service.list(
       parsed.data.loCodes,
       parsed.data.yearFrom,
       parsed.data.yearTo,
       parsed.data.syllabusCode,
-    ));
+    );
+
+    if (req.actor!.role === 'student') {
+      res.json({
+        data: result.data.map(({ matchedLearningObjectiveCodes: _internalLoMatches, ...question }) => question),
+        syllabusCode: result.syllabusCode,
+        yearFrom: result.yearFrom,
+        yearTo: result.yearTo,
+      });
+      return;
+    }
+
+    res.json(result);
   });
 
   return router;
