@@ -21,10 +21,15 @@ on:
       - 'backend/scripts/qp-source-structure-repair-v5.py'
       - 'backend/scripts/qp-source-structure-repair-v6.py'
       - 'backend/scripts/qp-source-structure-repair-v7.py'
+      - 'backend/scripts/qp-source-structure-repair-v8.py'
       - 'backend/scripts/tools/pdftotext'
       - '.github/workflows/qp-source-structure-repair-v2.yml'
       - 'backend/src/database/migrations/0115_source_fidelity_repair_contract.sql'
       - 'backend/src/database/migrations/0152_source_fidelity_detector_v3.sql'
+      - 'backend/src/database/migrations/0153_source_fidelity_bootstrap_evidence.sql'
+      - 'backend/src/database/migrations/0155_source_asset_rule_scoped_resolution.sql'
+      - 'backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql'
+      - '.source-fidelity-apply'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
 
 permissions:
@@ -53,6 +58,11 @@ jobs:
           apply=NO
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
             apply=YES
+          elif [[ "${{ github.event_name }}" == "push" && -f .source-fidelity-apply ]]; then
+            marker="$(tr -d '\r\n' < .source-fidelity-apply)"
+            if [[ "$marker" == "APPLY_SOURCE_FIDELITY_V8_ONCE" ]]; then
+              apply=YES
+            fi
           fi
           echo "apply=$apply" >> "$GITHUB_OUTPUT"
       - name: Build verified source repair plan
@@ -60,7 +70,7 @@ jobs:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
           SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
-        run: python3 backend/scripts/qp-source-structure-repair-v7.py
+        run: python3 backend/scripts/qp-source-structure-repair-v8.py
       - name: Upload repair plan
         if: always()
         uses: actions/upload-artifact@v4

@@ -22,6 +22,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
             "backend/scripts/sync-9618-repaired-assets.py",
             "backend/scripts/finalize-9618-2026-corpus.py",
             "backend/scripts/qp-source-structure-repair-v7.py",
+            "backend/scripts/qp-source-structure-repair-v8.py",
         ):
             with self.subTest(relative=relative):
                 ast.parse(self.read(relative), filename=relative)
@@ -78,13 +79,21 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("following\\s+(?:vector\\s+)?logo", source)
         self.assertIn("this\\s+logo", source)
         self.assertIn("BACKWARD_VISUAL_RE", source)
-        self.assertIn('label_kind = "visual" if required_kind == "visual" else required_kind', source)
-        self.assertIn("Preceding Cambridge source {label_kind}", source)
+        self.assertIn("Preceding Cambridge source", source)
         self.assertIn("sourcePlacement", source)
-        # v7 delegates writes to the proven v3 two-phase runner rather than
-        # creating a new unguarded write path.
         self.assertIn('raise SystemExit(V3["main"]())', source)
         self.assertNotIn("execute_sql", source)
+
+    def test_v8_never_text_resolves_canonical_owner_evidence(self) -> None:
+        source = self.read("backend/scripts/qp-source-structure-repair-v8.py")
+        self.assertIn("canonical_owner_boundary_blocked", source)
+        self.assertIn("asset_canonical_owner_span", source)
+        self.assertIn("asset_canonical_owner_verified", source)
+        self.assertIn("after_source_visual_cue", source)
+        self.assertIn("Preceding Cambridge source visual", source)
+        self.assertIn('if str(value) != rule', source)
+        self.assertIn('asset["satisfiesRules"] = [rule]', source)
+        self.assertIn('raise SystemExit(V3["main"]())', source)
 
     def test_detector_v3_audits_canonical_block_adjacency(self) -> None:
         sql = self.read("backend/src/database/migrations/0152_source_fidelity_detector_v3.sql")
@@ -104,19 +113,38 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("set_question_structured_content_v1", sql)
         self.assertIn("structured_source_provenance_mismatch", sql)
 
+    def test_source_asset_resolution_is_explicitly_rule_scoped(self) -> None:
+        sql = self.read("backend/src/database/migrations/0155_source_asset_rule_scoped_resolution.sql")
+        self.assertIn("repair asset must declare satisfiesRules", sql)
+        self.assertIn("v_satisfies_rules", sql)
+        self.assertIn("rule_code=ANY(v_satisfies_rules)", sql)
+        self.assertIn("declaredRules", sql)
+        self.assertIn("not currently unresolved", sql)
+        self.assertIn("a non-visual asset cannot satisfy a visual fidelity rule", sql)
+
+    def test_canonical_owner_findings_cannot_be_text_resolved(self) -> None:
+        sql = self.read("backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql")
+        self.assertIn("source-fidelity-detector-v3-canonical-adjacency", sql)
+        self.assertIn("canonical source structure cannot be resolved by text-boundary repair", sql)
+        self.assertIn("ownerBoundaryGuard", sql)
+        self.assertIn("repair_question_source_fidelity_guarded_v3", sql)
+
     def test_workflow_uses_correct_runner_for_source_repairs(self) -> None:
         workflow = self.read(".github/workflows/full-9618-2026-corpus-backfill.yml")
         self.assertIn("full-9618-2026-corpus-backfill-v3.py", workflow)
         self.assertIn("reconcile-9618-2026-dependencies.py", workflow)
         self.assertIn("flag-9618-source-fidelity.py", workflow)
         self.assertIn("qp-source-repair-runner", workflow)
-        self.assertIn("qp-source-structure-repair-v7.py", workflow)
+        self.assertIn("qp-source-structure-repair-v8.py", workflow)
         self.assertIn("sync-9618-repaired-assets.py", workflow)
         self.assertIn("structured_content_backfill_2026.py", workflow)
 
         repair_workflow = self.read(".github/workflows/qp-source-structure-repair-v2.yml")
-        self.assertIn("qp-source-structure-repair-v7.py", repair_workflow)
+        self.assertIn("qp-source-structure-repair-v8.py", repair_workflow)
         self.assertIn("0152_source_fidelity_detector_v3.sql", repair_workflow)
+        self.assertIn("0155_source_asset_rule_scoped_resolution.sql", repair_workflow)
+        self.assertIn("0156_source_fidelity_owner_boundary_guard.sql", repair_workflow)
+        self.assertIn("APPLY_SOURCE_FIDELITY_V8_ONCE", repair_workflow)
 
     def test_corpus_runner_exposes_new_guarded_actions(self) -> None:
         source = self.read("supabase/functions/corpus-runner/index.ts")

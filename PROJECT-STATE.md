@@ -1,6 +1,6 @@
 # CamPath canonical project state
 
-Updated: 2026-09-07
+Updated: 2026-09-08
 
 This file is the **single current-state manifest** for `sarvar9417/cambridge_online`.
 Requirements, historical audits and implementation snapshots remain useful evidence, but
@@ -25,12 +25,12 @@ claim that it is GitHub's live branch head.
 ```json
 {
   "schema_version": 2,
-  "state_date": "2026-09-07",
+  "state_date": "2026-09-08",
   "release": {
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0154_predeploy_9618_audit_reconciliation.sql",
+    "latest_migration": "0156_source_fidelity_owner_boundary_guard.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -114,6 +114,8 @@ claim that it is GitHub's live branch head.
     "backend/src/database/migrations/0152_source_fidelity_detector_v3.sql",
     "backend/src/database/migrations/0153_source_fidelity_bootstrap_evidence.sql",
     "backend/src/database/migrations/0154_predeploy_9618_audit_reconciliation.sql",
+    "backend/src/database/migrations/0155_source_asset_rule_scoped_resolution.sql",
+    "backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql",
     "backend/src/database/audits/question-source-occurrence-equivalence.sql",
     "backend/src/database/audits/9618-corpus-completion.sql",
     "backend/src/database/audits/9618-question-export-readiness.sql",
@@ -185,10 +187,12 @@ Migration 0150 baselines those filenames only after durable postconditions pass.
 postconditions and closes replay risk. Production has corresponding application-ledger
 entries through 0152.
 
-Migration `0154_predeploy_9618_audit_reconciliation.sql` is the repository candidate that
-closes the remaining historical Paper 1 LO catalog edge and deterministic 2025 dependency
-reconciliation before deployment. It must pass candidate CI and production postconditions
-before runtime evidence is advanced.
+Migration `0154_predeploy_9618_audit_reconciliation.sql` remains the predeployment corpus
+reconciliation candidate. Migrations `0155_source_asset_rule_scoped_resolution.sql` and
+`0156_source_fidelity_owner_boundary_guard.sql` harden the source-fidelity repair path so a
+verified asset resolves only explicitly proved rules and canonical parent/shared structures
+cannot be cleared by a leaf text-boundary assumption. These migrations require candidate CI
+and explicit production application before the source-fidelity backlog is written.
 
 ## Remaining external release/admin gates
 
