@@ -19,8 +19,11 @@ import './lesson-topic-pages.css';
 import './lesson-topic-pages-hardening.css';
 import './lesson-topic-ch7-source-evidence.css';
 import './lesson-classroom-display.css';
+import './lesson-classroom-three-lens.css';
+import './lesson-classroom-three-lens-structure.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonClassroomDisplay } from './lesson-classroom-display';
+import { installLessonClassroomFocus } from './lesson-classroom-focus';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
 import { installLessonQuestionWorkspaceControls } from './lesson-question-workspace-controls';
@@ -37,7 +40,9 @@ export function LessonStudio(props: LessonStudioProps) {
     const releaseWorkspaceControls = installLessonQuestionWorkspaceControls();
     const releaseSlideScroll = installLessonSlideScrollController();
     const releaseClassroomDisplay = installLessonClassroomDisplay();
+    const releaseClassroomFocus = installLessonClassroomFocus();
     return () => {
+      releaseClassroomFocus();
       releaseClassroomDisplay();
       releaseSlideScroll();
       releaseWorkspaceControls();
