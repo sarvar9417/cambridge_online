@@ -26,7 +26,7 @@ not a claim that it is the live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0159_source_asset_order_sync_v3.sql",
+    "latest_migration": "0160_source_fidelity_multicue_asset_sync.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -41,8 +41,8 @@ not a claim that it is the live branch head.
       "status": "pending_reverification",
       "audited_at": null,
       "target": "production Supabase; syllabus 9618; 2021-2026 source-fidelity backlog",
-      "strict_gate": "detector-v5 full-cue reconciliation + v10 guarded repair + canonical cue-adjacent source asset ordering + post-repair detector rerun",
-      "note": "v10 completed 242/242 guarded production repairs across 64 SHA-verified QPs with zero apply failures. The subsequent detector rerun exposed an ordering-only gap for already-referenced repair assets; migration 0159 is the fail-closed correction candidate. Eight legacy detector-v2 source structures remain separately fail-closed until original-source recovery is completed."
+      "strict_gate": "detector-v5 full-cue reconciliation + v10 guarded repair + exact multi-cue source asset binding + post-repair detector rerun",
+      "note": "The initial v10 production repair completed 242/242 rows across 64 SHA-verified QPs with zero apply failures. Migration 0159 then moved 149 existing verified source assets to their first canonical cue. Five remaining detector-v2 structures were recovered from original QPs with source paper/SHA/page/bbox provenance. A fresh v10 plan now reports 32/32 remaining canonical multi-cue repairs across 22 SHA-verified QPs with blocked=0, paperFailures=0 and integrityFailures=0. Migration 0160 is the fail-closed exact assetId + cueOrdinal synchronisation candidate; deployment remains out of scope until runtime reverification closes."
     }
   },
   "product": {
@@ -78,9 +78,9 @@ not a claim that it is the live branch head.
     }
   },
   "infrastructure": {
-    "database": "production Supabase has source-fidelity rule-scoping, canonical owner-boundary guards, detector-v4 reconciliation and full-canonical-cue detector v5 through migrations 0155-0158; migration 0159 is the current candidate for deterministic cue-adjacent ordering of already-referenced verified repair assets",
-    "storage": "private question-assets bucket is live; v10 wrote only SHA/source-pinned repair assets through guarded service-role flows, and the ordering correction moves existing canonical blocks without duplicating storage objects",
-    "worker": "corpus/source-audit workflows and exact uploaded-source accountability are active; v10 production apply completed 64/64 papers and 242/242 rows with zero paper, integrity or apply failures",
+    "database": "production Supabase already has source-fidelity rule-scoping, owner-boundary guards, detector v4/v5 reconciliation and source asset ordering through migration 0159; migration 0160 is the current candidate for exact multi-cue assetId/cueOrdinal binding before final runtime verification",
+    "storage": "private question-assets bucket is live; source-fidelity assets remain SHA/source-pinned and canonical synchronisation reuses verified assets where possible without duplicate storage objects",
+    "worker": "corpus/source-audit workflows and exact uploaded-source accountability are active; fresh remaining v10 plan covers 32 canonical multi-cue repairs across 22 SHA-verified QPs with zero blocked, paper or integrity failures",
     "deployment": "application deployment remains a separate external gate; corpus repair does not assume a Vercel release is current"
   },
   "evidence_files": [
@@ -93,8 +93,10 @@ not a claim that it is the live branch head.
     "backend/src/database/migrations/0157_source_fidelity_detector_v4_reconciliation.sql",
     "backend/src/database/migrations/0158_source_fidelity_full_cue_reconciliation.sql",
     "backend/src/database/migrations/0159_source_asset_order_sync_v3.sql",
+    "backend/src/database/migrations/0160_source_fidelity_multicue_asset_sync.sql",
     "backend/scripts/qp-source-structure-repair-v10.py",
     "scripts/test_source_asset_order_sync_v3.py",
+    "scripts/test_source_fidelity_multicue_sync_v4.py",
     "scripts/test_9618_2026_source_pipeline.py"
   ]
 }
@@ -104,26 +106,24 @@ not a claim that it is the live branch head.
 ## Current interpretation
 
 The source-fidelity repair remains intentionally **fail closed**. Detector v4/v5 removed the
-plural relational-schema false-positive class without hiding genuine printed structures.
-The v10 preflight then verified all 64 selected QPs by SHA and reported zero blocked,
-provenance or parser failures. Its guarded production apply completed **242/242** repair rows
-with **0** paper failures, **0** integrity failures and **0** apply failures.
+plural relational-schema false-positive class without hiding genuine printed structures. The
+initial v10 guarded production repair completed **242/242** rows across **64/64 SHA-verified
+QP sources** with **0 paper failures**, **0 integrity failures** and **0 apply failures**.
 
-The first canonical asset sync referenced every recovered storage asset, but the subsequent
-detector-v5 rerun exposed a narrower ordering defect: v10 had already appended many verified
-asset blocks to `content_json`, while `sync_repaired_source_assets_v2` only repositioned
-assets that were not yet referenced. As a result, 149 canonical-adjacency findings had a
-verified source asset later in the block list rather than immediately after the source cue.
-Fresh production evidence shows every one of those 149 questions has a unique best verified
-asset candidate and no ambiguity. Migration `0159_source_asset_order_sync_v3.sql` therefore
-moves the existing source-backed asset block without duplication, rechecks source paper/SHA
-provenance through `set_question_structured_content_v1`, and resolves a finding only after the
-exact adjacency predicate passes.
+Migration `0159_source_asset_order_sync_v3.sql` then corrected the first canonical ordering
+gap by moving **149** existing verified source asset blocks after their introducing source cue.
+The remaining detector-v2 backlog was reduced to five real printed structures and those five
+were recovered from their original Cambridge QPs with source paper ID, SHA-256, page and crop
+geometry preserved. The legacy detector-v2 source-fidelity backlog is therefore closed.
 
-Eight legacy detector-v2 structures remain separately fail-closed because v10 classified them
-as text-boundary repairs even though the source wording still references a printed table or
-structure chart. They are not covered up by the ordering migration; they require original-QP
-source recovery before the runtime audit can return to `verified`.
+The current remaining work is narrower: detector-v5 identifies **32 canonical multi-cue
+findings** where a question contains more than one genuine source table/visual cue. A fresh
+v10 plan covers **32/32** rows across **22/22 SHA-verified QPs** with `blocked=0`,
+`paperFailures=0` and `integrityFailures=0`. Migration
+`0160_source_fidelity_multicue_asset_sync.sql` binds each resolved finding to the exact
+verified repair `assetId` and the exact detector `cueOrdinal`, rechecks source paper/SHA
+provenance, and fails closed if the asset is missing, unrenderable, or not adjacent after the
+move. No deployment is part of this repair branch.
 
 ## Remaining external release/admin gates
 
