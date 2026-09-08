@@ -1,4 +1,4 @@
-name: Apply LaTeX rollout wiring
+name: Finalize LaTeX Question Bank surfaces
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  finalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -21,81 +21,76 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Bring reviewed LaTeX foundation onto current main
+      - name: Render LaTeX contexts, previews and compiled SVG assets
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin feat/latex-corpus-foundation
-          for file in \
-            frontend/src/lib/structured-question-renderer.ts \
-            frontend/src/lib/structured-question-renderer.test.ts \
-            backend/scripts/latex-asset-compile.py \
-            backend/src/database/audits/9618-latex-coverage.sql \
-            docs/LATEX-CORPUS-CONVERSION.md; do
-            mkdir -p "$(dirname "$file")"
-            git show origin/feat/latex-corpus-foundation:"$file" > "$file"
-          done
-          npm install katex@^0.16.22 -w frontend --save --package-lock-only --ignore-scripts
-      - name: Wire LaTeX fields and compiled SVG assets through APIs and Question Bank
-        shell: bash
-        run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
-          def patch(path, replacements):
-              p=Path(path)
-              text=p.read_text()
-              for old,new in replacements:
-                  if old not in text:
-                      raise SystemExit(f'missing patch anchor in {path}: {old[:100]!r}')
-                  text=text.replace(old,new)
-              p.write_text(text)
+          page = Path('frontend/src/QuestionBankPage.tsx')
+          text = page.read_text()
 
-          patch('backend/src/services/question-serializer.ts', [
-            ("  stem_md: string | null;\n  context_md: string | null;\n", "  stem_md: string | null;\n  context_md: string | null;\n  stem_latex?: string | null;\n  context_latex?: string | null;\n  body_format?: 'markdown' | 'latex' | null;\n"),
-            ("    stemMd: row.stem_md,\n    contextMd: row.context_md,\n", "    stemMd: row.stem_md,\n    contextMd: row.context_md,\n    stemLatex: row.stem_latex ?? null,\n    contextLatex: row.context_latex ?? null,\n    bodyFormat: row.body_format ?? 'markdown',\n"),
-          ])
+          import_anchor = "import { LatexQuestionText } from './lib/latex-question-text';\n"
+          asset_import = "import { portableAssetUrl } from './lib/portable-source-assets';\n"
+          if asset_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit('LatexQuestionText import missing')
+              text = text.replace(import_anchor, import_anchor + asset_import)
 
-          patch('backend/src/services/selection-review.ts', [
-            ("    stem: string;\n    /** Source-backed v1 content frozen with the selection/assignment snapshot. */\n", "    stem: string;\n    stemLatex?: string | null;\n    bodyFormat?: 'markdown' | 'latex';\n    /** Source-backed v1 content frozen with the selection/assignment snapshot. */\n"),
-            ("    context: string | null;\n    assets: PortableAsset[];\n", "    context: string | null;\n    contextLatex?: string | null;\n    assets: PortableAsset[];\n"),
-          ])
+          old_asset = "  storagePath: string | null;\n  contentMd: string | null;"
+          new_asset = "  storagePath: string | null;\n  url?: string | null;\n  contentMd: string | null;"
+          if old_asset in text:
+              text = text.replace(old_asset, new_asset, 1)
 
-          repo=Path('backend/src/repositories/questions-repository.ts')
-          text=repo.read_text()
-          anchors=[
-            ("  stem: row.stem,\n  // Backward compatibility", "  stem: row.stem,\n  stemLatex: row.stem_latex ?? null,\n  bodyFormat: row.body_format ?? 'markdown',\n  // Backward compatibility"),
-            ("coalesce(q.stem_md,'') stem,q.command_word", "coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word"),
-            ("`select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.ao,q.answer_kind,", "`select q.id,q.display_ref,q.stem_md,q.context_md,q.stem_latex,q.context_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,"),
-            ("c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.context_md context,", "c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.context_md context,c.context_latex,"),
-            ("'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',qa.content_md,", "'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',coalesce(qa.svg_markup,qa.content_md),"),
-            ("        stem: leaf.stem,\n        commandWord:", "        stem: leaf.stem,\n        stemLatex: leaf.stem_latex,\n        bodyFormat: leaf.body_format ?? 'markdown',\n        commandWord:"),
-            ("        context: row.context,\n        assets:", "        context: row.context,\n        contextLatex: row.context_latex,\n        assets:"),
-            ("            stem: row.stem,\n            stemMd: row.stem,\n", "            stem: row.stem,\n            stemMd: row.stem,\n            stemLatex: row.stem_latex ?? null,\n            bodyFormat: row.body_format ?? 'markdown',\n"),
-          ]
-          for old,new in anchors:
-              if old not in text:
-                  raise SystemExit(f'missing repository anchor: {old[:100]!r}')
-              text=text.replace(old,new)
-          repo.write_text(text)
+          replacement = r'''function QuestionAsset({ asset }: { asset: PortableAsset }) {
+  const url = portableAssetUrl(asset);
+  return <div className="qb-asset"><strong>{asset.kind}</strong><span>{asset.altText || 'Savol asseti'}{asset.sourcePage ? ` · source page ${asset.sourcePage}` : ''}</span>{url ? <img src={url} alt={asset.altText || 'Cambridge source asset'} loading="lazy" /> : asset.contentMd ? <pre>{asset.contentMd}</pre> : asset.storagePath ? <small>Private storage asset: {asset.storagePath.split('/').pop()}</small> : <small>Asset content missing</small>}</div>;
+}
 
-          patch('frontend/src/QuestionBankPage.tsx', [
-            ("import { api, apiBlob, type User } from './lib/api';\n", "import { api, apiBlob, type User } from './lib/api';\nimport { LatexQuestionText } from './lib/latex-question-text';\n"),
-            ("    stem: string;\n    commandWord: string | null;\n", "    stem: string;\n    stemLatex?: string | null;\n    bodyFormat?: 'markdown' | 'latex';\n    commandWord: string | null;\n"),
-            ("    context: string | null;\n    assets: PortableAsset[];\n", "    context: string | null;\n    contextLatex?: string | null;\n    assets: PortableAsset[];\n"),
-            ("  stemMd?: string;\n  commandWord:", "  stemMd?: string;\n  stemLatex?: string | null;\n  bodyFormat?: 'markdown' | 'latex';\n  commandWord:"),
-            ("<p>{part.stem}</p>", "<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />"),
-          ])
+function ContextBlocks({ portable }: { portable: PortableQuestion }) {
+  if (!portable.contextBlocks.length) return <div className="qb-no-context">Alohida shared context talab qilinmaydi.</div>;
+  return <div className="qb-context-list">{portable.contextBlocks.map((block) => <section key={block.id}><div className="qb-context-head"><strong>{block.displayRef}</strong><span>Context</span></div>{(block.contextLatex || block.context) && <LatexQuestionText latex={block.contextLatex} fallback={block.context ?? ''} />}{block.assets.map((asset) => <QuestionAsset asset={asset} key={asset.id} />)}</section>)}</div>;
+}
+
+function PortableModal'''
+          pattern = re.compile(r"function ContextBlocks\(\{ portable \}: \{ portable: PortableQuestion \}\) \{[\s\S]*?\n\}\n\nfunction PortableModal")
+          if pattern.search(text):
+              text = pattern.sub(replacement, text, count=1)
+          elif 'function QuestionAsset' not in text:
+              raise SystemExit('ContextBlocks patch anchor missing')
+
+          replacements = {
+              '<p>{item.portable.leaf.stem}</p>': '<LatexQuestionText latex={item.portable.leaf.bodyFormat === \'latex\' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} />',
+              '<p>{portable.leaf.stem}</p>': '<LatexQuestionText latex={portable.leaf.bodyFormat === \'latex\' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />',
+              '<p className="qb-review-stem">{item.portable.leaf.stem}</p>': '<LatexQuestionText className="qb-review-stem" latex={item.portable.leaf.bodyFormat === \'latex\' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} />',
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+
+          page.write_text(text)
+
+          css = Path('frontend/src/question-bank.css')
+          css_text = css.read_text()
+          marker = '/* latex-question-bank-rendering */'
+          if marker not in css_text:
+              css_text += '''\n/* latex-question-bank-rendering */\n.qb-question-main>.latex-question-text,.qb-family-parts .latex-question-text{font-size:13px;line-height:1.55;color:var(--qb-text)}.qb-question-main>.latex-question-text p,.qb-family-parts .latex-question-text p{margin:0;white-space:pre-wrap}.qb-basket-item>.latex-question-text{font-size:11px;line-height:1.4;margin:7px 0;max-height:4.7em;overflow:hidden}.qb-basket-item>.latex-question-text p{margin:0}.qb-context-list .latex-question-text{font-size:12px;line-height:1.5}.qb-context-list .latex-question-text p{margin:0;white-space:pre-wrap}.qb-leaf-preview>.latex-question-text{font-size:13px;line-height:1.55;margin-top:8px}.qb-leaf-preview>.latex-question-text p{margin:0;white-space:pre-wrap}.qb-review-stem{font-size:13px;line-height:1.55}.qb-review-stem p{margin:0;white-space:pre-wrap}.qb-asset img{display:block;max-width:100%;height:auto;margin-top:6px;background:#fff;border:1px solid var(--qb-border);border-radius:6px;padding:6px}.latex-question-math-display{display:block;overflow-x:auto;overflow-y:hidden;padding:.15em 0}.latex-question-math-error{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--qb-danger)}\n'''
+              css.write_text(css_text)
           PY
-      - name: Commit rollout wiring
+      - name: Verify branch
+        run: |
+          npm ci
+          npm run verify
+      - name: Commit final rendered surfaces
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package.json package-lock.json frontend/src/lib/structured-question-renderer.ts frontend/src/lib/structured-question-renderer.test.ts backend/scripts/latex-asset-compile.py backend/src/database/audits/9618-latex-coverage.sql docs/LATEX-CORPUS-CONVERSION.md backend/src/services/question-serializer.ts backend/src/services/selection-review.ts backend/src/repositories/questions-repository.ts frontend/src/QuestionBankPage.tsx
+          git add frontend/src/QuestionBankPage.tsx frontend/src/question-bank.css
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "feat(latex): wire reviewed corpus rendering"
+          git commit -m "feat(latex): render Question Bank latex and svg surfaces"
           git push origin HEAD:feat/latex-corpus-rollout
