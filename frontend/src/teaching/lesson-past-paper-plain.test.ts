@@ -5,12 +5,15 @@ import { describe, expect, it } from 'vitest';
 const source=(name:string)=>readFileSync(resolve(process.cwd(),`src/teaching/${name}`),'utf8');
 
 describe('Darslar Past Paper plain display contract',()=>{
-  it('loads the plain Past Paper override after all classroom presentation layers',()=>{
+  it('loads the plain and complete-source overrides after classroom presentation layers',()=>{
     const wrapper=source('LessonStudio.tsx');
     const classroom=wrapper.indexOf("import './lesson-classroom-semantic-source-only.css';");
     const plain=wrapper.indexOf("import './lesson-past-paper-plain.css';");
+    const inline=wrapper.indexOf("import './lesson-past-paper-inline-source.css';");
     expect(classroom).toBeGreaterThan(-1);
     expect(plain).toBeGreaterThan(classroom);
+    expect(inline).toBeGreaterThan(plain);
+    expect(wrapper).toContain('installLessonPastPaperInlineSource()');
   });
 
   it('removes non-question chrome from topic Past Paper pages',()=>{
@@ -28,21 +31,39 @@ describe('Darslar Past Paper plain display contract',()=>{
     expect(css).toContain('display: none !important;');
   });
 
-  it('keeps only a simple reference/marks/question reading surface',()=>{
-    const css=source('lesson-past-paper-plain.css');
-    expect(css).toContain('.lesson-exam-meta');
-    expect(css).toContain('.lesson-question-context');
-    expect(css).toContain('.lesson-exam-card > p');
-    expect(css).toContain('border-radius: 0 !important;');
-    expect(css).toContain('box-shadow: none !important;');
+  it('replaces compact previews with complete source context and source assets inline',()=>{
+    const renderer=source('lesson-past-paper-inline-source.ts');
+    expect(renderer).toContain('/lesson-checkpoints?');
+    expect(renderer).toContain('question.dependencies.forEach');
+    expect(renderer).toContain('question.contextBlocks.forEach');
+    expect(renderer).toContain("figure.className='qb-asset lesson-past-paper-inline-asset'");
+    expect(renderer).toContain('if(question.hasDiagram&&!allAssets.some');
+    expect(renderer).toContain('if(question.hasDependency&&!question.dependencies.length)return false;');
+    expect(renderer).toContain("source.className='lesson-past-paper-source'");
+    expect(renderer).toContain("card.querySelector(':scope > .lesson-question-context')?.remove();");
   });
 
-  it('never clips or line-clamps Past Paper context or stem text',()=>{
+  it('keeps only a simple reference/marks/question reading surface',()=>{
     const css=source('lesson-past-paper-plain.css');
+    const inlineCss=source('lesson-past-paper-inline-source.css');
+    expect(css).toContain('.lesson-exam-meta');
+    expect(css).toContain('border-radius: 0 !important;');
+    expect(css).toContain('box-shadow: none !important;');
+    expect(inlineCss).toContain('.lesson-past-paper-context');
+    expect(inlineCss).toContain('.lesson-past-paper-stem');
+    expect(inlineCss).toContain('.lesson-past-paper-inline-asset > strong');
+    expect(inlineCss).toContain('display: none !important;');
+  });
+
+  it('never clips or line-clamps Past Paper context, stem or visuals',()=>{
+    const css=source('lesson-past-paper-plain.css');
+    const inlineCss=source('lesson-past-paper-inline-source.css');
     expect(css).toContain('max-height: none !important;');
     expect(css).toContain('overflow: visible !important;');
     expect(css).toContain('-webkit-line-clamp: unset !important;');
     expect(css).toContain('line-clamp: unset !important;');
     expect(css).toContain('mask-image: none !important;');
+    expect(inlineCss).toContain('max-height: none !important;');
+    expect(inlineCss).toContain('overflow: visible !important;');
   });
 });
