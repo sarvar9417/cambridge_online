@@ -1,6 +1,13 @@
 /* Complete source content inserted into Lesson Studio Past Paper cards.
  * Keep source-required context and visuals visible without adding UI chrome. */
 
+/* Never expose the compact preview while completeness is still unknown. Only a
+ * source-verified inline question becomes visible. */
+.lesson-topic-past-paper-block .lesson-exam-card:not([data-past-paper-source-ready="true"]),
+.lesson-topic-past-paper-block .lesson-exam-card.lesson-past-paper-source-incomplete {
+  display: none !important;
+}
+
 .lesson-topic-past-paper-block .lesson-past-paper-source,
 .lesson-topic-past-paper-block .lesson-past-paper-context-block,
 .lesson-topic-past-paper-block .lesson-past-paper-required-context {
