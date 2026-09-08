@@ -24,9 +24,10 @@ describe('Student Darslar topic Past Paper contract',()=>{
   it('shows a question only when every required source element is renderable',()=>{
     const component=studentSource('StudentTopicPastPaper.tsx');
     expect(component).toContain('function questionComplete(question:ExamQuestion)');
-    expect(component).toContain('if(question.hasDiagram&&![');
+    expect(component).toContain('function isVisualAsset(asset:ExamAsset)');
+    expect(component).toContain('if(question.hasDiagram&&!allAssets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;');
     expect(component).toContain('if(question.hasDependency&&!question.dependencies.length)return false;');
-    expect(component).toContain('return [...contextAssets,...dependencyAssets].every(asset=>assetComplete(asset));');
+    expect(component).toContain('return allAssets.every(asset=>assetComplete(asset));');
     expect(component).toContain('const completeQuestions=questions.filter(questionComplete);');
     expect(component).toContain('Savolni to‘liq ko‘rsatish uchun source context yetarli emas.');
   });
