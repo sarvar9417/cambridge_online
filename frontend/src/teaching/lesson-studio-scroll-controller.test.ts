@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest';
 const source = (name: string) => readFileSync(resolve(process.cwd(), `src/teaching/${name}`), 'utf8');
 
 describe('Lesson slide scroll controller', () => {
-  it('is installed by the Lesson Studio wrapper', () => {
+  it('is installed by the Lesson Studio wrapper with the matching export name', () => {
     const wrapper = source('LessonStudio.tsx');
+    const controller = source('lesson-studio-scroll-controller.ts');
+    expect(controller).toContain('export function installLessonSlideScrollController()');
     expect(wrapper).toContain("import { installLessonSlideScrollController } from './lesson-studio-scroll-controller';");
     expect(wrapper).toContain('const releaseSlideScroll = installLessonSlideScrollController();');
     expect(wrapper).toContain('releaseSlideScroll();');
