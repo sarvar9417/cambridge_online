@@ -28,6 +28,7 @@ import { installLessonClassroomDisplay } from './lesson-classroom-display';
 import { installLessonClassroomFocus } from './lesson-classroom-focus';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
+import { installLessonPastPaperInlineSource } from './lesson-past-paper-inline-source';
 import { installLessonQuestionWorkspaceControls } from './lesson-question-workspace-controls';
 import { installLessonSlideScrollController } from './lesson-studio-scroll-controller';
 import { installLessonStudioProfessionalControls } from './lesson-studio-professional-controls';
@@ -40,6 +41,7 @@ export function LessonStudio(props: LessonStudioProps) {
     const releaseExamWorkspace = installLessonExamWorkspaceV3();
     const releaseExamInsights = installLessonExamInsights();
     const releaseWorkspaceControls = installLessonQuestionWorkspaceControls();
+    const releasePastPaperSource = installLessonPastPaperInlineSource();
     const releaseSlideScroll = installLessonSlideScrollController();
     const releaseClassroomDisplay = installLessonClassroomDisplay();
     const releaseClassroomFocus = installLessonClassroomFocus();
@@ -47,6 +49,7 @@ export function LessonStudio(props: LessonStudioProps) {
       releaseClassroomFocus();
       releaseClassroomDisplay();
       releaseSlideScroll();
+      releasePastPaperSource();
       releaseWorkspaceControls();
       releaseExamInsights();
       releaseExamWorkspace();
