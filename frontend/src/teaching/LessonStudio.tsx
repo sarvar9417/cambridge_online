@@ -17,6 +17,7 @@ import './lesson-studio-scroll-fix.css';
 import './lesson-studio-board-scroll-fix.css';
 import './lesson-topic-pages.css';
 import './lesson-topic-pages-hardening.css';
+import './lesson-topic-ch7-source-evidence.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
