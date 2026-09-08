@@ -9,6 +9,37 @@ function teachingFragments(page: HTMLElement) {
     .filter(fragment => !fragment.closest('.lesson-source-transcript'));
 }
 
+function normalize(value: string | null | undefined) {
+  return (value ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+function keepActiveRailItemVisible(studio: HTMLElement) {
+  const outline = studio.querySelector<HTMLElement>('.lesson-topic-outline');
+  const active = studio.querySelector<HTMLElement>('.lesson-topic-nav-pages > button.active, .lesson-topic-nav-group.active > .lesson-topic-nav-topic');
+  if (!outline || !active) return;
+
+  const outlineRect = outline.getBoundingClientRect();
+  const activeRect = active.getBoundingClientRect();
+  const topLimit = outlineRect.top + 12;
+  const bottomLimit = outlineRect.bottom - 12;
+  if (activeRect.top < topLimit) {
+    outline.scrollBy({ top: activeRect.top - topLimit, behavior: 'smooth' });
+  } else if (activeRect.bottom > bottomLimit) {
+    outline.scrollBy({ top: activeRect.bottom - bottomLimit, behavior: 'smooth' });
+  }
+}
+
+function markRedundantHeading(page: HTMLElement) {
+  const pageHeading = normalize(page.querySelector('.lesson-topic-page-head h1')?.textContent);
+  const firstFragment = teachingFragments(page)[0] ?? null;
+  const fragmentHeading = firstFragment?.querySelector<HTMLElement>('.lesson-copy h1,.lesson-student-ch7 h1,.lesson-student-ch7 h2') ?? null;
+  if (!fragmentHeading) return;
+  const duplicate = Boolean(pageHeading && normalize(fragmentHeading.textContent) === pageHeading);
+  if (fragmentHeading.classList.contains('classroom-redundant-heading') !== duplicate) {
+    fragmentHeading.classList.toggle('classroom-redundant-heading', duplicate);
+  }
+}
+
 function ensureStatus(studio: HTMLElement) {
   let status = studio.querySelector<HTMLDivElement>('.lesson-classroom-fragment-status');
   if (!status) {
@@ -56,10 +87,17 @@ function focusFragment(studio: HTMLElement, page: HTMLElement) {
   if (status.textContent !== label) status.textContent = label;
 }
 
+function syncClassroomOrientation(studio: HTMLElement, page: HTMLElement) {
+  markRedundantHeading(page);
+  keepActiveRailItemVisible(studio);
+  focusFragment(studio, page);
+}
+
 /**
  * Teacher pacing layer for classroom projection.
- * It does not hide or dim student content. It only marks the semantic fragment
- * nearest the teaching focus line so the teacher and class can track the current idea.
+ * It does not hide or dim student content. It marks the semantic fragment nearest
+ * the teaching focus line, keeps the active Topic/Page rail item visible and
+ * removes only an exactly duplicated first heading from the projected hierarchy.
  */
 export function installLessonClassroomFocus() {
   let boundPage: HTMLElement | null = null;
@@ -70,7 +108,7 @@ export function installLessonClassroomFocus() {
     const page = studio?.querySelector<HTMLElement>('.lesson-topic-page') ?? null;
 
     if (page === boundPage) {
-      if (studio && page) focusFragment(studio, page);
+      if (studio && page) syncClassroomOrientation(studio, page);
       return;
     }
 
@@ -83,7 +121,7 @@ export function installLessonClassroomFocus() {
     const update = () => focusFragment(studio, page);
     page.addEventListener('scroll', update, { passive: true });
     releasePage = () => page.removeEventListener('scroll', update);
-    update();
+    syncClassroomOrientation(studio, page);
   };
 
   const observer = new MutationObserver(bind);
@@ -104,6 +142,7 @@ export function installLessonClassroomFocus() {
     window.removeEventListener('resize', bind);
     releasePage?.();
     document.querySelectorAll('.classroom-fragment-focus').forEach(node => node.classList.remove('classroom-fragment-focus'));
+    document.querySelectorAll('.classroom-redundant-heading').forEach(node => node.classList.remove('classroom-redundant-heading'));
     document.querySelectorAll('.lesson-classroom-fragment-status').forEach(node => node.remove());
   };
 }
