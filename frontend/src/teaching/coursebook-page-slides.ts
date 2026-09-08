@@ -3,6 +3,7 @@ import type { HodderLessonChapter, HodderLessonSlide, LessonRichBlock } from './
 import { sourceAtomsForChapter, type LessonSourceAtom } from './lesson-source-atom-registry';
 import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
+import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 
 const normalizeKey = (value:string) => value.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9]+/g,' ').trim();
 
@@ -84,20 +85,30 @@ export const coursebookGlossarySlides9618 = (chapter:1|13):HodderLessonSlide[] =
 
 export const coursebookPageSlides9618 = (chapter:1|13):HodderLessonSlide[] => {
   const atoms=sourceAtomsForChapter(chapter);
+  const emphasis=rawPdfEmphasisForChapter(chapter);
   const pageCount=chapter===1?26:24;
   return Array.from({length:pageCount},(_,index)=>index+1).map((page)=>{
     const pageAtoms=atoms.filter((atom)=>atom.page===page);
-    const labels=[...new Set(pageAtoms.map((atom)=>`${sourceKindLabel(atom.kind)} · ${atom.sourceRef}`))];
+    const pageEmphasis=emphasis.filter((item)=>item.page===page);
+    const labels=[
+      ...new Set([
+        ...pageAtoms.map((atom)=>`${sourceKindLabel(atom.kind)} · ${atom.sourceRef}`),
+        ...pageEmphasis.map((item)=>`PDF EMPHASIS · ${item.text}`),
+      ]),
+    ];
     return {
       id:`h${chapter}-coursebook-page-${String(page).padStart(2,'0')}`,
       section:'Coursebook page-by-page',
       eyebrow:`COURSEBOOK SOURCE · PAGE ${page}/${pageCount}`,
       title:`Chapter ${chapter} · source page ${page}`,
-      lead:'This page-by-page screen exists to make the supplied PDF auditable from inside the lesson itself. Every inventoried teaching detail assigned to this source page is visible below.',
+      lead:'This page-by-page screen exists to make the supplied PDF auditable from inside the lesson itself. Every inventoried teaching detail and every curated bold/emphasised source anchor assigned to this page is visible below.',
       bullets:labels,
       richBlocks:pageAtoms.flatMap(blocksFor9618Atom),
       sourcePages:[page],
-      sourceElements:pageAtoms.map((atom)=>`${atom.id} · ${atom.sourceRef}`),
+      sourceElements:[
+        ...pageAtoms.map((atom)=>`${atom.id} · ${atom.sourceRef}`),
+        ...pageEmphasis.map((item)=>`RAW PDF EMPHASIS · ${item.text}`),
+      ],
       sourceLabel:'Exact supplied coursebook page map',
       accent: pageAtoms.some((atom)=>atom.kind==='activity'||atom.kind==='review')?'emerald':'indigo',
     } satisfies HodderLessonSlide;
@@ -107,10 +118,11 @@ export const coursebookPageSlides9618 = (chapter:1|13):HodderLessonSlide[] => {
 export const withCoursebookReferenceSlides9618 = (chapter:HodderLessonChapter):HodderLessonChapter => {
   const glossary=coursebookGlossarySlides9618(chapter.number);
   const pages=coursebookPageSlides9618(chapter.number);
+  const emphasis=rawPdfEmphasisForChapter(chapter.number);
   return {
     ...chapter,
     subtopics:[...chapter.subtopics,'Coursebook glossary','Coursebook page-by-page'],
-    coverage:`${chapter.coverage} · ${glossary.length} glossary screens · ${pages.length}/${pages.length} page-by-page source screens`,
+    coverage:`${chapter.coverage} · ${glossary.length} glossary screens · ${pages.length}/${pages.length} page-by-page source screens · ${emphasis.length}/${emphasis.length} raw-PDF emphasis anchors visible`,
     slides:[...chapter.slides,...glossary,...pages],
   };
 };
@@ -138,18 +150,23 @@ export const CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES:LessonSlide[] = chunk([...CHAP
   accent:'emerald',
 }));
 
+const chapter7Emphasis=rawPdfEmphasisForChapter(7);
 export const CHAPTER_7_COURSEBOOK_PAGE_SLIDES:LessonSlide[] = Array.from({length:41},(_,index)=>258+index).map((printedPage)=>{
   const atoms=CHAPTER_7_ALL_SOURCE_ATOMS.filter((atom)=>atom.printedPage===printedPage);
+  const emphasis=chapter7Emphasis.filter((item)=>item.printedPage===printedPage);
   return {
     id:`ch7-source-page-${printedPage}`,
     section:'Coursebook page-by-page',
     eyebrow:`COURSEBOOK SOURCE · PRINTED PAGE ${printedPage}`,
     title:`Chapter 7 · source page ${printedPage}`,
-    lead:'Every inventoried teaching detail assigned to this exact coursebook page is listed here so source material cannot remain only in hidden audit data.',
-    bullets:atoms.flatMap((atom)=>[
-      `${chapter7KindLabel(atom.kind)} · ${atom.sourceRef}`,
-      ...atom.needles,
-    ]),
+    lead:'Every inventoried teaching detail and every curated bold/emphasised source anchor assigned to this exact coursebook page is listed here so material cannot remain only in hidden audit data.',
+    bullets:[
+      ...atoms.flatMap((atom)=>[
+        `${chapter7KindLabel(atom.kind)} · ${atom.sourceRef}`,
+        ...atom.needles,
+      ]),
+      ...emphasis.map((item)=>`PDF EMPHASIS · ${item.text}`),
+    ],
     accent:atoms.some((atom)=>atom.kind==='activity'||atom.kind==='review'||atom.kind==='exam')?'emerald':'indigo',
   };
 });
