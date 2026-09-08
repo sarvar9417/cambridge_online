@@ -1,4 +1,4 @@
-export function installLessonStudioScrollController() {
+export function installLessonSlideScrollController() {
   const getStudio = () => document.querySelector<HTMLElement>('.lesson-studio.hodder-studio');
   const getSlide = () => getStudio()?.querySelector<HTMLElement>('.lesson-slide') ?? null;
 
