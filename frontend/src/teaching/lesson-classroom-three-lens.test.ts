@@ -16,14 +16,24 @@ describe('classroom projection three-lens contract', () => {
     expect(wrapper).toContain('installLessonClassroomFocus()');
   });
 
-  it('keeps the left Topic/Page rail available on a classroom projector', () => {
-    const css = source('lesson-classroom-three-lens.css');
+  it('keeps a readable left Topic/Page rail available on a classroom projector', () => {
     const structure = source('lesson-classroom-three-lens-structure.css');
-    expect(css).toContain('--classroom-rail: clamp(190px, 14vw, 250px);');
-    expect(css).toContain('grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;');
-    expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-outline');
+    expect(structure).toContain('--classroom-rail: clamp(210px, 15vw, 280px);');
+    expect(structure).toContain('grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;');
     expect(structure).toContain('.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-outline.lesson-topic-outline');
+    expect(structure).toContain('font-size: clamp(13px, .9vw, 16px) !important;');
+    expect(structure).toContain('font-size: clamp(12px, .8vw, 14px) !important;');
     expect(structure).toContain('display: block !important;');
+  });
+
+  it('keeps the active Page visible in the rail and removes only an exact duplicate projected heading', () => {
+    const focus = source('lesson-classroom-focus.ts');
+    const structure = source('lesson-classroom-three-lens-structure.css');
+    expect(focus).toContain("const activePage = studio.querySelector<HTMLElement>('.lesson-topic-nav-pages > button.active');");
+    expect(focus).toContain('const active = activePage ?? activeTopic;');
+    expect(focus).toContain("fragmentHeading.classList.toggle('classroom-redundant-heading', duplicate);");
+    expect(structure).toContain('.classroom-redundant-heading');
+    expect(structure).toContain('display: none !important;');
   });
 
   it('keeps projector navigation keys working after the teacher clicks the Topic/Page rail', () => {
