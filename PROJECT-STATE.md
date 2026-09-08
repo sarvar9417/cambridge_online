@@ -26,7 +26,7 @@ not a claim that it is the live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0158_source_fidelity_full_cue_reconciliation.sql",
+    "latest_migration": "0159_source_asset_order_sync_v3.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -41,8 +41,8 @@ not a claim that it is the live branch head.
       "status": "pending_reverification",
       "audited_at": null,
       "target": "production Supabase; syllabus 9618; 2021-2026 source-fidelity backlog",
-      "strict_gate": "detector-v5 full-cue reconciliation + v10 zero-block preflight + guarded apply + canonical asset sync + post-repair detector rerun",
-      "note": "The previous release audit predates the newly discovered canonical table/visual fidelity backlog and must not be treated as current until this repair sequence completes."
+      "strict_gate": "detector-v5 full-cue reconciliation + v10 guarded repair + canonical cue-adjacent source asset ordering + post-repair detector rerun",
+      "note": "v10 completed 242/242 guarded production repairs across 64 SHA-verified QPs with zero apply failures. The subsequent detector rerun exposed an ordering-only gap for already-referenced repair assets; migration 0159 is the fail-closed correction candidate. Eight legacy detector-v2 source structures remain separately fail-closed until original-source recovery is completed."
     }
   },
   "product": {
@@ -78,9 +78,9 @@ not a claim that it is the live branch head.
     }
   },
   "infrastructure": {
-    "database": "production Supabase has source-fidelity rule-scoping, canonical owner-boundary guards and detector-v4 reconciliation through migrations 0155-0157; full-canonical-cue reconciliation migration 0158 is the current candidate pending CI and explicit application",
-    "storage": "private question-assets bucket is live; all new fidelity assets remain SHA/source-pinned and are written only through guarded service-role repair flows",
-    "worker": "corpus/source-audit workflows and exact uploaded-source accountability are active; v10 is the current repair candidate",
+    "database": "production Supabase has source-fidelity rule-scoping, canonical owner-boundary guards, detector-v4 reconciliation and full-canonical-cue detector v5 through migrations 0155-0158; migration 0159 is the current candidate for deterministic cue-adjacent ordering of already-referenced verified repair assets",
+    "storage": "private question-assets bucket is live; v10 wrote only SHA/source-pinned repair assets through guarded service-role flows, and the ordering correction moves existing canonical blocks without duplicating storage objects",
+    "worker": "corpus/source-audit workflows and exact uploaded-source accountability are active; v10 production apply completed 64/64 papers and 242/242 rows with zero paper, integrity or apply failures",
     "deployment": "application deployment remains a separate external gate; corpus repair does not assume a Vercel release is current"
   },
   "evidence_files": [
@@ -92,7 +92,9 @@ not a claim that it is the live branch head.
     "backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql",
     "backend/src/database/migrations/0157_source_fidelity_detector_v4_reconciliation.sql",
     "backend/src/database/migrations/0158_source_fidelity_full_cue_reconciliation.sql",
+    "backend/src/database/migrations/0159_source_asset_order_sync_v3.sql",
     "backend/scripts/qp-source-structure-repair-v10.py",
+    "scripts/test_source_asset_order_sync_v3.py",
     "scripts/test_9618_2026_source_pipeline.py"
   ]
 }
@@ -101,28 +103,27 @@ not a claim that it is the live branch head.
 
 ## Current interpretation
 
-The source-fidelity repair is intentionally **fail closed**. A v9 production preflight
-verified all selected QP sources by SHA but exposed two remaining classes of risk:
-plural relational-schema prose was being misclassified as a printed table, and a small set
-of legitimate source structures still needed stricter owner/geometry recovery.
+The source-fidelity repair remains intentionally **fail closed**. Detector v4/v5 removed the
+plural relational-schema false-positive class without hiding genuine printed structures.
+The v10 preflight then verified all 64 selected QPs by SHA and reported zero blocked,
+provenance or parser failures. Its guarded production apply completed **242/242** repair rows
+with **0** paper failures, **0** integrity failures and **0** apply failures.
 
-Migration `0157_source_fidelity_detector_v4_reconciliation.sql` introduced the narrow
-plural-schema reconciliation and explicit patterns for real source tables/matching layouts.
-The first production v4 sweep then proved that some historical `details.cue` excerpts end
-before the discriminating `following tables` phrase. Migration
-`0158_source_fidelity_full_cue_reconciliation.sql` therefore performs the same decision from
-the exact `content_json` block identified by `cueOrdinal`, then re-evaluates true tables and
-matching layouts so a stale parent false-positive cannot mask a real child structure.
-`qp-source-structure-repair-v10.py` keeps all SHA/source/rule/review guards while preventing
-numeric data rows from aliasing Cambridge question labels and recovering source segments only
-from explicit structure cues.
+The first canonical asset sync referenced every recovered storage asset, but the subsequent
+detector-v5 rerun exposed a narrower ordering defect: v10 had already appended many verified
+asset blocks to `content_json`, while `sync_repaired_source_assets_v2` only repositioned
+assets that were not yet referenced. As a result, 149 canonical-adjacency findings had a
+verified source asset later in the block list rather than immediately after the source cue.
+Fresh production evidence shows every one of those 149 questions has a unique best verified
+asset candidate and no ambiguity. Migration `0159_source_asset_order_sync_v3.sql` therefore
+moves the existing source-backed asset block without duplication, rechecks source paper/SHA
+provenance through `set_question_structured_content_v1`, and resolves a finding only after the
+exact adjacency predicate passes.
 
-No broad production corpus write should occur until candidate CI passes, migration 0158 is
-applied, the 2021-2026 detector sweep is rerun, and v10 reports zero provenance/parser
-failures and zero blocked source structures. After guarded apply, repaired assets must be
-synchronised into canonical `content_json`, the detector rerun must return zero unresolved
-fidelity errors, and representative questions such as `9618/12/O/N/21 Q5(a)` must be
-visually checked against the original Cambridge QP.
+Eight legacy detector-v2 structures remain separately fail-closed because v10 classified them
+as text-boundary repairs even though the source wording still references a printed table or
+structure chart. They are not covered up by the ordering migration; they require original-QP
+source recovery before the runtime audit can return to `verified`.
 
 ## Remaining external release/admin gates
 
