@@ -50,6 +50,20 @@ export function installLessonClassroomDisplay() {
   let boundPage: HTMLElement | null = null;
   let releasePage: (() => void) | null = null;
 
+  const update = (studio: HTMLElement, page: HTMLElement) => {
+    const { meter, cue } = ensureClassroomChrome(studio);
+    const maxScroll = Math.max(0, page.scrollHeight - page.clientHeight);
+    const scrollable = maxScroll > 8;
+    const atEnd = !scrollable || page.scrollTop >= maxScroll - 6;
+    const progress = !scrollable ? 100 : Math.max(0, Math.min(100, (page.scrollTop / maxScroll) * 100));
+
+    studio.classList.toggle('classroom-scrollable', scrollable);
+    studio.classList.toggle('classroom-at-end', atEnd);
+    meter.querySelector<HTMLElement>('span')?.style.setProperty('height', `${progress}%`);
+    const cueLabel = atEnd ? 'Page tugadi' : '↓ Davomi bor';
+    if (cue.textContent !== cueLabel) cue.textContent = cueLabel;
+  };
+
   const bind = () => {
     const studio = currentStudio();
     const page = studio?.querySelector<HTMLElement>('.lesson-topic-page') ?? null;
@@ -67,19 +81,6 @@ export function installLessonClassroomDisplay() {
     page.addEventListener('scroll', onScroll, { passive: true });
     releasePage = () => page.removeEventListener('scroll', onScroll);
     update(studio, page);
-  };
-
-  const update = (studio: HTMLElement, page: HTMLElement) => {
-    const { meter, cue } = ensureClassroomChrome(studio);
-    const maxScroll = Math.max(0, page.scrollHeight - page.clientHeight);
-    const scrollable = maxScroll > 8;
-    const atEnd = !scrollable || page.scrollTop >= maxScroll - 6;
-    const progress = !scrollable ? 100 : Math.max(0, Math.min(100, (page.scrollTop / maxScroll) * 100));
-
-    studio.classList.toggle('classroom-scrollable', scrollable);
-    studio.classList.toggle('classroom-at-end', atEnd);
-    meter.querySelector<HTMLElement>('span')?.style.setProperty('height', `${progress}%`);
-    cue.textContent = atEnd ? 'Page tugadi' : '↓ Davomi bor';
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
