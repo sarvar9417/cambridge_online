@@ -1,12 +1,18 @@
 import type { HodderLessonSlide } from './lesson-content-hodder-types';
 
-const MAX_SOURCE_BLOCKS_PER_SCREEN = 2;
-const MAX_GROUPED_SOURCE_CHARS_PER_SCREEN = 620;
-const MAX_SINGLE_SOURCE_CHARS_PER_SCREEN = 720;
+const MAX_SOURCE_FRAGMENTS_PER_SCREEN = 2;
+const MAX_SOURCE_CHARS_PER_SCREEN = 620;
+const MAX_SOURCE_FRAGMENT_CHARS = 360;
 
 type PresentationChapterLike = {
   coverage:string;
   slides:readonly HodderLessonSlide[];
+};
+
+type SourceFragment = {
+  text:string;
+  blockIndex:number;
+  fragmentIndex:number;
 };
 
 const isExactPdfSourceSlide = (slide:HodderLessonSlide) =>
@@ -19,14 +25,45 @@ const printedPageFromElement = (value:string) => {
   return match ? Number(match[1]) : null;
 };
 
+const preferredCut = (text:string, maxChars:number) => {
+  const window=text.slice(0,maxChars+1);
+  const minimum=Math.floor(maxChars*.45);
+  const boundaries=['. ','? ','! ','; ',': ',', '];
+  let best=-1;
+  for(const boundary of boundaries){
+    const index=window.lastIndexOf(boundary);
+    if(index>=minimum)best=Math.max(best,index+boundary.length-1);
+  }
+  if(best>=minimum)return best;
+  const whitespace=window.lastIndexOf(' ');
+  return whitespace>=minimum?whitespace:maxChars;
+};
+
+/**
+ * Presentation fragments preserve every source word and punctuation mark in
+ * order. Only whitespace at a screen boundary is normalised. Long textbook
+ * paragraphs are therefore allowed to become several readable screens rather
+ * than being shrunk or clipped on the projector.
+ */
+export const splitPdfSourceForPresentation = (text:string):string[] => {
+  const parts:string[]=[];
+  let remaining=text.trim();
+  while(remaining.length>MAX_SOURCE_FRAGMENT_CHARS){
+    const cut=preferredCut(remaining,MAX_SOURCE_FRAGMENT_CHARS);
+    const fragment=remaining.slice(0,cut).trimEnd();
+    if(!fragment.length)break;
+    parts.push(fragment);
+    remaining=remaining.slice(cut).trimStart();
+  }
+  if(remaining.length)parts.push(remaining);
+  return parts.length?parts:[text];
+};
+
 /**
  * Expands the exact-PDF route into projector-sized teaching screens without
- * changing, deleting or re-ordering a single source block. Source blocks stay
- * verbatim; only their screen grouping changes.
- *
- * Two short source blocks may share a screen, but only while their combined
- * density stays below the grouped budget. A longer atomic source block gets a
- * screen to itself instead of forcing adjacent material onto the same slide.
+ * deleting or re-ordering source text. Short source blocks can share a screen;
+ * long blocks are split at natural punctuation/word boundaries so the screen
+ * keeps classroom-sized typography instead of becoming a scrolling article.
  */
 export function presentationizePdfFirstChapter<T extends PresentationChapterLike>(chapter:T):T {
   const expanded:HodderLessonSlide[]=[];
@@ -44,41 +81,52 @@ export function presentationizePdfFirstChapter<T extends PresentationChapterLike
     const bullets=slide.bullets;
     const evidence=slide.sourceAtomEvidence??[];
     const elements=slide.sourceElements??[];
-    let groupStart=0;
+    const fragments:SourceFragment[]=bullets.flatMap((text,blockIndex)=>
+      splitPdfSourceForPresentation(text).map((fragment,fragmentIndex)=>({
+        text:fragment,
+        blockIndex,
+        fragmentIndex,
+      })),
+    );
+    let cursor=0;
     let groupIndex=0;
 
-    while(groupStart<bullets.length){
-      const group:string[]=[];
+    while(cursor<fragments.length){
+      const group:SourceFragment[]=[];
       let chars=0;
-      while(groupStart+group.length<bullets.length && group.length<MAX_SOURCE_BLOCKS_PER_SCREEN){
-        const candidate=bullets[groupStart+group.length]!;
-        const candidateChars=candidate.trim().length;
-        if(group.length>0 && chars+candidateChars>MAX_GROUPED_SOURCE_CHARS_PER_SCREEN)break;
+      while(cursor+group.length<fragments.length && group.length<MAX_SOURCE_FRAGMENTS_PER_SCREEN){
+        const candidate=fragments[cursor+group.length]!;
+        const candidateChars=candidate.text.trim().length;
+        if(group.length>0 && chars+candidateChars>MAX_SOURCE_CHARS_PER_SCREEN)break;
         group.push(candidate);
         chars+=candidateChars;
-        if(candidateChars>MAX_GROUPED_SOURCE_CHARS_PER_SCREEN)break;
       }
-      if(!group.length)group.push(bullets[groupStart]!);
+      if(!group.length)group.push(fragments[cursor]!);
 
-      const from=groupStart;
-      const to=groupStart+group.length;
-      const groupElements=elements.slice(from,to);
+      const blockIndexes=[...new Set(group.map(item=>item.blockIndex))];
+      const groupElements=blockIndexes.map(index=>elements[index]).filter((item):item is string=>Boolean(item));
       const parsedPages=groupElements
         .map(printedPageFromElement)
         .filter((value):value is number=>value!==null);
+      const groupEvidence=evidence.length===bullets.length
+        ? group
+            .filter(item=>item.fragmentIndex===0)
+            .map(item=>evidence[item.blockIndex])
+            .filter((item):item is NonNullable<typeof item>=>Boolean(item))
+        : groupIndex===0?slide.sourceAtomEvidence:undefined;
 
       expanded.push({
         ...slide,
         id:`${slide.id}-screen-${String(groupIndex+1).padStart(2,'0')}`,
         title:slide.title.replace(/ · coursebook sequence \d+$/i,''),
         lead:'Read, explain and connect the exact coursebook statements on this screen. Continue only when the class can explain the idea in its own words.',
-        bullets:group,
+        bullets:group.map(item=>item.text),
         sourceElements:groupElements,
         sourcePages:parsedPages.length?[...new Set(parsedPages)]:slide.sourcePages,
-        sourceAtomEvidence:evidence.length===bullets.length?evidence.slice(from,to):slide.sourceAtomEvidence,
+        sourceAtomEvidence:groupEvidence,
       });
 
-      groupStart=to;
+      cursor+=group.length;
       groupIndex+=1;
     }
   }
@@ -104,13 +152,13 @@ export function presentationizePdfFirstChapter<T extends PresentationChapterLike
 
   return {
     ...chapter,
-    coverage:`${chapter.coverage} · presentation-first projector layout · max ${MAX_SOURCE_BLOCKS_PER_SCREEN} exact source blocks per generated coursebook screen`,
+    coverage:`${chapter.coverage} · presentation-first projector layout · max ${MAX_SOURCE_FRAGMENTS_PER_SCREEN} source fragments per generated coursebook screen`,
     slides,
   } as T;
 }
 
 export const PDF_FIRST_PRESENTATION_LIMITS = {
-  maxBlocksPerScreen:MAX_SOURCE_BLOCKS_PER_SCREEN,
-  maxGroupedCharsPerScreen:MAX_GROUPED_SOURCE_CHARS_PER_SCREEN,
-  maxSingleCharsPerScreen:MAX_SINGLE_SOURCE_CHARS_PER_SCREEN,
+  maxFragmentsPerScreen:MAX_SOURCE_FRAGMENTS_PER_SCREEN,
+  maxCharsPerScreen:MAX_SOURCE_CHARS_PER_SCREEN,
+  maxFragmentChars:MAX_SOURCE_FRAGMENT_CHARS,
 } as const;
