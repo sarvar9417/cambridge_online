@@ -35,6 +35,7 @@ on:
       - 'backend/src/database/migrations/0158_source_fidelity_full_cue_reconciliation.sql'
       - 'backend/src/database/migrations/0159_source_asset_order_sync_v3.sql'
       - 'backend/src/database/migrations/0160_source_fidelity_multicue_asset_sync.sql'
+      - 'backend/src/database/migrations/0161_source_fidelity_verified_coverage_reconciliation.sql'
       - '.source-fidelity-apply'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
 
