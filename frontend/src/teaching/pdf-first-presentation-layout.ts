@@ -1,7 +1,12 @@
-import type { HodderLessonChapter, HodderLessonSlide } from './lesson-content-hodder-types';
+import type { HodderLessonSlide } from './lesson-content-hodder-types';
 
 const MAX_SOURCE_BLOCKS_PER_SCREEN = 2;
 const MAX_SOURCE_CHARS_PER_SCREEN = 620;
+
+type PresentationChapterLike = {
+  coverage:string;
+  slides:readonly HodderLessonSlide[];
+};
 
 const isExactPdfSourceSlide = (slide:HodderLessonSlide) =>
   slide.id.startsWith('pdf-first-') && !slide.id.startsWith('pdf-first-lens-') && !slide.examPractice;
@@ -16,7 +21,7 @@ const printedPageFromElement = (value:string) => {
  * changing, deleting or re-ordering a single source block. Source blocks stay
  * verbatim; only their screen grouping changes.
  */
-export function presentationizePdfFirstChapter<T extends HodderLessonChapter>(chapter:T):T {
+export function presentationizePdfFirstChapter<T extends PresentationChapterLike>(chapter:T):T {
   const expanded:HodderLessonSlide[]=[];
 
   for(const slide of chapter.slides){
