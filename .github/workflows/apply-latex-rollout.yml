@@ -84,8 +84,7 @@ jobs:
             ("    stem: string;\n    commandWord: string | null;\n", "    stem: string;\n    stemLatex?: string | null;\n    bodyFormat?: 'markdown' | 'latex';\n    commandWord: string | null;\n"),
             ("    context: string | null;\n    assets: PortableAsset[];\n", "    context: string | null;\n    contextLatex?: string | null;\n    assets: PortableAsset[];\n"),
             ("  stemMd?: string;\n  commandWord:", "  stemMd?: string;\n  stemLatex?: string | null;\n  bodyFormat?: 'markdown' | 'latex';\n  commandWord:"),
-            ("}<p>{part.stem}</p>{part.subtopics", "}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{part.subtopics"),
-            ("}<p>{part.stem}</p></div><span>{part.marks}", "}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} /></div><span>{part.marks}"),
+            ("<p>{part.stem}</p>", "<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />"),
           ])
           PY
       - name: Commit rollout wiring
