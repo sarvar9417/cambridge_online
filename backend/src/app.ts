@@ -118,7 +118,7 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
-  if (pool) mountPrivate('/api/v1/lesson-checkpoints', createLessonCheckpointsRouter(new LessonCheckpointService(pool)));
+  if (pool) mountPrivate('/api/v1/lesson-checkpoints', createLessonCheckpointsRouter(new LessonCheckpointService(pool,assetUrlSigner)));
   if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool));
   if (assignmentsService) mountPrivate('/api/v1/assignments', createAssignmentsRouter(assignmentsService,pool!));
   if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
