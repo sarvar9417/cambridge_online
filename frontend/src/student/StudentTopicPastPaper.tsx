@@ -75,12 +75,18 @@ function assetComplete(asset:ExamAsset) {
   return Boolean(asset.url||asset.contentMd);
 }
 
+function isVisualAsset(asset:ExamAsset) {
+  const kind=asset.kind.toLowerCase();
+  return kind==='diagram'||kind==='image';
+}
+
 function questionComplete(question:ExamQuestion) {
   const contextAssets=question.contextBlocks.flatMap(block=>block.assets);
   const dependencyAssets=question.dependencies.flatMap(dependency=>dependency.assets);
-  if(question.hasDiagram&&![...contextAssets,...dependencyAssets].some(asset=>assetComplete(asset)))return false;
+  const allAssets=[...contextAssets,...dependencyAssets];
+  if(question.hasDiagram&&!allAssets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;
   if(question.hasDependency&&!question.dependencies.length)return false;
-  return [...contextAssets,...dependencyAssets].every(asset=>assetComplete(asset));
+  return allAssets.every(asset=>assetComplete(asset));
 }
 
 function StudentQuestionCard({ question }: { question:ExamQuestion }) {
