@@ -21,5 +21,14 @@ describe('Lesson Studio long-content scroll contract', () => {
     expect(css).toMatch(/\.lesson-slide\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;/);
     expect(css).toContain('overscroll-behavior: contain;');
     expect(css).toContain('-webkit-overflow-scrolling: touch;');
+    expect(css).toContain('touch-action: pan-y;');
+  });
+
+  it('anchors long lesson content to the top instead of centering overflow outside the scroll box', () => {
+    const css = source('lesson-studio-scroll-fix.css');
+
+    expect(css).toContain('align-items: start;');
+    expect(css).toContain('align-content: start;');
+    expect(css).toContain('overflow-anchor: none;');
   });
 });
