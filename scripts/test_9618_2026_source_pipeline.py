@@ -23,6 +23,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
             "backend/scripts/finalize-9618-2026-corpus.py",
             "backend/scripts/qp-source-structure-repair-v7.py",
             "backend/scripts/qp-source-structure-repair-v8.py",
+            "backend/scripts/qp-source-structure-repair-v9.py",
         ):
             with self.subTest(relative=relative):
                 ast.parse(self.read(relative), filename=relative)
@@ -95,6 +96,17 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn('asset["satisfiesRules"] = [rule]', source)
         self.assertIn('raise SystemExit(V3["main"]())', source)
 
+    def test_v9_recovers_only_nearest_preceding_owner_span(self) -> None:
+        source = self.read("backend/scripts/qp-source-structure-repair-v9.py")
+        self.assertIn("main_question_nearest_preceding_cue", source)
+        self.assertIn("asset_canonical_owner_question_span", source)
+        self.assertIn("canonical_owner_span_blocked", source)
+        self.assertIn("cue_start = max(preceding)", source)
+        self.assertIn("_locate_span", source)
+        self.assertIn("crop_bounds_v3", source)
+        self.assertIn('"satisfiesRules": [rule]', source)
+        self.assertIn('raise SystemExit(V3["main"]())', source)
+
     def test_detector_v3_audits_canonical_block_adjacency(self) -> None:
         sql = self.read("backend/src/database/migrations/0152_source_fidelity_detector_v3.sql")
         self.assertIn("flag_source_fidelity_requirements_v3", sql)
@@ -135,16 +147,16 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("reconcile-9618-2026-dependencies.py", workflow)
         self.assertIn("flag-9618-source-fidelity.py", workflow)
         self.assertIn("qp-source-repair-runner", workflow)
-        self.assertIn("qp-source-structure-repair-v8.py", workflow)
+        self.assertIn("qp-source-structure-repair-v9.py", workflow)
         self.assertIn("sync-9618-repaired-assets.py", workflow)
         self.assertIn("structured_content_backfill_2026.py", workflow)
 
         repair_workflow = self.read(".github/workflows/qp-source-structure-repair-v2.yml")
-        self.assertIn("qp-source-structure-repair-v8.py", repair_workflow)
+        self.assertIn("qp-source-structure-repair-v9.py", repair_workflow)
         self.assertIn("0152_source_fidelity_detector_v3.sql", repair_workflow)
         self.assertIn("0155_source_asset_rule_scoped_resolution.sql", repair_workflow)
         self.assertIn("0156_source_fidelity_owner_boundary_guard.sql", repair_workflow)
-        self.assertIn("APPLY_SOURCE_FIDELITY_V8_ONCE", repair_workflow)
+        self.assertIn("APPLY_SOURCE_FIDELITY_V9_ONCE", repair_workflow)
 
     def test_corpus_runner_exposes_new_guarded_actions(self) -> None:
         source = self.read("supabase/functions/corpus-runner/index.ts")
