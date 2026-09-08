@@ -51,11 +51,12 @@ describe('classroom projection three-lens contract', () => {
     expect(css).toContain('.lesson-exam-card');
   });
 
-  it('tracks the current semantic teaching fragment without dimming the rest of the page', () => {
+  it('tracks the current semantic teaching fragment without dimming or mutation-looping', () => {
     const focus = source('lesson-classroom-focus.ts');
     const css = source('lesson-classroom-three-lens.css');
     expect(focus).toContain('classroom-fragment-focus');
     expect(focus).toContain('Qism ${activeIndex + 1}/${fragments.length}');
+    expect(focus).toContain('if (status.textContent !== label) status.textContent = label;');
     expect(css).toContain('.lesson-page-fragment.classroom-fragment-focus');
     expect(css).not.toContain('opacity: .35');
   });
