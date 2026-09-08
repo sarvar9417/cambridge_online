@@ -9,22 +9,22 @@ type LatexQuestionTextProps = {
 };
 
 const SAFE_TEXT_ESCAPES: Array<[RegExp, string]> = [
-  [/\\\\#/g, '#'],
-  [/\\\\_/g, '_'],
-  [/\\\\%/g, '%'],
-  [/\\\\&/g, '&'],
-  [/\\\\\$/g, '$'],
-  [/\\\\textasciitilde\{\}/g, '~'],
-  [/\\\\textbackslash\{\}/g, '\\'],
+  [/\\#/g, '#'],
+  [/\\_/g, '_'],
+  [/\\%/g, '%'],
+  [/\\&/g, '&'],
+  [/\\\$/g, '$'],
+  [/\\textasciitilde\{\}/g, '~'],
+  [/\\textbackslash\{\}/g, '\\'],
 ];
 
 function plainText(source: string) {
   let value = source;
   for (const [pattern, replacement] of SAFE_TEXT_ESCAPES) value = value.replace(pattern, replacement);
   return value
-    .replace(/\\\\texttt\{([^{}]*)\}/g, '$1')
-    .replace(/\\\\textbf\{([^{}]*)\}/g, '$1')
-    .replace(/\\\\emph\{([^{}]*)\}/g, '$1')
+    .replace(/\\texttt\{([^{}]*)\}/g, '$1')
+    .replace(/\\textbf\{([^{}]*)\}/g, '$1')
+    .replace(/\\emph\{([^{}]*)\}/g, '$1')
     .trim();
 }
 
@@ -40,7 +40,7 @@ function mathHtml(latex: string, displayMode: boolean) {
 
 function renderParagraph(source: string, paragraphIndex: number): ReactNode {
   const nodes: ReactNode[] = [];
-  const expression = /\\\\\[([\s\S]*?)\\\\\]|\\\\\(([\s\S]*?)\\\\\)/g;
+  const expression = /\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
   let token = 0;
@@ -85,7 +85,7 @@ export function LatexQuestionText({ latex, fallback = '', className }: LatexQues
   if (!source) return <p className={className}>{fallback}</p>;
 
   const paragraphs = source
-    .split(/\\\\par(?:\s+|$)/g)
+    .split(/\\par(?:\s+|$)/g)
     .map((item) => item.trim())
     .filter(Boolean);
 
