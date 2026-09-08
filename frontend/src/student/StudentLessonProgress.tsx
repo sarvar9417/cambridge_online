@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type LessonProgress } from '../lib/api';
 import { useRoute } from '../lib/router';
-import { STUDENT_STUDY_CHAPTERS, resolveStudySlideIndex, studentStudyChapter } from './StudentLessons';
+import {
+  STUDENT_STUDY_CHAPTERS,
+  pageSlideIds,
+  resolveStudentStudyLocation,
+  studentStudyChapter,
+  studentStudyPages,
+  type StudyChapter,
+} from './student-lesson-topic-model';
 import './student-lesson-progress.css';
 
 export function completedForChapter(progress: LessonProgress[], chapterNo: number, validSlideIds?: Set<string>) {
@@ -12,12 +19,36 @@ export function completedForChapter(progress: LessonProgress[], chapterNo: numbe
   );
 }
 
+export function completedPagesForChapter(progress: LessonProgress[], chapter: StudyChapter) {
+  const validSlideIds=new Set(chapter.slides.map(slide=>slide.id));
+  const completedSlides=completedForChapter(progress,chapter.number,validSlideIds);
+  return new Set(
+    studentStudyPages(chapter)
+      .filter(({page})=>{
+        const ids=pageSlideIds(page);
+        return ids.length>0&&ids.every(id=>completedSlides.has(id));
+      })
+      .map(({page})=>page.id),
+  );
+}
+
+function mergeProgress(current:LessonProgress[], saved:LessonProgress[]) {
+  const keys=new Set(saved.map(item=>`${item.chapterNo}:${item.slideId}`));
+  return [...saved,...current.filter(item=>!keys.has(`${item.chapterNo}:${item.slideId}`))];
+}
+
 export function StudentLessonProgress() {
   const route = useRoute();
   const chapterNo = Number(route.params.get('chapter') || 0);
   const chapter = studentStudyChapter(chapterNo);
-  const slideIndex = chapter ? resolveStudySlideIndex(chapter, route.params.get('slide')) : -1;
-  const slideId = chapter && slideIndex >= 0 ? chapter.slides[slideIndex]?.id ?? '' : '';
+  const location=chapter?resolveStudentStudyLocation(
+    chapter,
+    route.params.get('topic'),
+    route.params.get('page'),
+    route.params.get('slide'),
+  ):null;
+  const currentSlideIds=location?pageSlideIds(location.page):[];
+  const currentPageKey=location?`${chapterNo}:${location.page.id}`:'';
   const [progress, setProgress] = useState<LessonProgress[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -30,46 +61,39 @@ export function StudentLessonProgress() {
   }, []);
 
   useEffect(() => {
-    if (!chapter || !slideId) return;
-    void api<LessonProgress>('/content/lessons/progress', {
+    if (!chapter || !currentSlideIds.length) return;
+    let cancelled=false;
+    void Promise.all(currentSlideIds.map(slideId=>api<LessonProgress>('/content/lessons/progress', {
       method: 'PUT',
       body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:false }),
-    }).then((saved) => {
-      setProgress((current) => [saved, ...current.filter((item) => !(item.chapterNo === saved.chapterNo && item.slideId === saved.slideId))]);
-    }).catch(() => {});
-  }, [chapterNo, slideId]);
+    }))).then(saved=>{if(!cancelled)setProgress(current=>mergeProgress(current,saved));}).catch(()=>{});
+    return()=>{cancelled=true;};
+  }, [chapterNo, currentPageKey]);
 
-  const totalSlides = useMemo(
-    () => STUDENT_STUDY_CHAPTERS.reduce((sum, item) => sum + item.slides.length, 0),
+  const totalPages = useMemo(
+    () => STUDENT_STUDY_CHAPTERS.reduce((sum, item) => sum + studentStudyPages(item).length, 0),
     [],
   );
-  const validKeys = useMemo(
-    () => new Set(STUDENT_STUDY_CHAPTERS.flatMap((item) => item.slides.map((slide) => `${item.number}:${slide.id}`))),
-    [],
+  const completedTotal = STUDENT_STUDY_CHAPTERS.reduce(
+    (sum,item)=>sum+completedPagesForChapter(progress,item).size,
+    0,
   );
-  const completedTotal = new Set(
-    progress
-      .filter((item) => item.completedAt && validKeys.has(`${item.chapterNo}:${item.slideId}`))
-      .map((item) => `${item.chapterNo}:${item.slideId}`),
-  ).size;
-  const validChapterSlides = useMemo(
-    () => new Set(chapter?.slides.map((slide) => slide.id) ?? []),
-    [chapter],
-  );
-  const completedInChapter = chapter
-    ? completedForChapter(progress, chapter.number, validChapterSlides)
+  const chapterPages=useMemo(()=>chapter?studentStudyPages(chapter):[],[chapter]);
+  const completedInChapter=chapter?completedPagesForChapter(progress,chapter):new Set<string>();
+  const completedSlidesInChapter=chapter
+    ? completedForChapter(progress,chapter.number,new Set(chapter.slides.map(slide=>slide.id)))
     : new Set<string>();
-  const currentComplete = Boolean(slideId && completedInChapter.has(slideId));
+  const currentComplete=Boolean(location&&currentSlideIds.length&&currentSlideIds.every(id=>completedSlidesInChapter.has(id)));
 
   const markComplete = async () => {
-    if (!chapter || !slideId || currentComplete || saving) return;
+    if (!chapter || !location || !currentSlideIds.length || currentComplete || saving) return;
     setSaving(true);
     try {
-      const saved = await api<LessonProgress>('/content/lessons/progress', {
+      const saved=await Promise.all(currentSlideIds.map(slideId=>api<LessonProgress>('/content/lessons/progress', {
         method: 'PUT',
         body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:true }),
-      });
-      setProgress((current) => [saved, ...current.filter((item) => !(item.chapterNo === saved.chapterNo && item.slideId === saved.slideId))]);
+      })));
+      setProgress(current=>mergeProgress(current,saved));
     } finally {
       setSaving(false);
     }
@@ -78,15 +102,15 @@ export function StudentLessonProgress() {
   return <section className="slp" aria-label="Dars progressi">
     <div className="slp-overall">
       <span>STUDY PROGRESS</span>
-      <strong>{completedTotal}/{totalSlides}</strong>
-      <div aria-hidden="true"><i style={{width:`${totalSlides ? (completedTotal / totalSlides) * 100 : 0}%`}} /></div>
+      <strong>{completedTotal}/{totalPages}</strong>
+      <div aria-hidden="true"><i style={{width:`${totalPages ? (completedTotal / totalPages) * 100 : 0}%`}} /></div>
     </div>
-    {chapter ? <div className="slp-current">
-      <span>Chapter {chapter.number}</span>
-      <strong>{completedInChapter.size}/{chapter.slides.length} qism tugallangan</strong>
-      <button type="button" disabled={!slideId || currentComplete || saving} onClick={markComplete}>
-        {currentComplete ? '✓ Tugallangan' : saving ? 'Saqlanmoqda…' : 'Bu qismni tugatdim'}
+    {chapter && location ? <div className="slp-current">
+      <span>Chapter {chapter.number} · {location.topic.code==='overview'?'Overview':location.topic.code}</span>
+      <strong>{completedInChapter.size}/{chapterPages.length} page tugallangan</strong>
+      <button type="button" disabled={!currentSlideIds.length || currentComplete || saving} onClick={markComplete}>
+        {currentComplete ? '✓ Page tugallangan' : saving ? 'Saqlanmoqda…' : 'Bu page’ni tugatdim'}
       </button>
-    </div> : <p>Chapter ochilganda o‘qilgan va tugallangan qismlar barcha qurilmalarda saqlanadi.</p>}
+    </div> : <p>Chapter ochilganda o‘qilgan va tugallangan semantic pages barcha qurilmalarda saqlanadi.</p>}
   </section>;
 }
