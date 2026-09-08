@@ -14,6 +14,8 @@ const normalize=(value:string)=>value
   .toLowerCase()
   .replace(/[’‘]/g,"'")
   .replace(/[–—]/g,'-')
+  .replace(/\\"/g,'"')
+  .replace(/\\\\/g,'\\')
   .replace(/\s+/g,' ')
   .trim();
 
