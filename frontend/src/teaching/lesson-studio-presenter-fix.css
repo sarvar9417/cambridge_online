@@ -65,6 +65,18 @@
   color: #263247;
 }
 
+.lesson-studio:fullscreen .lesson-slide:has(.lesson-visual-recap) .lesson-bullets li,
+.lesson-studio:-webkit-full-screen .lesson-slide:has(.lesson-visual-recap) .lesson-bullets li {
+  font-size: clamp(19px, 1.45vw, 24px);
+  line-height: 1.45;
+  padding-left: 30px;
+}
+
+.lesson-studio:fullscreen .lesson-slide:has(.lesson-visual-recap) .lesson-visual,
+.lesson-studio:-webkit-full-screen .lesson-slide:has(.lesson-visual-recap) .lesson-visual {
+  min-height: 340px;
+}
+
 .lesson-studio:fullscreen .lesson-lead,
 .lesson-studio:-webkit-full-screen .lesson-lead,
 .lesson-studio:fullscreen .lesson-exam-intro > p:last-child,
