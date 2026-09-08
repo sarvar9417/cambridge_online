@@ -10,26 +10,28 @@ import type { HodderLessonSlide } from './lesson-content-hodder-types';
 const activeChapter=(chapter:number)=>chapter===7?CHAPTER_7:LESSON_CHAPTERS.find(item=>item.number===chapter)!;
 const sourceSlides=(chapter:number,id:string)=>(activeChapter(chapter).slides as HodderLessonSlide[])
   .filter(slide=>slide.subtopicCode===id && slide.id.startsWith(`pdf-first-${id.replace('.','')}-`) && !slide.id.startsWith('pdf-first-lens-'));
+const normalise=(value:string)=>value.replace(/\s+/g,' ').trim();
 
 describe('presentation-first PDF lesson layout',()=>{
-  it('keeps every exact source block visible and in source order after presentation splitting',()=>{
+  it('keeps every supplied-PDF word and punctuation mark visible in source order after presentation splitting',()=>{
     for(const meta of PDF_FIRST_SECTION_ORDER){
-      const visible=sourceSlides(meta.chapter,meta.id).flatMap(slide=>slide.bullets??[]);
-      expect(visible,`${meta.id} source order`).toEqual(pdfFirstBlocksForSection(meta.id));
+      const visible=sourceSlides(meta.chapter,meta.id).flatMap(slide=>slide.bullets??[]).join(' ');
+      const expected=pdfFirstBlocksForSection(meta.id).join(' ');
+      expect(normalise(visible),`${meta.id} reconstructed visible source text`).toBe(normalise(expected));
     }
   });
 
-  it('limits generated exact-PDF screens to projector-sized block groups and density',()=>{
+  it('limits generated exact-PDF screens to projector-sized fragment groups and density',()=>{
     for(const meta of PDF_FIRST_SECTION_ORDER){
       for(const slide of sourceSlides(meta.chapter,meta.id)){
         const bullets=slide.bullets??[];
         const density=bullets.reduce((total,item)=>total+item.trim().length,0);
-        expect(bullets.length,`${slide.id} block count`).toBeGreaterThan(0);
-        expect(bullets.length,`${slide.id} block count`).toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxBlocksPerScreen);
-        expect(density,`${slide.id} character density`).toBeLessThanOrEqual(
-          bullets.length===1
-            ? PDF_FIRST_PRESENTATION_LIMITS.maxSingleCharsPerScreen
-            : PDF_FIRST_PRESENTATION_LIMITS.maxGroupedCharsPerScreen,
+        expect(bullets.length,`${slide.id} fragment count`).toBeGreaterThan(0);
+        expect(bullets.length,`${slide.id} fragment count`).toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxFragmentsPerScreen);
+        expect(density,`${slide.id} character density`).toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxCharsPerScreen);
+        bullets.forEach((fragment,index)=>
+          expect(fragment.trim().length,`${slide.id} fragment ${index+1} density`)
+            .toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxFragmentChars),
         );
       }
     }
