@@ -72,21 +72,35 @@ function paragraph(className:string,text:string|null|undefined){
   return node;
 }
 
-function assetsComplete(assets:ExamAsset[]){
-  return assets.every(asset=>Boolean(asset.url||asset.contentMd));
+function assetComplete(asset:ExamAsset){
+  return Boolean(asset.url||asset.contentMd);
+}
+
+function isVisualAsset(asset:ExamAsset){
+  const kind=asset.kind.toLowerCase();
+  return kind==='diagram'||kind==='image';
 }
 
 function questionComplete(question:ExamQuestion){
   const contextAssets=question.contextBlocks.flatMap(block=>block.assets);
   const dependencyAssets=question.dependencies.flatMap(dependency=>dependency.assets);
   const allAssets=[...contextAssets,...dependencyAssets];
-  if(question.hasDiagram&&!allAssets.some(asset=>Boolean(asset.url||asset.contentMd)))return false;
+  if(question.hasDiagram&&!allAssets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;
   if(question.hasDependency&&!question.dependencies.length)return false;
-  return assetsComplete(allAssets);
+  return allAssets.every(asset=>assetComplete(asset));
+}
+
+function contractLoCodes(card:HTMLElement){
+  const contract=card.closest('.lesson-studio')?.querySelector('.lesson-checkpoint-contract strong')?.textContent??'';
+  return contract
+    .split('·')
+    .map(value=>value.trim())
+    .filter(value=>value.length>0&&value.length<=40&&/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value));
 }
 
 function queryForCard(card:HTMLElement){
-  const loCodes=(card.dataset.loCodes??'').split('|').map(value=>value.trim()).filter(Boolean);
+  const cardCodes=(card.dataset.loCodes??'').split('|').map(value=>value.trim()).filter(Boolean);
+  const loCodes=[...new Set([...contractLoCodes(card),...cardCodes])];
   if(!loCodes.length)return null;
   const yearText=card.closest('.lesson-exam-year-group')?.querySelector('.lesson-exam-year-header strong')?.textContent??'';
   const year=Number(yearText);
@@ -148,21 +162,31 @@ function renderCompleteQuestion(question:ExamQuestion){
   return source;
 }
 
+function markIncomplete(card:HTMLElement){
+  card.dataset.pastPaperSourceReady='false';
+  card.classList.add('lesson-past-paper-source-incomplete');
+}
+
 async function enhanceCard(card:HTMLElement){
   if(card.querySelector(':scope > .lesson-past-paper-source'))return;
   if(card.dataset.pastPaperSourceLoading==='true')return;
   card.dataset.pastPaperSourceLoading='true';
   try{
     const question=await loadQuestion(card);
-    if(!question||!questionComplete(question))return;
+    if(!question||!questionComplete(question)){
+      markIncomplete(card);
+      return;
+    }
     if(!card.isConnected||card.querySelector(':scope > .lesson-past-paper-source'))return;
     card.querySelector(':scope > .lesson-question-context')?.remove();
     card.querySelector(':scope > p')?.remove();
     const source=renderCompleteQuestion(question);
     const meta=card.querySelector(':scope > .lesson-exam-meta');
     meta?.insertAdjacentElement('afterend',source);
+    card.dataset.pastPaperSourceReady='true';
+    card.classList.remove('lesson-past-paper-source-incomplete');
   }catch{
-    // Keep the original source text when the full source request is unavailable.
+    markIncomplete(card);
   }finally{
     delete card.dataset.pastPaperSourceLoading;
   }
@@ -173,9 +197,10 @@ function enhance(root:ParentNode=document){
 }
 
 /**
- * Replace the compact Lesson Studio checkpoint preview with the complete
- * source-backed context required to read the question inline. This is display
- * only: no mark scheme, answer state, LO metadata or question actions are added.
+ * Replace compact Lesson Studio checkpoint previews with the complete source
+ * context required to read each Cambridge question inline. If required source
+ * context cannot be reconstructed, the partial preview is suppressed rather
+ * than presented as a complete question.
  */
 export function installLessonPastPaperInlineSource(){
   let scheduled=false;
