@@ -15,7 +15,9 @@ function normalize(value: string | null | undefined) {
 
 function keepActiveRailItemVisible(studio: HTMLElement) {
   const outline = studio.querySelector<HTMLElement>('.lesson-topic-outline');
-  const active = studio.querySelector<HTMLElement>('.lesson-topic-nav-pages > button.active, .lesson-topic-nav-group.active > .lesson-topic-nav-topic');
+  const activePage = studio.querySelector<HTMLElement>('.lesson-topic-nav-pages > button.active');
+  const activeTopic = studio.querySelector<HTMLElement>('.lesson-topic-nav-group.active > .lesson-topic-nav-topic');
+  const active = activePage ?? activeTopic;
   if (!outline || !active) return;
 
   const outlineRect = outline.getBoundingClientRect();
