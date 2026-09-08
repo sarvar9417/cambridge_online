@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LESSON_CHAPTERS } from './lesson-content-source-complete';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
+import type { HodderLessonSlide } from './lesson-content-hodder-types';
 import { buildTopicPlan, flattenTopicPages, sourceFilePageForSlide } from './lesson-topic-plan';
 
 const chapters = [...LESSON_CHAPTERS, CHAPTER_7];
@@ -45,7 +46,7 @@ describe('book-like topic plan', () => {
 
   it('never mixes two physical source-file pages inside one exact transcript slide', () => {
     for(const chapter of chapters){
-      const exact=chapter.slides.filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'));
+      const exact=(chapter.slides as HodderLessonSlide[]).filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'));
       expect(exact.length,`Chapter ${chapter.number} exact transcript pages`).toBeGreaterThan(0);
       exact.forEach(slide=>{
         const code=slide.subtopicCode!;
@@ -58,7 +59,7 @@ describe('book-like topic plan', () => {
 
   it('uses page vocabulary instead of stale screen/presentation vocabulary in exact source transcripts', () => {
     for(const chapter of chapters){
-      chapter.slides
+      (chapter.slides as HodderLessonSlide[])
         .filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'))
         .forEach(slide=>{
           expect(slide.eyebrow).toContain('COURSEBOOK SOURCE');
