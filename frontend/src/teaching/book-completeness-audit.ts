@@ -6,6 +6,7 @@ import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES } from './coursebook-page-slides';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
+import { sourceSemanticFidelityCategories } from './source-semantic-fidelity-gate';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
@@ -243,6 +244,7 @@ function buildAudit(chapter: BookAuditChapter): BookCompletenessAudit {
   const categories: Record<string, BookCompletenessCategory> = {
     source_page_fingerprints: pageFingerprintCategory(chapter, baseline.pageCount),
     raw_pdf_emphasis: rawPdfEmphasisCategory(chapter),
+    ...sourceSemanticFidelityCategories(chapter),
     chapter_objectives: anchorCategory(chapter, baseline.objectiveAnchors),
     prior_knowledge: anchorCategory(chapter, baseline.priorKnowledgeAnchors),
     key_terms: globalAnchorCategory(chapter, baseline.keyTerms),
