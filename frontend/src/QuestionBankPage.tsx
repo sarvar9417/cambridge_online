@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
+import { LatexQuestionText } from './lib/latex-question-text';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -38,6 +39,8 @@ type PortableQuestion = {
     path: string;
     displayRef: string;
     stem: string;
+    stemLatex?: string | null;
+    bodyFormat?: 'markdown' | 'latex';
     commandWord: string | null;
     marks: number;
     answerKind: string;
@@ -50,6 +53,7 @@ type PortableQuestion = {
     displayRef: string;
     depth: number;
     context: string | null;
+    contextLatex?: string | null;
     assets: PortableAsset[];
   }>;
   dependencies: Dependency[];
@@ -63,6 +67,8 @@ type Part = {
   displayRef: string;
   stem: string;
   stemMd?: string;
+  stemLatex?: string | null;
+  bodyFormat?: 'markdown' | 'latex';
   commandWord: string | null;
   marks: number;
   ao: string | null;
@@ -697,11 +703,11 @@ function useDialogClose(onClose: () => void) {
 }
 
 function PartCard({ part, focused, selected, pending, onAdd, onPreview }: { part: Part; focused: boolean; selected: boolean; pending: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><p>{part.stem}</p>{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
+  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
 }
 
 function FamilyCard({ family, selectedIds, pendingIds, onAdd, onPreview }: { family: Family; selectedIds: Set<string>; pendingIds: Set<string>; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
-  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><CaretDown size={16} /></summary><div className="qb-family-parts">{family.parts.map((part) => { const selected = selectedIds.has(part.id); const pending = pendingIds.has(part.id); return <article className={`${part.matches ? 'match' : ''} ${selected ? 'selected' : ''}`} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<p>{part.stem}</p></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={() => onAdd(part.id)}>{pending ? '…' : selected ? <Check size={16} weight="bold" /> : <Plus size={16} weight="bold" />}</button></article>; })}</div></details>;
+  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><CaretDown size={16} /></summary><div className="qb-family-parts">{family.parts.map((part) => { const selected = selectedIds.has(part.id); const pending = pendingIds.has(part.id); return <article className={`${part.matches ? 'match' : ''} ${selected ? 'selected' : ''}`} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} /></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={() => onAdd(part.id)}>{pending ? '…' : selected ? <Check size={16} weight="bold" /> : <Plus size={16} weight="bold" />}</button></article>; })}</div></details>;
 }
 
 function ContextBlocks({ portable }: { portable: PortableQuestion }) {

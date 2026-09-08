@@ -68,6 +68,8 @@ const mapPart = (row: Record<string, unknown>) => ({
   rootRef: row.root_ref,
   displayRef: row.display_ref,
   stem: row.stem,
+  stemLatex: row.stem_latex ?? null,
+  bodyFormat: row.body_format ?? 'markdown',
   // Backward compatibility for the existing dashboard/assignment form.
   stemMd: row.stem,
   contextMd: null,
@@ -211,7 +213,7 @@ export class PgQuestionsRepository {
     const matching = await this.pool.query(
       `with recursive matching as (
          select q.id,q.parent_id,q.label,q.path,q.display_ref,q.depth,q.sort_order,
-           coalesce(q.stem_md,'') stem,q.command_word,q.marks,q.ao,q.answer_kind,q.status,
+           coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,q.status,
            syllabus.code syllabus_code,component.number component,sp.year,sp.series,sp.variant,
            exists(
              select 1 from question_assets qa
@@ -274,11 +276,11 @@ export class PgQuestionsRepository {
     const familyRows = await this.pool.query(
       `with recursive descendants as (
          select q.id root_id,q.id,q.parent_id,q.label,q.display_ref,q.depth,q.sort_order,q.marks,
-           coalesce(q.stem_md,'') stem,q.command_word,q.ao,q.answer_kind,q.status
+           coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word,q.ao,q.answer_kind,q.status
          from questions q where q.id=any($1::uuid[])
          union all
          select d.root_id,q.id,q.parent_id,q.label,q.display_ref,q.depth,q.sort_order,q.marks,
-           coalesce(q.stem_md,'') stem,q.command_word,q.ao,q.answer_kind,q.status
+           coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word,q.ao,q.answer_kind,q.status
          from descendants d join questions q on q.parent_id=d.id
        )
        select * from descendants
@@ -303,6 +305,8 @@ export class PgQuestionsRepository {
             displayRef: row.display_ref,
             stem: row.stem,
             stemMd: row.stem,
+            stemLatex: row.stem_latex ?? null,
+            bodyFormat: row.body_format ?? 'markdown',
             marks: Number(row.marks),
             commandWord: row.command_word,
             ao: row.ao,
@@ -402,7 +406,7 @@ export class PgQuestionsRepository {
 
   async findOne(actor: Actor, id: string) {
     const result = await this.pool.query(
-      `select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.ao,q.answer_kind,
+      `select q.id,q.display_ref,q.stem_md,q.context_md,q.stem_latex,q.context_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,
         json_build_object('id',p.id,'displayRef',p.display_ref,'contextMd',p.context_md) parent,
         case when $2<>'student' then true else exists(
           select 1 from submissions s join assignment_questions aq on aq.assignment_id=s.assignment_id
@@ -450,10 +454,10 @@ export class PgQuestionsRepository {
          select parent.* from chain child join questions parent on parent.id=child.parent_id
        )
        select c.id,c.parent_id,c.label,c.path,c.display_ref,c.depth,c.marks,c.command_word,
-         c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.context_md context,
+         c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.context_md context,c.context_latex,
          coalesce((
            select jsonb_agg(jsonb_build_object(
-             'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',qa.content_md,
+             'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',coalesce(qa.svg_markup,qa.content_md),
              'altText',qa.alt_text,'sortOrder',qa.sort_order,'sourcePage',qa.source_page
            ) order by qa.sort_order,qa.id)
            from question_assets qa where qa.question_id=c.id
@@ -482,6 +486,7 @@ export class PgQuestionsRepository {
         displayRef: row.display_ref,
         depth: row.depth,
         context: row.context,
+        contextLatex: row.context_latex,
         assets: await this.portableAssets(row.assets),
       })));
 
@@ -493,6 +498,8 @@ export class PgQuestionsRepository {
         path: leaf.path,
         displayRef: leaf.display_ref,
         stem: leaf.stem,
+        stemLatex: leaf.stem_latex,
+        bodyFormat: leaf.body_format ?? 'markdown',
         commandWord: leaf.command_word,
         marks: Number(leaf.marks),
         answerKind: leaf.answer_kind,
