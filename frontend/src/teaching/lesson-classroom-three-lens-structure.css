@@ -90,6 +90,25 @@ html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-
   scroll-snap-align: none !important;
 }
 
+/* Preview cards clamp question/context text in the normal teacher index. On a
+ * classroom screen that can remove source-required wording, so the projected
+ * Past Paper page must show the complete stored preview content. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card .lesson-question-context,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card .lesson-question-context,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card .lesson-question-context,
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card > p,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card > p,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card > p,
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card > .qtext-host,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card > .qtext-host,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card > .qtext-host {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  mask-image: none !important;
+}
+
 @media (max-width: 720px) {
   html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-workspace.lesson-topic-workspace,
   .lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-workspace.lesson-topic-workspace,
