@@ -37,10 +37,27 @@ describe('Darslar Past Paper plain display contract',()=>{
     expect(renderer).toContain('question.dependencies.forEach');
     expect(renderer).toContain('question.contextBlocks.forEach');
     expect(renderer).toContain("figure.className='qb-asset lesson-past-paper-inline-asset'");
-    expect(renderer).toContain('if(question.hasDiagram&&!allAssets.some');
+    expect(renderer).toContain('if(question.hasDiagram&&!allAssets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;');
     expect(renderer).toContain('if(question.hasDependency&&!question.dependencies.length)return false;');
     expect(renderer).toContain("source.className='lesson-past-paper-source'");
     expect(renderer).toContain("card.querySelector(':scope > .lesson-question-context')?.remove();");
+  });
+
+  it('uses both current checkpoint labels and historical matched LO codes when resolving the full source question',()=>{
+    const renderer=source('lesson-past-paper-inline-source.ts');
+    expect(renderer).toContain('function contractLoCodes(card:HTMLElement)');
+    expect(renderer).toContain("querySelector('.lesson-checkpoint-contract strong')");
+    expect(renderer).toContain('const loCodes=[...new Set([...contractLoCodes(card),...cardCodes])];');
+  });
+
+  it('suppresses compact or incomplete previews until the full source question is verified',()=>{
+    const renderer=source('lesson-past-paper-inline-source.ts');
+    const css=source('lesson-past-paper-inline-source.css');
+    expect(renderer).toContain("card.dataset.pastPaperSourceReady='false';");
+    expect(renderer).toContain("card.dataset.pastPaperSourceReady='true';");
+    expect(css).toContain('.lesson-exam-card:not([data-past-paper-source-ready="true"])');
+    expect(css).toContain('.lesson-past-paper-source-incomplete');
+    expect(css).toContain('display: none !important;');
   });
 
   it('keeps only a simple reference/marks/question reading surface',()=>{
