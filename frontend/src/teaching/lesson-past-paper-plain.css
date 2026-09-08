@@ -1,0 +1,202 @@
+/* Teaching -> Darslar Past Paper presentation.
+ * The question itself is the interface: source reference + marks + required
+ * context + full stem. Topic metadata, progress chrome, badges, launch actions
+ * and decorative card styling are intentionally removed. */
+
+.lesson-topic-past-paper-block {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.lesson-topic-past-paper-block .lesson-checkpoint-contract,
+.lesson-topic-past-paper-block .lesson-practice-cycle,
+.lesson-topic-past-paper-block .lesson-exam-years,
+.lesson-topic-past-paper-block .lesson-exam-summary,
+.lesson-topic-past-paper-block .lesson-topic-partial-unavailable,
+.lesson-topic-past-paper-block .lesson-exam-year-header,
+.lesson-topic-past-paper-block .lesson-exam-card > footer,
+.lesson-topic-past-paper-block .lesson-exam-number,
+.lesson-topic-past-paper-block .lesson-question-card-actions,
+.lesson-topic-past-paper-block .lesson-question-open,
+.lesson-topic-past-paper-block .lesson-exam-insight,
+.lesson-topic-past-paper-block .lesson-exam-insights {
+  display: none !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-scroll,
+.lesson-topic-past-paper-block .lesson-exam-year-group,
+.lesson-topic-past-paper-block .lesson-exam-grid {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  scroll-snap-type: none !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-year-group + .lesson-exam-year-group {
+  margin-top: 0 !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-card,
+.lesson-topic-past-paper-block .lesson-exam-card.lesson-exam-launcher {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 24px 0 28px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #d7dde5 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  overflow: visible !important;
+  scroll-snap-align: none !important;
+  cursor: default !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-card:last-child {
+  border-bottom: 0 !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-card::before,
+.lesson-topic-past-paper-block .lesson-exam-card::after {
+  display: none !important;
+  content: none !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-meta {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  width: 100% !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-meta > span {
+  min-width: 0 !important;
+  color: #172033 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-meta > b {
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #172033 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.lesson-topic-past-paper-block .lesson-question-context,
+.lesson-topic-past-paper-block .lesson-exam-card > p,
+.lesson-topic-past-paper-block .lesson-exam-card > .qtext-host,
+.lesson-topic-past-paper-block .qtext-block,
+.lesson-topic-past-paper-block .qtext-paragraph,
+.lesson-topic-past-paper-block .qtext-task,
+.lesson-topic-past-paper-block .qtext-list,
+.lesson-topic-past-paper-block .qtext-table,
+.lesson-topic-past-paper-block .qtext-code {
+  width: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  text-overflow: clip !important;
+}
+
+.lesson-topic-past-paper-block .lesson-question-context {
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #172033 !important;
+  font-size: 16px !important;
+  line-height: 1.65 !important;
+  white-space: pre-wrap !important;
+}
+
+.lesson-topic-past-paper-block .lesson-exam-card > p,
+.lesson-topic-past-paper-block .lesson-exam-card > .qtext-host {
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #172033 !important;
+  font-size: clamp(17px, 1.3vw, 20px) !important;
+  font-weight: 500 !important;
+  line-height: 1.65 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* Fullscreen/classroom mode keeps exactly the same plain source-first grammar. */
+html.lesson-presenting .lesson-topic-studio .lesson-topic-past-paper-block .lesson-exam-card,
+.lesson-topic-studio:fullscreen .lesson-topic-past-paper-block .lesson-exam-card,
+.lesson-topic-studio.is-presenting .lesson-topic-past-paper-block .lesson-exam-card {
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: clamp(24px, 2.4vw, 38px) 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-topic-past-paper-block .lesson-question-context,
+html.lesson-presenting .lesson-topic-studio .lesson-topic-past-paper-block .lesson-exam-card > p,
+html.lesson-presenting .lesson-topic-studio .lesson-topic-past-paper-block .lesson-exam-card > .qtext-host,
+.lesson-topic-studio:fullscreen .lesson-topic-past-paper-block .lesson-question-context,
+.lesson-topic-studio:fullscreen .lesson-topic-past-paper-block .lesson-exam-card > p,
+.lesson-topic-studio:fullscreen .lesson-topic-past-paper-block .lesson-exam-card > .qtext-host,
+.lesson-topic-studio.is-presenting .lesson-topic-past-paper-block .lesson-question-context,
+.lesson-topic-studio.is-presenting .lesson-topic-past-paper-block .lesson-exam-card > p,
+.lesson-topic-studio.is-presenting .lesson-topic-past-paper-block .lesson-exam-card > .qtext-host {
+  max-height: none !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+@media (max-width: 620px) {
+  .lesson-topic-past-paper-block .lesson-exam-card,
+  .lesson-topic-past-paper-block .lesson-exam-card.lesson-exam-launcher {
+    padding: 20px 0 24px !important;
+  }
+
+  .lesson-topic-past-paper-block .lesson-exam-meta {
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .lesson-topic-past-paper-block .lesson-question-context,
+  .lesson-topic-past-paper-block .lesson-exam-card > p,
+  .lesson-topic-past-paper-block .lesson-exam-card > .qtext-host {
+    font-size: 16px !important;
+  }
+}

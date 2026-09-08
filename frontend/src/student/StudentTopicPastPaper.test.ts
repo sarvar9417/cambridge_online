@@ -5,37 +5,53 @@ import { describe, expect, it } from 'vitest';
 const studentSource=(name:string)=>readFileSync(resolve(process.cwd(),`src/student/${name}`),'utf8');
 
 describe('Student Darslar topic Past Paper contract',()=>{
-  it('renders actual source-safe questions instead of an LO-only checkpoint summary',()=>{
+  it('renders the source question, required context and source assets instead of an LO dashboard',()=>{
     const component=studentSource('StudentTopicPastPaper.tsx');
     const lessons=studentSource('StudentLessons.tsx');
     expect(component).toContain('/lesson-checkpoints?');
     expect(component).toContain('result.data.map(question=>[question.id,question]');
+    expect(component).toContain('question.contextBlocks.map');
+    expect(component).toContain('question.dependencies.map');
     expect(component).toContain('question.stem');
-    expect(component).toContain('question.contextMd');
+    expect(component).toContain('question.displayRef');
+    expect(component).toContain('[{question.marks}]');
+    expect(component).toContain('className="qb-asset student-topic-exam-asset"');
     expect(lessons).toContain('<StudentTopicPastPaper page={page} topic={topic}/>');
-    expect(lessons).not.toContain('learning objective uchun approved Cambridge checkpoint mavjud');
-  });
-
-  it('blocks incomplete diagram/dependency previews instead of showing a cut question',()=>{
-    const component=studentSource('StudentTopicPastPaper.tsx');
-    expect(component).toContain('const requiresSourceContext=question.hasDiagram||question.hasDependency;');
-    expect(component).toContain('To‘liq source context kerak');
-    expect(component).toContain('Dars sahifasida kesilgan savol ko‘rsatilmaydi.');
-  });
-
-  it('keeps corpus/source implementation metadata out of the student question cards',()=>{
-    const component=studentSource('StudentTopicPastPaper.tsx');
-    expect(component).toContain('Cambridge Past Paper');
-    expect(component).toContain('Exact approved question text');
     expect(component).not.toContain('learningObjectiveCodes.map');
     expect(component).not.toContain('<code');
   });
 
-  it('provides a responsive question-first visual hierarchy',()=>{
+  it('shows a question only when every required source element is renderable',()=>{
+    const component=studentSource('StudentTopicPastPaper.tsx');
+    expect(component).toContain('function questionComplete(question:ExamQuestion)');
+    expect(component).toContain('function isVisualAsset(asset:ExamAsset)');
+    expect(component).toContain('if(question.hasDiagram&&!allAssets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;');
+    expect(component).toContain('if(question.hasDependency&&!question.dependencies.length)return false;');
+    expect(component).toContain('return allAssets.every(asset=>assetComplete(asset));');
+    expect(component).toContain('const completeQuestions=questions.filter(questionComplete);');
+    expect(component).toContain('Savolni to‘liq ko‘rsatish uchun source context yetarli emas.');
+  });
+
+  it('removes decorative, instructional and action chrome from each question',()=>{
+    const component=studentSource('StudentTopicPastPaper.tsx');
+    expect(component).not.toContain('student-topic-exam-number');
+    expect(component).not.toContain('student-topic-exam-intro');
+    expect(component).not.toContain('<footer>');
+    expect(component).not.toContain('Mashqda ishlash');
+    expect(component).not.toContain('Exact approved question text');
+    expect(component).not.toContain('Cambridge Past Paper</small>');
+  });
+
+  it('uses a plain exam-paper layout and never clamps source text or visuals',()=>{
     const css=studentSource('student-topic-past-paper.css');
     expect(css).toContain('.student-topic-exam-question');
-    expect(css).toContain('border-left: 4px solid var(--accent);');
-    expect(css).toContain('.student-topic-exam-stem');
+    expect(css).toContain('border-bottom: 1px solid var(--border);');
+    expect(css).toContain('border-radius: 0;');
+    expect(css).toContain('max-height: none;');
+    expect(css).toContain('-webkit-line-clamp: unset;');
+    expect(css).toContain('overflow: visible;');
+    expect(css).toContain('.student-topic-exam-asset > strong');
+    expect(css).toContain('display: none !important;');
     expect(css).toContain('@media (max-width: 620px)');
   });
 });

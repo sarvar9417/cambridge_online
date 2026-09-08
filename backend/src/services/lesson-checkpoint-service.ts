@@ -1,4 +1,29 @@
 import type { Pool } from 'pg';
+import type { AssetUrlSigner } from '../jobs/asset-store.js';
+
+export type LessonCheckpointAsset = {
+  id: string;
+  kind: string;
+  url: string | null;
+  contentMd: string | null;
+  altText: string;
+  sourcePage: number | null;
+};
+
+export type LessonCheckpointContextBlock = {
+  id: string;
+  displayRef: string;
+  contextMd: string | null;
+  assets: LessonCheckpointAsset[];
+};
+
+export type LessonCheckpointDependency = {
+  id: string;
+  displayRef: string;
+  stem: string;
+  contextMd: string | null;
+  assets: LessonCheckpointAsset[];
+};
 
 export type LessonCheckpointQuestion = {
   id: string;
@@ -14,10 +39,39 @@ export type LessonCheckpointQuestion = {
   hasDiagram: boolean;
   hasDependency: boolean;
   matchedLearningObjectiveCodes: string[];
+  contextBlocks: LessonCheckpointContextBlock[];
+  dependencies: LessonCheckpointDependency[];
+};
+
+type AssetRow = {
+  id: string;
+  question_id: string;
+  kind: string;
+  storage_path: string | null;
+  content_md: string | null;
+  alt_text: string | null;
+  source_page: number | null;
 };
 
 export class LessonCheckpointService {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly assetUrlSigner?: AssetUrlSigner,
+  ) {}
+
+  private async materializeAsset(row: AssetRow): Promise<LessonCheckpointAsset> {
+    const url = row.storage_path && this.assetUrlSigner
+      ? await this.assetUrlSigner.signStoragePath(row.storage_path, 300)
+      : null;
+    return {
+      id: String(row.id),
+      kind: String(row.kind),
+      url,
+      contentMd: row.content_md ? String(row.content_md) : null,
+      altText: row.alt_text ? String(row.alt_text) : '',
+      sourcePage: row.source_page == null ? null : Number(row.source_page),
+    };
+  }
 
   async list(
     learningObjectiveCodes: string[],
@@ -51,6 +105,7 @@ export class LessonCheckpointService {
        )
        select
          q.id,
+         q.parent_id,
          q.display_ref,
          coalesce(q.stem_md,'') stem,
          coalesce(nullif(q.context_md,''),nullif(parent.context_md,'')) context_md,
@@ -87,22 +142,116 @@ export class LessonCheckpointService {
       [learningObjectiveCodes, yearFrom, yearTo, syllabusCode],
     );
 
+    const questionIds = result.rows.map((row) => String(row.id));
+    if (!questionIds.length) {
+      return { data: [] as LessonCheckpointQuestion[], learningObjectiveCodes, syllabusCode, yearFrom, yearTo };
+    }
+
+    const chainResult = await this.pool.query(
+      `with recursive chain as (
+         select q.id leaf_id,q.id,q.parent_id,q.display_ref,q.context_md,q.depth
+         from questions q
+         where q.id=any($1::uuid[])
+         union all
+         select chain.leaf_id,parent.id,parent.parent_id,parent.display_ref,parent.context_md,parent.depth
+         from chain
+         join questions parent on parent.id=chain.parent_id
+       )
+       select leaf_id,id,parent_id,display_ref,context_md,depth
+       from chain
+       order by leaf_id,depth,id`,
+      [questionIds],
+    );
+
+    const dependencyResult = await this.pool.query(
+      `select qd.question_id,qd.depends_on_id,target.display_ref,
+         coalesce(target.stem_md,'') stem,target.context_md
+       from question_dependencies qd
+       join questions target on target.id=qd.depends_on_id
+       where qd.question_id=any($1::uuid[])
+       order by qd.question_id,target.sort_order,target.id`,
+      [questionIds],
+    );
+
+    const assetQuestionIds = [...new Set([
+      ...chainResult.rows.map((row) => String(row.id)),
+      ...dependencyResult.rows.map((row) => String(row.depends_on_id)),
+    ])];
+    const assetResult = assetQuestionIds.length
+      ? await this.pool.query(
+        `select id,question_id,kind,storage_path,
+           coalesce(svg_markup,content_md) content_md,alt_text,source_page
+         from question_assets
+         where question_id=any($1::uuid[])
+         order by question_id,sort_order,id`,
+        [assetQuestionIds],
+      )
+      : { rows: [] as AssetRow[] };
+
+    const materializedAssets = await Promise.all(
+      (assetResult.rows as AssetRow[]).map(async (row) => ({
+        questionId: String(row.question_id),
+        asset: await this.materializeAsset(row),
+      })),
+    );
+    const assetsByQuestion = new Map<string, LessonCheckpointAsset[]>();
+    for (const item of materializedAssets) {
+      const list = assetsByQuestion.get(item.questionId) ?? [];
+      list.push(item.asset);
+      assetsByQuestion.set(item.questionId, list);
+    }
+
+    const chainByLeaf = new Map<string, typeof chainResult.rows>();
+    for (const row of chainResult.rows) {
+      const leafId = String(row.leaf_id);
+      const list = chainByLeaf.get(leafId) ?? [];
+      list.push(row);
+      chainByLeaf.set(leafId, list);
+    }
+    const dependenciesByQuestion = new Map<string, typeof dependencyResult.rows>();
+    for (const row of dependencyResult.rows) {
+      const questionId = String(row.question_id);
+      const list = dependenciesByQuestion.get(questionId) ?? [];
+      list.push(row);
+      dependenciesByQuestion.set(questionId, list);
+    }
+
     return {
-      data: result.rows.map((row) => ({
-        id: String(row.id),
-        displayRef: String(row.display_ref),
-        stem: String(row.stem ?? ''),
-        contextMd: row.context_md ? String(row.context_md) : null,
-        commandWord: row.command_word ? String(row.command_word) : null,
-        marks: Number(row.marks),
-        year: Number(row.year),
-        series: String(row.series),
-        variant: Number(row.variant),
-        component: Number(row.component),
-        hasDiagram: Boolean(row.has_diagram),
-        hasDependency: Boolean(row.has_dependency),
-        matchedLearningObjectiveCodes: (row.matched_lo_codes ?? []).map(String),
-      })) satisfies LessonCheckpointQuestion[],
+      data: result.rows.map((row) => {
+        const id = String(row.id);
+        const contextBlocks = (chainByLeaf.get(id) ?? [])
+          .map((item) => ({
+            id: String(item.id),
+            displayRef: String(item.display_ref),
+            contextMd: item.context_md ? String(item.context_md) : null,
+            assets: assetsByQuestion.get(String(item.id)) ?? [],
+          }))
+          .filter((item) => Boolean(item.contextMd) || item.assets.length > 0);
+        const dependencies = (dependenciesByQuestion.get(id) ?? []).map((item) => ({
+          id: String(item.depends_on_id),
+          displayRef: String(item.display_ref),
+          stem: String(item.stem ?? ''),
+          contextMd: item.context_md ? String(item.context_md) : null,
+          assets: assetsByQuestion.get(String(item.depends_on_id)) ?? [],
+        }));
+        return {
+          id,
+          displayRef: String(row.display_ref),
+          stem: String(row.stem ?? ''),
+          contextMd: row.context_md ? String(row.context_md) : null,
+          commandWord: row.command_word ? String(row.command_word) : null,
+          marks: Number(row.marks),
+          year: Number(row.year),
+          series: String(row.series),
+          variant: Number(row.variant),
+          component: Number(row.component),
+          hasDiagram: Boolean(row.has_diagram),
+          hasDependency: Boolean(row.has_dependency),
+          matchedLearningObjectiveCodes: (row.matched_lo_codes ?? []).map(String),
+          contextBlocks,
+          dependencies,
+        } satisfies LessonCheckpointQuestion;
+      }),
       learningObjectiveCodes,
       syllabusCode,
       yearFrom,
