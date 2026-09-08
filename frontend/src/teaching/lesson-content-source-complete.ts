@@ -1,6 +1,5 @@
 import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from './lesson-content-source-file-fidelity';
-import { applyCurrent9618CheckpointTargets } from './lesson-current-target-checkpoints';
-import { withCoursebookReferenceSlides9618 } from './coursebook-page-slides';
+import { buildPdfFirst9618Chapter } from './pdf-first-section-lessons';
 
 export type { LessonVisual } from './lesson-content-full';
 export type {
@@ -11,8 +10,18 @@ export type {
   LessonTable,
 } from './lesson-content-hodder-types';
 
+/**
+ * Active 9618 lesson route.
+ *
+ * The historical source-hardening chapters remain the curated teaching base,
+ * but the learner/teacher route is rebuilt by section. Each source section now
+ * ends only after its exact supplied-PDF blocks have been taught, followed by
+ * the Cambridge Exam Lens and then the live/current Past Paper checkpoint(s).
+ * The old glossary/page-by-page appendix is intentionally not appended here.
+ */
 export const LESSON_CHAPTERS = [
-  withCoursebookReferenceSlides9618(applyCurrent9618CheckpointTargets(SOURCE_FILE_FIDELITY_CHAPTER_1)),
-  withCoursebookReferenceSlides9618(applyCurrent9618CheckpointTargets(SOURCE_FILE_FIDELITY_CHAPTER_13)),
+  buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_1),
+  buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_13),
 ];
+
 export const lessonChapter = (number: number) => LESSON_CHAPTERS.find((chapter) => chapter.number === number) ?? null;
