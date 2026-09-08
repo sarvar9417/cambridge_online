@@ -119,13 +119,15 @@ function semanticHeadingFromText(topicCode:string, text:string) {
   return numberedHeading(topicCode,value) ?? majorHeading(value);
 }
 
-function semanticHeadingForSlide(topicCode:string, slide:LessonSlide) {
-  const candidates=[slide.title, slide.section, ...(slide.bullets ?? [])];
+function semanticHeadingsForSlide(topicCode:string, slide:LessonSlide) {
+  const candidates=[slide.title, slide.section, slide.eyebrow, ...(slide.bullets ?? [])];
+  const result:string[]=[];
   for(const candidate of candidates){
     const heading=semanticHeadingFromText(topicCode,candidate);
-    if(heading)return heading;
+    if(!heading)continue;
+    if(!result.some(existing=>normaliseKey(existing)===normaliseKey(heading)))result.push(heading);
   }
-  return null;
+  return result;
 }
 
 function titleForPage(topicCode: string, slides: LessonSlide[], bookPage: number | null, pageIndex: number) {
@@ -157,75 +159,99 @@ function topicTitleMap(subtopics: readonly string[]) {
   return map;
 }
 
+type SemanticAnchor = {
+  title:string;
+  key:string;
+  sourcePage:number|null;
+  order:number;
+};
+
 type StudyPageDraft = {
   title:string;
+  anchorPage:number|null;
   slides:LessonSlide[];
 };
 
 function draftSourcePages(topicCode:string, draft:StudyPageDraft) {
-  return [...new Set(draft.slides.flatMap(slide=>sourceFilePagesForSlide(topicCode,slide)))].sort((a,b)=>a-b);
+  const pages=[
+    ...(draft.anchorPage==null?[]:[draft.anchorPage]),
+    ...draft.slides.flatMap(slide=>sourceFilePagesForSlide(topicCode,slide)),
+  ];
+  return [...new Set(pages)].sort((a,b)=>a-b);
 }
 
-function headingMatches(left:string,right:string) {
-  const a=normaliseKey(left),b=normaliseKey(right);
-  return Boolean(a&&b&&(a===b||a.endsWith(` ${b}`)||b.endsWith(` ${a}`)));
-}
-
-function nearestDraftForSourcePage(topicCode:string, drafts:StudyPageDraft[], sourcePage:number|null) {
-  if(!drafts.length)return null;
-  if(sourcePage==null)return drafts.at(-1) ?? drafts[0];
-  let best=drafts[0];
-  let bestDistance=Number.POSITIVE_INFINITY;
-  drafts.forEach(draft=>{
-    const pages=draftSourcePages(topicCode,draft);
-    const distance=pages.length?Math.min(...pages.map(page=>Math.abs(page-sourcePage))):Number.POSITIVE_INFINITY;
-    if(distance<bestDistance){best=draft;bestDistance=distance;}
+function semanticAnchors(code:string, study:LessonSlide[]) {
+  const seen=new Set<string>();
+  const anchors:SemanticAnchor[]=[];
+  study.forEach((slide,slideIndex)=>{
+    const sourcePage=sourceFilePageForSlide(code,slide);
+    semanticHeadingsForSlide(code,slide).forEach((title,headingIndex)=>{
+      const key=normaliseKey(title);
+      if(!key||seen.has(key))return;
+      seen.add(key);
+      anchors.push({title,key,sourcePage,order:slideIndex+(headingIndex/100)});
+    });
   });
-  return best;
+  anchors.sort((a,b)=>{
+    const aPage=a.sourcePage??Number.MAX_SAFE_INTEGER;
+    const bPage=b.sourcePage??Number.MAX_SAFE_INTEGER;
+    return aPage-bPage || a.order-b.order;
+  });
+  return anchors;
+}
+
+function previousAnchorDraft(anchors:SemanticAnchor[], drafts:StudyPageDraft[], sourcePage:number|null) {
+  if(!drafts.length)return null;
+  if(sourcePage==null)return drafts[0];
+  let targetIndex=-1;
+  anchors.forEach((anchor,index)=>{
+    if(anchor.sourcePage!=null&&anchor.sourcePage<=sourcePage)targetIndex=index;
+  });
+  if(targetIndex>=0)return drafts[targetIndex] ?? drafts.at(-1) ?? null;
+  return drafts[0] ?? null;
+}
+
+function fallbackSemanticDrafts(code:string, study:LessonSlide[]) {
+  if(!study.length)return [] as StudyPageDraft[];
+  const curated=study.filter(slide=>!isExactSourceTranscript(slide));
+  const seed=curated[0] ?? study[0]!;
+  const draft:StudyPageDraft={
+    title:titleForPage(code,[seed],sourceFilePageForSlide(code,seed),0),
+    anchorPage:sourceFilePageForSlide(code,seed),
+    slides:[],
+  };
+  study.forEach(slide=>draft.slides.push(slide));
+  return [draft];
 }
 
 function buildSemanticStudyDrafts(code:string, study:LessonSlide[]) {
-  const curated=study.filter(slide=>!isExactSourceTranscript(slide));
-  const transcripts=study.filter(isExactSourceTranscript);
-  const drafts:StudyPageDraft[]=[];
-  let current:StudyPageDraft|null=null;
+  const anchors=semanticAnchors(code,study);
+  if(!anchors.length)return fallbackSemanticDrafts(code,study);
 
-  for(const slide of curated){
-    const heading=semanticHeadingForSlide(code,slide);
-    if(!current){
-      current={title:heading ?? titleForPage(code,[slide],sourceFilePageForSlide(code,slide),0),slides:[slide]};
-      drafts.push(current);
+  const drafts=anchors.map(anchor=>({title:anchor.title,anchorPage:anchor.sourcePage,slides:[]} satisfies StudyPageDraft));
+  let sequenceTarget:StudyPageDraft=drafts[0]!;
+
+  for(const slide of study){
+    const headings=semanticHeadingsForSlide(code,slide);
+    const directIndex=headings
+      .map(heading=>anchors.findIndex(anchor=>anchor.key===normaliseKey(heading)))
+      .find(index=>index>=0);
+    if(directIndex!=null&&directIndex>=0){
+      sequenceTarget=drafts[directIndex]!;
+      sequenceTarget.slides.push(slide);
       continue;
     }
-    if(heading&&!headingMatches(current.title,heading)){
-      current={title:heading,slides:[slide]};
-      drafts.push(current);
-      continue;
-    }
-    current.slides.push(slide);
+
+    const sourcePage=sourceFilePageForSlide(code,slide);
+    const sourceTarget=previousAnchorDraft(anchors,drafts,sourcePage);
+    sequenceTarget=sourceTarget ?? sequenceTarget;
+    sequenceTarget.slides.push(slide);
   }
 
-  /*
-   * Exact PDF transcripts are source evidence, not page boundaries. They are
-   * attached to the closest semantic teaching section so a book subsection may
-   * naturally span several physical PDF pages while remaining one scrollable page.
-   */
-  for(const transcript of transcripts){
-    const heading=semanticHeadingForSlide(code,transcript);
-    const headingTarget=heading?drafts.find(draft=>headingMatches(draft.title,heading)):null;
-    const sourcePage=sourceFilePageForSlide(code,transcript);
-    const target=headingTarget ?? nearestDraftForSourcePage(code,drafts,sourcePage);
-    if(target){
-      target.slides.push(transcript);
-      continue;
-    }
-    drafts.push({
-      title:heading ?? titleForPage(code,[transcript],sourcePage,0),
-      slides:[transcript],
-    });
-  }
-
-  return drafts;
+  /* Never expose an empty navigation page. If a heading was present only inside
+   * a shared source transcript and has no independently routable learning block,
+   * its content remains preserved in the neighbouring source-backed page. */
+  return drafts.filter(draft=>draft.slides.length>0);
 }
 
 function finaliseStudyPage(code:string, draft:StudyPageDraft, pageIndex:number):TopicPage {
