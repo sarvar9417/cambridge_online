@@ -23,6 +23,13 @@ const visible=(slide:LessonSlide)=>normalize(JSON.stringify({
   richBlocks:slide.richBlocks,
 }));
 
+const exactPageText=(slides:LessonSlide[],printedPage:number)=>normalize(
+  slides
+    .filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-')&&slide.sourcePages?.includes(printedPage))
+    .map(visible)
+    .join(' '),
+);
+
 describe('raw supplied-PDF bold/emphasis visibility',()=>{
   it('pins a substantial typography-derived baseline independent of the source-atom registry',()=>{
     expect(RAW_PDF_EMPHASIS_BASELINE[1]).toHaveLength(42);
@@ -31,25 +38,20 @@ describe('raw supplied-PDF bold/emphasis visibility',()=>{
   });
 
   for(const chapterNumber of [1,13] as const){
-    it(`shows every curated raw-PDF emphasis anchor on the exact Chapter ${chapterNumber} source-page lesson screen`,()=>{
+    it(`shows every curated raw-PDF emphasis anchor inside the active Chapter ${chapterNumber} section-first lessons`,()=>{
       const chapter=lessonChapter(chapterNumber)!;
       for(const anchor of rawPdfEmphasisForChapter(chapterNumber)){
-        const id=`h${chapterNumber}-coursebook-page-${String(anchor.page).padStart(2,'0')}`;
-        const slide=chapter.slides.find((candidate)=>candidate.id===id) as LessonSlide|undefined;
-        expect(slide,`Missing page screen ${id} for source p.${anchor.printedPage}`).toBeTruthy();
-        expect(visible(slide!),`Chapter ${chapterNumber} source p.${anchor.printedPage} is missing bold/emphasised text: ${anchor.text}`)
+        const pageText=exactPageText(chapter.slides as LessonSlide[],anchor.printedPage);
+        expect(pageText,`Chapter ${chapterNumber} source p.${anchor.printedPage} is missing bold/emphasised text: ${anchor.text}`)
           .toContain(normalize(anchor.text));
       }
-      expect(chapter.coverage).toContain(`${rawPdfEmphasisForChapter(chapterNumber).length}/${rawPdfEmphasisForChapter(chapterNumber).length} raw-PDF emphasis anchors visible`);
     });
   }
 
-  it('shows every curated Chapter 7 emphasis anchor on the exact printed-page lesson screen',()=>{
+  it('shows every curated Chapter 7 emphasis anchor inside the correct active section-first source lessons',()=>{
     for(const anchor of rawPdfEmphasisForChapter(7)){
-      const id=`ch7-source-page-${anchor.printedPage}`;
-      const slide=CHAPTER_7.slides.find((candidate)=>candidate.id===id) as LessonSlide|undefined;
-      expect(slide,`Missing Chapter 7 source page ${anchor.printedPage}`).toBeTruthy();
-      expect(visible(slide!),`Chapter 7 p.${anchor.printedPage} is missing bold/emphasised text: ${anchor.text}`)
+      const pageText=exactPageText(CHAPTER_7.slides as LessonSlide[],anchor.printedPage);
+      expect(pageText,`Chapter 7 p.${anchor.printedPage} is missing bold/emphasised text: ${anchor.text}`)
         .toContain(normalize(anchor.text));
     }
   });

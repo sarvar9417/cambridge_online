@@ -54,39 +54,44 @@ describe('uploaded Hodder chapter source inventory',()=>{
   });
 });
 
-describe('granular part checkpoints',()=>{
-  const assertImmediatelyAfter=(chapter:Chapter,contentId:string,checkpointId:string)=>{
-    const order=ids(chapter);expect(order.indexOf(checkpointId),checkpointId).toBe(order.indexOf(contentId)+1);
-    const checkpoint=chapter.slides.find(item=>item.id===checkpointId)!;
-    expect(checkpoint.examPractice).toBe(true);
-    expect(Boolean(checkpoint.learningObjectiveCodes?.length||checkpoint.checkpointUnavailableReason)).toBe(true);
-  };
+describe('section-end Past Paper checkpoints',()=>{
+  const checkpointIds={
+    1:[
+      'h1-cp-number-purpose','h1-cp-base-convert','h1-cp-arithmetic','h1-cp-memory-prefixes','h1-cp-hex','h1-cp-bcd','h1-cp-character-purpose','h1-cp-character-rep',
+      'h1-cp-bitmap','h1-cp-vector','h1-cp-format-choice','h1-cp-sound-digitise','h1-cp-sampling','h1-cp-sound-editing','h1-cp-video','h1-cp-compression-need','h1-cp-rle','h1-cp-general-reduction',
+    ],
+    13:[
+      'h13-cp-udt-need','h13-cp-noncomposite','h13-cp-composite','h13-cp-type-choice','h13-cp-file-org','h13-cp-file-access','h13-cp-org-access-choice','h13-cp-hashing',
+      'h13-cp-float-format','h13-cp-float-to-denary','h13-cp-denary-to-float','h13-cp-approximation','h13-cp-normalise','h13-cp-precision-range','h13-cp-rounding','h13-cp-approx-final',
+    ],
+  } as const;
 
-  it('places exact checkpoint slides after every Chapter 1 logical teaching part',()=>{
-    const c=lessonChapter(1)!;
-    for(const pair of [
-      ['h1-111-number-systems','h1-cp-number-purpose'],['h1-112-convert','h1-cp-base-convert'],['h1-112-arithmetic','h1-cp-arithmetic'],
-      ['h1-memory-units','h1-cp-memory-prefixes'],['h1-hex-uses','h1-cp-hex'],['h1-bcd-uses','h1-cp-bcd'],['h1-115-ascii','h1-cp-character-purpose'],['h1-115-unicode','h1-cp-character-rep'],
-      ['h1-bitmap-size','h1-cp-bitmap'],['h1-122-vector','h1-cp-vector'],['h1-bitmap-vector-choice','h1-cp-format-choice'],['h1-123-sound-wave','h1-cp-sound-digitise'],
-      ['h1-sampling-quality','h1-cp-sampling'],['h1-sound-editing','h1-cp-sound-editing'],['h1-124-video','h1-cp-video'],['h1-13-need','h1-cp-compression-need'],['h1-rle-images','h1-cp-rle'],['h1-132-general','h1-cp-general-reduction'],
-    ] as const) assertImmediatelyAfter(c,pair[0],pair[1]);
-    expect(slide(c,'h1-cp-video').checkpointUnavailableReason).toContain('beyond the 9618 syllabus');
-  });
+  for(const chapterNo of [1,13] as const){
+    it(`keeps every Chapter ${chapterNo} checkpoint and places checkpoints after the section Exam Lens`,()=>{
+      const chapter=lessonChapter(chapterNo)!;
+      for(const checkpointId of checkpointIds[chapterNo]){
+        const checkpoint=slide(chapter,checkpointId);
+        expect(checkpoint.examPractice,checkpointId).toBe(true);
+        expect(Boolean(checkpoint.learningObjectiveCodes?.length||checkpoint.checkpointUnavailableReason),checkpointId).toBe(true);
+        const section=checkpoint.subtopicCode!;
+        const sectionSlides=chapter.slides.filter(item=>item.subtopicCode===section);
+        const lensIndex=sectionSlides.findIndex(item=>item.id===`pdf-first-lens-${section.replace('.','')}`);
+        const checkpointIndex=sectionSlides.findIndex(item=>item.id===checkpointId);
+        expect(lensIndex,`${checkpointId} missing section Exam Lens`).toBeGreaterThanOrEqual(0);
+        expect(checkpointIndex,`${checkpointId} must follow section Exam Lens`).toBeGreaterThan(lensIndex);
+      }
+      for(const section of chapter.subtopics.filter(value=>/^\d+\.\d+\s/.test(value))){
+        const code=section.split(' ')[0]!;
+        const sectionSlides=chapter.slides.filter(item=>item.subtopicCode===code);
+        expect(sectionSlides.at(-1)?.examPractice,`${code} must end in Past Paper practice`).toBe(true);
+      }
+    });
+  }
 
-  it('places the current pseudocode alignment before the historical hashing checkpoint',()=>{
+  it('keeps the current random-file pseudocode alignment before the section-end hashing checkpoint',()=>{
     const c=lessonChapter(13)!;const order=ids(c);
     expect(order.indexOf('h13-current-random-file-pseudocode')).toBe(order.indexOf('h13-hash-collision')+1);
-    expect(order.indexOf('h13-cp-hashing')).toBe(order.indexOf('h13-current-random-file-pseudocode')+1);
-  });
-
-  it('places exact checkpoint slides after every Chapter 13 logical teaching part',()=>{
-    const c=lessonChapter(13)!;
-    for(const pair of [
-      ['h13-udt-why','h13-cp-udt-need'],['h13-pointer','h13-cp-noncomposite'],['h13-sets-classes','h13-cp-composite'],['h13-activity-13c','h13-cp-type-choice'],
-      ['h13-random','h13-cp-file-org'],['h13-direct-access','h13-cp-file-access'],['h13-org-access-choice','h13-cp-org-access-choice'],['h13-current-random-file-pseudocode','h13-cp-hashing'],
-      ['h13-float-format','h13-cp-float-format'],['h13-float-to-denary','h13-cp-float-to-denary'],['h13-denary-to-float','h13-cp-denary-to-float'],
-      ['h13-approximation','h13-cp-approximation'],['h13-normalisation','h13-cp-normalise'],['h13-precision-range','h13-cp-precision-range'],['h13-rounding-program','h13-cp-rounding'],['h13-over-under-zero','h13-cp-approx-final'],
-    ] as const) assertImmediatelyAfter(c,pair[0],pair[1]);
+    expect(order.indexOf('h13-cp-hashing')).toBeGreaterThan(order.indexOf('h13-current-random-file-pseudocode'));
   });
 
   it('never falls back to subtopic-wide questions for Chapter 1 or 13 checkpoints',()=>{
@@ -96,6 +101,10 @@ describe('granular part checkpoints',()=>{
         expect(Boolean(item.learningObjectiveCodes?.length||item.checkpointUnavailableReason),item.id).toBe(true);
       }
     }
+  });
+
+  it('keeps the intentional no-live-question explanation for video',()=>{
+    expect(slide(lessonChapter(1)!,'h1-cp-video').checkpointUnavailableReason).toContain('beyond the 9618 syllabus');
   });
 });
 
