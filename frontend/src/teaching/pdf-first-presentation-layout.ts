@@ -11,6 +11,8 @@ type PresentationChapterLike = {
 const isExactPdfSourceSlide = (slide:HodderLessonSlide) =>
   slide.id.startsWith('pdf-first-') && !slide.id.startsWith('pdf-first-lens-') && !slide.examPractice;
 
+const isExamLensSlide = (slide:HodderLessonSlide) => slide.id.startsWith('pdf-first-lens-');
+
 const printedPageFromElement = (value:string) => {
   const match=value.match(/PDF p\.(\d+)/i);
   return match ? Number(match[1]) : null;
@@ -25,6 +27,10 @@ export function presentationizePdfFirstChapter<T extends PresentationChapterLike
   const expanded:HodderLessonSlide[]=[];
 
   for(const slide of chapter.slides){
+    if(isExamLensSlide(slide)){
+      expanded.push({...slide,visual:'recap'});
+      continue;
+    }
     if(!isExactPdfSourceSlide(slide) || !(slide.bullets?.length)){
       expanded.push(slide);
       continue;
