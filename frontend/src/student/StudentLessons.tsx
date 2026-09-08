@@ -9,6 +9,7 @@ import {
 import type { LessonSlide as BaseLessonSlide } from '../teaching/lesson-content-full';
 import type { LessonTopic, TopicPage } from '../teaching/lesson-topic-plan';
 import { studentFacingText } from '../teaching/lesson-student-facing';
+import { StudentTopicPastPaper } from './StudentTopicPastPaper';
 import {
   STUDENT_STUDY_CHAPTERS,
   pageSlideIds,
@@ -25,6 +26,7 @@ import '../teaching/lesson-studio-hodder.css';
 import '../teaching/chapter7-lesson.css';
 import './student-lessons.css';
 import './student-lessons-topic.css';
+import './student-topic-past-paper.css';
 
 export {
   STUDENT_STUDY_CHAPTERS,
@@ -109,23 +111,7 @@ function StudyFragment({ sourceSlide, collapseExactSource=false }: { sourceSlide
 }
 
 function StudentTopicCheckpoint({ page, topic }: { page:TopicPage; topic:LessonTopic }) {
-  const checkpoints=(page.slides as StudySlide[]).filter(slide=>slide.examPractice);
-  const live=checkpoints.filter(slide=>(slide.learningObjectiveCodes??[]).length>0);
-  const codes=[...new Set(live.flatMap(slide=>slide.learningObjectiveCodes??[]))];
-  const labels=[...new Set(live.map(slide=>slide.checkpointLabel).filter((value):value is string=>Boolean(value)))];
-  const unavailable=checkpoints.filter(slide=>Boolean(slide.checkpointUnavailableReason));
-  const syllabuses=[...new Set(live.map(slide=>slide.checkpointSyllabusCode??'9618'))];
-  return <section className="student-checkpoint student-topic-checkpoint">
-    <span>CAMBRIDGE PAST PAPER</span>
-    <h2>{topic.code==='overview'?'Chapter practice':`${topic.code} ${topic.title}`}</h2>
-    <p>{codes.length?`${codes.length} ta learning objective uchun approved Cambridge checkpoint mavjud.`:'Bu topic uchun exact approved checkpoint hozir mavjud emas.'}</p>
-    {labels.length>0&&<p className="student-checkpoint-labels">{labels.join(' · ')}</p>}
-    {codes.length>0&&<div>{codes.map(code=><code key={code}>{code}</code>)}</div>}
-    {syllabuses.length>1&&<p className="student-checkpoint-safety">Source safety: bu page turli syllabus checkpointlarini aralashtirmaydi; ularni O‘rganish bo‘limida alohida source-backed practice sifatida oching.</p>}
-    {unavailable.length>0&&<p className="student-checkpoint-safety">{unavailable.length} checkpoint mapping uchun exact savol topilmagan. Loosely related savol bilan almashtirilmagan.</p>}
-    <p className="student-checkpoint-safety">Diagramma, table yoki dependency talab qiladigan Past Paper savoli bu qisqa student summary ichida kesib ko‘rsatilmaydi. To‘liq source-backed mashq O‘rganish bo‘limida ochiladi.</p>
-    <button type="button" onClick={()=>navigate('oquvchi/organish')}>O‘rganish bo‘limiga →</button>
-  </section>;
+  return <StudentTopicPastPaper page={page} topic={topic}/>;
 }
 
 function StudyPage({ page }: { page:TopicPage }) {
