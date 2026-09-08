@@ -71,3 +71,7 @@ export function installLessonStudioScrollController() {
     window.removeEventListener('keydown', onKeyDown, true);
   };
 }
+
+// LessonStudio names this lifecycle by the thing it owns: slide scrolling.
+// Keep the original export for compatibility with any direct callers.
+export const installLessonSlideScrollController = installLessonStudioScrollController;
