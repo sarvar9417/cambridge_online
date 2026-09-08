@@ -1,0 +1,13 @@
+/* The legacy slide viewer switches .student-study-outline to flex at 900px.
+ * Keep the canonical topic rail in its two-column desktop/tablet layout until
+ * the topic model's own compact breakpoint takes over. */
+.student-topic-outline {
+  display: grid;
+  align-content: start;
+}
+
+@media (max-width: 820px) {
+  .student-topic-outline {
+    display: flex;
+  }
+}
