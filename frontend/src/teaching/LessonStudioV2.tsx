@@ -27,6 +27,7 @@ type CheckpointResponse = { data:ExamPart[]; learningObjectiveCodes:string[]; ye
 type ChapterLike = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
 
 const LESSON_CHAPTERS: ChapterLike[] = [...SOURCE_CHAPTERS, CHAPTER_7].sort((a,b)=>a.number-b.number);
+const isExactSourceTranscript=(slide:LessonSlide)=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-')&&!slide.examPractice;
 
 function Visual({ kind }: { kind?: LessonVisual }) {
   if (!kind) return null;
@@ -82,10 +83,12 @@ function RichBlock({ block }: { block:LessonRichBlock }) {
   return <div className="hodder-table-wrap"><table className="hodder-table"><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,index)=><td key={`${rowIndex}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-function SourceTrace({ slide, toolbar=false }: { slide:LessonSlide; toolbar?:boolean }) {
-  const pages=slide.sourcePages??[],elements=slide.sourceElements??[];
-  if(!pages.length&&!elements.length)return null;
-  return <details className={`lesson-source-trace${toolbar?' lesson-teacher-evidence':''}`}><summary>{toolbar?'Source evidence':slide.sourceLabel??'Hodder source'}</summary><div>{pages.length>0&&<span>Pages {pages.join(', ')}</span>}{elements.map(item=><span key={item}>{item}</span>)}</div></details>;
+function PageSourceTrace({ page }: { page:TopicPage }) {
+  const pages=[...new Set(page.slides.flatMap(slide=>slide.sourcePages??[]))].sort((a,b)=>a-b);
+  const labels=[...new Set(page.slides.map(slide=>slide.sourceLabel).filter((value):value is string=>Boolean(value)))];
+  const elements=[...new Set(page.slides.flatMap(slide=>slide.sourceElements??[]))];
+  if(!pages.length&&!labels.length&&!elements.length)return null;
+  return <details className="lesson-source-trace lesson-teacher-evidence lesson-page-source-trace"><summary>Page source evidence</summary><div>{pages.length>0&&<span>Source pages {pages.join(', ')}</span>}{labels.map(label=><span key={`label-${label}`}>{label}</span>)}{elements.map((item,index)=><span key={`${item}-${index}`}>{item}</span>)}</div></details>;
 }
 
 function ActivityCard({ slideId, activity }: { slideId:string; activity:NonNullable<LessonSlide['activity']> }){
@@ -98,44 +101,54 @@ function ActivityCard({ slideId, activity }: { slideId:string; activity:NonNulla
   </section>;
 }
 
-function ExamPractice({ slide }: { slide:LessonSlide }) {
-  const codes=slide.learningObjectiveCodes??[];
-  const syllabusCode=slide.checkpointSyllabusCode??'9618';
-  const yearFrom=slide.checkpointYearFrom??2021;
-  const yearTo=slide.checkpointYearTo??2026;
+function TopicExamPractice({ slides }: { slides:LessonSlide[] }) {
+  const liveSlides=slides.filter(slide=>slide.examPractice&&Boolean(slide.learningObjectiveCodes?.length));
+  const unavailable=slides.filter(slide=>slide.examPractice&&Boolean(slide.checkpointUnavailableReason));
+  const codes=[...new Set(liveSlides.flatMap(slide=>slide.learningObjectiveCodes??[]))];
+  const syllabusCodes=[...new Set(liveSlides.map(slide=>slide.checkpointSyllabusCode??'9618'))];
+  const syllabusCode=syllabusCodes[0]??'9618';
+  const yearFrom=liveSlides.length?Math.min(...liveSlides.map(slide=>slide.checkpointYearFrom??2021)):2021;
+  const yearTo=liveSlides.length?Math.max(...liveSlides.map(slide=>slide.checkpointYearTo??2026)):2026;
+  const labels=[...new Set(liveSlides.map(slide=>slide.checkpointLabel).filter((value):value is string=>Boolean(value)))];
   const [questions,setQuestions]=useState<ExamPart[]>([]),[loading,setLoading]=useState(Boolean(codes.length)),[error,setError]=useState('');
+  const mixedSyllabus=syllabusCodes.length>1;
 
   useEffect(()=>{
     let cancelled=false;
-    if(!codes.length){setQuestions([]);setLoading(false);setError('');return()=>{cancelled=true};}
+    if(!codes.length||mixedSyllabus){setQuestions([]);setLoading(false);setError(mixedSyllabus?'Topic checkpoints unexpectedly mix syllabus codes.':'');return()=>{cancelled=true};}
     (async()=>{
       setLoading(true);setError('');
       try{
         const qs=new URLSearchParams({yearFrom:String(yearFrom),yearTo:String(yearTo),syllabusCode});
         codes.forEach(code=>qs.append('loCodes',code));
         const result=await api<CheckpointResponse>(`/lesson-checkpoints?${qs}`);
-        if(!cancelled)setQuestions(result.data);
+        if(!cancelled){
+          const unique=[...new Map(result.data.map(question=>[question.id,question] as const)).values()];
+          setQuestions(unique);
+        }
       }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Past-paper questions could not be loaded.');}
       finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true};
-  },[codes.join('|'),syllabusCode,yearFrom,yearTo]);
+  },[codes.join('|'),syllabusCode,yearFrom,yearTo,mixedSyllabus]);
 
-  const rangeLabel=`${yearFrom}–${yearTo}`;
-  if(slide.checkpointUnavailableReason)return <div className="lesson-checkpoint-unavailable"><span>PAST-PAPER CHECK</span><h2>No exact Cambridge question is shown for this learning point</h2><p>The approved corpus does not contain an exact match here, so a loosely related question is not substituted.</p></div>;
-  if(loading)return <div className="lesson-loading">Finding exact Cambridge past-paper questions for this learning point…</div>;
+  if(!codes.length&&!unavailable.length)return <div className="lesson-empty">No topic checkpoint has been configured for this page.</div>;
+  if(!codes.length&&unavailable.length)return <div className="lesson-checkpoint-unavailable"><span>PAST-PAPER CHECK</span><h2>No exact Cambridge question is shown for this topic</h2><p>The approved corpus does not contain an exact match here, so a loosely related question is not substituted.</p></div>;
+  if(loading)return <div className="lesson-loading">Finding approved Cambridge Past Paper questions for this topic…</div>;
   if(error)return <div className="lesson-empty">{error}</div>;
 
+  const rangeLabel=`${yearFrom}–${yearTo}`;
   const years=Array.from({length:Math.max(0,yearTo-yearFrom+1)},(_,index)=>yearFrom+index);
   const represented=new Set(questions.map(q=>q.year));
   const groups=years.map(year=>({year,questions:questions.filter(q=>q.year===year)})).filter(group=>group.questions.length);
   let ordinal=0;
   return <>
-    <div className="lesson-checkpoint-contract student-facing-contract"><div><span>CAMBRIDGE PAST-PAPER PRACTICE</span><strong>{slide.checkpointLabel||'Apply what you have learned'}</strong></div><p>Every question below is an approved Cambridge past-paper question matched to the concept you have just learned. Attempt it before checking the mark scheme.</p></div>
+    <div className="lesson-checkpoint-contract student-facing-contract"><div><span>CAMBRIDGE PAST-PAPER PRACTICE</span><strong>{labels.length?labels.join(' · '):codes.join(' · ')}</strong></div><p>Questions are fetched once for the whole topic from the approved Cambridge corpus. Overlapping learning-objective mappings and repeated question IDs are deduplicated before display.</p></div>
     <div className="lesson-practice-cycle" aria-label="Past-paper learning cycle"><span>1 · Attempt independently</span><span>2 · Explain your reasoning</span><span>3 · Check the mark scheme</span><span>4 · Improve your answer</span></div>
     <div className="lesson-exam-years"><strong>Past-paper years</strong>{years.map(year=><span className={represented.has(year)?'available':'missing'} key={year}>{year}</span>)}</div>
-    <div className="lesson-exam-summary"><strong>{questions.length} Cambridge question{questions.length===1?'':'s'}</strong><span>Open a question to see its complete original context, table or diagram.</span></div>
-    {!questions.length?<div className="lesson-empty">No exact approved Cambridge past-paper question is available for this learning point in the {rangeLabel} corpus.</div>:
+    <div className="lesson-exam-summary"><strong>{questions.length} unique Cambridge question{questions.length===1?'':'s'}</strong><span>{codes.length} matched learning objective{codes.length===1?'':'s'} · {rangeLabel}</span></div>
+    {unavailable.length>0&&<div className="lesson-checkpoint-unavailable lesson-topic-partial-unavailable"><span>SOURCE-SAFE NOTE</span><p>{unavailable.length} checkpoint mapping{unavailable.length===1?'':'s'} had no exact approved question; no loose substitute was added.</p></div>}
+    {!questions.length?<div className="lesson-empty">No exact approved Cambridge Past Paper question is available for this topic in the {rangeLabel} corpus.</div>:
     <div className="lesson-exam-scroll">{groups.map(group=><section className="lesson-exam-year-group" key={group.year}>
       <div className="lesson-exam-year-header"><strong>{group.year}</strong><span>{group.questions.length} question{group.questions.length===1?'':'s'}</span></div>
       <div className="lesson-exam-grid">{group.questions.map(q=>{ordinal+=1;const flags=[q.hasDiagram?'Original visual included':'',q.hasDependency?'Required context included':''].filter(Boolean);return <article className="lesson-exam-card" data-lo-codes={q.matchedLearningObjectiveCodes.join('|')} data-syllabus-code={syllabusCode} key={q.id}>
@@ -157,10 +170,10 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
       <h1>{slide.title}</h1>
       <p className="lesson-lead">{slide.lead}</p>
       {slide.formula&&<div className="lesson-formula">{slide.formula}</div>}
-      {slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map(item=><li key={item}>{item}</li>)}</ul>}
+      {slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>}
       {slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><p>{item.definition}</p></article>)}</div>}
       {slide.richBlocks&&<div className="hodder-rich-blocks">{slide.richBlocks.map((block,index)=><RichBlock block={block} key={`${block.kind}-${index}`}/>)}</div>}
-      {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
+      {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<aside className="lesson-prompt student-facing-prompt"><span>THINK / EXPLAIN</span><p>{slide.teacherPrompt}</p></aside>}
       {slide.activity&&<ActivityCard slideId={slide.id} activity={slide.activity}/>} 
     </div>
@@ -168,7 +181,14 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
   </>;
 }
 
-function StudyFragment({ sourceSlide }: { sourceSlide:LessonSlide }) {
+function StudyFragment({ sourceSlide, collapseExactSource=false }: { sourceSlide:LessonSlide; collapseExactSource?:boolean }) {
+  if(isExactSourceTranscript(sourceSlide)){
+    const sourcePage=(sourceSlide.sourcePages??[]).join(', ');
+    return <details className="lesson-source-transcript" open={!collapseExactSource} data-slide-id={sourceSlide.id}>
+      <summary title="Exact parser-extracted text retained for source verification; the physical source page is preserved even when PDF column reading order is imperfect."><span>Exact source transcript</span><strong>{sourcePage?`Coursebook source page ${sourcePage}`:sourceSlide.title}</strong></summary>
+      <article className="lesson-page-fragment lesson-source-transcript-body"><SlideBody slide={sourceSlide}/></article>
+    </details>;
+  }
   const slide=studentFacingSlide(sourceSlide);
   return <article className="lesson-page-fragment" data-slide-id={slide.id}>
     {slide.id.startsWith('ch7-')?<div className="lesson-student-ch7"><span className="lesson-screen-purpose">{lessonPurpose(slide)}</span><Chapter7SlideBody slide={slide}/></div>:<SlideBody slide={slide}/>} 
@@ -176,11 +196,11 @@ function StudyFragment({ sourceSlide }: { sourceSlide:LessonSlide }) {
 }
 
 function PracticePage({ page }: { page:TopicPage }) {
+  const lenses=page.slides.filter(slide=>!slide.examPractice);
+  const checkpoints=page.slides.filter(slide=>slide.examPractice);
   return <div className="lesson-topic-practice-stack">
-    {page.slides.map(sourceSlide=>sourceSlide.examPractice
-      ? <section className="lesson-topic-past-paper-block" key={sourceSlide.id}><ExamPractice slide={studentFacingSlide(sourceSlide)}/></section>
-      : <StudyFragment sourceSlide={sourceSlide} key={sourceSlide.id}/>,
-    )}
+    {lenses.map(sourceSlide=><StudyFragment sourceSlide={sourceSlide} key={sourceSlide.id}/>)}
+    {checkpoints.length>0&&<section className="lesson-topic-past-paper-block"><TopicExamPractice slides={checkpoints}/></section>}
   </div>;
 }
 
@@ -233,23 +253,23 @@ export function LessonStudio({ user }: { user:User }) {
   if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">LESSON LIBRARY</p><h1>Darslar</h1><p>Book-like, source-grounded lessons: choose a chapter, move through its topics, study each scrollable page and finish every topic with Cambridge Past Paper practice.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} source-backed chapters</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=>{const topicCount=buildTopicPlan(chapter.slides,chapter.subtopics).filter(topic=>topic.code!=='overview').length;return <button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{studentFacingText(chapter.subtitle)}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{topicCount} topics</b><span>Ochish →</span></footer></button>})}</div></section>;
   if(!activeTopic||!activePage)return null;
 
-  const traceSlide=activePage.slides.find(slide=>(slide.sourcePages?.length??0)>0||(slide.sourceElements?.length??0)>0)??activePage.slides[0];
   const previous=flatIndex>0?flatPages[flatIndex-1]:null;
   const next=flatIndex>=0&&flatIndex<flatPages.length-1?flatPages[flatIndex+1]:null;
   const nextCrossesTopic=Boolean(next&&next.topic.code!==activeTopic.code);
   const prevCrossesTopic=Boolean(previous&&previous.topic.code!==activeTopic.code);
+  const hasCuratedStudyContent=activePage.kind==='study'&&activePage.slides.some(slide=>!isExactSourceTranscript(slide));
 
   return <section ref={studioRef} className={`lesson-studio hodder-studio lesson-topic-studio accent-${activePage.slides[0]?.accent||'indigo'}${presenting?' is-presenting':''}`}>
-    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Darslar</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number} · {topicLabel(activeTopic)}</span><strong>{activeTopic.title}</strong></div><div className="lesson-toolbar-actions">{traceSlide&&<SourceTrace slide={traceSlide} toolbar/>}<span>Page {activePageIndex+1}/{activeTopic.pages.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Board mode’dan chiqish':'Board mode ↗'}</button></div></header>
+    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Darslar</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number} · {topicLabel(activeTopic)}</span><strong>{activeTopic.title}</strong></div><div className="lesson-toolbar-actions"><PageSourceTrace page={activePage}/><span>Page {activePageIndex+1}/{activeTopic.pages.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Board mode’dan chiqish':'Board mode ↗'}</button></div></header>
     <div className="lesson-progress"><span style={{width:`${((activePageIndex+1)/activeTopic.pages.length)*100}%`}}/></div>
     <div className="lesson-workspace lesson-topic-workspace">
-      <aside className="lesson-outline lesson-topic-outline"><div className="lesson-topic-outline-head"><p>CHAPTER {chosen.number}</p><strong>Topics</strong></div>{topics.map(topic=><section className={`lesson-topic-nav-group${topic.code===activeTopic.code?' active':''}`} key={topic.code}><button className="lesson-topic-nav-topic" onClick={()=>openPage(topic,0)}><span>{topicLabel(topic)}</span><b>{topic.title}</b><small>{topic.pages.length}</small></button>{topic.code===activeTopic.code&&<div className="lesson-topic-nav-pages">{topic.pages.map((page,pageIndex)=><button className={pageIndex===activePageIndex?'active':''} key={page.id} onClick={()=>openPage(topic,pageIndex)}><span>{String(pageIndex+1).padStart(2,'0')}</span><b>{page.title}</b>{page.kind==='practice'&&<em>Past Paper</em>}</button>)}</div>}</section>)}</aside>
+      <aside className="lesson-outline lesson-topic-outline" aria-label={`Chapter ${chosen.number} topics`}><div className="lesson-topic-outline-head"><p>CHAPTER {chosen.number}</p><strong>Topics</strong></div>{topics.map(topic=><section className={`lesson-topic-nav-group${topic.code===activeTopic.code?' active':''}`} key={topic.code}><button className="lesson-topic-nav-topic" aria-current={topic.code===activeTopic.code?'true':undefined} onClick={()=>openPage(topic,0)}><span>{topicLabel(topic)}</span><b>{topic.title}</b><small>{topic.pages.length}</small></button>{topic.code===activeTopic.code&&<div className="lesson-topic-nav-pages">{topic.pages.map((page,pageIndex)=><button className={pageIndex===activePageIndex?'active':''} aria-current={pageIndex===activePageIndex?'page':undefined} key={page.id} onClick={()=>openPage(topic,pageIndex)}><span>{String(pageIndex+1).padStart(2,'0')}</span><b>{page.title}</b>{page.kind==='practice'&&<em>Past Paper</em>}</button>)}</div>}</section>)}</aside>
       <main className={`lesson-slide lesson-topic-page${activePage.kind==='practice'?' lesson-slide-exam':''}`} data-page-id={activePage.id} data-topic-code={activeTopic.code}>
         <header className="lesson-topic-page-head"><div><span>{topicLabel(activeTopic)} · PAGE {String(activePageIndex+1).padStart(2,'0')}</span><h1>{activePage.title}</h1></div><p>{activePage.kind==='practice'?'Topic complete: apply the ideas with approved Cambridge Past Paper questions.':'Scroll through this page to read, study examples and complete the activities before moving on.'}</p></header>
-        <div className="lesson-topic-page-content">{activePage.kind==='practice'?<PracticePage page={activePage}/>:activePage.slides.map(sourceSlide=><StudyFragment sourceSlide={sourceSlide} key={sourceSlide.id}/>)}</div>
+        <div className="lesson-topic-page-content">{activePage.kind==='practice'?<PracticePage page={activePage}/>:activePage.slides.map(sourceSlide=><StudyFragment sourceSlide={sourceSlide} collapseExactSource={hasCuratedStudyContent} key={sourceSlide.id}/>)}</div>
         <div className="lesson-slide-watermark">CamPath · {chosen.level}</div>
       </main>
     </div>
-    <footer className="lesson-nav lesson-topic-nav"><button disabled={!previous} onClick={()=>previous&&openFlat(flatIndex-1)}>{prevCrossesTopic?'← Oldingi topic':'← Oldingi page'}</button><div>{activeTopic.pages.map((page,pageIndex)=><button key={page.id} aria-label={`${activeTopic.code}-page-${pageIndex+1}`} className={pageIndex===activePageIndex?'active':''} onClick={()=>openPage(activeTopic,pageIndex)}/>)}</div><button disabled={!next} onClick={()=>next&&openFlat(flatIndex+1)}>{nextCrossesTopic?'Keyingi topic →':'Keyingi page →'}</button></footer>
+    <footer className="lesson-nav lesson-topic-nav"><button disabled={!previous} onClick={()=>previous&&openFlat(flatIndex-1)}>{prevCrossesTopic?'← Oldingi topic':'← Oldingi page'}</button><div aria-label={`${activeTopic.code} pages`}>{activeTopic.pages.map((page,pageIndex)=><button key={page.id} aria-label={`${activeTopic.code} page ${pageIndex+1}: ${page.title}`} aria-current={pageIndex===activePageIndex?'page':undefined} className={pageIndex===activePageIndex?'active':''} onClick={()=>openPage(activeTopic,pageIndex)}/>)}</div><button disabled={!next} onClick={()=>next&&openFlat(flatIndex+1)}>{nextCrossesTopic?'Keyingi topic →':'Keyingi page →'}</button></footer>
   </section>;
 }

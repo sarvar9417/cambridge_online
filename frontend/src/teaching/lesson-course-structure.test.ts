@@ -23,22 +23,51 @@ describe('Lessons topic/page UI', () => {
     expect(studio).toContain("'Keyingi topic →'");
     expect(studio).toContain("'Keyingi page →'");
     expect(studio).toContain('activeTopic.pages.map((page,pageIndex)');
+    expect(studio).toContain("aria-current={pageIndex===activePageIndex?'page':undefined}");
   });
 
-  it('loads the topic-page visual layer after the established scroll repairs', () => {
+  it('loads the topic hardening layer after every established scroll/topic layer', () => {
     const wrapper = source('LessonStudio.tsx');
     const scroll = wrapper.indexOf("import './lesson-studio-board-scroll-fix.css';");
     const topic = wrapper.indexOf("import './lesson-topic-pages.css';");
+    const hardening = wrapper.indexOf("import './lesson-topic-pages-hardening.css';");
     expect(scroll).toBeGreaterThan(-1);
     expect(topic).toBeGreaterThan(scroll);
+    expect(hardening).toBeGreaterThan(topic);
   });
 
-  it('provides a real vertical reading surface and responsive topic rail', () => {
-    const css = source('lesson-topic-pages.css');
-    expect(css).toContain('.lesson-topic-outline');
-    expect(css).toContain('.lesson-topic-nav-pages');
-    expect(css).toContain('.lesson-slide.lesson-topic-page');
+  it('keeps topic pages as vertical reading surfaces even under legacy presentation CSS', () => {
+    const css = source('lesson-topic-pages-hardening.css');
+    expect(css).toContain('.lesson-topic-studio .lesson-topic-nav > div:not(.lesson-v3-nav-center)');
+    expect(css).toContain('display: flex !important;');
+    expect(css).toContain('.lesson-topic-page .lesson-page-fragment .lesson-bullets');
+    expect(css).toContain('background: transparent !important;');
+    expect(css).toContain('aspect-ratio: auto !important;');
     expect(css).toContain('overflow-y: auto !important;');
-    expect(css).toContain('@media (max-width: 860px)');
+  });
+
+  it('collapses duplicate exact extraction behind source transcript disclosure when curated teaching exists', () => {
+    const studio = source('LessonStudioV2.tsx');
+    expect(studio).toContain("const isExactSourceTranscript=(slide:LessonSlide)=>slide.id.startsWith('pdf-first-')");
+    expect(studio).toContain('className="lesson-source-transcript"');
+    expect(studio).toContain('open={!collapseExactSource}');
+    expect(studio).toContain('hasCuratedStudyContent');
+    expect(studio).toContain('<SlideBody slide={sourceSlide}/>');
+  });
+
+  it('fetches Past Paper once per topic and deduplicates overlapping question ids', () => {
+    const studio = source('LessonStudioV2.tsx');
+    expect(studio).toContain('function TopicExamPractice');
+    expect(studio).toContain("const codes=[...new Set(liveSlides.flatMap(slide=>slide.learningObjectiveCodes??[]))];");
+    expect(studio).toContain("new Map(result.data.map(question=>[question.id,question] as const))");
+    expect(studio).toContain('<TopicExamPractice slides={checkpoints}/>');
+    expect(studio).not.toContain('<ExamPractice slide=');
+  });
+
+  it('aggregates provenance for the whole semantic page instead of the first matching fragment', () => {
+    const studio = source('LessonStudioV2.tsx');
+    expect(studio).toContain('function PageSourceTrace');
+    expect(studio).toContain('page.slides.flatMap(slide=>slide.sourcePages??[])');
+    expect(studio).toContain('<PageSourceTrace page={activePage}/>');
   });
 });

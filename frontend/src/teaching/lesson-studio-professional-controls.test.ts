@@ -12,8 +12,6 @@ describe('Lesson Studio board navigation contract',()=>{
     pending = [];
     observers = [];
     cleanups = [];
-    // Keep the real DOM observer, but bound its scheduled scans so a regression
-    // fails an assertion instead of freezing the test runner's event loop.
     vi.stubGlobal('queueMicrotask', (callback: VoidFunction) => pending.push(callback));
     const NativeObserver = globalThis.MutationObserver;
     vi.stubGlobal('MutationObserver', class extends NativeObserver {
@@ -44,6 +42,20 @@ describe('Lesson Studio board navigation contract',()=>{
     </section>`;
   }
 
+  function mountTopicStudio(chapter:number){
+    document.body.innerHTML=`<section class="lesson-studio lesson-topic-studio">
+      <header><div class="lesson-toolbar-title"><span>AS · Chapter ${chapter} · 1.1</span></div>
+        <div class="lesson-toolbar-actions"></div></header>
+      <aside class="lesson-outline lesson-topic-outline">
+        <section class="lesson-topic-nav-group active">
+          <button class="lesson-topic-nav-topic"><span>1.1</span><b>Data representation</b></button>
+          <div class="lesson-topic-nav-pages"><button class="active"><span>01</span><b>Number systems</b></button><button><span>02</span><b>Binary</b></button></div>
+        </section>
+      </aside>
+      <footer class="lesson-nav lesson-topic-nav"><button>Previous</button><div><button class="active"></button><button></button></div><button>Next</button></footer>
+    </section>`;
+  }
+
   async function install() {
     const { installLessonStudioProfessionalControls } = await import('./lesson-studio-professional-controls');
     const cleanup = installLessonStudioProfessionalControls();
@@ -61,7 +73,7 @@ describe('Lesson Studio board navigation contract',()=>{
     expect(pending, 'the controls must not keep reacting to their own DOM writes').toHaveLength(0);
   }
 
-  it.each([1, 7, 13])('opens chapter %i and lets the observer settle', async (chapter) => {
+  it.each([1, 7, 13])('opens chapter %i and lets the legacy observer settle', async (chapter) => {
     mountStudio(chapter);
     await install();
     await settle();
@@ -75,14 +87,23 @@ describe('Lesson Studio board navigation contract',()=>{
     expect(document.querySelector('.lesson-v3-nav-label')?.textContent).toBe('1 / 3 · Introduction');
     expect(document.querySelectorAll('.lesson-v3-nav-center')).toHaveLength(1);
 
-    // Unrelated React rendering must not restart a self-sustaining scan loop.
     document.body.append(document.createElement('aside'));
     await settle();
     expect(document.querySelectorAll('.lesson-source-complete-badge')).toHaveLength(1);
     expect(document.querySelectorAll('.lesson-v3-nav-center')).toHaveLength(1);
   });
 
-  it('updates slide navigation and remains responsive after a slider jump', async () => {
+  it('does not replace semantic topic/page navigation with the legacy slide scrubber',async()=>{
+    mountTopicStudio(1);
+    await install();
+    await settle();
+    expect(document.querySelectorAll('.lesson-v3-nav-center')).toHaveLength(0);
+    expect(document.querySelectorAll('.lesson-topic-nav > div > button')).toHaveLength(2);
+    expect(document.querySelector<HTMLButtonElement>('.lesson-topic-nav-topic')?.title).toContain('Open topic: Data representation');
+    expect(document.querySelectorAll<HTMLButtonElement>('.lesson-topic-nav-pages > button')[0]?.title).toContain('Open page 1: Number systems');
+  });
+
+  it('updates legacy slide navigation and remains responsive after a slider jump', async () => {
     mountStudio(1);
     await install();
     await settle();
