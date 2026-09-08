@@ -4,7 +4,7 @@ import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
-import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES } from './coursebook-page-slides';
+import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES, coursebookPageSlides9618 } from './coursebook-page-slides';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { sourceSemanticFidelityCategories } from './source-semantic-fidelity-gate';
 import {
@@ -77,11 +77,6 @@ function pageHasKind(chapter: BookAuditChapter, page: number, kind: string) {
   return chapterAtoms(chapter).some((atom) => atomPrintedPage(chapter, atom) === page && atom.kind === kind);
 }
 
-/**
- * A few source atoms preserve the exact concept using a more compact label than
- * the independent PDF inventory. These aliases are deliberately narrow: they
- * only bridge equivalent source wording and never infer an absent concept.
- */
 const SOURCE_EQUIVALENT_ANCHORS: Record<string, readonly string[]> = {
   'mpeg-3 (mp3)': ['mp3/mp4 files', 'mp3'],
   'mpeg-4 (mp4)': ['mp3/mp4 files', 'mp4'],
@@ -95,11 +90,6 @@ const SOURCE_EQUIVALENT_ANCHORS: Record<string, readonly string[]> = {
   'largest magnitude negative number': ['largest-magnitude negative:'],
 };
 
-/**
- * Source atoms sometimes intentionally combine adjacent printed items, e.g.
- * `Figures 13.10–13.13`, `Tables 1.1–1.2` or `Example 2–3`. Treat those range
- * atoms as explicit evidence for each member rather than forcing duplicates.
- */
 function sourceContainsAnchor(sourceValue: string, anchorValue: string) {
   const source = normalise(sourceValue);
   const anchor = normalise(anchorValue);
@@ -133,8 +123,6 @@ function anchorCategory(chapter: BookAuditChapter, anchors: readonly BookFeature
   const missing = anchors
     .filter(({ page, anchor }) => {
       if (sourceContainsAnchor(pageSourceText(chapter, page), anchor)) return false;
-      // The Chapter 7 source registry marks the p.293 task explicitly as an
-      // extension atom; its compact sourceRef groups it with Figures 7.21–7.22.
       if (normalise(anchor) === 'extension activity' && pageHasKind(chapter, page, 'extension')) return false;
       return true;
     })
@@ -148,9 +136,6 @@ function figureCategory(chapter: BookAuditChapter, anchors: readonly BookFeature
     .filter(({ page, anchor }) => {
       if (sourceContainsAnchor(pageSourceText(chapter, page), anchor)) return false;
       const match = anchor.match(/^Figure\s+(7\.\d+)$/i);
-      // Chapter 7 maintains a dedicated, independently tested figure→presenter
-      // source map for all 7.1–7.22. It is explicit evidence when a compact atom
-      // carries the figure content but omits the individual figure label.
       return !match || !ch7FigureMap[match[1]!];
     })
     .map(({ page, anchor }) => `p.${page}: ${anchor}`);
@@ -209,23 +194,18 @@ function visibleSlideText(slide: {
 }
 
 /**
- * Independent typography-derived completeness gate.
- *
- * This intentionally checks the actual learner-visible page screens rather than
- * the source-atom registry. A bold/emphasised item extracted directly from the
- * supplied PDF therefore cannot be marked complete merely because hidden audit
- * metadata exists somewhere else.
+ * Typography completeness is a formal source audit. It intentionally reads the
+ * deterministic page projection directly rather than requiring that projection
+ * to be appended to the active learner route. Active section-first visibility
+ * is enforced separately by pdf-first-section-lessons.test.ts.
  */
 function rawPdfEmphasisCategory(chapter: BookAuditChapter) {
   const anchors = rawPdfEmphasisForChapter(chapter);
+  const pageSlides = chapter === 7 ? CHAPTER_7_COURSEBOOK_PAGE_SLIDES : coursebookPageSlides9618(chapter);
   const missing = anchors.filter((anchor) => {
-    if (chapter === 7) {
-      const slide = CHAPTER_7_COURSEBOOK_PAGE_SLIDES.find((item) => item.id === `ch7-source-page-${anchor.printedPage}`);
-      return !slide || !visibleSlideText(slide).includes(normalise(anchor.text));
-    }
-    const slide = (lessonChapter(chapter)?.slides ?? []).find((item) =>
-      item.id === `h${chapter}-coursebook-page-${String(anchor.page).padStart(2, '0')}`,
-    );
+    const slide = chapter === 7
+      ? pageSlides.find((item) => item.id === `ch7-source-page-${anchor.printedPage}`)
+      : pageSlides.find((item) => item.id === `h${chapter}-coursebook-page-${String(anchor.page).padStart(2, '0')}`);
     return !slide || !visibleSlideText(slide).includes(normalise(anchor.text));
   }).map((anchor) => `p.${anchor.printedPage}: ${anchor.text}`);
   return categoryFromMissing(anchors.length, missing);
