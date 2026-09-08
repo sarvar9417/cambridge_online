@@ -15,6 +15,7 @@ import './lesson-library-v3.css';
 import './lesson-course-structure.css';
 import './lesson-studio-scroll-fix.css';
 import './lesson-studio-board-scroll-fix.css';
+import './lesson-topic-pages.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
