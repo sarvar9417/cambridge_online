@@ -5,21 +5,25 @@ import { describe, expect, it } from 'vitest';
 const source = (name: string) => readFileSync(resolve(process.cwd(), `src/teaching/${name}`), 'utf8');
 
 describe('classroom projection three-lens contract', () => {
-  it('loads the teacher/student/designer refinement after the base classroom layer', () => {
+  it('loads the teacher/student/designer refinement and structural guard last', () => {
     const wrapper = source('LessonStudio.tsx');
     const base = wrapper.indexOf("import './lesson-classroom-display.css';");
     const refinement = wrapper.indexOf("import './lesson-classroom-three-lens.css';");
+    const structure = wrapper.indexOf("import './lesson-classroom-three-lens-structure.css';");
     expect(base).toBeGreaterThan(-1);
     expect(refinement).toBeGreaterThan(base);
+    expect(structure).toBeGreaterThan(refinement);
     expect(wrapper).toContain('installLessonClassroomFocus()');
   });
 
   it('keeps the left Topic/Page rail available on a classroom projector', () => {
     const css = source('lesson-classroom-three-lens.css');
+    const structure = source('lesson-classroom-three-lens-structure.css');
     expect(css).toContain('--classroom-rail: clamp(190px, 14vw, 250px);');
     expect(css).toContain('grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;');
     expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-outline');
-    expect(css).toContain('display: block !important;');
+    expect(structure).toContain('.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-outline.lesson-topic-outline');
+    expect(structure).toContain('display: block !important;');
   });
 
   it('removes non-learning helper copy while keeping page identity', () => {
