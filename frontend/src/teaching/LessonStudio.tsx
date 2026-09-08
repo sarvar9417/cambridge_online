@@ -8,6 +8,7 @@ import './lesson-studio-v3.css';
 import './lesson-exam-insights.css';
 import './lesson-student-facing.css';
 import './lesson-library-card-fix.css';
+import './lesson-studio-design-refresh.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
