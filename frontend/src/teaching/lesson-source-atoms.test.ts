@@ -55,9 +55,11 @@ describe('source atom registry', () => {
     }
   });
 
-  it('projects the Chapter 1 prior check as two clear tasks while keeping chapter objectives out of the task', () => {
+  it('projects the Chapter 1 prior check as two clear tasks and shows chapter objectives separately', () => {
     const source = targetSlide(1, 'h1-prior');
     const slide = studentFacingSlide(source as LessonSlide);
+    const practiceText = JSON.stringify(slide.activity);
+    const lessonDetailText = JSON.stringify(slide.richBlocks);
     const learnerText = JSON.stringify({ activity: slide.activity, richBlocks: slide.richBlocks });
 
     expect(slide.activity?.title).toBe('Prior knowledge check');
@@ -66,7 +68,12 @@ describe('source atom registry', () => {
     expect(learnerText).toContain('00110101 + 01001000');
     expect(learnerText).toContain('Prior knowledge · Q4');
     expect(learnerText).toContain('107 + 257');
-    expect(learnerText).not.toContain('In this chapter, you will learn about');
+
+    // Objectives belong in the visible lesson, but must never be mixed into the
+    // student's two prior-knowledge tasks.
+    expect(practiceText).not.toContain('In this chapter, you will learn about');
+    expect(lessonDetailText).toContain('In this chapter, you will learn about');
+    expect(lessonDetailText).toContain('Binary magnitudes, binary prefixes and decimal prefixes');
     expect(learnerText).not.toContain('Chapter source scope:');
 
     const objectives = source.sourceAtomEvidence?.find((item) => item.id === 'ch1-p1-file-objectives');

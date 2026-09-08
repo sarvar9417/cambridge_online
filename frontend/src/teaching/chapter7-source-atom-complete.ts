@@ -22,44 +22,51 @@ for (const atom of CHAPTER_7_ALL_SOURCE_ATOMS) {
   atomsBySlide.set(atom.targetSlideId, [...current, atom]);
 }
 
+/** All supplied-PDF source atoms assigned to one real Chapter 7 lesson screen. */
+export const chapter7SourceAtomsForSlide = (slideId: string) => atomsBySlide.get(slideId) ?? [];
+
+const sourceKindLabel = (kind: (typeof CHAPTER_7_ALL_SOURCE_ATOMS)[number]['kind']) => {
+  if (kind === 'objective') return 'LEARNING OUTLINE';
+  if (kind === 'keyword') return 'KEY TERM / IMPORTANT TERM';
+  if (kind === 'example') return 'WORKED EXAMPLE';
+  if (kind === 'activity') return 'ACTIVITY';
+  if (kind === 'extension') return 'EXTENSION';
+  if (kind === 'table') return 'TABLE';
+  if (kind === 'figure') return 'FIGURE / DIAGRAM';
+  if (kind === 'review') return 'SUMMARY / REVIEW';
+  if (kind === 'exam') return 'EXAM-STYLE PRACTICE';
+  return 'COURSEBOOK DETAIL';
+};
+
+/**
+ * Earlier builds put all Chapter 7 source atoms into one BOOK SOURCE activity
+ * paragraph. HTML collapsed the line breaks and the result was difficult to
+ * inspect in class. Keep the exact same source model, but project every source
+ * atom into the normal visible bullet stream. This makes every concept, value,
+ * pseudocode fragment, example, activity, figure/table relationship and exam
+ * item reachable on the actual lesson screen without losing source fidelity.
+ */
 const sourceBlock = (slide: LessonSlide): LessonSlide => {
-  const atoms = atomsBySlide.get(slide.id) ?? [];
+  const atoms = chapter7SourceAtomsForSlide(slide.id);
   if (!atoms.length) return slide;
 
-  const sourceLines = atoms.map((atom) =>
-    `[${atom.sourceRef} · p.${atom.printedPage}] ${atom.needles.join(' · ')}`,
-  );
-  const existing = slide.activity;
+  const sourceBullets = atoms.flatMap((atom) => [
+    `${sourceKindLabel(atom.kind)} · ${atom.sourceRef} · Coursebook p.${atom.printedPage}`,
+    ...atom.needles,
+  ]);
 
   return {
     ...slide,
-    activity: {
-      title: existing ? `${existing.title} · BOOK SOURCE` : 'BOOK SOURCE',
-      prompt: [
-        ...(existing ? [existing.prompt] : []),
-        ...sourceLines,
-      ].join('\n'),
-      ...(existing?.reveal ? { reveal: existing.reveal } : {}),
-    },
+    bullets: [...(slide.bullets ?? []), ...sourceBullets],
   };
 };
 
 /**
  * Chapter 7 source-atom-complete presenter layer.
  *
- * Chapters 1 and 13 already protect source details by pinning semantic atoms to
- * real teaching slides. Chapter 7 now uses the same architecture: source-level
- * terms, formal key-term definitions, named examples, exact values/code
- * fragments, activity prompts/data, figures, tables, review items and exam-style
- * question identifiers are attached to the presenter route rather than being
- * represented only by a page-level summary.
- *
- * The supplied-file manifest additionally fingerprints all 41 source pages so
- * this audit cannot silently drift to a different edition/copy of Chapter 7.
- * Source-PDF detail atoms preserve source sidebars/cross-links and the complete
- * task wording/data for the book's exam-style question sequence. Formal Book
- * Completeness evidence atoms preserve source details discovered by the
- * independent semantic inventory that were not explicit in the compact atoms.
+ * The formal 30-term glossary is rendered as key-term cards. All remaining
+ * source atoms are rendered as visible lesson material rather than hidden audit
+ * evidence or a collapsed source dump.
  */
 export const CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES: LessonSlide[] =
   withChapter7SourceKeyTerms(CHAPTER_7_FINAL_SOURCE_SLIDES).map(sourceBlock);
