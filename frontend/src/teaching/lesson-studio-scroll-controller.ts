@@ -13,45 +13,51 @@ export function installLessonSlideScrollController() {
   };
 
   let currentStudio: HTMLElement | null = null;
-  let lastActiveSlide = '';
+  let lastActivePage = '';
 
-  const syncActiveSlide = () => {
+  const activeIdentity = (studio: HTMLElement) => {
+    const page = studio.querySelector<HTMLElement>('.lesson-slide[data-page-id]');
+    if (page?.dataset.pageId) return page.dataset.pageId;
+    const active = studio.querySelector<HTMLButtonElement>('.lesson-nav > div button.active');
+    return active?.getAttribute('aria-label') ?? '';
+  };
+
+  const syncActivePage = () => {
     const studio = getStudio();
     if (!studio) return;
-    const active = studio.querySelector<HTMLButtonElement>('.lesson-nav > div button.active');
-    const identity = active?.getAttribute('aria-label') ?? '';
-    if (identity && identity !== lastActiveSlide) {
-      lastActiveSlide = identity;
+    const identity = activeIdentity(studio);
+    if (identity && identity !== lastActivePage) {
+      lastActivePage = identity;
       queueReset();
     }
   };
 
-  const activeObserver = new MutationObserver(syncActiveSlide);
+  const activeObserver = new MutationObserver(syncActivePage);
 
   const bindStudio = () => {
     const nextStudio = getStudio();
     if (nextStudio === currentStudio) {
-      syncActiveSlide();
+      syncActivePage();
       return;
     }
 
     activeObserver.disconnect();
     currentStudio = nextStudio;
-    lastActiveSlide = '';
+    lastActivePage = '';
     if (!currentStudio) return;
 
     activeObserver.observe(currentStudio, {
       subtree: true,
       attributes: true,
-      attributeFilter: ['class'],
+      attributeFilter: ['class', 'data-page-id'],
     });
-    syncActiveSlide();
+    syncActivePage();
     queueReset();
   };
 
-  /* The Lessons route can render library -> chapter hub -> lesson without
-     remounting the wrapper. Watch DOM mounts as well as slide class changes so
-     the scroll controller is attached when the studio appears later. */
+  /* The Lessons route can render library -> topic/page without remounting the
+     wrapper. Watch DOM mounts as well as active-page attributes so the scroll
+     controller binds when the studio appears and resets every new reading page. */
   const mountObserver = new MutationObserver(bindStudio);
   const startMountObserver = () => {
     if (!document.body) return;
