@@ -26,6 +26,14 @@ describe('classroom projection three-lens contract', () => {
     expect(structure).toContain('display: block !important;');
   });
 
+  it('keeps projector navigation keys working after the teacher clicks the Topic/Page rail', () => {
+    const controller = source('lesson-classroom-display.ts');
+    expect(controller).toContain("const CLASSROOM_NAV_CONTROL = '.lesson-topic-outline button,.lesson-topic-nav > button';");
+    expect(controller).toContain('if (interactive && !navControl) return;');
+    expect(controller).toContain("if (navControl && (event.key === ' ' || event.key === 'Enter')) return;");
+    expect(controller).toContain("event.key === 'PageDown'");
+  });
+
   it('removes non-learning helper copy while keeping page identity', () => {
     const css = source('lesson-classroom-three-lens.css');
     expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-page-head > p');
