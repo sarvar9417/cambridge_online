@@ -10,6 +10,7 @@ import './lesson-student-facing.css';
 import './lesson-library-card-fix.css';
 import './lesson-studio-design-refresh.css';
 import './lesson-studio-design-refresh-responsive.css';
+import './lesson-studio-scroll-fix.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
