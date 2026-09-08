@@ -24,6 +24,7 @@ class SourcePipeline2026Tests(unittest.TestCase):
             "backend/scripts/qp-source-structure-repair-v7.py",
             "backend/scripts/qp-source-structure-repair-v8.py",
             "backend/scripts/qp-source-structure-repair-v9.py",
+            "backend/scripts/qp-source-structure-repair-v10.py",
         ):
             with self.subTest(relative=relative):
                 ast.parse(self.read(relative), filename=relative)
@@ -107,6 +108,17 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn('"satisfiesRules": [rule]', source)
         self.assertIn('raise SystemExit(V3["main"]())', source)
 
+    def test_v10_guards_numeric_data_rows_and_recovers_explicit_structure_segments(self) -> None:
+        source = self.read("backend/scripts/qp-source-structure-repair-v10.py")
+        self.assertIn("_valid_main_x_guarded", source)
+        self.assertIn('float(getattr(line, "xmin", 9999.0)) > 72.0', source)
+        self.assertIn("asset_canonical_structure_segment_v10", source)
+        self.assertIn("explicit_rule_cue_segment", source)
+        self.assertIn("part\\s+of", source)
+        self.assertIn("draw\\s+one\\s+line", source)
+        self.assertIn('"satisfiesRules": [rule]', source)
+        self.assertIn('raise SystemExit(V3["main"]())', source)
+
     def test_detector_v3_audits_canonical_block_adjacency(self) -> None:
         sql = self.read("backend/src/database/migrations/0152_source_fidelity_detector_v3.sql")
         self.assertIn("flag_source_fidelity_requirements_v3", sql)
@@ -116,6 +128,18 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("logo", sql.lower())
         self.assertIn("source_visual_required_but_missing", sql)
         self.assertIn("status='needs_review'", sql)
+
+    def test_detector_v4_reconciles_plural_schema_and_adds_missed_real_structures(self) -> None:
+        sql = self.read("backend/src/database/migrations/0157_source_fidelity_detector_v4_reconciliation.sql")
+        self.assertIn("flag_source_fidelity_requirements_v4", sql)
+        self.assertIn("following[[:space:]]+tables", sql)
+        self.assertIn("plural relational-schema cue", sql)
+        self.assertIn("part[[:space:]]+of", sql)
+        self.assertIn("band[[:space:]]+amount[[:space:]]+points", sql)
+        self.assertIn("draw[[:space:]]+one[[:space:]]+line", sql)
+        self.assertIn("source-fidelity-detector-v3-canonical-adjacency", sql)
+        self.assertIn("detectorVersion", sql)
+        self.assertIn("flag_source_fidelity_requirements_v1", sql)
 
     def test_repaired_preceding_visual_is_inserted_after_source_cue(self) -> None:
         sql = self.read("backend/src/database/migrations/0152_source_fidelity_detector_v3.sql")
@@ -147,16 +171,17 @@ class SourcePipeline2026Tests(unittest.TestCase):
         self.assertIn("reconcile-9618-2026-dependencies.py", workflow)
         self.assertIn("flag-9618-source-fidelity.py", workflow)
         self.assertIn("qp-source-repair-runner", workflow)
-        self.assertIn("qp-source-structure-repair-v9.py", workflow)
+        self.assertIn("qp-source-structure-repair-v10.py", workflow)
         self.assertIn("sync-9618-repaired-assets.py", workflow)
         self.assertIn("structured_content_backfill_2026.py", workflow)
 
         repair_workflow = self.read(".github/workflows/qp-source-structure-repair-v2.yml")
-        self.assertIn("qp-source-structure-repair-v9.py", repair_workflow)
+        self.assertIn("qp-source-structure-repair-v10.py", repair_workflow)
         self.assertIn("0152_source_fidelity_detector_v3.sql", repair_workflow)
         self.assertIn("0155_source_asset_rule_scoped_resolution.sql", repair_workflow)
         self.assertIn("0156_source_fidelity_owner_boundary_guard.sql", repair_workflow)
-        self.assertIn("APPLY_SOURCE_FIDELITY_V9_ONCE", repair_workflow)
+        self.assertIn("0157_source_fidelity_detector_v4_reconciliation.sql", repair_workflow)
+        self.assertIn("APPLY_SOURCE_FIDELITY_V10_ONCE", repair_workflow)
 
     def test_corpus_runner_exposes_new_guarded_actions(self) -> None:
         source = self.read("supabase/functions/corpus-runner/index.ts")

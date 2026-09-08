@@ -51,7 +51,7 @@ jobs:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: 'YES'
           SOURCE_STRUCTURE_ONLY: '9618'
-        run: python backend/scripts/qp-source-structure-repair-v9.py
+        run: python backend/scripts/qp-source-structure-repair-v10.py
 
       - name: Synchronize repaired historical visuals into canonical content
         run: python backend/scripts/sync-9618-repaired-assets.py

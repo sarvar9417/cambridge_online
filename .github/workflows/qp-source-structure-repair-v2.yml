@@ -23,6 +23,7 @@ on:
       - 'backend/scripts/qp-source-structure-repair-v7.py'
       - 'backend/scripts/qp-source-structure-repair-v8.py'
       - 'backend/scripts/qp-source-structure-repair-v9.py'
+      - 'backend/scripts/qp-source-structure-repair-v10.py'
       - 'backend/scripts/tools/pdftotext'
       - '.github/workflows/qp-source-structure-repair-v2.yml'
       - 'backend/src/database/migrations/0115_source_fidelity_repair_contract.sql'
@@ -30,6 +31,7 @@ on:
       - 'backend/src/database/migrations/0153_source_fidelity_bootstrap_evidence.sql'
       - 'backend/src/database/migrations/0155_source_asset_rule_scoped_resolution.sql'
       - 'backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql'
+      - 'backend/src/database/migrations/0157_source_fidelity_detector_v4_reconciliation.sql'
       - '.source-fidelity-apply'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
 
@@ -61,7 +63,7 @@ jobs:
             apply=YES
           elif [[ "${{ github.event_name }}" == "push" && -f .source-fidelity-apply ]]; then
             marker="$(tr -d '\r\n' < .source-fidelity-apply)"
-            if [[ "$marker" == "APPLY_SOURCE_FIDELITY_V9_ONCE" ]]; then
+            if [[ "$marker" == "APPLY_SOURCE_FIDELITY_V10_ONCE" ]]; then
               apply=YES
             fi
           fi
@@ -71,7 +73,7 @@ jobs:
           CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
           SOURCE_STRUCTURE_APPLY: ${{ steps.mode.outputs.apply }}
           SOURCE_STRUCTURE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
-        run: python3 backend/scripts/qp-source-structure-repair-v9.py
+        run: python3 backend/scripts/qp-source-structure-repair-v10.py
       - name: Upload repair plan
         if: always()
         uses: actions/upload-artifact@v4
