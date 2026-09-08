@@ -19,11 +19,14 @@ describe('presentation-first PDF lesson layout',()=>{
     }
   });
 
-  it('limits generated exact-PDF screens to projector-sized block groups',()=>{
+  it('limits generated exact-PDF screens to projector-sized block groups and density',()=>{
     for(const meta of PDF_FIRST_SECTION_ORDER){
       for(const slide of sourceSlides(meta.chapter,meta.id)){
-        expect(slide.bullets?.length??0,`${slide.id} block count`).toBeGreaterThan(0);
-        expect(slide.bullets?.length??0,`${slide.id} block count`).toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxBlocksPerScreen);
+        const bullets=slide.bullets??[];
+        expect(bullets.length,`${slide.id} block count`).toBeGreaterThan(0);
+        expect(bullets.length,`${slide.id} block count`).toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxBlocksPerScreen);
+        expect(bullets.reduce((total,item)=>total+item.trim().length,0),`${slide.id} character density`)
+          .toBeLessThanOrEqual(PDF_FIRST_PRESENTATION_LIMITS.maxCharsPerScreen);
       }
     }
   });
