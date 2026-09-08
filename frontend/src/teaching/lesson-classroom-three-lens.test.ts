@@ -14,6 +14,21 @@ describe('classroom projection three-lens contract', () => {
     expect(wrapper).toContain('installLessonClassroomFocus()');
   });
 
+  it('keeps the left Topic/Page rail available on a classroom projector', () => {
+    const css = source('lesson-classroom-three-lens.css');
+    expect(css).toContain('--classroom-rail: clamp(190px, 14vw, 250px);');
+    expect(css).toContain('grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;');
+    expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-outline');
+    expect(css).toContain('display: block !important;');
+  });
+
+  it('removes non-learning helper copy while keeping page identity', () => {
+    const css = source('lesson-classroom-three-lens.css');
+    expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-page-head > p');
+    expect(css).toContain('display: none !important;');
+    expect(css).toContain('.lesson-topic-studio:fullscreen .lesson-topic-page-head h1');
+  });
+
   it('gives examples, activities, key terms and callouts distinct classroom grammar', () => {
     const css = source('lesson-classroom-three-lens.css');
     expect(css).toContain('.lesson-example');
