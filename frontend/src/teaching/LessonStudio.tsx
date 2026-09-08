@@ -22,6 +22,7 @@ import './lesson-classroom-display.css';
 import './lesson-classroom-three-lens.css';
 import './lesson-classroom-three-lens-structure.css';
 import './lesson-classroom-semantic-source-only.css';
+import './lesson-past-paper-plain.css';
 import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonClassroomDisplay } from './lesson-classroom-display';
 import { installLessonClassroomFocus } from './lesson-classroom-focus';
