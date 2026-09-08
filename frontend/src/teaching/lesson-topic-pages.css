@@ -1,0 +1,373 @@
+/* Book-like topic/page layer for Teaching -> Darslar.
+   One topic is expanded in the left rail; every page is a normal vertical
+   reading surface, and Past Paper practice is the final page of the topic. */
+
+.lesson-topic-studio {
+  --topic-rail: 292px;
+}
+
+.lesson-topic-studio .lesson-topic-workspace {
+  display: grid;
+  grid-template-columns: var(--topic-rail) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lesson-topic-outline {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 18px 14px 26px;
+  border-right: 1px solid #e2e8f0;
+  background:
+    linear-gradient(180deg, rgba(248,250,252,.98), rgba(255,255,255,.98));
+}
+
+.lesson-topic-outline-head {
+  padding: 4px 8px 15px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.lesson-topic-outline-head p {
+  margin: 0 0 4px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.lesson-topic-outline-head strong {
+  color: #0f172a;
+  font-size: 17px;
+  letter-spacing: -.02em;
+}
+
+.lesson-topic-nav-group {
+  padding: 6px 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.lesson-topic-nav-topic {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 46px minmax(0,1fr) auto;
+  gap: 9px;
+  align-items: center;
+  padding: 10px 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-topic-nav-topic:hover,
+.lesson-topic-nav-topic:focus-visible {
+  background: #f1f5f9;
+  outline: none;
+}
+
+.lesson-topic-nav-group.active > .lesson-topic-nav-topic {
+  background: #eaf2ff;
+  color: #0f3d73;
+}
+
+.lesson-topic-nav-topic > span {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .06em;
+}
+
+.lesson-topic-nav-topic > b {
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.28;
+}
+
+.lesson-topic-nav-topic > small {
+  min-width: 24px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.14);
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.lesson-topic-nav-pages {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 4px 42px;
+  padding-left: 12px;
+  border-left: 1px solid #dbe5f1;
+}
+
+.lesson-topic-nav-pages > button {
+  display: grid;
+  grid-template-columns: 27px minmax(0,1fr);
+  gap: 7px;
+  align-items: start;
+  position: relative;
+  padding: 8px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-topic-nav-pages > button:hover,
+.lesson-topic-nav-pages > button:focus-visible {
+  color: #0f172a;
+  background: #f8fafc;
+  outline: none;
+}
+
+.lesson-topic-nav-pages > button.active {
+  color: #0f3d73;
+  background: #eff6ff;
+}
+
+.lesson-topic-nav-pages > button > span {
+  padding-top: 1px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lesson-topic-nav-pages > button > b {
+  font-size: 11.5px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.lesson-topic-nav-pages > button > em {
+  grid-column: 2;
+  width: max-content;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* The actual learning page: one semantic/book page, vertically scrollable. */
+.lesson-topic-studio .lesson-slide.lesson-topic-page {
+  display: block !important;
+  align-items: start !important;
+  align-content: start !important;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+  padding: 0 !important;
+  background: #f8fafc;
+}
+
+.lesson-topic-page-head {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(240px, .52fr);
+  gap: 28px;
+  align-items: end;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 30px 44px 24px;
+  border-bottom: 1px solid #dbe4ef;
+  background: rgba(255,255,255,.94);
+}
+
+.lesson-topic-page-head span {
+  display: block;
+  margin-bottom: 7px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+
+.lesson-topic-page-head h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(25px, 2.3vw, 36px);
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+
+.lesson-topic-page-head > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.lesson-topic-page-content {
+  width: min(100% - 48px, 1040px);
+  margin: 0 auto;
+  padding: 10px 0 64px;
+}
+
+.lesson-page-fragment {
+  position: relative;
+  padding: 30px 28px 32px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lesson-page-fragment:last-child {
+  border-bottom: 0;
+}
+
+.lesson-page-fragment .lesson-copy,
+.lesson-page-fragment .hodder-copy,
+.lesson-page-fragment .lesson-student-ch7 {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.lesson-page-fragment .lesson-copy h1,
+.lesson-page-fragment .lesson-student-ch7 h1,
+.lesson-page-fragment .lesson-student-ch7 h2 {
+  max-width: 900px;
+  font-size: clamp(21px, 1.85vw, 29px);
+  line-height: 1.16;
+  letter-spacing: -.025em;
+}
+
+.lesson-page-fragment .lesson-lead,
+.lesson-page-fragment .hodder-paragraph,
+.lesson-page-fragment .lesson-bullets,
+.lesson-page-fragment .hodder-bullets {
+  max-width: 900px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.lesson-page-fragment .lesson-visual {
+  margin: 24px 0 0;
+}
+
+.lesson-page-fragment .hodder-table-wrap,
+.lesson-page-fragment pre,
+.lesson-page-fragment .hodder-figure,
+.lesson-topic-past-paper-block .lesson-exam-scroll {
+  max-width: 100%;
+}
+
+.lesson-topic-practice-stack {
+  display: grid;
+  gap: 26px;
+  padding: 20px 28px 0;
+}
+
+.lesson-topic-past-paper-block {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15,23,42,.05);
+}
+
+.lesson-topic-past-paper-block + .lesson-topic-past-paper-block {
+  margin-top: 4px;
+}
+
+.lesson-topic-nav > div {
+  max-width: min(560px, 48vw);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lesson-topic-nav > div::-webkit-scrollbar { display: none; }
+
+.lesson-topic-nav > div > button {
+  flex: 0 0 auto;
+}
+
+/* Existing presentation CSS intentionally remains available for Board mode,
+   but it may not turn a scroll-page back into overflow:hidden. */
+html.lesson-presenting .lesson-topic-studio .lesson-topic-page,
+.lesson-topic-studio:fullscreen .lesson-topic-page,
+.lesson-topic-studio.is-presenting .lesson-topic-page {
+  display: block !important;
+  align-items: start !important;
+  align-content: start !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-topic-page-content,
+.lesson-topic-studio:fullscreen .lesson-topic-page-content {
+  width: min(100% - 64px, 1180px);
+  padding-bottom: 80px;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-page-fragment,
+.lesson-topic-studio:fullscreen .lesson-page-fragment {
+  padding-block: 34px;
+}
+
+@media (max-width: 1100px) {
+  .lesson-topic-studio { --topic-rail: 252px; }
+  .lesson-topic-page-head { padding-inline: 30px; }
+  .lesson-topic-page-content { width: min(100% - 32px, 1040px); }
+}
+
+@media (max-width: 860px) {
+  .lesson-topic-studio .lesson-topic-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-topic-outline {
+    display: flex;
+    gap: 7px;
+    min-height: auto;
+    max-height: 148px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 9px 12px 12px;
+  }
+
+  .lesson-topic-outline-head { display: none; }
+  .lesson-topic-nav-group { flex: 0 0 min(270px, 76vw); border: 0; padding: 0; }
+  .lesson-topic-nav-pages { max-height: 84px; overflow-y: auto; margin-left: 30px; }
+  .lesson-topic-page-head { grid-template-columns: 1fr; gap: 9px; padding: 22px 20px 18px; }
+  .lesson-topic-page-content { width: calc(100% - 20px); }
+  .lesson-page-fragment { padding: 24px 14px 28px; }
+  .lesson-topic-practice-stack { padding-inline: 10px; }
+  .lesson-topic-past-paper-block { padding: 16px; border-radius: 10px; }
+}
+
+@media (max-width: 620px) {
+  .lesson-topic-nav-topic { grid-template-columns: 42px minmax(0,1fr) auto; }
+  .lesson-topic-page-head h1 { font-size: 25px; }
+  .lesson-page-fragment .lesson-copy h1,
+  .lesson-page-fragment .lesson-student-ch7 h1,
+  .lesson-page-fragment .lesson-student-ch7 h2 { font-size: 21px; }
+  .lesson-topic-nav > div { max-width: 42vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-topic-studio * { scroll-behavior: auto !important; }
+}
