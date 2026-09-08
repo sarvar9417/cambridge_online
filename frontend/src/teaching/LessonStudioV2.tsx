@@ -10,7 +10,7 @@ import {
 } from './lesson-content-source-complete';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
-import { buildLessonUnits, MAX_LESSON_SCREENS, type LessonUnit } from './lesson-course-plan';
+import { buildTopicPlan, flattenTopicPages, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import { lessonPurpose, studentFacingSlide, studentFacingText } from './lesson-student-facing';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
@@ -25,19 +25,8 @@ type ExamPart = {
 };
 type CheckpointResponse = { data:ExamPart[]; learningObjectiveCodes:string[]; yearFrom:number; yearTo:number };
 type ChapterLike = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
-type CourseSection = { section:string; units:Array<{ unit:LessonUnit; lessonIndex:number }> };
 
 const LESSON_CHAPTERS: ChapterLike[] = [...SOURCE_CHAPTERS, CHAPTER_7].sort((a,b)=>a.number-b.number);
-
-function groupLessonUnits(units:LessonUnit[]):CourseSection[] {
-  const groups:CourseSection[]=[];
-  units.forEach((unit,lessonIndex)=>{
-    const last=groups[groups.length-1];
-    if(last?.section===unit.section)last.units.push({unit,lessonIndex});
-    else groups.push({section:unit.section,units:[{unit,lessonIndex}]});
-  });
-  return groups;
-}
 
 function Visual({ kind }: { kind?: LessonVisual }) {
   if (!kind) return null;
@@ -179,58 +168,88 @@ function SlideBody({ slide }: { slide:LessonSlide }) {
   </>;
 }
 
+function StudyFragment({ sourceSlide }: { sourceSlide:LessonSlide }) {
+  const slide=studentFacingSlide(sourceSlide);
+  return <article className="lesson-page-fragment" data-slide-id={slide.id}>
+    {slide.id.startsWith('ch7-')?<div className="lesson-student-ch7"><span className="lesson-screen-purpose">{lessonPurpose(slide)}</span><Chapter7SlideBody slide={slide}/></div>:<SlideBody slide={slide}/>} 
+  </article>;
+}
+
+function PracticePage({ page }: { page:TopicPage }) {
+  return <div className="lesson-topic-practice-stack">
+    {page.slides.map(sourceSlide=>sourceSlide.examPractice
+      ? <section className="lesson-topic-past-paper-block" key={sourceSlide.id}><ExamPractice slide={studentFacingSlide(sourceSlide)}/></section>
+      : <StudyFragment sourceSlide={sourceSlide} key={sourceSlide.id}/>,
+    )}
+  </div>;
+}
+
+function topicLabel(topic:LessonTopic) {
+  return topic.code==='overview'?'Overview':topic.code;
+}
+
 export function LessonStudio({ user }: { user:User }) {
   const route=useRoute();
   const chapterNo=Number(route.params.get('chapter')||0);
-  const lessonNo=Number(route.params.get('lesson')||0);
+  const topicParam=route.params.get('topic')||'';
+  const pageParam=Number(route.params.get('page')||1);
   const chosen=LESSON_CHAPTERS.find(chapter=>chapter.number===chapterNo)??null;
-  const lessonUnits=useMemo(()=>chosen?buildLessonUnits(chosen.slides):[],[chosen]);
-  const courseSections=useMemo(()=>groupLessonUnits(lessonUnits),[lessonUnits]);
-  const activeUnit=lessonNo>=1&&lessonNo<=lessonUnits.length?lessonUnits[lessonNo-1]??null:null;
-  const activeSlides=activeUnit?.slides??[];
-  const [index,setIndex]=useState(0),[presenting,setPresenting]=useState(false);
+  const topics=useMemo(()=>chosen?buildTopicPlan(chosen.slides,chosen.subtopics):[],[chosen]);
+  const activeTopic=topics.find(topic=>topic.code===topicParam)??topics[0]??null;
+  const activePageIndex=activeTopic?Math.max(0,Math.min(activeTopic.pages.length-1,Number.isFinite(pageParam)?pageParam-1:0)):0;
+  const activePage=activeTopic?.pages[activePageIndex]??null;
+  const flatPages=useMemo(()=>flattenTopicPages(topics),[topics]);
+  const flatIndex=activeTopic&&activePage?flatPages.findIndex(item=>item.topic.code===activeTopic.code&&item.page.id===activePage.id):-1;
+  const [presenting,setPresenting]=useState(false);
   const studioRef=useRef<HTMLElement|null>(null);
-  const sourceSlide=activeSlides[index] as LessonSlide|undefined;
-  const slide=useMemo(()=>sourceSlide?studentFacingSlide(sourceSlide):undefined,[sourceSlide]);
 
-  useEffect(()=>{setIndex(0)},[chapterNo,lessonNo]);
+  const openPage=(topic:LessonTopic,pageIndex:number)=>{
+    if(!chosen)return;
+    navigate(`oqitish/darslar?chapter=${chosen.number}&topic=${topic.code}&page=${pageIndex+1}`);
+  };
+  const openFlat=(nextIndex:number)=>{
+    const target=flatPages[nextIndex];
+    if(target)openPage(target.topic,target.pageIndex);
+  };
+
   const leavePresenter=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{setPresenting(false)}};
   const enterPresenter=async()=>{const target=studioRef.current;if(!target)return;try{await target.requestFullscreen?.();setPresenting(document.fullscreenElement===target);}catch{setPresenting(false)}};
   useEffect(()=>{const sync=()=>setPresenting(document.fullscreenElement===studioRef.current);document.addEventListener('fullscreenchange',sync);return()=>document.removeEventListener('fullscreenchange',sync)},[]);
 
-  const openLesson=(nextLessonIndex:number)=>{
-    if(!chosen)return;
-    navigate(`oqitish/darslar?chapter=${chosen.number}&lesson=${nextLessonIndex+1}`);
-  };
-  const goNext=()=>{
-    if(!activeUnit)return;
-    if(index<activeSlides.length-1){setIndex(value=>Math.min(activeSlides.length-1,value+1));return;}
-    if(lessonNo<lessonUnits.length)openLesson(lessonNo);
-  };
-
-  useEffect(()=>{if(!activeUnit)return;const onKey=(event:KeyboardEvent)=>{if(['ArrowRight','PageDown',' '].includes(event.key)){const target=event.target as HTMLElement|null;if(target?.closest('.lesson-exam-scroll,.hodder-table-wrap,details,input,textarea,button'))return;event.preventDefault();if(index<activeSlides.length-1)setIndex(value=>Math.min(activeSlides.length-1,value+1));else if(lessonNo<lessonUnits.length&&chosen)navigate(`oqitish/darslar?chapter=${chosen.number}&lesson=${lessonNo+1}`);}if(['ArrowLeft','PageUp'].includes(event.key)){const target=event.target as HTMLElement|null;if(target?.closest('input,textarea,button'))return;event.preventDefault();setIndex(value=>Math.max(0,value-1));}if(event.key==='Escape'&&presenting)void leavePresenter();};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[activeUnit,activeSlides.length,index,lessonNo,lessonUnits.length,presenting,chosen]);
+  useEffect(()=>{
+    if(!activePage)return;
+    const onKey=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      if(target?.closest('.lesson-exam-scroll,.hodder-table-wrap,details,input,textarea,select,button,[contenteditable="true"]'))return;
+      if(['ArrowRight','PageDown',' '].includes(event.key)&&flatIndex<flatPages.length-1){event.preventDefault();openFlat(flatIndex+1);}
+      if(['ArrowLeft','PageUp'].includes(event.key)&&flatIndex>0){event.preventDefault();openFlat(flatIndex-1);}
+      if(event.key==='Escape'&&presenting)void leavePresenter();
+    };
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[activePage,flatIndex,flatPages.length,presenting,chosen]);
 
   if(user.role==='student')return null;
-  if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">LESSON LIBRARY</p><h1>Darslar</h1><p>Board-ready lessons with clear explanations, worked examples, visual models, checks for understanding and Cambridge past-paper practice.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} board-ready chapters</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=>{const lessonCount=buildLessonUnits(chapter.slides).length;return <button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{studentFacingText(chapter.subtitle)}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{lessonCount} classroom lessons</b><span>Ochish →</span></footer></button>})}</div></section>;
+  if(!chosen)return <section className="lesson-library"><header><div><p className="lesson-eyebrow">LESSON LIBRARY</p><h1>Darslar</h1><p>Book-like, source-grounded lessons: choose a chapter, move through its topics, study each scrollable page and finish every topic with Cambridge Past Paper practice.</p></div><span className="lesson-library-badge">{LESSON_CHAPTERS.length} source-backed chapters</span></header><div className="lesson-library-grid">{LESSON_CHAPTERS.map(chapter=>{const topicCount=buildTopicPlan(chapter.slides,chapter.subtopics).filter(topic=>topic.code!=='overview').length;return <button key={chapter.number} className={`lesson-chapter-card chapter-${chapter.number}`} onClick={()=>navigate(`oqitish/darslar?chapter=${chapter.number}`)}><span className="lesson-chapter-no">{String(chapter.number).padStart(2,'0')}</span><span className="lesson-level">{chapter.level}</span><h2>{chapter.title}</h2><p>{studentFacingText(chapter.subtitle)}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><b>{topicCount} topics</b><span>Ochish →</span></footer></button>})}</div></section>;
+  if(!activeTopic||!activePage)return null;
 
-  if(!activeUnit)return <section className={`lesson-chapter-hub chapter-${chosen.number}`}>
-    <header className="lesson-course-hero" data-chapter={String(chosen.number).padStart(2,'0')}>
-      <div><button className="lesson-course-back" onClick={()=>navigate('oqitish/darslar')}>← Darslar</button><p className="lesson-course-kicker">{chosen.level} · CHAPTER {chosen.number}</p><h1>{chosen.title}</h1><p>{studentFacingText(chosen.subtitle)}</p></div>
-      <div className="lesson-course-stats"><div className="lesson-course-stat"><strong>{lessonUnits.length}</strong><span>classroom lessons</span></div><div className="lesson-course-stat"><strong>≤ {MAX_LESSON_SCREENS}</strong><span>screens per lesson</span></div></div>
-    </header>
-    <div className="lesson-course-body">{courseSections.map((group,sectionIndex)=>{const screenCount=group.units.reduce((total,item)=>total+item.unit.slides.length,0);return <section className="lesson-course-section" key={`${group.section}-${sectionIndex}`}><header><span className="lesson-course-section-no">{String(sectionIndex+1).padStart(2,'0')}</span><div><h2>{group.section}</h2><p>{group.units.length} lesson{group.units.length===1?'':'s'} in this section</p></div><span className="lesson-course-section-total">{screenCount} source-backed screens</span></header><div className="lesson-course-units">{group.units.map(({unit,lessonIndex})=><button className="lesson-course-unit" key={unit.id} onClick={()=>openLesson(lessonIndex)}><div className="lesson-course-unit-top"><span>Lesson {String(lessonIndex+1).padStart(2,'0')}</span><span>{unit.slides.length} screens</span></div><strong>{unit.parts>1?`Part ${unit.part} of ${unit.parts}`:'Complete lesson'}</strong><footer><span>{unit.slides[0]?.eyebrow??unit.section}</span><b>Open →</b></footer></button>)}</div></section>})}</div>
-  </section>;
+  const traceSlide=activePage.slides.find(slide=>(slide.sourcePages?.length??0)>0||(slide.sourceElements?.length??0)>0)??activePage.slides[0];
+  const previous=flatIndex>0?flatPages[flatIndex-1]:null;
+  const next=flatIndex>=0&&flatIndex<flatPages.length-1?flatPages[flatIndex+1]:null;
+  const nextCrossesTopic=Boolean(next&&next.topic.code!==activeTopic.code);
+  const prevCrossesTopic=Boolean(previous&&previous.topic.code!==activeTopic.code);
 
-  if(!slide||!sourceSlide)return null;
-  const isLastScreen=index===activeSlides.length-1;
-  const hasNextLesson=lessonNo<lessonUnits.length;
-
-  return <section ref={studioRef} className={`lesson-studio hodder-studio accent-${slide.accent||'indigo'}${presenting?' is-presenting':''}`}>
-    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate(`oqitish/darslar?chapter=${chosen.number}`)}>← Chapter {chosen.number}</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number} · Lesson {lessonNo}/{lessonUnits.length}</span><strong>{activeUnit.title}</strong></div><div className="lesson-toolbar-actions"><SourceTrace slide={sourceSlide} toolbar/><span>{index+1}/{activeSlides.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Board mode’dan chiqish':'Board mode ↗'}</button></div></header>
-    <div className="lesson-progress"><span style={{width:`${((index+1)/activeSlides.length)*100}%`}}/></div>
-    <div className="lesson-workspace"><aside className="lesson-outline lesson-unit-outline"><p>CHAPTER {chosen.number} · LESSONS</p>{lessonUnits.map((unit,i)=><button className={i===lessonNo-1?'active':''} key={unit.id} onClick={()=>openLesson(i)}><span>{String(i+1).padStart(2,'0')}</span><b>{unit.title}</b></button>)}</aside>
-      <main className={`lesson-slide${slide.examPractice?' lesson-slide-exam':''}`}>{slide.examPractice?<div className="lesson-exam-slide"><div className="lesson-exam-intro"><div><span className="lesson-screen-purpose">CAMBRIDGE PRACTICE</span><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1></div><p>{slide.lead}</p></div><ExamPractice slide={slide}/></div>:slide.id.startsWith('ch7-')?<div className="lesson-student-ch7"><span className="lesson-screen-purpose">{lessonPurpose(slide)}</span><Chapter7SlideBody slide={slide}/></div>:<SlideBody slide={slide}/>}<div className="lesson-slide-watermark">CamPath · {chosen.level}</div></main>
+  return <section ref={studioRef} className={`lesson-studio hodder-studio lesson-topic-studio accent-${activePage.slides[0]?.accent||'indigo'}${presenting?' is-presenting':''}`}>
+    <header className="lesson-toolbar"><button className="lesson-back" onClick={()=>navigate('oqitish/darslar')}>← Darslar</button><div className="lesson-toolbar-title"><span>{chosen.level} · Chapter {chosen.number} · {topicLabel(activeTopic)}</span><strong>{activeTopic.title}</strong></div><div className="lesson-toolbar-actions">{traceSlide&&<SourceTrace slide={traceSlide} toolbar/>}<span>Page {activePageIndex+1}/{activeTopic.pages.length}</span><button onClick={presenting?leavePresenter:enterPresenter}>{presenting?'Board mode’dan chiqish':'Board mode ↗'}</button></div></header>
+    <div className="lesson-progress"><span style={{width:`${((activePageIndex+1)/activeTopic.pages.length)*100}%`}}/></div>
+    <div className="lesson-workspace lesson-topic-workspace">
+      <aside className="lesson-outline lesson-topic-outline"><div className="lesson-topic-outline-head"><p>CHAPTER {chosen.number}</p><strong>Topics</strong></div>{topics.map(topic=><section className={`lesson-topic-nav-group${topic.code===activeTopic.code?' active':''}`} key={topic.code}><button className="lesson-topic-nav-topic" onClick={()=>openPage(topic,0)}><span>{topicLabel(topic)}</span><b>{topic.title}</b><small>{topic.pages.length}</small></button>{topic.code===activeTopic.code&&<div className="lesson-topic-nav-pages">{topic.pages.map((page,pageIndex)=><button className={pageIndex===activePageIndex?'active':''} key={page.id} onClick={()=>openPage(topic,pageIndex)}><span>{String(pageIndex+1).padStart(2,'0')}</span><b>{page.title}</b>{page.kind==='practice'&&<em>Past Paper</em>}</button>)}</div>}</section>)}</aside>
+      <main className={`lesson-slide lesson-topic-page${activePage.kind==='practice'?' lesson-slide-exam':''}`} data-page-id={activePage.id} data-topic-code={activeTopic.code}>
+        <header className="lesson-topic-page-head"><div><span>{topicLabel(activeTopic)} · PAGE {String(activePageIndex+1).padStart(2,'0')}</span><h1>{activePage.title}</h1></div><p>{activePage.kind==='practice'?'Topic complete: apply the ideas with approved Cambridge Past Paper questions.':'Scroll through this page to read, study examples and complete the activities before moving on.'}</p></header>
+        <div className="lesson-topic-page-content">{activePage.kind==='practice'?<PracticePage page={activePage}/>:activePage.slides.map(sourceSlide=><StudyFragment sourceSlide={sourceSlide} key={sourceSlide.id}/>)}</div>
+        <div className="lesson-slide-watermark">CamPath · {chosen.level}</div>
+      </main>
     </div>
-    <footer className="lesson-nav"><button disabled={index===0} onClick={()=>setIndex(value=>Math.max(0,value-1))}>← Oldingi</button><div>{activeSlides.map((item,i)=><button key={item.id} aria-label={`lesson-${lessonNo}-slide-${i+1}`} className={i===index?'active':''} onClick={()=>setIndex(i)}/>)}</div><button disabled={isLastScreen&&!hasNextLesson} onClick={goNext}>{isLastScreen&&hasNextLesson?'Keyingi dars →':'Keyingi →'}</button></footer>
+    <footer className="lesson-nav lesson-topic-nav"><button disabled={!previous} onClick={()=>previous&&openFlat(flatIndex-1)}>{prevCrossesTopic?'← Oldingi topic':'← Oldingi page'}</button><div>{activeTopic.pages.map((page,pageIndex)=><button key={page.id} aria-label={`${activeTopic.code}-page-${pageIndex+1}`} className={pageIndex===activePageIndex?'active':''} onClick={()=>openPage(activeTopic,pageIndex)}/>)}</div><button disabled={!next} onClick={()=>next&&openFlat(flatIndex+1)}>{nextCrossesTopic?'Keyingi topic →':'Keyingi page →'}</button></footer>
   </section>;
 }
