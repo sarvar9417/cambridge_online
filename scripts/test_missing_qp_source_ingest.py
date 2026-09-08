@@ -37,6 +37,14 @@ class MissingQpSourceIngestTests(unittest.TestCase):
         self.assertIn('PARSER["build_repair"]', script)
         self.assertIn('databaseWritesAttempted', script)
 
+    def test_v2_accepts_only_numbers_aligned_to_printed_marks_column(self) -> None:
+        script = (ROOT / "backend/scripts/qp-source-missing-ingest-v2.py").read_text(encoding="utf-8")
+        self.assertIn('"Question" in line and "Answer" in line and "Marks" in line', script)
+        self.assertIn('mark_position < marks_column', script)
+        self.assertIn('mark_position > marks_column + 20', script)
+        self.assertIn('marks_column is None', script)
+        self.assertIn('BASE["build_manifest"].__globals__["extract_ms_leaves"] = extract_ms_leaves', script)
+
     def test_edge_runner_exposes_only_guarded_manifest_actions(self) -> None:
         edge = (ROOT / "supabase/functions/qp-source-repair-runner/index.ts").read_text(encoding="utf-8")
         self.assertIn("missing_source_ingest_bootstrap", edge)
@@ -50,6 +58,7 @@ class MissingQpSourceIngestTests(unittest.TestCase):
         marker = (ROOT / ".source-missing-ingest").read_text(encoding="utf-8").strip()
         self.assertIn("default: 'NO'", workflow)
         self.assertIn("APPLY_MISSING_QP_SOURCE_INGEST_V1_ONCE", workflow)
+        self.assertIn("qp-source-missing-ingest-v2.py", workflow)
         self.assertEqual(marker, "PLAN_MISSING_QP_SOURCE_INGEST_V1")
 
 
