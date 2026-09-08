@@ -6,6 +6,18 @@ import { buildTopicPlan, flattenTopicPages, sourceFilePageForSlide } from './les
 
 const chapters = [...LESSON_CHAPTERS, CHAPTER_7];
 
+const fixtureSlide=(id:string,title:string,sourcePages:number[],extra:Partial<HodderLessonSlide>={}):HodderLessonSlide=>({
+  id,
+  section:'13.3 Floating-point numbers',
+  subtopicCode:'13.3',
+  eyebrow:'13.3 · TEST',
+  title,
+  lead:'Fixture learning content',
+  sourcePages,
+  accent:'indigo',
+  ...extra,
+});
+
 describe('book-like topic plan', () => {
   it('places every active-route slide exactly once into topic pages', () => {
     for (const chapter of chapters) {
@@ -32,14 +44,35 @@ describe('book-like topic plan', () => {
     }
   });
 
-  it('normalizes mixed printed/extract page numbers before grouping a physical source page', () => {
+  it('groups a book subsection as one scrollable semantic page even when it spans physical PDF pages', () => {
+    const slides:HodderLessonSlide[]=[
+      fixtureSlide('normalise-a','Normalisation',[309]),
+      fixtureSlide('normalise-b','Why normalisation matters',[310]),
+      fixtureSlide('precision-a','Precision versus range',[311]),
+      fixtureSlide('pdf-first-133-01','Floating point · source page 309',[309],{bullets:['Normalisation']}),
+      fixtureSlide('pdf-first-133-02','Floating point · source page 310',[310],{bullets:['Normalisation continued']}),
+      fixtureSlide('pdf-first-133-03','Floating point · source page 311',[311],{bullets:['Precision versus range']}),
+      fixtureSlide('checkpoint','Past Paper',[311],{examPractice:true}),
+    ];
+    const [topic]=buildTopicPlan(slides,['13.3 Floating-point numbers']);
+    expect(topic?.pages.map(page=>page.title)).toEqual(['Normalisation','Precision versus range','Past Paper practice']);
+    expect(topic?.pages[0]?.bookPages).toEqual([6,7]);
+    expect(topic?.pages[0]?.slides.map(slide=>slide.id)).toEqual(expect.arrayContaining(['normalise-a','normalise-b','pdf-first-133-01','pdf-first-133-02']));
+    expect(topic?.pages[1]?.bookPages).toEqual([8]);
+  });
+
+  it('treats physical source pages as provenance rather than forced learner-page boundaries', () => {
     for (const chapter of chapters) {
       const topics = buildTopicPlan(chapter.slides, chapter.subtopics);
-      const studyPages = flattenTopicPages(topics).filter(item => item.page.kind === 'study');
+      const studyPages = flattenTopicPages(topics).filter(item => item.page.kind === 'study' && item.topic.code !== 'overview');
       expect(studyPages.length, `Chapter ${chapter.number} study pages`).toBeGreaterThan(0);
       studyPages.forEach(({ topic, page }) => {
-        if (page.bookPage == null) return;
-        expect(page.slides.every(slide => sourceFilePageForSlide(topic.code,slide)===page.bookPage), `${chapter.number} ${page.id} source-page grouping`).toBe(true);
+        const represented=[...new Set(page.slides.flatMap(slide=>{
+          const sourcePage=sourceFilePageForSlide(topic.code,slide);
+          return sourcePage==null?[]:[sourcePage];
+        }))].sort((a,b)=>a-b);
+        expect(page.bookPages, `${chapter.number} ${page.id} source provenance`).toEqual(represented);
+        expect(page.bookPage, `${chapter.number} ${page.id} first source page`).toBe(represented[0] ?? null);
       });
     }
   });
