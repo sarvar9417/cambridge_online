@@ -18,6 +18,11 @@ const fixtureSlide=(id:string,title:string,sourcePages:number[],extra:Partial<Ho
   ...extra,
 });
 
+const allNormalisedSourcePages=(topicCode:string,slide:HodderLessonSlide)=>[
+  ...(slide.sourcePages??[]).map(page=>sourceFilePageForSlide(topicCode,{...slide,sourcePages:[page],sourceAtomEvidence:[]})),
+  ...(slide.sourceAtomEvidence??[]).map(item=>sourceFilePageForSlide(topicCode,{...slide,sourcePages:[],sourceAtomEvidence:[item]})),
+].filter((page):page is number=>page!=null);
+
 describe('book-like topic plan', () => {
   it('places every active-route slide exactly once into topic pages', () => {
     for (const chapter of chapters) {
@@ -67,10 +72,7 @@ describe('book-like topic plan', () => {
       const studyPages = flattenTopicPages(topics).filter(item => item.page.kind === 'study' && item.topic.code !== 'overview');
       expect(studyPages.length, `Chapter ${chapter.number} study pages`).toBeGreaterThan(0);
       studyPages.forEach(({ topic, page }) => {
-        const represented=[...new Set(page.slides.flatMap(slide=>{
-          const sourcePage=sourceFilePageForSlide(topic.code,slide);
-          return sourcePage==null?[]:[sourcePage];
-        }))].sort((a,b)=>a-b);
+        const represented=[...new Set(page.slides.flatMap(slide=>allNormalisedSourcePages(topic.code,slide)))].sort((a,b)=>a-b);
         expect(page.bookPages, `${chapter.number} ${page.id} source provenance`).toEqual(represented);
         expect(page.bookPage, `${chapter.number} ${page.id} first source page`).toBe(represented[0] ?? null);
       });
