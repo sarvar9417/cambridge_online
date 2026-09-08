@@ -1,3 +1,5 @@
+@import './lesson-studio-presentation.css';
+
 .lesson-studio:fullscreen,
 .lesson-studio:-webkit-full-screen {
   position: fixed;
@@ -61,6 +63,18 @@
 .lesson-studio:fullscreen .lesson-activity summary strong,
 .lesson-studio:-webkit-full-screen .lesson-activity summary strong {
   color: #263247;
+}
+
+.lesson-studio:fullscreen .lesson-slide:has(.lesson-visual-recap) .lesson-bullets li,
+.lesson-studio:-webkit-full-screen .lesson-slide:has(.lesson-visual-recap) .lesson-bullets li {
+  font-size: clamp(19px, 1.45vw, 24px);
+  line-height: 1.45;
+  padding-left: 30px;
+}
+
+.lesson-studio:fullscreen .lesson-slide:has(.lesson-visual-recap) .lesson-visual,
+.lesson-studio:-webkit-full-screen .lesson-slide:has(.lesson-visual-recap) .lesson-visual {
+  min-height: 340px;
 }
 
 .lesson-studio:fullscreen .lesson-lead,

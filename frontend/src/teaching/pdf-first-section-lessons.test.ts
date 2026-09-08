@@ -19,22 +19,24 @@ const sectionSlides = (chapter:PdfFirstChapter, id:string) =>
 const exactSourceSlides = (chapter:PdfFirstChapter, id:string) =>
   sectionSlides(chapter,id).filter(slide=>slide.id.startsWith(`pdf-first-${id.replace('.','')}-`));
 
-const visibleExactBlocks = (chapter:PdfFirstChapter, id:string) =>
-  exactSourceSlides(chapter,id).flatMap(slide=>slide.bullets??[]);
+const visibleExactText = (chapter:PdfFirstChapter, id:string) =>
+  exactSourceSlides(chapter,id).flatMap(slide=>slide.bullets??[]).join(' ');
+const expectedExactText = (id:string) => pdfFirstBlocksForSection(id as never).join(' ');
+const normalise = (value:string) => value.replace(/\s+/g,' ').trim();
 
 describe('PDF-first section lesson contract',()=>{
-  it('puts every exact supplied-PDF block visibly in its own source section and preserves source order',()=>{
+  it('puts every exact supplied-PDF sentence visibly in its own source section and preserves source order',()=>{
     for(const meta of PDF_FIRST_SECTION_ORDER){
-      expect(visibleExactBlocks(meta.chapter,meta.id),`${meta.id} exact visible source sequence`)
-        .toEqual(pdfFirstBlocksForSection(meta.id));
+      expect(normalise(visibleExactText(meta.chapter,meta.id)),`${meta.id} exact visible source sequence`)
+        .toBe(normalise(pdfFirstBlocksForSection(meta.id).join(' ')));
     }
   });
 
-  it('keeps source sections chapter-correct and leaves no exact block unrouted',()=>{
+  it('keeps source sections chapter-correct and leaves no exact source text unrouted',()=>{
     for(const chapter of [1,7,13] as const){
-      const expected=pdfFirstSectionsForChapter(chapter).flatMap(meta=>pdfFirstBlocksForSection(meta.id));
-      const actual=pdfFirstSectionsForChapter(chapter).flatMap(meta=>visibleExactBlocks(chapter,meta.id));
-      expect(actual,`Chapter ${chapter} exact block route`).toEqual(expected);
+      const expected=pdfFirstSectionsForChapter(chapter).map(meta=>expectedExactText(meta.id)).join(' ');
+      const actual=pdfFirstSectionsForChapter(chapter).map(meta=>visibleExactText(chapter,meta.id)).join(' ');
+      expect(normalise(actual),`Chapter ${chapter} exact source route`).toBe(normalise(expected));
       expect(actual.length).toBeGreaterThan(0);
     }
   });

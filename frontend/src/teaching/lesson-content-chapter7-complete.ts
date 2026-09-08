@@ -3,6 +3,7 @@ import { CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES, CHAPTER_7_SOURCE_ATOM_COVERAGE }
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { buildPdfFirstChapter7Route } from './pdf-first-section-lessons';
+import { presentationizePdfFirstChapter } from './pdf-first-presentation-layout';
 import { pdfFirstBlocksForSection, pdfFirstSectionsForChapter } from './pdf-first-source-index';
 
 const chapter7PdfFirstRoute = buildPdfFirstChapter7Route(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
@@ -17,9 +18,10 @@ const chapter7PdfBlockCount=pdfFirstSectionsForChapter(7)
  * glossary/page-by-page appendix. Every 7.1–7.9 section now contains its
  * curated teaching sequence plus every exact supplied-PDF source block in
  * source order, followed by one Cambridge Exam Lens and the live Past Paper
- * checkpoint for that same section.
+ * checkpoint for that same section. Exact-PDF screens are expanded again into
+ * projector-sized presentation screens without deleting or re-ordering source.
  */
-export const CHAPTER_7 = {
+export const CHAPTER_7 = presentationizePdfFirstChapter({
   ...DISCOVERY_CHAPTER_7,
   subtitle: 'Guided discovery followed by section-first, exact supplied-PDF Chapter 7 teaching: source → Cambridge Exam Lens → live 0478 Past Papers.',
   subtopics: [
@@ -38,7 +40,7 @@ export const CHAPTER_7 = {
     ...DISCOVERY_CHAPTER_7.slides,
     ...chapter7PdfFirstRoute,
   ],
-};
+});
 
 export { CHAPTER_7_REVEAL_ID };
 export const CHAPTER_7_DISCOVERY_SLIDE_COUNT = DISCOVERY_CHAPTER_7.slides.length;

@@ -1,0 +1,300 @@
+/*
+ * Presentation-first projection layer.
+ *
+ * The lesson data is source-complete; this layer makes the active board view
+ * behave like a real 16:9 classroom presentation instead of a long web page.
+ */
+
+.lesson-studio .lesson-slide {
+  aspect-ratio: 16 / 9;
+  width: min(calc(100% - 28px), 1280px);
+  min-height: 0;
+  margin: 14px auto;
+}
+
+.lesson-studio .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lesson-studio .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-copy {
+  max-width: none;
+  width: 100%;
+}
+
+.lesson-studio .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.lesson-studio .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li {
+  min-height: 118px;
+  padding: 20px 22px 20px 44px;
+  border: 1px solid #dce4f0;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #f7f9fd);
+  box-shadow: 0 10px 24px rgba(31,45,78,.06);
+  font-size: clamp(17px, 1.3vw, 21px);
+  line-height: 1.52;
+}
+
+.lesson-studio .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li::before {
+  left: 18px;
+  top: 20px;
+  content: '•';
+  font-size: 24px;
+}
+
+.lesson-studio .lesson-screen-purpose {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--lesson-accent-soft);
+  color: var(--lesson-accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+/* Projector mode: 16:9 canvas, no teacher chrome competing with the lesson. */
+.lesson-studio.hodder-studio:fullscreen,
+.lesson-studio.hodder-studio:-webkit-full-screen {
+  background: #0a1020;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-toolbar,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-toolbar {
+  height: 46px;
+  flex-basis: 46px;
+  grid-template-columns: 150px 1fr auto;
+  padding: 0 14px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-toolbar-title strong,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-toolbar-title strong {
+  font-size: 13px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-teacher-evidence,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-teacher-evidence,
+.lesson-studio.hodder-studio:fullscreen .lesson-source-trace,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-source-trace {
+  display: none !important;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-workspace,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-workspace {
+  grid-template-columns: 1fr !important;
+  place-items: center;
+  padding: 10px 18px;
+  overflow: hidden;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-outline,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-outline {
+  display: none !important;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide {
+  aspect-ratio: 16 / 9;
+  width: min(96vw, calc((100vh - 116px) * 16 / 9));
+  height: auto;
+  max-height: calc(100vh - 116px);
+  margin: 0 auto !important;
+  padding: clamp(34px, 4.3vw, 68px) !important;
+  border-radius: 18px;
+  overflow: hidden !important;
+  align-items: center;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-copy,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-copy {
+  max-width: none !important;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-copy h1,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-copy h1,
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-intro h1,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-intro h1 {
+  font-size: clamp(38px, 4.2vw, 64px) !important;
+  line-height: 1.02;
+  max-width: 1180px;
+  margin-bottom: 14px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-lead,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-lead,
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-intro > p:last-child,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-intro > p:last-child {
+  font-size: clamp(19px, 1.75vw, 27px) !important;
+  line-height: 1.42;
+  max-width: 1080px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-eyebrow,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-eyebrow {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets {
+  grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
+  gap: clamp(16px, 1.8vw, 26px);
+  margin-top: clamp(20px, 2vw, 30px);
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li {
+  min-height: 0;
+  padding: clamp(20px, 2vw, 30px) clamp(22px, 2.2vw, 34px) clamp(20px, 2vw, 30px) clamp(46px, 3vw, 58px);
+  border-radius: 22px;
+  font-size: clamp(21px, 1.75vw, 29px) !important;
+  line-height: 1.46;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li::before,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide:has(.lesson-bullets):not(:has(.lesson-visual)) .lesson-bullets li::before {
+  left: 22px;
+  top: 24px;
+  font-size: 28px;
+}
+
+/* Curated visual templates also scale up for the classroom. */
+.lesson-studio.hodder-studio:fullscreen .hodder-paragraph,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-paragraph {
+  font-size: clamp(19px, 1.55vw, 25px) !important;
+  line-height: 1.5;
+}
+
+.lesson-studio.hodder-studio:fullscreen .hodder-bullets li,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-bullets li,
+.lesson-studio.hodder-studio:fullscreen .hodder-steps ol,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-steps ol,
+.lesson-studio.hodder-studio:fullscreen .hodder-callout p,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-callout p,
+.lesson-studio.hodder-studio:fullscreen .hodder-comparison p,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-comparison p {
+  font-size: clamp(17px, 1.3vw, 22px) !important;
+  line-height: 1.45;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-terms strong,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-terms strong {
+  font-size: 17px;
+}
+.lesson-studio.hodder-studio:fullscreen .lesson-terms p,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-terms p {
+  font-size: clamp(16px, 1.15vw, 20px);
+  line-height: 1.4;
+}
+
+.lesson-studio.hodder-studio:fullscreen .hodder-code pre,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-code pre {
+  font-size: clamp(16px, 1.2vw, 21px) !important;
+  line-height: 1.5;
+}
+
+.lesson-studio.hodder-studio:fullscreen .hodder-table,
+.lesson-studio.hodder-studio:-webkit-full-screen .hodder-table {
+  font-size: clamp(14px, 1vw, 18px) !important;
+}
+
+/* Past papers become a horizontal, one-card-at-a-time projector workspace. */
+.lesson-studio.hodder-studio:fullscreen .lesson-slide-exam,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide-exam {
+  display: block;
+  padding: clamp(24px, 3vw, 44px) !important;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-intro,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-intro {
+  margin-bottom: 12px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-checkpoint-contract,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-checkpoint-contract,
+.lesson-studio.hodder-studio:fullscreen .lesson-practice-cycle,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-practice-cycle,
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-summary,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-summary {
+  font-size: 12px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-scroll,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-scroll {
+  display: flex;
+  gap: 18px;
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding: 0 0 10px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-year-group,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-year-group {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-grid,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-grid {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 8px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-card,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-card {
+  flex: 0 0 calc(100% - 2px);
+  min-height: 300px;
+  padding: clamp(22px, 2.4vw, 34px);
+  border-radius: 22px;
+  scroll-snap-align: start;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-exam-card > p,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-exam-card > p {
+  display: block !important;
+  overflow: visible !important;
+  font-size: clamp(20px, 1.65vw, 27px) !important;
+  line-height: 1.45;
+  margin: 18px 0;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-question-context,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-question-context {
+  max-height: 150px;
+  font-size: clamp(14px, 1.05vw, 18px);
+  line-height: 1.42;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-nav,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-nav {
+  height: 46px;
+  flex-basis: 46px;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide-watermark,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide-watermark {
+  opacity: .55;
+}
+
+@media (max-width: 900px) {
+  .lesson-studio .lesson-slide {
+    width: calc(100% - 16px);
+    aspect-ratio: auto;
+  }
+}

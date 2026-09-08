@@ -8,6 +8,7 @@ import { CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES, CHAPTER_7_COURSEBOOK_PAGE_SLIDES 
 import { pdfFirstBlocksForSection, pdfFirstSectionsForChapter } from './pdf-first-source-index';
 
 const allText = (value: unknown) => JSON.stringify(value).toLowerCase();
+const normalise = (value:string) => value.replace(/\s+/g,' ').trim();
 
 describe('0478 Chapter 7 complete presenter route', () => {
   it('keeps the original 15-slide discovery lesson first and unchanged', () => {
@@ -25,11 +26,12 @@ describe('0478 Chapter 7 complete presenter route', () => {
     expect(CHAPTER_7_BOOK_SLIDES.every((slide) => slide.id.startsWith('ch7-book-'))).toBe(true);
     expect(CHAPTER_7.slides.some(slide=>slide.section==='Coursebook glossary'||slide.section==='Coursebook page-by-page')).toBe(false);
     expect(CHAPTER_7.slides.some(slide=>slide.id.startsWith('ch7-source-page-')||slide.id.startsWith('ch7-coursebook-glossary-'))).toBe(false);
-    const exactBlocks=CHAPTER_7.slides
+    const visibleText=CHAPTER_7.slides
       .filter(slide=>slide.id.startsWith('pdf-first-7')&&!slide.id.startsWith('pdf-first-lens-'))
-      .flatMap(slide=>slide.bullets??[]);
-    const expected=pdfFirstSectionsForChapter(7).flatMap(meta=>pdfFirstBlocksForSection(meta.id));
-    expect(exactBlocks).toEqual(expected);
+      .flatMap(slide=>slide.bullets??[])
+      .join(' ');
+    const expected=pdfFirstSectionsForChapter(7).flatMap(meta=>pdfFirstBlocksForSection(meta.id)).join(' ');
+    expect(normalise(visibleText)).toBe(normalise(expected));
   });
 
   it('places one checkpoint after the final source/Exam-Lens sequence for each 7.1–7.9 section', () => {
