@@ -3,7 +3,6 @@ import { CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES, CHAPTER_7_SOURCE_ATOM_COVERAGE }
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { buildPdfFirstChapter7Route } from './pdf-first-section-lessons';
-import { presentationizePdfFirstChapter } from './pdf-first-presentation-layout';
 import { pdfFirstBlocksForSection, pdfFirstSectionsForChapter } from './pdf-first-source-index';
 
 const chapter7PdfFirstRoute = buildPdfFirstChapter7Route(CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES);
@@ -12,16 +11,16 @@ const chapter7PdfBlockCount=pdfFirstSectionsForChapter(7)
   .reduce((total,meta)=>total+pdfFirstBlocksForSection(meta.id).length,0);
 
 /**
- * Complete Chapter 7 presenter route.
+ * Complete Chapter 7 teaching route.
  *
- * The guided-discovery prelude is retained, but the book route is no longer a
- * glossary/page-by-page appendix. Every 7.1–7.9 section now contains its
- * curated teaching sequence plus every exact supplied-PDF source block in
- * source order, followed by one Cambridge Exam Lens and the live Past Paper
- * checkpoint for that same section. Exact-PDF screens are expanded again into
- * projector-sized presentation screens without deleting or re-ordering source.
+ * The guided-discovery prelude is retained, followed by the source-complete
+ * 7.1→7.9 book route. The active learner/teacher route intentionally stays in
+ * source-sized content blocks instead of being exploded into projector-sized
+ * presentation fragments. Lesson Studio groups these blocks into book-like,
+ * vertically scrollable topic pages and finishes every topic with live Past
+ * Paper practice.
  */
-export const CHAPTER_7 = presentationizePdfFirstChapter({
+export const CHAPTER_7 = {
   ...DISCOVERY_CHAPTER_7,
   subtitle: 'Guided discovery followed by section-first, exact supplied-PDF Chapter 7 teaching: source → Cambridge Exam Lens → live 0478 Past Papers.',
   subtopics: [
@@ -35,12 +34,12 @@ export const CHAPTER_7 = presentationizePdfFirstChapter({
     '7.8 Identifying errors in algorithms',
     '7.9 Writing and amending algorithms',
   ],
-  coverage: `15-slide guided-discovery prelude + ${CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES.length}-slide source-exhaustive book deep dive / curated source route + ${chapter7PdfBlockCount}/${chapter7PdfBlockCount} exact supplied-PDF blocks assigned to 7.1–7.9 + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} section-end live 0478 checkpoints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms} source-PDF detail atoms · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages atom-audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourceFilePages}/41 exact supplied-PDF page fingerprints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.keyTerms}/30 formal key terms · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.activities}/20 activities · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.figures}/22 figures · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.tables}/6 tables · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.examQuestions}/9 exam-style questions · ${chapter7RawEmphasisCount}/${chapter7RawEmphasisCount} raw-PDF emphasis anchors audited · glossary/page-by-page appendix removed from active route`,
+  coverage: `15-slide guided-discovery prelude + ${CHAPTER_7_SOURCE_ATOM_COMPLETE_SLIDES.length}-slide source-exhaustive book deep dive / curated source route + ${chapter7PdfBlockCount}/${chapter7PdfBlockCount} exact supplied-PDF blocks assigned to 7.1–7.9 + ${CHAPTER_7_PAST_PAPER_CHECKPOINTS.length} section-end live 0478 checkpoints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.atoms} source atoms pinned · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms}/${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourcePdfDetailAtoms} source-PDF detail atoms · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages atom-audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.pages}/41 source pages audited · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.sourceFilePages}/41 exact supplied-PDF page fingerprints · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.keyTerms}/30 formal key terms · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.activities}/20 activities · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.figures}/22 figures · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.tables}/6 tables · ${CHAPTER_7_SOURCE_ATOM_COVERAGE.examQuestions}/9 exam-style questions · ${chapter7RawEmphasisCount}/${chapter7RawEmphasisCount} raw-PDF emphasis anchors audited · active route uses scrollable book-like topic pages`,
   slides: [
     ...DISCOVERY_CHAPTER_7.slides,
     ...chapter7PdfFirstRoute,
   ],
-});
+};
 
 export { CHAPTER_7_REVEAL_ID };
 export const CHAPTER_7_DISCOVERY_SLIDE_COUNT = DISCOVERY_CHAPTER_7.slides.length;
