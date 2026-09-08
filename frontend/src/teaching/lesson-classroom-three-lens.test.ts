@@ -51,6 +51,14 @@ describe('classroom projection three-lens contract', () => {
     expect(css).toContain('.lesson-exam-card');
   });
 
+  it('keeps Past Paper in the same vertical PageDown/Space teaching flow', () => {
+    const structure = source('lesson-classroom-three-lens-structure.css');
+    expect(structure).toContain('.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-scroll');
+    expect(structure).toContain('overflow: visible !important;');
+    expect(structure).toContain('grid-template-columns: minmax(0, 1fr) !important;');
+    expect(structure).toContain('scroll-snap-type: none !important;');
+  });
+
   it('tracks the current semantic teaching fragment without dimming or mutation-looping', () => {
     const focus = source('lesson-classroom-focus.ts');
     const css = source('lesson-classroom-three-lens.css');
