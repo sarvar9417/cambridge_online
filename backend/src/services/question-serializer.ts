@@ -5,6 +5,9 @@ interface QuestionRow {
   display_ref: string;
   stem_md: string | null;
   context_md: string | null;
+  stem_latex?: string | null;
+  context_latex?: string | null;
+  body_format?: 'markdown' | 'latex' | null;
   content_json?: unknown | null;
   content_version?: number | null;
   command_word: string | null;
@@ -29,6 +32,9 @@ export function serializeQuestion(row: QuestionRow) {
     displayRef: row.display_ref,
     stemMd: row.stem_md,
     contextMd: row.context_md,
+    stemLatex: row.stem_latex ?? null,
+    contextLatex: row.context_latex ?? null,
+    bodyFormat: row.body_format ?? 'markdown',
     contentJson: structuredContent,
     contentVersion: structuredContent ? 1 : null,
     commandWord: row.command_word,
