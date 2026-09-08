@@ -1,5 +1,6 @@
 const CLASSROOM_STUDIO = '.lesson-topic-studio:fullscreen, .lesson-topic-studio.is-presenting';
 const INTERACTIVE = '.lesson-exam-scroll,.hodder-table-wrap,details,input,textarea,select,button,[contenteditable="true"]';
+const CLASSROOM_NAV_CONTROL = '.lesson-topic-outline button,.lesson-topic-nav > button';
 
 function currentStudio() {
   return document.querySelector<HTMLElement>(CLASSROOM_STUDIO);
@@ -44,6 +45,8 @@ function ensureClassroomChrome(studio: HTMLElement) {
  * - PageDown/Space/ArrowDown scroll through the current page before advancing;
  * - PageUp/ArrowUp scroll upward before returning to the previous page;
  * - ArrowRight/ArrowLeft remain explicit semantic-page navigation;
+ * - topic/page rail buttons keep Enter/Space accessibility, while projector
+ *   navigation keys continue to work after the teacher clicks the rail;
  * - a subtle projector-only progress rail shows whether more content exists below.
  */
 export function installLessonClassroomDisplay() {
@@ -87,7 +90,10 @@ export function installLessonClassroomDisplay() {
     const studio = currentStudio();
     if (!studio) return;
     const target = event.target as HTMLElement | null;
-    if (target?.closest(INTERACTIVE)) return;
+    const navControl = target?.closest(CLASSROOM_NAV_CONTROL) ?? null;
+    const interactive = target?.closest(INTERACTIVE) ?? null;
+    if (interactive && !navControl) return;
+    if (navControl && (event.key === ' ' || event.key === 'Enter')) return;
 
     const page = studio.querySelector<HTMLElement>('.lesson-topic-page');
     if (!page) return;
