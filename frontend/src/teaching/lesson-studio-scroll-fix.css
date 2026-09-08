@@ -24,6 +24,15 @@ html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overflow-anchor: none;
+
+  /* Long Chapter 13 screens were still inheriting align-items:center from the
+     base lesson grid. When a screen was taller than the viewport, centering
+     could place overflow above and below the scroll box, so part of the content
+     was effectively unreachable. Always anchor lesson content at the top. */
+  align-items: start;
+  align-content: start;
 }
 
 /* Keep nested wide source tables/figures horizontally scrollable inside the
