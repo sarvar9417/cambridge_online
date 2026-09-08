@@ -26,7 +26,7 @@ function focusFragment(studio: HTMLElement, page: HTMLElement) {
 
   if (!fragments.length) {
     status.classList.add('is-single');
-    status.textContent = '';
+    if (status.textContent) status.textContent = '';
     return;
   }
 
@@ -52,7 +52,8 @@ function focusFragment(studio: HTMLElement, page: HTMLElement) {
   });
 
   status.classList.toggle('is-single', fragments.length <= 1);
-  status.textContent = `Qism ${activeIndex + 1}/${fragments.length}`;
+  const label = `Qism ${activeIndex + 1}/${fragments.length}`;
+  if (status.textContent !== label) status.textContent = label;
 }
 
 /**
