@@ -2,8 +2,7 @@ import { sourceAtomsForChapter } from './lesson-source-atom-registry';
 import { SUPPLIED_PDF_DETAIL_ATOMS } from './lesson-source-atoms-supplied-pdf-detail';
 import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
 import { CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS } from './chapter7-source-pdf-detail';
-import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES } from './coursebook-page-slides';
-import { lessonChapter } from './lesson-content-source-complete';
+import { CHAPTER_7_COURSEBOOK_PAGE_SLIDES, coursebookPageSlides9618 } from './coursebook-page-slides';
 import { rawPdfSemanticDetailsForChapter } from './raw-pdf-semantic-baseline';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
@@ -62,9 +61,14 @@ const manifestForChapter = (chapter:1|7|13) => chapter===1
     ? CHAPTER_7_SOURCE_FILE_MANIFEST
     : CHAPTER_13_SOURCE_FILE_MANIFEST;
 
+/**
+ * Formal source-fidelity diagnostics are deliberately independent of the active
+ * learner route. The old page projection remains a deterministic audit view,
+ * while the active route is free to teach the same evidence section-first.
+ */
 const pageSlide = (chapter:1|7|13, page:number, printedPage:number) => chapter===7
   ? CHAPTER_7_COURSEBOOK_PAGE_SLIDES.find((slide)=>slide.id===`ch7-source-page-${printedPage}`)
-  : (lessonChapter(chapter)?.slides??[]).find((slide)=>slide.id===`h${chapter}-coursebook-page-${String(page).padStart(2,'0')}`);
+  : coursebookPageSlides9618(chapter).find((slide)=>slide.id===`h${chapter}-coursebook-page-${String(page).padStart(2,'0')}`);
 
 const detailAtoms = (chapter:1|7|13) => chapter===7
   ? CHAPTER_7_SOURCE_PDF_DETAIL_ATOMS
@@ -86,7 +90,7 @@ const allAtoms = (chapter:1|7|13) => chapter===7
       needles:atom.needles,
     }));
 
-/** Every fingerprinted page must have a real learner-visible source screen. */
+/** Every fingerprinted page must remain represented in the deterministic audit projection. */
 function sourcePageScreensCategory(chapter:1|7|13):SourceSemanticFidelityCategory{
   const manifest=manifestForChapter(chapter);
   const missing=manifest.pages
@@ -94,15 +98,14 @@ function sourcePageScreensCategory(chapter:1|7|13):SourceSemanticFidelityCategor
       const page=chapter===13?printedPage-303:printedPage;
       return !pageSlide(chapter,page,printedPage);
     })
-    .map(({printedPage})=>`p.${printedPage}: learner-visible source screen`);
+    .map(({printedPage})=>`p.${printedPage}: source audit projection`);
   return category(manifest.pageCount,missing);
 }
 
 /**
  * The static baseline freezes every source-detail atom extracted from unbolded
- * explanatory/coursebook material. An atom cannot disappear, move page, or
- * silently lose one of its curated teaching lines while the formal badge stays
- * green.
+ * explanatory/coursebook material. This is a background fidelity audit; active
+ * learner visibility is separately enforced by the PDF-first section gate.
  */
 function rawPdfSemanticDetailCategory(chapter:1|7|13):SourceSemanticFidelityCategory{
   const expected=rawPdfSemanticDetailsForChapter(chapter);
@@ -125,10 +128,9 @@ function rawPdfSemanticDetailCategory(chapter:1|7|13):SourceSemanticFidelityCate
 }
 
 /**
- * The page-by-page UI is the final learner-visible projection. This gate checks
- * every registered source atom label and every exact source line on its own
- * source page, including prior knowledge, examples, activities, tables,
- * figures, reviews and unbolded PDF-detail material.
+ * Checks every registered atom against the deterministic source-audit view.
+ * The section-first active route has its own fail-closed test that verifies the
+ * exact supplied-PDF block stream is learner-visible in the correct section.
  */
 function sourceAtomLinesVisibleCategory(chapter:1|7|13):SourceSemanticFidelityCategory{
   const atoms=allAtoms(chapter);
