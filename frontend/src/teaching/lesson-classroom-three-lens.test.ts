@@ -59,6 +59,15 @@ describe('classroom projection three-lens contract', () => {
     expect(structure).toContain('scroll-snap-type: none !important;');
   });
 
+  it('does not clamp source-required Past Paper wording or context on the projector', () => {
+    const structure = source('lesson-classroom-three-lens-structure.css');
+    expect(structure).toContain('.lesson-exam-card .lesson-question-context');
+    expect(structure).toContain('.lesson-exam-card > .qtext-host');
+    expect(structure).toContain('max-height: none !important;');
+    expect(structure).toContain('-webkit-line-clamp: unset !important;');
+    expect(structure).toContain('mask-image: none !important;');
+  });
+
   it('tracks the current semantic teaching fragment without dimming or mutation-looping', () => {
     const focus = source('lesson-classroom-focus.ts');
     const css = source('lesson-classroom-three-lens.css');
