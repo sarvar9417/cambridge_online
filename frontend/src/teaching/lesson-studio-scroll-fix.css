@@ -1,0 +1,42 @@
+/*
+ * Lesson Studio scroll contract.
+ *
+ * The studio is a fixed-height flex shell on desktop. Long lesson screens must
+ * therefore shrink inside the workspace and make the lesson canvas itself the
+ * vertical scroll container. Without the explicit min-size/overflow chain,
+ * CSS Grid can let the canvas keep its content height while the outer studio
+ * clips it with overflow:hidden, which makes the lower lesson content
+ * unreachable.
+ */
+
+html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-workspace {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep nested wide source tables/figures horizontally scrollable inside the
+   vertically scrolling lesson canvas. */
+html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide .hodder-table-wrap,
+html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide .hodder-figure,
+html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide .hodder-code pre {
+  max-width: 100%;
+}
+
+/* On desktop the studio has a definite viewport height, so the canvas should
+   stretch to the grid track rather than size itself from a long lesson. */
+@media (min-width: 1051px) {
+  html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-slide {
+    align-self: stretch;
+  }
+}
