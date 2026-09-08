@@ -1,0 +1,70 @@
+name: Temporary reviewed LaTeX SVG backfill
+
+on:
+  push:
+    branches:
+      - feat/latex-corpus-rollout
+    paths:
+      - '.github/workflows/latex-svg-backfill-temp.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/latex-corpus-rollout
+      - name: Install TeX toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-pictures texlive-science poppler-utils jq
+      - name: Request GitHub OIDC token
+        shell: bash
+        run: |
+          set -euo pipefail
+          token_json=$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=cambridge-corpus")
+          echo "OIDC_TOKEN=$(jq -r '.value' <<<"$token_json")" >> "$GITHUB_ENV"
+      - name: Fetch reviewed LaTeX asset sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer $OIDC_TOKEN" \
+            'https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/latex-svg-import-temp' \
+            -o /tmp/assets.json
+          test "$(jq '.assets | length' /tmp/assets.json)" -eq 13
+      - name: Compile and upload SVG assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/latex-svg
+          jq -c '.assets[]' /tmp/assets.json | while read -r row; do
+            id=$(jq -r '.id' <<<"$row")
+            jq -r '.latex_source' <<<"$row" > "/tmp/latex-svg/$id.tex"
+            python backend/scripts/latex-asset-compile.py \
+              --input "/tmp/latex-svg/$id.tex" \
+              --output "/tmp/latex-svg/$id.svg"
+            jq -n --arg id "$id" --rawfile svg "/tmp/latex-svg/$id.svg" '{id:$id,svg:$svg}' > "/tmp/latex-svg/$id.json"
+            curl -fsSL \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data-binary "@/tmp/latex-svg/$id.json" \
+              'https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/latex-svg-import-temp' \
+              | tee "/tmp/latex-svg/$id.response.json"
+            test "$(jq -r '.ok' "/tmp/latex-svg/$id.response.json")" = true
+          done
+          test "$(find /tmp/latex-svg -name '*.svg' | wc -l)" -eq 13
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9618-12-mj21-latex-svg-evidence
+          path: |
+            /tmp/assets.json
+            /tmp/latex-svg/*.response.json
+          if-no-files-found: error
+          retention-days: 30
