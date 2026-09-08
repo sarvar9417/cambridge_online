@@ -26,7 +26,7 @@ not a claim that it is the live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0157_source_fidelity_detector_v4_reconciliation.sql",
+    "latest_migration": "0158_source_fidelity_full_cue_reconciliation.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -41,7 +41,7 @@ not a claim that it is the live branch head.
       "status": "pending_reverification",
       "audited_at": null,
       "target": "production Supabase; syllabus 9618; 2021-2026 source-fidelity backlog",
-      "strict_gate": "detector-v4 reconciliation + v10 zero-block preflight + guarded apply + canonical asset sync + post-repair detector rerun",
+      "strict_gate": "detector-v5 full-cue reconciliation + v10 zero-block preflight + guarded apply + canonical asset sync + post-repair detector rerun",
       "note": "The previous release audit predates the newly discovered canonical table/visual fidelity backlog and must not be treated as current until this repair sequence completes."
     }
   },
@@ -78,7 +78,7 @@ not a claim that it is the live branch head.
     }
   },
   "infrastructure": {
-    "database": "production Supabase has source-fidelity rule-scoping and canonical owner-boundary guards through migrations 0155-0156; detector-v4 migration 0157 is the current candidate pending CI and explicit application",
+    "database": "production Supabase has source-fidelity rule-scoping, canonical owner-boundary guards and detector-v4 reconciliation through migrations 0155-0157; full-canonical-cue reconciliation migration 0158 is the current candidate pending CI and explicit application",
     "storage": "private question-assets bucket is live; all new fidelity assets remain SHA/source-pinned and are written only through guarded service-role repair flows",
     "worker": "corpus/source-audit workflows and exact uploaded-source accountability are active; v10 is the current repair candidate",
     "deployment": "application deployment remains a separate external gate; corpus repair does not assume a Vercel release is current"
@@ -91,6 +91,7 @@ not a claim that it is the live branch head.
     "backend/src/database/migrations/0155_source_asset_rule_scoped_resolution.sql",
     "backend/src/database/migrations/0156_source_fidelity_owner_boundary_guard.sql",
     "backend/src/database/migrations/0157_source_fidelity_detector_v4_reconciliation.sql",
+    "backend/src/database/migrations/0158_source_fidelity_full_cue_reconciliation.sql",
     "backend/scripts/qp-source-structure-repair-v10.py",
     "scripts/test_9618_2026_source_pipeline.py"
   ]
@@ -101,17 +102,22 @@ not a claim that it is the live branch head.
 ## Current interpretation
 
 The source-fidelity repair is intentionally **fail closed**. A v9 production preflight
-verified all 64 selected QP sources by SHA but exposed two remaining classes of risk:
+verified all selected QP sources by SHA but exposed two remaining classes of risk:
 plural relational-schema prose was being misclassified as a printed table, and a small set
 of legitimate source structures still needed stricter owner/geometry recovery.
 
-Migration `0157_source_fidelity_detector_v4_reconciliation.sql` is the candidate that
-reconciles only the plural `following tables` false-positive class and adds explicit missing
-patterns for real source tables/matching layouts. `qp-source-structure-repair-v10.py` keeps
-all SHA/source/rule/review guards while preventing numeric data rows from aliasing Cambridge
-question labels and recovering source segments only from explicit structure cues.
+Migration `0157_source_fidelity_detector_v4_reconciliation.sql` introduced the narrow
+plural-schema reconciliation and explicit patterns for real source tables/matching layouts.
+The first production v4 sweep then proved that some historical `details.cue` excerpts end
+before the discriminating `following tables` phrase. Migration
+`0158_source_fidelity_full_cue_reconciliation.sql` therefore performs the same decision from
+the exact `content_json` block identified by `cueOrdinal`, then re-evaluates true tables and
+matching layouts so a stale parent false-positive cannot mask a real child structure.
+`qp-source-structure-repair-v10.py` keeps all SHA/source/rule/review guards while preventing
+numeric data rows from aliasing Cambridge question labels and recovering source segments only
+from explicit structure cues.
 
-No broad production corpus write should occur until candidate CI passes, migration 0157 is
+No broad production corpus write should occur until candidate CI passes, migration 0158 is
 applied, the 2021-2026 detector sweep is rerun, and v10 reports zero provenance/parser
 failures and zero blocked source structures. After guarded apply, repaired assets must be
 synchronised into canonical `content_json`, the detector rerun must return zero unresolved
