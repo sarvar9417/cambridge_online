@@ -18,6 +18,7 @@ import { LessonStudio as LessonStudioV2 } from './LessonStudioV2';
 import { installLessonExamInsights } from './lesson-exam-insights';
 import { installLessonExamWorkspaceV3 } from './lesson-exam-workspace-v3';
 import { installLessonQuestionWorkspaceControls } from './lesson-question-workspace-controls';
+import { installLessonSlideScrollController } from './lesson-studio-scroll-controller';
 import { installLessonStudioProfessionalControls } from './lesson-studio-professional-controls';
 
 type LessonStudioProps = ComponentProps<typeof LessonStudioV2>;
@@ -28,7 +29,9 @@ export function LessonStudio(props: LessonStudioProps) {
     const releaseExamWorkspace = installLessonExamWorkspaceV3();
     const releaseExamInsights = installLessonExamInsights();
     const releaseWorkspaceControls = installLessonQuestionWorkspaceControls();
+    const releaseSlideScroll = installLessonSlideScrollController();
     return () => {
+      releaseSlideScroll();
       releaseWorkspaceControls();
       releaseExamInsights();
       releaseExamWorkspace();
