@@ -1,7 +1,8 @@
 import type { HodderLessonSlide } from './lesson-content-hodder-types';
 
 const MAX_SOURCE_BLOCKS_PER_SCREEN = 2;
-const MAX_SOURCE_CHARS_PER_SCREEN = 620;
+const MAX_GROUPED_SOURCE_CHARS_PER_SCREEN = 620;
+const MAX_SINGLE_SOURCE_CHARS_PER_SCREEN = 720;
 
 type PresentationChapterLike = {
   coverage:string;
@@ -22,6 +23,10 @@ const printedPageFromElement = (value:string) => {
  * Expands the exact-PDF route into projector-sized teaching screens without
  * changing, deleting or re-ordering a single source block. Source blocks stay
  * verbatim; only their screen grouping changes.
+ *
+ * Two short source blocks may share a screen, but only while their combined
+ * density stays below the grouped budget. A longer atomic source block gets a
+ * screen to itself instead of forcing adjacent material onto the same slide.
  */
 export function presentationizePdfFirstChapter<T extends PresentationChapterLike>(chapter:T):T {
   const expanded:HodderLessonSlide[]=[];
@@ -48,9 +53,10 @@ export function presentationizePdfFirstChapter<T extends PresentationChapterLike
       while(groupStart+group.length<bullets.length && group.length<MAX_SOURCE_BLOCKS_PER_SCREEN){
         const candidate=bullets[groupStart+group.length]!;
         const candidateChars=candidate.trim().length;
-        if(group.length>0 && chars+candidateChars>MAX_SOURCE_CHARS_PER_SCREEN)break;
+        if(group.length>0 && chars+candidateChars>MAX_GROUPED_SOURCE_CHARS_PER_SCREEN)break;
         group.push(candidate);
         chars+=candidateChars;
+        if(candidateChars>MAX_GROUPED_SOURCE_CHARS_PER_SCREEN)break;
       }
       if(!group.length)group.push(bullets[groupStart]!);
 
@@ -105,5 +111,6 @@ export function presentationizePdfFirstChapter<T extends PresentationChapterLike
 
 export const PDF_FIRST_PRESENTATION_LIMITS = {
   maxBlocksPerScreen:MAX_SOURCE_BLOCKS_PER_SCREEN,
-  maxCharsPerScreen:MAX_SOURCE_CHARS_PER_SCREEN,
+  maxGroupedCharsPerScreen:MAX_GROUPED_SOURCE_CHARS_PER_SCREEN,
+  maxSingleCharsPerScreen:MAX_SINGLE_SOURCE_CHARS_PER_SCREEN,
 } as const;
