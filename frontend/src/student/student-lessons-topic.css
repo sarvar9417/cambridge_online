@@ -25,6 +25,8 @@
 }
 
 .student-topic-outline {
+  display: grid;
+  align-content: start;
   gap: .55rem;
   padding: .9rem .75rem 1.1rem;
   overflow-y: auto;
