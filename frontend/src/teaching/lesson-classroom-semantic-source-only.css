@@ -1,0 +1,45 @@
+/*
+ * A semantic book heading can occasionally exist only in the exact extracted
+ * source material. Classroom mode normally hides exact transcripts because they
+ * duplicate curated teaching. On a source-only semantic page that rule would
+ * produce a blank projector page, so promote the open transcript body to the
+ * learning surface only for that explicit fallback state.
+ */
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript {
+  display: block !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript > summary,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript > summary {
+  display: none !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript-body,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript-body {
+  display: block !important;
+  margin-bottom: 20px !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-eyebrow,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-eyebrow {
+  font-size: 0 !important;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-eyebrow::after,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-eyebrow::after {
+  content: 'COURSEBOOK';
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.lesson-topic-studio:fullscreen .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-lead,
+.lesson-topic-studio.is-presenting .lesson-topic-page.classroom-source-only .lesson-source-transcript-body .lesson-lead {
+  display: none !important;
+}

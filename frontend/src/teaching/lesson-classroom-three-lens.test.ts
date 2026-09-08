@@ -5,14 +5,16 @@ import { describe, expect, it } from 'vitest';
 const source = (name: string) => readFileSync(resolve(process.cwd(), `src/teaching/${name}`), 'utf8');
 
 describe('classroom projection three-lens contract', () => {
-  it('loads the teacher/student/designer refinement and structural guard last', () => {
+  it('loads the teacher/student/designer refinement, structural guard and source-only fallback last', () => {
     const wrapper = source('LessonStudio.tsx');
     const base = wrapper.indexOf("import './lesson-classroom-display.css';");
     const refinement = wrapper.indexOf("import './lesson-classroom-three-lens.css';");
     const structure = wrapper.indexOf("import './lesson-classroom-three-lens-structure.css';");
+    const sourceOnly = wrapper.indexOf("import './lesson-classroom-semantic-source-only.css';");
     expect(base).toBeGreaterThan(-1);
     expect(refinement).toBeGreaterThan(base);
     expect(structure).toBeGreaterThan(refinement);
+    expect(sourceOnly).toBeGreaterThan(structure);
     expect(wrapper).toContain('installLessonClassroomFocus()');
   });
 
@@ -34,6 +36,16 @@ describe('classroom projection three-lens contract', () => {
     expect(focus).toContain("fragmentHeading.classList.toggle('classroom-redundant-heading', duplicate);");
     expect(structure).toContain('.classroom-redundant-heading');
     expect(structure).toContain('display: none !important;');
+  });
+
+  it('promotes exact source text only when a semantic classroom page has no curated teaching fragment', () => {
+    const focus = source('lesson-classroom-focus.ts');
+    const fallback = source('lesson-classroom-semantic-source-only.css');
+    expect(focus).toContain("page.classList.toggle('classroom-source-only', sourceOnly);");
+    expect(fallback).toContain('.lesson-topic-page.classroom-source-only .lesson-source-transcript');
+    expect(fallback).toContain('display: block !important;');
+    expect(fallback).toContain('.lesson-source-transcript > summary');
+    expect(fallback).toContain('display: none !important;');
   });
 
   it('keeps projector navigation keys working after the teacher clicks the Topic/Page rail', () => {

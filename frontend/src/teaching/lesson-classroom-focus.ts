@@ -42,6 +42,13 @@ function markRedundantHeading(page: HTMLElement) {
   }
 }
 
+function markSourceOnlyPage(page: HTMLElement) {
+  const sourceOnly = teachingFragments(page).length === 0 && Boolean(page.querySelector('.lesson-source-transcript'));
+  if (page.classList.contains('classroom-source-only') !== sourceOnly) {
+    page.classList.toggle('classroom-source-only', sourceOnly);
+  }
+}
+
 function ensureStatus(studio: HTMLElement) {
   let status = studio.querySelector<HTMLDivElement>('.lesson-classroom-fragment-status');
   if (!status) {
@@ -90,6 +97,7 @@ function focusFragment(studio: HTMLElement, page: HTMLElement) {
 }
 
 function syncClassroomOrientation(studio: HTMLElement, page: HTMLElement) {
+  markSourceOnlyPage(page);
   markRedundantHeading(page);
   keepActiveRailItemVisible(studio);
   focusFragment(studio, page);
@@ -145,6 +153,7 @@ export function installLessonClassroomFocus() {
     releasePage?.();
     document.querySelectorAll('.classroom-fragment-focus').forEach(node => node.classList.remove('classroom-fragment-focus'));
     document.querySelectorAll('.classroom-redundant-heading').forEach(node => node.classList.remove('classroom-redundant-heading'));
+    document.querySelectorAll('.classroom-source-only').forEach(node => node.classList.remove('classroom-source-only'));
     document.querySelectorAll('.lesson-classroom-fragment-status').forEach(node => node.remove());
   };
 }
