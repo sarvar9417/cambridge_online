@@ -4,6 +4,7 @@ import { CHAPTER_7, CHAPTER_7_BOOK_START_ID, CHAPTER_7_DISCOVERY_SLIDE_COUNT } f
 import { CHAPTER_7_BOOK_SLIDES, CHAPTER_7_BOOK_SOURCE_COVERAGE } from './chapter7-book-content';
 import { CHAPTER_7_SOURCE_MAP } from './chapter7-book-coverage';
 import { CHAPTER_7_PAST_PAPER_CHECKPOINTS } from './chapter7-past-paper-checkpoints';
+import { CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES, CHAPTER_7_COURSEBOOK_PAGE_SLIDES } from './coursebook-page-slides';
 
 const allText = (value: unknown) => JSON.stringify(value).toLowerCase();
 
@@ -15,10 +16,15 @@ describe('0478 Chapter 7 complete presenter route', () => {
     expect(CHAPTER_7_BOOK_START_ID).toBe('ch7-book-00-route');
   });
 
-  it('appends the coursebook deep dive and nine live 0478 checkpoints without replacing discovery content', () => {
+  it('appends the coursebook deep dive, checkpoints, formal glossary and all 41 source pages without replacing discovery content', () => {
     expect(CHAPTER_7_BOOK_SLIDES.length).toBeGreaterThan(50);
     expect(CHAPTER_7_PAST_PAPER_CHECKPOINTS).toHaveLength(9);
-    expect(CHAPTER_7.slides.length).toBe(15 + CHAPTER_7_BOOK_SLIDES.length + CHAPTER_7_PAST_PAPER_CHECKPOINTS.length);
+    expect(CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES).toHaveLength(3);
+    expect(CHAPTER_7_COURSEBOOK_PAGE_SLIDES).toHaveLength(41);
+    expect(CHAPTER_7.slides.length).toBe(
+      15 + CHAPTER_7_BOOK_SLIDES.length + CHAPTER_7_PAST_PAPER_CHECKPOINTS.length +
+      CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES.length + CHAPTER_7_COURSEBOOK_PAGE_SLIDES.length
+    );
     expect(CHAPTER_7_BOOK_SLIDES.every((slide) => slide.id.startsWith('ch7-book-'))).toBe(true);
   });
 
@@ -75,7 +81,7 @@ describe('0478 Chapter 7 complete presenter route', () => {
   });
 
   it('keeps the appended student-facing book and 0478 checkpoint content English-only', () => {
-    const text = allText([...CHAPTER_7_BOOK_SLIDES, ...CHAPTER_7_PAST_PAPER_CHECKPOINTS]);
+    const text = allText([...CHAPTER_7_BOOK_SLIDES, ...CHAPTER_7_PAST_PAPER_CHECKPOINTS, ...CHAPTER_7_COURSEBOOK_GLOSSARY_SLIDES, ...CHAPTER_7_COURSEBOOK_PAGE_SLIDES]);
     const forbiddenUzbekMarkers = ['o‘quvchi','tizim','vazifa','savol','javob','qaytim','kerak emas','boshlash','tugatish','guruh'];
     forbiddenUzbekMarkers.forEach((marker) => expect(text).not.toContain(marker));
   });
