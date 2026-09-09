@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER_14 } from './lesson-content-chapter14';
+import { CHAPTER_14_COMPLETE } from './lesson-content-chapter14-fidelity';
 import { lessonChapter } from './lesson-content-source-complete';
 import { buildTopicPlan } from './lesson-topic-plan';
 
-const text = JSON.stringify(CHAPTER_14);
-const figureTitles = CHAPTER_14.slides.flatMap(slide =>
+const chapter = CHAPTER_14_COMPLETE;
+const text = JSON.stringify(chapter);
+const figureTitles = chapter.slides.flatMap(slide =>
   (slide.richBlocks ?? []).flatMap(block => block.kind === 'figure' ? [block.figure.title] : []),
 );
-const representedPages = [...new Set(CHAPTER_14.slides.flatMap(slide => slide.sourcePages ?? []))].sort((a,b)=>a-b);
+const representedPages = [...new Set(chapter.slides.flatMap(slide => slide.sourcePages ?? []))].sort((a,b)=>a-b);
 
 describe('Chapter 14 communication and internet technologies', () => {
   it('is exposed through the active Lessons chapter library', () => {
@@ -17,20 +18,20 @@ describe('Chapter 14 communication and internet technologies', () => {
 
   it('represents every supplied printed source page from 328 to 345', () => {
     expect(representedPages).toEqual(Array.from({ length: 18 }, (_, index) => 328 + index));
-    expect(CHAPTER_14.coverage).toContain('18/18 supplied source pages represented');
+    expect(chapter.coverage).toContain('18/18 supplied source pages represented');
   });
 
   it('keeps both source sections in the lesson navigation model', () => {
-    expect(CHAPTER_14.subtopics).toEqual([
+    expect(chapter.subtopics).toEqual([
       '14.1 Protocols',
       '14.2 Circuit switching and packet switching',
     ]);
-    expect(CHAPTER_14.slides.some(slide=>slide.subtopicCode==='14.1')).toBe(true);
-    expect(CHAPTER_14.slides.some(slide=>slide.subtopicCode==='14.2')).toBe(true);
+    expect(chapter.slides.some(slide=>slide.subtopicCode==='14.1')).toBe(true);
+    expect(chapter.slides.some(slide=>slide.subtopicCode==='14.2')).toBe(true);
   });
 
   it('keeps Chapter 14 as a true slide-by-slide presentation route', () => {
-    const topics=buildTopicPlan(CHAPTER_14.slides,CHAPTER_14.subtopics);
+    const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
     for(const topic of topics.filter(item=>item.code==='14.1'||item.code==='14.2')){
       expect(topic.pages.length,topic.code).toBeGreaterThan(1);
       for(const page of topic.pages){
@@ -48,6 +49,22 @@ describe('Chapter 14 communication and internet technologies', () => {
       'Pull protocol','Host-to-host','Host','BitTorrent','Peer','Metadata','Pieces','Tracker','Swarm','Seed','Leech','Lurker',
       'Circuit switching','Packet switching','Hop number / hopping','Header (data packet)','Routing table',
     ]) expect(text, `Missing Chapter 14 term: ${term}`).toContain(term);
+  });
+
+  it('retains the source details that are easy to lose during presentation conversion', () => {
+    for(const detail of [
+      '331 Anonymous access allowed',
+      'ftp://username@ftp.example.gov/',
+      'superseded by increasing use of HTTP protocols',
+      '1539 bytes to around 9000 bytes per frame',
+      'IEEE 802.16-2004',
+      'IEEE 802.16-2005',
+      'about 12% of video file sharing',
+      'YouTube at about 50%',
+      'availability means the number of complete copies',
+      'checksum and why it is used [2]',
+      'headers and routing tables are used to route packets efficiently',
+    ]) expect(text,`Missing source-detail fidelity: ${detail}`).toContain(detail);
   });
 
   it('contains all ten reconstructed source figures plus tables and worked examples', () => {
