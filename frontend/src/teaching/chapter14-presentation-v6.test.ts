@@ -5,6 +5,7 @@ import { hasChapter14PresentationVisualV4 } from './Chapter14PresentationVisuals
 import { CHAPTER_14_V6_VISUAL_IDS } from './Chapter14PresentationVisualsV6';
 
 const visualSource=readFileSync(new URL('./Chapter14PresentationVisualsV6.tsx',import.meta.url),'utf8');
+const completenessSource=readFileSync(new URL('./Chapter14PresentationCompleteness.tsx',import.meta.url),'utf8');
 const q4Source=readFileSync(new URL('./Chapter14PracticeQ4.tsx',import.meta.url),'utf8');
 
 describe('Chapter 14 complete visual-first presentation',()=>{
@@ -34,6 +35,23 @@ describe('Chapter 14 complete visual-first presentation',()=>{
       'NEXT-ROUTER MAC',
       'add its MAC',
     ]) expect(visualSource,`missing visual source marker: ${marker}`).toContain(marker);
+  });
+
+  it('keeps secondary but source-significant details visible without crowding the main diagrams',()=>{
+    for(const marker of [
+      'IP conflicts',
+      'status flags',
+      'port 80',
+      'server TCP sends an acknowledgement',
+      'machine-readable but not human-readable',
+      'external devices requires IP',
+      '20 × 1 MiB pieces',
+      'about 12% of video-file sharing',
+      'private data networks',
+      'provided device B is not busy',
+      '6 × 4 = 24 bytes',
+      'no route can be found',
+    ]) expect(completenessSource,`missing secondary source marker: ${marker}`).toContain(marker);
   });
 
   it('uses the coursebook TCP handshake wording instead of unsupported SYN shorthand',()=>{
