@@ -28,7 +28,7 @@ describe('LiveChallengeModerationService',()=>{
     const query=vi.fn(async(sql:string,params?:unknown[])=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'PAUSED',state_version:8,paused_from_status:'QUESTION_ACTIVE',paused_at:pausedAt}]};
-      if(sql.includes('set started_at=started_at+(now()-$2::timestamptz)'){
+      if(sql.includes('set started_at=started_at+(now()-$2::timestamptz)')){
         expect(params).toEqual([challengeId,pausedAt]);
         return{rowCount:1,rows:[]};
       }
