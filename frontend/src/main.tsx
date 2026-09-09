@@ -22,6 +22,7 @@ import './teaching/chapter14-presentation-v2.css';
 import './teaching/presentation-viewport-safety.css';
 import './teaching/presentation-reveal-fixes.css';
 import './teaching/presentation-density-pass.css';
+import './teaching/chapter14-presentation-v3.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
