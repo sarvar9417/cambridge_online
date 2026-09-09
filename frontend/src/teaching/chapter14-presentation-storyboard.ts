@@ -272,6 +272,7 @@ const SWITCHING:LessonPresentationBeat[] = [
 ];
 
 export function chapter14PresentationStoryboard(topicCode:string){
+  if(topicCode==='overview')return [...PROTOCOLS,...SWITCHING];
   if(topicCode==='14.1')return PROTOCOLS;
   if(topicCode==='14.2')return SWITCHING;
   return null;
