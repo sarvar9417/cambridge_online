@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { LiveChallengeService } from '../services/live-challenge-service.js';
 import type { LiveChallengeSessionService } from '../services/live-challenge-session-service.js';
 import type { LiveChallengeAnswerService } from '../services/live-challenge-answer-service.js';
+import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
 
 const uuid = z.string().uuid();
 
@@ -18,7 +19,12 @@ const settingsSchema = z.object({
   displayNameMode: z.enum(['first_name','full_name','anonymous']).optional(),
 }).strict();
 
-export function createLiveChallengesRouter(service: LiveChallengeService, session: LiveChallengeSessionService, answers: LiveChallengeAnswerService) {
+export function createLiveChallengesRouter(
+  service: LiveChallengeService,
+  session: LiveChallengeSessionService,
+  answers: LiveChallengeAnswerService,
+  peerMarking: LiveChallengePeerMarkingService,
+) {
   const router = Router();
 
   router.get('/student', async (req, res) => {
@@ -102,6 +108,33 @@ export function createLiveChallengesRouter(service: LiveChallengeService, sessio
   router.post('/:id/answers/lock',async(req,res)=>{
     const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
     res.json({data:await answers.lock(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.post('/:id/peer-marking/start',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await peerMarking.start(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.get('/:id/peer-marking/assignment',async(req,res)=>{
+    res.json({data:await peerMarking.assignment(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.post('/:id/peer-marking/submit',async(req,res)=>{
+    const body=z.object({
+      awardedMarks:z.number().min(0),
+      markPointIds:z.array(uuid).max(100).default([]),
+      feedbackText:z.string().trim().max(5000).nullable().optional(),
+    }).strict().parse(req.body);
+    res.status(201).json({data:await peerMarking.submit(req.actor!,uuid.parse(req.params.id),body)});
+  });
+
+  router.post('/:id/peer-marking/release',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await peerMarking.release(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.get('/:id/result',async(req,res)=>{
+    res.json({data:await peerMarking.ownResult(req.actor!,uuid.parse(req.params.id))});
   });
 
   router.post('/:id/start',async(req,res)=>{
