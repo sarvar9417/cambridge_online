@@ -26,6 +26,15 @@ describe('Darslar library v3 design contract', () => {
     expect(css).toContain('@media (max-width: 700px)');
   });
 
+  it('gives Chapter 14 a distinct network/communications identity', () => {
+    const css = source('lesson-library-v3.css');
+    const chapter14 = css.match(/\.lesson-chapter-card\.chapter-14\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(chapter14).toContain('--chapter-accent: #2563eb;');
+    expect(chapter14).toContain('--chapter-accent-rgb: 37, 99, 235;');
+    expect(chapter14).toContain('linear-gradient');
+  });
+
   it('does not target lesson workspace or fullscreen Board mode', () => {
     const css = source('lesson-library-v3.css');
 
