@@ -5,6 +5,9 @@ import { LiveChallengeSessionService } from './live-challenge-session-service.js
 const student={id:'student-1',role:'student' as const,schoolId:'school-1',fullName:'Student'};
 const teacher={id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher'};
 const challengeId='11111111-1111-4111-8111-111111111111';
+const roundId='22222222-2222-4222-8222-222222222222';
+const challengeQuestionId='33333333-3333-4333-8333-333333333333';
+const questionId='44444444-4444-4444-8444-444444444444';
 
 describe('LiveChallengeSessionService',()=>{
   it('student feed is enrollment-scoped and never selects question or mark-scheme content',async()=>{
@@ -67,5 +70,47 @@ describe('LiveChallengeSessionService',()=>{
     const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
     await expect(service.openLobby(teacher,challengeId,4)).resolves.toEqual({id:challengeId,status:'LOBBY',stateVersion:5,joinCode:'ABC234'});
     expect(clientQuery).toHaveBeenCalledWith('commit');
+  });
+
+  it('starts exactly one server-authoritative first round and advances the challenge version',async()=>{
+    const startedAt=new Date('2026-09-09T16:00:00Z');
+    const clientQuery=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.*,c.name class_name'))return{rowCount:1,rows:[{id:challengeId,status:'LOBBY',state_version:7,settings_json:{question_order:'fixed'},started_at:null}]};
+      if(sql.includes('from live_challenge_questions lcq'))return{rowCount:1,rows:[{id:challengeQuestionId,position:1}]};
+      if(sql.includes('insert into live_challenge_rounds'))return{rowCount:1,rows:[{id:roundId,round_number:1,started_at:startedAt}]};
+      if(sql.includes("set status='QUESTION_ACTIVE'"))return{rowCount:1,rows:[{id:challengeId,status:'QUESTION_ACTIVE',state_version:8,current_question_position:1,started_at:startedAt}]};
+      if(sql.includes("'round.started'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client={query:clientQuery,release:vi.fn()} as unknown as PoolClient;
+    const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    await expect(service.start(teacher,challengeId,7)).resolves.toMatchObject({
+      id:challengeId,status:'QUESTION_ACTIVE',stateVersion:8,currentQuestionPosition:1,roundId,roundNumber:1,
+    });
+    expect(clientQuery).toHaveBeenCalledWith('commit');
+  });
+
+  it('projects the active canonical question to a joined student without leaking the mark scheme or source controls',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('join live_challenge_participants p'))return{rowCount:1,rows:[{
+        id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'QUESTION_ACTIVE',
+        state_version:8,current_question_position:1,settings_json:{timing_mode:'teacher'},syllabus_code:'9618',
+        topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',participant_status:'JOINED',
+      }]};
+      if(sql.includes('from live_challenge_questions lcq'))return{rowCount:1,rows:[{
+        challenge_question_id:challengeQuestionId,position:1,max_marks_snapshot:4,time_limit_seconds:null,
+        source_occurrence_snapshot:{sourcePaperId:'paper-1'},mark_scheme_snapshot:{maxMarks:4,points:[{code:'A1'}]},
+        question_id:questionId,display_ref:'9618/12/M/J/26 Q3(a)',stem_md:'State two functions of the control unit.',
+        context_md:null,command_word:'State',marks:4,answer_kind:'text',content_json:null,content_version:null,parent_context:null,
+        round_id:roundId,round_number:1,round_status:'QUESTION_ACTIVE',round_started_at:new Date('2026-09-09T16:00:00Z'),
+        locked_at:null,marking_started_at:null,results_released_at:null,
+      }]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeSessionService({query} as unknown as Pool);
+    const state=await service.state(student,challengeId);
+    expect(state).toMatchObject({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:8,currentQuestionPosition:1,markScheme:null,source:null});
+    expect(state.question).toMatchObject({id:questionId,displayRef:'9618/12/M/J/26 Q3(a)',marks:4,answerKind:'text'});
   });
 });
