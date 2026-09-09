@@ -12,11 +12,13 @@ import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
 import { buildTopicPlan, flattenTopicPages, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import { lessonPurpose, studentFacingSlide, studentFacingText } from './lesson-student-facing';
+import { highlightChapter2Terms, isChapter2Slide } from './chapter2-term-highlight';
 import './lesson-studio.css';
 import './lesson-studio-full.css';
 import './lesson-studio-presenter-fix.css';
 import './lesson-checkpoint-scroll.css';
 import './lesson-studio-hodder.css';
+import './chapter2-term-highlight.css';
 
 type ExamPart = {
   id:string; displayRef:string; stem:string; contextMd:string|null; commandWord:string|null; marks:number;
@@ -35,6 +37,7 @@ function Visual({ kind }: { kind?: LessonVisual }) {
     binary:['1','0','1','1','0','0','1','0'], bases:['2','10','16','BCD'], arithmetic:['0110','+0011','=1001'], characters:['A','65','01000001'],
     pixels:['▦','24-bit','1920×1080'], vectors:['○','△','⌁'], sound:['∿','44.1 kHz','16 bit'], compression:['100%','→','28%'],
     types:['ENUM','RECORD','SET'], files:['SERIAL','SEQ','RANDOM'], hashing:['KEY','ƒ(x)','217'], floating:['M','× 2','E'], precision:['PRECISION','↔','RANGE'], recap:['✓','✓','✓'],
+    networking:['LAN','WAN','📡','🔌'], internet:['WWW','DNS','IP','🌐'], html:['<html>','<body>','🔗','📄'],
   };
   return <div className={`lesson-visual lesson-visual-${kind}`} aria-hidden="true">{labels[kind].map((item,index)=><span key={`${item}-${index}`}>{item}</span>)}</div>;
 }
@@ -163,18 +166,20 @@ function TopicExamPractice({ slides }: { slides:LessonSlide[] }) {
 }
 
 function SlideBody({ slide }: { slide:LessonSlide }) {
+  const highlight=isChapter2Slide(slide.id);
+  const mark=(text:string)=>highlightChapter2Terms(text,highlight);
   return <>
     <div className="lesson-copy hodder-copy">
       <span className="lesson-screen-purpose">{lessonPurpose(slide)}</span>
       <p className="lesson-eyebrow">{slide.eyebrow}</p>
-      <h1>{slide.title}</h1>
-      <p className="lesson-lead">{slide.lead}</p>
+      <h1>{mark(slide.title)}</h1>
+      <p className="lesson-lead">{mark(slide.lead)}</p>
       {slide.formula&&<div className="lesson-formula">{slide.formula}</div>}
-      {slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>}
-      {slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><p>{item.definition}</p></article>)}</div>}
+      {slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map((item,index)=><li key={`${item}-${index}`}>{mark(item)}</li>)}</ul>}
+      {slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{mark(item.term)}</strong><p>{mark(item.definition)}</p></article>)}</div>}
       {slide.richBlocks&&<div className="hodder-rich-blocks">{slide.richBlocks.map((block,index)=><RichBlock block={block} key={`${block.kind}-${index}`}/>)}</div>}
       {slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}
-      {slide.teacherPrompt&&<aside className="lesson-prompt student-facing-prompt"><span>THINK / EXPLAIN</span><p>{slide.teacherPrompt}</p></aside>}
+      {slide.teacherPrompt&&<aside className="lesson-prompt student-facing-prompt"><span>THINK / EXPLAIN</span><p>{mark(slide.teacherPrompt)}</p></aside>}
       {slide.activity&&<ActivityCard slideId={slide.id} activity={slide.activity}/>} 
     </div>
     <Visual kind={slide.visual}/>

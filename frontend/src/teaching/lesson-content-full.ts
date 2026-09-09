@@ -1,6 +1,7 @@
 export type LessonVisual =
   | 'binary' | 'bases' | 'arithmetic' | 'characters' | 'pixels' | 'vectors' | 'sound' | 'compression'
-  | 'types' | 'files' | 'hashing' | 'floating' | 'precision' | 'recap';
+  | 'types' | 'files' | 'hashing' | 'floating' | 'precision' | 'recap'
+  | 'networking' | 'internet' | 'html';
 
 export type LessonSlide = {
   id: string;

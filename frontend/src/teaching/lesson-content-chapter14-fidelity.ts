@@ -1,5 +1,6 @@
 import { CHAPTER_14, type Chapter14Lesson } from './lesson-content-chapter14';
 import type { HodderLessonSlide } from './lesson-content-hodder-types';
+import { CHAPTER_14_SOURCE_FILE_MANIFEST } from './source-file-fidelity-manifest';
 
 const source = (printedPage: number, elements: string[] = []) => ({
   sourcePages: [printedPage],
@@ -239,8 +240,21 @@ function withInserts(slides: readonly HodderLessonSlide[]) {
   return slides.flatMap(slide => [slide, ...(byAnchor.get(slide.id) ?? [])]);
 }
 
+function withSourceFingerprints(slides: readonly HodderLessonSlide[]) {
+  return slides.map(slide=>{
+    const fingerprints=(slide.sourcePages??[]).flatMap(printedPage=>{
+      const page=CHAPTER_14_SOURCE_FILE_MANIFEST.pages.find(item=>item.printedPage===printedPage);
+      return page?[`SOURCE FILE PAGE ${printedPage} · sha256:${page.sha256}`]:[];
+    });
+    return fingerprints.length?{
+      ...slide,
+      sourceElements:[...(slide.sourceElements??[]),...fingerprints],
+    }:slide;
+  });
+}
+
 export const CHAPTER_14_COMPLETE: Chapter14Lesson = {
   ...CHAPTER_14,
-  coverage: '18/18 supplied source pages represented · Figures 14.1–14.10 reconstructed · Tables 14.1–14.5 represented · source-detail fidelity screens retained · Activity 14A and end-of-chapter Q1–Q4 represented',
-  slides: withInserts(CHAPTER_14.slides),
+  coverage: '18/18 supplied source pages represented · exact supplied PDF locked (18/18 page fingerprints) · Figures 14.1–14.10 reconstructed · Tables 14.1–14.5 represented · source-detail fidelity screens retained · Activity 14A and end-of-chapter Q1–Q4 represented',
+  slides: withSourceFingerprints(withInserts(CHAPTER_14.slides)),
 };

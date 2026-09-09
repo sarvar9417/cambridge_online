@@ -253,8 +253,9 @@ const cloneIntoSection = (slide:HodderLessonSlide, meta:PdfFirstSectionMeta):Hod
  * all live/current Past Paper checkpoints for that section.
  */
 export function buildPdfFirst9618Chapter(baseChapter:HodderLessonChapter):HodderLessonChapter {
+  if(baseChapter.number===2)return baseChapter;
   const current=applyCurrent9618CheckpointTargets(baseChapter);
-  const metas=pdfFirstSectionsForChapter(baseChapter.number);
+  const metas=pdfFirstSectionsForChapter(baseChapter.number as 1|7|13);
   const routedIds=new Set<string>();
   const routed:HodderLessonSlide[]=[];
 

@@ -6,8 +6,10 @@ import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { CHAPTER_7_PAGE_SOURCE_ATOMS } from './chapter7-source-atoms';
 import {
   CHAPTER_1_SOURCE_FILE_MANIFEST,
+  CHAPTER_2_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
   CHAPTER_13_SOURCE_FILE_MANIFEST,
+  CHAPTER_14_SOURCE_FILE_MANIFEST,
   SOURCE_FILE_FIDELITY_MANIFESTS,
 } from './source-file-fidelity-manifest';
 
@@ -17,8 +19,8 @@ const text=(value:unknown)=>JSON.stringify(value).toLowerCase()
 const shaPattern=/^[0-9a-f]{64}$/;
 
 describe('exact supplied PDF fidelity contract',()=>{
-  it('locks all three audits to the exact user-supplied source files',()=>{
-    expect(SOURCE_FILE_FIDELITY_MANIFESTS.map(item=>item.pageCount)).toEqual([26,41,24]);
+  it('locks all five audits to the exact user-supplied source files',()=>{
+    expect(SOURCE_FILE_FIDELITY_MANIFESTS.map(item=>item.pageCount)).toEqual([26,41,41,24,18]);
     for(const manifest of SOURCE_FILE_FIDELITY_MANIFESTS){
       expect(manifest.sourceFileSha256).toMatch(shaPattern);
       expect(manifest.pages).toHaveLength(manifest.pageCount);
@@ -27,7 +29,7 @@ describe('exact supplied PDF fidelity contract',()=>{
     }
   });
 
-  it('has a fingerprint for every source page in the three supplied extracts',()=>{
+  it('has a fingerprint for every source page in the supplied extracts',()=>{
     expect(CHAPTER_1_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
       Array.from({length:26},(_,index)=>index+1),
     );
@@ -36,6 +38,12 @@ describe('exact supplied PDF fidelity contract',()=>{
     );
     expect(CHAPTER_7_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
       Array.from({length:41},(_,index)=>258+index),
+    );
+    expect(CHAPTER_2_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
+      Array.from({length:41},(_,index)=>27+index),
+    );
+    expect(CHAPTER_14_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(
+      Array.from({length:18},(_,index)=>328+index),
     );
   });
 

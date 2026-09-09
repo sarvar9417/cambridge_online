@@ -205,6 +205,7 @@ const enrichSlide = (slide: HodderLessonSlide): HodderLessonSlide => {
 };
 
 const enrichChapter = (chapter: HodderLessonChapter): HodderLessonChapter => {
+  if(chapter.number!==1&&chapter.number!==13)return chapter;
   const atoms = sourceAtomsForChapter(chapter.number);
   const pages = new Set(atoms.map((item) => item.page));
   const boardPracticeCount = atoms.filter(isBoardPracticeAtom).length;

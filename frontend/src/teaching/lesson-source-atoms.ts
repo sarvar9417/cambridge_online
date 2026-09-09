@@ -130,5 +130,5 @@ export const CHAPTER_13_SOURCE_ATOMS: LessonSourceAtom[] = [
 
 export const SOURCE_ATOMS = [...CHAPTER_1_SOURCE_ATOMS, ...CHAPTER_13_SOURCE_ATOMS];
 
-export const sourceAtomsForChapter = (chapter: 1 | 13) => SOURCE_ATOMS.filter((item) => item.chapter === chapter);
+export const sourceAtomsForChapter = (chapter: 1 | 2 | 13) => SOURCE_ATOMS.filter((item) => item.chapter === chapter);
 export const sourceAtomsForSlide = (slideId: string) => SOURCE_ATOMS.filter((item) => item.targetSlideId === slideId);

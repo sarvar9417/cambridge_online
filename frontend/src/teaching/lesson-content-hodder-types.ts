@@ -78,7 +78,7 @@ export type HodderLessonSlide = LessonSlide & {
 };
 
 export type HodderLessonChapter = {
-  number: 1 | 13;
+  number: 1 | 2 | 13 | 14;
   level: 'AS Level' | 'A Level';
   title: string;
   subtitle: string;

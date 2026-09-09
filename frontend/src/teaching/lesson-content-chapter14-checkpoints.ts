@@ -47,7 +47,7 @@ const switchingCheckpoint = currentCheckpoint(
   '14.2 Circuit switching and packet switching',
   '14.2',
   'Cambridge checkpoint: circuit switching and packet switching',
-  ['14.2.1', '14.2.2'],
+  ['14.2.1', '14.2.2', '14.2.3'],
   345,
   'cyan',
 );

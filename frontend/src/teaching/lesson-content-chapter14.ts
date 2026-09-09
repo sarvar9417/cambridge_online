@@ -1060,13 +1060,27 @@ const slides: HodderLessonSlide[] = [
   },
 ];
 
+const classroomSlides = slides.flatMap(slide=>{
+  if(slide.id!=='h14-key-terms-141'||!slide.keyTerms)return [slide];
+  const size=8;
+  const groups=Array.from({length:Math.ceil(slide.keyTerms.length/size)},(_,index)=>slide.keyTerms!.slice(index*size,(index+1)*size));
+  return groups.map((keyTerms,index):HodderLessonSlide=>({
+    ...slide,
+    id:`${slide.id}-${index+1}`,
+    title:`Protocol vocabulary · ${index+1}/${groups.length}`,
+    lead:index===0?slide.lead:'Continue the exact Chapter 14 protocol vocabulary before moving into the protocol stack.',
+    keyTerms,
+    sourceElements:[...(slide.sourceElements??[]),`14.1 key terms · part ${index+1}/${groups.length}`],
+  }));
+});
+
 export const CHAPTER_14: Chapter14Lesson = {
   number: 14,
-  level: 'AS Level',
+  level: 'A Level',
   title: 'Communication and internet technologies',
   subtitle: 'Protocols, TCP/IP, application services, Ethernet and wireless protocols, BitTorrent, circuit switching, packet switching, routers and routing tables.',
   subtopics: ['14.1 Protocols', '14.2 Circuit switching and packet switching'],
   sourceNote: 'Built from the supplied Hodder Chapter 14 extract, printed pages 328–345. Terminology and worked-example framing follow the uploaded source.',
   coverage: '18/18 supplied source pages represented · Figures 14.1–14.10 reconstructed with board-readable sequence/bitfield visuals · Tables 14.1–14.5 represented · Activity 14A and end-of-chapter questions represented',
-  slides,
+  slides: classroomSlides,
 };

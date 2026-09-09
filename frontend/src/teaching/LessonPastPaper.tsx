@@ -1,0 +1,131 @@
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft';
+import { ArrowRight } from '@phosphor-icons/react/ArrowRight';
+import { CheckCircle } from '@phosphor-icons/react/CheckCircle';
+import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass';
+import { Printer } from '@phosphor-icons/react/Printer';
+import { api } from '../lib/api';
+import type { HodderLessonSlide } from './lesson-content-hodder-types';
+import type { LessonAudience } from './lesson-experience-model';
+import type { LessonTopic, TopicPage } from './lesson-topic-plan';
+
+type ExamAsset = {id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null};
+type ExamContextBlock = {id:string;displayRef:string;contextMd:string|null;assets:ExamAsset[]};
+type ExamDependency = {id:string;displayRef:string;stem:string;contextMd:string|null;assets:ExamAsset[]};
+type MarkPoint = {code:string;text:string;marks:number};
+type ExamQuestion = {
+  id:string;
+  displayRef:string;
+  stem:string;
+  contextMd:string|null;
+  commandWord:string|null;
+  marks:number;
+  year:number;
+  series:string;
+  variant:number;
+  component:number;
+  hasDiagram:boolean;
+  hasDependency:boolean;
+  contextBlocks:ExamContextBlock[];
+  dependencies:ExamDependency[];
+  markSchemePoints:MarkPoint[];
+};
+type CheckpointResponse = {data:ExamQuestion[];yearFrom:number;yearTo:number;syllabusCode:string};
+
+function assetComplete(asset:ExamAsset){return Boolean(asset.url||asset.contentMd);}
+function isVisualAsset(asset:ExamAsset){return ['diagram','image'].includes(asset.kind.toLowerCase());}
+function questionComplete(question:ExamQuestion){
+  const assets=[...question.contextBlocks.flatMap(block=>block.assets),...question.dependencies.flatMap(item=>item.assets)];
+  if(question.hasDiagram&&!assets.some(asset=>isVisualAsset(asset)&&assetComplete(asset)))return false;
+  if(question.hasDependency&&!question.dependencies.length)return false;
+  return assets.every(assetComplete);
+}
+
+function ExamAssetView({asset}:{asset:ExamAsset}) {
+  if(asset.url)return <figure className="lx-exam-asset"><img src={asset.url} alt={asset.altText||'Savol diagrammasi'}/>{asset.sourcePage?<figcaption>Source page {asset.sourcePage}</figcaption>:null}</figure>;
+  if(!asset.contentMd)return null;
+  if(/^\s*<svg[\s>]/i.test(asset.contentMd)){
+    const src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(asset.contentMd)}`;
+    return <figure className="lx-exam-asset"><img src={src} alt={asset.altText||'Savol diagrammasi'}/>{asset.sourcePage?<figcaption>Source page {asset.sourcePage}</figcaption>:null}</figure>;
+  }
+  return <figure className="lx-exam-asset lx-exam-asset--text"><figcaption>{asset.altText||asset.kind}</figcaption><pre>{asset.contentMd}</pre></figure>;
+}
+
+function QuestionContext({question}:{question:ExamQuestion}) {
+  return <>
+    {question.dependencies.map(dependency=><section className="lx-required-context" key={dependency.id}><span>OLDINGI ZARUR QISM · {dependency.displayRef}</span>{dependency.contextMd?<p>{dependency.contextMd}</p>:null}{dependency.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}{dependency.stem?<p>{dependency.stem}</p>:null}</section>)}
+    {question.contextBlocks.map(block=><section className="lx-question-context" key={block.id}>{block.contextMd?<p>{block.contextMd}</p>:null}{block.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}</section>)}
+    {!question.contextBlocks.length&&question.contextMd?<section className="lx-question-context"><p>{question.contextMd}</p></section>:null}
+  </>;
+}
+
+function answerStorageKey(questionId:string){return `campath:past-paper-answer:${questionId}`;}
+
+function ExamQuestionView({question,audience}:{question:ExamQuestion;audience:LessonAudience}) {
+  const [answer,setAnswer]=useState(()=>{
+    try{return window.localStorage.getItem(answerStorageKey(question.id))??'';}catch{return '';}
+  });
+  const [schemeOpen,setSchemeOpen]=useState(false);
+  useEffect(()=>{
+    try{window.localStorage.setItem(answerStorageKey(question.id),answer);}catch{/* Local persistence is optional. */}
+  },[answer,question.id]);
+  useEffect(()=>setSchemeOpen(false),[question.id]);
+  return <article className="lx-question-paper">
+    <header className="lx-question-meta"><div><span>{question.displayRef}</span><small>{question.year} · {question.series} · Paper {question.component} · Variant {question.variant}</small></div><strong>{question.marks} mark</strong></header>
+    <div className="lx-question-body"><QuestionContext question={question}/><p className="lx-question-stem">{question.stem}</p>{question.commandWord?<span className="lx-command-word">Command word · {question.commandWord}</span>:null}</div>
+    <label className="lx-answer"><span>{audience==='teacher'?'Sinf javobi yoki o‘qituvchi izohi':'Javobingiz'}</span><textarea value={answer} rows={Math.max(5,Math.min(12,question.marks*2))} onChange={event=>setAnswer(event.target.value)} placeholder="Javobni shu yerda yozing…"/></label>
+    <div className="lx-scheme-actions"><button type="button" aria-expanded={schemeOpen} onClick={()=>setSchemeOpen(open=>!open)}><CheckCircle size={20} aria-hidden="true"/>{schemeOpen?'Mark scheme’ni yashirish':'Mark scheme’ni ochish'}</button></div>
+    {schemeOpen?<section className="lx-mark-scheme"><header><span>MARK SCHEME</span><strong>{question.marks} mark mavjud</strong></header>{question.markSchemePoints?.length?<ol>{question.markSchemePoints.map((point,index)=><li key={`${point.code}-${index}`}><span>{point.code||`MP${index+1}`}</span><p>{point.text}</p><strong>+{point.marks}</strong></li>)}</ol>:<p className="lx-no-scheme">Bu savol uchun tasdiqlangan mark pointlar hali checkpoint bazasida mavjud emas.</p>}</section>:null}
+  </article>;
+}
+
+export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic:LessonTopic;audience:LessonAudience}) {
+  const checkpoints=useMemo(()=>(page?.slides??[]).filter(slide=>slide.examPractice) as HodderLessonSlide[],[page]);
+  const live=useMemo(()=>checkpoints.filter(slide=>(slide.learningObjectiveCodes??[]).length>0),[checkpoints]);
+  const codes=useMemo(()=>[...new Set(live.flatMap(slide=>slide.learningObjectiveCodes??[]))],[live]);
+  const codeKey=codes.join('|');
+  const syllabuses=useMemo(()=>[...new Set(live.map(slide=>slide.checkpointSyllabusCode??'9618'))],[live]);
+  const syllabusCode=syllabuses[0]??'9618';
+  const yearFrom=live.length?Math.min(...live.map(slide=>slide.checkpointYearFrom??2021)):2021;
+  const yearTo=live.length?Math.max(...live.map(slide=>slide.checkpointYearTo??2026)):2026;
+  const [questions,setQuestions]=useState<ExamQuestion[]>([]);
+  const [loading,setLoading]=useState(Boolean(codes.length));
+  const [error,setError]=useState('');
+  const [retry,setRetry]=useState(0);
+  const [selectedId,setSelectedId]=useState('');
+  const [query,setQuery]=useState('');
+  const [year,setYear]=useState('all');
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(!codes.length||syllabuses.length>1){setQuestions([]);setLoading(false);setError(syllabuses.length>1?'Bu topicdagi checkpoint kurs kodlari bir-biriga mos emas.':'');return()=>{cancelled=true};}
+    setLoading(true);setError('');
+    const params=new URLSearchParams({yearFrom:String(yearFrom),yearTo:String(yearTo),syllabusCode});
+    codes.forEach(code=>params.append('loCodes',code));
+    void api<CheckpointResponse>(`/lesson-checkpoints?${params}`)
+      .then(result=>{if(cancelled)return;const unique=[...new Map(result.data.map(item=>[item.id,item] as const)).values()].filter(questionComplete);setQuestions(unique);setSelectedId(current=>unique.some(item=>item.id===current)?current:(unique[0]?.id??''));})
+      .catch(()=>{if(!cancelled)setError('Savollar hozir yuklanmadi. Internet yoki login holatini tekshirib, qayta urinib ko‘ring.');})
+      .finally(()=>{if(!cancelled)setLoading(false);});
+    return()=>{cancelled=true};
+  },[codeKey,syllabusCode,yearFrom,yearTo,retry,syllabuses.length]);
+
+  const years=useMemo(()=>[...new Set(questions.map(question=>question.year))].sort((a,b)=>b-a),[questions]);
+  const filtered=useMemo(()=>questions.filter(question=>{
+    if(year!=='all'&&question.year!==Number(year))return false;
+    const term=query.trim().toLowerCase();
+    return !term||`${question.displayRef} ${question.stem} ${question.commandWord??''}`.toLowerCase().includes(term);
+  }),[questions,query,year]);
+  const selected=filtered.find(question=>question.id===selectedId)??filtered[0]??null;
+  const selectedIndex=selected?filtered.findIndex(question=>question.id===selected.id):-1;
+
+  if(!page||!codes.length)return <div className="lx-exam-state"><strong>Bu topic uchun Past Paper hali tayyor emas.</strong><p>Boshqa topicni tanlang yoki dars mazmunini davom ettiring.</p></div>;
+  if(loading)return <div className="lx-exam-state" aria-live="polite"><strong>Past Paper savollari yuklanmoqda…</strong><p>{topic.code} bo‘yicha tasdiqlangan Cambridge savollari tayyorlanmoqda.</p></div>;
+  if(error)return <div className="lx-exam-state lx-exam-state--error" role="alert"><strong>Savollar yuklanmadi</strong><p>{error}</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Qayta urinish</button></div>;
+  if(!questions.length)return <div className="lx-exam-state"><strong>Aniq mos savol topilmadi.</strong><p>Bo‘sh joyga aloqasi sust savol qo‘yilmadi. Bu topic uchun tasdiqlangan corpus kengaytirilishi kerak.</p></div>;
+
+  return <div className="lx-exam-workspace">
+    <aside className="lx-exam-list"><header><span>PAST PAPERS</span><strong>{questions.length} ta savol</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Savolni qidiring" aria-label="Savolni qidiring"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Yil"><option value="all">Barcha yillar</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
+    <main className="lx-exam-main">{selected?<><div className="lx-exam-main-actions"><span>{selectedIndex+1}/{filtered.length}</span><button type="button" aria-label="Oldingi savol" disabled={selectedIndex<=0} onClick={()=>setSelectedId(filtered[selectedIndex-1]!.id)}><ArrowLeft size={20}/></button><button type="button" aria-label="Keyingi savol" disabled={selectedIndex<0||selectedIndex>=filtered.length-1} onClick={()=>setSelectedId(filtered[selectedIndex+1]!.id)}><ArrowRight size={20}/></button><button type="button" onClick={()=>window.print()}><Printer size={20}/> Chop etish</button></div><ExamQuestionView question={selected} audience={audience}/></>:<div className="lx-exam-state"><strong>Filterga mos savol topilmadi.</strong><p>Qidiruv yoki yil filtrini o‘zgartiring.</p></div>}</main>
+  </div>;
+}
+

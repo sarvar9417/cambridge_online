@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { syllabusCatalogSchema, type SyllabusCatalog } from './syllabus-catalog-import.js';
 
@@ -24,10 +24,13 @@ export async function loadSyllabusCatalogDocument(filePath: string): Promise<Syl
 
   const descriptor = descriptorSchema.parse(raw);
   const topics: unknown[] = [];
-  const baseDir = dirname(filePath);
+  const baseDir = resolve(dirname(filePath));
   for (const fragmentName of descriptor.fragments) {
     const fragmentPath = resolve(baseDir, fragmentName);
-    if (!fragmentPath.startsWith(`${resolve(baseDir)}/`)) throw new Error(`syllabus_catalog_fragment_outside_directory:${fragmentName}`);
+    const relativePath = relative(baseDir, fragmentPath);
+    if (relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
+      throw new Error(`syllabus_catalog_fragment_outside_directory:${fragmentName}`);
+    }
     const fragment = fragmentSchema.parse(JSON.parse(await readFile(fragmentPath, 'utf8')));
     topics.push(...fragment.topics);
   }

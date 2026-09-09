@@ -36,7 +36,7 @@ const topicCodeOf = (slide: LessonSlide) =>
  * teaching layer. Chapter 1 already uses extract pages; Chapters 7, 13 and 14
  * carry printed textbook pages. Normalise them before using page provenance.
  */
-const PAGE_OFFSET_BY_CHAPTER: Readonly<Record<number, number>> = { 1:0, 7:257, 13:303, 14:327 };
+const PAGE_OFFSET_BY_CHAPTER: Readonly<Record<number, number>> = { 1:0, 2:26, 7:257, 13:303, 14:327 };
 const chapterOfTopic = (topicCode:string) => Number(topicCode.split('.')[0] || 0);
 const sourceFilePage = (topicCode:string, page:number) => {
   const offset=PAGE_OFFSET_BY_CHAPTER[chapterOfTopic(topicCode)] ?? 0;
@@ -224,13 +224,13 @@ function fallbackSemanticDrafts(code:string, study:LessonSlide[]) {
 }
 
 /**
- * Chapter 14 was explicitly commissioned as a presentation lesson. Keep every
+ * Chapters 2 and 14 were explicitly commissioned as presentation lessons. Keep every
  * curated concept screen independently navigable instead of collapsing a long
  * protocol section into one book-like scrolling page. This preserves the shared
  * topic/page URL model while giving Board mode true slide-by-slide pacing.
  */
 function chapter14PresentationDrafts(code:string, study:LessonSlide[]) {
-  if(chapterOfTopic(code)!==14)return null;
+  if(![2,14].includes(chapterOfTopic(code)))return null;
   return study.map((slide,index)=>({
     title:titleForPage(code,[slide],sourceFilePageForSlide(code,slide),index),
     anchorPage:sourceFilePageForSlide(code,slide),

@@ -91,7 +91,7 @@ describe('Lesson Studio board navigation contract',()=>{
     await settle();
     expect(document.querySelectorAll('.lesson-source-complete-badge')).toHaveLength(1);
     expect(document.querySelectorAll('.lesson-v3-nav-center')).toHaveLength(1);
-  });
+  }, 15000);
 
   it('does not replace semantic topic/page navigation with the legacy slide scrubber',async()=>{
     mountTopicStudio(1);

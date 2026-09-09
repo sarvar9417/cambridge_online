@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { CommandWordProgress, Flashcard, MasteryItem } from '../lib/api';
 import { useRoute } from '../lib/router';
-import { StudentLessons } from './StudentLessons';
-import { StudentLessonProgress } from './StudentLessonProgress';
+import { LessonExperience } from '../teaching/LessonExperience';
 import { StudentMasteryMap } from './StudentMasteryMap';
 import './student-learning.css';
 
@@ -40,10 +39,7 @@ export function StudentLearning({
     onPractice(requestedItem);
   },[route.page,requestedItem?.subtopic_id,requestedItem?.practiceReady,practicing,onPractice]);
 
-  if (route.page === 'darslar') return <>
-    <StudentLessonProgress />
-    <StudentLessons />
-  </>;
+  if (route.page === 'darslar') return <LessonExperience audience="student" />;
 
   const headline = card
     ? `${flashcards.length} ta kartochka takrorlashni kutmoqda.`

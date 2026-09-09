@@ -1,4 +1,5 @@
 import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from './lesson-content-source-file-fidelity';
+import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { buildPdfFirst9618Chapter } from './pdf-first-section-lessons';
 
@@ -15,12 +16,13 @@ export type {
  * Active 9618 lesson route.
  *
  * Chapters 1 and 13 retain the historical PDF-first source-hardening pipeline.
- * Chapter 14 is supplied as a complete source-grounded presentation chapter,
- * with board-readable reconstructions for Figures 14.1–14.10, source-detail
- * fidelity screens and current-target Cambridge Past Paper checkpoints.
+ * Chapters 2 and 14 are supplied as complete source-grounded presentation
+ * chapters, with board-readable reconstructions, source-detail fidelity screens
+ * and current-target Cambridge Past Paper checkpoints.
  */
 export const LESSON_CHAPTERS = [
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_1),
+  CHAPTER_2_FINAL,
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_13),
   CHAPTER_14_FINAL,
 ];

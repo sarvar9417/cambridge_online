@@ -1,5 +1,7 @@
 export type RawPdfEmphasisAnchor = { page:number; printedPage:number; text:string };
 
+import { CHAPTER_2_SOURCE_EMPHASIS } from './chapter2-source-emphasis';
+
 /**
  * Curated directly from bold/emphasised spans in the three exact PDFs supplied
  * by the user. This is deliberately independent of the source-atom registry:
@@ -55,6 +57,7 @@ export const RAW_PDF_EMPHASIS_BASELINE = {
   {page:24,printedPage:24,text:'Figure 1.9'},
   {page:25,printedPage:25,text:'ACTIVITY 1I'}
   ],
+  2: CHAPTER_2_SOURCE_EMPHASIS,
   13: [
   {page:1,printedPage:304,text:'WHAT YOU SHOULD ALREADY KNOW'},
   {page:2,printedPage:305,text:'ACTIVITY 13A'},
@@ -107,6 +110,46 @@ export const RAW_PDF_EMPHASIS_BASELINE = {
   {page:21,printedPage:324,text:'EXTENSION ACTIVITY 13E'},
   {page:22,printedPage:325,text:'ACTIVITY 13I'},
   {page:24,printedPage:327,text:'File organisation'}
+  ],
+  14: [
+  {page:1,printedPage:328,text:'WHAT YOU SHOULD ALREADY KNOW'},
+  {page:2,printedPage:329,text:'Key terms'},
+  {page:2,printedPage:329,text:'14.1.1 The need for protocols'},
+  {page:2,printedPage:329,text:'14.1.2 TCP/IP protocols'},
+  {page:2,printedPage:329,text:'Figure 14.1'},
+  {page:3,printedPage:330,text:'Application layer'},
+  {page:3,printedPage:330,text:'Table 14.1'},
+  {page:4,printedPage:331,text:'Figure 14.2'},
+  {page:4,printedPage:331,text:'File transfer protocol (FTP)'},
+  {page:5,printedPage:332,text:'Simple mail transfer protocol (SMTP)'},
+  {page:5,printedPage:332,text:'Figure 14.3'},
+  {page:6,printedPage:333,text:'Figure 14.4'},
+  {page:6,printedPage:333,text:'Table 14.2'},
+  {page:6,printedPage:333,text:'Transport layer'},
+  {page:7,printedPage:334,text:'Internet/network layer and network/data-link layer'},
+  {page:7,printedPage:334,text:'Ethernet protocols'},
+  {page:7,printedPage:334,text:'Figure 14.5'},
+  {page:8,printedPage:335,text:'Wireless (WiFi) protocols'},
+  {page:8,printedPage:335,text:'Bluetooth protocols'},
+  {page:8,printedPage:335,text:'WiMax'},
+  {page:8,printedPage:335,text:'Peer-to-peer file sharing/BitTorrent protocol'},
+  {page:10,printedPage:337,text:'Figure 14.6'},
+  {page:10,printedPage:337,text:'WHAT YOU SHOULD ALREADY KNOW'},
+  {page:10,printedPage:337,text:'Key terms'},
+  {page:11,printedPage:338,text:'14.2.1 Circuit switching'},
+  {page:11,printedPage:338,text:'Table 14.3'},
+  {page:11,printedPage:338,text:'Figure 14.7'},
+  {page:12,printedPage:339,text:'14.2.2 Packet switching'},
+  {page:12,printedPage:339,text:'Figure 14.8'},
+  {page:13,printedPage:340,text:'Table 14.4'},
+  {page:13,printedPage:340,text:'Table 14.5'},
+  {page:14,printedPage:341,text:'Figure 14.9'},
+  {page:14,printedPage:341,text:'Routing tables'},
+  {page:15,printedPage:342,text:'Figure 14.10'},
+  {page:15,printedPage:342,text:'Example 14.1'},
+  {page:16,printedPage:343,text:'Example 14.2'},
+  {page:16,printedPage:343,text:'ACTIVITY 14A'},
+  {page:17,printedPage:344,text:'End of chapter questions'},
   ],
   7: [
   {page:259,printedPage:259,text:'structure charts'},
@@ -189,4 +232,4 @@ export const RAW_PDF_EMPHASIS_BASELINE = {
   ],
 } as const;
 
-export const rawPdfEmphasisForChapter = (chapter:1|7|13) => [...RAW_PDF_EMPHASIS_BASELINE[chapter]];
+export const rawPdfEmphasisForChapter = (chapter:1|2|7|13|14) => [...RAW_PDF_EMPHASIS_BASELINE[chapter]];

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { lessonChapter } from './lesson-content-source-complete';
+import { LESSON_EXPERIENCE_CHAPTERS, presentationBeatsForTopic } from './lesson-experience-model';
 import { buildTopicPlan } from './lesson-topic-plan';
+import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
+import { CHAPTER_14_SOURCE_FILE_MANIFEST } from './source-file-fidelity-manifest';
 
 const chapter = CHAPTER_14_FINAL;
 const text = JSON.stringify(chapter);
@@ -9,8 +12,13 @@ const figureTitles = chapter.slides.flatMap(slide =>
   (slide.richBlocks ?? []).flatMap(block => block.kind === 'figure' ? [block.figure.title] : []),
 );
 const representedPages = [...new Set(chapter.slides.flatMap(slide => slide.sourcePages ?? []))].sort((a,b)=>a-b);
+const normalise = (value:string) => value.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9]+/g,' ').trim();
 
 describe('Chapter 14 communication and internet technologies', () => {
+  it('classifies the chapter as A Level content', () => {
+    expect(chapter.level).toBe('A Level');
+  });
+
   it('is exposed through the active Lessons chapter library', () => {
     expect(lessonChapter(14)?.number).toBe(14);
     expect(lessonChapter(14)?.title).toBe('Communication and internet technologies');
@@ -19,6 +27,11 @@ describe('Chapter 14 communication and internet technologies', () => {
   it('represents every supplied printed source page from 328 to 345', () => {
     expect(representedPages).toEqual(Array.from({ length: 18 }, (_, index) => 328 + index));
     expect(chapter.coverage).toContain('18/18 supplied source pages represented');
+    expect(chapter.coverage).toContain('18/18 page fingerprints');
+    expect(CHAPTER_14_SOURCE_FILE_MANIFEST.pages.map(page=>page.printedPage)).toEqual(representedPages);
+    for(const page of CHAPTER_14_SOURCE_FILE_MANIFEST.pages){
+      expect(text,`Missing p.${page.printedPage} fingerprint`).toContain(`SOURCE FILE PAGE ${page.printedPage} · sha256:${page.sha256}`);
+    }
   });
 
   it('keeps both source sections in the lesson navigation model', () => {
@@ -55,7 +68,7 @@ describe('Chapter 14 communication and internet technologies', () => {
     expect(protocol?.checkpointYearFrom).toBe(2021);
     expect(protocol?.checkpointYearTo).toBe(2026);
     expect(switching?.examPractice).toBe(true);
-    expect(switching?.learningObjectiveCodes).toEqual(['14.2.1','14.2.2']);
+    expect(switching?.learningObjectiveCodes).toEqual(['14.2.1','14.2.2','14.2.3']);
     expect(switching?.checkpointYearFrom).toBe(2021);
     expect(switching?.checkpointYearTo).toBe(2026);
   });
@@ -108,5 +121,19 @@ describe('Chapter 14 communication and internet technologies', () => {
       'Figure 14.9 reconstructed · main header fields',
       'Figure 14.10 reconstructed · router forwarding',
     ]));
+  });
+
+  it('keeps every source keyword and bold/emphasised anchor in Presentation mode',()=>{
+    const active=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===14)!;
+    const presentation=normalise(JSON.stringify(buildTopicPlan(active.slides,active.subtopics).flatMap(presentationBeatsForTopic)));
+    for(const slide of chapter.slides){
+      for(const term of slide.keyTerms??[]){
+        expect(presentation,term.term).toContain(normalise(term.term));
+        expect(presentation,`${term.term} definition`).toContain(normalise(term.definition));
+      }
+    }
+    for(const anchor of rawPdfEmphasisForChapter(14)){
+      expect(presentation,`p.${anchor.printedPage}: ${anchor.text}`).toContain(normalise(anchor.text));
+    }
   });
 });

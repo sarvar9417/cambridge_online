@@ -25,6 +25,12 @@ export type LessonCheckpointDependency = {
   assets: LessonCheckpointAsset[];
 };
 
+export type LessonCheckpointMarkPoint = {
+  code: string;
+  text: string;
+  marks: number;
+};
+
 export type LessonCheckpointQuestion = {
   id: string;
   displayRef: string;
@@ -41,6 +47,7 @@ export type LessonCheckpointQuestion = {
   matchedLearningObjectiveCodes: string[];
   contextBlocks: LessonCheckpointContextBlock[];
   dependencies: LessonCheckpointDependency[];
+  markSchemePoints: LessonCheckpointMarkPoint[];
 };
 
 type AssetRow = {
@@ -116,6 +123,16 @@ export class LessonCheckpointService {
          sp.variant,
          component.number component,
          array_agg(distinct lo.code order by lo.code) matched_lo_codes,
+         coalesce((
+           select json_agg(json_build_object(
+             'code',msp.code,
+             'text',msp.text,
+             'marks',msp.marks
+           ) order by msp.sort_order,msp.code)
+           from mark_schemes ms
+           join mark_scheme_points msp on msp.mark_scheme_id=ms.id
+           where ms.question_id=q.id and ms.status='approved'
+         ),'[]'::json) mark_scheme_points,
          exists(
            select 1
            from question_assets qa
@@ -250,6 +267,11 @@ export class LessonCheckpointService {
           matchedLearningObjectiveCodes: (row.matched_lo_codes ?? []).map(String),
           contextBlocks,
           dependencies,
+          markSchemePoints: (row.mark_scheme_points ?? []).map((point: { code?:unknown;text?:unknown;marks?:unknown }) => ({
+            code:String(point.code ?? ''),
+            text:String(point.text ?? ''),
+            marks:Number(point.marks ?? 1),
+          })),
         } satisfies LessonCheckpointQuestion;
       }),
       learningObjectiveCodes,
