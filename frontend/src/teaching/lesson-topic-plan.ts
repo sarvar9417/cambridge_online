@@ -32,12 +32,11 @@ const topicCodeOf = (slide: LessonSlide) =>
   ?? null;
 
 /*
- * The three supplied extracts use different page-number conventions in the
- * curated teaching layer: Chapter 1 already uses extract pages, Chapter 7 often
- * carries printed pages 258–298, and Chapter 13 mixes extract pages with printed
- * pages 304–327. Normalise them before using page provenance.
+ * The supplied extracts use different page-number conventions in the curated
+ * teaching layer. Chapter 1 already uses extract pages; Chapters 7, 13 and 14
+ * carry printed textbook pages. Normalise them before using page provenance.
  */
-const PAGE_OFFSET_BY_CHAPTER: Readonly<Record<number, number>> = { 1:0, 7:257, 13:303 };
+const PAGE_OFFSET_BY_CHAPTER: Readonly<Record<number, number>> = { 1:0, 7:257, 13:303, 14:327 };
 const chapterOfTopic = (topicCode:string) => Number(topicCode.split('.')[0] || 0);
 const sourceFilePage = (topicCode:string, page:number) => {
   const offset=PAGE_OFFSET_BY_CHAPTER[chapterOfTopic(topicCode)] ?? 0;
@@ -224,7 +223,25 @@ function fallbackSemanticDrafts(code:string, study:LessonSlide[]) {
   return [draft];
 }
 
+/**
+ * Chapter 14 was explicitly commissioned as a presentation lesson. Keep every
+ * curated concept screen independently navigable instead of collapsing a long
+ * protocol section into one book-like scrolling page. This preserves the shared
+ * topic/page URL model while giving Board mode true slide-by-slide pacing.
+ */
+function chapter14PresentationDrafts(code:string, study:LessonSlide[]) {
+  if(chapterOfTopic(code)!==14)return null;
+  return study.map((slide,index)=>({
+    title:titleForPage(code,[slide],sourceFilePageForSlide(code,slide),index),
+    anchorPage:sourceFilePageForSlide(code,slide),
+    slides:[slide],
+  } satisfies StudyPageDraft));
+}
+
 function buildSemanticStudyDrafts(code:string, study:LessonSlide[]) {
+  const presentationDrafts=chapter14PresentationDrafts(code,study);
+  if(presentationDrafts)return presentationDrafts;
+
   const anchors=semanticAnchors(code,study);
   if(!anchors.length)return fallbackSemanticDrafts(code,study);
 

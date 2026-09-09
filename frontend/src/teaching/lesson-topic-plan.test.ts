@@ -5,6 +5,7 @@ import type { HodderLessonSlide } from './lesson-content-hodder-types';
 import { buildTopicPlan, flattenTopicPages, sourceFilePageForSlide } from './lesson-topic-plan';
 
 const chapters = [...LESSON_CHAPTERS, CHAPTER_7];
+const pdfFirstTranscriptChapters = chapters.filter(chapter => chapter.number === 1 || chapter.number === 7 || chapter.number === 13);
 
 const fixtureSlide=(id:string,title:string,sourcePages:number[],extra:Partial<HodderLessonSlide>={}):HodderLessonSlide=>({
   id,
@@ -80,7 +81,7 @@ describe('book-like topic plan', () => {
   });
 
   it('never mixes two physical source-file pages inside one exact transcript slide', () => {
-    for(const chapter of chapters){
+    for(const chapter of pdfFirstTranscriptChapters){
       const exact=(chapter.slides as HodderLessonSlide[]).filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'));
       expect(exact.length,`Chapter ${chapter.number} exact transcript pages`).toBeGreaterThan(0);
       exact.forEach(slide=>{
@@ -92,8 +93,8 @@ describe('book-like topic plan', () => {
     }
   });
 
-  it('uses page vocabulary instead of stale screen/presentation vocabulary in exact source transcripts', () => {
-    for(const chapter of chapters){
+  it('uses page vocabulary instead of stale screen/presentation vocabulary in exact PDF-first source transcripts', () => {
+    for(const chapter of pdfFirstTranscriptChapters){
       (chapter.slides as HodderLessonSlide[])
         .filter(slide=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-'))
         .forEach(slide=>{

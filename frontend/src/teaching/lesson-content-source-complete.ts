@@ -1,4 +1,5 @@
 import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from './lesson-content-source-file-fidelity';
+import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { buildPdfFirst9618Chapter } from './pdf-first-section-lessons';
 
 export type { LessonVisual } from './lesson-content-full';
@@ -13,16 +14,15 @@ export type {
 /**
  * Active 9618 lesson route.
  *
- * The historical source-hardening chapters remain the curated teaching base,
- * and the learner/teacher route is rebuilt by source topic. Every topic keeps
- * the exact supplied-PDF material, Cambridge Exam Lens and live/current Past
- * Paper checkpoints, but the content is no longer fragmented into projector-
- * sized presentation screens. Lesson Studio now groups the source into
- * book-like, vertically scrollable topic pages.
+ * Chapters 1 and 13 retain the historical PDF-first source-hardening pipeline.
+ * Chapter 14 is supplied as a complete source-grounded presentation chapter,
+ * with board-readable reconstructions for Figures 14.1–14.10, source-detail
+ * fidelity screens and current-target Cambridge Past Paper checkpoints.
  */
 export const LESSON_CHAPTERS = [
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_1),
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_13),
+  CHAPTER_14_FINAL,
 ];
 
 export const lessonChapter = (number: number) => LESSON_CHAPTERS.find((chapter) => chapter.number === number) ?? null;
