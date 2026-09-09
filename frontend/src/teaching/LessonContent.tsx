@@ -6,6 +6,7 @@ import {
   isExactSourceTranscript,
   type LessonPresentationBeat,
 } from './lesson-experience-model';
+import './chapter14-presentation-prototype.css';
 
 const VISUAL_LABELS:Record<LessonVisual,string[]> = {
   binary:['1','0','1','1','0','0','1','0'],
@@ -34,7 +35,7 @@ function VisualGraphic({kind}:{kind?:LessonVisual}) {
   </div>;
 }
 
-function FigureView({figure}:{figure:LessonFigure}) {
+function FigureView({figure,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{figure:LessonFigure;presenting?:boolean;reveal?:number}) {
   if(figure.kind==='wave'){
     const width=680;
     const height=Math.max(150,figure.series.length*116);
@@ -52,9 +53,16 @@ function FigureView({figure}:{figure:LessonFigure}) {
     </svg>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
   }
   if(figure.kind==='grid')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-grid" style={{gridTemplateColumns:`repeat(${Math.max(...figure.rows.map(row=>row.length))},1fr)`}}>{figure.rows.flatMap((row,rowIndex)=>[...row].map((symbol,columnIndex)=><span data-symbol={symbol} key={`${rowIndex}-${columnIndex}`}>{symbol}</span>))}</div>{figure.legend?<div className="lx-legend">{figure.legend.map(item=><span key={`${item.symbol}-${item.label}`}><b data-symbol={item.symbol}>{item.symbol}</b>{item.label}</span>)}</div>:null}{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  if(figure.kind==='sequence')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-sequence">{figure.items.map((item,index)=><div className="lx-sequence-item" key={`${item.label}-${index}`}><span><strong>{item.label}</strong>{item.note?<small>{item.note}</small>:null}</span>{index<figure.items.length-1?<b aria-hidden="true">→</b>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  if(figure.kind==='bitfield')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-bitfields">{figure.fields.map((field,index)=><div className="lx-bitfield" key={`${field.label}-${index}`}><span><strong>{field.label}</strong>{field.detail?<small>{field.detail}</small>:null}</span><code>{field.bits}</code></div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-scale">{figure.stages.map((stage,index)=><div key={`${stage.label}-${index}`}><span className={`level-${Math.max(1,Math.min(5,stage.level))}`} aria-hidden="true">{Array.from({length:16},(_,pixel)=><i key={pixel}/>)}</span><strong>{stage.label}</strong>{stage.note?<small>{stage.note}</small>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  if(figure.kind==='sequence'){
+    const items=figure.items.slice(0,presenting?reveal:undefined);
+    return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-sequence">{items.map((item,index)=><div className="lx-sequence-item" key={`${item.label}-${index}`}><span><strong>{item.label}</strong>{item.note?<small>{item.note}</small>:null}</span>{index<items.length-1?<b aria-hidden="true">→</b>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  }
+  if(figure.kind==='bitfield'){
+    const fields=figure.fields.slice(0,presenting?reveal:undefined);
+    return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-bitfields">{fields.map((field,index)=><div className="lx-bitfield" key={`${field.label}-${index}`}><span><strong>{field.label}</strong>{field.detail?<small>{field.detail}</small>:null}</span><code>{field.bits}</code></div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  }
+  const stages=figure.stages.slice(0,presenting?reveal:undefined);
+  return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-scale">{stages.map((stage,index)=><div key={`${stage.label}-${index}`}><span className={`level-${Math.max(1,Math.min(5,stage.level))}`} aria-hidden="true">{Array.from({length:16},(_,pixel)=><i key={pixel}/>)}</span><strong>{stage.label}</strong>{stage.note?<small>{stage.note}</small>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
 }
 
 function RichBlockView({block,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{block:LessonRichBlock;presenting?:boolean;reveal?:number}) {
@@ -65,7 +73,7 @@ function RichBlockView({block,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{
   if(block.kind==='callout')return <aside className={`lx-callout lx-callout--${block.tone??'info'}`}><span>{block.tone==='activity'?'MASHQ':block.tone==='extension'?'QO‘SHIMCHA':block.tone==='warning'?'EHTIYOT BO‘LING':'ASOSIY FIKR'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
   if(block.kind==='comparison')return <div className="lx-comparison"><section><strong>{block.leftTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</section><section><strong>{block.rightTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</section></div>;
   if(block.kind==='source-note')return <aside className="lx-accuracy"><span>ANIQLIK IZOHI</span><h3>{block.title}</h3><div><p><strong>{block.sourceLabel}</strong>{block.sourceText}</p><p><strong>{block.examSafeLabel}</strong>{block.examSafeText}</p></div></aside>;
-  if(block.kind==='figure')return <FigureView figure={block.figure}/>;
+  if(block.kind==='figure')return <FigureView figure={block.figure} presenting={presenting} reveal={reveal}/>;
   return <div className="lx-table-wrap"><table><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.slice(0,presenting?reveal:undefined).map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,columnIndex)=><td key={`${rowIndex}-${columnIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
@@ -97,6 +105,11 @@ export function revealCountForBeat(beat:LessonPresentationBeat) {
   if(block?.kind==='bullets'||block?.kind==='steps')return block.items.length;
   if(block?.kind==='comparison')return block.rows.length;
   if(block?.kind==='table')return block.table.rows.length;
+  if(block?.kind==='figure'){
+    if(block.figure.kind==='sequence')return block.figure.items.length;
+    if(block.figure.kind==='bitfield')return block.figure.fields.length;
+    if(block.figure.kind==='pixel-scale')return block.figure.stages.length;
+  }
   return 0;
 }
 
@@ -112,9 +125,23 @@ const beatLabel:Record<LessonPresentationBeat['kind'],string> = {
   emphasis:'QALIN AJRATILGAN MAZMUN',
 };
 
+const sceneLabel:Partial<Record<NonNullable<LessonPresentationBeat['sceneRole']>,string>> = {
+  hook:'STARTER',
+  objective:'BUGUNGI MAQSAD',
+  concept:'YANGI TUSHUNCHA',
+  process:'BOSQICHMA-BOSQICH',
+  visual:'VIZUAL MODEL',
+  compare:'SOLISHTIRING',
+  challenge:'O‘YLANG',
+  exam:'CAMBRIDGE CHECK',
+  recap:'RETRIEVAL',
+};
+
 export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}) {
-  return <article className={`lx-present-screen lx-present-screen--${beat.kind}`} aria-live="polite">
-    <header><span>{beatLabel[beat.kind]}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
+  const role=beat.sceneRole??beat.kind;
+  const label=beat.sceneRole?sceneLabel[beat.sceneRole]??beatLabel[beat.kind]:beatLabel[beat.kind];
+  return <article className={`lx-present-screen lx-present-screen--${beat.kind} lx-present-screen--scene-${role}`} aria-live="polite">
+    <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
       {beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
       {beat.visual && (beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
@@ -126,6 +153,6 @@ export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationB
       {beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
       {beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Javob va yo‘l-yo‘riq</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
     </div>
-    {beat.sourcePages.length?<footer>Manba: coursebook p. {beat.sourcePages.join(', ')}</footer>:null}
+    {beat.showSource!==false&&beat.sourcePages.length?<footer>Manba: coursebook p. {beat.sourcePages.join(', ')}</footer>:null}
   </article>;
 }
