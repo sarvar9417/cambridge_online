@@ -9,6 +9,7 @@ import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './C
 import './chapter14-presentation-v6.css';
 import './chapter14-presentation-v6-hardening.css';
 import './chapter14-presentation-professional.css';
+import './chapter13-presentation-hardening.css';
 
 /**
  * Compatibility facade used by LessonContent. Chapter 14 keeps its dedicated V6
