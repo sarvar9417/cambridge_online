@@ -6,6 +6,7 @@ import { parseRoute } from './lib/router';
 import { installQuestionStructureEnhancer } from './lib/question-structure-dom';
 import { installQuestionAssetFidelityEnhancer } from './lib/question-asset-fidelity-dom';
 import { installTeacherStructuredQuestionEnhancer } from './lib/teacher-structured-question-dom';
+import { installPresentationScrollController } from './teaching/presentation-scroll-controller';
 // The design tokens name Inter, Source Serif 4 and JetBrains Mono; shipping the
 // fonts makes every operating system render the same product instead of
 // falling back to whatever sans/serif/mono the machine happens to have.
@@ -48,6 +49,7 @@ function Root() {
   useEffect(() => installQuestionStructureEnhancer(), []);
   useEffect(() => installQuestionAssetFidelityEnhancer(), []);
   useEffect(() => installTeacherStructuredQuestionEnhancer(), []);
+  useEffect(() => installPresentationScrollController(), []);
 
   return <App />;
 }
