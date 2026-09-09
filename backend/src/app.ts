@@ -36,6 +36,7 @@ import { createLiveChallengesRouter } from './routes/live-challenges.js';
 import { LiveChallengeService } from './services/live-challenge-service.js';
 import { LiveChallengeSessionService } from './services/live-challenge-session-service.js';
 import { LiveChallengeAnswerService } from './services/live-challenge-answer-service.js';
+import { LiveChallengePeerMarkingService } from './services/live-challenge-peer-marking-service.js';
 import { createGradingRouter } from './routes/grading.js';
 import { GradingService } from './services/grading-service.js';
 import { createResultsRouter } from './routes/results.js';
@@ -117,8 +118,6 @@ export function createApp(
     app.use('/api/v1/selections', questionVisualFidelity);
   }
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
-  // Managing classes mounts before reading them: the read router owns '/:id',
-  // which would otherwise swallow paths like '/unassigned-students'.
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
@@ -128,6 +127,7 @@ export function createApp(
     new LiveChallengeService(pool),
     new LiveChallengeSessionService(pool,assetUrlSigner),
     new LiveChallengeAnswerService(pool),
+    new LiveChallengePeerMarkingService(pool),
   ));
   if (assignmentsService) mountPrivate('/api/v1/assignments', createAssignmentsRouter(assignmentsService,pool!));
   if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
@@ -139,9 +139,6 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
-  // The specific admin paths mount before the general one. Express tries
-  // prefixes in order, so a future '/:id' route inside createAdminRouter would
-  // otherwise swallow /admin/users and /admin/overview.
   if (auth && authRepository) mountPrivate(
     '/api/v1/admin/users',
     createAdminUsersRouter(auth, authRepository, adminUsersService),
@@ -159,7 +156,7 @@ export function createApp(
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_challenge_class_syllabus_mismatch:'Tanlangan sinf boshqa syllabusga biriktirilgan.',live_challenge_invalid_taxonomy:'Syllabus, chapter yoki section mos emas.',live_challenge_questions_ineligible:'Tanlangan savollardan kamida bittasi Live Challenge uchun source-complete emas.',live_challenge_pool_insufficient:'Bu section uchun yetarli eligible Cambridge savoli yo‘q.',live_challenge_questions_required:'Challenge publish qilish uchun kamida bitta savol kerak.',live_challenge_not_draft:'Faqat draft challenge tahrirlanadi.',live_challenge_duplicate_question:'Bir savolni challenge ichida takrorlab bo‘lmaydi.',live_challenge_invalid_time_limit:'Savol vaqti 10–7200 soniya oralig‘ida bo‘lishi kerak.',live_challenge_join_code_unavailable:'Unique join code yaratib bo‘lmadi. Qayta urinib ko‘ring.',live_challenge_invalid_join_code:'Join code 6 ta harf yoki raqamdan iborat bo‘lishi kerak.',live_challenge_join_not_found:'Bu kod bilan sizning sinfingizga tegishli ochiq challenge topilmadi.',live_challenge_join_closed:'Bu challenge hozir yangi ishtirokchilarni qabul qilmaydi.',live_challenge_removed:'Siz bu challenge’dan o‘qituvchi tomonidan chiqarilgansiz.',live_challenge_leave_closed:'Challenge boshlanganidan keyin lobby’dan chiqib bo‘lmaydi.',live_challenge_lobby_unavailable:'Waiting room bu holatda ochilmaydi.',live_challenge_invalid_transition:'Challenge holatini bu tarzda o‘zgartirib bo‘lmaydi.',live_challenge_state_conflict:'Challenge holati boshqa oynada o‘zgargan. Yangilab qayta urinib ko‘ring.',live_challenge_not_joined:'Bu challenge savollarini ko‘rish uchun avval sinfingiz orqali join qiling.',live_challenge_round_unavailable:'Challenge’ning joriy round savoli topilmadi.',live_challenge_question_assets_unavailable:'Savolning diagramma yoki rasmi xavfsiz yuklanmadi. Challenge savoli to‘liq ko‘rsatilmaguncha davom etib bo‘lmaydi.',live_challenge_answer_round_unavailable:'Challenge’ning faol roundi topilmadi.',live_challenge_answer_required:'Javob bo‘sh bo‘lishi mumkin emas.',live_challenge_answer_closed:'Bu savol uchun javob qabul qilish yopilgan.',live_challenge_answer_already_submitted:'Bu round uchun javob allaqachon topshirilgan va endi o‘zgartirib bo‘lmaydi.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_challenge_class_syllabus_mismatch:'Tanlangan sinf boshqa syllabusga biriktirilgan.',live_challenge_invalid_taxonomy:'Syllabus, chapter yoki section mos emas.',live_challenge_questions_ineligible:'Tanlangan savollardan kamida bittasi Live Challenge uchun source-complete emas.',live_challenge_pool_insufficient:'Bu section uchun yetarli eligible Cambridge savoli yo‘q.',live_challenge_questions_required:'Challenge publish qilish uchun kamida bitta savol kerak.',live_challenge_not_draft:'Faqat draft challenge tahrirlanadi.',live_challenge_duplicate_question:'Bir savolni challenge ichida takrorlab bo‘lmaydi.',live_challenge_invalid_time_limit:'Savol vaqti 10–7200 soniya oralig‘ida bo‘lishi kerak.',live_challenge_join_code_unavailable:'Unique join code yaratib bo‘lmadi. Qayta urinib ko‘ring.',live_challenge_invalid_join_code:'Join code 6 ta harf yoki raqamdan iborat bo‘lishi kerak.',live_challenge_join_not_found:'Bu kod bilan sizning sinfingizga tegishli ochiq challenge topilmadi.',live_challenge_join_closed:'Bu challenge hozir yangi ishtirokchilarni qabul qilmaydi.',live_challenge_removed:'Siz bu challenge’dan o‘qituvchi tomonidan chiqarilgansiz.',live_challenge_leave_closed:'Challenge boshlanganidan keyin lobby’dan chiqib bo‘lmaydi.',live_challenge_lobby_unavailable:'Waiting room bu holatda ochilmaydi.',live_challenge_invalid_transition:'Challenge holatini bu tarzda o‘zgartirib bo‘lmaydi.',live_challenge_state_conflict:'Challenge holati boshqa oynada o‘zgargan. Yangilab qayta urinib ko‘ring.',live_challenge_not_joined:'Bu challenge savollarini ko‘rish uchun avval sinfingiz orqali join qiling.',live_challenge_round_unavailable:'Challenge’ning joriy round savoli topilmadi.',live_challenge_question_assets_unavailable:'Savolning diagramma yoki rasmi xavfsiz yuklanmadi. Challenge savoli to‘liq ko‘rsatilmaguncha davom etib bo‘lmaydi.',live_challenge_answer_round_unavailable:'Challenge’ning faol roundi topilmadi.',live_challenge_answer_required:'Javob bo‘sh bo‘lishi mumkin emas.',live_challenge_answer_closed:'Bu savol uchun javob qabul qilish yopilgan.',live_challenge_answer_already_submitted:'Bu round uchun javob allaqachon topshirilgan va endi o‘zgartirib bo‘lmaydi.',live_challenge_peer_round_unavailable:'Peer marking uchun joriy round topilmadi.',live_challenge_peer_marking_disabled:'Bu challenge uchun peer marking o‘chirilgan.',live_challenge_peer_assignment_unavailable:'Anonymous peer assignmentni xavfsiz tuzib bo‘lmadi. Kamida 2 ta topshirilgan javob kerak.',live_challenge_peer_marking_not_open:'Peer marking hali ochilmagan yoki allaqachon yopilgan.',live_challenge_mark_scheme_unavailable:'Tasdiqlangan Mark Scheme snapshot topilmadi.',live_challenge_peer_score_invalid:'Berilgan ball savolning maksimal ballidan tashqarida.',live_challenge_peer_mark_point_invalid:'Tanlangan Mark Scheme bandlaridan biri bu savolga tegishli emas.',live_challenge_peer_marks_incomplete:'Barcha peer marklar topshirilmaguncha round natijasini chiqarib bo‘lmaydi.',live_challenge_result_unavailable:'Bu round natijasi hali chiqarilmagan.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
@@ -167,9 +164,6 @@ export function createApp(
       res.status(400).json({ error: { code: 'validation_error', message: 'Kiritilgan ma\'lumot noto\'g\'ri.', details: error.flatten() } });
       return;
     }
-    // An unreachable database is not a bug in the request. Telling the user the
-    // platform broke sends them to report a fault, when the useful instruction
-    // is to try again shortly.
     if (isDatabaseUnavailable(error)) {
       console.error('Database unavailable', error);
       res.status(503).json({
