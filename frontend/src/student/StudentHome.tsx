@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Assignment, Flashcard, LiveChallengeStudentCard, MasteryItem, ResultItem, User } from '../lib/api';
+import type { Assignment, Flashcard, MasteryItem, ResultItem, User } from '../lib/api';
 import { navigate } from '../lib/router';
 import { StudentNextAction } from './StudentNextAction';
 import { StudentLiveChallenges } from './StudentLiveChallenges';
@@ -11,10 +11,6 @@ export interface StudentHomeProps {
   results: ResultItem[];
   mastery: MasteryItem[];
   flashcards: Flashcard[];
-  liveChallenges: LiveChallengeStudentCard[];
-  joiningLiveChallenge: boolean;
-  onJoinLiveChallengeCode: (code:string)=>Promise<void>;
-  onJoinLiveChallenge: (item:LiveChallengeStudentCard)=>Promise<void>;
   onStart: (assignmentId: string) => void;
   onPractice: (item: MasteryItem) => void;
   practicing: string | null;
@@ -57,8 +53,7 @@ const greeting = (hour = new Date().getHours()) =>
   hour < 5 ? 'Xayrli tun' : hour < 12 ? 'Xayrli tong' : hour < 18 ? 'Xayrli kun' : 'Xayrli kech';
 
 export function StudentHome({
-  user, assignments, results, mastery, flashcards, liveChallenges, joiningLiveChallenge,
-  onJoinLiveChallengeCode, onJoinLiveChallenge, onStart, onPractice, practicing,
+  user, assignments, results, mastery, flashcards, onStart, onPractice, practicing,
 }: StudentHomeProps) {
   const open = useMemo(
     () => assignments.filter(isOpen).sort((a, b) => dueSortValue(a) - dueSortValue(b)),
@@ -78,16 +73,13 @@ export function StudentHome({
     [mastery],
   );
   const overdue = open.filter((item) => urgencyOf(item.dueAt) === 'overdue').length;
-  const liveNow=liveChallenges.some(item=>item.status==='QUESTION_ACTIVE'||item.status==='LOBBY');
-  const headline = liveNow
-    ? 'Sinfingizda Live Challenge ochiq.'
-    : overdue > 0
-      ? `${overdue} ta vazifaning muddati o‘tgan.`
-      : next
-        ? `Keyingi vazifa: ${DUE_LABEL[urgencyOf(next.dueAt)].toLowerCase()}.`
-        : flashcards.length
-          ? `${flashcards.length} ta kartochka takrorlashni kutmoqda.`
-          : 'Hozircha topshiriladigan vazifa yo‘q.';
+  const headline = overdue > 0
+    ? `${overdue} ta vazifaning muddati o‘tgan.`
+    : next
+      ? `Keyingi vazifa: ${DUE_LABEL[urgencyOf(next.dueAt)].toLowerCase()}.`
+      : flashcards.length
+        ? `${flashcards.length} ta kartochka takrorlashni kutmoqda.`
+        : 'Hozircha topshiriladigan vazifa yo‘q.';
 
   return <div className="sh">
     <header className="sh-hero">
@@ -95,7 +87,7 @@ export function StudentHome({
       {average !== null ? <div className="sh-average" title="Chiqarilgan natijalar bo‘yicha o‘rtacha"><span className="sh-average-value">{average}%</span><span className="sh-average-label">o‘rtacha</span></div> : null}
     </header>
 
-    <StudentLiveChallenges items={liveChallenges} joining={joiningLiveChallenge} onJoinCode={onJoinLiveChallengeCode} onJoinCard={onJoinLiveChallenge}/>
+    <StudentLiveChallenges />
 
     <StudentNextAction assignments={assignments} results={results} mastery={mastery} flashcards={flashcards} onStart={onStart} onPractice={onPractice} />
 
