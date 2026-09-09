@@ -109,4 +109,24 @@ describe('LiveChallengeAnswerService',()=>{
     expect(serialized).not.toContain('durationMs');
     expect(String(query.mock.calls[0]?.[0])).toContain('e.student_id=$2');
   });
+
+  it('builds an anonymous cumulative scoreboard from released Cambridge rounds only',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('select lc.id,lc.status::text status,lc.state_version,lc.settings_json'))return{rowCount:1,rows:[{id:challengeId,status:'ROUND_RESULTS',state_version:15,settings_json:{display_name_mode:'anonymous'}}]};
+      if(sql.includes('with released_rounds as'))return{rowCount:2,rows:[
+        {student_id:'student-secret-a',full_name:'Alice Example',score:'7',max_marks:'10',released_round_count:2},
+        {student_id:'student-secret-b',full_name:'Bob Example',score:'5',max_marks:'10',released_round_count:2},
+      ]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeAnswerService({query} as unknown as Pool);
+    const result=await service.scoreboard(teacher,challengeId);
+    expect(result).toMatchObject({releasedRounds:2,maxMarks:10,classAveragePercentage:60,entries:[
+      {rank:1,displayName:'Student 1',score:7,maxMarks:10,percentage:70},
+      {rank:2,displayName:'Student 2',score:5,maxMarks:10,percentage:50},
+    ]});
+    const serialized=JSON.stringify(result);
+    expect(serialized).not.toContain('student-secret-a');
+    expect(serialized).not.toContain('Alice Example');
+  });
 });
