@@ -87,7 +87,7 @@ export class LiveChallengeSessionService{
     });
     const ids=attemptQuestionAssetIds(base.contentJson);
     if(!ids.length)return base;
-    if(!this.assetUrlSigner)throw new DomainError('live_challenge_question_assets_unavailable',503);
+    if(!this.assetUrlSigner)throw new DomainError('live_challenge_question_assets_unavailable',409);
     const assets=await this.pool.query(`select id,storage_path from question_assets where id=any($1::uuid[])`,[ids]);
     const urls:Record<string,string>={};
     await Promise.all(assets.rows.map(async(asset)=>{
@@ -95,7 +95,7 @@ export class LiveChallengeSessionService{
       const url=await this.assetUrlSigner!.signStoragePath(asset.storage_path,300);
       if(url)urls[String(asset.id)]=url;
     }));
-    if(ids.some(id=>!urls[id]))throw new DomainError('live_challenge_question_assets_unavailable',503);
+    if(ids.some(id=>!urls[id]))throw new DomainError('live_challenge_question_assets_unavailable',409);
     return serializeAttemptQuestion({
       id:String(row.question_id),
       display_ref:String(row.display_ref??''),
