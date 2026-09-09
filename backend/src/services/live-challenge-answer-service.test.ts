@@ -81,4 +81,32 @@ describe('LiveChallengeAnswerService',()=>{
     expect(result.answer).toMatchObject({id:answerId,text:'My answer',submissionDurationMs:1234});
     expect(String(query.mock.calls[0]?.[0])).toContain('a.student_id=$2');
   });
+
+  it('returns board progress counts only after staff class-control authorization',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      expect(sql).toContain("lc.teacher_id=$4");
+      return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,round_id:roundId,round_number:1,round_status:'PEER_MARKING',joined_count:20,answer_count:18,assignment_count:18,peer_mark_count:11}]};
+    });
+    const service=new LiveChallengeAnswerService({query} as unknown as Pool);
+    await expect(service.metrics(teacher,challengeId)).resolves.toMatchObject({joinedCount:20,answerCount:18,assignmentCount:18,peerMarkCount:11});
+  });
+
+  it('event cursor exposes synchronization signals without actor ids or event payloads',async()=>{
+    const createdAt=new Date('2026-09-09T17:10:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('join live_challenge_participants p'))return{rowCount:1,rows:[{id:challengeId,state_version:9}]};
+      if(sql.includes('from live_challenge_events'))return{rowCount:2,rows:[
+        {id:'41',event_type:'answer.submitted',created_at:createdAt,actor_id:'student-2',payload_json:{durationMs:1200}},
+        {id:'42',event_type:'round.answers_locked',created_at:createdAt,actor_id:'teacher-1',payload_json:{automatic:true}},
+      ]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeAnswerService({query} as unknown as Pool);
+    const result=await service.events(student,challengeId,'40');
+    expect(result).toMatchObject({stateVersion:9,cursor:'42',events:[{id:'41',eventType:'answer.submitted'},{id:'42',eventType:'round.answers_locked'}]});
+    const serialized=JSON.stringify(result);
+    expect(serialized).not.toContain('student-2');
+    expect(serialized).not.toContain('durationMs');
+    expect(String(query.mock.calls[0]?.[0])).toContain('e.student_id=$2');
+  });
 });
