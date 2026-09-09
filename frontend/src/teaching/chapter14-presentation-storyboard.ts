@@ -36,6 +36,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     lead:'Parity checking is a simple example: both sides must agree whether even or odd parity is being used.',
   }),
   scene('h14p-141-stack','h14-tcpip-stack','process','14.1.2 · TCP/IP','The four-layer TCP/IP stack',[329,330],{
+    teacherNote:'Reveal one layer at a time. Ask students what changes when the same data travels back to the receiver.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Sending: move down the stack',items:[
       {label:'4 · APPLICATION',note:'Programs and application protocols exchange data.'},
       {label:'3 · TRANSPORT',note:'TCP manages host-to-host delivery, sequence and retransmission.'},
@@ -44,6 +45,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     ],caption:'Receiving reverses the order: Link → Internet → Transport → Application.'}},
   }),
   scene('h14p-141-units','h14-packet-names','process','ENCAPSULATION · TERMINOLOGY','The data unit changes name as it moves through the stack',[330],{
+    teacherNote:'Emphasise that each layer adds control information. Keep the original data visible inside the growing unit.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Layer-by-layer naming',items:[
       {label:'Application data',note:'Created by software such as a browser or mail client.'},
       {label:'Segment',note:'Transport-layer unit.'},
@@ -62,6 +64,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-141-http','h14-http','process','APPLICATION PROTOCOL · HTTP','What happens after a user enters a URL?',[331],{
+    teacherNote:'Do not read the steps. Reveal them and ask: “What service is needed next?” before each click.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'HTTP request journey',items:[
       {label:'1 · User enters a URL',note:'The browser begins the request.'},
       {label:'2 · HTTP(S) passes the request to TCP',note:'Application layer → transport layer.'},
@@ -72,6 +75,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-141-email','h14-email-detail','process','EMAIL PROTOCOLS','Sending and receiving email use different protocols',[332,333],{
+    teacherNote:'Ask which protocol acts on the sender side and which acts on the recipient side before revealing the labels.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Email path',items:[
       {label:'Sender / client',note:'Creates the message and attachments.'},
       {label:'SMTP + MIME',note:'SMTP sends; MIME supports media/binary attachments.'},
@@ -89,6 +93,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     ]},
   }),
   scene('h14p-141-tcp','h14-tcp-handshake','process','TRANSPORT PROTOCOL · TCP','TCP establishes a connection before data transfer',[333,334],{
+    teacherNote:'Reveal the handshake as a dialogue: X speaks, Y acknowledges, X acknowledges, then data transfer starts.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Host-to-host handshake',items:[
       {label:'1 · X → Y',note:'Host X sends synchronisation sequence information.'},
       {label:'2 · Y → X',note:'Host Y sends acknowledgement plus its own synchronisation information.'},
@@ -122,6 +127,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-141-bittorrent','h14-bittorrent-intro','process','PEER-TO-PEER · BITTORRENT','A file is shared as pieces between many peers',[335,336,337],{
+    teacherNote:'Build the swarm gradually. First establish tracker metadata, then peers, then piece exchange, then seeds.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'BitTorrent process',items:[
       {label:'Create a .torrent file',note:'It contains metadata about the file to be shared.'},
       {label:'Split the file into pieces',note:'Peers can obtain different pieces independently.'},
@@ -158,6 +164,7 @@ const SWITCHING:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-142-circuit-route','h14-circuit-route','process','FIGURE 14.7 · DEDICATED ROUTE','Every frame follows the same established route',[338],{
+    teacherNote:'Point out that other possible links still exist physically, but this communication has one reserved circuit.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Coursebook route',items:[
       {label:'Device A → Router A'},
       {label:'R2'},
@@ -184,6 +191,7 @@ const SWITCHING:LessonPresentationBeat[] = [
     ],
   }),
   scene('h14p-142-packet-route','h14-packet-route','process','FIGURE 14.8 · INDEPENDENT PACKETS','Different packets can take different routes and arrive out of order',[339],{
+    teacherNote:'Pause after each packet appears. Ask students why using different routes can improve resilience.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Packet-switching journey',items:[
       {label:'1 · Split the message',note:'Create packets with control information in their headers.'},
       {label:'2 · Packet 1 chooses a route'},
@@ -204,6 +212,7 @@ const SWITCHING:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-142-hop','h14-hop-checksum-priority','process','PACKET CONTROL · HOP NUMBER','Hop count prevents packets from circulating forever',[340],{
+    teacherNote:'Reveal the countdown one router at a time. Before hop 0 appears, ask students to predict what the router must do.',
     richBlock:{kind:'figure',figure:{kind:'sequence',title:'Hop-number countdown',items:[
       {label:'Start · hop 4'},
       {label:'Router 1 · hop 3'},
@@ -213,55 +222,56 @@ const SWITCHING:LessonPresentationBeat[] = [
     ]}},
   }),
   scene('h14p-142-header','h14-packet-header','visual','FIGURE 14.9 · PACKET HEADER','The header tells the network where the packet is going and how to handle it',[341],{
+    teacherNote:'Do not memorise all bit lengths first. Reveal fields by purpose: addressing → lifetime → ordering → integrity.',
     richBlock:{kind:'figure',figure:{kind:'bitfield',title:'Main TCP/IP packet-header fields',fields:[
       {label:'Source IP address',bits:'32 bits'},
       {label:'Destination IP address',bits:'32 bits'},
       {label:'Hop number',bits:'8 bits'},
       {label:'Packet length',bits:'16 bits'},
       {label:'Number of packets',bits:'16 bits'},
-      {label:'Sequence number',bits:'16 bits',detail:'Allows the destination to restore original order.'},
-      {label:'Header checksum',bits:'16 bits',detail:'Supports integrity checking.'},
+      {label:'Sequence number',bits:'16 bits',detail:'Used to restore the original order.'},
+      {label:'Header checksum',bits:'16 bits',detail:'Supports error detection.'},
     ]}},
   }),
-  scene('h14p-142-router','h14-routing-table','process','ROUTERS · ROUTING TABLES','A router reads the header and chooses the next hop',[341,342],{
-    richBlock:{kind:'figure',figure:{kind:'sequence',title:'Router forwarding',items:[
-      {label:'1 · Packet arrives at a router',note:'The router reads destination/control information in the header.'},
-      {label:'2 · Consult the routing table',note:'The table contains route, next-hop and metric information.'},
-      {label:'3 · Compare possible paths',note:'The router selects the shortest/best available route according to the coursebook model.'},
-      {label:'4 · Forward to the next router',note:'The next-hop information is used for forwarding.'},
-      {label:'5 · Repeat until destination',note:'Each router makes a new forwarding decision.'},
-    ]}},
-  }),
-  scene('h14p-142-webpage','h14-example-142','process','EXAMPLE 14.2 · WEB PAGE','How packet switching transfers a web page',[343],{
-    richBlock:{kind:'steps',title:'Build the answer one step at a time',items:[
-      'Divide the web page into data packets.',
-      'Put the destination IP address and other control data in each packet header.',
-      'At each router compare the header with the routing table.',
-      'Determine the next router/hop and forward the packet.',
-      'Check the hop value as the packet moves through routers.',
-      'Allow different packets to travel by different routes.',
-      'Reassemble the packets at the destination to rebuild the page.',
+  scene('h14p-142-routing','h14-routing-table','process','ROUTERS · ROUTING TABLES','A router reads the destination and chooses the next hop',[341,342],{
+    teacherNote:'Model the router as a decision point: destination in header → lookup → compare metrics → choose next hop.',
+    richBlock:{kind:'steps',title:'Router decision',items:[
+      'Read the destination information in the packet header.',
+      'Compare it with the routing table.',
+      'Use route information/metrics to identify an efficient path.',
+      'Forward the packet to the selected next hop / interface.',
     ]},
   }),
-  scene('h14p-142-exam','h14-eoc-3','exam','CAMBRIDGE-STYLE CHECK','Explain how packet switching can transfer a web page',[343,344],{
+  scene('h14p-142-web-page','h14-example-142','process','WORKED PROCESS · WEB PAGE','Trace one web-page request through packet switching',[343],{
+    richBlock:{kind:'steps',title:'From browser request to destination',items:[
+      'Divide the web page into data packets.',
+      'Put destination IP and control data into each packet header.',
+      'At each router compare the header with the routing table.',
+      'Choose the next router/hop and forward the packet.',
+      'Check the hop value while the packet travels.',
+      'Allow packets to take different routes.',
+      'Reassemble packets at the destination to rebuild the page.',
+    ]},
+  }),
+  scene('h14p-142-exam','h14-activity-14a','exam','CAMBRIDGE-STYLE CHECK','Describe how a packet header and routing table are used to route a packet',[343],{
     activity:{
-      title:'Answer before reveal',
-      prompt:'Give a structured explanation. Include packet creation, headers, router decisions, different routes and reassembly.',
-      reveal:'A strong answer should state that the message is split into packets; headers carry destination/control information; routers use routing tables to select the next hop; packets may take different routes; packets can arrive out of order; the destination uses sequence information to reassemble the original data.',
+      title:'Exam response',
+      prompt:'Give a concise explanation of how a router uses information in a packet header together with its routing table to forward the packet efficiently.',
+      reveal:'The router reads destination information from the header, compares it with routing-table entries/metrics, selects the best available next hop/interface and forwards the packet. The process repeats at later routers until the destination is reached.',
     },
   }),
-  scene('h14p-142-recap','h14-recap','recap','CHAPTER 14 · RETRIEVAL','Can you answer these five questions without notes?',[345],{
+  scene('h14p-142-recap','h14-recap','recap','CHAPTER 14 · FINAL RETRIEVAL','Can you explain the complete journey without notes?',[345],{
     bullets:[
       'Name the four TCP/IP layers in sending order.',
-      'State the difference between SMTP and IMAP.',
-      'Give one major difference between circuit switching and packet switching.',
-      'Explain why a sequence number is needed in a packet header.',
-      'Explain what a router does with the packet header and routing table.',
+      'State the roles of HTTP, SMTP and IMAP.',
+      'Explain one key difference between circuit and packet switching.',
+      'Explain why a sequence number is required.',
+      'Explain what happens when a hop number reaches zero before the destination.',
     ],
   }),
 ];
 
-export function chapter14PresentationStoryboard(topicCode:string):LessonPresentationBeat[]|null {
+export function chapter14PresentationStoryboard(topicCode:string){
   if(topicCode==='14.1')return PROTOCOLS;
   if(topicCode==='14.2')return SWITCHING;
   return null;
