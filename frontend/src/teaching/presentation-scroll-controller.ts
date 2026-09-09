@@ -11,20 +11,14 @@ function revealIsComplete(){
 }
 
 function dispatchReveal(){
-  // LessonExperience owns reveal state. Re-dispatch Space after the capture
-  // controller has consumed ArrowRight / the Next button.
   window.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));
 }
 
 /**
  * Presentation navigation guard.
- *
- * Rules:
- * 1. Progressive content is never skipped: ArrowRight and Next reveal first.
- * 2. Tall scenes are never skipped: after reveal, navigation scrolls the scene
- *    before moving to the next beat.
- * 3. Previous navigation scrolls upward before leaving a tall scene.
- * 4. Every new beat starts at the top.
+ * Progressive content is never skipped, tall scenes are scroll-safe, every new
+ * beat starts at the top, and the explicit Taqdimot launch action requests
+ * fullscreen while the browser still considers the teacher click a user gesture.
  */
 export function installPresentationScrollController(){
   let disposed=false;
@@ -81,7 +75,7 @@ export function installPresentationScrollController(){
         scrollByPage(1);
         return;
       }
-      return; // React moves to the next beat.
+      return;
     }
 
     if(event.key==='ArrowLeft'){
@@ -114,6 +108,12 @@ export function installPresentationScrollController(){
 
   const onClick=(event:MouseEvent)=>{
     const target=event.target as HTMLElement|null;
+    const clickedButton=target?.closest<HTMLButtonElement>('button');
+    if(clickedButton?.textContent?.trim().includes('Taqdimot')&&!document.fullscreenElement){
+      void document.documentElement.requestFullscreen?.().catch(()=>{});
+      return;
+    }
+
     const navButton=target?.closest<HTMLButtonElement>('.lesson-experience.lx-present .lx-present-nav button');
     if(!navButton||navButton.disabled)return;
     const nav=document.querySelector('.lesson-experience.lx-present .lx-present-nav');
