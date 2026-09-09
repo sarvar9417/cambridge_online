@@ -186,7 +186,11 @@ export class LiveChallengeAnswerService{
       `select lc.id,lc.status::text status,lc.state_version,
          r.id round_id,r.round_number,r.status::text round_status,
          (select count(*)::int from live_challenge_participants p where p.challenge_id=lc.id and p.status='JOINED') joined_count,
-         (select count(*)::int from live_challenge_answers a where a.round_id=r.id) answer_count,
+         (select count(*)::int
+          from live_challenge_answers a
+          join live_challenge_participants p
+            on p.challenge_id=lc.id and p.student_id=a.student_id and p.status='JOINED'
+          where a.round_id=r.id) answer_count,
          (select count(*)::int from live_challenge_peer_assignments pa where pa.round_id=r.id and pa.status<>'CANCELLED') assignment_count,
          (select count(*)::int from live_challenge_peer_assignments pa where pa.round_id=r.id and pa.status='SUBMITTED') peer_mark_count
        from live_challenges lc
