@@ -76,12 +76,14 @@ export class LiveChallengeAnswerService{
     try{
       await client.query('begin');
       const active=await client.query(
-        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,r.id round_id,r.started_at
+        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,r.id round_id,r.started_at,
+           lcq.time_limit_seconds
          from live_challenges lc
          join classes c on c.id=lc.class_id and c.archived_at is null
          join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
          join live_challenge_participants p on p.challenge_id=lc.id and p.student_id=$2 and p.status='JOINED'
          join live_challenge_rounds r on r.challenge_id=lc.id and r.status='QUESTION_ACTIVE'
+         join live_challenge_questions lcq on lcq.id=r.challenge_question_id
          where lc.id=$1 and lc.status='QUESTION_ACTIVE'
          order by r.round_number desc limit 1
          for update of lc,r`,
@@ -90,7 +92,23 @@ export class LiveChallengeAnswerService{
       if(!active.rowCount)throw new DomainError('live_challenge_answer_closed',409);
       const challenge=active.rows[0];
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
-      const duration=Math.max(0,Date.now()-new Date(challenge.started_at).getTime());
+
+      let duration=Math.max(0,Date.now()-new Date(challenge.started_at).getTime());
+      const settings=(challenge.settings_json??{}) as Record<string,unknown>;
+      if(settings.timing_mode==='per_question'){
+        const limit=Number(challenge.time_limit_seconds??settings.default_time_limit_seconds);
+        if(Number.isFinite(limit)&&limit>=10){
+          const deadline=await client.query(
+            `select sample.at >= $1::timestamptz + ($2::int * interval '1 second') expired,
+               greatest(0,floor(extract(epoch from (sample.at-$1::timestamptz))*1000))::bigint duration_ms
+             from (select clock_timestamp() at) sample`,
+            [challenge.started_at,limit],
+          );
+          if(deadline.rows[0]?.expired===true)throw new DomainError('live_challenge_answer_closed',409);
+          duration=Number(deadline.rows[0]?.duration_ms??duration);
+        }
+      }
+
       const inserted=await client.query(
         `insert into live_challenge_answers(round_id,student_id,answer_text,submission_duration_ms)
          values($1,$2,$3,$4)
