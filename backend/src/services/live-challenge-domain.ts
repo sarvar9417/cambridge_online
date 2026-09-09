@@ -148,7 +148,7 @@ export function buildLiveChallengePeerAssignments(
   });
 
   return ordered.map((marker, index) => {
-    const answer = ordered[(index + 1) % ordered.length];
+    const answer = ordered[(index + 1) % ordered.length]!;
     return {
       markerStudentId: marker.studentId,
       answerId: answer.answerId,
