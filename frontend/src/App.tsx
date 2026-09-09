@@ -39,6 +39,7 @@ import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
+import { LiveChallengesPage } from './teaching/LiveChallengesPage';
 import { GradingQueue } from './teaching/GradingQueue';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
@@ -143,7 +144,7 @@ export function App() {
   // a blank page with a working sidebar.
   useEffect(() => {
     if (!user) return;
-    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar'];
+    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar', 'oqitish/live-challenges'];
     const stranded = route.surface !== 'boshqaruv'
       && !STANDALONE.includes(route.path)
       && sectionsFor(route.surface, route.page, user.role).length === 0;
@@ -607,12 +608,12 @@ export function App() {
         : route.surface === 'boshqaruv' && route.page === 'korpus' ? <CorpusPage />
           : route.surface === 'boshqaruv' && route.page === 'sifat' ? <QualityPage />
             : route.surface === 'boshqaruv' && route.page === 'tizim' ? <SystemPage />
-              // Both keep their own dense workspace layout, but inside the
-              // shell now, so the rail stays put and they no longer each open
-              // their own session on arrival.
-              : route.path === 'oqitish/savol-banki' ? <QuestionBankPage user={user} />
-                : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
-                  : routedSections;
+              // Dense workspaces keep their own layout inside the shell so the
+              // rail stays put while the workspace changes independently.
+              : route.path === 'oqitish/live-challenges' ? <LiveChallengesPage />
+                : route.path === 'oqitish/savol-banki' ? <QuestionBankPage user={user} />
+                  : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
+                    : routedSections;
 
   return (
     <AppShell
