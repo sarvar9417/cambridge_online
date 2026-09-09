@@ -218,6 +218,18 @@
     #fff;
 }
 
+/* Chapter 14 is network/communications content. A clear blue identity keeps it
+   visually distinct from Chapter 1's indigo, Chapter 7's cyan and Chapter 13's
+   emerald while staying inside the same restrained curriculum palette. */
+.lesson-chapter-card.chapter-14 {
+  --chapter-accent: #2563eb;
+  --chapter-accent-soft: #eaf2ff;
+  --chapter-accent-rgb: 37, 99, 235;
+  background:
+    linear-gradient(90deg, rgba(37,99,235,.055), rgba(8,145,178,.018) 36%, rgba(255,255,255,0) 62%),
+    #fff;
+}
+
 @media (max-width: 1080px) {
   .lesson-library > header {
     min-height: 190px;
