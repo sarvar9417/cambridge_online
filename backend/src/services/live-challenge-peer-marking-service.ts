@@ -1,7 +1,7 @@
 import type { Pool,PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
-import { buildLiveChallengePeerAssignments,LiveChallengePeerAssignmentError } from './live-challenge-domain.js';
+import { buildLiveChallengePeerAssignments,LiveChallengePeerAssignmentError,type PeerAssignmentIdentity } from './live-challenge-domain.js';
 
 interface SnapshotPoint{id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null;requires?:unknown}
 interface MarkSchemeSnapshot{maxMarks:number;guidanceMd?:string|null;points?:SnapshotPoint[];groups?:unknown[];levels?:unknown[]}
@@ -53,20 +53,28 @@ export class LiveChallengePeerMarkingService{
       const challenge=await this.staffRound(client,actor,id,true);
       if(challenge.status==='PEER_MARKING'){
         const count=await client.query(`select count(*)::int count from live_challenge_peer_assignments where round_id=$1 and status<>'CANCELLED'`,[challenge.round_id]);
+        const assignmentCount=Number(count.rows[0]?.count??0);
         await client.query('commit');
-        return {id,status:'PEER_MARKING',stateVersion:Number(challenge.state_version),roundId:challenge.round_id,assignmentCount:Number(count.rows[0]?.count??0)};
+        return {id,status:'PEER_MARKING',stateVersion:Number(challenge.state_version),roundId:challenge.round_id,assignmentCount,teacherModerationRequired:assignmentCount===0};
       }
       if(challenge.status!=='ANSWERS_LOCKED'||challenge.round_status!=='ANSWERS_LOCKED')throw new DomainError('live_challenge_invalid_transition',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
-      if((challenge.settings_json as Record<string,unknown>|null)?.peer_marking_enabled===false)throw new DomainError('live_challenge_peer_marking_disabled',409);
 
       const answers=await client.query(`select id,student_id from live_challenge_answers where round_id=$1 and locked_at is not null order by student_id`,[challenge.round_id]);
-      let assignments;
-      try{
-        assignments=buildLiveChallengePeerAssignments(answers.rows.map(row=>({answerId:String(row.id),studentId:String(row.student_id)})),String(challenge.round_id));
-      }catch(error){
-        if(error instanceof LiveChallengePeerAssignmentError)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
-        throw error;
+      if(!answers.rowCount)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
+      const settings=challenge.settings_json as Record<string,unknown>|null;
+      const peerEnabled=settings?.peer_marking_enabled!==false;
+      const teacherOverrideEnabled=settings?.teacher_override_enabled!==false;
+      if(!peerEnabled&&!teacherOverrideEnabled)throw new DomainError('live_challenge_peer_marking_disabled',409);
+
+      let assignments:PeerAssignmentIdentity[]=[];
+      if(peerEnabled&&answers.rows.length>=2){
+        try{
+          assignments=buildLiveChallengePeerAssignments(answers.rows.map(row=>({answerId:String(row.id),studentId:String(row.student_id)})),String(challenge.round_id));
+        }catch(error){
+          if(error instanceof LiveChallengePeerAssignmentError)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
+          throw error;
+        }
       }
       for(const assignment of assignments){
         await client.query(
@@ -80,13 +88,14 @@ export class LiveChallengePeerMarkingService{
       if(Number(persisted.rows[0]?.count??0)!==assignments.length)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
       await client.query(`update live_challenge_rounds set status='PEER_MARKING',marking_started_at=coalesce(marking_started_at,now()) where id=$1`,[challenge.round_id]);
       const updated=await client.query(`update live_challenges set status='PEER_MARKING',state_version=state_version+1,updated_at=now() where id=$1 returning state_version`,[id]);
+      const teacherModerationRequired=assignments.length===0;
       await client.query(
         `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
-         values($1,$2,'marking.started',jsonb_build_object('roundId',$3::text,'assignmentCount',$4))`,
-        [id,actor.id,challenge.round_id,assignments.length],
+         values($1,$2,'marking.started',jsonb_build_object('roundId',$3::text,'assignmentCount',$4,'teacherModerationRequired',$5))`,
+        [id,actor.id,challenge.round_id,assignments.length,teacherModerationRequired],
       );
       await client.query('commit');
-      return {id,status:'PEER_MARKING',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,assignmentCount:assignments.length};
+      return {id,status:'PEER_MARKING',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,assignmentCount:assignments.length,teacherModerationRequired};
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
@@ -191,21 +200,38 @@ export class LiveChallengePeerMarkingService{
       if(challenge.status!=='PEER_MARKING'||challenge.round_status!=='PEER_MARKING')throw new DomainError('live_challenge_invalid_transition',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
       const counts=await client.query(
-        `select count(*)::int assignment_count,count(*) filter(where status='SUBMITTED')::int submitted_count
-         from live_challenge_peer_assignments where round_id=$1 and status<>'CANCELLED'`,
+        `select count(*)::int answer_count,
+           count(*) filter(where
+             exists(select 1 from live_challenge_score_overrides so where so.answer_id=a.id)
+             or exists(
+               select 1 from live_challenge_peer_assignments pa
+               join live_challenge_peer_marks pm on pm.peer_assignment_id=pa.id
+               where pa.answer_id=a.id and pa.status='SUBMITTED'
+             )
+           )::int resolved_count,
+           count(*) filter(where exists(
+             select 1 from live_challenge_peer_assignments pa
+             join live_challenge_peer_marks pm on pm.peer_assignment_id=pa.id
+             where pa.answer_id=a.id and pa.status='SUBMITTED'
+           ))::int peer_marked_count,
+           count(*) filter(where exists(select 1 from live_challenge_score_overrides so where so.answer_id=a.id))::int override_count
+         from live_challenge_answers a where a.round_id=$1`,
         [challenge.round_id],
       );
-      const assignmentCount=Number(counts.rows[0]?.assignment_count??0),submittedCount=Number(counts.rows[0]?.submitted_count??0);
-      if(assignmentCount===0||submittedCount!==assignmentCount)throw new DomainError('live_challenge_peer_marks_incomplete',409);
+      const answerCount=Number(counts.rows[0]?.answer_count??0);
+      const resolvedCount=Number(counts.rows[0]?.resolved_count??0);
+      const peerMarkedCount=Number(counts.rows[0]?.peer_marked_count??0);
+      const overrideCount=Number(counts.rows[0]?.override_count??0);
+      if(answerCount===0||resolvedCount!==answerCount)throw new DomainError('live_challenge_peer_marks_incomplete',409);
       await client.query(`update live_challenge_rounds set status='ROUND_RESULTS',results_released_at=coalesce(results_released_at,now()) where id=$1`,[challenge.round_id]);
       const updated=await client.query(`update live_challenges set status='ROUND_RESULTS',state_version=state_version+1,updated_at=now() where id=$1 returning state_version`,[id]);
       await client.query(
         `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
-         values($1,$2,'round.results_released',jsonb_build_object('roundId',$3::text,'markCount',$4))`,
-        [id,actor.id,challenge.round_id,submittedCount],
+         values($1,$2,'round.results_released',jsonb_build_object('roundId',$3::text,'answerCount',$4,'peerMarkCount',$5,'overrideCount',$6))`,
+        [id,actor.id,challenge.round_id,answerCount,peerMarkedCount,overrideCount],
       );
       await client.query('commit');
-      return {id,status:'ROUND_RESULTS',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,markCount:submittedCount};
+      return {id,status:'ROUND_RESULTS',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,markCount:peerMarkedCount,overrideCount,resolvedCount};
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
