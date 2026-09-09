@@ -105,6 +105,17 @@ describe('LiveChallengeModerationService',()=>{
     expect(query).toHaveBeenCalledWith('commit');
   });
 
+  it('freezes teacher scores after round results are released',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ROUND_RESULTS',state_version:13,settings_json:{teacher_override_enabled:true},round_id:roundId,round_number:1,round_status:'ROUND_RESULTS',max_marks_snapshot:4,display_ref:'Q3'}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.override(teacher,challengeId,{answerId,newScore:4,reason:'Late change',expectedStateVersion:13})).rejects.toMatchObject({code:'live_challenge_moderation_unavailable',status:409});
+    expect(query).toHaveBeenCalledWith('rollback');
+  });
+
   it('rejects out-of-range teacher scores before writing an override',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
