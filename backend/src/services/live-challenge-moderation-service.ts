@@ -2,9 +2,29 @@ import type { Pool,PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 
+const PAUSABLE=new Set(['LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS']);
+const REMOVABLE=new Set(['PUBLISHED','LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED']);
+
 export class LiveChallengeModerationService{
   constructor(private readonly pool:Pool){}
   private staff(actor:Actor){if(actor.role==='student')throw new DomainError('staff_only',403)}
+
+  private async challenge(client:Pool|PoolClient,actor:Actor,id:string,lock=false){
+    this.staff(actor);
+    const result=await client.query(
+      `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,
+         lc.paused_from_status::text paused_from_status,lc.paused_at,c.school_id
+       from live_challenges lc
+       join classes c on c.id=lc.class_id
+       where lc.id=$1 and (($2='owner' and c.school_id=$3) or lc.teacher_id=$4 or exists(
+         select 1 from class_teachers ct where ct.class_id=lc.class_id and ct.teacher_id=$4
+       ))
+       ${lock?'for update of lc':''}`,
+      [id,actor.role,actor.schoolId,actor.id],
+    );
+    if(!result.rowCount)throw new DomainError('not_found',404);
+    return result.rows[0];
+  }
 
   private async latestRound(client:Pool|PoolClient,actor:Actor,id:string,lock=false){
     this.staff(actor);
@@ -27,6 +47,135 @@ export class LiveChallengeModerationService{
     );
     if(!result.rowCount)throw new DomainError('live_challenge_peer_round_unavailable',409);
     return result.rows[0];
+  }
+
+  async pause(actor:Actor,id:string,expectedStateVersion?:number){
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const challenge=await this.challenge(client,actor,id,true);
+      if(challenge.status==='PAUSED'){
+        await client.query('commit');
+        return {id,status:'PAUSED',pausedFromStatus:challenge.paused_from_status,stateVersion:Number(challenge.state_version)};
+      }
+      if(!PAUSABLE.has(String(challenge.status)))throw new DomainError('live_challenge_invalid_transition',409);
+      if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+      const updated=await client.query(
+        `update live_challenges
+         set paused_from_status=status,paused_at=now(),status='PAUSED',state_version=state_version+1,updated_at=now()
+         where id=$1 returning paused_from_status::text paused_from_status,state_version,paused_at`,
+        [id],
+      );
+      await client.query(
+        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+         values($1,$2,'challenge.paused',jsonb_build_object('fromStatus',$3))`,
+        [id,actor.id,challenge.status],
+      );
+      await client.query('commit');
+      return {id,status:'PAUSED',pausedFromStatus:updated.rows[0].paused_from_status,stateVersion:Number(updated.rows[0].state_version),pausedAt:updated.rows[0].paused_at};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
+
+  async resume(actor:Actor,id:string,expectedStateVersion?:number){
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const challenge=await this.challenge(client,actor,id,true);
+      if(challenge.status!=='PAUSED'||!challenge.paused_from_status||!challenge.paused_at)throw new DomainError('live_challenge_invalid_transition',409);
+      if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+      const restored=String(challenge.paused_from_status);
+      if(restored==='QUESTION_ACTIVE'){
+        await client.query(
+          `update live_challenge_rounds
+           set started_at=started_at+(now()-$2::timestamptz)
+           where challenge_id=$1 and status='QUESTION_ACTIVE' and started_at is not null`,
+          [id,challenge.paused_at],
+        );
+      }
+      const updated=await client.query(
+        `update live_challenges
+         set status=paused_from_status,paused_from_status=null,paused_at=null,state_version=state_version+1,updated_at=now()
+         where id=$1 returning status::text status,state_version`,
+        [id],
+      );
+      await client.query(
+        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+         values($1,$2,'challenge.resumed',jsonb_build_object('restoredStatus',$3))`,
+        [id,actor.id,restored],
+      );
+      await client.query('commit');
+      return {id,status:updated.rows[0].status,stateVersion:Number(updated.rows[0].state_version),resumed:true};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
+
+  async cancel(actor:Actor,id:string,expectedStateVersion?:number){
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const challenge=await this.challenge(client,actor,id,true);
+      if(challenge.status==='CANCELLED'){
+        await client.query('commit');
+        return {id,status:'CANCELLED',stateVersion:Number(challenge.state_version),cancelled:true};
+      }
+      if(challenge.status==='FINISHED')throw new DomainError('live_challenge_invalid_transition',409);
+      if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+      await client.query(
+        `update live_challenge_peer_assignments pa set status='CANCELLED',completed_at=coalesce(completed_at,now())
+         where pa.status='ASSIGNED' and exists(
+           select 1 from live_challenge_rounds r where r.id=pa.round_id and r.challenge_id=$1
+         )`,
+        [id],
+      );
+      await client.query(
+        `update live_challenge_rounds set status='CANCELLED'
+         where challenge_id=$1 and status in ('PENDING','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING')`,
+        [id],
+      );
+      const updated=await client.query(
+        `update live_challenges
+         set status='CANCELLED',join_code=null,paused_from_status=null,paused_at=null,state_version=state_version+1,updated_at=now()
+         where id=$1 returning state_version`,
+        [id],
+      );
+      await client.query(
+        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+         values($1,$2,'challenge.cancelled',jsonb_build_object('fromStatus',$3))`,
+        [id,actor.id,challenge.status],
+      );
+      await client.query('commit');
+      return {id,status:'CANCELLED',stateVersion:Number(updated.rows[0].state_version),cancelled:true};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
+
+  async removeParticipant(actor:Actor,id:string,studentId:string,expectedStateVersion?:number){
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const challenge=await this.challenge(client,actor,id,true);
+      const effective=challenge.status==='PAUSED'?String(challenge.paused_from_status??''):String(challenge.status);
+      if(!REMOVABLE.has(effective))throw new DomainError('live_challenge_participant_removal_closed',409);
+      if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+      const removed=await client.query(
+        `update live_challenge_participants
+         set status='REMOVED',left_at=now(),last_seen_at=now()
+         where challenge_id=$1 and student_id=$2 and status<>'REMOVED'
+         returning student_id`,
+        [id,studentId],
+      );
+      if(!removed.rowCount)throw new DomainError('live_challenge_participant_not_found',404);
+      const updated=await client.query(
+        `update live_challenges set state_version=state_version+1,updated_at=now()
+         where id=$1 returning state_version`,
+        [id],
+      );
+      await client.query(
+        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+         values($1,$2,'participant.removed',jsonb_build_object('studentId',$3::text))`,
+        [id,actor.id,studentId],
+      );
+      await client.query('commit');
+      return {id,studentId,status:'REMOVED',stateVersion:Number(updated.rows[0].state_version)};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
   async list(actor:Actor,id:string){
