@@ -4,6 +4,7 @@ import type { LiveChallengeService } from '../services/live-challenge-service.js
 import type { LiveChallengeSessionService } from '../services/live-challenge-session-service.js';
 import type { LiveChallengeAnswerService } from '../services/live-challenge-answer-service.js';
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
+import type { LiveChallengeModerationService } from '../services/live-challenge-moderation-service.js';
 import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
@@ -25,6 +26,7 @@ export function createLiveChallengesRouter(
   session: LiveChallengeSessionService,
   answers: LiveChallengeAnswerService,
   peerMarking: LiveChallengePeerMarkingService,
+  moderation: LiveChallengeModerationService,
 ) {
   const router = Router();
 
@@ -151,6 +153,21 @@ export function createLiveChallengesRouter(
   router.post('/:id/peer-marking/release',async(req,res)=>{
     const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
     res.json({data:await peerMarking.release(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.get('/:id/moderation',async(req,res)=>{
+    res.json({data:await moderation.list(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.post('/:id/moderation/:answerId/override',async(req,res)=>{
+    const body=z.object({
+      newScore:z.number().min(0),
+      reason:z.string().trim().min(3).max(1000),
+      expectedStateVersion:z.number().int().min(0).optional(),
+    }).strict().parse(req.body);
+    res.status(201).json({data:await moderation.override(req.actor!,uuid.parse(req.params.id),{
+      answerId:uuid.parse(req.params.answerId),newScore:body.newScore,reason:body.reason,expectedStateVersion:body.expectedStateVersion,
+    })});
   });
 
   router.post('/:id/next',async(req,res)=>{
