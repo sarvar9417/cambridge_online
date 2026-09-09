@@ -4,6 +4,7 @@ import type { LiveChallengeService } from '../services/live-challenge-service.js
 import type { LiveChallengeSessionService } from '../services/live-challenge-session-service.js';
 import type { LiveChallengeAnswerService } from '../services/live-challenge-answer-service.js';
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
+import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
 
@@ -90,6 +91,17 @@ export function createLiveChallengesRouter(
 
   router.post('/:id/publish', async (req, res) => {
     res.json({ data: await service.publish(req.actor!, uuid.parse(req.params.id)) });
+  });
+
+  router.get('/:id/board',async(req,res)=>{
+    const id=uuid.parse(req.params.id);
+    // metrics() performs the staff/class-control check before any teacher state
+    // is projected. The subsequent allow-list projection is deliberately not a
+    // subtraction from teacher state, so future private fields fail closed.
+    const metrics=await answers.metrics(req.actor!,id);
+    const state=await session.state(req.actor!,id);
+    const lobby=['PUBLISHED','LOBBY'].includes(state.status)?await session.lobby(req.actor!,id):null;
+    res.json({data:projectLiveChallengeForBoard(state,metrics,lobby)});
   });
 
   router.get('/:id/state',async(req,res)=>{
