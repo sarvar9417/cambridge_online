@@ -12,7 +12,6 @@
   .h14v3-transport,
   .h14v3-frame,
   .h14v3-term-grid,
-  .h14v3-proscons,
   .h14v3-video>section,
   .h14v3-hop,
   .h14v3-header-core,
@@ -22,6 +21,9 @@
 ) > :not(.is-visible):not(.h14v3-payload):not(header):not(span) {
   display:none;
 }
+
+/* Pros/cons columns are permanent containers; reveal only their individual rows. */
+.lesson-experience.lx-present .h14v3-proscons p:not(.is-visible){display:none}
 
 /* display:contents has no visual box for opacity, so comparison rows need an
    explicit reveal state instead of opacity-based hiding. */
@@ -34,6 +36,11 @@
 
 /* Router decision arrows/table also leave the flow entirely until revealed. */
 .lesson-experience.lx-present .h14v3-routing-flow > :is(i,section,table):not(.is-visible){display:none}
+
+/* Example 14.1 initially uses the full canvas for packet-switching symptoms.
+   The circuit-switching answer panel joins only at the final reveal. */
+.lesson-experience.lx-present .h14v3-video>aside:not(.is-visible){display:none}
+.lesson-experience.lx-present .h14v3-video:not(:has(>aside.is-visible)){grid-template-columns:1fr}
 
 /* Source-rich details were split into their own scenes in v3. Prevent the old
    Chapter14 visual from showing those same blocks again on TCP and recap. */
@@ -90,4 +97,5 @@
 @media(max-width:760px){
   .lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic{grid-template-columns:1fr}
   .lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic section{min-height:0}
+  .lesson-experience.lx-present .h14v3-video{grid-template-columns:1fr}
 }
