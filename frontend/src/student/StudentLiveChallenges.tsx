@@ -15,9 +15,11 @@ type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|nu
 type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
 type OwnResultRound={roundId:string;roundNumber:number;questionRef:string;answered:boolean;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean};
 type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean;rounds:OwnResultRound[];totalScore:number;totalMax:number;overallPercentage:number};
+type HistoryCard={id:string;title:string;classId:string;className:string;status:'FINISHED';teacherName:string;syllabusCode:string;topicTitle:string|null;subtopicTitle:string|null;finishedAt:string|null;roundCount:number;totalScore:number;totalMax:number;overallPercentage:number};
 
 export function StudentLiveChallenges(){
   const[items,setItems]=useState<LiveChallengeStudentCard[]>([]);
+  const[history,setHistory]=useState<HistoryCard[]>([]);
   const[code,setCode]=useState('');
   const[joining,setJoining]=useState(false);
   const[active,setActive]=useState<LiveChallengeState|null>(null);
@@ -29,8 +31,9 @@ export function StudentLiveChallenges(){
   const[notice,setNotice]=useState('');
 
   const refresh=async()=>setItems((await api<{data:LiveChallengeStudentCard[]}>('/live-challenges/student')).data);
+  const refreshHistory=async()=>setHistory((await api<{data:HistoryCard[]}>('/live-challenges/student/history?limit=10')).data);
   useEffect(()=>{
-    void refresh().catch(()=>{});
+    void Promise.all([refresh(),refreshHistory()]).catch(()=>{});
     const timer=window.setInterval(()=>void refresh().catch(()=>{}),5000);
     return()=>window.clearInterval(timer);
   },[]);
@@ -61,12 +64,14 @@ export function StudentLiveChallenges(){
     if(state.status==='ROUND_RESULTS'||state.status==='FINISHED'){
       const resultResponse=await api<{data:OwnResult}>(`/live-challenges/${id}/result`);
       setResult(resultResponse.data);
+      if(state.status==='FINISHED')void refreshHistory().catch(()=>{});
     }
   };
-  const openState=async(item:LiveChallengeStudentCard)=>{
+  const openChallenge=async(id:string)=>{
     setLoadingState(true);setError('');
-    try{await loadState(item.id)}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge holati yuklanmadi.')}finally{setLoadingState(false)}
+    try{await loadState(id)}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge holati yuklanmadi.')}finally{setLoadingState(false)}
   };
+  const openState=async(item:LiveChallengeStudentCard)=>openChallenge(item.id);
   const refreshState=async()=>{if(!active)return;setLoadingState(true);setError('');try{await loadState(active.id);await refresh()}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge yangilanmadi.')}finally{setLoadingState(false)}};
   const submitAnswer=async(text:string)=>{
     if(!active)return;
@@ -97,10 +102,12 @@ export function StudentLiveChallenges(){
     {error?<p className="slc-message slc-message--error">{error}</p>:null}
     {notice?<p className="slc-message slc-message--ok">{notice}</p>:null}
     {active?<ActiveRound state={active} answer={ownAnswer?.answer??null} peer={peer} result={result} loading={loadingState} onSubmit={submitAnswer} onPeerMark={submitPeerMark} onRefresh={refreshState} onClose={()=>{setActive(null);setOwnAnswer(null);setPeer(null);setResult(null)}}/>:null}
-    {!items.length?<p className="slc-empty">Hozircha sinfingiz uchun ochiq Live Challenge yo‘q.</p>:<div className="slc-groups">
+    {!items.length?<p className="slc-empty">Hozircha sinfingiz uchun ochiq Live Challenge yo‘q.</p>:null}
+    {items.length||history.length?<div className="slc-groups">
       {live.length?<div><h3>Live</h3><div className="slc-list">{live.map(item=><ChallengeRow key={item.id} item={item} busy={joining||loadingState} onJoin={()=>joinCard(item)} onOpen={()=>openState(item)}/>)}</div></div>:null}
       {upcoming.length?<div><h3>Upcoming</h3><div className="slc-list">{upcoming.map(item=><ChallengeRow key={item.id} item={item} busy={joining||loadingState} onJoin={()=>joinCard(item)} onOpen={()=>openState(item)}/>)}</div></div>:null}
-    </div>}
+      {history.length?<div><h3>Completed</h3><div className="slc-list">{history.map(item=><HistoryRow key={item.id} item={item} busy={loadingState} onOpen={()=>openChallenge(item.id)}/>)}</div></div>:null}
+    </div>:null}
   </section>;
 }
 
@@ -110,6 +117,13 @@ function ChallengeRow({item,busy,onJoin,onOpen}:{item:LiveChallengeStudentCard;b
   return <article className={`slc-row slc-row--${item.status.toLowerCase()}`}>
     <div className="slc-main"><span className="slc-state">{STATE_LABEL[item.status]}</span><strong>{item.title}</strong><small>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}{item.subtopicTitle?` · ${item.subtopicTitle}`:''}</small><small>{item.teacherName} · {item.questionCount} savol · {item.joinedCount} joined</small></div>
     <div className="slc-action">{canOpen?<button disabled={busy} onClick={()=>void onOpen()}>{busy?'…':'Ochish'}</button>:joined?<span className="slc-joined">✓ Joined</span>:item.canJoin?<button disabled={busy} onClick={()=>void onJoin()}>{busy?'…':'Join'}</button>:<span className="slc-closed">Join yopiq</span>}</div>
+  </article>;
+}
+
+function HistoryRow({item,busy,onOpen}:{item:HistoryCard;busy:boolean;onOpen:()=>Promise<void>}){
+  return <article className="slc-row slc-row--finished">
+    <div className="slc-main"><span className="slc-state">Yakunlangan</span><strong>{item.title}</strong><small>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}{item.subtopicTitle?` · ${item.subtopicTitle}`:''}</small><small>{item.teacherName} · {item.roundCount} round · {item.totalScore}/{item.totalMax} · {item.overallPercentage}%</small></div>
+    <div className="slc-action"><button disabled={busy} onClick={()=>void onOpen()}>{busy?'…':'Natijani ochish'}</button></div>
   </article>;
 }
 
