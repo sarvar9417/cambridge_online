@@ -85,6 +85,15 @@ export function createLiveChallengesRouter(service: LiveChallengeService, sessio
     res.json({ data: await service.publish(req.actor!, uuid.parse(req.params.id)) });
   });
 
+  router.get('/:id/state',async(req,res)=>{
+    res.json({data:await session.state(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.post('/:id/start',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await session.start(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
   router.get('/:id/lobby',async(req,res)=>{
     res.json({data:await session.lobby(req.actor!,uuid.parse(req.params.id))});
   });
