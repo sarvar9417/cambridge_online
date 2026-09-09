@@ -17,6 +17,7 @@ import './styles.css';
 import './question-structure.css';
 import './question-asset-fidelity.css';
 import './teaching/chapter14-presentation-polish.css';
+import './teaching/chapter14-presentation-v2.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
