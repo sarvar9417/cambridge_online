@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14 } from './lesson-content-chapter14';
 import { lessonChapter } from './lesson-content-source-complete';
+import { buildTopicPlan } from './lesson-topic-plan';
 
 const text = JSON.stringify(CHAPTER_14);
 const figureTitles = CHAPTER_14.slides.flatMap(slide =>
@@ -26,6 +27,19 @@ describe('Chapter 14 communication and internet technologies', () => {
     ]);
     expect(CHAPTER_14.slides.some(slide=>slide.subtopicCode==='14.1')).toBe(true);
     expect(CHAPTER_14.slides.some(slide=>slide.subtopicCode==='14.2')).toBe(true);
+  });
+
+  it('keeps Chapter 14 as a true slide-by-slide presentation route', () => {
+    const topics=buildTopicPlan(CHAPTER_14.slides,CHAPTER_14.subtopics);
+    for(const topic of topics.filter(item=>item.code==='14.1'||item.code==='14.2')){
+      expect(topic.pages.length,topic.code).toBeGreaterThan(1);
+      for(const page of topic.pages){
+        expect(page.slides.length,`${topic.code}:${page.title}`).toBe(1);
+      }
+    }
+    const firstProtocolPage=topics.find(item=>item.code==='14.1')?.pages[0];
+    expect(firstProtocolPage?.bookPage).toBe(2);
+    expect(firstProtocolPage?.bookPages).toEqual([2]);
   });
 
   it('covers the complete protocol and switching keyword set', () => {
