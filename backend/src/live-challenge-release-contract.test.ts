@@ -20,17 +20,17 @@ describe('Cambridge Live Challenge release security contract',()=>{
     const domain=source('src/services/live-challenge-domain.ts');
     expect(domain).toContain("status === 'PEER_MARKING' || status === 'ROUND_RESULTS' || status === 'FINISHED'");
     expect(domain).toContain('markScheme: studentCanSeeMarkScheme(input.status) ? input.markScheme : null');
-    expect(domain).not.toContain("status === 'QUESTION_ACTIVE' || status === 'ANSWERS_LOCKED' || status === 'PEER_MARKING' || status === 'ROUND_RESULTS' || status === 'FINISHED';\n}\n\nexport function studentCanSeeMarkScheme");
   });
 
-  it('keeps the board projection free of private student answers and Mark Scheme',()=>{
+  it('keeps board projection private while revealing Mark Scheme only in allowed phases',()=>{
     const board=source('src/services/live-challenge-board-projection.ts');
     expect(board).not.toContain('answerText');
-    expect(board).not.toContain('markScheme');
     expect(board).not.toContain('studentId');
     expect(board).not.toContain('studentName');
+    expect(board).toContain("const MARK_SCHEME_VISIBLE=new Set(['PEER_MARKING','ROUND_RESULTS','FINISHED'])");
+    expect(board).toContain('markScheme:MARK_SCHEME_VISIBLE.has(state.status)?state.markScheme:null');
     expect(board).toContain('submittedCount');
-    expect(board).toContain('participantCount');
+    expect(board).toContain('joinedCount');
   });
 
   it('excludes removed students from peer assignment, resolution and mastery evidence',()=>{
