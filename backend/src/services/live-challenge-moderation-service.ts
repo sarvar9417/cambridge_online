@@ -287,6 +287,10 @@ export class LiveChallengeModerationService{
     return new LiveChallengeAnalyticsService(this.pool).finalize(actor,id);
   }
 
+  async studentHistory(actor:Actor,limit=10){
+    return new LiveChallengeResultsService(this.pool).history(actor,limit);
+  }
+
   async studentResult(actor:Actor,id:string){
     return new LiveChallengeResultsService(this.pool).student(actor,id);
   }
