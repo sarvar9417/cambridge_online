@@ -34,6 +34,11 @@ export function createLiveChallengesRouter(
 ) {
   const router = Router();
 
+  router.get('/student/history', async (req, res) => {
+    const query=z.object({limit:z.coerce.number().int().min(1).max(25).default(10)}).parse(req.query);
+    res.json({ data: await moderation.studentHistory(req.actor!,query.limit) });
+  });
+
   router.get('/student', async (req, res) => {
     res.json({ data: await session.studentFeed(req.actor!) });
   });
