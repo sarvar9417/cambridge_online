@@ -8,6 +8,7 @@ import type { LiveChallengeModerationService } from '../services/live-challenge-
 import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
+const stateVersionBody=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict();
 
 const settingsSchema = z.object({
   questionOrder: z.enum(['fixed','shuffled']).optional(),
@@ -128,12 +129,12 @@ export function createLiveChallengesRouter(
   });
 
   router.post('/:id/answers/lock',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    const body=stateVersionBody.parse(req.body??{});
     res.json({data:await answers.lock(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
   router.post('/:id/peer-marking/start',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    const body=stateVersionBody.parse(req.body??{});
     res.json({data:await peerMarking.start(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
@@ -151,7 +152,7 @@ export function createLiveChallengesRouter(
   });
 
   router.post('/:id/peer-marking/release',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    const body=stateVersionBody.parse(req.body??{});
     res.json({data:await peerMarking.release(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
@@ -170,17 +171,40 @@ export function createLiveChallengesRouter(
     })});
   });
 
+  router.post('/:id/pause',async(req,res)=>{
+    const body=stateVersionBody.parse(req.body??{});
+    res.json({data:await moderation.pause(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.post('/:id/resume',async(req,res)=>{
+    const body=stateVersionBody.parse(req.body??{});
+    res.json({data:await moderation.resume(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.post('/:id/cancel',async(req,res)=>{
+    const body=stateVersionBody.parse(req.body??{});
+    res.json({data:await moderation.cancel(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.post('/:id/participants/:studentId/remove',async(req,res)=>{
+    const body=stateVersionBody.parse(req.body??{});
+    res.json({data:await moderation.removeParticipant(req.actor!,uuid.parse(req.params.id),uuid.parse(req.params.studentId),body.expectedStateVersion)});
+  });
+
   router.post('/:id/next',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
-    res.json({data:await peerMarking.advance(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+    const challengeId=uuid.parse(req.params.id);
+    const body=stateVersionBody.parse(req.body??{});
+    const advanced=await peerMarking.advance(req.actor!,challengeId,body.expectedStateVersion);
+    const analytics=advanced.finished?await moderation.finalizeAnalytics(req.actor!,challengeId):null;
+    res.json({data:{...advanced,analytics}});
   });
 
   router.get('/:id/result',async(req,res)=>{
-    res.json({data:await peerMarking.ownResult(req.actor!,uuid.parse(req.params.id))});
+    res.json({data:await moderation.studentResult(req.actor!,uuid.parse(req.params.id))});
   });
 
   router.post('/:id/start',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    const body=stateVersionBody.parse(req.body??{});
     res.json({data:await session.start(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
@@ -189,7 +213,7 @@ export function createLiveChallengesRouter(
   });
 
   router.post('/:id/lobby/open',async(req,res)=>{
-    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    const body=stateVersionBody.parse(req.body??{});
     res.json({data:await session.openLobby(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
