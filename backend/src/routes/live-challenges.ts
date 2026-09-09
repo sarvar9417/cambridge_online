@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { LiveChallengeService } from '../services/live-challenge-service.js';
 import type { LiveChallengeSessionService } from '../services/live-challenge-session-service.js';
+import type { LiveChallengeAnswerService } from '../services/live-challenge-answer-service.js';
 
 const uuid = z.string().uuid();
 
@@ -17,7 +18,7 @@ const settingsSchema = z.object({
   displayNameMode: z.enum(['first_name','full_name','anonymous']).optional(),
 }).strict();
 
-export function createLiveChallengesRouter(service: LiveChallengeService, session: LiveChallengeSessionService) {
+export function createLiveChallengesRouter(service: LiveChallengeService, session: LiveChallengeSessionService, answers: LiveChallengeAnswerService) {
   const router = Router();
 
   router.get('/student', async (req, res) => {
@@ -87,6 +88,20 @@ export function createLiveChallengesRouter(service: LiveChallengeService, sessio
 
   router.get('/:id/state',async(req,res)=>{
     res.json({data:await session.state(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.get('/:id/answer',async(req,res)=>{
+    res.json({data:await answers.own(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.post('/:id/answer',async(req,res)=>{
+    const body=z.object({answerText:z.string().trim().min(1).max(50000),expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body);
+    res.status(201).json({data:await answers.submit(req.actor!,uuid.parse(req.params.id),body.answerText,body.expectedStateVersion)});
+  });
+
+  router.post('/:id/answers/lock',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await answers.lock(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
   router.post('/:id/start',async(req,res)=>{
