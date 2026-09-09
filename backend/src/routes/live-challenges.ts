@@ -5,6 +5,7 @@ import type { LiveChallengeSessionService } from '../services/live-challenge-ses
 import type { LiveChallengeAnswerService } from '../services/live-challenge-answer-service.js';
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
 import type { LiveChallengeModerationService } from '../services/live-challenge-moderation-service.js';
+import type { LiveChallengeTimingService } from '../services/live-challenge-timing-service.js';
 import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
@@ -28,6 +29,7 @@ export function createLiveChallengesRouter(
   answers: LiveChallengeAnswerService,
   peerMarking: LiveChallengePeerMarkingService,
   moderation: LiveChallengeModerationService,
+  timing: LiveChallengeTimingService,
 ) {
   const router = Router();
 
@@ -97,8 +99,10 @@ export function createLiveChallengesRouter(
   });
 
   router.get('/:id/events',async(req,res)=>{
+    const id=uuid.parse(req.params.id);
     const query=z.object({after:z.string().regex(/^\d+$/).default('0')}).parse(req.query);
-    res.json({data:await answers.events(req.actor!,uuid.parse(req.params.id),query.after)});
+    await timing.reconcile(req.actor!,id);
+    res.json({data:await answers.events(req.actor!,id,query.after)});
   });
 
   router.get('/:id/scoreboard',async(req,res)=>{
@@ -107,6 +111,7 @@ export function createLiveChallengesRouter(
 
   router.get('/:id/board',async(req,res)=>{
     const id=uuid.parse(req.params.id);
+    await timing.reconcile(req.actor!,id);
     const metrics=await answers.metrics(req.actor!,id);
     const state=await session.state(req.actor!,id);
     const lobby=['PUBLISHED','LOBBY'].includes(state.status)?await session.lobby(req.actor!,id):null;
@@ -116,16 +121,23 @@ export function createLiveChallengesRouter(
   });
 
   router.get('/:id/state',async(req,res)=>{
-    res.json({data:await session.state(req.actor!,uuid.parse(req.params.id))});
+    const id=uuid.parse(req.params.id);
+    await timing.reconcile(req.actor!,id);
+    res.json({data:await session.state(req.actor!,id)});
   });
 
   router.get('/:id/answer',async(req,res)=>{
-    res.json({data:await answers.own(req.actor!,uuid.parse(req.params.id))});
+    const id=uuid.parse(req.params.id);
+    await timing.reconcile(req.actor!,id);
+    res.json({data:await answers.own(req.actor!,id)});
   });
 
   router.post('/:id/answer',async(req,res)=>{
+    const id=uuid.parse(req.params.id);
     const body=z.object({answerText:z.string().trim().min(1).max(50000),expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body);
-    res.status(201).json({data:await answers.submit(req.actor!,uuid.parse(req.params.id),body.answerText,body.expectedStateVersion)});
+    const deadline=await timing.reconcile(req.actor!,id);
+    if(deadline.changed)throw new DomainError('live_challenge_answer_closed',409);
+    res.status(201).json({data:await answers.submit(req.actor!,id,body.answerText,body.expectedStateVersion)});
   });
 
   router.post('/:id/answers/lock',async(req,res)=>{
