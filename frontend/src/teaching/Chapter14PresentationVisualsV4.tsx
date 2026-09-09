@@ -4,7 +4,9 @@ import {
   hasChapter14PresentationVisualV6,
 } from './Chapter14PresentationVisualsV6';
 import { Chapter14PracticeQ4 } from './Chapter14PracticeQ4';
+import { Chapter14PresentationCompleteness } from './Chapter14PresentationCompleteness';
 import './chapter14-presentation-v6.css';
+import './chapter14-presentation-v6-hardening.css';
 
 /**
  * Compatibility facade.
@@ -18,6 +20,7 @@ export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   return <>
     <Chapter14PresentationVisualV6 beat={beat} reveal={reveal}/>
+    <Chapter14PresentationCompleteness beat={beat}/>
     {beat.id==='h14p-142-practice'?<Chapter14PracticeQ4 reveal={reveal}/>:null}
   </>;
 }
