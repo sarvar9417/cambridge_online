@@ -6,7 +6,8 @@ import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuesti
 import './live-challenge-board.css';
 
 type MarkPoint={id?:string;code?:string;text?:string;marks?:number};
-type Scoreboard={challengeId:string;status:string;stateVersion:number;releasedRounds:number;maxMarks:number;classAveragePercentage:number;entries:Array<{rank:number;displayName:string;score:number;maxMarks:number;percentage:number}>};
+type ScoreDistributionBand={band:string;count:number};
+type Scoreboard={challengeId:string;status:string;stateVersion:number;releasedRounds:number;maxMarks:number;classAveragePercentage:number;entries:Array<{rank:number;displayName:string;score:number;maxMarks:number;percentage:number}>;scoreDistribution:ScoreDistributionBand[]};
 type BoardState={
   id:string;title:string;className:string;syllabusCode:string;topicTitle:string|null;subtopicTitle:string|null;
   status:string;stateVersion:number;currentQuestionPosition:number|null;serverNow:string;
@@ -94,5 +95,18 @@ export function LiveChallengeBoard({challengeId,onClose}:{challengeId:string;onC
 
 function Leaderboard({scoreboard}:{scoreboard:Scoreboard|null}){
   if(!scoreboard||!scoreboard.entries.length)return <section className="lcb-leaderboard lcb-leaderboard--empty"><h2>Natijalar hisoblanmoqda…</h2></section>;
-  return <section className="lcb-leaderboard"><header><div><span>LEADERBOARD</span><h2>Cumulative Cambridge marks</h2></div><strong>{scoreboard.classAveragePercentage}%<small>class avg</small></strong></header><div className="lcb-leader-list">{scoreboard.entries.slice(0,12).map(entry=><article key={`${entry.rank}-${entry.displayName}`} className={entry.rank<=3?'is-podium':''}><b>{entry.rank}</b><strong>{entry.displayName}</strong><span>{entry.score}/{entry.maxMarks}</span><em>{entry.percentage}%</em></article>)}</div></section>;
+  return <section className="lcb-leaderboard">
+    <header><div><span>LEADERBOARD</span><h2>Cumulative Cambridge marks</h2></div><strong>{scoreboard.classAveragePercentage}%<small>class avg</small></strong></header>
+    <ScoreDistribution bands={scoreboard.scoreDistribution}/>
+    <div className="lcb-leader-list">{scoreboard.entries.slice(0,12).map(entry=><article key={`${entry.rank}-${entry.displayName}`} className={entry.rank<=3?'is-podium':''}><b>{entry.rank}</b><strong>{entry.displayName}</strong><span>{entry.score}/{entry.maxMarks}</span><em>{entry.percentage}%</em></article>)}</div>
+  </section>;
+}
+
+function ScoreDistribution({bands}:{bands:ScoreDistributionBand[]}){
+  if(!bands.length)return null;
+  const max=Math.max(1,...bands.map(item=>item.count));
+  return <section className="lcb-score-distribution" aria-label="Class score distribution">
+    <span>SCORE DISTRIBUTION</span>
+    <div>{bands.map(item=><article key={item.band}><strong>{item.count}</strong><div className="lcb-track"><i style={{width:`${Math.round(item.count/max*100)}%`}}/></div><small>{item.band}%</small></article>)}</div>
+  </section>;
 }
