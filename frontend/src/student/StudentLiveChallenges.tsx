@@ -10,6 +10,9 @@ const STATE_LABEL:Record<LiveChallengeStudentCard['status'],string>={
 };
 const QUESTION_VISIBLE=new Set<LiveChallengeStudentCard['status']>(['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS']);
 type OwnAnswerState={challengeId:string;challengeStatus:string;stateVersion:number;roundId:string|null;roundNumber:number|null;roundStatus:string|null;answer:{id:string;text:string;submittedAt:string;lockedAt:string|null;submissionDurationMs:number|null}|null};
+type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null};
+type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
+type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number|null;maxMarks:number;percentage:number|null;teacherOverridden:boolean};
 
 export function StudentLiveChallenges(){
   const[items,setItems]=useState<LiveChallengeStudentCard[]>([]);
@@ -17,6 +20,8 @@ export function StudentLiveChallenges(){
   const[joining,setJoining]=useState(false);
   const[active,setActive]=useState<LiveChallengeState|null>(null);
   const[ownAnswer,setOwnAnswer]=useState<OwnAnswerState|null>(null);
+  const[peer,setPeer]=useState<PeerAssignmentState|null>(null);
+  const[result,setResult]=useState<OwnResult|null>(null);
   const[loadingState,setLoadingState]=useState(false);
   const[error,setError]=useState('');
   const[notice,setNotice]=useState('');
@@ -28,14 +33,11 @@ export function StudentLiveChallenges(){
     setJoining(true);setError('');setNotice('');
     try{
       const joined=(await api<{data:LiveChallengeJoinResult}>('/live-challenges/join',{method:'POST',body:JSON.stringify({code:value})})).data;
-      setNotice(`${joined.title} challenge’iga qo‘shildingiz.`);
-      await refresh();
+      setNotice(`${joined.title} challenge’iga qo‘shildingiz.`);await refresh();
     }catch(cause){setError(cause instanceof Error?cause.message:'Challenge’ga qo‘shilib bo‘lmadi.')}finally{setJoining(false)}
   };
   const submit=async(event:FormEvent)=>{event.preventDefault();if(code.trim().length!==6)return;await joinCode(code);setCode('')};
   const joinCard=async(item:LiveChallengeStudentCard)=>{
-    // Discovery never exposes the code. Card join still requires the code shown
-    // by the teacher, and the server independently verifies class enrollment.
     const entered=window.prompt(`${item.title} uchun 6 belgili join code kiriting:`)?.trim().toUpperCase()??'';
     if(entered)await joinCode(entered);
   };
@@ -44,23 +46,37 @@ export function StudentLiveChallenges(){
       api<{data:LiveChallengeState}>(`/live-challenges/${id}/state`),
       api<{data:OwnAnswerState}>(`/live-challenges/${id}/answer`),
     ]);
-    setActive(stateResult.data);setOwnAnswer(answerResult.data);
+    const state=stateResult.data;
+    setActive(state);setOwnAnswer(answerResult.data);setPeer(null);setResult(null);
+    if(state.status==='PEER_MARKING'||state.status==='ROUND_RESULTS'){
+      const peerResult=await api<{data:PeerAssignmentState}>(`/live-challenges/${id}/peer-marking/assignment`);
+      setPeer(peerResult.data);
+    }
+    if(state.status==='ROUND_RESULTS'){
+      const resultResponse=await api<{data:OwnResult}>(`/live-challenges/${id}/result`);
+      setResult(resultResponse.data);
+    }
   };
   const openState=async(item:LiveChallengeStudentCard)=>{
     setLoadingState(true);setError('');
-    try{await loadState(item.id)}
-    catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge holati yuklanmadi.')}
-    finally{setLoadingState(false)}
+    try{await loadState(item.id)}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge holati yuklanmadi.')}finally{setLoadingState(false)}
   };
-  const refreshState=async()=>{if(!active)return;setLoadingState(true);try{await loadState(active.id);await refresh()}finally{setLoadingState(false)}};
+  const refreshState=async()=>{if(!active)return;setLoadingState(true);setError('');try{await loadState(active.id);await refresh()}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge yangilanmadi.')}finally{setLoadingState(false)}};
   const submitAnswer=async(text:string)=>{
     if(!active)return;
     setLoadingState(true);setError('');setNotice('');
     try{
       await api(`/live-challenges/${active.id}/answer`,{method:'POST',body:JSON.stringify({answerText:text,expectedStateVersion:active.stateVersion})});
-      await loadState(active.id);await refresh();
-      setNotice('Javob topshirildi. Bu round uchun javob endi o‘zgarmaydi.');
+      await loadState(active.id);await refresh();setNotice('Javob topshirildi. Bu round uchun javob endi o‘zgarmaydi.');
     }catch(cause){setError(cause instanceof Error?cause.message:'Javob yuborilmadi.')}finally{setLoadingState(false)}
+  };
+  const submitPeerMark=async(input:{awardedMarks:number;markPointIds:string[];feedbackText:string})=>{
+    if(!active)return;
+    setLoadingState(true);setError('');setNotice('');
+    try{
+      await api(`/live-challenges/${active.id}/peer-marking/submit`,{method:'POST',body:JSON.stringify(input)});
+      await loadState(active.id);setNotice('Peer mark topshirildi. Baholash anonim va endi o‘zgarmaydi.');
+    }catch(cause){setError(cause instanceof Error?cause.message:'Peer mark yuborilmadi.')}finally{setLoadingState(false)}
   };
   const live=items.filter(item=>item.status!=='PUBLISHED');
   const upcoming=items.filter(item=>item.status==='PUBLISHED');
@@ -68,7 +84,7 @@ export function StudentLiveChallenges(){
     <div className="slc-head"><div><span>LIVE CLASSROOM</span><h2>Live Challenges</h2></div><form onSubmit={submit}><input aria-label="Join code" value={code} onChange={event=>setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6))} placeholder="6 BELGILI KOD"/><button disabled={joining||code.length!==6}>Join</button></form></div>
     {error?<p className="slc-message slc-message--error">{error}</p>:null}
     {notice?<p className="slc-message slc-message--ok">{notice}</p>:null}
-    {active?<ActiveRound state={active} answer={ownAnswer?.answer??null} loading={loadingState} onSubmit={submitAnswer} onRefresh={refreshState} onClose={()=>{setActive(null);setOwnAnswer(null)}}/>:null}
+    {active?<ActiveRound state={active} answer={ownAnswer?.answer??null} peer={peer} result={result} loading={loadingState} onSubmit={submitAnswer} onPeerMark={submitPeerMark} onRefresh={refreshState} onClose={()=>{setActive(null);setOwnAnswer(null);setPeer(null);setResult(null)}}/>:null}
     {!items.length?<p className="slc-empty">Hozircha sinfingiz uchun ochiq Live Challenge yo‘q.</p>:<div className="slc-groups">
       {live.length?<div><h3>Live</h3><div className="slc-list">{live.map(item=><ChallengeRow key={item.id} item={item} busy={joining||loadingState} onJoin={()=>joinCard(item)} onOpen={()=>openState(item)}/>)}</div></div>:null}
       {upcoming.length?<div><h3>Upcoming</h3><div className="slc-list">{upcoming.map(item=><ChallengeRow key={item.id} item={item} busy={joining||loadingState} onJoin={()=>joinCard(item)} onOpen={()=>openState(item)}/>)}</div></div>:null}
@@ -85,7 +101,7 @@ function ChallengeRow({item,busy,onJoin,onOpen}:{item:LiveChallengeStudentCard;b
   </article>;
 }
 
-function ActiveRound({state,answer,loading,onSubmit,onRefresh,onClose}:{state:LiveChallengeState;answer:OwnAnswerState['answer'];loading:boolean;onSubmit:(text:string)=>Promise<void>;onRefresh:()=>Promise<void>;onClose:()=>void}){
+function ActiveRound({state,answer,peer,result,loading,onSubmit,onPeerMark,onRefresh,onClose}:{state:LiveChallengeState;answer:OwnAnswerState['answer'];peer:PeerAssignmentState|null;result:OwnResult|null;loading:boolean;onSubmit:(text:string)=>Promise<void>;onPeerMark:(input:{awardedMarks:number;markPointIds:string[];feedbackText:string})=>Promise<void>;onRefresh:()=>Promise<void>;onClose:()=>void}){
   const question=state.question;
   const[draft,setDraft]=useState(answer?.text??'');
   useEffect(()=>{setDraft(answer?.text??'')},[state.round?.id,answer?.id]);
@@ -97,6 +113,33 @@ function ActiveRound({state,answer,loading,onSubmit,onRefresh,onClose}:{state:Li
     {question?<div className="slc-question"><div className="slc-question-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p className="slc-stem">{question.stemMd}</p></>}</div>:<p className="slc-empty">O‘qituvchi savolni ochishini kuting.</p>}
     {question?<section className={`slc-answer${answer?' is-submitted':''}`}><div><strong>{answer?'Javob topshirildi':'Javobingiz'}</strong>{answer?<small>{new Date(answer.submittedAt).toLocaleTimeString()} · o‘zgartirib bo‘lmaydi</small>:<small>Topshirgandan keyin javob o‘zgarmaydi</small>}</div><textarea disabled={!canAnswer||loading} value={draft} onChange={event=>setDraft(event.target.value)} placeholder={canAnswer?'Javobingizni yozing…':answer?'Topshirilgan javob':'Javob qabul qilish yopilgan.'}/>{canAnswer?<button type="button" disabled={loading||draft.trim().length===0} onClick={()=>void onSubmit(draft)}>{loading?'Yuborilmoqda…':'Javobni topshirish'}</button>:null}</section>:null}
     {answer&&state.status==='QUESTION_ACTIVE'?<p className="slc-round-note">Javob qabul qilindi. O‘qituvchi roundni yopishini kuting.</p>:null}
-    {state.status==='ANSWERS_LOCKED'?<p className="slc-round-note">Barcha ochiq javoblar qulflandi. Keyingi bosqichni o‘qituvchi ochadi.</p>:null}
+    {state.status==='ANSWERS_LOCKED'?<p className="slc-round-note">Barcha ochiq javoblar qulflandi. Peer marking boshlanishini kuting.</p>:null}
+    {state.status==='PEER_MARKING'?<PeerMarkingPanel peer={peer} loading={loading} onSubmit={onPeerMark}/>:null}
+    {state.status==='ROUND_RESULTS'?<RoundResultPanel result={result}/>:null}
   </section>;
+}
+
+function PeerMarkingPanel({peer,loading,onSubmit}:{peer:PeerAssignmentState|null;loading:boolean;onSubmit:(input:{awardedMarks:number;markPointIds:string[];feedbackText:string})=>Promise<void>}){
+  const assignment=peer?.assignment??null;
+  const[selected,setSelected]=useState<string[]>(assignment?.submittedMark?.markPointIds??[]);
+  const[score,setScore]=useState(assignment?.submittedMark?.awardedMarks??0);
+  const[feedback,setFeedback]=useState(assignment?.submittedMark?.feedbackText??'');
+  useEffect(()=>{setSelected(assignment?.submittedMark?.markPointIds??[]);setScore(assignment?.submittedMark?.awardedMarks??0);setFeedback(assignment?.submittedMark?.feedbackText??'')},[assignment?.id,assignment?.submittedMark?.submittedAt]);
+  if(!peer)return <p className="slc-round-note">Anonymous peer assignment yuklanmoqda.</p>;
+  if(!assignment)return <p className="slc-round-note">Sizga bu roundda peer answer biriktirilmagan. Natijalarni kuting.</p>;
+  const submitted=Boolean(assignment.submittedMark);
+  const points=assignment.markScheme.points??[];
+  const toggle=(id:string)=>setSelected(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);
+  return <section className={`slc-peer${submitted?' is-submitted':''}`}>
+    <div className="slc-peer-title"><div><span>ANONYMOUS PEER ANSWER</span><strong>{assignment.questionRef}</strong></div><b>{assignment.maxMarks} ball</b></div>
+    <blockquote>{assignment.answerText}</blockquote>
+    <div className="slc-ms"><h4>Mark Scheme</h4>{assignment.markScheme.guidanceMd?<p>{assignment.markScheme.guidanceMd}</p>:null}{points.length?points.map(point=><label key={point.id}><input type="checkbox" disabled={submitted||loading} checked={selected.includes(point.id)} onChange={()=>toggle(point.id)}/><span><strong>{point.code}</strong>{point.text}{point.accept?<small>Accept: {point.accept}</small>:null}{point.reject?<small>Reject: {point.reject}</small>:null}</span><b>{point.marks}</b></label>):<p>Bu savol level-based scheme’dan foydalanadi; umumiy ballni scheme bo‘yicha tanlang.</p>}</div>
+    <div className="slc-peer-score"><label>Ball<input type="number" min={0} max={assignment.maxMarks} step="0.5" disabled={submitted||loading} value={score} onChange={event=>setScore(Number(event.target.value))}/></label><label>Qisqa feedback<textarea maxLength={5000} disabled={submitted||loading} value={feedback} onChange={event=>setFeedback(event.target.value)} placeholder="Ixtiyoriy feedback"/></label></div>
+    {submitted?<p className="slc-peer-done">✓ Peer mark topshirilgan: {assignment.submittedMark?.awardedMarks}/{assignment.maxMarks}. Endi o‘zgarmaydi.</p>:<button type="button" disabled={loading||score<0||score>assignment.maxMarks} onClick={()=>void onSubmit({awardedMarks:score,markPointIds:selected,feedbackText:feedback})}>{loading?'Yuborilmoqda…':'Peer markni topshirish'}</button>}
+  </section>;
+}
+
+function RoundResultPanel({result}:{result:OwnResult|null}){
+  if(!result)return <p className="slc-round-note">Natija yuklanmoqda.</p>;
+  return <section className="slc-result"><span>ROUND RESULT</span><div><strong>{result.score===null?'—':result.score}/{result.maxMarks}</strong><b>{result.percentage===null?'Baholanmagan':`${result.percentage}%`}</b></div><p>{result.questionRef}{result.teacherOverridden?' · Teacher override qo‘llangan':''}</p></section>;
 }
