@@ -183,6 +183,15 @@ export function LiveChallengesPage(){
     setSaving(true);setError('');setNotice('');
     try{await api(`/live-challenges/${state.id}/cancel`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});setRuntime(null);await loadChallenges();setNotice('Challenge bekor qilindi.')}catch(cause){setError(message(cause,'Challenge bekor qilinmadi.'))}finally{setSaving(false)}
   };
+  const removeParticipant=async(current:Lobby,studentId:string,fullName:string)=>{
+    if(!window.confirm(`${fullName} ni bu Live Challenge’dan chiqarasizmi?`))return;
+    setSaving(true);setError('');setNotice('');
+    try{
+      await api(`/live-challenges/${current.id}/participants/${studentId}/remove`,{method:'POST',body:JSON.stringify({expectedStateVersion:current.stateVersion})});
+      const refreshed=(await api<{data:Lobby}>(`/live-challenges/${current.id}/lobby`)).data;
+      setLobby(refreshed);await loadChallenges();setNotice(`${fullName} challenge’dan chiqarildi.`);
+    }catch(cause){setError(message(cause,'Studentni challenge’dan chiqarib bo‘lmadi.'))}finally{setSaving(false)}
+  };
 
   if(loading&&!options)return <main className="live-state">Live Challenge Builder yuklanmoqda…</main>;
 
@@ -195,7 +204,7 @@ export function LiveChallengesPage(){
 
     {lobby?<section className="live-lobby">
       <div className="live-lobby-top"><div><span className="live-eyebrow">WAITING ROOM</span><h2>{lobby.title}</h2><p>{lobby.className} · {lobby.syllabusCode}{lobby.topicTitle?` · ${lobby.topicTitle}`:''}</p></div><div className="live-code"><small>JOIN CODE</small><strong>{lobby.joinCode}</strong><span>{lobby.participantCount} joined</span></div></div>
-      <div className="live-participants">{lobby.participants.length?lobby.participants.map(person=><div key={person.studentId} className={person.status==='JOINED'?'is-joined':'is-left'}><span>{person.fullName.slice(0,1).toUpperCase()}</span><strong>{person.fullName}</strong><small>{person.status==='JOINED'?'Joined':'Left'}</small></div>):<p>Hali hech kim join qilmagan.</p>}</div>
+      <div className="live-participants">{lobby.participants.length?lobby.participants.map(person=><div key={person.studentId} className={person.status==='JOINED'?'is-joined':'is-left'}><span>{person.fullName.slice(0,1).toUpperCase()}</span><strong>{person.fullName}</strong><small>{person.status==='JOINED'?'Joined':person.status==='REMOVED'?'Removed':'Left'}</small>{person.status==='JOINED'&&lobby.status==='LOBBY'?<button type="button" className="live-remove-participant" disabled={saving} onClick={()=>void removeParticipant(lobby,person.studentId,person.fullName)}>Remove</button>:null}</div>):<p>Hali hech kim join qilmagan.</p>}</div>
       <div className="live-lobby-actions"><button type="button" className="secondary" onClick={()=>void viewLobby(lobby.id)} disabled={saving}>Yangilash</button><button type="button" className="secondary" onClick={()=>openBoard(lobby.id)}>Board</button><button type="button" className="secondary" onClick={()=>setLobby(null)}>Yopish</button><button type="button" className="live-primary" disabled={saving||lobby.status!=='LOBBY'} onClick={()=>void startChallenge(lobby)}>{saving?'Boshlanmoqda…':'Start challenge'}</button></div>
     </section>:null}
 
