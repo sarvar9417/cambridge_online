@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { LiveChallengeService } from '../services/live-challenge-service.js';
+import type { LiveChallengeSessionService } from '../services/live-challenge-session-service.js';
 
 const uuid = z.string().uuid();
 
@@ -16,8 +17,17 @@ const settingsSchema = z.object({
   displayNameMode: z.enum(['first_name','full_name','anonymous']).optional(),
 }).strict();
 
-export function createLiveChallengesRouter(service: LiveChallengeService) {
+export function createLiveChallengesRouter(service: LiveChallengeService, session: LiveChallengeSessionService) {
   const router = Router();
+
+  router.get('/student', async (req, res) => {
+    res.json({ data: await session.studentFeed(req.actor!) });
+  });
+
+  router.post('/join', async (req, res) => {
+    const body=z.object({code:z.string().trim().min(1).max(12)}).strict().parse(req.body);
+    res.json({data:await session.join(req.actor!,body.code)});
+  });
 
   router.get('/builder-options', async (req, res) => {
     const query = z.object({ syllabusId: uuid.optional() }).parse(req.query);
@@ -73,6 +83,19 @@ export function createLiveChallengesRouter(service: LiveChallengeService) {
 
   router.post('/:id/publish', async (req, res) => {
     res.json({ data: await service.publish(req.actor!, uuid.parse(req.params.id)) });
+  });
+
+  router.get('/:id/lobby',async(req,res)=>{
+    res.json({data:await session.lobby(req.actor!,uuid.parse(req.params.id))});
+  });
+
+  router.post('/:id/lobby/open',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await session.openLobby(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
+  router.post('/:id/leave',async(req,res)=>{
+    res.json({data:await session.leave(req.actor!,uuid.parse(req.params.id))});
   });
 
   return router;
