@@ -6,12 +6,12 @@ export interface LiveChallengeBoardMetrics {
 }
 
 interface BoardState {
-  id:string;
-  title:string;
-  className:string;
-  syllabusCode:string;
-  topicTitle:string|null;
-  subtopicTitle:string|null;
+  id:unknown;
+  title:unknown;
+  className:unknown;
+  syllabusCode:unknown;
+  topicTitle:unknown;
+  subtopicTitle:unknown;
   status:string;
   stateVersion:number;
   currentQuestionPosition:number|null;
@@ -23,13 +23,14 @@ interface BoardState {
 }
 
 interface LobbyState {
-  joinCode:string|null;
+  joinCode:unknown;
   participantCount:number;
 }
 
 const QUESTION_VISIBLE=new Set(['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS','FINISHED']);
 const MARK_SCHEME_VISIBLE=new Set(['PEER_MARKING','ROUND_RESULTS','FINISHED']);
 const CODE_VISIBLE=new Set(['PUBLISHED','LOBBY']);
+const nullableText=(value:unknown)=>value==null?null:String(value);
 
 /**
  * Public/projector-safe shape for an authenticated classroom board.
@@ -44,12 +45,12 @@ export function projectLiveChallengeForBoard(
   lobby:LobbyState|null,
 ){
   return {
-    id:state.id,
-    title:state.title,
-    className:state.className,
-    syllabusCode:state.syllabusCode,
-    topicTitle:state.topicTitle,
-    subtopicTitle:state.subtopicTitle,
+    id:String(state.id),
+    title:String(state.title),
+    className:String(state.className),
+    syllabusCode:String(state.syllabusCode),
+    topicTitle:nullableText(state.topicTitle),
+    subtopicTitle:nullableText(state.subtopicTitle),
     status:state.status,
     stateVersion:state.stateVersion,
     currentQuestionPosition:state.currentQuestionPosition,
@@ -57,7 +58,7 @@ export function projectLiveChallengeForBoard(
     round:state.round,
     question:QUESTION_VISIBLE.has(state.status)?state.question:null,
     markScheme:MARK_SCHEME_VISIBLE.has(state.status)?state.markScheme:null,
-    joinCode:CODE_VISIBLE.has(state.status)?lobby?.joinCode??null:null,
+    joinCode:CODE_VISIBLE.has(state.status)&&lobby?.joinCode!=null?String(lobby.joinCode):null,
     joinedCount:metrics.joinedCount,
     submittedCount:metrics.answerCount,
     peerAssignmentCount:metrics.assignmentCount,
