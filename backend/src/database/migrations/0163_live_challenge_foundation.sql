@@ -59,6 +59,7 @@ CREATE TABLE live_challenges (
   join_code text,
   status live_challenge_status NOT NULL DEFAULT 'DRAFT',
   paused_from_status live_challenge_status,
+  paused_at timestamptz,
   settings_json jsonb NOT NULL DEFAULT '{}'::jsonb
     CHECK (jsonb_typeof(settings_json) = 'object'),
   current_question_position int
@@ -71,8 +72,8 @@ CREATE TABLE live_challenges (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (join_code IS NULL OR join_code ~ '^[A-Z0-9]{6}$'),
   CHECK (
-    (status = 'PAUSED' AND paused_from_status IS NOT NULL AND paused_from_status <> 'PAUSED')
-    OR (status <> 'PAUSED' AND paused_from_status IS NULL)
+    (status = 'PAUSED' AND paused_from_status IS NOT NULL AND paused_from_status <> 'PAUSED' AND paused_at IS NOT NULL)
+    OR (status <> 'PAUSED' AND paused_from_status IS NULL AND paused_at IS NULL)
   )
 );
 
@@ -235,3 +236,5 @@ COMMENT ON COLUMN live_challenge_questions.mark_scheme_snapshot IS
   'Approved mark-scheme snapshot for audit/replay. Student APIs must withhold this field until PEER_MARKING or later.';
 COMMENT ON COLUMN live_challenges.state_version IS
   'Optimistic-concurrency counter for compare-and-set state transitions.';
+COMMENT ON COLUMN live_challenges.paused_at IS
+  'Server timestamp used to exclude paused duration from active-question timing when a session resumes.';
