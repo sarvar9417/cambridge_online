@@ -1,4 +1,5 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
+import { Chapter14PresentationVisualV5, hasChapter14PresentationVisualV5 } from './Chapter14PresentationVisualsV5';
 
 const shown=(reveal:number,index:number)=>reveal>=index;
 
@@ -125,9 +126,10 @@ const ids=new Set([
   'h14p-141-stack','h14p-141-http','h14p-141-email','h14p-141-tcp','h14p-142-circuit-route','h14p-142-packet-route',
 ]);
 
-export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){return ids.has(beat.id);}
+export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){return ids.has(beat.id)||hasChapter14PresentationVisualV5(beat);}
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
+  if(hasChapter14PresentationVisualV5(beat))return <Chapter14PresentationVisualV5 beat={beat} reveal={reveal}/>;
   switch(beat.id){
     case 'h14p-141-stack': return <TcpIpAnimated reveal={reveal}/>;
     case 'h14p-141-http': return <HttpAnimated reveal={reveal}/>;
