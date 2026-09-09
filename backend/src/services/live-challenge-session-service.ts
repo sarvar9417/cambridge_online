@@ -262,7 +262,13 @@ export class LiveChallengeSessionService{
     const result=await this.pool.query(
       `update live_challenge_participants p set status='LEFT',left_at=now(),last_seen_at=now()
        where p.challenge_id=$1 and p.student_id=$2 and p.status='JOINED'
-         and exists(select 1 from live_challenges lc where lc.id=p.challenge_id and lc.status in ('PUBLISHED','LOBBY','PAUSED'))
+         and exists(
+           select 1 from live_challenges lc
+           where lc.id=p.challenge_id and (
+             lc.status in ('PUBLISHED','LOBBY')
+             or (lc.status='PAUSED' and lc.paused_from_status in ('PUBLISHED','LOBBY'))
+           )
+         )
        returning p.challenge_id`,
       [id,actor.id],
     );
