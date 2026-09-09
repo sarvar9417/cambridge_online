@@ -10,6 +10,8 @@ const assignmentId='33333333-3333-4333-8333-333333333333';
 const answerA='44444444-4444-4444-8444-444444444444';
 const answerB='55555555-5555-4555-8555-555555555555';
 const pointId='66666666-6666-4666-8666-666666666666';
+const nextChallengeQuestionId='77777777-7777-4777-8777-777777777777';
+const nextRoundId='88888888-8888-4888-8888-888888888888';
 const scheme={maxMarks:2,guidanceMd:null,points:[{id:pointId,code:'A1',text:'Mentions decode',marks:1}],groups:[],levels:[]};
 const client=(query:ReturnType<typeof vi.fn>)=>({query,release:vi.fn()} as unknown as PoolClient);
 
@@ -86,5 +88,35 @@ describe('LiveChallengePeerMarkingService',()=>{
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
     await expect(service.release(teacher,challengeId,10)).resolves.toEqual({id:challengeId,status:'ROUND_RESULTS',stateVersion:11,roundId,markCount:2});
+  });
+
+  it('advances ROUND_RESULTS to the next unused canonical question',async()=>{
+    const startedAt=new Date('2026-09-09T18:00:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ROUND_RESULTS',state_version:11,settings_json:{question_order:'fixed'},round_id:roundId,round_number:1,round_status:'ROUND_RESULTS'}]};
+      if(sql.includes('not exists(select 1 from live_challenge_rounds'))return{rowCount:1,rows:[{id:nextChallengeQuestionId,position:2}]};
+      if(sql.includes('insert into live_challenge_rounds'))return{rowCount:1,rows:[{id:nextRoundId,round_number:2,started_at:startedAt}]};
+      if(sql.includes("set status='QUESTION_ACTIVE',current_question_position"))return{rowCount:1,rows:[{state_version:12,current_question_position:2}]};
+      if(sql.includes("'question.advanced'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.advance(teacher,challengeId,11)).resolves.toMatchObject({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:12,currentQuestionPosition:2,roundId:nextRoundId,roundNumber:2,finished:false});
+    expect(query).toHaveBeenCalledWith('commit');
+  });
+
+  it('finishes the challenge when every selected question has a round',async()=>{
+    const finishedAt=new Date('2026-09-09T18:05:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ROUND_RESULTS',state_version:21,settings_json:{question_order:'fixed'},round_id:roundId,round_number:5,round_status:'ROUND_RESULTS'}]};
+      if(sql.includes('not exists(select 1 from live_challenge_rounds'))return{rowCount:0,rows:[]};
+      if(sql.includes("set status='FINISHED'"))return{rowCount:1,rows:[{state_version:22,finished_at:finishedAt}]};
+      if(sql.includes("'challenge.finished'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.advance(teacher,challengeId,21)).resolves.toMatchObject({id:challengeId,status:'FINISHED',stateVersion:22,roundNumber:5,finished:true,finishedAt});
   });
 });
