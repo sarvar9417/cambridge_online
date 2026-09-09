@@ -60,7 +60,19 @@ export class LiveChallengePeerMarkingService{
       if(challenge.status!=='ANSWERS_LOCKED'||challenge.round_status!=='ANSWERS_LOCKED')throw new DomainError('live_challenge_invalid_transition',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
 
-      const answers=await client.query(`select id,student_id from live_challenge_answers where round_id=$1 and locked_at is not null order by student_id`,[challenge.round_id]);
+      const answers=await client.query(
+        `select id,student_id from live_challenge_answers a
+         where round_id=$1 and locked_at is not null
+           and exists(
+             select 1
+             from live_challenge_rounds rr
+             join live_challenge_participants p
+               on p.challenge_id=rr.challenge_id and p.student_id=a.student_id and p.status='JOINED'
+             where rr.id=a.round_id
+           )
+         order by student_id`,
+        [challenge.round_id],
+      );
       if(!answers.rowCount)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
       const settings=challenge.settings_json as Record<string,unknown>|null;
       const peerEnabled=settings?.peer_marking_enabled!==false;
@@ -215,7 +227,15 @@ export class LiveChallengePeerMarkingService{
              where pa.answer_id=a.id and pa.status='SUBMITTED'
            ))::int peer_marked_count,
            count(*) filter(where exists(select 1 from live_challenge_score_overrides so where so.answer_id=a.id))::int override_count
-         from live_challenge_answers a where a.round_id=$1`,
+         from live_challenge_answers a
+         where a.round_id=$1
+           and exists(
+             select 1
+             from live_challenge_rounds rr
+             join live_challenge_participants p
+               on p.challenge_id=rr.challenge_id and p.student_id=a.student_id and p.status='JOINED'
+             where rr.id=a.round_id
+           )`,
         [challenge.round_id],
       );
       const answerCount=Number(counts.rows[0]?.answer_count??0);
@@ -243,6 +263,8 @@ export class LiveChallengePeerMarkingService{
            from live_challenge_answers a
            join live_challenge_rounds r on r.id=a.round_id
            join live_challenge_questions lcq on lcq.id=r.challenge_question_id
+           join live_challenge_participants p
+             on p.challenge_id=r.challenge_id and p.student_id=a.student_id and p.status='JOINED'
            where a.round_id=$1
          ) scored
          join question_subtopics qs on qs.question_id=scored.question_id
