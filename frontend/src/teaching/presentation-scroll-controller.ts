@@ -10,23 +10,28 @@ function revealIsComplete(){
   return document.querySelector('.lesson-experience.lx-present .lx-present-nav p')?.textContent?.includes('keyingi ekran')??false;
 }
 
+function dispatchReveal(){
+  // LessonExperience owns reveal state. Re-dispatch Space after the capture
+  // controller has consumed ArrowRight / the Next button.
+  window.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));
+}
+
 /**
- * Presentation navigation uses the URL hash, so the same scroll container can
- * survive when React renders the next beat. Keep every new beat anchored at its
- * top and let PageUp/PageDown scroll a tall beat before they are allowed to
- * reach the presentation's own previous/next-slide keyboard handler.
+ * Presentation navigation guard.
  *
- * Space still reveals progressive content first. Once the reveal is complete,
- * a tall scene is scrolled before Space can advance to the next beat so the
- * teacher cannot accidentally skip content that sits below the fold.
+ * Rules:
+ * 1. Progressive content is never skipped: ArrowRight and Next reveal first.
+ * 2. Tall scenes are never skipped: after reveal, navigation scrolls the scene
+ *    before moving to the next beat.
+ * 3. Previous navigation scrolls upward before leaving a tall scene.
+ * 4. Every new beat starts at the top.
  */
 export function installPresentationScrollController(){
   let disposed=false;
   let stage:HTMLElement|null=null;
+  let redispatching=false;
 
-  const bind=()=>{
-    stage=currentStage();
-  };
+  const bind=()=>{stage=currentStage();};
 
   const resetAfterRender=()=>{
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
@@ -41,32 +46,99 @@ export function installPresentationScrollController(){
     stage.scrollBy({top:direction*Math.max(240,stage.clientHeight*.82),behavior:'smooth'});
   };
 
-  const onKeyDown=(event:KeyboardEvent)=>{
-    if(isInteractiveTarget(event.target))return;
+  const state=()=>{
     const active=currentStage();
-    if(!active)return;
     stage=active;
-
+    if(!stage)return {exists:false,down:false,up:false};
     const tolerance=4;
-    const canScrollDown=stage.scrollTop+stage.clientHeight<stage.scrollHeight-tolerance;
-    const canScrollUp=stage.scrollTop>tolerance;
+    return {
+      exists:true,
+      down:stage.scrollTop+stage.clientHeight<stage.scrollHeight-tolerance,
+      up:stage.scrollTop>tolerance,
+    };
+  };
 
-    if(event.key==='PageDown'&&canScrollDown){
+  const revealFromAlternativeControl=()=>{
+    redispatching=true;
+    try{dispatchReveal();}finally{redispatching=false;}
+  };
+
+  const onKeyDown=(event:KeyboardEvent)=>{
+    if(redispatching||isInteractiveTarget(event.target))return;
+    const current=state();
+    if(!current.exists)return;
+
+    if(event.key==='ArrowRight'){
+      if(!revealIsComplete()){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        revealFromAlternativeControl();
+        return;
+      }
+      if(current.down){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        scrollByPage(1);
+        return;
+      }
+      return; // React moves to the next beat.
+    }
+
+    if(event.key==='ArrowLeft'){
+      if(current.up){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        scrollByPage(-1);
+      }
+      return;
+    }
+
+    if(event.key==='PageDown'&&current.down){
       event.preventDefault();
       event.stopImmediatePropagation();
       scrollByPage(1);
       return;
     }
-    if(event.key==='PageUp'&&canScrollUp){
+    if(event.key==='PageUp'&&current.up){
       event.preventDefault();
       event.stopImmediatePropagation();
       scrollByPage(-1);
       return;
     }
-    if(event.key===' '&&canScrollDown&&revealIsComplete()){
+    if(event.key===' '&&current.down&&revealIsComplete()){
       event.preventDefault();
       event.stopImmediatePropagation();
       scrollByPage(1);
+    }
+  };
+
+  const onClick=(event:MouseEvent)=>{
+    const target=event.target as HTMLElement|null;
+    const navButton=target?.closest<HTMLButtonElement>('.lesson-experience.lx-present .lx-present-nav button');
+    if(!navButton||navButton.disabled)return;
+    const nav=document.querySelector('.lesson-experience.lx-present .lx-present-nav');
+    if(!nav)return;
+    const buttons=[...nav.querySelectorAll<HTMLButtonElement>('button')];
+    const direction=buttons.indexOf(navButton)===0?-1:1;
+    const current=state();
+    if(!current.exists)return;
+
+    if(direction===1&&!revealIsComplete()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      revealFromAlternativeControl();
+      return;
+    }
+    if(direction===1&&current.down){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      scrollByPage(1);
+      return;
+    }
+    if(direction===-1&&current.up){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      scrollByPage(-1);
     }
   };
 
@@ -75,6 +147,7 @@ export function installPresentationScrollController(){
   window.addEventListener('resize',onResize);
   document.addEventListener('fullscreenchange',resetAfterRender);
   document.addEventListener('keydown',onKeyDown,true);
+  document.addEventListener('click',onClick,true);
   resetAfterRender();
 
   return()=>{
@@ -83,5 +156,6 @@ export function installPresentationScrollController(){
     window.removeEventListener('resize',onResize);
     document.removeEventListener('fullscreenchange',resetAfterRender);
     document.removeEventListener('keydown',onKeyDown,true);
+    document.removeEventListener('click',onClick,true);
   };
 }
