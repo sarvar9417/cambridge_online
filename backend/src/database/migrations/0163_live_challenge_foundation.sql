@@ -68,6 +68,7 @@ CREATE TABLE live_challenges (
   published_at timestamptz,
   started_at timestamptz,
   finished_at timestamptz,
+  analytics_recorded_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (join_code IS NULL OR join_code ~ '^[A-Z0-9]{6}$'),
@@ -238,3 +239,5 @@ COMMENT ON COLUMN live_challenges.state_version IS
   'Optimistic-concurrency counter for compare-and-set state transitions.';
 COMMENT ON COLUMN live_challenges.paused_at IS
   'Server timestamp used to exclude paused duration from active-question timing when a session resumes.';
+COMMENT ON COLUMN live_challenges.analytics_recorded_at IS
+  'Idempotency marker set only after final Live Challenge evidence has been merged into the existing mastery model.';
