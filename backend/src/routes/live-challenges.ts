@@ -24,6 +24,24 @@ const settingsSchema = z.object({
   displayNameMode: z.enum(['first_name','full_name','anonymous']).optional(),
 }).strict();
 
+type ScoreboardWithEntries={entries:Array<{percentage:number}>};
+
+export function withLiveChallengeScoreDistribution<T extends ScoreboardWithEntries>(scoreboard:T){
+  const bands=[
+    {band:'0-24',min:0,max:25},
+    {band:'25-49',min:25,max:50},
+    {band:'50-74',min:50,max:75},
+    {band:'75-100',min:75,max:101},
+  ] as const;
+  return {
+    ...scoreboard,
+    scoreDistribution:bands.map(({band,min,max})=>({
+      band,
+      count:scoreboard.entries.filter(entry=>entry.percentage>=min&&entry.percentage<max).length,
+    })),
+  };
+}
+
 export function createLiveChallengesRouter(
   service: LiveChallengeService,
   session: LiveChallengeSessionService,
@@ -111,7 +129,8 @@ export function createLiveChallengesRouter(
   });
 
   router.get('/:id/scoreboard',async(req,res)=>{
-    res.json({data:await answers.scoreboard(req.actor!,uuid.parse(req.params.id))});
+    const scoreboard=await answers.scoreboard(req.actor!,uuid.parse(req.params.id));
+    res.json({data:withLiveChallengeScoreDistribution(scoreboard)});
   });
 
   router.get('/:id/board',async(req,res)=>{
@@ -121,7 +140,9 @@ export function createLiveChallengesRouter(
     const state=await session.state(req.actor!,id);
     const lobby=['PUBLISHED','LOBBY'].includes(state.status)?await session.lobby(req.actor!,id):null;
     const board=projectLiveChallengeForBoard(state,metrics,lobby);
-    const scoreboard=['ROUND_RESULTS','FINISHED'].includes(state.status)?await answers.scoreboard(req.actor!,id):null;
+    const scoreboard=['ROUND_RESULTS','FINISHED'].includes(state.status)
+      ?withLiveChallengeScoreDistribution(await answers.scoreboard(req.actor!,id))
+      :null;
     res.json({data:{...board,scoreboard}});
   });
 
