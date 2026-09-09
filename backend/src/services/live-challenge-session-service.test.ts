@@ -13,7 +13,7 @@ describe('LiveChallengeSessionService',()=>{
     const feed=await service.studentFeed(student);
     expect(feed[0]).toMatchObject({id:challengeId,status:'PUBLISHED',canJoin:true,questionCount:5});
     const sql=String(query.mock.calls[0]?.[0]);
-    expect(sql).toContain('join enrollments e');
+    expect(sql).toContain('from enrollments e');
     expect(sql).toContain('e.student_id=$1');
     expect(sql).not.toContain('mark_scheme_snapshot');
     expect(sql).not.toContain('content_json');
