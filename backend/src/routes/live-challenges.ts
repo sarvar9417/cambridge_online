@@ -133,6 +133,11 @@ export function createLiveChallengesRouter(
     res.json({data:await peerMarking.release(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
   });
 
+  router.post('/:id/next',async(req,res)=>{
+    const body=z.object({expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body??{});
+    res.json({data:await peerMarking.advance(req.actor!,uuid.parse(req.params.id),body.expectedStateVersion)});
+  });
+
   router.get('/:id/result',async(req,res)=>{
     res.json({data:await peerMarking.ownResult(req.actor!,uuid.parse(req.params.id))});
   });
