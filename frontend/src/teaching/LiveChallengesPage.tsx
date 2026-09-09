@@ -12,6 +12,7 @@ type EligibleQuestion={id:string;displayRef:string;stemMd:string|null;commandWor
 type Challenge={id:string;title:string;classId:string;className:string;syllabusId:string;syllabusCode:string;topicId:string|null;topicTitle:string|null;subtopicId:string|null;subtopicTitle:string|null;joinCode:string|null;status:string;settings:Settings;currentQuestionPosition:number|null;stateVersion:number;questionCount:number;createdAt:string;publishedAt:string|null;startedAt:string|null;finishedAt:string|null};
 type DraftResult={id:string;title:string;classId:string;syllabusId:string;topicId:string|null;subtopicId:string|null;status:string;settings:Settings;stateVersion:number;questionCount:number;createdAt:string};
 type PublishResult={id:string;title:string;classId:string;joinCode:string;status:string;stateVersion:number;publishedAt:string;questionCount:number};
+type Lobby={id:string;title:string;classId:string;className:string;syllabusCode:string;topicTitle:string|null;subtopicTitle:string|null;status:string;joinCode:string;stateVersion:number;participantCount:number;participants:Array<{studentId:string;fullName:string;status:string;joinedAt:string;lastSeenAt:string}>};
 type SelectionMode='manual'|'auto';
 
 const message=(error:unknown,fallback:string)=>error instanceof Error?error.message:fallback;
@@ -22,6 +23,7 @@ export function LiveChallengesPage(){
   const[challenges,setChallenges]=useState<Challenge[]>([]);
   const[questions,setQuestions]=useState<EligibleQuestion[]>([]);
   const[selected,setSelected]=useState<string[]>([]);
+  const[lobby,setLobby]=useState<Lobby|null>(null);
   const[loading,setLoading]=useState(true);
   const[questionLoading,setQuestionLoading]=useState(false);
   const[saving,setSaving]=useState(false);
@@ -84,12 +86,7 @@ export function LiveChallengesPage(){
     setSaving(true);setError('');setNotice('');
     const data=new FormData(event.currentTarget),title=String(data.get('title')??'').trim();
     try{
-      const settings={
-        timingMode,
-        defaultTimeLimitSeconds:timingMode==='per_question'&&timeLimit?Number(timeLimit):null,
-        leaderboardMode,
-        allowLateJoin,
-      };
+      const settings={timingMode,defaultTimeLimitSeconds:timingMode==='per_question'&&timeLimit?Number(timeLimit):null,leaderboardMode,allowLateJoin};
       const created=(await api<{data:DraftResult}>('/live-challenges',{method:'POST',body:JSON.stringify({classId,title,syllabusId,topicId,subtopicId:subtopicId||null,settings,questionIds:mode==='manual'?selected:undefined})})).data;
       if(mode==='auto')await api(`/live-challenges/${created.id}/questions/auto`,{method:'POST',body:JSON.stringify({count:autoCount})});
       let published:PublishResult|null=null;
@@ -105,6 +102,21 @@ export function LiveChallengesPage(){
     try{const published=(await api<{data:PublishResult}>(`/live-challenges/${id}/publish`,{method:'POST'})).data;setNotice(`Challenge nashr qilindi. Join code: ${published.joinCode}`);await loadChallenges()}catch(cause){setError(message(cause,'Challenge publish qilinmadi.'))}finally{setSaving(false)}
   };
 
+  const viewLobby=async(id:string)=>{
+    setSaving(true);setError('');setNotice('');
+    try{setLobby((await api<{data:Lobby}>(`/live-challenges/${id}/lobby`)).data)}catch(cause){setError(message(cause,'Waiting room yuklanmadi.'))}finally{setSaving(false)}
+  };
+
+  const openLobby=async(item:Challenge)=>{
+    setSaving(true);setError('');setNotice('');
+    try{
+      await api(`/live-challenges/${item.id}/lobby/open`,{method:'POST',body:JSON.stringify({expectedStateVersion:item.stateVersion})});
+      await loadChallenges();
+      setLobby((await api<{data:Lobby}>(`/live-challenges/${item.id}/lobby`)).data);
+      setNotice('Waiting room ochildi. Join code’ni ekranga chiqarishingiz mumkin.');
+    }catch(cause){setError(message(cause,'Waiting room ochilmadi.'))}finally{setSaving(false)}
+  };
+
   if(loading&&!options)return <main className="live-state">Live Challenge Builder yuklanmoqda…</main>;
 
   return <main className="live-page">
@@ -112,6 +124,12 @@ export function LiveChallengesPage(){
 
     {error&&<div className="live-alert live-alert--error">{error}</div>}
     {notice&&<div className="live-alert live-alert--ok">{notice}</div>}
+
+    {lobby?<section className="live-lobby">
+      <div className="live-lobby-top"><div><span className="live-eyebrow">WAITING ROOM</span><h2>{lobby.title}</h2><p>{lobby.className} · {lobby.syllabusCode}{lobby.topicTitle?` · ${lobby.topicTitle}`:''}</p></div><div className="live-code"><small>JOIN CODE</small><strong>{lobby.joinCode}</strong><span>{lobby.participantCount} joined</span></div></div>
+      <div className="live-participants">{lobby.participants.length?lobby.participants.map(person=><div key={person.studentId} className={person.status==='JOINED'?'is-joined':'is-left'}><span>{person.fullName.slice(0,1).toUpperCase()}</span><strong>{person.fullName}</strong><small>{person.status==='JOINED'?'Joined':'Left'}</small></div>):<p>Hali hech kim join qilmagan.</p>}</div>
+      <div className="live-lobby-actions"><button type="button" className="secondary" onClick={()=>void viewLobby(lobby.id)} disabled={saving}>Yangilash</button><button type="button" className="secondary" onClick={()=>setLobby(null)}>Yopish</button><button type="button" className="live-primary" disabled>Start — keyingi phase</button></div>
+    </section>:null}
 
     <div className="live-grid">
       <section className="live-builder-card">
@@ -140,7 +158,7 @@ export function LiveChallengesPage(){
         </form>
       </section>
 
-      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div>{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}</article>)}</div>}</aside>
+      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div><div className="live-challenge-actions">{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}{item.status==='PUBLISHED'?<button type="button" disabled={saving} onClick={()=>void openLobby(item)}>Lobby ochish</button>:null}{item.status==='LOBBY'||item.status==='PAUSED'?<button type="button" disabled={saving} onClick={()=>void viewLobby(item.id)}>Waiting room</button>:null}</div></article>)}</div>}</aside>
     </div>
   </main>;
 }
