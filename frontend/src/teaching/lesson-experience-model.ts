@@ -8,6 +8,7 @@ import { LESSON_CHAPTERS as SOURCE_CHAPTERS } from './lesson-content-source-comp
 import { sourceAtomsForChapter, sourceAtomsForSlide } from './lesson-source-atom-registry';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { CHAPTER_2_KEY_TERMS_2_1, CHAPTER_2_KEY_TERMS_2_2 } from './chapter2-source-emphasis';
+import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import type { HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
 import type { LessonVisual } from './lesson-content-full';
 import { studentFacingSlide, studentFacingText } from './lesson-student-facing';
@@ -23,14 +24,18 @@ export const LESSON_EXPERIENCE_CHAPTERS: LessonExperienceChapter[] = [
 export type LessonMode = 'study' | 'present' | 'exam';
 export type LessonAudience = 'teacher' | 'student';
 export type LessonBeatKind = 'concept' | 'key-idea' | 'definition' | 'example' | 'activity' | 'check' | 'visual' | 'source' | 'emphasis';
+export type LessonSceneRole = 'hook' | 'objective' | 'concept' | 'process' | 'visual' | 'compare' | 'challenge' | 'exam' | 'recap';
 
 export type LessonPresentationBeat = {
   id: string;
   slideId: string;
   kind: LessonBeatKind;
+  sceneRole?: LessonSceneRole;
   eyebrow: string;
   title: string;
   sourcePages: number[];
+  showSource?: boolean;
+  teacherNote?: string;
   visual?: LessonVisual;
   lead?: string;
   bullets?: string[];
@@ -390,6 +395,10 @@ export function presentationBeatsForTopic(topic:LessonTopic) {
   const curated=routed.filter(item=>!isExactSourceTranscript(item.slide));
   const teaching=curated.length?curated:routed;
   const chapter=chapterNumberForTopic(topic,teaching.map(item=>item.slide));
+  if(chapter===14){
+    const storyboard=chapter14PresentationStoryboard(topic.code);
+    if(storyboard)return storyboard;
+  }
   const lesson=teaching.flatMap(({slide,page})=>[
     ...presentationBeatsForSlide(presenterSlide(slide),displayPageTitle(page,topic)),
     ...(chapter?sourceCoverageBeats(slide,displayPageTitle(page,topic),chapter):[]),
