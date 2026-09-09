@@ -8,7 +8,7 @@ import type { LiveChallengeAnswerService } from '../services/live-challenge-answ
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
 import type { LiveChallengeModerationService } from '../services/live-challenge-moderation-service.js';
 import type { LiveChallengeTimingService } from '../services/live-challenge-timing-service.js';
-import { createLiveChallengesRouter } from './live-challenges.js';
+import { createLiveChallengesRouter,withLiveChallengeScoreDistribution } from './live-challenges.js';
 
 const challengeId='11111111-1111-4111-8111-111111111111';
 const teacher={id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher'};
@@ -18,18 +18,23 @@ function appFor(options?:{
   events?:ReturnType<typeof vi.fn>;
   state?:ReturnType<typeof vi.fn>;
   submit?:ReturnType<typeof vi.fn>;
+  scoreboard?:ReturnType<typeof vi.fn>;
 }){
   const reconcile=options?.reconcile??vi.fn().mockResolvedValue({challengeId,changed:false,status:'QUESTION_ACTIVE',stateVersion:4});
   const events=options?.events??vi.fn().mockResolvedValue({events:[],nextCursor:'0'});
   const state=options?.state??vi.fn().mockResolvedValue({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:4});
   const submit=options?.submit??vi.fn().mockResolvedValue({id:'answer-1'});
+  const scoreboard=options?.scoreboard??vi.fn().mockResolvedValue({
+    challengeId,status:'ROUND_RESULTS',stateVersion:4,releasedRounds:1,maxMarks:4,classAveragePercentage:50,
+    entries:[{rank:1,displayName:'Student 1',score:2,maxMarks:4,percentage:50}],
+  });
   const app=express();
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=teacher;next()});
   app.use('/live-challenges',createLiveChallengesRouter(
     {} as unknown as LiveChallengeService,
     {state} as unknown as LiveChallengeSessionService,
-    {events,submit} as unknown as LiveChallengeAnswerService,
+    {events,submit,scoreboard} as unknown as LiveChallengeAnswerService,
     {} as unknown as LiveChallengePeerMarkingService,
     {} as unknown as LiveChallengeModerationService,
     {reconcile} as unknown as LiveChallengeTimingService,
@@ -38,7 +43,7 @@ function appFor(options?:{
     if(error instanceof DomainError){res.status(error.status).json({error:{code:error.code}});return}
     res.status(500).json({error:{code:'internal_error'}});
   });
-  return{app,reconcile,events,state,submit};
+  return{app,reconcile,events,state,submit,scoreboard};
 }
 
 describe('Live Challenge route timing contract',()=>{
@@ -63,5 +68,41 @@ describe('Live Challenge route timing contract',()=>{
     const response=await request(app).post(`/live-challenges/${challengeId}/answer`).send({answerText:'Late answer',expectedStateVersion:4}).expect(409);
     expect(response.body.error.code).toBe('live_challenge_answer_closed');
     expect(submit).not.toHaveBeenCalled();
+  });
+});
+
+describe('Live Challenge results insight contract',()=>{
+  it('builds a bounded class score distribution without exposing extra student identity',()=>{
+    const result=withLiveChallengeScoreDistribution({entries:[
+      {percentage:0},{percentage:24.9},{percentage:25},{percentage:49.9},
+      {percentage:50},{percentage:74.9},{percentage:75},{percentage:100},
+    ]});
+    expect(result.scoreDistribution).toEqual([
+      {band:'0-24',count:2},
+      {band:'25-49',count:2},
+      {band:'50-74',count:2},
+      {band:'75-100',count:2},
+    ]);
+  });
+
+  it('adds score distribution to the staff scoreboard response',async()=>{
+    const scoreboard=vi.fn().mockResolvedValue({
+      challengeId,status:'ROUND_RESULTS',stateVersion:8,releasedRounds:2,maxMarks:10,classAveragePercentage:50,
+      entries:[
+        {rank:1,displayName:'Student 1',score:9,maxMarks:10,percentage:90},
+        {rank:2,displayName:'Student 2',score:6,maxMarks:10,percentage:60},
+        {rank:3,displayName:'Student 3',score:4,maxMarks:10,percentage:40},
+        {rank:4,displayName:'Student 4',score:2,maxMarks:10,percentage:20},
+      ],
+    });
+    const{app}=appFor({scoreboard});
+    const response=await request(app).get(`/live-challenges/${challengeId}/scoreboard`).expect(200);
+    expect(response.body.data.scoreDistribution).toEqual([
+      {band:'0-24',count:1},
+      {band:'25-49',count:1},
+      {band:'50-74',count:1},
+      {band:'75-100',count:1},
+    ]);
+    expect(scoreboard).toHaveBeenCalledWith(teacher,challengeId);
   });
 });
