@@ -3,6 +3,7 @@ import {
   Chapter14PresentationVisualV6,
   hasChapter14PresentationVisualV6,
 } from './Chapter14PresentationVisualsV6';
+import { Chapter14PracticeQ4 } from './Chapter14PracticeQ4';
 import './chapter14-presentation-v6.css';
 
 /**
@@ -15,5 +16,8 @@ export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
 }
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
-  return <Chapter14PresentationVisualV6 beat={beat} reveal={reveal}/>;
+  return <>
+    <Chapter14PresentationVisualV6 beat={beat} reveal={reveal}/>
+    {beat.id==='h14p-142-practice'?<Chapter14PracticeQ4 reveal={reveal}/>:null}
+  </>;
 }
