@@ -58,6 +58,21 @@ describe('LiveChallengeSessionService',()=>{
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it('does not let a student leave while an active round is only paused',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('update live_challenge_participants')){
+        expect(sql).toContain("lc.status in ('PUBLISHED','LOBBY')");
+        expect(sql).toContain("lc.status='PAUSED'");
+        expect(sql).toContain("lc.paused_from_status in ('PUBLISHED','LOBBY')");
+        return{rowCount:0,rows:[]};
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeSessionService({query} as unknown as Pool);
+    await expect(service.leave(student,challengeId)).rejects.toMatchObject({code:'live_challenge_leave_closed',status:409});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it('opens the lobby with optimistic state-version protection',async()=>{
     const clientQuery=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
