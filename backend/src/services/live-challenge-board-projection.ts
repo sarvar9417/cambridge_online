@@ -32,12 +32,31 @@ const MARK_SCHEME_VISIBLE=new Set(['PEER_MARKING','ROUND_RESULTS','FINISHED']);
 const CODE_VISIBLE=new Set(['PUBLISHED','LOBBY']);
 const nullableText=(value:unknown)=>value==null?null:String(value);
 
+function projectBoardQuestion(value:unknown){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const question=value as Record<string,unknown>;
+  return {
+    id:String(question.id),
+    displayRef:String(question.displayRef??''),
+    stemMd:nullableText(question.stemMd),
+    contextMd:nullableText(question.contextMd),
+    commandWord:nullableText(question.commandWord),
+    marks:Number(question.marks??0),
+    answerKind:String(question.answerKind??'text'),
+    contentJson:question.contentJson??null,
+    contentVersion:question.contentVersion==null?null:Number(question.contentVersion),
+    assetUrls:question.assetUrls&&typeof question.assetUrls==='object'&&!Array.isArray(question.assetUrls)
+      ? question.assetUrls
+      : {},
+  };
+}
+
 /**
  * Public/projector-safe shape for an authenticated classroom board.
  *
- * This intentionally constructs a new allow-listed object rather than deleting
- * fields from the teacher state. New teacher-only fields therefore fail closed:
- * they cannot leak to the board until explicitly added here.
+ * This intentionally constructs new allow-listed objects rather than deleting
+ * fields from teacher state. New teacher-only or answer-editor fields therefore
+ * fail closed: they cannot leak to the board until explicitly added here.
  */
 export function projectLiveChallengeForBoard(
   state:BoardState,
@@ -56,7 +75,7 @@ export function projectLiveChallengeForBoard(
     currentQuestionPosition:state.currentQuestionPosition,
     serverNow:state.serverNow,
     round:state.round,
-    question:QUESTION_VISIBLE.has(state.status)?state.question:null,
+    question:QUESTION_VISIBLE.has(state.status)?projectBoardQuestion(state.question):null,
     markScheme:MARK_SCHEME_VISIBLE.has(state.status)?state.markScheme:null,
     joinCode:CODE_VISIBLE.has(state.status)&&lobby?.joinCode!=null?String(lobby.joinCode):null,
     joinedCount:metrics.joinedCount,
