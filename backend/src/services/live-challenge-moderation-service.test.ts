@@ -10,6 +10,73 @@ const studentId='44444444-4444-4444-8444-444444444444';
 const client=(query:ReturnType<typeof vi.fn>)=>({query,release:vi.fn()} as unknown as PoolClient);
 
 describe('LiveChallengeModerationService',()=>{
+  it('pauses an active round and records the server pause timestamp',async()=>{
+    const pausedAt=new Date('2026-09-09T18:30:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'QUESTION_ACTIVE',state_version:7,paused_from_status:null,paused_at:null}]};
+      if(sql.includes("set paused_from_status=status,paused_at=now(),status='PAUSED'"))return{rowCount:1,rows:[{paused_from_status:'QUESTION_ACTIVE',state_version:8,paused_at:pausedAt}]};
+      if(sql.includes("'challenge.paused'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.pause(teacher,challengeId,7)).resolves.toMatchObject({status:'PAUSED',pausedFromStatus:'QUESTION_ACTIVE',stateVersion:8,pausedAt});
+  });
+
+  it('resumes a paused active question and shifts round start time by the paused duration',async()=>{
+    const pausedAt=new Date('2026-09-09T18:30:00Z');
+    const query=vi.fn(async(sql:string,params?:unknown[])=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'PAUSED',state_version:8,paused_from_status:'QUESTION_ACTIVE',paused_at:pausedAt}]};
+      if(sql.includes('set started_at=started_at+(now()-$2::timestamptz)'){
+        expect(params).toEqual([challengeId,pausedAt]);
+        return{rowCount:1,rows:[]};
+      }
+      if(sql.includes('set status=paused_from_status,paused_from_status=null,paused_at=null'))return{rowCount:1,rows:[{status:'QUESTION_ACTIVE',state_version:9}]};
+      if(sql.includes("'challenge.resumed'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.resume(teacher,challengeId,8)).resolves.toEqual({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:9,resumed:true});
+  });
+
+  it('cancels an unfinished challenge, pending peer work, and active round atomically',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:11,paused_from_status:null,paused_at:null}]};
+      if(sql.includes('update live_challenge_peer_assignments pa'))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenge_rounds set status='CANCELLED'"))return{rowCount:1,rows:[]};
+      if(sql.includes("set status='CANCELLED',join_code=null"))return{rowCount:1,rows:[{state_version:12}]};
+      if(sql.includes("'challenge.cancelled'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.cancel(teacher,challengeId,11)).resolves.toEqual({id:challengeId,status:'CANCELLED',stateVersion:12,cancelled:true});
+  });
+
+  it('removes a participant before peer marking and audits the removal',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:9,paused_from_status:null,paused_at:null}]};
+      if(sql.includes("set status='REMOVED'"))return{rowCount:1,rows:[{student_id:studentId}]};
+      if(sql.includes('set state_version=state_version+1'))return{rowCount:1,rows:[{state_version:10}]};
+      if(sql.includes("'participant.removed'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.removeParticipant(teacher,challengeId,studentId,9)).resolves.toEqual({id:challengeId,studentId,status:'REMOVED',stateVersion:10});
+  });
+
+  it('does not allow participant removal after peer marking has started',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('lc.paused_from_status::text'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:10,paused_from_status:null,paused_at:null}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.removeParticipant(teacher,challengeId,studentId,10)).rejects.toMatchObject({code:'live_challenge_participant_removal_closed',status:409});
+  });
+
   it('lists teacher-visible answers with peer and override effective scores',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,round_id:roundId,round_number:1,round_status:'PEER_MARKING',max_marks_snapshot:4,display_ref:'9618/12/M/J/26 Q3'}]};
