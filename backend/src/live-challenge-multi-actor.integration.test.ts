@@ -67,9 +67,15 @@ describe('Live Challenge multi-actor release contract',()=>{
     const own=vi.fn(async(actor:{id:string})=>({challengeId,status,stateVersion,roundId,roundNumber:1,roundStatus:status,answer:answers.has(actor.id)?{id:actor.id===studentA.id?answerA:answerB,text:answers.get(actor.id),submittedAt:'2026-09-09T18:01:30Z',lockedAt:status==='QUESTION_ACTIVE'?null:'2026-09-09T18:02:00Z',submissionDurationMs:30000}:null}));
     const submit=vi.fn(async(actor:{id:string},_id:string,text:string)=>{expect(status).toBe('QUESTION_ACTIVE');answers.set(actor.id,text);return{id:actor.id===studentA.id?answerA:answerB,immutable:true}});
     const lock=vi.fn(async()=>{expect(answers.size).toBe(2);status='ANSWERS_LOCKED';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,submissionCount:2}});
-    const metrics=vi.fn(async()=>({participantCount:2,submittedCount:answers.size,peerAssignedCount:status==='PEER_MARKING'?2:0,peerMarkedCount:marks.size}));
-    const events=vi.fn(async()=>({events:[],nextCursor:'0'}));
-    const scoreboard=vi.fn(async()=>({challengeId,status,rows:[{studentId:studentA.id,displayName:'Student A',score:marks.get(studentA.id)??0,maxMarks:2},{studentId:studentB.id,displayName:'Student B',score:marks.get(studentB.id)??0,maxMarks:2}]}));
+    const metrics=vi.fn(async()=>({challengeId,status,stateVersion,roundId,roundNumber:1,roundStatus:status,joinedCount:2,answerCount:answers.size,assignmentCount:status==='PEER_MARKING'?2:0,peerMarkCount:marks.size}));
+    const events=vi.fn(async()=>({challengeId,stateVersion,cursor:'0',events:[]}));
+    const scoreboard=vi.fn(async()=>{
+      const entries=[
+        {rank:1,displayName:'Student B',score:marks.get(studentA.id)??0,maxMarks:2,percentage:((marks.get(studentA.id)??0)/2)*100},
+        {rank:2,displayName:'Student A',score:marks.get(studentB.id)??0,maxMarks:2,percentage:((marks.get(studentB.id)??0)/2)*100},
+      ].sort((a,b)=>b.score-a.score).map((entry,index)=>({...entry,rank:index+1}));
+      return{challengeId,status,stateVersion,releasedRounds:status==='ROUND_RESULTS'||status==='FINISHED'?1:0,maxMarks:2,classAveragePercentage:entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length,entries};
+    });
 
     const peerStart=vi.fn(async()=>{status='PEER_MARKING';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,assignmentCount:2,teacherModerationRequired:false}});
     const assignment=vi.fn(async(actor:{id:string})=>{
@@ -138,6 +144,9 @@ describe('Live Challenge multi-actor release contract',()=>{
 
     const releasedBoard=await request(app).get(`/live-challenges/${challengeId}/board`).expect(200);
     expect(releasedBoard.body.data.scoreboard).toBeTruthy();
+    expect(releasedBoard.body.data.scoreboard.scoreDistribution).toEqual([
+      {band:'0-24',count:0},{band:'25-49',count:0},{band:'50-74',count:1},{band:'75-100',count:1},
+    ]);
     expect(releasedBoard.body.data.status).toBe('ROUND_RESULTS');
 
     const finished=await request(app).post(`/live-challenges/${challengeId}/next`).send({expectedStateVersion:6}).expect(200);
