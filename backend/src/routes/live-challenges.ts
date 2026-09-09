@@ -93,6 +93,11 @@ export function createLiveChallengesRouter(
     res.json({ data: await service.publish(req.actor!, uuid.parse(req.params.id)) });
   });
 
+  router.get('/:id/events',async(req,res)=>{
+    const query=z.object({after:z.string().regex(/^\d+$/).default('0')}).parse(req.query);
+    res.json({data:await answers.events(req.actor!,uuid.parse(req.params.id),query.after)});
+  });
+
   router.get('/:id/board',async(req,res)=>{
     const id=uuid.parse(req.params.id);
     // metrics() performs the staff/class-control check before any teacher state
