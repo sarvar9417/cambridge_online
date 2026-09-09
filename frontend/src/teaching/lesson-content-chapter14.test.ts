@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { lessonChapter } from './lesson-content-source-complete';
+import { CHAPTER_14_PRESENTATION_SCENE_COUNT } from './chapter14-presentation-storyboard';
 import { LESSON_EXPERIENCE_CHAPTERS, presentationBeatsForTopic } from './lesson-experience-model';
 import { buildTopicPlan } from './lesson-topic-plan';
-import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { CHAPTER_14_SOURCE_FILE_MANIFEST } from './source-file-fidelity-manifest';
 
 const chapter = CHAPTER_14_FINAL;
@@ -123,17 +123,25 @@ describe('Chapter 14 communication and internet technologies', () => {
     ]));
   });
 
-  it('keeps every source keyword and bold/emphasised anchor in Presentation mode',()=>{
+  it('uses a curated projector storyboard instead of dumping every source-detail atom into Present mode',()=>{
     const active=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===14)!;
-    const presentation=normalise(JSON.stringify(buildTopicPlan(active.slides,active.subtopics).flatMap(presentationBeatsForTopic)));
-    for(const slide of chapter.slides){
-      for(const term of slide.keyTerms??[]){
-        expect(presentation,term.term).toContain(normalise(term.term));
-        expect(presentation,`${term.term} definition`).toContain(normalise(term.definition));
-      }
-    }
-    for(const anchor of rawPdfEmphasisForChapter(14)){
-      expect(presentation,`p.${anchor.printedPage}: ${anchor.text}`).toContain(normalise(anchor.text));
-    }
+    const topics=buildTopicPlan(active.slides,active.subtopics).filter(item=>item.code==='14.1'||item.code==='14.2');
+    const beats=topics.flatMap(presentationBeatsForTopic);
+    const presentation=normalise(JSON.stringify(beats));
+
+    expect(beats).toHaveLength(CHAPTER_14_PRESENTATION_SCENE_COUNT);
+    expect(beats.every(beat=>Boolean(beat.sceneRole))).toBe(true);
+    expect(beats.every(beat=>beat.showSource===false)).toBe(true);
+    expect(beats.some(beat=>beat.sceneRole==='hook')).toBe(true);
+    expect(beats.some(beat=>beat.sceneRole==='exam')).toBe(true);
+    expect(beats.some(beat=>beat.sceneRole==='process')).toBe(true);
+
+    for(const required of [
+      'protocol','application','transport','internet','link','http','smtp','mime','pop3 4','imap','dns','tcp','ethernet','bittorrent',
+      'circuit switching','packet switching','hop number','packet header','routing table','sequence number','checksum',
+    ]) expect(presentation,`Missing projector concept: ${required}`).toContain(normalise(required));
+
+    expect(presentation).not.toContain(normalise('COURSEBOOK · QALIN AJRATILGAN MAZMUN'));
+    expect(presentation).not.toContain(normalise('Kitobdagi muhim ajratilgan tushunchalar'));
   });
 });
