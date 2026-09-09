@@ -61,7 +61,7 @@ describe('Chapter 14 communication and internet technologies', () => {
       'IEEE 802.16-2005',
       'about 12% of video file sharing',
       'YouTube at about 50%',
-      'availability means the number of complete copies',
+      'Availability means the number of complete copies',
       'checksum and why it is used [2]',
       'headers and routing tables are used to route packets efficiently',
     ]) expect(text,`Missing source-detail fidelity: ${detail}`).toContain(detail);
