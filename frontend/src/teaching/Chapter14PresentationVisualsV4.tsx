@@ -7,6 +7,7 @@ import { Chapter14PracticeQ4 } from './Chapter14PracticeQ4';
 import { Chapter14PresentationCompleteness } from './Chapter14PresentationCompleteness';
 import './chapter14-presentation-v6.css';
 import './chapter14-presentation-v6-hardening.css';
+import './chapter14-presentation-professional.css';
 
 /**
  * Compatibility facade.
