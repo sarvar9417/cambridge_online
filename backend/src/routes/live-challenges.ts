@@ -6,6 +6,7 @@ import type { LiveChallengeAnswerService } from '../services/live-challenge-answ
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
 import type { LiveChallengeModerationService } from '../services/live-challenge-moderation-service.js';
 import type { LiveChallengeTimingService } from '../services/live-challenge-timing-service.js';
+import { DomainError } from '../services/assignments-service.js';
 import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
@@ -101,7 +102,6 @@ export function createLiveChallengesRouter(
   router.get('/:id/events',async(req,res)=>{
     const id=uuid.parse(req.params.id);
     const query=z.object({after:z.string().regex(/^\d+$/).default('0')}).parse(req.query);
-    await timing.reconcile(req.actor!,id);
     res.json({data:await answers.events(req.actor!,id,query.after)});
   });
 
