@@ -209,6 +209,76 @@ export class LiveChallengePeerMarkingService{
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
+  async advance(actor:Actor,id:string,expectedStateVersion?:number){
+    const client=await this.pool.connect();
+    try{
+      await client.query('begin');
+      const challenge=await this.staffRound(client,actor,id,true);
+      if(challenge.status==='FINISHED'){
+        await client.query('commit');
+        return {id,status:'FINISHED',stateVersion:Number(challenge.state_version),roundNumber:Number(challenge.round_number),finished:true};
+      }
+      if(challenge.status==='QUESTION_ACTIVE'){
+        const active=await client.query(
+          `select lc.state_version,lc.current_question_position,r.id round_id,r.round_number,r.started_at
+           from live_challenges lc join live_challenge_rounds r on r.challenge_id=lc.id
+           where lc.id=$1 and r.status='QUESTION_ACTIVE' order by r.round_number desc limit 1`,
+          [id],
+        );
+        await client.query('commit');
+        const row=active.rows[0];
+        return {id,status:'QUESTION_ACTIVE',stateVersion:Number(row?.state_version??challenge.state_version),currentQuestionPosition:row?.current_question_position==null?null:Number(row.current_question_position),roundId:row?.round_id??challenge.round_id,roundNumber:row?.round_number==null?Number(challenge.round_number):Number(row.round_number),startedAt:row?.started_at??null,finished:false};
+      }
+      if(challenge.status!=='ROUND_RESULTS'||challenge.round_status!=='ROUND_RESULTS')throw new DomainError('live_challenge_invalid_transition',409);
+      if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+
+      const next=await client.query(
+        `select lcq.id,lcq.position
+         from live_challenge_questions lcq
+         where lcq.challenge_id=$1
+           and not exists(select 1 from live_challenge_rounds r where r.challenge_id=$1 and r.challenge_question_id=lcq.id)
+         order by case when coalesce($2::jsonb->>'question_order','fixed')='shuffled'
+           then md5(lcq.question_id::text||$1::text)
+           else lpad(lcq.position::text,6,'0') end
+         limit 1 for update of lcq`,
+        [id,challenge.settings_json],
+      );
+      if(!next.rowCount){
+        const finished=await client.query(
+          `update live_challenges set status='FINISHED',finished_at=coalesce(finished_at,now()),updated_at=now(),state_version=state_version+1
+           where id=$1 returning state_version,finished_at`,
+          [id],
+        );
+        await client.query(
+          `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+           values($1,$2,'challenge.finished',jsonb_build_object('roundCount',$3))`,
+          [id,actor.id,Number(challenge.round_number)],
+        );
+        await client.query('commit');
+        return {id,status:'FINISHED',stateVersion:Number(finished.rows[0].state_version),roundNumber:Number(challenge.round_number),finishedAt:finished.rows[0].finished_at,finished:true};
+      }
+
+      const selected=next.rows[0],roundNumber=Number(challenge.round_number)+1;
+      const round=await client.query(
+        `insert into live_challenge_rounds(challenge_id,challenge_question_id,round_number,status,started_at)
+         values($1,$2,$3,'QUESTION_ACTIVE',now()) returning id,round_number,started_at`,
+        [id,selected.id,roundNumber],
+      );
+      const updated=await client.query(
+        `update live_challenges set status='QUESTION_ACTIVE',current_question_position=$2,updated_at=now(),state_version=state_version+1
+         where id=$1 returning state_version,current_question_position`,
+        [id,selected.position],
+      );
+      await client.query(
+        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
+         values($1,$2,'question.advanced',jsonb_build_object('roundId',$3::text,'roundNumber',$4,'questionPosition',$5))`,
+        [id,actor.id,round.rows[0].id,roundNumber,selected.position],
+      );
+      await client.query('commit');
+      return {id,status:'QUESTION_ACTIVE',stateVersion:Number(updated.rows[0].state_version),currentQuestionPosition:Number(updated.rows[0].current_question_position),roundId:round.rows[0].id,roundNumber:Number(round.rows[0].round_number),startedAt:round.rows[0].started_at,finished:false};
+    }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
+
   async ownResult(actor:Actor,id:string){
     this.student(actor);
     const result=await this.pool.query(
