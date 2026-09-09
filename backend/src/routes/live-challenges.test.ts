@@ -27,11 +27,11 @@ function appFor(options?:{
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=teacher;next()});
   app.use('/live-challenges',createLiveChallengesRouter(
-    {} as LiveChallengeService,
+    {} as unknown as LiveChallengeService,
     {state} as unknown as LiveChallengeSessionService,
     {events,submit} as unknown as LiveChallengeAnswerService,
-    {} as LiveChallengePeerMarkingService,
-    {} as LiveChallengeModerationService,
+    {} as unknown as LiveChallengePeerMarkingService,
+    {} as unknown as LiveChallengeModerationService,
     {reconcile} as unknown as LiveChallengeTimingService,
   ));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
