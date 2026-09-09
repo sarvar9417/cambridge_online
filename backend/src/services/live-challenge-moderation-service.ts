@@ -1,6 +1,8 @@
 import type { Pool,PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
+import { LiveChallengeAnalyticsService } from './live-challenge-analytics-service.js';
+import { LiveChallengeResultsService } from './live-challenge-results-service.js';
 
 const PAUSABLE=new Set(['LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS']);
 const REMOVABLE=new Set(['PUBLISHED','LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED']);
@@ -279,5 +281,13 @@ export class LiveChallengeModerationService{
         newScore:Number(saved.new_score),reason:saved.reason,createdAt:saved.created_at,
       };
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
+  }
+
+  async finalizeAnalytics(actor:Actor,id:string){
+    return new LiveChallengeAnalyticsService(this.pool).finalize(actor,id);
+  }
+
+  async studentResult(actor:Actor,id:string){
+    return new LiveChallengeResultsService(this.pool).student(actor,id);
   }
 }
