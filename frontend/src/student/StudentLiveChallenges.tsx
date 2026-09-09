@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, type LiveChallengeJoinResult, type LiveChallengeState, type LiveChallengeStudentCard } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
+import { useLiveChallengeSync } from '../hooks/useLiveChallengeSync';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-live-challenges.css';
 
@@ -27,7 +28,11 @@ export function StudentLiveChallenges(){
   const[notice,setNotice]=useState('');
 
   const refresh=async()=>setItems((await api<{data:LiveChallengeStudentCard[]}>('/live-challenges/student')).data);
-  useEffect(()=>{void refresh().catch(()=>{})},[]);
+  useEffect(()=>{
+    void refresh().catch(()=>{});
+    const timer=window.setInterval(()=>void refresh().catch(()=>{}),5000);
+    return()=>window.clearInterval(timer);
+  },[]);
 
   const joinCode=async(value:string)=>{
     setJoining(true);setError('');setNotice('');
@@ -52,7 +57,7 @@ export function StudentLiveChallenges(){
       const peerResult=await api<{data:PeerAssignmentState}>(`/live-challenges/${id}/peer-marking/assignment`);
       setPeer(peerResult.data);
     }
-    if(state.status==='ROUND_RESULTS'){
+    if(state.status==='ROUND_RESULTS'||state.status==='FINISHED'){
       const resultResponse=await api<{data:OwnResult}>(`/live-challenges/${id}/result`);
       setResult(resultResponse.data);
     }
@@ -78,6 +83,12 @@ export function StudentLiveChallenges(){
       await loadState(active.id);setNotice('Peer mark topshirildi. Baholash anonim va endi o‘zgarmaydi.');
     }catch(cause){setError(cause instanceof Error?cause.message:'Peer mark yuborilmadi.')}finally{setLoadingState(false)}
   };
+
+  useLiveChallengeSync(active?.id,async()=>{
+    if(!active)return;
+    try{await loadState(active.id);await refresh()}catch{/* manual refresh remains available */}
+  });
+
   const live=items.filter(item=>item.status!=='PUBLISHED');
   const upcoming=items.filter(item=>item.status==='PUBLISHED');
   return <section className="slc-card" aria-label="Live Challenges">
@@ -109,13 +120,14 @@ function ActiveRound({state,answer,peer,result,loading,onSubmit,onPeerMark,onRef
   const structuredReady=Boolean(structured&&question?.contentVersion===1&&structuredQuestionUsable(structured)&&structuredQuestionAssetsReady(structured,question.assetUrls??{}));
   const canAnswer=state.status==='QUESTION_ACTIVE'&&!answer&&Boolean(question);
   return <section className="slc-round" aria-live="polite">
-    <header><div><span>LIVE ROUND {state.round?.number??''}</span><h3>{state.title}</h3><small>{state.status.replaceAll('_',' ')} · server state #{state.stateVersion}</small></div><div><button type="button" className="slc-secondary" disabled={loading} onClick={()=>void onRefresh()}>{loading?'…':'Yangilash'}</button><button type="button" className="slc-secondary" onClick={onClose}>Yopish</button></div></header>
+    <header><div><span>LIVE ROUND {state.round?.number??''}</span><h3>{state.title}</h3><small>{state.status.replaceAll('_',' ')}</small></div><div><button type="button" className="slc-secondary" disabled={loading} onClick={()=>void onRefresh()}>{loading?'…':'Yangilash'}</button><button type="button" className="slc-secondary" onClick={onClose}>Yopish</button></div></header>
     {question?<div className="slc-question"><div className="slc-question-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p className="slc-stem">{question.stemMd}</p></>}</div>:<p className="slc-empty">O‘qituvchi savolni ochishini kuting.</p>}
     {question?<section className={`slc-answer${answer?' is-submitted':''}`}><div><strong>{answer?'Javob topshirildi':'Javobingiz'}</strong>{answer?<small>{new Date(answer.submittedAt).toLocaleTimeString()} · o‘zgartirib bo‘lmaydi</small>:<small>Topshirgandan keyin javob o‘zgarmaydi</small>}</div><textarea disabled={!canAnswer||loading} value={draft} onChange={event=>setDraft(event.target.value)} placeholder={canAnswer?'Javobingizni yozing…':answer?'Topshirilgan javob':'Javob qabul qilish yopilgan.'}/>{canAnswer?<button type="button" disabled={loading||draft.trim().length===0} onClick={()=>void onSubmit(draft)}>{loading?'Yuborilmoqda…':'Javobni topshirish'}</button>:null}</section>:null}
     {answer&&state.status==='QUESTION_ACTIVE'?<p className="slc-round-note">Javob qabul qilindi. O‘qituvchi roundni yopishini kuting.</p>:null}
     {state.status==='ANSWERS_LOCKED'?<p className="slc-round-note">Barcha ochiq javoblar qulflandi. Peer marking boshlanishini kuting.</p>:null}
     {state.status==='PEER_MARKING'?<PeerMarkingPanel peer={peer} loading={loading} onSubmit={onPeerMark}/>:null}
-    {state.status==='ROUND_RESULTS'?<RoundResultPanel result={result}/>:null}
+    {state.status==='ROUND_RESULTS'||state.status==='FINISHED'?<RoundResultPanel result={result}/>:null}
+    {state.status==='FINISHED'?<p className="slc-round-note">Challenge yakunlandi.</p>:null}
   </section>;
 }
 
