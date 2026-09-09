@@ -129,6 +129,8 @@ describe('LiveChallengeAnswerService',()=>{
   it('returns board progress counts only after staff class-control authorization',async()=>{
     const query=vi.fn(async(sql:string)=>{
       expect(sql).toContain("lc.teacher_id=$4");
+      expect(sql).toContain("p.status='JOINED'");
+      expect(sql).toContain('p.student_id=a.student_id');
       return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,round_id:roundId,round_number:1,round_status:'PEER_MARKING',joined_count:20,answer_count:18,assignment_count:18,peer_mark_count:11}]};
     });
     const service=new LiveChallengeAnswerService({query} as unknown as Pool);
