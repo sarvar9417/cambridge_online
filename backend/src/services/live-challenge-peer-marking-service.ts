@@ -223,15 +223,46 @@ export class LiveChallengePeerMarkingService{
       const peerMarkedCount=Number(counts.rows[0]?.peer_marked_count??0);
       const overrideCount=Number(counts.rows[0]?.override_count??0);
       if(answerCount===0||resolvedCount!==answerCount)throw new DomainError('live_challenge_peer_marks_incomplete',409);
+
+      await client.query(
+        `insert into mastery(student_id,subtopic_id,score,attempts,marks_earned,marks_possible,last_activity_at)
+         select scored.student_id,qs.subtopic_id,
+           case when scored.max_marks>0 then scored.effective_score/scored.max_marks else 0 end,
+           1,scored.effective_score,scored.max_marks,now()
+         from (
+           select a.student_id,lcq.question_id,lcq.max_marks_snapshot::numeric max_marks,
+             coalesce(
+               (select so.new_score from live_challenge_score_overrides so where so.answer_id=a.id order by so.created_at desc limit 1),
+               (select pm.awarded_marks
+                from live_challenge_peer_assignments pa
+                join live_challenge_peer_marks pm on pm.peer_assignment_id=pa.id
+                where pa.answer_id=a.id and pa.status='SUBMITTED'
+                order by pm.submitted_at desc limit 1),
+               0
+             )::numeric effective_score
+           from live_challenge_answers a
+           join live_challenge_rounds r on r.id=a.round_id
+           join live_challenge_questions lcq on lcq.id=r.challenge_question_id
+           where a.round_id=$1
+         ) scored
+         join question_subtopics qs on qs.question_id=scored.question_id
+         on conflict(student_id,subtopic_id) do update set
+           marks_earned=mastery.marks_earned+excluded.marks_earned,
+           marks_possible=mastery.marks_possible+excluded.marks_possible,
+           attempts=mastery.attempts+excluded.attempts,
+           score=(mastery.marks_earned+excluded.marks_earned)/nullif(mastery.marks_possible+excluded.marks_possible,0),
+           last_activity_at=now(),updated_at=now()`,
+        [challenge.round_id],
+      );
       await client.query(`update live_challenge_rounds set status='ROUND_RESULTS',results_released_at=coalesce(results_released_at,now()) where id=$1`,[challenge.round_id]);
       const updated=await client.query(`update live_challenges set status='ROUND_RESULTS',state_version=state_version+1,updated_at=now() where id=$1 returning state_version`,[id]);
       await client.query(
         `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
-         values($1,$2,'round.results_released',jsonb_build_object('roundId',$3::text,'answerCount',$4,'peerMarkCount',$5,'overrideCount',$6))`,
+         values($1,$2,'round.results_released',jsonb_build_object('roundId',$3::text,'answerCount',$4,'peerMarkCount',$5,'overrideCount',$6,'masteryApplied',true))`,
         [id,actor.id,challenge.round_id,answerCount,peerMarkedCount,overrideCount],
       );
       await client.query('commit');
-      return {id,status:'ROUND_RESULTS',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,markCount:peerMarkedCount,overrideCount,resolvedCount};
+      return {id,status:'ROUND_RESULTS',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,markCount:peerMarkedCount,overrideCount,resolvedCount,masteryApplied:true};
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
