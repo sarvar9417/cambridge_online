@@ -152,6 +152,36 @@ export class LiveChallengeAnswerService{
     };
   }
 
+  async metrics(actor:Actor,id:string){
+    this.staff(actor);
+    const result=await this.pool.query(
+      `select lc.id,lc.status::text status,lc.state_version,
+         r.id round_id,r.round_number,r.status::text round_status,
+         (select count(*)::int from live_challenge_participants p where p.challenge_id=lc.id and p.status='JOINED') joined_count,
+         (select count(*)::int from live_challenge_answers a where a.round_id=r.id) answer_count,
+         (select count(*)::int from live_challenge_peer_assignments pa where pa.round_id=r.id and pa.status<>'CANCELLED') assignment_count,
+         (select count(*)::int from live_challenge_peer_assignments pa where pa.round_id=r.id and pa.status='SUBMITTED') peer_mark_count
+       from live_challenges lc
+       join classes c on c.id=lc.class_id
+       left join live_challenge_rounds r on r.challenge_id=lc.id
+         and r.round_number=(select max(x.round_number) from live_challenge_rounds x where x.challenge_id=lc.id)
+       where lc.id=$1 and (
+         ($2='owner' and c.school_id=$3)
+         or lc.teacher_id=$4
+         or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)
+       )`,
+      [id,actor.role,actor.schoolId,actor.id],
+    );
+    if(!result.rowCount)throw new DomainError('not_found',404);
+    const row=result.rows[0];
+    return {
+      challengeId:id,status:row.status,stateVersion:Number(row.state_version),roundId:row.round_id,
+      roundNumber:row.round_number==null?null:Number(row.round_number),roundStatus:row.round_status,
+      joinedCount:Number(row.joined_count??0),answerCount:Number(row.answer_count??0),
+      assignmentCount:Number(row.assignment_count??0),peerMarkCount:Number(row.peer_mark_count??0),
+    };
+  }
+
   async lock(actor:Actor,id:string,expectedStateVersion?:number){
     const client=await this.pool.connect();
     try{
