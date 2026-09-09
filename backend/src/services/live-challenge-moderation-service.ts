@@ -227,7 +227,7 @@ export class LiveChallengeModerationService{
     try{
       await client.query('begin');
       const round=await this.latestRound(client,actor,id,true);
-      if(!['PEER_MARKING','ROUND_RESULTS'].includes(String(round.status)))throw new DomainError('live_challenge_moderation_unavailable',409);
+      if(round.status!=='PEER_MARKING')throw new DomainError('live_challenge_moderation_unavailable',409);
       if(input.expectedStateVersion!==undefined&&Number(round.state_version)!==input.expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
       if((round.settings_json as Record<string,unknown>|null)?.teacher_override_enabled===false)throw new DomainError('live_challenge_teacher_override_disabled',409);
       const maxMarks=Number(round.max_marks_snapshot);
