@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type AttemptQuestion, type LiveChallengeRoundState } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
+import { useLiveChallengeSync } from '../hooks/useLiveChallengeSync';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from '../student/StructuredQuestionView';
 import './live-challenge-board.css';
 
@@ -33,21 +34,22 @@ export function LiveChallengeBoard({challengeId,onClose}:{challengeId:string;onC
   const[now,setNow]=useState(Date.now());
   const[fullscreen,setFullscreen]=useState(Boolean(document.fullscreenElement));
 
+  const load=useCallback(async()=>{
+    try{
+      const next=(await api<{data:BoardState}>(`/live-challenges/${challengeId}/board`)).data;
+      setState(next);setError('');
+    }catch(cause){setError(cause instanceof Error?cause.message:'Board state yuklanmadi.')}
+  },[challengeId]);
+
+  useEffect(()=>{void load()},[load]);
+  useLiveChallengeSync(challengeId,load);
+
   useEffect(()=>{
-    let cancelled=false;
-    const load=async()=>{
-      try{
-        const next=(await api<{data:BoardState}>(`/live-challenges/${challengeId}/board`)).data;
-        if(!cancelled){setState(next);setError('')}
-      }catch(cause){if(!cancelled)setError(cause instanceof Error?cause.message:'Board state yuklanmadi.')}
-    };
-    void load();
-    const poll=window.setInterval(()=>void load(),1000);
     const clock=window.setInterval(()=>setNow(Date.now()),250);
     const fs=()=>setFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange',fs);
-    return()=>{cancelled=true;window.clearInterval(poll);window.clearInterval(clock);document.removeEventListener('fullscreenchange',fs)};
-  },[challengeId]);
+    return()=>{window.clearInterval(clock);document.removeEventListener('fullscreenchange',fs)};
+  },[]);
 
   const remaining=state?remainingSeconds(state,now):null;
   const progress=state&&state.joinedCount>0?Math.min(100,Math.round(state.submittedCount/state.joinedCount*100)):0;
