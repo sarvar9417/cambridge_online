@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER_14_COMPLETE } from './lesson-content-chapter14-fidelity';
+import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { lessonChapter } from './lesson-content-source-complete';
 import { buildTopicPlan } from './lesson-topic-plan';
 
-const chapter = CHAPTER_14_COMPLETE;
+const chapter = CHAPTER_14_FINAL;
 const text = JSON.stringify(chapter);
 const figureTitles = chapter.slides.flatMap(slide =>
   (slide.richBlocks ?? []).flatMap(block => block.kind === 'figure' ? [block.figure.title] : []),
@@ -30,17 +30,34 @@ describe('Chapter 14 communication and internet technologies', () => {
     expect(chapter.slides.some(slide=>slide.subtopicCode==='14.2')).toBe(true);
   });
 
-  it('keeps Chapter 14 as a true slide-by-slide presentation route', () => {
+  it('keeps Chapter 14 study content slide-by-slide and ends each topic with Past Paper practice', () => {
     const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
     for(const topic of topics.filter(item=>item.code==='14.1'||item.code==='14.2')){
       expect(topic.pages.length,topic.code).toBeGreaterThan(1);
-      for(const page of topic.pages){
+      const studyPages=topic.pages.filter(page=>page.kind==='study');
+      for(const page of studyPages){
         expect(page.slides.length,`${topic.code}:${page.title}`).toBe(1);
       }
+      expect(topic.pages.at(-1)?.kind,`${topic.code} final page`).toBe('practice');
+      expect(topic.pages.at(-1)?.title,`${topic.code} final page title`).toBe('Past Paper practice');
     }
     const firstProtocolPage=topics.find(item=>item.code==='14.1')?.pages[0];
     expect(firstProtocolPage?.bookPage).toBe(2);
     expect(firstProtocolPage?.bookPages).toEqual([2]);
+  });
+
+  it('targets the current 2026–2028 Cambridge objectives without loose substitutions', () => {
+    const protocol=chapter.slides.find(slide=>slide.id==='h14-cp-protocols');
+    const switching=chapter.slides.find(slide=>slide.id==='h14-cp-switching');
+
+    expect(protocol?.examPractice).toBe(true);
+    expect(protocol?.learningObjectiveCodes).toEqual(['14.1.1','14.1.2','14.1.3','14.1.4']);
+    expect(protocol?.checkpointYearFrom).toBe(2021);
+    expect(protocol?.checkpointYearTo).toBe(2026);
+    expect(switching?.examPractice).toBe(true);
+    expect(switching?.learningObjectiveCodes).toEqual(['14.2.1','14.2.2']);
+    expect(switching?.checkpointYearFrom).toBe(2021);
+    expect(switching?.checkpointYearTo).toBe(2026);
   });
 
   it('covers the complete protocol and switching keyword set', () => {
