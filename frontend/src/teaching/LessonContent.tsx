@@ -6,6 +6,7 @@ import {
   isExactSourceTranscript,
   type LessonPresentationBeat,
 } from './lesson-experience-model';
+import { Chapter14PresentationVisual, hasChapter14PresentationVisual } from './Chapter14PresentationVisuals';
 import './chapter14-presentation-prototype.css';
 
 const VISUAL_LABELS:Record<LessonVisual,string[]> = {
@@ -140,15 +141,17 @@ const sceneLabel:Partial<Record<NonNullable<LessonPresentationBeat['sceneRole']>
 export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}) {
   const role=beat.sceneRole??beat.kind;
   const label=beat.sceneRole?sceneLabel[beat.sceneRole]??beatLabel[beat.kind]:beatLabel[beat.kind];
+  const customVisual=hasChapter14PresentationVisual(beat);
   return <article className={`lx-present-screen lx-present-screen--${beat.kind} lx-present-screen--scene-${role}`} aria-live="polite">
     <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
       {beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
-      {beat.visual && (beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
+      {customVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
+      {!customVisual&&beat.visual && (beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
       {beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
       {beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
       {beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>ATAMA</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
-      {beat.richBlock?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
+      {beat.richBlock&&!customVisual?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
       {beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Javob</strong>{beat.example.answer}</p>:null}</section>:null}
       {beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
       {beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Javob va yo‘l-yo‘riq</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
