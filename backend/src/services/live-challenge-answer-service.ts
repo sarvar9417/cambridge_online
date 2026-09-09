@@ -182,6 +182,43 @@ export class LiveChallengeAnswerService{
     };
   }
 
+  async events(actor:Actor,id:string,after='0'){
+    const access=actor.role==='student'
+      ? await this.pool.query(
+          `select lc.id,lc.state_version
+           from live_challenges lc
+           join classes c on c.id=lc.class_id and c.archived_at is null
+           join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
+           join live_challenge_participants p on p.challenge_id=lc.id and p.student_id=$2 and p.status='JOINED'
+           where lc.id=$1 and lc.status not in ('DRAFT','CANCELLED')`,
+          [id,actor.id],
+        )
+      : await this.pool.query(
+          `select lc.id,lc.state_version
+           from live_challenges lc join classes c on c.id=lc.class_id
+           where lc.id=$1 and (
+             ($2='owner' and c.school_id=$3)
+             or lc.teacher_id=$4
+             or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)
+           )`,
+          [id,actor.role,actor.schoolId,actor.id],
+        );
+    if(!access.rowCount)throw new DomainError(actor.role==='student'?'live_challenge_not_joined':'not_found',actor.role==='student'?403:404);
+    const events=await this.pool.query(
+      `select id::text id,event_type,created_at
+       from live_challenge_events
+       where challenge_id=$1 and id>$2::bigint
+       order by id asc limit 100`,
+      [id,after],
+    );
+    const rows=events.rows.map(row=>({id:String(row.id),eventType:String(row.event_type),createdAt:row.created_at}));
+    return {
+      challengeId:id,stateVersion:Number(access.rows[0].state_version),
+      cursor:rows.length?rows[rows.length-1]!.id:after,
+      events:rows,
+    };
+  }
+
   async lock(actor:Actor,id:string,expectedStateVersion?:number){
     const client=await this.pool.connect();
     try{
