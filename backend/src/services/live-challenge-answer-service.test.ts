@@ -43,6 +43,29 @@ describe('LiveChallengeAnswerService',()=>{
     const client=clientWith(query);
     const service=new LiveChallengeAnswerService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
     await expect(service.submit(student,challengeId,'Answer',8)).resolves.toMatchObject({challengeStatus:'ANSWERS_LOCKED',stateVersion:9});
+    const countSql=String(query.mock.calls.find(([sql])=>String(sql).includes('joined_count'))?.[0]??'');
+    expect(countSql).toContain("p.status='JOINED'");
+    expect(countSql).toContain('p.student_id=a.student_id');
+  });
+
+  it('does not auto-lock from answers belonging to removed participants',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes("r.status='QUESTION_ACTIVE'"))return{rowCount:1,rows:[{id:challengeId,status:'QUESTION_ACTIVE',state_version:10,settings_json:{auto_close_when_all_submitted:true},round_id:roundId,started_at:new Date(Date.now()-1000)}]};
+      if(sql.includes('insert into live_challenge_answers'))return{rowCount:1,rows:[{id:answerId,answer_text:'Current participant answer',submitted_at:new Date(),locked_at:null,submission_duration_ms:1000}]};
+      if(sql.includes("'answer.submitted'"))return{rowCount:1,rows:[]};
+      if(sql.includes('joined_count')){
+        expect(sql).toContain("p.status='JOINED'");
+        expect(sql).toContain('p.student_id=a.student_id');
+        return{rowCount:1,rows:[{joined_count:2,answer_count:1}]};
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client=clientWith(query);
+    const service=new LiveChallengeAnswerService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    const result=await service.submit(student,challengeId,'Current participant answer',10);
+    expect(result).toMatchObject({challengeStatus:'QUESTION_ACTIVE',stateVersion:10});
+    expect(query.mock.calls.some(([sql])=>String(sql).includes("update live_challenges set status='ANSWERS_LOCKED'"))).toBe(false);
   });
 
   it('does not allow a second immutable submission for the same round',async()=>{
