@@ -16,7 +16,7 @@ const scheme={maxMarks:2,guidanceMd:null,points:[{id:pointId,code:'A1',text:'Men
 const client=(query:ReturnType<typeof vi.fn>)=>({query,release:vi.fn()} as unknown as PoolClient);
 
 describe('LiveChallengePeerMarkingService',()=>{
-  it('creates a deterministic derangement and opens peer marking transactionally',async()=>{
+  it('creates a deterministic derangement from currently joined students only',async()=>{
     const inserts:Array<unknown[]>=[];
     const query=vi.fn(async(sql:string,params?:unknown[])=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
@@ -33,9 +33,11 @@ describe('LiveChallengePeerMarkingService',()=>{
     await expect(service.start(teacher,challengeId,9)).resolves.toMatchObject({status:'PEER_MARKING',stateVersion:10,assignmentCount:2,teacherModerationRequired:false});
     expect(inserts).toHaveLength(2);
     for(const params of inserts)expect(params[1]).not.toBe(params[3]);
+    const answerSql=String(query.mock.calls.find(([sql])=>String(sql).includes('select id,student_id from live_challenge_answers'))?.[0]??'');
+    expect(answerSql).toContain("p.status='JOINED'");
   });
 
-  it('opens teacher-moderation fallback when only one locked answer exists',async()=>{
+  it('opens teacher-moderation fallback when only one locked joined answer exists',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:4,settings_json:{peer_marking_enabled:true,teacher_override_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED'}]};
@@ -80,7 +82,7 @@ describe('LiveChallengePeerMarkingService',()=>{
     await expect(service.submit(student,challengeId,{awardedMarks:1,markPointIds:[pointId],feedbackText:'Good'})).resolves.toMatchObject({peerAssignmentId:assignmentId,awardedMarks:1,immutable:true});
   });
 
-  it('releases round results only when every answer has an effective score and writes mastery evidence',async()=>{
+  it('releases and records mastery only for currently joined answer owners',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:10,round_id:roundId,round_number:1,round_status:'PEER_MARKING'}]};
@@ -93,7 +95,10 @@ describe('LiveChallengePeerMarkingService',()=>{
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
     await expect(service.release(teacher,challengeId,10)).resolves.toEqual({id:challengeId,status:'ROUND_RESULTS',stateVersion:11,roundId,markCount:2,overrideCount:0,resolvedCount:2,masteryApplied:true});
-    expect(query.mock.calls.some(([sql])=>String(sql).includes('insert into mastery'))).toBe(true);
+    const countSql=String(query.mock.calls.find(([sql])=>String(sql).includes('answer_count'))?.[0]??'');
+    const masterySql=String(query.mock.calls.find(([sql])=>String(sql).includes('insert into mastery'))?.[0]??'');
+    expect(countSql).toContain("p.status='JOINED'");
+    expect(masterySql).toContain("p.status='JOINED'");
   });
 
   it('allows teacher moderation to resolve a round with no peer assignment',async()=>{
