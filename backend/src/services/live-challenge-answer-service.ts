@@ -7,6 +7,12 @@ function autoClose(settings:unknown){
   return (settings as Record<string,unknown>).auto_close_when_all_submitted!==false;
 }
 
+function displayNameMode(settings:unknown):'first_name'|'full_name'|'anonymous'{
+  if(!settings||typeof settings!=='object'||Array.isArray(settings))return'first_name';
+  const value=(settings as Record<string,unknown>).display_name_mode;
+  return value==='full_name'||value==='anonymous'?value:'first_name';
+}
+
 export class LiveChallengeAnswerService{
   constructor(private readonly pool:Pool){}
 
@@ -199,7 +205,7 @@ export class LiveChallengeAnswerService{
            where lc.id=$1 and (
              ($2='owner' and c.school_id=$3)
              or lc.teacher_id=$4
-             or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)
+             or exists(select 1 from class_teachers ct where ct.class_id=lc.class_id and ct.teacher_id=$4)
            )`,
           [id,actor.role,actor.schoolId,actor.id],
         );
@@ -217,6 +223,63 @@ export class LiveChallengeAnswerService{
       cursor:rows.length?rows[rows.length-1]!.id:after,
       events:rows,
     };
+  }
+
+  async scoreboard(actor:Actor,id:string){
+    this.staff(actor);
+    const access=await this.pool.query(
+      `select lc.id,lc.status::text status,lc.state_version,lc.settings_json
+       from live_challenges lc join classes c on c.id=lc.class_id
+       where lc.id=$1 and (
+         ($2='owner' and c.school_id=$3)
+         or lc.teacher_id=$4
+         or exists(select 1 from class_teachers ct where ct.class_id=lc.class_id and ct.teacher_id=$4)
+       )`,
+      [id,actor.role,actor.schoolId,actor.id],
+    );
+    if(!access.rowCount)throw new DomainError('not_found',404);
+    const result=await this.pool.query(
+      `with released_rounds as (
+         select r.id,lcq.max_marks_snapshot
+         from live_challenge_rounds r
+         join live_challenge_questions lcq on lcq.id=r.challenge_question_id
+         where r.challenge_id=$1 and r.status='ROUND_RESULTS'
+       ), effective_answers as (
+         select a.round_id,a.student_id,
+           coalesce(
+             (select so.new_score from live_challenge_score_overrides so where so.answer_id=a.id order by so.created_at desc limit 1),
+             (select pm.awarded_marks
+              from live_challenge_peer_assignments pa
+              join live_challenge_peer_marks pm on pm.peer_assignment_id=pa.id
+              where pa.answer_id=a.id and pa.status='SUBMITTED'
+              order by pm.submitted_at desc limit 1),
+             0
+           )::numeric effective_score
+         from live_challenge_answers a
+         where a.round_id in (select id from released_rounds)
+       )
+       select p.student_id,u.full_name,
+         coalesce(sum(ea.effective_score),0)::numeric score,
+         coalesce(sum(rr.max_marks_snapshot),0)::numeric max_marks,
+         count(rr.id)::int released_round_count
+       from live_challenge_participants p
+       join users u on u.id=p.student_id
+       cross join released_rounds rr
+       left join effective_answers ea on ea.round_id=rr.id and ea.student_id=p.student_id
+       where p.challenge_id=$1 and p.status='JOINED'
+       group by p.student_id,u.full_name
+       order by score desc,u.full_name asc`,
+      [id],
+    );
+    const mode=displayNameMode(access.rows[0].settings_json);
+    const entries=result.rows.map((row,index)=>{
+      const score=Number(row.score??0),maxMarks=Number(row.max_marks??0),fullName=String(row.full_name??'Student');
+      const displayName=mode==='anonymous'?`Student ${index+1}`:mode==='full_name'?fullName:(fullName.trim().split(/\s+/)[0]||'Student');
+      return {rank:index+1,displayName,score,maxMarks,percentage:maxMarks>0?Math.round(score/maxMarks*1000)/10:0};
+    });
+    const maxMarks=entries[0]?.maxMarks??0;
+    const average=entries.length?Math.round(entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length*10)/10:0;
+    return {challengeId:id,status:access.rows[0].status,stateVersion:Number(access.rows[0].state_version),releasedRounds:Number(result.rows[0]?.released_round_count??0),maxMarks,classAveragePercentage:average,entries};
   }
 
   async lock(actor:Actor,id:string,expectedStateVersion?:number){
