@@ -130,7 +130,11 @@ export class LiveChallengeAnswerService{
         const counts=await client.query(
           `select
              (select count(*)::int from live_challenge_participants where challenge_id=$1 and status='JOINED') joined_count,
-             (select count(*)::int from live_challenge_answers where round_id=$2) answer_count`,
+             (select count(*)::int
+              from live_challenge_answers a
+              join live_challenge_participants p
+                on p.challenge_id=$1 and p.student_id=a.student_id and p.status='JOINED'
+              where a.round_id=$2) answer_count`,
           [id,challenge.round_id],
         );
         const joined=Number(counts.rows[0]?.joined_count??0),answered=Number(counts.rows[0]?.answer_count??0);
