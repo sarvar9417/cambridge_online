@@ -1,0 +1,17 @@
+/* Chapter 13 custom visuals are authoritative for their generated presentation beat. */
+.lesson-experience.lx-present .lx-present-content:has(> .h13pv-shell) > :is(
+  .lx-formula--present,
+  .lx-present-points,
+  .lx-present-terms,
+  .lx-present-example,
+  .lx-present-question,
+  .lx-present-activity
+){display:none!important}
+
+/* Keep the source-grounded visual readable before allowing the slide to grow. */
+.lesson-experience.lx-present .lx-present-content:has(> .h13pv-shell){align-content:center;overflow:visible}
+.lesson-experience.lx-present .h13pv-shell{max-height:none}
+
+@media(max-height:760px) and (min-width:761px){
+  .lesson-experience.lx-present .lx-present-content:has(> .h13pv-shell){align-content:start}
+}
