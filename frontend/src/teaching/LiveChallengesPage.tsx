@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
+import { api, type LiveChallengeState } from '../lib/api';
+import { AttemptContext } from '../AttemptContext';
+import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from '../student/StructuredQuestionView';
 import './live-challenges.css';
 
 type SyllabusOption={id:string;code:string;subject:string};
@@ -24,6 +26,7 @@ export function LiveChallengesPage(){
   const[questions,setQuestions]=useState<EligibleQuestion[]>([]);
   const[selected,setSelected]=useState<string[]>([]);
   const[lobby,setLobby]=useState<Lobby|null>(null);
+  const[runtime,setRuntime]=useState<LiveChallengeState|null>(null);
   const[loading,setLoading]=useState(true);
   const[questionLoading,setQuestionLoading]=useState(false);
   const[saving,setSaving]=useState(false);
@@ -117,6 +120,22 @@ export function LiveChallengesPage(){
     }catch(cause){setError(message(cause,'Waiting room ochilmadi.'))}finally{setSaving(false)}
   };
 
+  const viewState=async(id:string)=>{
+    setSaving(true);setError('');
+    try{setRuntime((await api<{data:LiveChallengeState}>(`/live-challenges/${id}/state`)).data)}catch(cause){setError(message(cause,'Live round yuklanmadi.'))}finally{setSaving(false)}
+  };
+
+  const startChallenge=async(current:Lobby)=>{
+    setSaving(true);setError('');setNotice('');
+    try{
+      await api(`/live-challenges/${current.id}/start`,{method:'POST',body:JSON.stringify({expectedStateVersion:current.stateVersion})});
+      const state=(await api<{data:LiveChallengeState}>(`/live-challenges/${current.id}/state`)).data;
+      setRuntime(state);setLobby(null);
+      await loadChallenges();
+      setNotice(`1-round boshlandi. ${state.question?.displayRef??'Birinchi savol'} studentlarga ochildi.`);
+    }catch(cause){setError(message(cause,'Challenge boshlanmadi.'))}finally{setSaving(false)}
+  };
+
   if(loading&&!options)return <main className="live-state">Live Challenge Builder yuklanmoqda…</main>;
 
   return <main className="live-page">
@@ -125,10 +144,12 @@ export function LiveChallengesPage(){
     {error&&<div className="live-alert live-alert--error">{error}</div>}
     {notice&&<div className="live-alert live-alert--ok">{notice}</div>}
 
+    {runtime?<TeacherRound state={runtime} busy={saving} onRefresh={()=>viewState(runtime.id)} onClose={()=>setRuntime(null)}/>:null}
+
     {lobby?<section className="live-lobby">
       <div className="live-lobby-top"><div><span className="live-eyebrow">WAITING ROOM</span><h2>{lobby.title}</h2><p>{lobby.className} · {lobby.syllabusCode}{lobby.topicTitle?` · ${lobby.topicTitle}`:''}</p></div><div className="live-code"><small>JOIN CODE</small><strong>{lobby.joinCode}</strong><span>{lobby.participantCount} joined</span></div></div>
       <div className="live-participants">{lobby.participants.length?lobby.participants.map(person=><div key={person.studentId} className={person.status==='JOINED'?'is-joined':'is-left'}><span>{person.fullName.slice(0,1).toUpperCase()}</span><strong>{person.fullName}</strong><small>{person.status==='JOINED'?'Joined':'Left'}</small></div>):<p>Hali hech kim join qilmagan.</p>}</div>
-      <div className="live-lobby-actions"><button type="button" className="secondary" onClick={()=>void viewLobby(lobby.id)} disabled={saving}>Yangilash</button><button type="button" className="secondary" onClick={()=>setLobby(null)}>Yopish</button><button type="button" className="live-primary" disabled>Start — keyingi phase</button></div>
+      <div className="live-lobby-actions"><button type="button" className="secondary" onClick={()=>void viewLobby(lobby.id)} disabled={saving}>Yangilash</button><button type="button" className="secondary" onClick={()=>setLobby(null)}>Yopish</button><button type="button" className="live-primary" disabled={saving||lobby.status!=='LOBBY'} onClick={()=>void startChallenge(lobby)}>{saving?'Boshlanmoqda…':'Start challenge'}</button></div>
     </section>:null}
 
     <div className="live-grid">
@@ -158,7 +179,18 @@ export function LiveChallengesPage(){
         </form>
       </section>
 
-      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div><div className="live-challenge-actions">{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}{item.status==='PUBLISHED'?<button type="button" disabled={saving} onClick={()=>void openLobby(item)}>Lobby ochish</button>:null}{item.status==='LOBBY'||item.status==='PAUSED'?<button type="button" disabled={saving} onClick={()=>void viewLobby(item.id)}>Waiting room</button>:null}</div></article>)}</div>}</aside>
+      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div><div className="live-challenge-actions">{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}{item.status==='PUBLISHED'?<button type="button" disabled={saving} onClick={()=>void openLobby(item)}>Lobby ochish</button>:null}{item.status==='LOBBY'||item.status==='PAUSED'?<button type="button" disabled={saving} onClick={()=>void viewLobby(item.id)}>Waiting room</button>:null}{['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS'].includes(item.status)?<button type="button" disabled={saving} onClick={()=>void viewState(item.id)}>Live round</button>:null}</div></article>)}</div>}</aside>
     </div>
   </main>;
+}
+
+function TeacherRound({state,busy,onRefresh,onClose}:{state:LiveChallengeState;busy:boolean;onRefresh:()=>Promise<void>;onClose:()=>void}){
+  const question=state.question;
+  const structured=question?.contentJson??null;
+  const structuredReady=Boolean(structured&&question?.contentVersion===1&&structuredQuestionUsable(structured)&&structuredQuestionAssetsReady(structured,question.assetUrls??{}));
+  return <section className="live-round-panel">
+    <header><div><span className="live-eyebrow">LIVE ROUND {state.round?.number??''}</span><h2>{state.title}</h2><p>{state.className} · {statusLabel[state.status]??state.status} · state #{state.stateVersion}</p></div><div><button type="button" className="secondary" disabled={busy} onClick={()=>void onRefresh()}>{busy?'…':'Yangilash'}</button><button type="button" className="secondary" onClick={onClose}>Yopish</button></div></header>
+    {question?<div className="live-round-question"><div className="live-round-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p>{question.stemMd}</p></>}</div>:<p className="live-empty">Joriy savol topilmadi.</p>}
+    <footer><span>Teacher projection</span><span>Mark Scheme studentdan yashirin: {state.status==='QUESTION_ACTIVE'?'ha':'state qoidasi bo‘yicha'}</span>{state.round?.timeLimitSeconds?<span>{state.round.timeLimitSeconds}s</span>:<span>Teacher-controlled timing</span>}</footer>
+  </section>;
 }
