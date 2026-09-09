@@ -63,7 +63,8 @@ describe('LiveChallengeService teacher builder',()=>{
     });
     const service=new LiveChallengeService({query} as unknown as Pool);
     const rows=await service.eligibleQuestions(teacher,{syllabusId,topicId,subtopicId});
-    expect(rows).toEqual([expect.objectContaining({id:questionId,marks:2,answerKind:'text',syllabusCode:undefined})]);
+    expect(rows).toEqual([expect.objectContaining({id:questionId,marks:2,answerKind:'text'})]);
+    expect(rows[0]).not.toHaveProperty('syllabusCode');
     const sql=String(query.mock.calls.find(([text])=>String(text).includes('from questions q'))?.[0]);
     expect(sql).toContain("q.status='approved'");
     expect(sql).toContain("ms.status='approved'");
