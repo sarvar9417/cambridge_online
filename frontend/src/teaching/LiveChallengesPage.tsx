@@ -3,6 +3,7 @@ import { api, type LiveChallengeState } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from '../student/StructuredQuestionView';
 import { LiveChallengeBoard } from './LiveChallengeBoard';
+import { LiveChallengeModerationPanel } from './LiveChallengeModerationPanel';
 import './live-challenges.css';
 
 type SyllabusOption={id:string;code:string;subject:string};
@@ -147,18 +148,18 @@ export function LiveChallengesPage(){
   const startPeerMarking=async(state:LiveChallengeState)=>{
     setSaving(true);setError('');setNotice('');
     try{
-      const result=await api<{data:{assignmentCount:number}}>(`/live-challenges/${state.id}/peer-marking/start`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
+      const result=await api<{data:{assignmentCount:number;teacherModerationRequired?:boolean}}>(`/live-challenges/${state.id}/peer-marking/start`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
       await refreshRuntime(state.id);
-      setNotice(`Anonymous peer marking ochildi: ${result.data.assignmentCount} ta assignment.`);
+      setNotice(result.data.teacherModerationRequired?'Peer assignment tuzilmadi — teacher moderation orqali score bering.':`Anonymous peer marking ochildi: ${result.data.assignmentCount} ta assignment.`);
     }catch(cause){setError(message(cause,'Peer markingni ochib bo‘lmadi.'))}finally{setSaving(false)}
   };
   const releaseResults=async(state:LiveChallengeState)=>{
     setSaving(true);setError('');setNotice('');
     try{
-      const result=await api<{data:{markCount?:number}}>(`/live-challenges/${state.id}/peer-marking/release`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
+      const result=await api<{data:{markCount?:number;overrideCount?:number}}>(`/live-challenges/${state.id}/peer-marking/release`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
       await refreshRuntime(state.id);
-      setNotice(`Round natijalari chiqarildi${result.data.markCount===undefined?'':`: ${result.data.markCount} ta peer mark`}.`);
-    }catch(cause){setError(message(cause,'Round natijalarini chiqarib bo‘lmadi.'))}finally{setSaving(false)}
+      setNotice(`Round natijalari chiqarildi${result.data.markCount===undefined?'':`: ${result.data.markCount} peer mark, ${result.data.overrideCount??0} teacher score`}.`);
+    }catch(cause){setError(message(cause,'Round natijalarini chiqarib bo‘lmadi. Unresolved javoblarni Moderation panelida tekshiring.'))}finally{setSaving(false)}
   };
   const nextQuestion=async(state:LiveChallengeState)=>{
     setSaving(true);setError('');setNotice('');
@@ -169,6 +170,19 @@ export function LiveChallengesPage(){
       else setNotice(`${result.data.roundNumber}-round boshlandi. ${refreshed.question?.displayRef??'Keyingi savol'} studentlarga ochildi.`);
     }catch(cause){setError(message(cause,'Keyingi savolni ochib bo‘lmadi.'))}finally{setSaving(false)}
   };
+  const pauseChallenge=async(state:LiveChallengeState)=>{
+    setSaving(true);setError('');setNotice('');
+    try{await api(`/live-challenges/${state.id}/pause`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});await refreshRuntime(state.id);setNotice('Challenge pauzaga qo‘yildi.')}catch(cause){setError(message(cause,'Challenge pauzaga qo‘yilmadi.'))}finally{setSaving(false)}
+  };
+  const resumeChallenge=async(state:LiveChallengeState)=>{
+    setSaving(true);setError('');setNotice('');
+    try{await api(`/live-challenges/${state.id}/resume`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});await refreshRuntime(state.id);setNotice('Challenge davom ettirildi.')}catch(cause){setError(message(cause,'Challenge davom ettirilmadi.'))}finally{setSaving(false)}
+  };
+  const cancelChallenge=async(state:LiveChallengeState)=>{
+    if(!window.confirm('Bu Live Challenge’ni bekor qilasizmi? Bu amal joriy roundni to‘xtatadi.'))return;
+    setSaving(true);setError('');setNotice('');
+    try{await api(`/live-challenges/${state.id}/cancel`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});setRuntime(null);await loadChallenges();setNotice('Challenge bekor qilindi.')}catch(cause){setError(message(cause,'Challenge bekor qilinmadi.'))}finally{setSaving(false)}
+  };
 
   if(loading&&!options)return <main className="live-state">Live Challenge Builder yuklanmoqda…</main>;
 
@@ -177,7 +191,7 @@ export function LiveChallengesPage(){
     <header className="live-hero"><div><span className="live-eyebrow">CAMBRIDGE LIVE ASSESSMENT</span><h1>Live Challenges</h1><p>Canonical Cambridge savollaridan real-time sinf challenge yarating. Mark Scheme studentlarga faqat javoblar yopilib, peer marking ochilgandan keyin ko‘rinadi.</p></div><div className="live-safety"><strong>Fail-closed pool</strong><span>Faqat approved + source-complete savollar</span></div></header>
     {error&&<div className="live-alert live-alert--error">{error}</div>}
     {notice&&<div className="live-alert live-alert--ok">{notice}</div>}
-    {runtime?<TeacherRound state={runtime} busy={saving} onRefresh={()=>viewState(runtime.id)} onBoard={()=>openBoard(runtime.id)} onLock={()=>lockAnswers(runtime)} onStartPeer={()=>startPeerMarking(runtime)} onRelease={()=>releaseResults(runtime)} onNext={()=>nextQuestion(runtime)} onClose={()=>setRuntime(null)}/>:null}
+    {runtime?<TeacherRound state={runtime} busy={saving} onRefresh={()=>viewState(runtime.id)} onBoard={()=>openBoard(runtime.id)} onLock={()=>lockAnswers(runtime)} onStartPeer={()=>startPeerMarking(runtime)} onRelease={()=>releaseResults(runtime)} onNext={()=>nextQuestion(runtime)} onPause={()=>pauseChallenge(runtime)} onResume={()=>resumeChallenge(runtime)} onCancel={()=>cancelChallenge(runtime)} onClose={()=>setRuntime(null)}/>:null}
 
     {lobby?<section className="live-lobby">
       <div className="live-lobby-top"><div><span className="live-eyebrow">WAITING ROOM</span><h2>{lobby.title}</h2><p>{lobby.className} · {lobby.syllabusCode}{lobby.topicTitle?` · ${lobby.topicTitle}`:''}</p></div><div className="live-code"><small>JOIN CODE</small><strong>{lobby.joinCode}</strong><span>{lobby.participantCount} joined</span></div></div>
@@ -205,21 +219,23 @@ export function LiveChallengesPage(){
         </form>
       </section>
 
-      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div><div className="live-challenge-actions">{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}{item.status==='PUBLISHED'?<button type="button" disabled={saving} onClick={()=>void openLobby(item)}>Lobby ochish</button>:null}{item.status!=='DRAFT'&&item.status!=='CANCELLED'?<button type="button" disabled={saving} onClick={()=>openBoard(item.id)}>Board</button>:null}{item.status==='LOBBY'||item.status==='PAUSED'?<button type="button" disabled={saving} onClick={()=>void viewLobby(item.id)}>Waiting room</button>:null}{['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS','FINISHED'].includes(item.status)?<button type="button" disabled={saving} onClick={()=>void viewState(item.id)}>{item.status==='FINISHED'?'Yakun':'Live round'}</button>:null}</div></article>)}</div>}</aside>
+      <aside className="live-existing"><div className="live-card-head"><div><small>SESSIONLAR</small><h2>Mening challenge’larim</h2></div><span>{challenges.length}</span></div>{!challenges.length?<p className="live-empty">Hali challenge yaratilmagan.</p>:<div className="live-challenge-list">{challenges.map(item=><article key={item.id}><div className="live-challenge-title"><span className={`live-status live-status--${item.status.toLowerCase()}`}>{statusLabel[item.status]??item.status}</span><strong>{item.title}</strong></div><p>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}</p><div className="live-challenge-meta"><span>{item.questionCount} savol</span>{item.joinCode?<b>{item.joinCode}</b>:<span>Join code yo‘q</span>}</div><div className="live-challenge-actions">{item.status==='DRAFT'?<button type="button" disabled={saving||item.questionCount===0} onClick={()=>void publishDraft(item.id)}>Publish</button>:null}{item.status==='PUBLISHED'?<button type="button" disabled={saving} onClick={()=>void openLobby(item)}>Lobby ochish</button>:null}{item.status!=='DRAFT'&&item.status!=='CANCELLED'?<button type="button" disabled={saving} onClick={()=>openBoard(item.id)}>Board</button>:null}{item.status==='LOBBY'?<button type="button" disabled={saving} onClick={()=>void viewLobby(item.id)}>Waiting room</button>:null}{['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS','FINISHED','PAUSED'].includes(item.status)?<button type="button" disabled={saving} onClick={()=>void viewState(item.id)}>{item.status==='FINISHED'?'Yakun':'Control'}</button>:null}</div></article>)}</div>}</aside>
     </div>
   </main>;
 }
 
-function TeacherRound({state,busy,onRefresh,onBoard,onLock,onStartPeer,onRelease,onNext,onClose}:{state:LiveChallengeState;busy:boolean;onRefresh:()=>Promise<void>;onBoard:()=>void;onLock:()=>Promise<void>;onStartPeer:()=>Promise<void>;onRelease:()=>Promise<void>;onNext:()=>Promise<void>;onClose:()=>void}){
+function TeacherRound({state,busy,onRefresh,onBoard,onLock,onStartPeer,onRelease,onNext,onPause,onResume,onCancel,onClose}:{state:LiveChallengeState;busy:boolean;onRefresh:()=>Promise<void>;onBoard:()=>void;onLock:()=>Promise<void>;onStartPeer:()=>Promise<void>;onRelease:()=>Promise<void>;onNext:()=>Promise<void>;onPause:()=>Promise<void>;onResume:()=>Promise<void>;onCancel:()=>Promise<void>;onClose:()=>void}){
   const question=state.question;
   const structured=question?.contentJson??null;
   const structuredReady=Boolean(structured&&question?.contentVersion===1&&structuredQuestionUsable(structured)&&structuredQuestionAssetsReady(structured,question.assetUrls??{}));
   const markScheme=state.markScheme as {points?:Array<{id?:string;code?:string;text?:string;marks?:number}>}|null;
+  const canPause=['LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS'].includes(state.status);
   return <section className="live-round-panel">
     <header><div><span className="live-eyebrow">LIVE ROUND {state.round?.number??''}</span><h2>{state.title}</h2><p>{state.className} · {statusLabel[state.status]??state.status} · state #{state.stateVersion}</p></div><div><button type="button" className="secondary" onClick={onBoard}>Board</button><button type="button" className="secondary" disabled={busy} onClick={()=>void onRefresh()}>{busy?'…':'Yangilash'}</button><button type="button" className="secondary" onClick={onClose}>Yopish</button></div></header>
-    {question?<div className="live-round-question"><div className="live-round-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p>{question.stemMd}</p></>}</div>:<p className="live-empty">Joriy savol topilmadi.</p>}
-    {state.status!=='QUESTION_ACTIVE'&&markScheme?.points?.length?<section className="live-ms-preview"><strong>Mark Scheme snapshot</strong>{markScheme.points.map((point,index)=><div key={point.id??`${point.code}-${index}`}><b>{point.code??`P${index+1}`}</b><span>{point.text}</span><em>{point.marks??0}</em></div>)}</section>:null}
-    <div className="live-runtime-actions">{state.status==='QUESTION_ACTIVE'?<button type="button" disabled={busy} onClick={()=>void onLock()}>Javoblarni yopish</button>:null}{state.status==='ANSWERS_LOCKED'?<button type="button" disabled={busy} onClick={()=>void onStartPeer()}>Peer markingni ochish</button>:null}{state.status==='PEER_MARKING'?<button type="button" disabled={busy} onClick={()=>void onRelease()}>Natijalarni chiqarish</button>:null}{state.status==='ROUND_RESULTS'?<button type="button" disabled={busy} onClick={()=>void onNext()}>Keyingi savol</button>:null}{state.status==='FINISHED'?<span className="live-finished-chip">✓ Challenge yakunlangan</span>:null}</div>
-    <footer><span>Teacher control</span><span>Mark Scheme studentdan {state.status==='QUESTION_ACTIVE'||state.status==='ANSWERS_LOCKED'?'yashirin':'peer/result bosqichida ochiq'}</span>{state.round?.timeLimitSeconds?<span>{state.round.timeLimitSeconds}s</span>:<span>Teacher-controlled timing</span>}</footer>
+    {question?<div className="live-round-question"><div className="live-round-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p>{question.stemMd}</p></>}</div>:state.status==='PAUSED'?<p className="live-empty">Challenge pauzada. Resume qilinganda joriy state tiklanadi.</p>:<p className="live-empty">Joriy savol topilmadi.</p>}
+    {state.status!=='QUESTION_ACTIVE'&&state.status!=='PAUSED'&&markScheme?.points?.length?<section className="live-ms-preview"><strong>Mark Scheme snapshot</strong>{markScheme.points.map((point,index)=><div key={point.id??`${point.code}-${index}`}><b>{point.code??`P${index+1}`}</b><span>{point.text}</span><em>{point.marks??0}</em></div>)}</section>:null}
+    <LiveChallengeModerationPanel challengeId={state.id} status={state.status} stateVersion={state.stateVersion} onChanged={onRefresh}/>
+    <div className="live-runtime-actions">{state.status==='QUESTION_ACTIVE'?<button type="button" disabled={busy} onClick={()=>void onLock()}>Javoblarni yopish</button>:null}{state.status==='ANSWERS_LOCKED'?<button type="button" disabled={busy} onClick={()=>void onStartPeer()}>Peer markingni ochish</button>:null}{state.status==='PEER_MARKING'?<button type="button" disabled={busy} onClick={()=>void onRelease()}>Natijalarni chiqarish</button>:null}{state.status==='ROUND_RESULTS'?<button type="button" disabled={busy} onClick={()=>void onNext()}>Keyingi savol</button>:null}{state.status==='PAUSED'?<button type="button" disabled={busy} onClick={()=>void onResume()}>Davom ettirish</button>:null}{canPause?<button type="button" className="secondary" disabled={busy} onClick={()=>void onPause()}>Pause</button>:null}{!['FINISHED','CANCELLED'].includes(state.status)?<button type="button" className="secondary" disabled={busy} onClick={()=>void onCancel()}>Bekor qilish</button>:null}{state.status==='FINISHED'?<span className="live-finished-chip">✓ Challenge yakunlangan</span>:null}</div>
+    <footer><span>Teacher control</span><span>Mark Scheme studentdan {state.status==='QUESTION_ACTIVE'||state.status==='ANSWERS_LOCKED'||state.status==='PAUSED'?'yashirin':'peer/result bosqichida ochiq'}</span>{state.round?.timeLimitSeconds?<span>{state.round.timeLimitSeconds}s</span>:<span>Teacher-controlled timing</span>}</footer>
   </section>;
 }
