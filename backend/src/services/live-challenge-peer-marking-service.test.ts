@@ -20,7 +20,7 @@ describe('LiveChallengePeerMarkingService',()=>{
     const inserts:Array<unknown[]>=[];
     const query=vi.fn(async(sql:string,params?:unknown[])=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
-      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:9,settings_json:{peer_marking_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED',max_marks_snapshot:2,mark_scheme_snapshot:scheme}]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:9,settings_json:{peer_marking_enabled:true,teacher_override_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED',max_marks_snapshot:2,mark_scheme_snapshot:scheme}]};
       if(sql.includes('select id,student_id from live_challenge_answers'))return{rowCount:2,rows:[{id:answerA,student_id:'student-1'},{id:answerB,student_id:'student-2'}]};
       if(sql.includes('insert into live_challenge_peer_assignments')){inserts.push(params??[]);return{rowCount:1,rows:[]}}
       if(sql.includes("status='ASSIGNED'"))return{rowCount:1,rows:[{count:2}]};
@@ -30,21 +30,25 @@ describe('LiveChallengePeerMarkingService',()=>{
       throw new Error(`Unexpected SQL: ${sql}`);
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
-    await expect(service.start(teacher,challengeId,9)).resolves.toMatchObject({status:'PEER_MARKING',stateVersion:10,assignmentCount:2});
+    await expect(service.start(teacher,challengeId,9)).resolves.toMatchObject({status:'PEER_MARKING',stateVersion:10,assignmentCount:2,teacherModerationRequired:false});
     expect(inserts).toHaveLength(2);
     for(const params of inserts)expect(params[1]).not.toBe(params[3]);
   });
 
-  it('fails closed when fewer than two answers can be peer-assigned',async()=>{
+  it('opens teacher-moderation fallback when only one locked answer exists',async()=>{
     const query=vi.fn(async(sql:string)=>{
-      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
-      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:4,settings_json:{peer_marking_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED'}]};
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:4,settings_json:{peer_marking_enabled:true,teacher_override_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED'}]};
       if(sql.includes('select id,student_id from live_challenge_answers'))return{rowCount:1,rows:[{id:answerA,student_id:'student-1'}]};
+      if(sql.includes("status='ASSIGNED'"))return{rowCount:1,rows:[{count:0}]};
+      if(sql.includes("update live_challenge_rounds set status='PEER_MARKING'"))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenges set status='PEER_MARKING'"))return{rowCount:1,rows:[{state_version:5}]};
+      if(sql.includes("'marking.started'"))return{rowCount:1,rows:[]};
       throw new Error(`Unexpected SQL: ${sql}`);
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
-    await expect(service.start(teacher,challengeId,4)).rejects.toMatchObject({code:'live_challenge_peer_assignment_unavailable',status:409});
-    expect(query).toHaveBeenCalledWith('rollback');
+    await expect(service.start(teacher,challengeId,4)).resolves.toMatchObject({status:'PEER_MARKING',stateVersion:5,assignmentCount:0,teacherModerationRequired:true});
+    expect(query).toHaveBeenCalledWith('commit');
   });
 
   it('returns an anonymous peer answer and approved mark-scheme snapshot without owner identity',async()=>{
@@ -76,18 +80,32 @@ describe('LiveChallengePeerMarkingService',()=>{
     await expect(service.submit(student,challengeId,{awardedMarks:1,markPointIds:[pointId],feedbackText:'Good'})).resolves.toMatchObject({peerAssignmentId:assignmentId,awardedMarks:1,immutable:true});
   });
 
-  it('releases round results only after every peer assignment is submitted',async()=>{
+  it('releases round results only when every answer has an effective score',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:10,round_id:roundId,round_number:1,round_status:'PEER_MARKING'}]};
-      if(sql.includes('assignment_count'))return{rowCount:1,rows:[{assignment_count:2,submitted_count:2}]};
+      if(sql.includes('answer_count'))return{rowCount:1,rows:[{answer_count:2,resolved_count:2,peer_marked_count:2,override_count:0}]};
       if(sql.includes("update live_challenge_rounds set status='ROUND_RESULTS'"))return{rowCount:1,rows:[]};
       if(sql.includes("update live_challenges set status='ROUND_RESULTS'"))return{rowCount:1,rows:[{state_version:11}]};
       if(sql.includes("'round.results_released'"))return{rowCount:1,rows:[]};
       throw new Error(`Unexpected SQL: ${sql}`);
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
-    await expect(service.release(teacher,challengeId,10)).resolves.toEqual({id:challengeId,status:'ROUND_RESULTS',stateVersion:11,roundId,markCount:2});
+    await expect(service.release(teacher,challengeId,10)).resolves.toEqual({id:challengeId,status:'ROUND_RESULTS',stateVersion:11,roundId,markCount:2,overrideCount:0,resolvedCount:2});
+  });
+
+  it('allows teacher moderation to resolve a round with no peer assignment',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:6,round_id:roundId,round_number:1,round_status:'PEER_MARKING'}]};
+      if(sql.includes('answer_count'))return{rowCount:1,rows:[{answer_count:1,resolved_count:1,peer_marked_count:0,override_count:1}]};
+      if(sql.includes("update live_challenge_rounds set status='ROUND_RESULTS'"))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenges set status='ROUND_RESULTS'"))return{rowCount:1,rows:[{state_version:7}]};
+      if(sql.includes("'round.results_released'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.release(teacher,challengeId,6)).resolves.toMatchObject({status:'ROUND_RESULTS',stateVersion:7,markCount:0,overrideCount:1,resolvedCount:1});
   });
 
   it('advances ROUND_RESULTS to the next unused canonical question',async()=>{
