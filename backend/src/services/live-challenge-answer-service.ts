@@ -189,6 +189,7 @@ export class LiveChallengeAnswerService{
   }
 
   async events(actor:Actor,id:string,after='0'){
+    const afterId=/^\d+$/.test(after)?after:'0';
     const access=actor.role==='student'
       ? await this.pool.query(
           `select lc.id,lc.state_version
@@ -215,12 +216,12 @@ export class LiveChallengeAnswerService{
        from live_challenge_events
        where challenge_id=$1 and id>$2::bigint
        order by id asc limit 100`,
-      [id,after],
+      [id,afterId],
     );
     const rows=events.rows.map(row=>({id:String(row.id),eventType:String(row.event_type),createdAt:row.created_at}));
     return {
       challengeId:id,stateVersion:Number(access.rows[0].state_version),
-      cursor:rows.length?rows[rows.length-1]!.id:after,
+      cursor:rows.length?rows[rows.length-1]!.id:afterId,
       events:rows,
     };
   }
