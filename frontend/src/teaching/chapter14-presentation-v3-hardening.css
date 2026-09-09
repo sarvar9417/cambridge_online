@@ -1,0 +1,93 @@
+/* Chapter 14 v3 hardening.
+   Progressive-reveal items must not reserve invisible layout space. Dense
+   legacy follow-up panels are now represented by dedicated v3 scenes, so do
+   not render them again inside the original scene. */
+
+/* Remove hidden grid/flex items from layout until their reveal step. */
+.lesson-experience.lx-present :is(
+  .h14v3-protocol-grid,
+  .h14v3-ftp,
+  .h14v3-flow,
+  .h14v3-detail-cards,
+  .h14v3-transport,
+  .h14v3-frame,
+  .h14v3-term-grid,
+  .h14v3-proscons,
+  .h14v3-video>section,
+  .h14v3-hop,
+  .h14v3-header-core,
+  .h14v3-routing-fields,
+  .h14v3-activity,
+  .h14v3-practice
+) > :not(.is-visible):not(.h14v3-payload):not(header):not(span) {
+  display:none;
+}
+
+/* display:contents has no visual box for opacity, so comparison rows need an
+   explicit reveal state instead of opacity-based hiding. */
+.lesson-experience.lx-present .h14v3-compare > div:not(.is-visible){display:none}
+.lesson-experience.lx-present .h14v3-compare > div.is-visible{display:contents}
+
+/* Absolute-positioned swarm objects should genuinely disappear before reveal. */
+.lesson-experience.lx-present .h14v3-swarm :is(.h14v3-tracker,.h14v3-peer,.h14v3-pieces):not(.is-visible),
+.lesson-experience.lx-present .h14v3-swarm > p:not(.is-visible){display:none}
+
+/* Router decision arrows/table also leave the flow entirely until revealed. */
+.lesson-experience.lx-present .h14v3-routing-flow > :is(i,section,table):not(.is-visible){display:none}
+
+/* Source-rich details were split into their own scenes in v3. Prevent the old
+   Chapter14 visual from showing those same blocks again on TCP and recap. */
+.lesson-experience.lx-present .lx-present-screen .h14v-tcp-wrap .h14v-transport-family,
+.lesson-experience.lx-present .lx-present-screen .h14v-tcp-wrap .h14v-par,
+.lesson-experience.lx-present .lx-present-screen .h14v-review-board{
+  display:none!important;
+}
+
+/* The legacy TCP scene is now handshake-only and can use more of the stage. */
+.lesson-experience.lx-present .h14v-tcp-wrap{width:min(980px,100%)}
+.lesson-experience.lx-present .h14v-handshake{margin:auto}
+
+/* Hook diagnostics are allowed to scroll, but should not make a 5-card wall on
+   ordinary projectors. Use 3+2 layout with smaller cards and no fixed scene
+   height. */
+.lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic{
+  width:min(980px,100%);
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.6rem;
+}
+.lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic section{
+  min-height:92px;
+  padding:.75rem;
+}
+.lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic p{
+  font-size:clamp(.76rem,.95vw,.9rem);
+  line-height:1.4;
+}
+
+/* Do not shrink source-rich cards until they become unreadable. If a screen is
+   still taller than the viewport, the stage-level safety layer scrolls it. */
+.lesson-experience.lx-present .h14v3-detail-cards section,
+.lesson-experience.lx-present .h14v3-ftp section,
+.lesson-experience.lx-present .h14v3-term-grid section,
+.lesson-experience.lx-present .h14v3-routing-fields section{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.lesson-experience.lx-present .h14v3-ftp code{
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+@media(max-height:760px) and (min-width:761px){
+  .lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic section{min-height:78px;padding:.6rem}
+  .lesson-experience.lx-present .h14v3-proscons p{padding:.42rem .58rem;font-size:.72rem}
+  .lesson-experience.lx-present .h14v3-video>section p{padding:.48rem .58rem;font-size:.75rem}
+  .lesson-experience.lx-present .h14v3-frame section{min-height:86px}
+  .lesson-experience.lx-present .h14v3-header-core section,
+  .lesson-experience.lx-present .h14v3-payload{min-height:82px}
+}
+
+@media(max-width:760px){
+  .lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic{grid-template-columns:1fr}
+  .lesson-experience.lx-present .lx-present-screen--scene-hook .h14v-diagnostic section{min-height:0}
+}
