@@ -7,6 +7,7 @@ import {
   type LessonPresentationBeat,
 } from './lesson-experience-model';
 import { Chapter14PresentationVisual, hasChapter14PresentationVisual } from './Chapter14PresentationVisuals';
+import { Chapter14PresentationVisualV3, hasChapter14PresentationVisualV3 } from './Chapter14PresentationVisualsV3';
 import './chapter14-presentation-prototype.css';
 
 const VISUAL_LABELS:Record<LessonVisual,string[]> = {
@@ -141,12 +142,14 @@ const sceneLabel:Partial<Record<NonNullable<LessonPresentationBeat['sceneRole']>
 export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}) {
   const role=beat.sceneRole??beat.kind;
   const label=beat.sceneRole?sceneLabel[beat.sceneRole]??beatLabel[beat.kind]:beatLabel[beat.kind];
-  const customVisual=hasChapter14PresentationVisual(beat);
+  const v3Visual=hasChapter14PresentationVisualV3(beat);
+  const legacyVisual=!v3Visual&&hasChapter14PresentationVisual(beat);
+  const customVisual=v3Visual||legacyVisual;
   return <article className={`lx-present-screen lx-present-screen--${beat.kind} lx-present-screen--scene-${role}`} aria-live="polite">
     <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
       {beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
-      {customVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
+      {v3Visual?<Chapter14PresentationVisualV3 beat={beat} reveal={reveal}/>:legacyVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
       {!customVisual&&beat.visual && (beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
       {beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
       {beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
