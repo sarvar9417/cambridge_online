@@ -17,12 +17,9 @@ export class LiveChallengeTimingService{
     try{
       await client.query('begin');
       const access=await client.query(
-        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,c.school_id,
-           r.id round_id,r.started_at,lcq.time_limit_seconds
+        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,c.school_id
          from live_challenges lc
          join classes c on c.id=lc.class_id and c.archived_at is null
-         left join live_challenge_rounds r on r.challenge_id=lc.id and r.status='QUESTION_ACTIVE'
-         left join live_challenge_questions lcq on lcq.id=r.challenge_question_id
          where lc.id=$1 and (
            ($2='student' and exists(
              select 1 from enrollments e
@@ -34,24 +31,36 @@ export class LiveChallengeTimingService{
              select 1 from class_teachers ct where ct.class_id=lc.class_id and ct.teacher_id=$3
            )))
          )
-         for update of lc,r`,
+         for update of lc`,
         [id,actor.role,actor.id,actor.schoolId],
       );
       if(!access.rowCount)throw new DomainError('not_found',404);
-      const row=access.rows[0];
-      if(row.status!=='QUESTION_ACTIVE'||!row.round_id||!row.started_at){
+      const challengeRow=access.rows[0];
+      if(challengeRow.status!=='QUESTION_ACTIVE'){
         await client.query('commit');
-        return {challengeId:id,changed:false,status:row.status,stateVersion:Number(row.state_version)};
+        return {challengeId:id,changed:false,status:challengeRow.status,stateVersion:Number(challengeRow.state_version)};
       }
-      const settings=(row.settings_json??{}) as Record<string,unknown>;
+      const settings=(challengeRow.settings_json??{}) as Record<string,unknown>;
       if(settings.timing_mode!=='per_question'){
         await client.query('commit');
-        return {challengeId:id,changed:false,status:row.status,stateVersion:Number(row.state_version)};
+        return {challengeId:id,changed:false,status:challengeRow.status,stateVersion:Number(challengeRow.state_version)};
       }
+
+      const round=await client.query(
+        `select r.id round_id,r.started_at,lcq.time_limit_seconds
+         from live_challenge_rounds r
+         join live_challenge_questions lcq on lcq.id=r.challenge_question_id
+         where r.challenge_id=$1 and r.status='QUESTION_ACTIVE'
+         order by r.round_number desc limit 1
+         for update of r`,
+        [id],
+      );
+      if(!round.rowCount||!round.rows[0].started_at)throw new DomainError('live_challenge_round_unavailable',409);
+      const row=round.rows[0];
       const limit=Number(row.time_limit_seconds??settings.default_time_limit_seconds);
       if(!Number.isFinite(limit)||limit<10){
         await client.query('commit');
-        return {challengeId:id,changed:false,status:row.status,stateVersion:Number(row.state_version)};
+        return {challengeId:id,changed:false,status:'QUESTION_ACTIVE',stateVersion:Number(challengeRow.state_version)};
       }
       const expired=await client.query(
         `select now() >= $1::timestamptz + ($2::int * interval '1 second') expired,
@@ -60,7 +69,7 @@ export class LiveChallengeTimingService{
       );
       if(expired.rows[0]?.expired!==true){
         await client.query('commit');
-        return {challengeId:id,changed:false,status:'QUESTION_ACTIVE',stateVersion:Number(row.state_version),remainingSeconds:Number(expired.rows[0]?.remaining_seconds??0)};
+        return {challengeId:id,changed:false,status:'QUESTION_ACTIVE',stateVersion:Number(challengeRow.state_version),remainingSeconds:Number(expired.rows[0]?.remaining_seconds??0)};
       }
 
       const locked=await client.query(
@@ -68,12 +77,14 @@ export class LiveChallengeTimingService{
          where round_id=$1 returning id`,
         [row.round_id],
       );
-      await client.query(
+      const roundUpdated=await client.query(
         `update live_challenge_rounds
          set status='ANSWERS_LOCKED',locked_at=coalesce(locked_at,now())
-         where id=$1 and status='QUESTION_ACTIVE'`,
+         where id=$1 and status='QUESTION_ACTIVE'
+         returning id`,
         [row.round_id],
       );
+      if(!roundUpdated.rowCount)throw new DomainError('live_challenge_state_conflict',409);
       const challenge=await client.query(
         `update live_challenges
          set status='ANSWERS_LOCKED',state_version=state_version+1,updated_at=now()
