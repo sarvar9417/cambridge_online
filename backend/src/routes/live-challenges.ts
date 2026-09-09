@@ -98,15 +98,18 @@ export function createLiveChallengesRouter(
     res.json({data:await answers.events(req.actor!,uuid.parse(req.params.id),query.after)});
   });
 
+  router.get('/:id/scoreboard',async(req,res)=>{
+    res.json({data:await answers.scoreboard(req.actor!,uuid.parse(req.params.id))});
+  });
+
   router.get('/:id/board',async(req,res)=>{
     const id=uuid.parse(req.params.id);
-    // metrics() performs the staff/class-control check before any teacher state
-    // is projected. The subsequent allow-list projection is deliberately not a
-    // subtraction from teacher state, so future private fields fail closed.
     const metrics=await answers.metrics(req.actor!,id);
     const state=await session.state(req.actor!,id);
     const lobby=['PUBLISHED','LOBBY'].includes(state.status)?await session.lobby(req.actor!,id):null;
-    res.json({data:projectLiveChallengeForBoard(state,metrics,lobby)});
+    const board=projectLiveChallengeForBoard(state,metrics,lobby);
+    const scoreboard=['ROUND_RESULTS','FINISHED'].includes(state.status)?await answers.scoreboard(req.actor!,id):null;
+    res.json({data:{...board,scoreboard}});
   });
 
   router.get('/:id/state',async(req,res)=>{
