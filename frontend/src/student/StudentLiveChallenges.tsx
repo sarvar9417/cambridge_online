@@ -13,7 +13,8 @@ const QUESTION_VISIBLE=new Set<LiveChallengeStudentCard['status']>(['QUESTION_AC
 type OwnAnswerState={challengeId:string;challengeStatus:string;stateVersion:number;roundId:string|null;roundNumber:number|null;roundStatus:string|null;answer:{id:string;text:string;submittedAt:string;lockedAt:string|null;submissionDurationMs:number|null}|null};
 type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null};
 type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
-type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number|null;maxMarks:number;percentage:number|null;teacherOverridden:boolean};
+type OwnResultRound={roundId:string;roundNumber:number;questionRef:string;answered:boolean;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean};
+type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean;rounds:OwnResultRound[];totalScore:number;totalMax:number;overallPercentage:number};
 
 export function StudentLiveChallenges(){
   const[items,setItems]=useState<LiveChallengeStudentCard[]>([]);
@@ -153,5 +154,11 @@ function PeerMarkingPanel({peer,loading,onSubmit}:{peer:PeerAssignmentState|null
 
 function RoundResultPanel({result}:{result:OwnResult|null}){
   if(!result)return <p className="slc-round-note">Natija yuklanmoqda.</p>;
-  return <section className="slc-result"><span>ROUND RESULT</span><div><strong>{result.score===null?'—':result.score}/{result.maxMarks}</strong><b>{result.percentage===null?'Baholanmagan':`${result.percentage}%`}</b></div><p>{result.questionRef}{result.teacherOverridden?' · Teacher override qo‘llangan':''}</p></section>;
+  return <section className="slc-result">
+    <span>{result.status==='FINISHED'?'FINAL RESULT':'ROUND RESULT'}</span>
+    <div><strong>{result.score}/{result.maxMarks}</strong><b>{result.percentage}%</b></div>
+    <p>{result.questionRef}{result.teacherOverridden?' · Teacher override qo‘llangan':''}</p>
+    <div className="slc-result-total"><span>Challenge jami</span><strong>{result.totalScore}/{result.totalMax}</strong><b>{result.overallPercentage}%</b></div>
+    <div className="slc-result-rounds">{result.rounds.map(round=><div key={round.roundId}><span>R{round.roundNumber} · {round.questionRef}</span><strong>{round.score}/{round.maxMarks}</strong><b>{round.percentage}%</b>{!round.answered?<em>Javob topshirilmagan</em>:round.teacherOverridden?<em>Teacher override</em>:null}</div>)}</div>
+  </section>;
 }
