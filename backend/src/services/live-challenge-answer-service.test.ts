@@ -58,6 +58,27 @@ describe('LiveChallengeAnswerService',()=>{
     expect(query).toHaveBeenCalledWith('rollback');
   });
 
+  it('fails closed when the per-question deadline expires inside the answer transaction',async()=>{
+    const startedAt=new Date('2026-09-09T17:00:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes("r.status='QUESTION_ACTIVE'"))return{rowCount:1,rows:[{
+        id:challengeId,status:'QUESTION_ACTIVE',state_version:6,
+        settings_json:{timing_mode:'per_question',default_time_limit_seconds:30,auto_close_when_all_submitted:false},
+        round_id:roundId,started_at:startedAt,time_limit_seconds:null,
+      }]};
+      if(sql.includes('clock_timestamp()'))return{rowCount:1,rows:[{expired:true,duration_ms:'30001'}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client=clientWith(query);
+    const service=new LiveChallengeAnswerService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    await expect(service.submit(student,challengeId,'Too late',6)).rejects.toMatchObject({code:'live_challenge_answer_closed',status:409});
+    expect(query).toHaveBeenCalledWith('rollback');
+    expect(query.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_answers'))).toBe(false);
+    const activeSql=String(query.mock.calls.find(([sql])=>String(sql).includes("r.status='QUESTION_ACTIVE'"))?.[0]??'');
+    expect(activeSql).toContain('join live_challenge_questions lcq');
+  });
+
   it('lets authorised staff lock an active round with optimistic state protection',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
