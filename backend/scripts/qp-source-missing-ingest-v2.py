@@ -2,16 +2,20 @@
 """Page-aware mark-scheme adapter for missing 9618 source ingestion.
 
 The v1 ingestion contract is retained unchanged. This adapter hardens only the
-mark-scheme leaf detector: a trailing integer is accepted as a question mark
-value only when it is aligned with the printed ``Marks`` column on that PDF
-page. This prevents continuation code such as ``NumberRecords += 1`` from being
-misread as a second mark value for a repeated question label.
+mark-scheme leaf detector: a trailing integer is normally accepted as a
+question mark value only when it is aligned with the printed ``Marks`` column
+on that PDF page. Some Cambridge continuation pages omit the Question/Answer/
+Marks header even though a new scored question starts there; for those pages we
+reuse the document's median printed Marks-column position, require a shallow
+question-row indent, and keep a bounded right-side window. This preserves the
+fail-closed rejection of answer/code numbers such as ``1 mark each to max 6``.
 """
 from __future__ import annotations
 
 import re
 import runpy
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 BASE = runpy.run_path(
@@ -19,30 +23,44 @@ BASE = runpy.run_path(
     run_name="qp_source_missing_ingest_v1_impl",
 )
 MS_ROW = BASE["MS_ROW"]
+HEADER_MARK_WINDOW = 20
+HEADERLESS_MARK_WINDOW = 32
+HEADERLESS_MAX_INDENT = 8
 
 
-def _page_aware_lines(text: str) -> tuple[list[str], list[int | None]]:
-    lines: list[str] = []
-    marks_columns: list[int | None] = []
-    for page in text.split("\f"):
-        page_lines = page.splitlines()
+def _page_aware_lines(text: str) -> tuple[list[str], list[int | None], list[bool]]:
+    pages = text.split("\f")
+    page_headers: list[int | None] = []
+    trusted_columns: list[int] = []
+    for page in pages:
         marks_column: int | None = None
-        for line in page_lines:
+        for line in page.splitlines():
             if "Question" in line and "Answer" in line and "Marks" in line:
                 marks_column = line.rfind("Marks")
+                trusted_columns.append(marks_column)
                 break
-        for line in page_lines:
+        page_headers.append(marks_column)
+
+    fallback_column = int(round(median(trusted_columns))) if trusted_columns else None
+    lines: list[str] = []
+    marks_columns: list[int | None] = []
+    headerless_flags: list[bool] = []
+    for page, page_header in zip(pages, page_headers, strict=True):
+        effective_column = page_header if page_header is not None else fallback_column
+        for line in page.splitlines():
             lines.append(line)
-            marks_columns.append(marks_column)
-        # Keep page boundaries in guidance segmentation without letting a header
-        # position leak into the next page.
+            marks_columns.append(effective_column)
+            headerless_flags.append(page_header is None)
+        # Keep page boundaries in guidance segmentation without letting content
+        # from one page become part of the next scored row.
         lines.append("")
         marks_columns.append(None)
-    return lines, marks_columns
+        headerless_flags.append(False)
+    return lines, marks_columns, headerless_flags
 
 
 def extract_ms_leaves(ms_pdf: Path, expected_marks: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    lines, marks_columns = _page_aware_lines(BASE["pdftotext_layout"](ms_pdf))
+    lines, marks_columns, headerless_flags = _page_aware_lines(BASE["pdftotext_layout"](ms_pdf))
     hits: list[tuple[int, str, str, int]] = []
     seen: dict[str, int] = {}
 
@@ -52,17 +70,20 @@ def extract_ms_leaves(ms_pdf: Path, expected_marks: int) -> tuple[list[dict[str,
             continue
         marks_column = marks_columns[index]
         if marks_column is None:
-            # Fail closed: a numeric suffix is not a trusted mark unless the
-            # page exposes the Cambridge Marks-column anchor.
+            # No trustworthy Marks-column anchor exists anywhere in the document.
             continue
         marks = int(match.group(3))
         if not (1 <= marks <= 20):
             continue
         mark_position = line.rfind(match.group(3))
-        # In audited Cambridge layouts the mark digit is at/just to the right of
-        # the Marks heading. A generous +20 character window tolerates layout
-        # variation while rejecting answer/code numbers far inside the page.
-        if mark_position < marks_column or mark_position > marks_column + 20:
+        headerless = headerless_flags[index]
+        window = HEADERLESS_MARK_WINDOW if headerless else HEADER_MARK_WINDOW
+        # Headerless continuation pages get a wider but still right-side-bounded
+        # window. They must also look like a real question row, not an indented
+        # answer/guidance line that happens to begin with a number.
+        if headerless and len(match.group(1)) > HEADERLESS_MAX_INDENT:
+            continue
+        if mark_position < marks_column or mark_position > marks_column + window:
             continue
 
         token = match.group(2)
