@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import v3 from './Chapter14PresentationContentV3.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
-import css from './chapter14-presentation-source-complete.css?raw';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_LIVE_PRINTED_PAGES, CHAPTER_14_LIVE_SOURCE_CONTRACT, chapter14LivePagesCovered } from './chapter14-live-source-contract';
+
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-source-complete.css'),'utf8');
 
 describe('Chapter 14 live presentation source completeness',()=>{
   it('maps every supplied printed page 328–345 into the live presentation',()=>{
