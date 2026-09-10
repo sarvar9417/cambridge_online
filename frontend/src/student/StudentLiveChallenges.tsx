@@ -82,10 +82,10 @@ export function StudentLiveChallenges(){
     }catch(cause){setError(cause instanceof Error?cause.message:'Javob yuborilmadi.')}finally{setLoadingState(false)}
   };
   const submitPeerMark=async(input:{awardedMarks:number;markPointIds:string[];feedbackText:string})=>{
-    if(!active)return;
+    if(!active||!peer?.assignment?.id)return;
     setLoadingState(true);setError('');setNotice('');
     try{
-      await api(`/live-challenges/${active.id}/peer-marking/submit`,{method:'POST',body:JSON.stringify(input)});
+      await api(`/live-challenges/${active.id}/peer-marking/submit`,{method:'POST',body:JSON.stringify({peerAssignmentId:peer.assignment.id,...input})});
       await loadState(active.id);setNotice('Peer mark topshirildi. Baholash anonim va endi o‘zgarmaydi.');
     }catch(cause){setError(cause instanceof Error?cause.message:'Peer mark yuborilmadi.')}finally{setLoadingState(false)}
   };
