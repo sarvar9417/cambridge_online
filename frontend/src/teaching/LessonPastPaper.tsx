@@ -5,8 +5,8 @@ import { CheckCircle } from '@phosphor-icons/react/CheckCircle';
 import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass';
 import { Printer } from '@phosphor-icons/react/Printer';
 import { api } from '../lib/api';
-import type { LessonAudience } from './lesson-experience-model';
-import type { LessonTopic } from './lesson-topic-plan';
+import { LESSON_EXPERIENCE_CHAPTERS, type LessonAudience } from './lesson-experience-model';
+import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import { chapterPastPaperScope } from './lesson-chapter-past-paper-scope';
 
 type ExamAsset = {id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null};
@@ -79,14 +79,19 @@ function ExamQuestionView({question,audience}:{question:ExamQuestion;audience:Le
   </article>;
 }
 
-export function LessonPastPaper({topics,chapterTitle,audience}:{topics:LessonTopic[];chapterTitle:string;audience:LessonAudience}) {
-  const scope=useMemo(()=>chapterPastPaperScope(topics),[topics]);
+export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic:LessonTopic;audience:LessonAudience}) {
+  const scopeTopicCode=page?.topicCode??topic.code;
+  const chapterNumber=Number(scopeTopicCode.split('.')[0]||0);
+  const chapter=useMemo(()=>LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber)??null,[chapterNumber]);
+  const chapterTopics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[topic],[chapter,topic]);
+  const scope=useMemo(()=>chapterPastPaperScope(chapterTopics),[chapterTopics]);
   const codes=scope.learningObjectiveCodes;
   const codeKey=codes.join('|');
   const syllabuses=scope.syllabusCodes;
   const syllabusCode=syllabuses[0]??'9618';
   const yearFrom=scope.yearFrom;
   const yearTo=scope.yearTo;
+  const chapterTitle=chapter?.title??topic.title;
   const [questions,setQuestions]=useState<ExamQuestion[]>([]);
   const [loading,setLoading]=useState(Boolean(codes.length));
   const [error,setError]=useState('');
