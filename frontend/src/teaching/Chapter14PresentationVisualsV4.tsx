@@ -1,6 +1,6 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
 import { hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
-import { Chapter14PresentationContentV4 } from './Chapter14PresentationContentV4';
+import { Chapter14PresentationContentFinal } from './Chapter14PresentationContentFinal';
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter2PresentationVisual, hasChapter2PresentationVisual } from './Chapter2PresentationVisuals';
@@ -18,13 +18,13 @@ import './chapter14-presentation-source-complete.css';
 import './chapter14-presentation-deep-audit.css';
 import './chapter14-presentation-deep-network.css';
 import './chapter14-presentation-deep-content.css';
+import './chapter14-presentation-final-source.css';
 import './chapter13-presentation-hardening.css';
 
 /**
  * Stable presentation facade. Chapter 14 uses the MASTER shell/design and the
- * deep-audited V4 renderer. The final deep-audit layers fix page-by-page
- * omissions and source-figure fidelity while preserving CONTENT-DENSITY:
- * unrevealed structure stays visible and reveal changes emphasis only.
+ * final source-audited renderer. Source structure remains visible on first paint;
+ * reveal changes emphasis rather than removing content from the projector.
  */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
   return hasChapter14PresentationMaster(beat)||hasChapter13PresentationVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
@@ -39,6 +39,6 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter2PresentationVisual(beat))return <Chapter2PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
-  if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentV4 beat={beat} reveal={reveal}/>;
+  if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
   return null;
 }
