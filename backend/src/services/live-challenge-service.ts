@@ -660,7 +660,7 @@ export class LiveChallengeService {
         await client.query(
           `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
            values($1,$2,'challenge.published',$3::jsonb)`,
-          [challengeId,actor.id,JSON.stringify({ joinCode, questionCount:ids.length })],
+          [challengeId,actor.id,JSON.stringify({ questionCount:ids.length })],
         );
         await client.query('commit');
         const row = updated.rows[0];
