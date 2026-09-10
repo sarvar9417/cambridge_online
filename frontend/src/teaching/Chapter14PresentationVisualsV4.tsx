@@ -1,7 +1,8 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
-import { hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
 import { Chapter14PresentationContentFinal } from './Chapter14PresentationContentFinal';
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
+import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
+import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter3PresentationVisual, hasChapter3PresentationVisual } from './Chapter3PresentationVisuals';
 import { Chapter2PresentationVisual, hasChapter2PresentationVisual } from './Chapter2PresentationVisuals';
@@ -20,11 +21,12 @@ import './chapter14-presentation-deep-audit.css';
 import './chapter14-presentation-deep-network.css';
 import './chapter14-presentation-deep-content.css';
 import './chapter14-presentation-final-source.css';
+import './chapter14-email-source-complete.css';
 import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
-  return hasChapter14PresentationMaster(beat)||hasChapter13PresentationVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
+  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
@@ -36,7 +38,8 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter2PresentationVisual(beat))return <Chapter2PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter3PresentationVisual(beat))return <Chapter3PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
+  if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
-  if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
+  if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
   return null;
 }

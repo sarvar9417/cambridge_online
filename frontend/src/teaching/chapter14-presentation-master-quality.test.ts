@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14_MASTER_PRINTED_PAGES, CHAPTER_14_MASTER_SOURCE_MAP, chapter14SourcePagesCovered } from './chapter14-master-source-map';
-import { CHAPTER_14_MASTER_VISUAL_IDS } from './Chapter14PresentationMaster';
+import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import facadeSource from './Chapter14PresentationVisualsV4.tsx?raw';
 import projectorCss from './chapter14-presentation-master-projector.css?raw';
@@ -25,15 +25,16 @@ describe('Chapter 14 PRESENTATION MASTER quality gates',()=>{
     for(const anchor of ['Question 4','dedicated circuit/path','bandwidth is shared','hop number/hopping','checksum','headers and routing tables'])expect(eoc?.anchors).toContain(anchor);
   });
 
-  it('has a unique authored projector visual for every Chapter 14 storyboard scene',()=>{
+  it('has a unique final-runtime entry for every Chapter 14 storyboard scene',()=>{
     const scenes=[...(chapter14PresentationStoryboard('14.1')??[]),...(chapter14PresentationStoryboard('14.2')??[])];
-    expect(CHAPTER_14_MASTER_VISUAL_IDS).toHaveLength(scenes.length);
-    expect(new Set(CHAPTER_14_MASTER_VISUAL_IDS).size).toBe(CHAPTER_14_MASTER_VISUAL_IDS.length);
-    for(const scene of scenes)expect(CHAPTER_14_MASTER_VISUAL_IDS).toContain(scene.id as typeof CHAPTER_14_MASTER_VISUAL_IDS[number]);
+    const runtimeIds=Object.keys(CHAPTER_14_PRESENTATION_REVEAL_COUNTS);
+    expect(runtimeIds).toHaveLength(scenes.length);
+    expect(new Set(runtimeIds).size).toBe(runtimeIds.length);
+    for(const scene of scenes)expect(runtimeIds).toContain(scene.id);
   });
 
   it('uses the dedicated four-group EOC master instead of the legacy supplemental patch',()=>{
-    expect(facadeSource).toContain("Chapter14EndOfChapterMaster");
+    expect(facadeSource).toContain('Chapter14EndOfChapterMaster');
     expect(facadeSource).toContain("beat.id==='h14p-142-practice'");
     expect(facadeSource).not.toContain('Chapter14PresentationVisualV6');
     expect(facadeSource).not.toContain('Chapter14PresentationCompleteness');
@@ -50,7 +51,7 @@ describe('Chapter 14 PRESENTATION MASTER quality gates',()=>{
   it('does not capture ArrowLeft/ArrowRight or footer clicks in the scroll controller',()=>{
     expect(navigationSource).not.toContain("event.key==='ArrowRight'");
     expect(navigationSource).not.toContain("event.key==='ArrowLeft'");
-    expect(navigationSource).not.toContain(".lx-present-nav button");
+    expect(navigationSource).not.toContain('.lx-present-nav button');
     expect(navigationSource).toContain("event.key==='PageDown'");
     expect(navigationSource).toContain("event.key==='PageUp'");
   });

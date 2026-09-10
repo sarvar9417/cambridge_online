@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import source from './Chapter14PresentationContentV2.tsx?raw';
+import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import css from './chapter14-presentation-content-v2.css?raw';
+import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
 
-describe('Chapter 14 source-semantic presentation V2',()=>{
-  it('renders every non-EOC Chapter 14 scene with authored semantic content',()=>{
+describe('Chapter 14 source-semantic presentation base layer',()=>{
+  it('keeps the legacy semantic layer for its authored scenes while the final runtime owns all 43 live scenes',()=>{
     const scenes=chapter14PresentationStoryboard('overview')??[];
-    for(const scene of scenes.filter(scene=>scene.id!=='h14p-142-practice')){
-      expect(source).toContain(`case '${scene.id}'`);
+    expect(scenes).toHaveLength(43);
+    expect(Object.keys(CHAPTER_14_PRESENTATION_REVEAL_COUNTS)).toHaveLength(43);
+    for(const scene of scenes.filter(scene=>scene.id!=='h14p-142-practice'&&scene.id!=='h14p-142-recap-routing')){
+      expect(source,`V2 base layer lost ${scene.id}`).toContain(`case '${scene.id}'`);
     }
+    expect(finalRenderer).toContain("if(beat.id==='h14p-142-recap-routing')return <FinalRoutingRetrieval");
   });
 
   it('locks the source-sensitive communication processes instead of generic decoration',()=>{
@@ -31,7 +36,7 @@ describe('Chapter 14 source-semantic presentation V2',()=>{
     ])expect(source).toContain(anchor);
   });
 
-  it('locks switching, packet-control and routing meaning',()=>{
+  it('locks switching, packet-control and routing meaning in the semantic base',()=>{
     for(const anchor of [
       'A → R2 → R5 → R8 → R7 → R10 → B',
       '4 packets',
@@ -48,8 +53,9 @@ describe('Chapter 14 source-semantic presentation V2',()=>{
     ])expect(source).toContain(anchor);
   });
 
-  it('uses the semantic renderer in the live facade and imports its CSS after the master design',()=>{
-    expect(facade).toContain('Chapter14PresentationContentV2');
+  it('routes the live deck through the final source renderer while retaining base CSS',()=>{
+    expect(facade).toContain('Chapter14PresentationContentFinal');
+    expect(facade).toContain('hasChapter14PresentationRuntime');
     expect(facade).toContain("./chapter14-presentation-content-v2.css");
     expect(facade.indexOf("./chapter14-presentation-master.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-content-v2.css"));
   });
