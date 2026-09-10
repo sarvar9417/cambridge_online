@@ -181,11 +181,13 @@ export function createLiveChallengesRouter(
 
   router.post('/:id/peer-marking/submit',async(req,res)=>{
     const body=z.object({
+      peerAssignmentId:uuid,
       awardedMarks:z.number().min(0),
       markPointIds:z.array(uuid).max(100).default([]),
       feedbackText:z.string().trim().max(5000).nullable().optional(),
     }).strict().parse(req.body);
-    res.status(201).json({data:await peerMarking.submit(req.actor!,uuid.parse(req.params.id),body)});
+    const data=await peerMarking.submit(req.actor!,uuid.parse(req.params.id),body);
+    res.status(data.idempotent?200:201).json({data});
   });
 
   router.post('/:id/peer-marking/release',async(req,res)=>{
