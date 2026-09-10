@@ -55,7 +55,9 @@ export class LiveChallengeSessionService{
   private async studentChallenge(actor:Actor,id:string){
     this.student(actor);
     const result=await this.pool.query(
-      `select lc.*,c.name class_name,s.code syllabus_code,t.title topic_title,st.title subtopic_title,
+      `select lc.id,lc.title,lc.class_id,lc.status::text status,lc.state_version,
+         lc.current_question_position,lc.settings_json,
+         c.name class_name,s.code syllabus_code,t.title topic_title,st.title subtopic_title,
          p.status::text participant_status
        from live_challenges lc
        join classes c on c.id=lc.class_id and c.archived_at is null
@@ -180,7 +182,7 @@ export class LiveChallengeSessionService{
     this.student(actor);
     const result=await this.pool.query(
       `select lc.id,lc.title,lc.class_id,c.name class_name,lc.status::text status,
-         lc.join_code,lc.settings_json,lc.published_at,lc.started_at,lc.current_question_position,
+         lc.settings_json,lc.published_at,lc.started_at,lc.current_question_position,
          u.full_name teacher_name,s.code syllabus_code,t.title topic_title,st.title subtopic_title,
          p.status::text participant_status,p.joined_at,
          (select count(*)::int from live_challenge_questions q where q.challenge_id=lc.id) question_count,
@@ -333,6 +335,8 @@ export class LiveChallengeSessionService{
       }
       if(challenge.status!=='LOBBY')throw new DomainError('live_challenge_invalid_transition',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
+      const joined=await client.query(`select count(*)::int count from live_challenge_participants where challenge_id=$1 and status='JOINED'`,[id]);
+      if(Number(joined.rows[0]?.count??0)<1)throw new DomainError('live_challenge_participants_required',409);
       const first=await client.query(
         `select lcq.id,lcq.position
          from live_challenge_questions lcq
