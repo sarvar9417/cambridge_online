@@ -283,6 +283,10 @@ export class LiveChallengeModerationService{
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
+  async analyticsSummary(actor:Actor,id:string){
+    return new LiveChallengeAnalyticsService(this.pool).summary(actor,id);
+  }
+
   async finalizeAnalytics(actor:Actor,id:string){
     return new LiveChallengeAnalyticsService(this.pool).finalize(actor,id);
   }
