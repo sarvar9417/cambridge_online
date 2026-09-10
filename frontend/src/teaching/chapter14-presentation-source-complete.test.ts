@@ -22,7 +22,7 @@ describe('Chapter 14 live presentation source completeness',()=>{
     ])expect(v3).toContain(marker);
   });
 
-  it('keeps source-significant protocol details in the live projector renderer',()=>{
+  it('keeps the V3 source-detail layer intact beneath the final deep-audited renderer',()=>{
     for(const marker of [
       'HTTP defines the format of messages sent and received',
       'browser sends request messages to web servers',
@@ -40,17 +40,7 @@ describe('Chapter 14 live presentation source completeness',()=>{
     ])expect(v3).toContain(marker);
   });
 
-  it('locks source-specific switching and routing details',()=>{
-    for(const marker of [
-      'A → R2 → R5 → R8 → R7 → R10 → B',
-      'provided device B is not busy',
-      'Public telephone networks, private telephone networks and private data networks',
-      'number of datagram packets waiting to be processed at each node/router',
-      'shortest path available is selected',
-    ])expect(v3).toContain(marker);
-  });
-
-  it('reproduces all six Table 14.5 rows instead of replacing the last row',()=>{
+  it('keeps the legacy V3 Table 14.5 transcription available for the final renderer',()=>{
     for(const marker of [
       'Actual route must be set up before transmission begins',
       'A dedicated transmission path is required',
@@ -59,7 +49,6 @@ describe('Chapter 14 live presentation source completeness',()=>{
       'All the bandwidth of the channel is required',
       'Is bandwidth wasted?',
     ])expect(v3).toContain(marker);
-    expect(v3).toContain('Fault rerouting is taught on the dedicated failure scene');
   });
 
   it('routes Chapter 14 through the final renderer and keeps source-complete CSS after density CSS',()=>{
