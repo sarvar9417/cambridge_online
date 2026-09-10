@@ -1,0 +1,173 @@
+import type { HodderLessonSlide } from './lesson-content-hodder-types';
+
+const source = (pageOrPages: number | number[], elements: string[] = []) => {
+  const pages = Array.isArray(pageOrPages) ? pageOrPages : [pageOrPages];
+  const label = pages.length === 1 ? `p.${pages[0]}` : `pp.${pages[0]}–${pages[pages.length - 1]}`;
+  return {
+    sourcePages: pages,
+    sourceLabel: `Hodder Chapter 4 · ${label}`,
+    sourceElements: [...pages.map(page => `Hodder p.${page}`), ...elements],
+  };
+};
+
+export const CHAPTER_4_INSTRUCTIONS_BITMANIPULATION_SLIDES: HodderLessonSlide[] = [
+  {
+    id: 'h4-423-instruction-set',
+    section: '4.2 Assembly language',
+    subtopicCode: '4.2.3',
+    eyebrow: '4.2.3 · ASSEMBLY LANGUAGE INSTRUCTIONS · TABLES 4.4–4.8',
+    title: 'The instruction set groups data movement, I/O, arithmetic, jumps and comparisons',
+    lead: 'Hodder defines a compact assembly instruction set around ACC and IX, with operands that also signal the addressing mode.',
+    richBlocks: [
+      { kind: 'table', table: { caption: 'Table 4.4 · Data movement instructions', headers: ['Instruction', 'Operand', 'Source meaning'], rows: [
+        ['LDM', '#n', 'load the number into ACC · immediate'], ['LDD', '<address>', 'load contents of specified address into ACC · direct/absolute'], ['LDI', '<address>', 'load contents of contents of specified address into ACC · indirect'], ['LDX', '<address>', 'specified address + IX gives address whose contents are loaded into ACC · indexed'], ['LDR', '#n / ACC', 'load n or the number in ACC into IX'], ['MOV', '<register>', 'move ACC contents to IX'], ['STO', '<address>', 'store ACC contents at specified address · direct/absolute'], ['END', '', 'return control to the operating system'],
+      ] } },
+      { kind: 'table', table: { caption: 'Tables 4.5–4.8 · Other instruction families', headers: ['Family', 'Opcodes', 'Key rule'], rows: [
+        ['Input/output', 'IN · OUT', 'input ASCII value into ACC / output character whose ASCII value is in ACC'], ['Arithmetic', 'ADD · SUB · INC · DEC', 'calculation answers are stored in ACC'], ['Jump', 'JMP · JPE · JPN · END', 'jump changes PC to the specified address'], ['Compare', 'CMP · CMI', 'ACC is always compared'],
+      ] } },
+    ],
+    bullets: ['B marks binary, for example B01000011.', '& marks hexadecimal, for example &7B.', '# marks a denary number.'],
+    visual: 'types', accent: 'cyan',
+    ...source([124, 125], ['Table 4.4 Data movement instructions', 'Table 4.5 Input and output of data instructions', 'Table 4.6 Arithmetic operation instructions', 'Table 4.7 Unconditional and conditional instructions', 'Table 4.8 Compare instructions']),
+  },
+  {
+    id: 'h4-424-addressing-modes',
+    section: '4.2 Assembly language', subtopicCode: '4.2.4',
+    eyebrow: '4.2.4 · ADDRESSING MODES · TABLE 4.9',
+    title: 'The operand can mean a value, an address, an address of an address, or an indexed location',
+    lead: 'Assembly and machine-code programs select an addressing mode according to how the required data is located.',
+    richBlocks: [{ kind: 'table', table: { caption: 'Hodder addressing-mode examples', headers: ['Mode', 'Source example', 'Result'], rows: [
+      ['absolute / direct', 'memory[200] = 20 · LDD 200', 'ACC ← 20'],
+      ['indirect', 'memory[200] = 20 · memory[20] = 5 · LDI 200', 'ACC ← 5'],
+      ['indexed', 'IX = 4 · memory[204] = 17 · LDX 200', 'ACC ← 17'],
+      ['immediate', 'LDM #200', 'ACC ← 200'],
+      ['relative', 'JMR #5', 'control transfers 5 locations after the current instruction'],
+      ['symbolic', 'MyStore contains 20 · LDD MyStore', 'ACC ← 20'],
+    ] } }, { kind: 'callout', tone: 'info', title: 'Table 4.9 · Labels', text: '<label>: <opcode> <operand> labels an instruction; <label>: n gives a symbolic address to the memory location containing n.' }],
+    bullets: ['Hodder states that absolute and direct addressing are the same.', 'Labels make programs easier to alter because references do not need every absolute address edited after inserted instructions.'],
+    visual: 'types', accent: 'indigo',
+    ...source([125, 126], ['4.2.4 Addressing modes', 'Table 4.9 Labels', 'absolute addressing', 'direct addressing', 'indirect addressing', 'indexed addressing', 'immediate addressing', 'relative addressing', 'symbolic addressing']),
+  },
+  {
+    id: 'h4-425-three-number-program',
+    section: '4.2 Assembly language', subtopicCode: '4.2.5',
+    eyebrow: '4.2.5 · SIMPLE ASSEMBLY PROGRAM · WORKED TRACE 1',
+    title: 'One high-level expression expands into load, add, store and data declarations',
+    lead: 'Hodder first translates total = first + second + third into assembly and then traces the register/data state.',
+    richBlocks: [
+      { kind: 'code', title: 'Source program', lines: ['start: LDD first', '       ADD second', '       ADD third', '       STO total', '       END', 'first:  #20', 'second: #30', 'third:  #40', 'total:  #0'] },
+      { kind: 'table', table: { caption: 'Symbol table when loaded at address 100', headers: ['Label', 'Address'], rows: [['start','100'],['first','106'],['second','107'],['third','108'],['total','109']] } },
+      { kind: 'table', table: { caption: 'Trace table · key rows', headers: ['CIR', 'Opcode', 'Operand', 'ACC', 'total 109'], rows: [['100','LDD','first','20','0'],['101','ADD','second','50','0'],['102','ADD','third','90','0'],['103','STO','total','90','90'],['104','END','','','']] } },
+    ],
+    visual: 'types', accent: 'emerald',
+    ...source([126, 127], ['4.2.5 Simple assembly language programs', 'total = first + second + third', 'symbol table', 'trace table']),
+  },
+  {
+    id: 'h4-425-indexed-loop',
+    section: '4.2 Assembly language', subtopicCode: '4.2.5',
+    eyebrow: '4.2.5 · INDEX REGISTER LOOP · WORKED TRACE 2',
+    title: 'IX steps through the list while counter decides when the loop ends',
+    lead: 'The second worked program adds #5, #7 and #3 using indexed addressing, a counter and JPN loop.',
+    richBlocks: [
+      { kind: 'code', title: 'Hodder loop', lines: ['LDM #0 · STO total · STO counter · LDR #0', 'loop: LDX number · ADD total · STO total · INC IX', 'LDD counter · INC ACC · STO counter · CMP #3 · JPN loop · END', 'number: #5 · #7 · #3', 'counter: [storage] · total: [storage]'] },
+      { kind: 'table', table: { caption: 'Symbol table', headers: ['Label', 'Address'], rows: [['loop','104'],['number','115'],['counter','118'],['total','119']] } },
+      { kind: 'table', table: { caption: 'Trace milestones from p.128', headers: ['Step', 'ACC', 'IX', 'counter', 'total'], rows: [['after first STO total','5','0','0','5'],['after second STO total','12','1','1','12'],['after third STO total','15','2','2','15'],['final CMP #3','3','3','3','15']] } },
+    ],
+    visual: 'types', accent: 'rose',
+    ...source([127, 128], ['index register (IX)', 'LDX number', 'JPN loop', 'symbol table', 'trace table']),
+  },
+  {
+    id: 'h4-42-activity4b',
+    section: '4.2 Assembly language', eyebrow: 'ACTIVITY 4B · P.129',
+    title: 'Apply addressing modes, complete a trace, then write an array-output program',
+    lead: 'Activity 4B checks whether the instruction set can be used rather than merely recognised.',
+    richBlocks: [{ kind: 'steps', title: 'Activity 4B · source tasks', items: [
+      'With memory[200] = 300 and memory[300] = 50, state ACC after LDM #200, LDD 200 and LDI 200.',
+      'Write instructions to compare ACC with 5 and jump to address 100 if the comparison is true.',
+      'For the supplied number1/number2/number3/number4 program, complete its symbol table, trace table and state the task performed.',
+      'Write an assembly program to output the ASCII value of each element of a four-element array, then complete its symbol and trace tables.',
+    ] }],
+    example: { title: 'Supplied Activity 4B data', lines: ['number1 #30 · number2 #40 · number3 #20 · number4 #50 · total #0', 'Core path: LDD number1 · SUB number2 · ADD number3 · CMP #10 · JPE nomore · ADD number4 · nomore: STO total · END'] },
+    visual: 'types', accent: 'amber',
+    ...source(129, ['Activity 4B']),
+  },
+  {
+    id: 'h4-43-binary-shifts',
+    section: '4.3 Bit manipulation', subtopicCode: '4.3.1',
+    eyebrow: '4.3 · BIT MANIPULATION · 4.3.1 BINARY SHIFTS',
+    title: 'Logical, arithmetic and cyclic shifts treat displaced bits differently',
+    lead: 'Hodder introduces bit manipulation with prior knowledge, key terms and three exact 8-bit shift examples.',
+    richBlocks: [{ kind: 'comparison', leftTitle: 'Shift type', rightTitle: 'Hodder example', rows: [
+      ['logical left 3', '10101111 → 01111000 · shifted-out bits replaced with zeros'],
+      ['arithmetic right 3', '10101111 → 11110101 · sign preserved'],
+      ['cyclic left 3', '10101111 → 01111101 · shifted-out bits re-enter at the other end'],
+    ] }, { kind: 'callout', tone: 'info', title: 'Arithmetic purpose', text: 'Arithmetic shifts can be used for multiplication or division by powers of two.' }],
+    bullets: ['Left/right describes the direction for logical, arithmetic and cyclic shifts.', 'The prior-knowledge task revisits AND, OR and XOR truth tables before masking.'],
+    visual: 'types', accent: 'cyan',
+    ...source(130, ['4.3 Bit manipulation', 'What you should already know', 'Key terms', '4.3.1 Binary shifts', 'Logical shift', 'Arithmetic shift', 'Cyclic shift']),
+  },
+  {
+    id: 'h4-431-lsl-lsr',
+    section: '4.3 Bit manipulation', subtopicCode: '4.3.1',
+    eyebrow: 'TABLE 4.10 · LOGICAL SHIFTS IN ASSEMBLY',
+    title: 'LSL and LSR always shift the accumulator and introduce zeros',
+    lead: 'The Hodder instruction subset exposes logical left and right shifts directly.',
+    richBlocks: [{ kind: 'table', table: { caption: 'Table 4.10 · Logical shifts in assembly language programming', headers: ['Opcode', 'Operand', 'Explanation'], rows: [['LSL','n','bits in ACC shifted logically n places left; zeros introduced on the right'],['LSR','n','bits in ACC shifted logically n places right; zeros introduced on the left']] } }],
+    bullets: ['Shifts are always performed on ACC.'], visual: 'types', accent: 'indigo',
+    ...source(131, ['Table 4.10 Logical shifts in assembly language programming', 'LSL', 'LSR']),
+  },
+  {
+    id: 'h4-432-mask-operations',
+    section: '4.3 Bit manipulation', subtopicCode: '4.3.2',
+    eyebrow: '4.3.2 · MONITORING & CONTROL · TABLE 4.11',
+    title: 'A mask lets AND check a flag, OR set it, and XOR clear a set bit',
+    lead: 'In monitoring and control, individual bits in a register or memory location can act as flags that must be tested, set or cleared separately.',
+    richBlocks: [{ kind: 'table', table: { caption: 'Table 4.11 · Bit manipulation', headers: ['Operation', 'Operand forms', 'Purpose in the source'], rows: [['AND','n / <address>','check whether a bit has been set'],['OR','n / <address>','set a bit'],['XOR','n / <address>','clear a bit that has been set']] } }, { kind: 'code', title: 'Sensor 3 example', lines: ['LDD sensors      ; load sensor flags into ACC', 'AND #B100        ; mask to select bit 3 only', 'CMP #B100        ; check if bit 3 is set', 'JPN process      ; jump if bit not set', 'LDD sensors', 'XOR #B100        ; clear bit 3 after processing'] }],
+    bullets: ['Results of logical bit manipulation are always stored in ACC.', 'The operand is used as the mask to set or clear bits.'],
+    visual: 'types', accent: 'emerald',
+    ...source([131, 132], ['4.3.2 Bit manipulation used in monitoring and control', 'Table 4.11 Instructions used to check, set and clear a single bit or group of bits', 'AND #B100', 'XOR #B100']),
+  },
+  {
+    id: 'h4-43-activity4c',
+    section: '4.3 Bit manipulation', eyebrow: 'ACTIVITY 4C · P.132',
+    title: 'Shift, set, clear and identify the transformation',
+    lead: 'Activity 4C closes the taught content with direct bit-manipulation practice.',
+    richBlocks: [{ kind: 'steps', title: 'Activity 4C · source tasks', items: [
+      'Starting with ACC = B00011001, state ACC after LSL #4 and after LSR #5.',
+      'Write an assembly instruction to set bit 4 in ACC and one to clear bit 1.',
+      'Describe the difference between arithmetic and logical shifts.',
+      'Explain with examples how a cyclic shift works.',
+      'Identify the shift that transforms 00110101 into 10101000.',
+    ] }],
+    visual: 'types', accent: 'amber',
+    ...source(132, ['Activity 4C']),
+  },
+  {
+    id: 'h4-eoc-questions-1-4',
+    section: 'End of chapter questions', eyebrow: 'END OF CHAPTER · QUESTIONS 1–4 · PP.132–133',
+    title: 'Retrieve the fetch-execute cycle, performance, ports, interrupts, registers and shifts',
+    lead: 'The first four end-of-chapter questions integrate the CPU architecture and bit-shift material from the chapter.',
+    richBlocks: [{ kind: 'steps', title: 'Questions 1–4', items: [
+      'Q1: order the six Von Neumann fetch-execute stages; explain effects of bus widths, clock speed and dual/quad core; explain dangers of increasing 2.5 GHz to 3.2 GHz.',
+      'Q2: explain differences among HDMI, VGA and USB when sending data to peripherals; describe interrupt servicing for a 1000-page printer document.',
+      'Q3: name three special processor registers and explain their purposes; explain printer interrupts.',
+      'Q4: describe, using examples, three types of shift instructions an assembly programmer could use.',
+    ] }],
+    visual: 'types', accent: 'rose',
+    ...source([132, 133], ['End of chapter questions', 'Question 1', 'Question 2', 'Question 3', 'Question 4']),
+  },
+  {
+    id: 'h4-eoc-question-5',
+    section: 'End of chapter questions', eyebrow: 'END OF CHAPTER · QUESTION 5 · PP.133–135',
+    title: 'Dry-run an intruder detector that counts triggered sensors bit by bit',
+    lead: 'Question 5 combines monitoring, sensor flags, masks, assembly tracing and a threshold test in one past-paper task.',
+    richBlocks: [
+      { kind: 'callout', tone: 'activity', title: 'System state', text: 'Four sensors occupy four bits of an 8-bit location. 1 means triggered; 0 means not triggered. The alarm sounds only when two or more sensors have been triggered.' },
+      { kind: 'code', title: 'Source assembly core', lines: ['SENSORS: B00001010 · COUNT: 0 · VALUE: 1', 'LOOP: LDD SENSORS · AND VALUE · CMP #0 · JPE ZERO', 'LDD COUNT · INC ACC · STO COUNT', 'ZERO: LDD VALUE · CMP #8 · JPE EXIT · ADD VALUE · STO VALUE · JMP LOOP', 'EXIT: LDD COUNT', 'TEST: CMP … · JGT ALARM'] },
+      { kind: 'steps', title: 'Question 5 asks', items: ['name and justify the system type; name two suitable sensors with reasons', 'dry-run from LOOP until EXIT using BITREG / COUNT / VALUE / ACC', 'state the missing TEST operand', 'for an eight-sensor upgrade, identify and write the one instruction that must change'] },
+    ],
+    example: { title: 'Source attribution', lines: ['Cambridge International AS & A Level Computer Science 9608 · Paper 32 Q6 · June 2016'] },
+    visual: 'types', accent: 'indigo',
+    ...source([133, 134, 135], ['Question 5 intruder detection system', 'B00001010', 'JGT ALARM', 'Cambridge International AS & A Level Computer Science 9608 Paper 32 Q6 June 2016']),
+  },
+];
