@@ -6,7 +6,6 @@ function currentStage(){
   return document.querySelector<HTMLElement>('.lesson-experience.lx-present .lx-present-stage');
 }
 
-
 /**
  * Scroll safety only. Navigation belongs exclusively to LessonExperience React
  * handlers so Oldingi/Keyingi and ArrowLeft/ArrowRight can never be swallowed
@@ -21,7 +20,8 @@ export function installPresentationScrollController(){
   }));
   const onKeyDown=(event:KeyboardEvent)=>{
     if(isInteractiveTarget(event.target))return;
-    if(event.key!=='PageDown'&&event.key!=='PageUp')return;
+    const isPageKey=event.key==='PageDown'||event.key==='PageUp';
+    if(!isPageKey)return;
     const stage=currentStage();
     if(!stage)return;
     const direction=event.key==='PageDown'?1:-1;
