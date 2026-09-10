@@ -40,9 +40,10 @@ const part1 = [['0','0','0','0','1'],['0','0','1','0','0'],['0','1','0','0','0']
 const finalRows = [['0','0','0','0','1','1','1'],['0','0','1','0','0','0','1'],['0','1','0','0','0','0','0'],['0','1','1','0','0','0','1'],['1','0','0','0','1','1','1'],['1','0','1','0','0','0','1'],['1','1','0','1','0','1','1'],['1','1','1','1','0','1','0']];
 
 function TraceParts({reveal}:{reveal:number}) {
+  const fiveColumns = {gridTemplateColumns:'repeat(5,1fr)'};
   return <div className="h3lv truth-compare" aria-label="Hodder Example 3.1 Parts 1 and 2">
-    <header><b>A</b><b>B</b><b>C</b><b>P</b><b>Q</b></header>
-    {part1.map((r,i)=><section key={i} style={{...show(reveal,Math.floor(i/2)+1),gridTemplateColumns:'repeat(5,1fr)'}}>{r.map((v,j)=><span key={j}>{v}</span>)}</section>)}
+    <header style={fiveColumns}><b>A</b><b>B</b><b>C</b><b>P</b><b>Q</b></header>
+    {part1.map((r,i)=><section key={i} style={{...show(reveal,Math.floor(i/2)+1),...fiveColumns}}>{r.map((v,j)=><span key={j}>{v}</span>)}</section>)}
   </div>;
 }
 
