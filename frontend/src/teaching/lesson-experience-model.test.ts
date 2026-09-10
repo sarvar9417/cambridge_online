@@ -18,8 +18,8 @@ const presentationText=(chapter:(typeof LESSON_EXPERIENCE_CHAPTERS)[number])=>no
 ));
 
 describe('lesson experience model',()=>{
-  it('keeps all five source-backed chapters in the active experience',()=>{
-    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,7,13,14]);
+  it('keeps all six source-backed chapters in the active experience',()=>{
+    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,3,7,13,14]);
   });
 
   it('turns every teachable topic into bounded projector beats',()=>{
