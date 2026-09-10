@@ -1,5 +1,4 @@
 import { SOURCE_FILE_FIDELITY_MANIFESTS } from './source-file-fidelity-manifest';
-import { CHAPTER_3_SOURCE_FILE_MANIFEST } from './chapter3-source-file-fidelity';
 
 export type HodderSourceReadiness = 'source-locked' | 'source-unresolved';
 
@@ -12,15 +11,15 @@ export type HodderChapterReadiness = {
 };
 
 const locked9618 = new Map(
-  [...SOURCE_FILE_FIDELITY_MANIFESTS, CHAPTER_3_SOURCE_FILE_MANIFEST].map(
+  SOURCE_FILE_FIDELITY_MANIFESTS.map(
     manifest => [manifest.chapter, manifest.sourceFile] as const,
   ),
 );
 
 /**
  * A chapter may only be source-grounded when the exact Hodder source has a
- * fidelity manifest. Full-book source ranges are allowed when the connected
- * source is the exact Hodder coursebook and the chapter page range is locked.
+ * fidelity manifest. A syllabus/workbook match or a different Hodder title is
+ * not sufficient evidence for a 9618 coursebook chapter.
  */
 export function hodderChapterReadiness(
   syllabus: '9618' | '0478',
