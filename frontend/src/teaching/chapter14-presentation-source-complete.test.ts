@@ -62,9 +62,9 @@ describe('Chapter 14 live presentation source completeness',()=>{
     expect(v3).toContain('Fault rerouting is taught on the dedicated failure scene');
   });
 
-  it('routes Chapter 14 through V3 and loads source-complete CSS after density CSS',()=>{
-    expect(facade).toContain('Chapter14PresentationContentV3');
-    expect(facade).not.toContain('Chapter14PresentationContentV2 beat={beat}');
+  it('routes Chapter 14 through the final renderer and keeps source-complete CSS after density CSS',()=>{
+    expect(facade).toContain('Chapter14PresentationContentFinal');
+    expect(facade).not.toContain('return <Chapter14PresentationContentV3 beat={beat}');
     expect(facade.indexOf("./chapter14-presentation-density-master.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-source-complete.css"));
   });
 
