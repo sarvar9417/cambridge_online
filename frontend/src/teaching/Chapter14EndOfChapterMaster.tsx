@@ -2,10 +2,11 @@ import type { LessonPresentationBeat } from './lesson-experience-model';
 
 const visible=(reveal:number,step:number)=>reveal>=step?'is-visible':'';
 type Props={beat:LessonPresentationBeat;reveal:number};
+type EocGroup={label:string;marks:string;title:string;tasks:string[];origin?:string};
 
 export function Chapter14EndOfChapterMaster({beat,reveal}:Props){
   if(beat.id!=='h14p-142-practice')return null;
-  const groups=[
+  const groups:EocGroup[]=[
     {
       label:'Q1 · p.344',
       marks:'12 marks',
@@ -35,6 +36,7 @@ export function Chapter14EndOfChapterMaster({beat,reveal}:Props){
         'Explain why circuit switching can be preferable for video conferencing. [6]',
         'Explain how a web page is transferred using packet switching. [3]',
       ],
+      origin:'Cambridge International AS & A Level Computer Science 9608 · Paper 32 Q3 · November 2015',
     },
     {
       label:'Q4 · p.345',
@@ -54,6 +56,7 @@ export function Chapter14EndOfChapterMaster({beat,reveal}:Props){
       <header><span>{group.label}</span><small>{group.marks}</small></header>
       <strong>{group.title}</strong>
       <ol>{group.tasks.map(task=><li key={task}>{task}</li>)}</ol>
+      {group.origin?<small className="h14eoc-origin">{group.origin}</small>:null}
     </section>)}
     <footer className={visible(reveal,4)}><b>EXAM CONNECTION</b><span>Q4 deliberately joins switching, packet control and routing. Students must connect concepts, not memorise isolated definitions.</span></footer>
   </div>;
