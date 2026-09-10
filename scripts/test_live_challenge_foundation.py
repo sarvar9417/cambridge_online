@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+MIGRATION = ROOT / "backend/src/database/migrations/0165_live_challenge_foundation.sql"
 
 
 class LiveChallengeFoundationTests(unittest.TestCase):
@@ -17,9 +18,7 @@ class LiveChallengeFoundationTests(unittest.TestCase):
         self.assertIn("Teacher create → Publish", plan)
 
     def test_schema_makes_cross_challenge_links_self_marking_and_answer_rewrite_fail_closed(self) -> None:
-        sql = (ROOT / "backend/src/database/migrations/0163_live_challenge_foundation.sql").read_text(
-            encoding="utf-8"
-        )
+        sql = MIGRATION.read_text(encoding="utf-8")
         lowered = sql.lower()
         self.assertIn("references questions", lowered)
         self.assertIn("mark_scheme_snapshot", lowered)
@@ -39,9 +38,7 @@ class LiveChallengeFoundationTests(unittest.TestCase):
         self.assertIn("state_version", lowered)
 
     def test_active_join_code_is_six_character_and_unique(self) -> None:
-        sql = (ROOT / "backend/src/database/migrations/0163_live_challenge_foundation.sql").read_text(
-            encoding="utf-8"
-        )
+        sql = MIGRATION.read_text(encoding="utf-8")
         self.assertIn("^[A-Z0-9]{6}$", sql)
         self.assertIn("live_challenges_active_join_code_idx", sql)
         self.assertIn("status NOT IN ('FINISHED', 'CANCELLED')", sql)
