@@ -7,37 +7,11 @@ export type LessonTable = {
 };
 
 export type LessonFigure =
-  | {
-      kind: 'grid';
-      title: string;
-      rows: string[];
-      legend?: Array<{ symbol: string; label: string }>;
-      caption?: string;
-    }
-  | {
-      kind: 'bitfield';
-      title: string;
-      fields: Array<{ label: string; bits: string; detail?: string }>;
-      caption?: string;
-    }
-  | {
-      kind: 'sequence';
-      title: string;
-      items: Array<{ label: string; note?: string }>;
-      caption?: string;
-    }
-  | {
-      kind: 'wave';
-      title: string;
-      series: Array<{ label: string; cycles: number; samples?: number }>;
-      caption?: string;
-    }
-  | {
-      kind: 'pixel-scale';
-      title: string;
-      stages: Array<{ label: string; level: number; note?: string }>;
-      caption?: string;
-    };
+  | { kind: 'grid'; title: string; rows: string[]; legend?: Array<{ symbol: string; label: string }>; caption?: string }
+  | { kind: 'bitfield'; title: string; fields: Array<{ label: string; bits: string; detail?: string }>; caption?: string }
+  | { kind: 'sequence'; title: string; items: Array<{ label: string; note?: string }>; caption?: string }
+  | { kind: 'wave'; title: string; series: Array<{ label: string; cycles: number; samples?: number }>; caption?: string }
+  | { kind: 'pixel-scale'; title: string; stages: Array<{ label: string; level: number; note?: string }>; caption?: string };
 
 export type LessonRichBlock =
   | { kind: 'paragraph'; text: string }
@@ -50,11 +24,6 @@ export type LessonRichBlock =
   | { kind: 'source-note'; title: string; sourceLabel: string; sourceText: string; examSafeLabel: string; examSafeText: string }
   | { kind: 'figure'; figure: LessonFigure };
 
-/**
- * Exact source atoms are teacher/system evidence, not learner copy.
- * Keeping them in a separate field prevents source-completeness data from being
- * flattened into student activity prompts while retaining every verified line.
- */
 export type LessonSourceAtomEvidence = {
   id: string;
   page: number;
@@ -78,7 +47,7 @@ export type HodderLessonSlide = LessonSlide & {
 };
 
 export type HodderLessonChapter = {
-  number: 1 | 2 | 13 | 14;
+  number: 1 | 2 | 3 | 13 | 14;
   level: 'AS Level' | 'A Level';
   title: string;
   subtitle: string;
