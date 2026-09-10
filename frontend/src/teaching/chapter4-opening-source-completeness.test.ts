@@ -7,7 +7,6 @@ import { canBuildSourceGroundedHodderChapter } from './hodder-source-readiness';
 import { lessonChapter } from './lesson-content-source-complete';
 
 const fixture = (name: string) => readFileSync(resolve(process.cwd(), 'src', 'teaching', name), 'utf8');
-
 const chapterText = JSON.stringify(CHAPTER_4_PROCESSOR_SLIDES);
 
 describe('Hodder 9618 Chapter 4 opening source completeness', () => {
@@ -18,20 +17,7 @@ describe('Hodder 9618 Chapter 4 opening source completeness', () => {
   });
 
   it('preserves the Chapter 4 source figures, table, activity and terminology', () => {
-    for (const token of [
-      'Figure 4.1 Representation of Von Neumann architecture',
-      'Table 4.1 Common registers',
-      'Extension Activity 4A',
-      'Figure 4.2 System buses',
-      'Figure 4.3 Two cores, one channel and four cores, six channels',
-      'Figure 4.4 USB cable, HDMI cable, VGA cable',
-      'immediate access store (IAS)',
-      'CIR', 'IX', 'MAR', 'MDR/MBR', 'PC', 'SR',
-      'Carry flag', 'Negative flag', 'Overflow flag', 'Zero flag',
-      'address bus', 'data bus', 'control bus',
-      '3.5 GHz', 'overclocking', 'cache memory',
-      'asynchronous serial data transmission',
-    ]) expect(chapterText).toContain(token);
+    for (const token of ['Figure 4.1 Representation of Von Neumann architecture','Table 4.1 Common registers','Extension Activity 4A','Figure 4.2 System buses','Figure 4.3 Two cores, one channel and four cores, six channels','Figure 4.4 USB cable, HDMI cable, VGA cable','immediate access store (IAS)','CIR','IX','MAR','MDR/MBR','PC','SR','Carry flag','Negative flag','Overflow flag','Zero flag','address bus','data bus','control bus','3.5 GHz','overclocking','cache memory','asynchronous serial data transmission']) expect(chapterText).toContain(token);
   });
 
   it('locks source numeric examples instead of replacing them with generic examples', () => {
@@ -43,15 +29,7 @@ describe('Hodder 9618 Chapter 4 opening source completeness', () => {
   });
 
   it('provides a source-specific progressive projector visual for every content scene in the batch', () => {
-    expect(CHAPTER_4_PROCESSOR_VISUAL_IDS).toEqual([
-      'h4-411-von-neumann',
-      'h4-412-cpu-components',
-      'h4-413-registers',
-      'h4-413-status-flags',
-      'h4-414-system-buses',
-      'h4-414-performance',
-      'h4-415-ports-usb',
-    ]);
+    expect(CHAPTER_4_PROCESSOR_VISUAL_IDS).toEqual(['h4-411-von-neumann','h4-412-cpu-components','h4-413-registers','h4-413-status-flags','h4-414-system-buses','h4-414-performance','h4-415-ports-usb']);
     const visuals = fixture('Chapter4ProcessorVisuals.tsx');
     expect(visuals).toContain('revealStyle');
     expect(visuals).toContain('Hodder Figure 4.1');
@@ -64,11 +42,11 @@ describe('Hodder 9618 Chapter 4 opening source completeness', () => {
     expect(css).toContain('@media (max-width:760px)');
   });
 
-  it('is wired into the shared V6 projector facade but remains hidden from the active lesson route until the whole chapter is source-locked', () => {
+  it('is wired into the shared V6 projector facade and remains part of active Chapter 4 after full source lock', () => {
     const facade = fixture('Chapter14PresentationVisualsV4.tsx');
     expect(facade).toContain('hasChapter4ProcessorVisual');
     expect(facade).toContain('<Chapter4ProcessorVisual beat={beat} reveal={reveal}/>');
-    expect(canBuildSourceGroundedHodderChapter('9618', 4)).toBe(false);
-    expect(lessonChapter(4)).toBeNull();
+    expect(canBuildSourceGroundedHodderChapter('9618', 4)).toBe(true);
+    expect(lessonChapter(4)?.number).toBe(4);
   });
 });
