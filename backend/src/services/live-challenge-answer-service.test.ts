@@ -159,7 +159,7 @@ describe('LiveChallengeAnswerService',()=>{
   });
 
   it('returns only the requesting student own answer',async()=>{
-    const query=vi.fn(async()=>({rowCount:1,rows:[{challenge_status:'QUESTION_ACTIVE',state_version:3,round_id:roundId,round_number:1,round_status:'QUESTION_ACTIVE',answer_id:answerId,answer_text:'My answer',submitted_at:new Date(),locked_at:null,submission_duration_ms:1234}]}));
+    const query=vi.fn(async(sql:string)=>({rowCount:1,rows:[{challenge_status:'QUESTION_ACTIVE',state_version:3,round_id:roundId,round_number:1,round_status:'QUESTION_ACTIVE',answer_id:answerId,answer_text:'My answer',submitted_at:new Date(),locked_at:null,submission_duration_ms:1234,sql_seen:sql}]}));
     const service=new LiveChallengeAnswerService({query} as unknown as Pool);
     const result=await service.own(student,challengeId);
     expect(result.answer).toMatchObject({id:answerId,text:'My answer',submissionDurationMs:1234});
