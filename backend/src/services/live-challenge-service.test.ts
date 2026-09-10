@@ -27,8 +27,8 @@ function eligibleRow(id=questionId) {
     series:'ON',
     variant:2,
     component:1,
-    source_occurrence_snapshot:{sourcePaperId:'qp-1',qpSha256:'a'.repeat(64)},
-    mark_scheme_snapshot:{id:'ms-1',maxMarks:2,points:[]},
+    source_occurrence_snapshot:{sourcePaperId:'qp-1',qpSha256:'a'.repeat(64),msSha256:'b'.repeat(64)},
+    mark_scheme_snapshot:{id:'ms-1',maxMarks:2,sourceSha256:'b'.repeat(64),points:[]},
   };
 }
 
@@ -55,7 +55,7 @@ describe('LiveChallengeService teacher builder',()=>{
     expect(query).not.toHaveBeenCalled();
   });
 
-  it('builds the eligible pool with source, scheme, fidelity, dependency and asset gates',async()=>{
+  it('builds the eligible pool with QP/MS source, scheme, fidelity, dependency and asset gates',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('from syllabi s')&&sql.includes('left join topics'))return{rowCount:1,rows:[taxonomyRow()]};
       if(sql.includes('from questions q'))return{rowCount:1,rows:[eligibleRow()]};
@@ -68,6 +68,10 @@ describe('LiveChallengeService teacher builder',()=>{
     const sql=String(query.mock.calls.find(([text])=>String(text).includes('from questions q'))?.[0]);
     expect(sql).toContain("q.status='approved'");
     expect(sql).toContain("ms.status='approved'");
+    expect(sql).toContain("join source_papers ms_sp on ms_sp.id=ms.source_paper_id and ms_sp.kind='MS'::paper_kind");
+    expect(sql).toContain('ms_sp.source_url is not null');
+    expect(sql).toContain("lower(coalesce(ms_sp.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(sql).toContain("'msSha256',lower(ms_sp.sha256)");
     expect(sql).toContain("q.content_version=1");
     expect(sql).toContain("vf.severity='error'");
     expect(sql).toContain("qd.kind='answer_ref'");
