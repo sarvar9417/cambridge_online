@@ -11,6 +11,8 @@ export type HodderChapterReadiness = {
   reason?: string;
 };
 
+export const HODDER_9618_CHAPTERS = Array.from({ length: 20 }, (_, index) => index + 1) as readonly number[];
+
 const locked9618 = new Map<number, string>([
   ...SOURCE_FILE_FIDELITY_MANIFESTS.map(manifest => [manifest.chapter, manifest.sourceFile] as const),
   ...CONNECTED_HODDER_SOURCE_MANIFESTS
@@ -48,5 +50,19 @@ export function canBuildSourceGroundedHodderChapter(
   return hodderChapterReadiness(syllabus, chapter).status === 'source-locked';
 }
 
-export const NEXT_9618_HODDER_CHAPTER = 3 as const;
-export const NEXT_9618_HODDER_CHAPTER_READINESS = hodderChapterReadiness('9618', NEXT_9618_HODDER_CHAPTER);
+/**
+ * Source-first implementation queue for 9618. It is derived from the central
+ * readiness gate rather than maintained by hand, so newly verified manifests
+ * automatically disappear from the unresolved queue without editing planner
+ * constants in multiple places.
+ */
+export const unresolved9618HodderChapters = (): number[] =>
+  HODDER_9618_CHAPTERS.filter(chapter => !canBuildSourceGroundedHodderChapter('9618', chapter));
+
+export const sourceLocked9618HodderChapters = (): number[] =>
+  HODDER_9618_CHAPTERS.filter(chapter => canBuildSourceGroundedHodderChapter('9618', chapter));
+
+export const NEXT_9618_HODDER_CHAPTER = unresolved9618HodderChapters()[0] ?? null;
+export const NEXT_9618_HODDER_CHAPTER_READINESS = NEXT_9618_HODDER_CHAPTER === null
+  ? null
+  : hodderChapterReadiness('9618', NEXT_9618_HODDER_CHAPTER);
