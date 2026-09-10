@@ -1,0 +1,47 @@
+import type { ConnectedHodderSourceManifest } from './connected-hodder-source-manifest';
+
+/**
+ * Exact Chapter 4 lock for the same 576-page connected Hodder coursebook used
+ * by Chapter 3. Physical page 123 maps to printed p.107.
+ * Fingerprints are SHA-256 of whitespace-normalized pdftotext output per page.
+ */
+export const CHAPTER_4_CONNECTED_HODDER_SOURCE_MANIFEST: ConnectedHodderSourceManifest = {
+  syllabus: '9618',
+  chapter: 4,
+  sourceFile: '9618 Coursebook Book (Hodder Education).pdf',
+  sourceFileSha256: '760c02dd059fa102b696a7424de2e298198535f06705c367d448e1391d799d95',
+  sourceFilePageCount: 576,
+  physicalPageRange: [123, 151],
+  printedPageRange: [107, 135],
+  pages: [
+    [107,'33ab0d6d64c504b57fefc3a5859c1ecef415c02c8fc8d8a714d00533b03bb2bb'],
+    [108,'a57331f480f53397c9b300cb4a3e9d559794b921740aa9597948a8a89525da4f'],
+    [109,'bb89771e001dc5ca2d06ed5d1a8734159f926e7dc0cfed9902e186c5e230f569'],
+    [110,'dc466044489e869713e05eb47b90f129e2459547f7ddfd804d2669670748c711'],
+    [111,'c87b2bbeec2b09e0740de77128674b722a0503311ad6af3808c12c5afc1d6714'],
+    [112,'43e212cc8d112a06e3f61bf932313b22218e16de020021dfeeb538e607a68e27'],
+    [113,'82b2c446e3094a65982012e9fadfecdaaace0386383a29e5ef3e4c4aeaf728d6'],
+    [114,'4e739a6667234a2d17166d4611122a7c5dcb3c35f73bf50360fcc813ad6741b3'],
+    [115,'a95b991c011a5e4dc1aad581d85073439695f9ff53ee9679adfb928ca649df7b'],
+    [116,'a4df605313d28908087681e8bb85d6dd37cb86f0b99050b9ea69d9b84caf409a'],
+    [117,'a8b4971c672b540607df7d1b216058cd5d34dfae1a1f1d028d0850412e3c2685'],
+    [118,'e65f68a8b3bc1afc559938ad42b21644cca5449174815d39eda205a6fbb9ac1a'],
+    [119,'a9f4b7072a191e009e1152fbf2da38c0e8e49246ab92130ea561a86506755fc4'],
+    [120,'10283ddf0da0587e111b98842df4f604db7a6ac297112521bdf051eeac7efafe'],
+    [121,'6855a624a2967ee53d66af8bbcdabf42529b911c4ba0360757d944850a56b744'],
+    [122,'499c5608b47c63746f6400a74e87e95bf97c1f11439d90af2b54105237a3ae97'],
+    [123,'383685e2b4e3b495f808ae329e7be97d793492b745b990979d201e675a08ea0c'],
+    [124,'cd0b30cfb5761c77993192cb8456a13cb6c738178ca75ed17cd08661a11db794'],
+    [125,'c9c350563dc79edbf3b3770c111bfa5e5c4a8b166eab1c098ff6c4a1252d2a52'],
+    [126,'a9802127160b91ad3dea41ad9294c2d5068f716d8c1caaddd05656321a28eeaa'],
+    [127,'4b578144ca7a91b4bb501eb7b269dfc1f9a68b600175b56ca28e75d348294422'],
+    [128,'510741fbd36724d2488e90e16393db7829a86cf73ded94156836b5c6e74fa5e5'],
+    [129,'84ccd6d0377e97b9283e26124b52e0c285463108b88839aaecebc4675fe055d3'],
+    [130,'31200403c89f7538271b7772061a5052cc2e6daa1591bc4947139cf7e36d8a40'],
+    [131,'d113eb7ec9f5149588bc6223e6727b536a58963405c8ca02e0f2e51600d65220'],
+    [132,'eebd2e07c0baae6189a706cea6c75169d1f4b61391ffbc980137da6d4f8be40e'],
+    [133,'c47c4b36b3ed2c0a2628030ede936c79f5d83e6b8078debd84ef5620a9f0a83b'],
+    [134,'011c4f9861c16bf93612d0917a03b63aa9816ce0bc4eba001aa66f776062e86a'],
+    [135,'0f0137997a4fcaffcc13fc02359fd7ecc8f3c2d1211d66123f2ed75929af03d6'],
+  ].map(([printedPage, sha256]) => ({ printedPage: printedPage as number, sha256: sha256 as string })),
+};
