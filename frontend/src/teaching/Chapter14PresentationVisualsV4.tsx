@@ -13,12 +13,15 @@ import './chapter14-presentation-master.css';
 import './chapter14-presentation-content-v2.css';
 import './chapter14-presentation-content-v2-eoc.css';
 import './chapter14-presentation-master-projector.css';
+import './chapter14-presentation-density-master.css';
 import './chapter13-presentation-hardening.css';
 
 /**
  * Stable presentation facade. Chapter 14 keeps the MASTER shell/design but its
  * V2 renderer is source-semantic: the visual itself explains the coursebook
  * process instead of merely decorating a title or repeating short labels.
+ * CONTENT-DENSITY MASTER is imported after projector CSS so unrevealed source
+ * structure stays visible and Space changes emphasis instead of hiding content.
  */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
   return hasChapter14PresentationMaster(beat)||hasChapter13PresentationVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
