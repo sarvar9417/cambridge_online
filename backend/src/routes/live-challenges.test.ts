@@ -11,6 +11,7 @@ import type { LiveChallengeTimingService } from '../services/live-challenge-timi
 import { createLiveChallengesRouter,withLiveChallengeScoreDistribution } from './live-challenges.js';
 
 const challengeId='11111111-1111-4111-8111-111111111111';
+const roundId='22222222-2222-4222-8222-222222222222';
 const teacher={id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher'};
 
 function appFor(options?:{
@@ -23,7 +24,7 @@ function appFor(options?:{
   const reconcile=options?.reconcile??vi.fn().mockResolvedValue({challengeId,changed:false,status:'QUESTION_ACTIVE',stateVersion:4});
   const events=options?.events??vi.fn().mockResolvedValue({events:[],nextCursor:'0'});
   const state=options?.state??vi.fn().mockResolvedValue({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:4});
-  const submit=options?.submit??vi.fn().mockResolvedValue({id:'answer-1'});
+  const submit=options?.submit??vi.fn().mockResolvedValue({id:'answer-1',idempotent:false});
   const scoreboard=options?.scoreboard??vi.fn().mockResolvedValue({
     challengeId,status:'ROUND_RESULTS',stateVersion:4,releasedRounds:1,maxMarks:4,classAveragePercentage:50,
     entries:[{rank:1,displayName:'Student 1',score:2,maxMarks:4,percentage:50}],
@@ -61,13 +62,13 @@ describe('Live Challenge route timing contract',()=>{
     expect(reconcile.mock.invocationCallOrder[0]).toBeLessThan(state.mock.invocationCallOrder[0]!);
   });
 
-  it('rejects an answer if deadline reconciliation closes the round',async()=>{
+  it('still delegates an answer retry after reconciliation closes the round so the service can return the immutable original',async()=>{
     const reconcile=vi.fn().mockResolvedValue({challengeId,changed:true,status:'ANSWERS_LOCKED',stateVersion:5,reason:'timer_expired'});
-    const submit=vi.fn();
+    const submit=vi.fn().mockResolvedValue({id:'answer-1',idempotent:true});
     const{app}=appFor({reconcile,submit});
-    const response=await request(app).post(`/live-challenges/${challengeId}/answer`).send({answerText:'Late answer',expectedStateVersion:4}).expect(409);
-    expect(response.body.error.code).toBe('live_challenge_answer_closed');
-    expect(submit).not.toHaveBeenCalled();
+    await request(app).post(`/live-challenges/${challengeId}/answer`).send({roundId,answerText:'Late answer',expectedStateVersion:4}).expect(200);
+    expect(reconcile).toHaveBeenCalledWith(teacher,challengeId);
+    expect(submit).toHaveBeenCalledWith(teacher,challengeId,roundId,'Late answer',4);
   });
 });
 
