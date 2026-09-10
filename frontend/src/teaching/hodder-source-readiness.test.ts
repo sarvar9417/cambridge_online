@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   canBuildSourceGroundedHodderChapter,
+  HODDER_0478_CHAPTERS,
   HODDER_9618_CHAPTERS,
   hodderChapterReadiness,
+  NEXT_HODDER_BUILD_TARGET,
+  NEXT_HODDER_BUILD_TARGET_READINESS,
   NEXT_9618_HODDER_CHAPTER,
   NEXT_9618_HODDER_CHAPTER_READINESS,
+  sourceLocked0478HodderChapters,
   sourceLocked9618HodderChapters,
+  unresolved0478HodderChapters,
   unresolved9618HodderChapters,
 } from './hodder-source-readiness';
 
@@ -25,6 +30,20 @@ describe('Hodder source readiness gate', () => {
     expect(unresolved9618HodderChapters()).toEqual([
       3, 4, 5, 6, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20,
     ]);
+  });
+
+  it('models the 0478 phase without allowing it to jump ahead of unresolved 9618 work', () => {
+    expect(HODDER_0478_CHAPTERS).toEqual(Array.from({ length: 10 }, (_, index) => index + 1));
+    expect(sourceLocked0478HodderChapters()).toEqual([]);
+    expect(unresolved0478HodderChapters()).toEqual(Array.from({ length: 10 }, (_, index) => index + 1));
+
+    expect(NEXT_HODDER_BUILD_TARGET).toEqual({ syllabus: '9618', chapter: 3 });
+    expect(NEXT_HODDER_BUILD_TARGET_READINESS).toEqual({
+      syllabus: '9618',
+      chapter: 3,
+      status: 'source-unresolved',
+      reason: 'Exact Hodder chapter source is not yet locked by a source-file fidelity manifest.',
+    });
   });
 
   it('keeps Chapter 3 first until an exact 9618 Hodder Chapter 3 source is verified', () => {
