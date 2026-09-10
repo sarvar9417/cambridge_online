@@ -55,7 +55,7 @@ describe('LiveChallengeService teacher builder',()=>{
     expect(query).not.toHaveBeenCalled();
   });
 
-  it('builds the eligible pool with QP/MS source, scheme, fidelity, dependency and asset gates',async()=>{
+  it('builds the eligible pool with QP/MS source, fidelity, target-LO, dependency and asset gates',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('from syllabi s')&&sql.includes('left join topics'))return{rowCount:1,rows:[taxonomyRow()]};
       if(sql.includes('from questions q'))return{rowCount:1,rows:[eligibleRow()]};
@@ -65,7 +65,9 @@ describe('LiveChallengeService teacher builder',()=>{
     const rows=await service.eligibleQuestions(teacher,{syllabusId,topicId,subtopicId});
     expect(rows).toEqual([expect.objectContaining({id:questionId,marks:2,answerKind:'text'})]);
     expect(rows[0]).not.toHaveProperty('syllabusCode');
-    const sql=String(query.mock.calls.find(([text])=>String(text).includes('from questions q'))?.[0]);
+    const questionCall=query.mock.calls.find(([text])=>String(text).includes('from questions q'))!;
+    const sql=String(questionCall[0]);
+    expect(questionCall[1]?.[3]).toBe(syllabusId);
     expect(sql).toContain("q.status='approved'");
     expect(sql).toContain("ms.status='approved'");
     expect(sql).toContain("join source_papers ms_sp on ms_sp.id=ms.source_paper_id and ms_sp.kind='MS'::paper_kind");
@@ -73,6 +75,10 @@ describe('LiveChallengeService teacher builder',()=>{
     expect(sql).toContain("lower(coalesce(ms_sp.sha256,'')) ~ '^[0-9a-f]{64}$'");
     expect(sql).toContain("'msSha256',lower(ms_sp.sha256)");
     expect(sql).toContain("q.content_version=1");
+    expect(sql).toContain('question_learning_objectives qlo');
+    expect(sql).toContain('learning_objective_compatibility compat');
+    expect(sql).toContain("compat.relation in('equivalent','subtopic_compatible')");
+    expect(sql).toContain('target_t.syllabus_id=$4::uuid');
     expect(sql).toContain("vf.severity='error'");
     expect(sql).toContain("qd.kind='answer_ref'");
     expect(sql).toContain("block->>'type'='asset'");
