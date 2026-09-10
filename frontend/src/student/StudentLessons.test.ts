@@ -9,8 +9,8 @@ import {
 } from './student-lesson-topic-model';
 
 describe('student Study Mode source catalog',()=>{
-  it('uses the same five source-backed chapter routes as Lesson Studio',()=>{
-    expect(STUDENT_STUDY_CHAPTERS.map((chapter)=>chapter.number)).toEqual([1,2,7,13,14]);
+  it('uses the same six source-backed chapter routes as Lesson Studio',()=>{
+    expect(STUDENT_STUDY_CHAPTERS.map((chapter)=>chapter.number)).toEqual([1,2,3,7,13,14]);
     for(const chapter of STUDENT_STUDY_CHAPTERS){
       expect(chapter.slides.length).toBeGreaterThan(0);
       expect(chapter.coverage.length).toBeGreaterThan(0);
