@@ -1,87 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_3 } from './lesson-content-chapter3';
 import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
-import { CHAPTER_3_DEVICE_SLIDES } from './lesson-content-chapter3-devices';
-import { CHAPTER_3_VISUAL_IDS } from './Chapter3PresentationVisuals';
-import { CHAPTER_3_DEVICE_VISUAL_IDS } from './Chapter3DeviceVisuals';
 import { LESSON_CHAPTERS, lessonChapter } from './lesson-content-source-complete';
-import { CHAPTER_3_CONNECTED_HODDER_SOURCE } from './connected-hodder-source-manifest';
+import {
+  CHAPTER_3_CONNECTED_HODDER_SOURCE_REJECTION,
+  CONNECTED_HODDER_SOURCE_MANIFESTS,
+} from './connected-hodder-source-manifest';
 import { canBuildSourceGroundedHodderChapter, hodderChapterReadiness } from './hodder-source-readiness';
 
-describe('Hodder Chapter 3 exact connected source lock', () => {
-  it('locks the connected full Hodder book and exact Chapter 3 page range', () => {
-    expect(CHAPTER_3_CONNECTED_HODDER_SOURCE).toMatchObject({
+describe('Hodder Chapter 3 connected-source quarantine', () => {
+  it('records the exact rejected export rather than trusting its full-book title', () => {
+    expect(CHAPTER_3_CONNECTED_HODDER_SOURCE_REJECTION).toEqual({
       syllabus: '9618',
-      chapter: 3,
+      requestedChapter: 3,
       sourceFile: '9618 Coursebook Book (Hodder Education).pdf',
-      sourceFileSha256: '760c02dd059fa102b696a7424de2e298198535f06705c367d448e1391d799d95',
-      sourceFilePageCount: 576,
-      physicalPageRange: [84, 122],
-      printedPageRange: [68, 106],
+      exportedSourceSha256: '3994b727128cea398b0622ff1ae83a643edf9a3a654cbd3d548b1c5f65c06126',
+      exportedPageCount: 97,
+      terminalPrintedPage: 64,
+      reason: 'Connected export ends in Chapter 2 and does not contain the requested Chapter 3 source pages.',
     });
-    expect(CHAPTER_3_CONNECTED_HODDER_SOURCE.pages).toHaveLength(39);
-    expect(CHAPTER_3_CONNECTED_HODDER_SOURCE.pages[0].printedPage).toBe(68);
-    expect(CHAPTER_3_CONNECTED_HODDER_SOURCE.pages.at(-1)?.printedPage).toBe(106);
-    expect(new Set(CHAPTER_3_CONNECTED_HODDER_SOURCE.pages.map(page => page.sha256)).size).toBe(39);
   });
 
-  it('activates Chapter 3 only from the exact 9618 Hodder lock', () => {
+  it('does not promote rejected connected evidence into a source fidelity manifest', () => {
+    expect(CONNECTED_HODDER_SOURCE_MANIFESTS).toEqual([]);
+    expect(CONNECTED_HODDER_SOURCE_MANIFESTS.some(manifest => manifest.chapter === 3)).toBe(false);
+  });
+
+  it('keeps Chapter 3 unresolved and out of the active source-backed route', () => {
     expect(hodderChapterReadiness('9618', 3)).toEqual({
       syllabus: '9618',
       chapter: 3,
-      status: 'source-locked',
-      sourceFile: '9618 Coursebook Book (Hodder Education).pdf',
+      status: 'source-unresolved',
+      reason: 'Exact Hodder chapter source is not yet locked by a source-file fidelity manifest.',
     });
-    expect(canBuildSourceGroundedHodderChapter('9618', 3)).toBe(true);
+    expect(canBuildSourceGroundedHodderChapter('9618', 3)).toBe(false);
     expect(canBuildSourceGroundedHodderChapter('0478', 3)).toBe(false);
-    expect(lessonChapter(3)?.number).toBe(3);
-    expect(LESSON_CHAPTERS.some(chapter => chapter.number === 3)).toBe(true);
+    expect(lessonChapter(3)).toBeNull();
+    expect(LESSON_CHAPTERS.some(chapter => chapter.number === 3)).toBe(false);
   });
 
-  it('preserves the earlier pp.68–83 scenes while extending exact source coverage through p.89', () => {
+  it('preserves the Chapter 3 draft as non-authoritative work until exact source arrives', () => {
     expect(CHAPTER_3.number).toBe(3);
-    expect(CHAPTER_3_VISUAL_IDS.length).toBeGreaterThanOrEqual(10);
-    expect(CHAPTER_3_DEVICE_SLIDES).toHaveLength(6);
-    expect(CHAPTER_3_DEVICE_VISUAL_IDS).toHaveLength(6);
+    expect(CHAPTER_3_FINAL.number).toBe(3);
     expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–106');
-    expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–89');
-    expect(CHAPTER_3_FINAL.coverage).toContain('inkjet printing');
-    expect(CHAPTER_3_FINAL.coverage).toContain('virtual headsets');
-    expect(CHAPTER_3_FINAL.coverage).toContain('monitoring versus control');
-    expect(CHAPTER_3_FINAL.coverage).toContain('Figure 3.22');
-  });
-
-  it('locks the p.78–83 source-specific scenes and terminology', () => {
-    const byId = Object.fromEntries(CHAPTER_3_DEVICE_SLIDES.map(slide => [slide.id, slide]));
-
-    expect(byId['h3-312-inkjet-printer'].sourcePages).toEqual([78]);
-    expect(byId['h3-312-inkjet-printer'].sourceElements).toEqual(expect.arrayContaining([
-      'Figure 3.10 An inkjet printer',
-      'Table 3.6 Sequence to print using a laser printer',
-      'thermal bubble',
-      'piezoelectric',
-      'printer buffer',
-      'interrupt',
-    ]));
-
-    expect(byId['h3-312-3d-printer'].sourceElements).toEqual(expect.arrayContaining([
-      'Figure 3.11 A 3D printer',
-      'Figure 3.12 Artificial bone framework',
-      'additive manufacturing',
-      'subtractive manufacturing',
-      'binder 3D printing',
-      '100 µm layers',
-    ]));
-
-    expect(byId['h3-312-speaker-dac'].sourceElements).toEqual(expect.arrayContaining(['DAC', 'amplifier', 'temporary electromagnet', 'speaker cone']));
-    expect(byId['h3-312-microphone-adc'].sourceElements).toEqual(expect.arrayContaining(['ADC', 'sound card', 'HUT example']));
-    expect(byId['h3-312-oled-touch'].sourceElements).toEqual(expect.arrayContaining(['RGB sub-pixels', '1680 × 1080', 'capacitive touch screen', 'resistive touch screen']));
-    expect(byId['h3-312-vr-headset'].sourceElements).toEqual(expect.arrayContaining(['110° field of view', '60–120 images per second', 'gyroscopic sensors', 'accelerometers', 'binaural sound']));
-  });
-
-  it('keeps all source-backed active chapters behind the central readiness gate', () => {
-    LESSON_CHAPTERS.forEach(chapter => {
-      expect(canBuildSourceGroundedHodderChapter('9618', chapter.number)).toBe(true);
-    });
   });
 });
