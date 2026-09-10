@@ -24,7 +24,7 @@ function InkjetPrinter({ reveal }: { reveal: number }) {
   const stages = [
     ['1–4', 'DRIVER + BUFFER', 'document → printer driver → availability check → printer buffer'],
     ['5', 'PAPER SENSOR', 'paper present? · paper-out / jam error returns to computer'],
-    ['6–7', 'PRINT + ADVANCE', 'head moves side to side → CMYK droplets → paper advances after each pass'],
+    ['6–7', 'PRINT + ADVANCE', 'head moves side to side → four ink colours sprayed in exact amounts → paper advances after each pass'],
     ['8–9', 'REPEAT / INTERRUPT', 'repeat while buffer has data → empty buffer interrupts processor for more data'],
   ] as const;
   return <div className="h3dv h3dv-inkjet" aria-label="Hodder Figure 3.10 and Table 3.6 inkjet printer reconstruction">
