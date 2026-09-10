@@ -13,6 +13,13 @@ function displayNameMode(settings:unknown):'first_name'|'full_name'|'anonymous'{
   return value==='full_name'||value==='anonymous'?value:'first_name';
 }
 
+function leaderboardMode(settings:unknown):'marks'|'marks_plus_small_speed_bonus'{
+  if(!settings||typeof settings!=='object'||Array.isArray(settings))return'marks';
+  return (settings as Record<string,unknown>).leaderboard_mode==='marks_plus_small_speed_bonus'
+    ?'marks_plus_small_speed_bonus'
+    :'marks';
+}
+
 export class LiveChallengeAnswerService{
   constructor(private readonly pool:Pool){}
 
@@ -68,29 +75,48 @@ export class LiveChallengeAnswerService{
     return {status:updated.rows[0].status,stateVersion:Number(updated.rows[0].state_version)};
   }
 
-  async submit(actor:Actor,id:string,answerText:string,expectedStateVersion?:number){
+  async submit(actor:Actor,id:string,roundId:string,answerText:string,expectedStateVersion?:number){
     this.student(actor);
     const text=answerText.trim();
     if(!text)throw new DomainError('live_challenge_answer_required',400);
     const client=await this.pool.connect();
     try{
       await client.query('begin');
-      const active=await client.query(
-        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,r.id round_id,r.started_at,
-           lcq.time_limit_seconds
+      const access=await client.query(
+        `select lc.id,lc.status::text status,lc.state_version,lc.settings_json,
+           r.id round_id,r.round_number,r.status::text round_status,r.started_at,lcq.time_limit_seconds,
+           (select max(x.round_number) from live_challenge_rounds x where x.challenge_id=lc.id) current_round_number,
+           a.id existing_answer_id,a.answer_text existing_answer_text,a.submitted_at existing_submitted_at,
+           a.locked_at existing_locked_at,a.submission_duration_ms existing_submission_duration_ms
          from live_challenges lc
          join classes c on c.id=lc.class_id and c.archived_at is null
          join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
          join live_challenge_participants p on p.challenge_id=lc.id and p.student_id=$2 and p.status='JOINED'
-         join live_challenge_rounds r on r.challenge_id=lc.id and r.status='QUESTION_ACTIVE'
+         join live_challenge_rounds r on r.challenge_id=lc.id and r.id=$3
          join live_challenge_questions lcq on lcq.id=r.challenge_question_id
-         where lc.id=$1 and lc.status='QUESTION_ACTIVE'
-         order by r.round_number desc limit 1
+         left join live_challenge_answers a on a.round_id=r.id and a.student_id=$2
+         where lc.id=$1
          for update of lc,r`,
-        [id,actor.id],
+        [id,actor.id,roundId],
       );
-      if(!active.rowCount)throw new DomainError('live_challenge_answer_closed',409);
-      const challenge=active.rows[0];
+      if(!access.rowCount)throw new DomainError('live_challenge_answer_closed',409);
+      const challenge=access.rows[0];
+
+      if(challenge.existing_answer_id){
+        if(String(challenge.existing_answer_text)!==text)throw new DomainError('live_challenge_answer_already_submitted',409);
+        await client.query('commit');
+        return {
+          id:challenge.existing_answer_id,challengeId:id,roundId:challenge.round_id,text:challenge.existing_answer_text,
+          submittedAt:challenge.existing_submitted_at,lockedAt:challenge.existing_locked_at,
+          submissionDurationMs:challenge.existing_submission_duration_ms==null?null:Number(challenge.existing_submission_duration_ms),
+          challengeStatus:challenge.status,stateVersion:Number(challenge.state_version),idempotent:true,
+        };
+      }
+
+      if(
+        challenge.status!=='QUESTION_ACTIVE'||challenge.round_status!=='QUESTION_ACTIVE'||
+        Number(challenge.round_number)!==Number(challenge.current_round_number)
+      )throw new DomainError('live_challenge_answer_closed',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
 
       let duration=Math.max(0,Date.now()-new Date(challenge.started_at).getTime());
@@ -112,11 +138,9 @@ export class LiveChallengeAnswerService{
       const inserted=await client.query(
         `insert into live_challenge_answers(round_id,student_id,answer_text,submission_duration_ms)
          values($1,$2,$3,$4)
-         on conflict(round_id,student_id) do nothing
          returning id,answer_text,submitted_at,locked_at,submission_duration_ms`,
         [challenge.round_id,actor.id,text,duration],
       );
-      if(!inserted.rowCount)throw new DomainError('live_challenge_answer_already_submitted',409);
       await client.query(
         `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
          values($1,$2,'answer.submitted',jsonb_build_object('roundId',$3::text,'durationMs',$4))`,
@@ -148,7 +172,7 @@ export class LiveChallengeAnswerService{
       return {
         id:row.id,challengeId:id,roundId:challenge.round_id,text:row.answer_text,
         submittedAt:row.submitted_at,lockedAt:locked?new Date().toISOString():row.locked_at,
-        submissionDurationMs:Number(row.submission_duration_ms),challengeStatus,stateVersion,
+        submissionDurationMs:Number(row.submission_duration_ms),challengeStatus,stateVersion,idempotent:false,
       };
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
@@ -272,7 +296,7 @@ export class LiveChallengeAnswerService{
          join live_challenge_questions lcq on lcq.id=r.challenge_question_id
          where r.challenge_id=$1 and r.status='ROUND_RESULTS'
        ), effective_answers as (
-         select a.round_id,a.student_id,
+         select a.round_id,a.student_id,a.submission_duration_ms,
            coalesce(
              (select so.new_score from live_challenge_score_overrides so where so.answer_id=a.id order by so.created_at desc limit 1),
              (select pm.awarded_marks
@@ -288,25 +312,47 @@ export class LiveChallengeAnswerService{
        select p.student_id,u.full_name,
          coalesce(sum(ea.effective_score),0)::numeric score,
          coalesce(sum(rr.max_marks_snapshot),0)::numeric max_marks,
+         coalesce(sum(ea.submission_duration_ms),0)::numeric total_duration_ms,
+         count(ea.round_id)::int answered_round_count,
          count(rr.id)::int released_round_count
        from live_challenge_participants p
        join users u on u.id=p.student_id
        cross join released_rounds rr
        left join effective_answers ea on ea.round_id=rr.id and ea.student_id=p.student_id
        where p.challenge_id=$1 and p.status='JOINED'
-       group by p.student_id,u.full_name
-       order by score desc,u.full_name asc`,
+       group by p.student_id,u.full_name`,
       [id],
     );
-    const mode=displayNameMode(access.rows[0].settings_json);
-    const entries=result.rows.map((row,index)=>{
+    const nameMode=displayNameMode(access.rows[0].settings_json);
+    const rankingMode=leaderboardMode(access.rows[0].settings_json);
+    const ranked=result.rows.map(row=>{
       const score=Number(row.score??0),maxMarks=Number(row.max_marks??0),fullName=String(row.full_name??'Student');
-      const displayName=mode==='anonymous'?`Student ${index+1}`:mode==='full_name'?fullName:(fullName.trim().split(/\s+/)[0]||'Student');
-      return {rank:index+1,displayName,score,maxMarks,percentage:maxMarks>0?Math.round(score/maxMarks*1000)/10:0};
+      const answeredRounds=Number(row.answered_round_count??0);
+      const averageResponseMs=answeredRounds>0?Math.round(Number(row.total_duration_ms??0)/answeredRounds):null;
+      return {fullName,score,maxMarks,percentage:maxMarks>0?Math.round(score/maxMarks*1000)/10:0,averageResponseMs};
+    }).sort((a,b)=>{
+      if(a.score!==b.score)return b.score-a.score;
+      if(rankingMode==='marks_plus_small_speed_bonus'){
+        const aTime=a.averageResponseMs??Number.POSITIVE_INFINITY;
+        const bTime=b.averageResponseMs??Number.POSITIVE_INFINITY;
+        if(aTime!==bTime)return aTime-bTime;
+      }
+      return a.fullName.localeCompare(b.fullName);
+    });
+    const entries=ranked.map((row,index)=>{
+      const displayName=nameMode==='anonymous'?`Student ${index+1}`:nameMode==='full_name'?row.fullName:(row.fullName.trim().split(/\s+/)[0]||'Student');
+      return {
+        rank:index+1,displayName,score:row.score,maxMarks:row.maxMarks,percentage:row.percentage,
+        averageResponseMs:rankingMode==='marks_plus_small_speed_bonus'?row.averageResponseMs:null,
+      };
     });
     const maxMarks=entries[0]?.maxMarks??0;
     const average=entries.length?Math.round(entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length*10)/10:0;
-    return {challengeId:id,status:access.rows[0].status,stateVersion:Number(access.rows[0].state_version),releasedRounds:Number(result.rows[0]?.released_round_count??0),maxMarks,classAveragePercentage:average,entries};
+    return {
+      challengeId:id,status:access.rows[0].status,stateVersion:Number(access.rows[0].state_version),
+      releasedRounds:Number(result.rows[0]?.released_round_count??0),maxMarks,classAveragePercentage:average,
+      leaderboardMode:rankingMode,entries,
+    };
   }
 
   async lock(actor:Actor,id:string,expectedStateVersion?:number){
