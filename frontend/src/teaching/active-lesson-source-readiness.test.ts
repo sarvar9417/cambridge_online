@@ -5,21 +5,17 @@ import { canBuildSourceGroundedHodderChapter } from './hodder-source-readiness';
 
 describe('active Hodder lesson source readiness', () => {
   it('exposes only 9618 chapters whose exact Hodder source is centrally locked', () => {
-    expect(LESSON_CHAPTERS.map(chapter => chapter.number)).toEqual([1, 2, 13, 14]);
-
-    LESSON_CHAPTERS.forEach(chapter => {
-      expect(canBuildSourceGroundedHodderChapter('9618', chapter.number)).toBe(true);
-    });
+    expect(LESSON_CHAPTERS.map(chapter => chapter.number)).toEqual([1, 2, 3, 13, 14]);
+    LESSON_CHAPTERS.forEach(chapter => expect(canBuildSourceGroundedHodderChapter('9618', chapter.number)).toBe(true));
   });
 
-  it('keeps the Chapter 3 draft quarantined from the source-backed route', () => {
+  it('activates Chapter 3 only after the exact full-book source is byte-locked', () => {
     expect(CHAPTER_3_FINAL.number).toBe(3);
-    expect(canBuildSourceGroundedHodderChapter('9618', CHAPTER_3_FINAL.number)).toBe(false);
-    expect(lessonChapter(3)).toBeNull();
+    expect(canBuildSourceGroundedHodderChapter('9618', 3)).toBe(true);
+    expect(lessonChapter(3)).toBe(CHAPTER_3_FINAL);
   });
 
-  it('cannot expose an unresolved candidate merely because lesson content exists', () => {
-    const activeNumbers = new Set(LESSON_CHAPTERS.map(chapter => chapter.number));
-    expect(activeNumbers.has(CHAPTER_3_FINAL.number)).toBe(false);
+  it('still rejects the same chapter number from a different syllabus', () => {
+    expect(canBuildSourceGroundedHodderChapter('0478', 3)).toBe(false);
   });
 });
