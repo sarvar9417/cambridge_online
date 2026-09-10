@@ -26,7 +26,7 @@ not a claim that it is the live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0163_chapter3_memory_lo_compatibility.sql",
+    "latest_migration": "0164_chapter3_past_paper_taxonomy_reconciliation.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
