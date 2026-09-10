@@ -15,7 +15,8 @@
 --   * peer assignments are same-round, carry the answer owner's id, require a
 --     currently joined marker and make self-marking impossible at database level;
 --   * score overrides can reference only an answer from that same round;
---   * teacher score changes are append-only audit rows rather than silent edits.
+--   * teacher score changes are append-only audit rows rather than silent edits;
+--   * public/PostgREST access fails closed; application access remains server-side.
 
 CREATE TYPE live_challenge_status AS ENUM (
   'DRAFT',
@@ -295,6 +296,60 @@ CREATE TABLE live_challenge_events (
 );
 CREATE INDEX live_challenge_events_challenge_idx
   ON live_challenge_events (challenge_id, id);
+
+-- The Express application is the authorization boundary. These tables contain
+-- join codes, student answers, anonymous peer-assignment relationships and
+-- mark-scheme snapshots, so direct public/PostgREST access must fail closed.
+ALTER TABLE public.live_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_rounds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_peer_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_peer_marks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_score_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_challenge_events ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE
+  public.live_challenges,
+  public.live_challenge_questions,
+  public.live_challenge_participants,
+  public.live_challenge_rounds,
+  public.live_challenge_answers,
+  public.live_challenge_peer_assignments,
+  public.live_challenge_peer_marks,
+  public.live_challenge_score_overrides,
+  public.live_challenge_events
+FROM PUBLIC, anon, authenticated;
+
+REVOKE ALL ON SEQUENCE public.live_challenge_events_id_seq
+FROM PUBLIC, anon, authenticated;
+
+-- Supabase service_role is the only PostgREST role allowed to bypass RLS for
+-- trusted server-side operations. Direct PostgreSQL owner connections are
+-- unaffected by these grants/revokes.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  public.live_challenges,
+  public.live_challenge_questions,
+  public.live_challenge_participants,
+  public.live_challenge_rounds,
+  public.live_challenge_answers,
+  public.live_challenge_peer_assignments,
+  public.live_challenge_peer_marks,
+  public.live_challenge_score_overrides,
+  public.live_challenge_events
+TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.live_challenge_events_id_seq TO service_role;
+
+REVOKE ALL ON FUNCTION public.guard_live_challenge_answer_membership_v1()
+FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.guard_locked_live_challenge_answer_v1()
+FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.guard_live_challenge_peer_marker_membership_v1()
+FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.guard_live_challenge_answer_membership_v1() TO service_role;
+GRANT EXECUTE ON FUNCTION public.guard_locked_live_challenge_answer_v1() TO service_role;
+GRANT EXECUTE ON FUNCTION public.guard_live_challenge_peer_marker_membership_v1() TO service_role;
 
 COMMENT ON COLUMN live_challenge_questions.mark_scheme_snapshot IS
   'Approved mark-scheme snapshot for audit/replay. Student APIs must withhold this field until PEER_MARKING or later.';
