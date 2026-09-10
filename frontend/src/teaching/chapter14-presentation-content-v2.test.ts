@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
-import source from './Chapter14PresentationContentV2.tsx?raw';
-import facade from './Chapter14PresentationVisualsV4.tsx?raw';
-import css from './chapter14-presentation-content-v2.css?raw';
+
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const source=fixture('Chapter14PresentationContentV2.tsx');
+const facade=fixture('Chapter14PresentationVisualsV4.tsx');
+const css=fixture('chapter14-presentation-content-v2.css');
 
 describe('Chapter 14 source-semantic presentation V2',()=>{
   it('renders every non-EOC Chapter 14 scene with authored semantic content',()=>{
