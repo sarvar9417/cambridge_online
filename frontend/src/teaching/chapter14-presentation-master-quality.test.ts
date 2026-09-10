@@ -1,11 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14_MASTER_PRINTED_PAGES, CHAPTER_14_MASTER_SOURCE_MAP, chapter14SourcePagesCovered } from './chapter14-master-source-map';
 import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import facadeSource from './Chapter14PresentationVisualsV4.tsx?raw';
-import projectorCss from './chapter14-presentation-master-projector.css?raw';
 import navigationSource from './presentation-scroll-controller.ts?raw';
 
+const projectorCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-master-projector.css'),'utf8');
 const TERMS_141=['Protocol','HTTP','Packet','Segment','FTP','SMTP','Push protocol','Binary file','MIME','POP','IMAP','TCP','Pull protocol','Host-to-host','Host','BitTorrent','Peer','Metadata','Pieces','Tracker','Swarm','Seed','Leech','Lurker'];
 
 describe('Chapter 14 PRESENTATION MASTER quality gates',()=>{
@@ -52,7 +54,7 @@ describe('Chapter 14 PRESENTATION MASTER quality gates',()=>{
     expect(navigationSource).not.toContain("event.key==='ArrowRight'");
     expect(navigationSource).not.toContain("event.key==='ArrowLeft'");
     expect(navigationSource).not.toContain('.lx-present-nav button');
-    expect(navigationSource).toContain("event.key==='PageDown'");
-    expect(navigationSource).toContain("event.key==='PageUp'");
+    expect(navigationSource).toContain("event.key!=='PageDown'&&event.key!=='PageUp'");
+    expect(navigationSource).toContain("event.key==='PageDown'?1:-1");
   });
 });

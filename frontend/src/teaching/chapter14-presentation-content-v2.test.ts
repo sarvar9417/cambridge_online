@@ -1,10 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import source from './Chapter14PresentationContentV2.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
-import css from './chapter14-presentation-content-v2.css?raw';
 import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
+
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-content-v2.css'),'utf8');
 
 describe('Chapter 14 source-semantic presentation base layer',()=>{
   it('keeps the legacy semantic layer for its authored scenes while the final runtime owns all 43 live scenes',()=>{

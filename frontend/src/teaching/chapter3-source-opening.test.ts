@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_3 } from './lesson-content-chapter3';
 import { CHAPTER_3_SOURCE_FILE_MANIFEST } from './chapter3-source-file-fidelity';
 import { CHAPTER_3_VISUAL_IDS, hasChapter3PresentationVisual } from './Chapter3PresentationVisuals';
 import { lessonChapter } from './lesson-content-source-complete';
+
+const sourceFile=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
 
 describe('Hodder Chapter 3 opening source batch', () => {
   it('locks the exact connected coursebook Chapter 3 range', () => {
@@ -40,7 +43,7 @@ describe('Hodder Chapter 3 opening source batch', () => {
   it('provides source-specific projector visuals through the shared facade', () => {
     expect(CHAPTER_3_VISUAL_IDS).toHaveLength(6);
     CHAPTER_3_VISUAL_IDS.forEach(slideId => expect(hasChapter3PresentationVisual({ slideId } as never)).toBe(true));
-    const facade = readFileSync(new URL('./Chapter14PresentationVisualsV4.tsx', import.meta.url), 'utf8');
+    const facade = sourceFile('Chapter14PresentationVisualsV4.tsx');
     expect(facade).toContain('Chapter3PresentationVisual');
     expect(facade).toContain('hasChapter3PresentationVisual');
   });
