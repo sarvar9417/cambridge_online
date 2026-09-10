@@ -8,7 +8,7 @@ import {
 
 describe('Hodder source readiness gate', () => {
   it('allows only chapters backed by an exact source-file fidelity manifest', () => {
-    [1, 2, 3, 7, 13, 14].forEach(chapter => {
+    [1, 2, 7, 13, 14].forEach(chapter => {
       const readiness = hodderChapterReadiness('9618', chapter);
       expect(readiness.status).toBe('source-locked');
       expect(readiness.sourceFile).toMatch(/\.pdf$/i);
@@ -16,14 +16,15 @@ describe('Hodder source readiness gate', () => {
     });
   });
 
-  it('recognises Chapter 3 after locking the exact connected Hodder coursebook range', () => {
+  it('keeps Chapter 3 unresolved until an exact 9618 Hodder Chapter 3 source is verified', () => {
     expect(NEXT_9618_HODDER_CHAPTER).toBe(3);
     expect(NEXT_9618_HODDER_CHAPTER_READINESS).toEqual({
       syllabus: '9618',
       chapter: 3,
-      status: 'source-locked',
-      sourceFile: '9618 Coursebook Book (Hodder Education).pdf',
+      status: 'source-unresolved',
+      reason: 'Exact Hodder chapter source is not yet locked by a source-file fidelity manifest.',
     });
+    expect(canBuildSourceGroundedHodderChapter('9618', 3)).toBe(false);
   });
 
   it('does not treat a different syllabus or an unmanifested chapter as interchangeable source truth', () => {
