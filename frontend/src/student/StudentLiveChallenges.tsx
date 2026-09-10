@@ -74,10 +74,10 @@ export function StudentLiveChallenges(){
   const openState=async(item:LiveChallengeStudentCard)=>openChallenge(item.id);
   const refreshState=async()=>{if(!active)return;setLoadingState(true);setError('');try{await loadState(active.id);await refresh()}catch(cause){setError(cause instanceof Error?cause.message:'Live Challenge yangilanmadi.')}finally{setLoadingState(false)}};
   const submitAnswer=async(text:string)=>{
-    if(!active)return;
+    if(!active?.round?.id)return;
     setLoadingState(true);setError('');setNotice('');
     try{
-      await api(`/live-challenges/${active.id}/answer`,{method:'POST',body:JSON.stringify({answerText:text,expectedStateVersion:active.stateVersion})});
+      await api(`/live-challenges/${active.id}/answer`,{method:'POST',body:JSON.stringify({roundId:active.round.id,answerText:text,expectedStateVersion:active.stateVersion})});
       await loadState(active.id);await refresh();setNotice('Javob topshirildi. Bu round uchun javob endi o‘zgarmaydi.');
     }catch(cause){setError(cause instanceof Error?cause.message:'Javob yuborilmadi.')}finally{setLoadingState(false)}
   };
