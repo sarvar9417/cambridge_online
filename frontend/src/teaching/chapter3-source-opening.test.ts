@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_3 } from './lesson-content-chapter3';
+import { CHAPTER_3_FINAL, CHAPTER_3_MEMORY_CHECKPOINT } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_3_SOURCE_FILE_MANIFEST } from './chapter3-source-file-fidelity';
 import { CHAPTER_3_VISUAL_IDS, hasChapter3PresentationVisual } from './Chapter3PresentationVisuals';
 import { lessonChapter } from './lesson-content-source-complete';
@@ -17,11 +18,15 @@ describe('Hodder Chapter 3 opening source batch', () => {
     expect(new Set(CHAPTER_3_SOURCE_FILE_MANIFEST.pages.map(page => page.sha256)).size).toBe(39);
   });
 
-  it('routes the source-grounded opening slides as Chapter 3', () => {
-    expect(lessonChapter(3)).toBe(CHAPTER_3);
+  it('routes the source-grounded opening slides and memory checkpoint as Chapter 3', () => {
+    expect(lessonChapter(3)).toBe(CHAPTER_3_FINAL);
     expect(CHAPTER_3.slides.map(slide => slide.id)).toEqual(expect.arrayContaining([
       'h3-overview', 'h3-311-memory-storage', 'h3-311-memory-map', 'h3-311-primary-tree',
       'h3-311-dram-sram', 'h3-311-ram-rom', 'h3-311-embedded', 'h3-311-hdd', 'h3-311-ssd',
+    ]));
+    expect(CHAPTER_3_FINAL.slides.map(slide => slide.id)).toEqual(expect.arrayContaining([
+      ...CHAPTER_3.slides.map(slide => slide.id),
+      CHAPTER_3_MEMORY_CHECKPOINT.id,
     ]));
   });
 
@@ -38,6 +43,15 @@ describe('Hodder Chapter 3 opening source batch', () => {
       'Extension Activity 3B',
       '25 ns', '60 ns', '15 microseconds', 'PROM', 'EPROM', 'EEPROM', 'NAND', 'NOR',
     ].forEach(marker => expect(corpus).toContain(marker));
+  });
+
+  it('keeps Cambridge practice limited to the source-backed memory-family objectives', () => {
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.learningObjectiveCodes).toEqual(['3.1.5', '3.1.6', '3.1.7']);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointSyllabusCode).toBe('9618');
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointYearFrom).toBe(2021);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointYearTo).toBe(2026);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.sourcePages).toEqual([70, 71, 72]);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.examPractice).toBe(true);
   });
 
   it('provides source-specific projector visuals through the shared facade', () => {
