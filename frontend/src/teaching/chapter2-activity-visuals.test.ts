@@ -16,7 +16,10 @@ describe('Chapter 2 Hodder activity projector scenes',()=>{
   it('locks source-specific task markers without inventing answers',()=>{
     for(const marker of ['20 EMPLOYEES','FINANCIAL CONSULTANTS','20-FLOOR BUILDING','GEO · MEO · LEO','35 800 km','5000–12 000 km','500–2500 km','PEER-TO-PEER','f = c / λ','3 × 10⁸ m/s','three LANs','Figure 2.20','NAT','line 09','line 03'])expect(visual).toContain(marker);
   });
+  it('preserves the Hodder electromagnetic wavelength-frequency scale used by Extension Activity 2B',()=>{
+    for(const marker of ['radio waves','10²','3 MHz','microwaves','10⁻¹','3 GHz','infrared','10⁻³','300 GHz','visible light','10⁻⁵','30 THz','ultra violet','10⁻⁷','3 PHz','X-rays','10⁻⁹','300 PHz','gamma rays','10⁻¹¹','30 EHz'])expect(visual).toContain(marker);
+  });
   it('keeps projector and narrow-screen layouts responsive',()=>{
-    for(const marker of ['h2av-taskgrid','h2av-orbits','h2av-gateway','h2av-loop','h2av-codecompare','@media(max-height:820px)','@media(max-width:900px)'])expect(css).toContain(marker);
+    for(const marker of ['h2av-taskgrid','h2av-orbits','h2av-emscale','h2av-gateway','h2av-loop','h2av-codecompare','@media(max-height:820px)','@media(max-width:900px)'])expect(css).toContain(marker);
   });
 });
