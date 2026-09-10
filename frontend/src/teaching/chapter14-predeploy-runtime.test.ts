@@ -9,6 +9,8 @@ import lessonContent from './LessonContent.tsx?raw';
 import lessonExperience from './LessonExperience.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
+import emailRenderer from './Chapter14EmailSourceComplete.tsx?raw';
+import emailCss from './chapter14-email-source-complete.css?raw';
 import scrollController from './presentation-scroll-controller.ts?raw';
 
 describe('Chapter 14 pre-deploy runtime contract',()=>{
@@ -37,13 +39,28 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
   });
 
   it('uses visual reveal counts rather than generic storyboard lengths',()=>{
+    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-email']).toBe(6);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-ethernet']).toBe(5);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-check']).toBe(6);
+    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-packet-control']).toBe(2);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-header']).toBe(4);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-header-extended']).toBe(5);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-practice']).toBe(4);
     expect(lessonContent).toContain('chapter14PresentationRevealCount(beat)');
     expect(lessonContent).toContain('if(chapter14Count!==null)return chapter14Count');
+  });
+
+  it('reconstructs Figures 14.3 and 14.4 without splitting protocols into false network nodes',()=>{
+    expect(facade).toContain("beat.id==='h14p-141-email'");
+    expect(facade).toContain('Chapter14EmailSourceComplete');
+    for(const marker of [
+      'FIGURES 14.3 + 14.4','SMTP','send email','EMAIL SERVER','POP / IMAP','receive email',
+      "CLIENT'S ISP EMAIL SERVER",'uses SMTP/MIME protocol','INTERNET',"RECIPIENT'S DOMAIN EMAIL SERVER",'uses POP/IMAP protocol','RECIPIENT',
+      'text-based, connection-based and a push protocol','media/binary attachments','pull protocols','does not keep server and client synchronised','keeps them synchronised',
+    ])expect(emailRenderer).toContain(marker);
+    expect(emailCss).toContain('opacity:.42');
+    expect(emailCss).toContain('.h14email-source>main');
+    expect(emailCss).toContain('@media(max-height:768px)');
   });
 
   it('lets the Chapter 14 renderer own projector content without duplicate generic blocks',()=>{
