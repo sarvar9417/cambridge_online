@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import source from './Chapter14PresentationContentV4.tsx?raw';
-import densityCss from './chapter14-presentation-density-master.css?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+
+const densityCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-density-master.css'),'utf8');
 
 describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
   it('keeps all six Table 14.4 packet-switching benefit/drawback pairs in the live authored layer',()=>{
