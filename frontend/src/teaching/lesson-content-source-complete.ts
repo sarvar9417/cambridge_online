@@ -1,6 +1,6 @@
 import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from './lesson-content-source-file-fidelity';
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
-import { CHAPTER_3 } from './lesson-content-chapter3';
+import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
 import { buildPdfFirst9618Chapter } from './pdf-first-section-lessons';
 
@@ -18,13 +18,14 @@ export type {
  *
  * Chapters 1 and 13 retain the historical PDF-first source-hardening pipeline.
  * Chapters 2 and 14 are complete source-grounded presentation chapters.
- * Chapter 3 is now sourced from the exact connected Hodder full coursebook;
- * only the implemented source range is exposed, with later pages left unresolved.
+ * Chapter 3 is sourced from the exact connected Hodder full coursebook; only
+ * the implemented source range is exposed, with a source-backed Cambridge
+ * checkpoint layered onto the covered primary-memory objectives.
  */
 export const LESSON_CHAPTERS = [
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_1),
   CHAPTER_2_FINAL,
-  CHAPTER_3,
+  CHAPTER_3_FINAL,
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_13),
   CHAPTER_14_FINAL,
 ];
