@@ -97,6 +97,14 @@ describe('lesson checkpoint route',()=>{
     expect(list).toHaveBeenCalledWith(['1.1.3'],2021,2026,'9618');
   });
 
+  it('accepts chapter-sized learning-objective scopes beyond the old topic limit',async()=>{
+    const chapterCodes=Array.from({length:25},(_,index)=>`chapter-lo-${index+1}`);
+    const list=vi.fn().mockResolvedValue({data:[],learningObjectiveCodes:chapterCodes,syllabusCode:'9618',yearFrom:2021,yearTo:2026});
+    const app=express();app.use((req,_res,next)=>{req.actor=teacher;next()});app.use('/lesson-checkpoints',createLessonCheckpointsRouter({list} as unknown as LessonCheckpointService));
+    await request(app).get('/lesson-checkpoints').query({loCodes:chapterCodes}).expect(200);
+    expect(list).toHaveBeenCalledWith(chapterCodes,2021,2026,'9618');
+  });
+
   it('allows students to read complete approved source context while redacting internal LO metadata',async()=>{
     const list=vi.fn().mockResolvedValue({
       data:[{
