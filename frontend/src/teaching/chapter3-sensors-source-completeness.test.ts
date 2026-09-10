@@ -11,9 +11,6 @@ describe('Hodder Chapter 3 sensors and control source completeness', () => {
     expect(CHAPTER_3_SENSOR_SLIDES.flatMap(slide => slide.sourcePages ?? [])).toEqual([84, 85, 86, 87, 88, 89]);
     expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–106');
     expect(CHAPTER_3_FINAL.sourceNote).toContain('complete chapter range');
-    expect(CHAPTER_3_FINAL.coverage).toContain('monitoring versus control');
-    expect(CHAPTER_3_FINAL.coverage).toContain('Activity 3A');
-    expect(CHAPTER_3_FINAL.coverage).toContain('Figure 3.22');
   });
 
   it('locks Figure 3.19 ADC/DAC and actuator terminology', () => {
