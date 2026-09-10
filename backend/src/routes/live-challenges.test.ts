@@ -20,6 +20,7 @@ function appFor(options?:{
   state?:ReturnType<typeof vi.fn>;
   submit?:ReturnType<typeof vi.fn>;
   scoreboard?:ReturnType<typeof vi.fn>;
+  analyticsSummary?:ReturnType<typeof vi.fn>;
 }){
   const reconcile=options?.reconcile??vi.fn().mockResolvedValue({challengeId,changed:false,status:'QUESTION_ACTIVE',stateVersion:4});
   const events=options?.events??vi.fn().mockResolvedValue({events:[],nextCursor:'0'});
@@ -29,6 +30,10 @@ function appFor(options?:{
     challengeId,status:'ROUND_RESULTS',stateVersion:4,releasedRounds:1,maxMarks:4,classAveragePercentage:50,
     entries:[{rank:1,displayName:'Student 1',score:2,maxMarks:4,percentage:50}],
   });
+  const analyticsSummary=options?.analyticsSummary??vi.fn().mockResolvedValue({
+    challengeId,status:'ROUND_RESULTS',stateVersion:4,releasedRounds:1,classAveragePercentage:50,
+    questions:[],learningObjectives:[],strongestLearningObjectives:[],weakestLearningObjectives:[],missedMarkPoints:[],
+  });
   const app=express();
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=teacher;next()});
@@ -37,14 +42,14 @@ function appFor(options?:{
     {state} as unknown as LiveChallengeSessionService,
     {events,submit,scoreboard} as unknown as LiveChallengeAnswerService,
     {} as unknown as LiveChallengePeerMarkingService,
-    {} as unknown as LiveChallengeModerationService,
+    {analyticsSummary} as unknown as LiveChallengeModerationService,
     {reconcile} as unknown as LiveChallengeTimingService,
   ));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error instanceof DomainError){res.status(error.status).json({error:{code:error.code}});return}
     res.status(500).json({error:{code:'internal_error'}});
   });
-  return{app,reconcile,events,state,submit,scoreboard};
+  return{app,reconcile,events,state,submit,scoreboard,analyticsSummary};
 }
 
 describe('Live Challenge route timing contract',()=>{
@@ -105,5 +110,18 @@ describe('Live Challenge results insight contract',()=>{
       {band:'75-100',count:1},
     ]);
     expect(scoreboard).toHaveBeenCalledWith(teacher,challengeId);
+  });
+
+  it('routes teacher learning analytics without adding board or timing side effects',async()=>{
+    const analyticsSummary=vi.fn().mockResolvedValue({
+      challengeId,status:'FINISHED',stateVersion:22,releasedRounds:3,classAveragePercentage:68.4,
+      questions:[{roundId:'r1',roundNumber:1,questionRef:'Q1',averagePercentage:70}],
+      learningObjectives:[],strongestLearningObjectives:[],weakestLearningObjectives:[],missedMarkPoints:[],
+    });
+    const{app,reconcile}=appFor({analyticsSummary});
+    const response=await request(app).get(`/live-challenges/${challengeId}/analytics`).expect(200);
+    expect(response.body.data).toMatchObject({challengeId,status:'FINISHED',releasedRounds:3,classAveragePercentage:68.4});
+    expect(analyticsSummary).toHaveBeenCalledWith(teacher,challengeId);
+    expect(reconcile).not.toHaveBeenCalled();
   });
 });
