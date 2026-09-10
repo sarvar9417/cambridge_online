@@ -5,6 +5,7 @@ import v2 from './Chapter14PresentationContentV2.tsx?raw';
 import v3 from './Chapter14PresentationContentV3.tsx?raw';
 import v4 from './Chapter14PresentationContentV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
+import emailRenderer from './Chapter14EmailSourceComplete.tsx?raw';
 import eoc from './Chapter14EndOfChapterMaster.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
@@ -15,7 +16,7 @@ const deepCss=sourceFile('chapter14-presentation-deep-audit.css');
 const networkCss=sourceFile('chapter14-presentation-deep-network.css');
 const contentCss=sourceFile('chapter14-presentation-deep-content.css');
 const finalCss=sourceFile('chapter14-presentation-final-source.css');
-const live=[v2,v3,v4,finalRenderer,eoc].join('\n');
+const live=[v2,v3,v4,finalRenderer,emailRenderer,eoc].join('\n');
 const css=[deepCss,networkCss,contentCss,finalCss].join('\n');
 
 describe('Chapter 14 final page-by-page live source audit',()=>{
