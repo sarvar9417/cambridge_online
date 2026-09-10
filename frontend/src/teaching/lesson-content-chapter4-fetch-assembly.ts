@@ -1,10 +1,14 @@
 import type { HodderLessonSlide } from './lesson-content-hodder-types';
 
-const source = (page: number, elements: string[] = []) => ({
-  sourcePages: [page],
-  sourceLabel: `Hodder Chapter 4 · p.${page}`,
-  sourceElements: [`Hodder p.${page}`, ...elements],
-});
+const source = (pageOrPages: number | number[], elements: string[] = []) => {
+  const pages = Array.isArray(pageOrPages) ? pageOrPages : [pageOrPages];
+  const label = pages.length === 1 ? `p.${pages[0]}` : `pp.${pages[0]}–${pages[pages.length - 1]}`;
+  return {
+    sourcePages: pages,
+    sourceLabel: `Hodder Chapter 4 · ${label}`,
+    sourceElements: [...pages.map(page => `Hodder p.${page}`), ...elements],
+  };
+};
 
 export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
   {
@@ -51,7 +55,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     },
     visual: 'types',
     accent: 'cyan',
-    ...source(115, ['Table 4.2 Pros and cons of the USB system', 'High-definition multimedia interface (HDMI)', 'Video Graphics Array (VGA)', 'Table 4.3 Pros and cons of HDMI and VGA']),
+    ...source([115, 116], ['Table 4.2 Pros and cons of the USB system', 'High-definition multimedia interface (HDMI)', 'Video Graphics Array (VGA)', 'Table 4.3 Pros and cons of HDMI and VGA']),
   },
   {
     id: 'h4-416-fetch-cycle',
@@ -75,7 +79,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     }],
     visual: 'types',
     accent: 'emerald',
-    ...source(116, ['4.1.6 Fetch-execute cycle', 'Figure 4.5 How the fetch-execute cycle is carried out in the Von Neumann computer model']),
+    ...source([116, 117], ['4.1.6 Fetch-execute cycle', 'Figure 4.5 How the fetch-execute cycle is carried out in the Von Neumann computer model']),
   },
   {
     id: 'h4-416-rtn',
@@ -103,7 +107,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     },
     visual: 'types',
     accent: 'indigo',
-    ...source(117, ['Register Transfer Notation (RTN)', 'MAR ← [PC]', 'PC ← [PC] + 1', 'MDR ← [[MAR]]', 'CIR ← [MDR]']),
+    ...source([117, 118], ['Register Transfer Notation (RTN)', 'MAR ← [PC]', 'PC ← [PC] + 1', 'MDR ← [[MAR]]', 'CIR ← [MDR]']),
   },
   {
     id: 'h4-416-interrupt-cycle',
@@ -176,7 +180,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     },
     visual: 'types',
     accent: 'indigo',
-    ...source(120, ['Activity 4A', 'HDMI', 'VGA', 'fetch-execute cycle', 'register transfer notation']),
+    ...source([119, 120], ['Activity 4A', 'HDMI', 'VGA', 'fetch-execute cycle', 'register transfer notation']),
   },
   {
     id: 'h4-42-prior-keyterms',
@@ -197,7 +201,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
       },
       {
         kind: 'callout',
-        tone: 'tip',
+        tone: 'info',
         title: 'Key terms introduced on p.121',
         text: 'machine code · instruction · assembly language · opcode · operand · source code · assembler · instruction set · object code · addressing modes · absolute/direct · indirect · indexed · immediate · relative · symbolic',
       },
@@ -232,7 +236,7 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     ],
     visual: 'types',
     accent: 'emerald',
-    ...source(122, ['4.2.1 Assembly language and machine code', 'Opcode', 'Operand', 'LDD Total', 'ADD 20', 'STO Total']),
+    ...source([121, 122], ['4.2.1 Assembly language and machine code', 'Opcode', 'Operand', 'LDD Total', 'ADD 20', 'STO Total']),
   },
   {
     id: 'h4-422-two-pass-assembler',
@@ -263,6 +267,6 @@ export const CHAPTER_4_FETCH_ASSEMBLY_SLIDES: HodderLessonSlide[] = [
     },
     visual: 'types',
     accent: 'rose',
-    ...source(123, ['4.2.2 Stages of assembly', 'Pass 1', 'Pass 2', 'symbol table', 'forward reference', 'Notfound', 'Found']),
+    ...source([122, 123], ['4.2.2 Stages of assembly', 'Pass 1', 'Pass 2', 'symbol table', 'forward reference', 'Notfound', 'Found']),
   },
 ];
