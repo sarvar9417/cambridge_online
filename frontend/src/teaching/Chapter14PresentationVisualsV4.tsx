@@ -1,6 +1,6 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
 import { hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
-import { Chapter14PresentationContentV2 } from './Chapter14PresentationContentV2';
+import { Chapter14PresentationContentV3 } from './Chapter14PresentationContentV3';
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter2PresentationVisual, hasChapter2PresentationVisual } from './Chapter2PresentationVisuals';
@@ -14,14 +14,15 @@ import './chapter14-presentation-content-v2.css';
 import './chapter14-presentation-content-v2-eoc.css';
 import './chapter14-presentation-master-projector.css';
 import './chapter14-presentation-density-master.css';
+import './chapter14-presentation-source-complete.css';
 import './chapter13-presentation-hardening.css';
 
 /**
- * Stable presentation facade. Chapter 14 keeps the MASTER shell/design but its
- * V2 renderer is source-semantic: the visual itself explains the coursebook
- * process instead of merely decorating a title or repeating short labels.
- * CONTENT-DENSITY MASTER is imported after projector CSS so unrevealed source
- * structure stays visible and Space changes emphasis instead of hiding content.
+ * Stable presentation facade. Chapter 14 uses the MASTER shell/design and the
+ * source-complete V3 renderer. V3 keeps the semantic V2 diagrams, adds the
+ * source-significant details that were previously stranded in study/fidelity
+ * content, restores both prior-knowledge checkpoints, and reproduces Table 14.5
+ * without substituting non-source comparison rows.
  */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
   return hasChapter14PresentationMaster(beat)||hasChapter13PresentationVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
@@ -36,6 +37,6 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter2PresentationVisual(beat))return <Chapter2PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
-  if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
+  if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentV3 beat={beat} reveal={reveal}/>;
   return null;
 }
