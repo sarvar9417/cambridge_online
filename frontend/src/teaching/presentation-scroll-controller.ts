@@ -6,6 +6,7 @@ function currentStage(){
   return document.querySelector<HTMLElement>('.lesson-experience.lx-present .lx-present-stage');
 }
 
+
 /**
  * Scroll safety only. Navigation belongs exclusively to LessonExperience React
  * handlers so Oldingi/Keyingi and ArrowLeft/ArrowRight can never be swallowed

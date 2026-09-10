@@ -463,7 +463,7 @@ const slides: HodderLessonSlide[] = [
     lead: 'The coursebook describes WiFi and Bluetooth as the main wireless technologies.',
     keyTerms: [
       { term: 'WiFi', definition: 'Wireless networking technology using IEEE 802.11 standards.' },
-      { term: 'Bluetooth', definition: 'Short-range wireless technology for connecting personal devices (IEEE 802.15).' },
+      { term: 'Bluetooth', definition: 'Wireless connectivity that uses radio waves in the 2.45 GHz frequency band.' },
       { term: 'WAP', definition: 'Wireless Access Point: a device that allows wireless devices to connect to a wired network.' },
     ],
     richBlocks: [
@@ -471,21 +471,21 @@ const slides: HodderLessonSlide[] = [
         kind: 'table',
         table: {
           caption: 'Wired vs wireless comparison',
-          headers: ['Feature', 'Wired', 'Wireless'],
+          headers: ['Feature', 'Wired networking', 'Wireless networking'],
           rows: [
-            ['Speed', 'Faster (up to 10 Gbps)', 'Slower (typically 100-600 Mbps)'],
-            ['Security', 'More secure (physical access needed)', 'Less secure (signals can be intercepted)'],
-            ['Mobility', 'Limited (cable required)', 'High (devices can move freely)'],
-            ['Cost', 'Higher initial cabling cost', 'Lower initial cost, higher per-device cost'],
-            ['Reliability', 'More reliable, less interference', 'Subject to interference and signal loss'],
-            ['Installation', 'More complex (cable routing)', 'Easier (no cables needed)'],
+            ['Expansion', 'Cables must be bought and installed', 'Easier to expand because cables are unnecessary'],
+            ['Mobility', 'Devices must remain close enough for their cable connection', 'Devices are mobile while they remain within WAP range'],
+            ['Reliability', 'More reliable and stable; no wireless interference or dead spots', 'External interference, thick walls and signal drop-out can affect the connection'],
+            ['Security', 'Cable traffic is harder to intercept', 'Radio and microwave signals are easier to intercept, so encryption such as WEP or WPA2 is essential'],
+            ['Data transfer', 'Rates tend to be faster', 'Rates are slower, although improving'],
+            ['Cost and safety', 'Usually cheaper overall, but wires can cause trips, overheating or accidental disconnection', 'No network cabling is needed'],
           ],
         },
       },
     ],
     visual: 'networking',
     accent: 'cyan',
-    ...source(41, ['2.1.5 Wi-Fi and Bluetooth']),
+    ...source([41, 45], ['2.1.5 Wi-Fi and Bluetooth', 'Wireless and wired networking comparison']),
   },
 
   {
@@ -522,9 +522,7 @@ const slides: HodderLessonSlide[] = [
         rows: [
           ['Requires WAPs (wireless access points)', 'No WAPs needed'],
           ['All data transferred via WAP and hub/switch', 'Devices communicate directly'],
-          ['All devices must use same security', 'Security configured per device'],
-          ['Centralised management', 'Decentralised management'],
-          ['More common in offices and homes', 'Used for temporary connections'],
+          ['All devices connect to the WAP and use the same security and authentication techniques', 'Devices interface with each other directly'],
         ],
       },
     ],
@@ -543,9 +541,7 @@ const slides: HodderLessonSlide[] = [
     bullets: [
       'A softmodem uses software that runs on the host computer.',
       'The computer\'s processor and RAM replace the hardware of a conventional modem.',
-      'This reduces cost but uses more computer resources.',
-      'Softmodems are common in budget computers.',
-      'They connect to public infrastructure (cable, telephone, fibre-optics or satellite).',
+      'Only minimal modem hardware is required.',
     ],
     visual: 'networking',
     accent: 'indigo',
@@ -611,22 +607,21 @@ const slides: HodderLessonSlide[] = [
     lead: 'The coursebook describes hubs as simple devices that send all incoming data to every port.',
     bullets: [
       'A hub broadcasts incoming data to all connected ports.',
-      'It does not filter or forward data based on addresses.',
-      'All devices receive all data, creating unnecessary traffic.',
-      'Hubs are inexpensive but inefficient for large networks.',
-      'They operate at the Physical layer (Layer 1) of the OSI model.',
+      'Every computer on the network receives each data packet.',
+      'This method is insecure and wastes network bandwidth.',
+      'Hubs can be wired or wireless devices.',
     ],
     richBlocks: [
       {
         kind: 'callout',
         tone: 'warning',
         title: 'Hub limitation',
-        text: 'Hubs create network congestion because they broadcast all data to all devices. Switches are preferred for larger networks because they only forward data to the intended recipient.',
+        text: 'A hub sends every packet to every computer. A switch checks the destination address and sends the packet only to the appropriate computer or computers.',
       },
     ],
     visual: 'networking',
     accent: 'amber',
-    ...source(46, ['Hub description']),
+    ...source([45, 46], ['Hub description', 'Figure 2.13']),
   },
 
   {
@@ -635,18 +630,18 @@ const slides: HodderLessonSlide[] = [
     subtopicCode: '2.1',
     eyebrow: '2.1.6 · SWITCHES',
     title: 'Switches forward data only to the intended recipient',
-    lead: 'The coursebook explains that switches are intelligent devices that learn MAC addresses.',
+    lead: 'The coursebook explains that a switch checks each packet and uses its destination address to select the appropriate recipient.',
     bullets: [
-      'A switch learns the MAC addresses of devices connected to each port.',
-      'When a frame arrives, it looks up the destination MAC in its address table.',
-      'If the destination is known, the frame is forwarded only to that port.',
-      'If the destination is unknown, the switch floods the frame to all ports except the source.',
-      'Switches operate at the Data Link layer (Layer 2) of the OSI model.',
-      'They reduce network congestion and improve security.',
+      'Like a hub, a switch connects devices or computers to form a LAN.',
+      'The switch checks the received data packet and works out its destination address or addresses.',
+      'It sends the packet only to the appropriate computer or computers.',
+      'Packets carry the source MAC address and the MAC address of each intended recipient.',
+      'This makes distribution more secure and efficient than using a hub.',
+      'Switches can be wired or wireless devices.',
     ],
     visual: 'networking',
     accent: 'emerald',
-    ...source(47, ['Switch description']),
+    ...source(46, ['Switch description', 'Figure 2.14']),
   },
 
   {
@@ -657,15 +652,14 @@ const slides: HodderLessonSlide[] = [
     title: 'Bridges connect LANs that use the same protocol',
     lead: 'The coursebook describes bridges as devices that connect one LAN to another LAN using the same protocol.',
     bullets: [
-      'A bridge connects two network segments that use the same protocol.',
-      'It filters traffic by examining MAC addresses.',
-      'Bridges reduce collisions by separating network segments.',
-      'They operate at the Data Link layer (Layer 2) of the OSI model.',
+      'A bridge connects one LAN to another LAN that uses the same communication protocol.',
+      'It can connect different parts of a LAN so that they function as a single LAN.',
+      'Interconnecting LANs with a bridge avoids sending every packet to every possible destination and reduces unnecessary traffic.',
       'Bridges can be wired or wireless devices.',
     ],
     visual: 'networking',
     accent: 'cyan',
-    ...source(48, ['Bridge description']),
+    ...source(47, ['Bridge description', 'Figure 2.15']),
   },
 
   {
@@ -681,7 +675,6 @@ const slides: HodderLessonSlide[] = [
       'Routers can perform protocol translation (e.g., Ethernet to wireless).',
       'They can move data between networks.',
       'Routers calculate the best route to a network destination address.',
-      'They operate at the Network layer (Layer 3) of the OSI model.',
     ],
     richBlocks: [
       {
@@ -698,7 +691,7 @@ const slides: HodderLessonSlide[] = [
     ],
     visual: 'networking',
     accent: 'emerald',
-    ...source(48, ['Router description']),
+    ...source([47, 48], ['Router description', 'Figure 2.16']),
   },
 
   {

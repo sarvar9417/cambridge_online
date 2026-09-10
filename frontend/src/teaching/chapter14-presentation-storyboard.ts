@@ -136,7 +136,7 @@ const PROTOCOLS:LessonPresentationBeat[] = [
       ['Supports routing between networks.','Follows the local network protocol and hardware requirements.'],
     ]},
   }),
-  scene('h14p-141-ethernet','h14-ethernet-frame','visual','FIGURE 14.5 · ETHERNET FRAME','Build the Ethernet frame one field at a time',[334],{
+  scene('h14p-141-ethernet','h14-ethernet-frame','visual','FIGURE 14.5 · ETHERNET FRAME','Build the Ethernet frame one field at a time',[334,335],{
     teacherNote:'Keep this screen on the frame anatomy only; explain broadcast/type-length/checksum/VLAN on the next screen.',
     richBlock:{kind:'figure',figure:{kind:'bitfield',title:'Typical Ethernet frame',fields:[
       {label:'Pre-amble',bits:'8 bytes'},
@@ -367,6 +367,10 @@ const SWITCHING:LessonPresentationBeat[] = [
       'Name the four TCP/IP layers in sending order.',
       'State the roles of HTTP, SMTP and IMAP.',
       'Explain one key difference between circuit and packet switching.',
+    ],
+  }),
+  scene('h14p-142-recap-routing','h14-recap','recap','CHAPTER 14 · FINAL RETRIEVAL','Complete the packet-routing explanation without notes.',[345],{
+    bullets:[
       'Explain why a sequence number is required.',
       'Explain what happens when a hop number reaches zero before the destination.',
     ],

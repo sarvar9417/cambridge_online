@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe,expect,it } from 'vitest';
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_2_INTERNET_VISUAL_SLIDES,hasChapter2InternetVisual } from './Chapter2InternetVisuals';
 import { presentationBeatsForSlide } from './lesson-experience-model';
 
-const visual=readFileSync(new URL('./Chapter2InternetVisuals.tsx',import.meta.url),'utf8');
-const css=readFileSync(new URL('./chapter2-internet-visuals.css',import.meta.url),'utf8');
+const visual=readFileSync(resolve(process.cwd(),'src','teaching','Chapter2InternetVisuals.tsx'),'utf8');
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter2-internet-visuals.css'),'utf8');
 
 describe('Chapter 2 Hodder internet visual-first batch',()=>{
   it('routes 25 source scenes through the projector renderer',()=>{
@@ -27,6 +28,11 @@ describe('Chapter 2 Hodder internet visual-first batch',()=>{
 
   it('ships projector-specific responsive visual structures',()=>{
     for(const marker of ['h2iv-csma','h2iv-stream','h2iv-orbits','h2iv-ipv4','h2iv-cidr','h2iv-ipv6','h2iv-url','h2iv-dns','@media(max-height:820px)','@media(max-width:900px)'])
+      expect(css).toContain(marker);
+  });
+
+  it('animates Ethernet delivery, collision handling and streaming buffers accessibly',()=>{
+    for(const marker of ['@keyframes h2ivDataTravel','@keyframes h2ivCsmaPacket','@keyframes h2ivBufferLevel','prefers-reduced-motion'])
       expect(css).toContain(marker);
   });
 });

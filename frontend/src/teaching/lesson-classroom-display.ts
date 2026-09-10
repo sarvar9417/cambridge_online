@@ -31,7 +31,7 @@ function ensureClassroomChrome(studio: HTMLElement) {
     cue = document.createElement('div');
     cue.className = 'lesson-classroom-scroll-cue';
     cue.setAttribute('aria-hidden', 'true');
-    cue.textContent = '↓ Davomi bor';
+    cue.textContent = '↓ More below';
     studio.append(cue);
   }
 
@@ -63,7 +63,7 @@ export function installLessonClassroomDisplay() {
     studio.classList.toggle('classroom-scrollable', scrollable);
     studio.classList.toggle('classroom-at-end', atEnd);
     meter.querySelector<HTMLElement>('span')?.style.setProperty('height', `${progress}%`);
-    const cueLabel = atEnd ? 'Page tugadi' : '↓ Davomi bor';
+    const cueLabel = atEnd ? 'End of page' : '↓ More below';
     if (cue.textContent !== cueLabel) cue.textContent = cueLabel;
   };
 

@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { HODDER_CHAPTER_13 } from './lesson-content-hodder-ch13';
 import { CHAPTER_13_SOURCE_VISUAL_SLIDES, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 
-const visualSource=readFileSync(new URL('./Chapter13PresentationVisuals.tsx',import.meta.url),'utf8');
-const hodderSource=readFileSync(new URL('./lesson-content-hodder-ch13.ts',import.meta.url),'utf8');
-const hardeningSource=readFileSync(new URL('./chapter13-presentation-hardening.css',import.meta.url),'utf8');
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const visualSource=fixture('Chapter13PresentationVisuals.tsx');
+const hodderSource=fixture('lesson-content-hodder-ch13.ts');
+const hardeningSource=fixture('chapter13-presentation-hardening.css');
 
 describe('Chapter 13 source-grounded projector presentation',()=>{
   it('covers every non-checkpoint Chapter 13 teaching slide with the professional renderer',()=>{

@@ -1,19 +1,21 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { hasChapter14PresentationVisualV4 } from './Chapter14PresentationVisualsV4';
 import { CHAPTER_14_V6_VISUAL_IDS } from './Chapter14PresentationVisualsV6';
 
-const visualSource=readFileSync(new URL('./Chapter14PresentationVisualsV6.tsx',import.meta.url),'utf8');
-const completenessSource=readFileSync(new URL('./Chapter14PresentationCompleteness.tsx',import.meta.url),'utf8');
-const q4Source=readFileSync(new URL('./Chapter14PracticeQ4.tsx',import.meta.url),'utf8');
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const visualSource=fixture('Chapter14PresentationVisualsV6.tsx');
+const completenessSource=fixture('Chapter14PresentationCompleteness.tsx');
+const q4Source=fixture('Chapter14PracticeQ4.tsx');
 
 describe('Chapter 14 complete visual-first presentation',()=>{
   it('gives every storyboard scene a dedicated V6 visual',()=>{
     const scenes=chapter14PresentationStoryboard('overview')??[];
-    expect(scenes).toHaveLength(42);
-    expect(CHAPTER_14_V6_VISUAL_IDS).toHaveLength(42);
-    expect(new Set(CHAPTER_14_V6_VISUAL_IDS).size).toBe(42);
+    expect(scenes).toHaveLength(43);
+    expect(CHAPTER_14_V6_VISUAL_IDS).toHaveLength(43);
+    expect(new Set(CHAPTER_14_V6_VISUAL_IDS).size).toBe(43);
     expect(scenes.map(scene=>scene.id)).toEqual([...CHAPTER_14_V6_VISUAL_IDS]);
     expect(scenes.every(hasChapter14PresentationVisualV4)).toBe(true);
   });

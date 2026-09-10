@@ -9,8 +9,8 @@ const ids=(topic:string)=>chapter14PresentationStoryboard(topic)?.map(scene=>sce
 describe('Chapter 14 presentation v3 storyboard',()=>{
   it('splits source-rich Chapter 14 into projector-sized teaching moves',()=>{
     const all=ids('overview');
-    expect(CHAPTER_14_PRESENTATION_SCENE_COUNT).toBe(42);
-    expect(all).toHaveLength(42);
+    expect(CHAPTER_14_PRESENTATION_SCENE_COUNT).toBe(43);
+    expect(all).toHaveLength(43);
     expect(new Set(all).size).toBe(all.length);
   });
 

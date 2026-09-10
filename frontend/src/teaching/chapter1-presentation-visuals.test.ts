@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { HODDER_CHAPTER_1 } from './lesson-content-hodder-ch1';
 import { CHAPTER_1_SOURCE_VISUAL_SLIDES, hasChapter1PresentationVisual } from './Chapter1PresentationVisuals';
 import { presentationBeatsForSlide } from './lesson-experience-model';
 
-const visualSource=readFileSync(new URL('./Chapter1PresentationVisuals.tsx',import.meta.url),'utf8');
-const cssSource=readFileSync(new URL('./chapter1-presentation-visuals.css',import.meta.url),'utf8');
-const mediaCss=readFileSync(new URL('./chapter1-presentation-media.css',import.meta.url),'utf8');
-const source=readFileSync(new URL('./lesson-content-hodder-ch1.ts',import.meta.url),'utf8');
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const visualSource=fixture('Chapter1PresentationVisuals.tsx');
+const cssSource=fixture('chapter1-presentation-visuals.css');
+const mediaCss=fixture('chapter1-presentation-media.css');
+const source=fixture('lesson-content-hodder-ch1.ts');
 
 describe('Chapter 1 Hodder source-first projector presentation',()=>{
   it('routes every authored Chapter 1 teaching slide through a source-specific visual',()=>{

@@ -86,6 +86,13 @@ describe('Chapter 2 Communication source-complete lesson',()=>{
     for(const unsupported of [
       'ARPAnet in 1957', 'Ring topology', 'SaaS', 'IaaS', 'PaaS',
       '22 dB/km', '80km for fibre', '1,600 times per second',
+      'IEEE 802.15', 'up to 10 Gbps', '100-600 Mbps',
+      'Softmodems are common in budget computers',
+      'Hubs are inexpensive but inefficient for large networks',
+      'switch floods the frame to all ports except the source',
+      'They operate at the Physical layer (Layer 1)',
+      'Switches operate at the Data Link layer (Layer 2)',
+      'They operate at the Network layer (Layer 3)',
     ]) expect(chapterText,unsupported).not.toContain(unsupported);
   });
 });

@@ -18,14 +18,22 @@ export function hasChapter2DeviceVisual(beat:LessonPresentationBeat){
   return CHAPTER_2_DEVICE_VISUAL_SLIDES.includes(beat.slideId as never);
 }
 
-const Node=({children,kind='device'}:{children:React.ReactNode;kind?:string})=><span className={`h2dv-node h2dv-node--${kind}`}>{children}</span>;
-const Arrow=({label}:{label?:string})=><span className="h2dv-arrow"><i>→</i>{label?<small>{label}</small>:null}</span>;
+function DeviceArt({kind,label}:{kind:string;label:string}){
+  const wireless=kind==='router'||kind==='modem';
+  return <svg className={`h2dv-art h2dv-art--${kind}`} viewBox="0 0 180 104" role="img" aria-label={`${label} device illustration`}>
+    {wireless?<><path className="antenna" d="M35 34 25 7M145 34l10-27"/><circle className="signal-ring ring-a" cx="90" cy="16" r="10"/><circle className="signal-ring ring-b" cx="90" cy="16" r="22"/></>:null}
+    {kind==='device'?<><rect className="screen" x="43" y="17" width="94" height="58" rx="7"/><path d="M75 88h30M90 75v13"/></>:<><rect className="chassis" x="24" y="34" width="132" height="49" rx="10"/><path className="chassis-top" d="M35 34 52 23h78l15 11"/>{[0,1,2,3,4].map(index=><rect className="port" key={index} x={42+index*21} y="58" width="13" height="9" rx="2"/>)}<circle className="status" cx="139" cy="48" r="3"/></>}
+    {kind==='nic'?<><path className="board" d="M34 22h105v55H34z"/><path d="M49 77v12h11V77m12 0v12h11V77m12 0v12h11V77"/></>:null}
+  </svg>;
+}
+const Node=({children,kind='device'}:{children:React.ReactNode;kind?:string})=><span className={`h2dv-node h2dv-node--${kind}`}><DeviceArt kind={kind} label={String(children)}/>{children}</span>;
+const Arrow=({label}:{label?:string})=><span className="h2dv-arrow"><i>→</i><b className="h2dv-moving-packet">DATA</b>{label?<small>{label}</small>:null}</span>;
 
 function Softmodem(){return <div className="h2dv-softmodem">
-  <section><small>HOST COMPUTER</small><strong>CPU + RAM</strong><p>software performs modem processing</p></section>
+  <section><DeviceArt kind="device" label="host computer"/><small>HOST COMPUTER</small><strong>CPU + RAM</strong><p>software performs modem processing</p></section>
   <Arrow label="minimal hardware"/>
   <section className="accent"><small>SOFTMODEM</small><strong>software modem</strong><p>uses host resources instead of dedicated modem hardware</p></section>
-  <footer>lower hardware cost ↔ greater use of the computer's own processing resources</footer>
+  <footer>minimal hardware · host processor and RAM replace conventional modem hardware</footer>
 </div>}
 
 function Repeater(){return <div className="h2dv-repeater">
@@ -44,7 +52,7 @@ function Hub(){return <div className="h2dv-hub">
 function Switch(){return <div className="h2dv-switch">
   <section className="h2dv-mac-table"><strong>MAC ADDRESS TABLE</strong><div><span>port 1</span><code>AA:…</code></div><div><span>port 2</span><code>BB:…</code></div><div><span>port 3</span><code>CC:…</code></div></section>
   <div className="h2dv-switch-flow"><Node>frame</Node><Arrow label="read destination MAC"/><Node kind="switch">SWITCH</Node><Arrow label="matching port only"/><Node>recipient</Node></div>
-  <footer>known destination → one port · unknown destination → flood to other ports</footer>
+  <footer>the packet carries source and recipient MAC addresses · the intended destination receives the data</footer>
 </div>}
 
 function Bridge(){return <div className="h2dv-bridge">
@@ -68,16 +76,16 @@ function Router(){return <div className="h2dv-router">
 function Gateway(){return <div className="h2dv-gateway">
   <section><small>LAN A</small><strong>PROTOCOL A</strong><Node>devices</Node></section>
   <Arrow/>
-  <section className="gate"><small>NETWORK ENTRANCE / EXIT</small><strong>GATEWAY</strong><p>converts data packets from one protocol to another</p></section>
+  <section className="gate"><DeviceArt kind="gateway" label="gateway"/><small>NETWORK ENTRANCE / EXIT</small><strong>GATEWAY</strong><p>converts data packets from one protocol to another</p></section>
   <Arrow/>
   <section><small>LAN B</small><strong>PROTOCOL B</strong><Node>devices</Node></section>
   <footer>used when communication crosses a network boundary; can also act as router, firewall or server</footer>
 </div>}
 
 function RouterGatewayCompare(){return <div className="h2dv-compare">
-  <section><small>ROUTER</small><strong>forward between networks</strong><p>reads incoming packets and chooses where to forward them</p><p>joins networks such as LAN → WAN</p></section>
+  <section><DeviceArt kind="router" label="router"/><small>ROUTER</small><strong>forward between networks</strong><p>reads incoming packets and chooses where to forward them</p><p>joins networks such as LAN → WAN</p></section>
   <div className="versus">VS</div>
-  <section><small>GATEWAY</small><strong>translate between protocols</strong><p>acts as an entrance/exit point</p><p>connects dissimilar LANs and converts packet protocols</p></section>
+  <section><DeviceArt kind="gateway" label="gateway"/><small>GATEWAY</small><strong>translate between protocols</strong><p>acts as an entrance/exit point</p><p>connects dissimilar LANs and converts packet protocols</p></section>
 </div>}
 
 function Modem(){return <div className="h2dv-modem">
@@ -88,8 +96,8 @@ function Modem(){return <div className="h2dv-modem">
 </div>}
 
 function Nic(){return <div className="h2dv-nic">
-  <section><small>NETWORK INTERFACE CARD</small><strong>NIC</strong><p>connects a device to a network/internet</p><code>MAC address generated at manufacture</code></section>
-  <section className="wireless"><small>WIRELESS NIC / CONTROLLER</small><strong>WNIC</strong><p>antenna communicates via microwaves</p><code>USB plug-in or internal integrated circuit</code></section>
+  <section><DeviceArt kind="nic" label="network interface card"/><small>NETWORK INTERFACE CARD</small><strong>NIC</strong><p>connects a device to a network/internet</p><code>MAC address generated at manufacture</code></section>
+  <section className="wireless"><DeviceArt kind="router" label="wireless network interface card"/><small>WIRELESS NIC / CONTROLLER</small><strong>WNIC</strong><p>antenna communicates via microwaves</p><code>USB plug-in or internal integrated circuit</code></section>
   <footer>both provide the device's network interface; WNIC adds wireless radio communication</footer>
 </div>}
 

@@ -10,6 +10,6 @@ describe('Chapter 14 presentation entry', () => {
     expect(storyboard).not.toBeNull();
     expect(storyboard).toHaveLength(CHAPTER_14_PRESENTATION_SCENE_COUNT);
     expect(storyboard?.[0]?.id).toBe('h14p-141-hook');
-    expect(storyboard?.at(-1)?.id).toBe('h14p-142-recap');
+    expect(storyboard?.at(-1)?.id).toBe('h14p-142-recap-routing');
   });
 });

@@ -144,7 +144,7 @@ export function studentFacingSlide<T extends LessonSlide>(slide:T):T{
 export function lessonPurpose(slide:LessonSlide){
   if(slide.examPractice)return 'CAMBRIDGE PRACTICE';
   if((slide as { emphasisBoard?:boolean }).emphasisBoard)return 'KEY TERMS BOARD';
-  if((slide as { essentialTerms?:boolean }).essentialTerms)return 'ZARUR ATAMALAR';
+  if((slide as { essentialTerms?:boolean }).essentialTerms)return 'ESSENTIAL VOCABULARY';
   if(/recap|review|summary/i.test(`${slide.section} ${slide.title}`))return 'RECAP';
   if(slide.activity)return 'YOUR TURN';
   if(slide.example)return 'WORKED EXAMPLE';

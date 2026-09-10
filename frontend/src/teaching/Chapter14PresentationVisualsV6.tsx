@@ -282,14 +282,13 @@ function Practice({reveal}:{reveal:number}){
   return <div className="h14v6-practice">{qs.map(([q,note],i)=><section className={cls(shown(reveal,i+1))} key={q}><strong>{q}</strong><p>{note}</p><span>ATTEMPT → CHECK → IMPROVE</span></section>)}</div>;
 }
 
-function Recap({reveal}:{reveal:number}){
-  const items=['TCP/IP sending order','HTTP · SMTP · IMAP purposes','Circuit vs packet switching','Sequence number purpose','Hop number reaches zero'];
+function Recap({items,reveal}:{items:string[];reveal:number}){
   return <div className="h14v6-recap"><div className="core"><span>CHAPTER 14</span><strong>COMMUNICATION + INTERNET TECHNOLOGIES</strong></div>{items.map((x,i)=><section className={cls(shown(reveal,i+1))} key={x}><span>{i+1}</span><p>{x}</p></section>)}</div>;
 }
 
 const ALL_IDS=[
   'h14p-141-hook','h14p-141-objectives','h14p-141-protocol','h14p-141-stack','h14p-141-units','h14p-141-protocol-map','h14p-141-ftp-detail','h14p-141-http','h14p-141-email','h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link','h14p-141-ethernet','h14p-141-ethernet-detail','h14p-141-wireless','h14p-141-bittorrent','h14p-141-bittorrent-terms','h14p-141-check',
-  'h14p-142-hook','h14p-142-objectives','h14p-142-circuit-stages','h14p-142-circuit-route','h14p-142-circuit-failure','h14p-142-packet-basics','h14p-142-packet-route','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons','h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-header','h14p-142-header-extended','h14p-142-routing','h14p-142-routing-fields','h14p-142-web-page','h14p-142-exam','h14p-142-activity14a','h14p-142-practice','h14p-142-recap',
+  'h14p-142-hook','h14p-142-objectives','h14p-142-circuit-stages','h14p-142-circuit-route','h14p-142-circuit-failure','h14p-142-packet-basics','h14p-142-packet-route','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons','h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-header','h14p-142-header-extended','h14p-142-routing','h14p-142-routing-fields','h14p-142-web-page','h14p-142-exam','h14p-142-activity14a','h14p-142-practice','h14p-142-recap','h14p-142-recap-routing',
 ] as const;
 const ids=new Set<string>(ALL_IDS);
 
@@ -339,7 +338,8 @@ export function Chapter14PresentationVisualV6({beat,reveal}:{beat:LessonPresenta
     case 'h14p-142-exam':return <ExamCheck reveal={reveal}/>;
     case 'h14p-142-activity14a':return <Activity14A reveal={reveal}/>;
     case 'h14p-142-practice':return <Practice reveal={reveal}/>;
-    case 'h14p-142-recap':return <Recap reveal={reveal}/>;
+    case 'h14p-142-recap':
+    case 'h14p-142-recap-routing':return <Recap items={beat.bullets??[]} reveal={reveal}/>;
     default:return null;
   }
 }

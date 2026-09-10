@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const css=readFileSync(new URL('./chapter14-presentation-professional.css',import.meta.url),'utf8');
-const main=readFileSync(new URL('../main.tsx',import.meta.url),'utf8');
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-professional.css'),'utf8');
+const main=readFileSync(resolve(process.cwd(),'src','main.tsx'),'utf8');
 
 describe('Chapter 14 professional projector design',()=>{
   it('loads the professional layer after legacy presentation styles',()=>{

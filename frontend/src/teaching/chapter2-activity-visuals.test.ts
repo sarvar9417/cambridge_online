@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe,expect,it } from 'vitest';
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_2_ACTIVITY_VISUAL_IDS,hasChapter2ActivityVisual } from './Chapter2ActivityVisuals';
 import { presentationBeatsForSlide } from './lesson-experience-model';
-const visual=readFileSync(new URL('./Chapter2ActivityVisuals.tsx',import.meta.url),'utf8');
-const css=readFileSync(new URL('./chapter2-activity-visuals.css',import.meta.url),'utf8');
+const visual=readFileSync(resolve(process.cwd(),'src','teaching','Chapter2ActivityVisuals.tsx'),'utf8');
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter2-activity-visuals.css'),'utf8');
 describe('Chapter 2 Hodder activity projector scenes',()=>{
   it('routes all three activities and six extension activities through custom visuals',()=>{
     expect(CHAPTER_2_ACTIVITY_VISUAL_IDS).toHaveLength(9);
