@@ -3,7 +3,7 @@
 -- past-paper questions. The 2026 corpus can match the current targets directly.
 --
 -- This migration is intentionally narrow: only the three objectives explicitly
--- covered by the implemented Hodder pp.70-72 memory-family batch are mapped.
+-- covered by the implemented Hodder pp.70-74 memory-family evidence are mapped.
 
 WITH curated(target_code,source_code,relation,rationale) AS (
   VALUES
