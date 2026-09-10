@@ -1,4 +1,5 @@
 import { SOURCE_FILE_FIDELITY_MANIFESTS } from './source-file-fidelity-manifest';
+import { CONNECTED_HODDER_SOURCE_MANIFESTS } from './connected-hodder-source-manifest';
 
 export type HodderSourceReadiness = 'source-locked' | 'source-unresolved';
 
@@ -10,23 +11,25 @@ export type HodderChapterReadiness = {
   reason?: string;
 };
 
-const locked9618 = new Map(
-  SOURCE_FILE_FIDELITY_MANIFESTS.map(
-    manifest => [manifest.chapter, manifest.sourceFile] as const,
-  ),
-);
+const locked9618 = new Map<number, string>([
+  ...SOURCE_FILE_FIDELITY_MANIFESTS.map(manifest => [manifest.chapter, manifest.sourceFile] as const),
+  ...CONNECTED_HODDER_SOURCE_MANIFESTS
+    .filter(manifest => manifest.syllabus === '9618')
+    .map(manifest => [manifest.chapter, manifest.sourceFile] as const),
+]);
 
 /**
  * A chapter may only be source-grounded when the exact Hodder source has a
  * fidelity manifest. A syllabus/workbook match or a different Hodder title is
- * not sufficient evidence for a 9618 coursebook chapter.
+ * not sufficient evidence for a 9618 coursebook chapter. Full connected books
+ * are accepted only through an exact file hash plus chapter-page fingerprints.
  */
 export function hodderChapterReadiness(
   syllabus: '9618' | '0478',
   chapter: number,
 ): HodderChapterReadiness {
   if (syllabus === '9618') {
-    const sourceFile = locked9618.get(chapter as never);
+    const sourceFile = locked9618.get(chapter);
     if (sourceFile) return { syllabus, chapter, status: 'source-locked', sourceFile };
   }
 
