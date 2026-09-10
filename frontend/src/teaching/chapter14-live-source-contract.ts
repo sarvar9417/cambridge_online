@@ -27,7 +27,7 @@ export const CHAPTER_14_LIVE_SOURCE_CONTRACT:Chapter14LiveSourceContractItem[]=[
   {pages:[342],source:'Figure 14.10 router decision + Example 14.1 video conferencing',scenes:['h14p-142-routing','h14p-142-video-example']},
   {pages:[343],source:'Example 14.2 web-page packet switching + Activity 14A',scenes:['h14p-142-web-page','h14p-142-activity14a']},
   {pages:[344],source:'End-of-chapter Questions 1–3',scenes:['h14p-142-practice']},
-  {pages:[345],source:'End-of-chapter Question 4: switching, hopping, checksum, headers and routing tables',scenes:['h14p-142-practice']},
+  {pages:[345],source:'End-of-chapter Question 4 + final switching/routing retrieval',scenes:['h14p-142-practice','h14p-142-recap','h14p-142-recap-routing']},
 ];
 
 export const CHAPTER_14_LIVE_PRINTED_PAGES=Array.from({length:18},(_,index)=>328+index);
