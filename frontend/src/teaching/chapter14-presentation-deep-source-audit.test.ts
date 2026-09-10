@@ -40,7 +40,10 @@ describe('Chapter 14 final page-by-page live source audit',()=>{
     expect(finalRenderer).toContain('router A');
     expect(finalRenderer).toContain('router B');
     expect(finalRenderer).toContain('computer B');
-    expect(finalRenderer.indexOf('<Edges/>')).toBeLessThan(finalRenderer.indexOf('<NodeLabels/>'));
+    const packetRouteRender=finalRenderer.indexOf("mode==='circuit'?<polyline");
+    const nodeRender=finalRenderer.indexOf('<NodeLabels/>');
+    expect(packetRouteRender).toBeGreaterThan(-1);
+    expect(nodeRender).toBeGreaterThan(packetRouteRender);
   });
 
   it('locks Figure 14.7 exact route, condition and all three source use categories',()=>{
