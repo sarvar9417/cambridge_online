@@ -101,14 +101,26 @@ export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic
   const [year,setYear]=useState('all');
 
   useEffect(()=>{
+    setQuery('');
+    setYear('all');
+    setSelectedId('');
+  },[chapterNumber]);
+
+  useEffect(()=>{
     let cancelled=false;
     if(!codes.length||syllabuses.length>1){setQuestions([]);setLoading(false);setError(syllabuses.length>1?'The checkpoint course codes in this chapter do not match.':'');return()=>{cancelled=true};}
     setLoading(true);setError('');
     const params=new URLSearchParams({yearFrom:String(yearFrom),yearTo:String(yearTo),syllabusCode});
     codes.forEach(code=>params.append('loCodes',code));
     void api<CheckpointResponse>(`/lesson-checkpoints?${params}`)
-      .then(result=>{if(cancelled)return;const unique=[...new Map(result.data.map(item=>[item.id,item] as const)).values()].filter(questionComplete);setQuestions(unique);setSelectedId(current=>unique.some(item=>item.id===current)?current:(unique[0]?.id??''));})
-      .catch(()=>{if(!cancelled)setError('Questions could not be loaded. Check the connection and login state, then try again.');})
+      .then(result=>{
+        if(cancelled)return;
+        if(result.syllabusCode!==syllabusCode||result.yearFrom!==yearFrom||result.yearTo!==yearTo)throw new Error('checkpoint_scope_mismatch');
+        const unique=[...new Map(result.data.map(item=>[item.id,item] as const)).values()].filter(questionComplete);
+        setQuestions(unique);
+        setSelectedId(current=>unique.some(item=>item.id===current)?current:(unique[0]?.id??''));
+      })
+      .catch(()=>{if(!cancelled){setQuestions([]);setError('Questions could not be loaded for the verified chapter scope. Check the connection and login state, then try again.');}})
       .finally(()=>{if(!cancelled)setLoading(false);});
     return()=>{cancelled=true};
   },[codeKey,syllabusCode,yearFrom,yearTo,retry,syllabuses.length]);
@@ -127,8 +139,8 @@ export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic
   if(error)return <div className="lx-exam-state lx-exam-state--error" role="alert"><strong>Questions could not be loaded</strong><p>{error}</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button></div>;
   if(!questions.length)return <div className="lx-exam-state"><strong>No exact question match was found.</strong><p>A weakly related question has not been inserted. The approved corpus for this chapter needs to be expanded.</p></div>;
 
-  return <div className="lx-exam-workspace">
-    <aside className="lx-exam-list"><header><span>CHAPTER PAST PAPERS</span><strong>{questions.length} questions</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
+  return <div className="lx-exam-workspace" aria-label={`${chapterTitle} Past Paper questions`}>
+    <aside className="lx-exam-list"><header title={chapterTitle}><span>CHAPTER PAST PAPERS · {syllabusCode} · {yearFrom}–{yearTo}</span><strong>{filtered.length===questions.length?`${questions.length} questions`:`${filtered.length}/${questions.length}`}</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
     <main className="lx-exam-main">{selected?<><div className="lx-exam-main-actions"><span>{selectedIndex+1}/{filtered.length}</span><button type="button" aria-label="Previous question" disabled={selectedIndex<=0} onClick={()=>setSelectedId(filtered[selectedIndex-1]!.id)}><ArrowLeft size={20}/></button><button type="button" aria-label="Next question" disabled={selectedIndex<0||selectedIndex>=filtered.length-1} onClick={()=>setSelectedId(filtered[selectedIndex+1]!.id)}><ArrowRight size={20}/></button><button type="button" onClick={()=>window.print()}><Printer size={20}/> Print</button></div><ExamQuestionView question={selected} audience={audience}/></>:<div className="lx-exam-state"><strong>No question matches the current filters.</strong><p>Change the search term or year filter.</p></div>}</main>
   </div>;
 }
