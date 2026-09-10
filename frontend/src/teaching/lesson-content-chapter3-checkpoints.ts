@@ -4,7 +4,7 @@ import type { HodderLessonSlide } from './lesson-content-hodder-types';
 /**
  * Cambridge practice is layered over the source-grounded Hodder lesson rather
  * than embedded into the textbook transcription itself. The target scope is
- * deliberately limited to the memory-family objectives covered by pp.70-72.
+ * deliberately limited to the memory-family objectives covered by pp.70-74.
  */
 export const CHAPTER_3_MEMORY_CHECKPOINT: HodderLessonSlide = {
   id: 'h3-cp-primary-memory',
@@ -18,13 +18,14 @@ export const CHAPTER_3_MEMORY_CHECKPOINT: HodderLessonSlide = {
   checkpointSyllabusCode: '9618',
   checkpointYearFrom: 2021,
   checkpointYearTo: 2026,
-  sourcePages: [70, 71, 72],
-  sourceLabel: 'Hodder Chapter 3 · pp.70–72 · primary memory families',
+  sourcePages: [70, 71, 72, 74],
+  sourceLabel: 'Hodder Chapter 3 · pp.70–74 · primary memory families',
   sourceElements: [
     'Figure 3.3 Structure of primary memory',
     'Table 3.1 Differences between DRAM and SRAM',
     'Table 3.2 Differences between RAM and ROM',
     'PROM and EPROM',
+    'Solid state drives · EEPROM/NOR erase/read characteristics',
     'Explicit compatibility graph → approved 2021–2026 Cambridge past-paper leaves',
   ],
   examPractice: true,
