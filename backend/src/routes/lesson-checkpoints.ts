@@ -4,7 +4,7 @@ import type { LessonCheckpointService } from '../services/lesson-checkpoint-serv
 
 const loCodes = z.preprocess(
   (value) => value === undefined ? [] : Array.isArray(value) ? value : [value],
-  z.array(z.string().trim().min(1).max(40)).min(1).max(20),
+  z.array(z.string().trim().min(1).max(40)).min(1).max(100),
 );
 
 const querySchema = z.object({
