@@ -1,22 +1,24 @@
 import { describe,expect,it } from 'vitest';
-import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
+import { CHAPTER_14_PRESENTATION_SCENE_COUNT,chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_MASTER_PRINTED_PAGES,CHAPTER_14_MASTER_SOURCE_MAP,chapter14SourcePagesCovered } from './chapter14-master-source-map';
-import { CHAPTER_14_MASTER_VISUAL_IDS,hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
+import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS,hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 
 const sourceText=JSON.stringify(CHAPTER_14_MASTER_SOURCE_MAP);
-const visualText=JSON.stringify(CHAPTER_14_MASTER_VISUAL_IDS);
+const runtimeText=JSON.stringify(Object.keys(CHAPTER_14_PRESENTATION_REVEAL_COUNTS));
 
 describe('Chapter 14 PRESENTATION MASTER MODE',()=>{
   it('covers every supplied printed page 328–345 in the source contract',()=>{
     expect(chapter14SourcePagesCovered()).toEqual(CHAPTER_14_MASTER_PRINTED_PAGES);
   });
 
-  it('locks the current authored storyboard to an explicit master renderer',()=>{
+  it('locks every authored storyboard scene to the final live runtime',()=>{
     const scenes=chapter14PresentationStoryboard('overview')!;
-    expect(scenes.length).toBeGreaterThanOrEqual(42);
-    for(const scene of scenes)expect(hasChapter14PresentationMaster(scene)).toBe(true);
-    expect(new Set(CHAPTER_14_MASTER_VISUAL_IDS).size).toBe(CHAPTER_14_MASTER_VISUAL_IDS.length);
-    expect(visualText).toContain('h14p-142-practice');
+    expect(CHAPTER_14_PRESENTATION_SCENE_COUNT).toBe(43);
+    expect(scenes).toHaveLength(43);
+    for(const scene of scenes)expect(hasChapter14PresentationRuntime(scene),scene.id).toBe(true);
+    expect(new Set(Object.keys(CHAPTER_14_PRESENTATION_REVEAL_COUNTS)).size).toBe(43);
+    expect(runtimeText).toContain('h14p-142-practice');
+    expect(runtimeText).toContain('h14p-142-recap-routing');
   });
 
   it('preserves high-risk source facts and terminology',()=>{
