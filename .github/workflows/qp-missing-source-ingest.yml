@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - main
+      - finalize-lessons-no-deploy
     paths:
       - 'backend/scripts/qp-source-missing-ingest-v1.py'
       - 'backend/scripts/qp-source-missing-ingest-v2.py'
