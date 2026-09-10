@@ -1,0 +1,9 @@
+.h3lv{width:min(1120px,94vw);margin:auto;display:grid;gap:18px;font-size:clamp(18px,1.6vw,30px)}
+.h3lv.combos{grid-template-columns:repeat(4,1fr)}
+.h3lv.combos section,.h3lv.gate-group section{border:2px solid currentColor;border-radius:22px;padding:22px;display:grid;gap:8px;align-content:center;min-height:150px;background:color-mix(in srgb,currentColor 5%,transparent)}
+.h3lv.combos strong{font-size:1.55em}.h3lv.combos span,.h3lv.gate-group small{opacity:.74}
+.h3lv.gate-group{grid-template-columns:repeat(3,1fr)}
+.h3lv.gate-group section{grid-template-columns:auto 1fr auto;align-items:center;text-align:center}.h3lv.gate-group b{font-size:1.35em}.h3lv.gate-group i{grid-column:1/-1;font-style:normal;font-weight:800}.h3lv.gate-group small{grid-column:1/-1}
+.h3lv.truth-compare{grid-template-columns:1fr}.h3lv.truth-compare header,.h3lv.truth-compare section{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:8px;padding:12px 16px;border-radius:16px}.h3lv.truth-compare header{font-size:.72em;letter-spacing:.04em}.h3lv.truth-compare section{border:1px solid currentColor;font-weight:800}
+@media(max-width:900px){.h3lv.combos{grid-template-columns:repeat(2,1fr)}.h3lv.gate-group{grid-template-columns:1fr}.h3lv.gate-group section{min-height:110px}.h3lv.truth-compare{font-size:15px}}
+@media(max-height:760px) and (min-width:901px){.h3lv{gap:10px;font-size:18px}.h3lv.combos section,.h3lv.gate-group section{padding:14px;min-height:112px}.h3lv.truth-compare header,.h3lv.truth-compare section{padding:8px 12px}}
