@@ -39,13 +39,15 @@ describe('chapter Past Paper scope',()=>{
     }
   });
 
-  it('fails closed when a source-backed chapter has no exact Past Paper checkpoint mapping yet',()=>{
+  it('maps Chapter 3 only to the source-backed primary-memory objectives',()=>{
     const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===3);
     expect(chapter).toBeTruthy();
     const scope=chapterPastPaperScope(buildTopicPlan(chapter!.slides,chapter!.subtopics));
 
-    expect(scope.checkpoints).toEqual([]);
-    expect(scope.learningObjectiveCodes).toEqual([]);
-    expect(scope.syllabusCodes).toEqual([]);
+    expect(scope.checkpoints.map(slide=>slide.id)).toEqual(['h3-cp-primary-memory']);
+    expect(scope.learningObjectiveCodes).toEqual(['3.1.5','3.1.6','3.1.7']);
+    expect(scope.syllabusCodes).toEqual(['9618']);
+    expect(scope.yearFrom).toBe(2021);
+    expect(scope.yearTo).toBe(2026);
   });
 });
