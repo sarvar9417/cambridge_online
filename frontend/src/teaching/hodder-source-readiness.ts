@@ -1,4 +1,5 @@
 import { SOURCE_FILE_FIDELITY_MANIFESTS } from './source-file-fidelity-manifest';
+import { CHAPTER_3_SOURCE_FILE_MANIFEST } from './chapter3-source-file-fidelity';
 
 export type HodderSourceReadiness = 'source-locked' | 'source-unresolved';
 
@@ -11,21 +12,22 @@ export type HodderChapterReadiness = {
 };
 
 const locked9618 = new Map(
-  SOURCE_FILE_FIDELITY_MANIFESTS.map(manifest => [manifest.chapter, manifest.sourceFile] as const),
+  [...SOURCE_FILE_FIDELITY_MANIFESTS, CHAPTER_3_SOURCE_FILE_MANIFEST].map(
+    manifest => [manifest.chapter, manifest.sourceFile] as const,
+  ),
 );
 
 /**
- * A chapter may only be source-grounded when the exact Hodder extract has a
- * fidelity manifest. This deliberately keeps unsupported chapters unresolved
- * instead of allowing syllabus summaries or another syllabus' book to stand in
- * for the requested source of truth.
+ * A chapter may only be source-grounded when the exact Hodder source has a
+ * fidelity manifest. Full-book source ranges are allowed when the connected
+ * source is the exact Hodder coursebook and the chapter page range is locked.
  */
 export function hodderChapterReadiness(
   syllabus: '9618' | '0478',
   chapter: number,
 ): HodderChapterReadiness {
   if (syllabus === '9618') {
-    const sourceFile = locked9618.get(chapter as 1 | 2 | 7 | 13 | 14);
+    const sourceFile = locked9618.get(chapter as never);
     if (sourceFile) return { syllabus, chapter, status: 'source-locked', sourceFile };
   }
 
@@ -33,7 +35,7 @@ export function hodderChapterReadiness(
     syllabus,
     chapter,
     status: 'source-unresolved',
-    reason: 'Exact Hodder chapter extract is not yet locked by a source-file fidelity manifest.',
+    reason: 'Exact Hodder chapter source is not yet locked by a source-file fidelity manifest.',
   };
 }
 
