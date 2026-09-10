@@ -90,7 +90,10 @@ describe('Live Challenge multi-actor release contract',()=>{
     const release=vi.fn(async()=>{expect(marks.size).toBe(2);status='ROUND_RESULTS';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,markCount:2,overrideCount:0,resolvedCount:2,masteryApplied:true}});
     const advance=vi.fn(async()=>{status='FINISHED';stateVersion+=1;return{id:challengeId,status,stateVersion,roundNumber:1,finished:true}});
     const finalizeAnalytics=vi.fn(async()=>{analyticsFinalized=true;return{challengeId,recorded:true,masteryRows:0,releasedRounds:1}});
-    const studentResult=vi.fn(async(actor:{id:string})=>({challengeId,status:'FINISHED',studentId:actor.id,totalScore:actor.id===studentA.id?1:2,totalMax:2,percentage:actor.id===studentA.id?50:100,rounds:[{roundNumber:1,questionRef:question.displayRef,score:actor.id===studentA.id?1:2,maxMarks:2}]}));
+    const studentResult=vi.fn(async(actor:{id:string})=>{
+      const score=actor.id===studentA.id?(marks.get(studentB.id)??0):(marks.get(studentA.id)??0);
+      return{challengeId,status:'FINISHED',studentId:actor.id,totalScore:score,totalMax:2,percentage:score/2*100,rounds:[{roundNumber:1,questionRef:question.displayRef,score,maxMarks:2}]};
+    });
     const reconcile=vi.fn(async()=>({challengeId,changed:false,status,stateVersion}));
 
     const app=express();
@@ -144,6 +147,10 @@ describe('Live Challenge multi-actor release contract',()=>{
 
     const releasedBoard=await request(app).get(`/live-challenges/${challengeId}/board`).expect(200);
     expect(releasedBoard.body.data.scoreboard).toBeTruthy();
+    expect(releasedBoard.body.data.scoreboard.entries).toMatchObject([
+      {rank:1,displayName:'Student A',score:2,maxMarks:2,percentage:100},
+      {rank:2,displayName:'Student B',score:1,maxMarks:2,percentage:50},
+    ]);
     expect(releasedBoard.body.data.scoreboard.scoreDistribution).toEqual([
       {band:'0-24',count:0},{band:'25-49',count:0},{band:'50-74',count:1},{band:'75-100',count:1},
     ]);
@@ -154,7 +161,7 @@ describe('Live Challenge multi-actor release contract',()=>{
     expect(analyticsFinalized).toBe(true);
 
     const aResult=await request(app).get(`/live-challenges/${challengeId}/result`).set('x-test-actor','a').expect(200);
-    expect(aResult.body.data).toMatchObject({status:'FINISHED',studentId:studentA.id,totalScore:1,totalMax:2,percentage:50});
+    expect(aResult.body.data).toMatchObject({status:'FINISHED',studentId:studentA.id,totalScore:2,totalMax:2,percentage:100});
 
     expect(join).toHaveBeenCalledTimes(2);
     expect(start).toHaveBeenCalledOnce();
