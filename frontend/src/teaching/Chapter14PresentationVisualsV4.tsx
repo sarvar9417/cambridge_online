@@ -11,6 +11,7 @@ import { Chapter2AddressingVisual, hasChapter2AddressingVisual } from './Chapter
 import { Chapter1PresentationVisual, hasChapter1PresentationVisual } from './Chapter1PresentationVisuals';
 import './chapter14-presentation-master.css';
 import './chapter14-presentation-content-v2.css';
+import './chapter14-presentation-content-v2-eoc.css';
 import './chapter14-presentation-master-projector.css';
 import './chapter13-presentation-hardening.css';
 
