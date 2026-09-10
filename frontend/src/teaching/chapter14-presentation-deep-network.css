@@ -1,0 +1,14 @@
+/* Source-faithful Figure 14.7/14.8 hardening. */
+.h14d-packet-order>header p{max-width:900px;margin:0!important;color:var(--h14-muted);font-size:12.5px!important;line-height:1.35!important}
+.h14d-packet-network .source-base{stroke:rgba(84,166,255,.42);stroke-width:2;fill:none}
+.h14d-packet-network .router circle,.h14d-packet-network .endpoint rect{fill:var(--h14-panel);stroke:var(--h14-line);stroke-width:2}
+.h14d-packet-network .router text,.h14d-packet-network .endpoint text{fill:var(--h14-ink);font:800 10px var(--font-mono);text-anchor:middle;paint-order:stroke;stroke:var(--h14-panel);stroke-width:4px;stroke-linejoin:round}
+.h14d-packet-network .endpoint text{font-size:9px}
+.h14d-packet-network .source-circuit{fill:none;stroke:var(--h14-amber);stroke-width:8;stroke-linecap:round;stroke-linejoin:round;opacity:.38;visibility:visible;transform:none}
+.h14d-packet-network .source-circuit.is-visible{opacity:1}
+.h14d-packet-network .source-circuit.is-broken{stroke:var(--h14-red);stroke-dasharray:18 10}
+.h14d-circuit-network>footer .route-summary{display:grid;gap:6px}
+.h14d-circuit-network>footer .route-summary span{display:grid;grid-template-columns:170px 1fr;gap:8px}
+.h14d-circuit-network>footer .route-summary b{color:var(--h14-amber);font:900 9.5px var(--font-mono);letter-spacing:.04em}
+@media(max-width:1366px){.h14d-packet-order>header p{font-size:11px!important}.h14d-packet-network svg{max-height:270px}}
+@media(max-height:768px) and (min-width:1000px){.h14d-packet-order>header p{font-size:10px!important}.h14d-packet-network svg{max-height:225px}.h14d-circuit-network>footer .route-summary span{grid-template-columns:145px 1fr;font-size:9px}}
