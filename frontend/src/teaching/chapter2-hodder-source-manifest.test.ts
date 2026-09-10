@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_2_FINAL, CHAPTER_2_END_OF_CHAPTER_PRACTICE } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_2_ACTIVITY_VISUAL_IDS } from './Chapter2ActivityVisuals';
-import { CHAPTER_2_HODDER_SOURCE_COUNTS, CHAPTER_2_HODDER_SOURCE_MANIFEST } from './chapter2-hodder-source-manifest';
+import {
+  CHAPTER_2_HODDER_SOURCE_COUNTS,
+  CHAPTER_2_HODDER_SOURCE_MANIFEST,
+  endQuestionHodderItems,
+  letteredHodderItems,
+  numberedHodderItems,
+} from './chapter2-hodder-source-manifest';
 
 const byKind = (kind: (typeof CHAPTER_2_HODDER_SOURCE_MANIFEST)[number]['kind']) =>
   CHAPTER_2_HODDER_SOURCE_MANIFEST.filter(item => item.kind === kind);
@@ -12,6 +18,23 @@ describe('Chapter 2 Hodder source-completeness inventory', () => {
     expect(new Set(CHAPTER_2_HODDER_SOURCE_MANIFEST.map(item => item.id)).size).toBe(CHAPTER_2_HODDER_SOURCE_COUNTS.total);
     expect(byKind('figure').map(item => item.label)).toEqual(Array.from({ length: 25 }, (_, i) => `Figure 2.${i + 1}`));
     expect(byKind('table').map(item => item.label)).toEqual(Array.from({ length: 10 }, (_, i) => `Table 2.${i + 1}`));
+  });
+
+  it('keeps reusable manifest builders chapter-agnostic for the remaining Hodder chapters', () => {
+    expect(numberedHodderItems('figure', 7, 2)).toEqual([
+      { id: 'hodder-7-figure-1', label: 'Figure 7.1', kind: 'figure' },
+      { id: 'hodder-7-figure-2', label: 'Figure 7.2', kind: 'figure' },
+    ]);
+    expect(letteredHodderItems('activity', 7, ['7A'])).toEqual([
+      { id: 'hodder-7-activity-7a', label: 'ACTIVITY 7A', kind: 'activity' },
+    ]);
+    expect(letteredHodderItems('extension-activity', 7, ['7A'])).toEqual([
+      { id: 'hodder-7-extension-7a', label: 'EXTENSION ACTIVITY 7A', kind: 'extension-activity' },
+    ]);
+    expect(endQuestionHodderItems(7, [1, 3])).toEqual([
+      { id: 'hodder-7-end-question-1', label: 'End of chapter Q1', kind: 'end-question' },
+      { id: 'hodder-7-end-question-3', label: 'End of chapter Q3', kind: 'end-question' },
+    ]);
   });
 
   it('locks all Hodder activities and extension activities to projector scene ids', () => {
