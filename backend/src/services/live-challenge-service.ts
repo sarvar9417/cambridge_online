@@ -251,7 +251,7 @@ export class LiveChallengeService {
     },
   ): Promise<EligibleQuestionRow[]> {
     const taxonomy = await this.validateTaxonomy(executor, input.syllabusId, input.topicId, input.subtopicId);
-    const values: unknown[] = [taxonomy.syllabus_code, taxonomy.topic_number, taxonomy.subtopic_code];
+    const values: unknown[] = [taxonomy.syllabus_code, taxonomy.topic_number, taxonomy.subtopic_code, taxonomy.syllabus_id];
     const idFilter = input.ids?.length
       ? `and q.id=any($${values.push(input.ids)}::uuid[])`
       : '';
@@ -321,6 +321,27 @@ export class LiveChallengeService {
            join syllabi msy on msy.id=mt.syllabus_id
            where qst.question_id=q.id and msy.code=$1 and mt.number=$2 and mst.code=$3
          ))
+         and exists(
+           select 1
+           from question_learning_objectives qlo
+           join learning_objectives source_lo on source_lo.id=qlo.lo_id
+           join subtopics source_st on source_st.id=source_lo.subtopic_id
+           join topics source_t on source_t.id=source_st.topic_id
+           where qlo.question_id=q.id
+             and (
+               source_t.syllabus_id=$4::uuid
+               or exists(
+                 select 1
+                 from learning_objective_compatibility compat
+                 join learning_objectives target_lo on target_lo.id=compat.target_lo_id
+                 join subtopics target_st on target_st.id=target_lo.subtopic_id
+                 join topics target_t on target_t.id=target_st.topic_id
+                 where compat.source_lo_id=qlo.lo_id
+                   and compat.relation in('equivalent','subtopic_compatible')
+                   and target_t.syllabus_id=$4::uuid
+               )
+             )
+         )
          and not exists(
            select 1 from validation_findings vf
            where vf.ref_table='questions' and vf.ref_id=q.id
