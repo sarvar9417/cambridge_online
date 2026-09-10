@@ -39,7 +39,7 @@ export const CHAPTER_14_PRESENTATION_REVEAL_COUNTS:Readonly<Record<string,number
   'h14p-142-packet-pros-cons':6,
   'h14p-142-video-example':4,
   'h14p-142-hop':5,
-  'h14p-142-packet-control':3,
+  'h14p-142-packet-control':2,
   'h14p-142-header':4,
   'h14p-142-header-extended':5,
   'h14p-142-routing':4,
