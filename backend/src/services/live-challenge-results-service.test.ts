@@ -5,19 +5,33 @@ import { LiveChallengeResultsService } from './live-challenge-results-service.js
 const student={id:'student-1',role:'student' as const,schoolId:'school-1',fullName:'Student'};
 const teacher={id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher'};
 const challengeId='11111111-1111-4111-8111-111111111111';
+const syllabusId='22222222-2222-4222-8222-222222222222';
 
 describe('LiveChallengeResultsService',()=>{
-  it('returns cumulative released-round totals and counts a missed round as zero',async()=>{
-    const query=vi.fn(async(sql:string)=>{
+  it('returns cumulative totals plus relative LO strengths/review areas and counts a missed round as zero',async()=>{
+    const query=vi.fn(async(sql:string,params?:unknown[])=>{
+      if(sql.includes('with scored_rounds as')){
+        expect(params).toEqual([challengeId,student.id,syllabusId]);
+        expect(sql).toContain("compat.relation in('equivalent','subtopic_compatible')");
+        expect(sql).toContain('target_t.syllabus_id=$3');
+        return{rowCount:2,rows:[
+          {lo_id:'lo-strong',lo_code:'2.1.1',lo_text:'Explain CPU components',subtopic_code:'2.1',subtopic_title:'CPU architecture',topic_number:2,topic_title:'Processor fundamentals',question_count:1,marks_earned:'3',marks_possible:'4',percentage:'75'},
+          {lo_id:'lo-review',lo_code:'2.1.2',lo_text:'Explain register use',subtopic_code:'2.1',subtopic_title:'CPU architecture',topic_number:2,topic_title:'Processor fundamentals',question_count:1,marks_earned:'0',marks_possible:'6',percentage:'0'},
+        ]};
+      }
       if(!sql.includes("r.status='ROUND_RESULTS'"))throw new Error(`Unexpected SQL: ${sql}`);
       return{rowCount:2,rows:[
-        {challenge_status:'FINISHED',state_version:20,round_id:'r1',round_number:1,display_ref:'Q1',max_marks_snapshot:4,answer_id:'a1',effective_score:'3',teacher_overridden:true},
-        {challenge_status:'FINISHED',state_version:20,round_id:'r2',round_number:2,display_ref:'Q2',max_marks_snapshot:6,answer_id:null,effective_score:'0',teacher_overridden:false},
+        {challenge_status:'FINISHED',state_version:20,syllabus_id:syllabusId,round_id:'r1',round_number:1,display_ref:'Q1',max_marks_snapshot:4,answer_id:'a1',effective_score:'3',teacher_overridden:true},
+        {challenge_status:'FINISHED',state_version:20,syllabus_id:syllabusId,round_id:'r2',round_number:2,display_ref:'Q2',max_marks_snapshot:6,answer_id:null,effective_score:'0',teacher_overridden:false},
       ]};
     });
     const service=new LiveChallengeResultsService({query} as unknown as Pool);
     const result=await service.student(student,challengeId);
-    expect(result).toMatchObject({status:'FINISHED',totalScore:3,totalMax:10,overallPercentage:30});
+    expect(result).toMatchObject({
+      status:'FINISHED',totalScore:3,totalMax:10,overallPercentage:30,
+      strengths:[{id:'lo-strong',code:'2.1.1',percentage:75}],
+      reviewAreas:[{id:'lo-review',code:'2.1.2',percentage:0}],
+    });
     expect(result.rounds).toEqual([
       expect.objectContaining({roundNumber:1,answered:true,score:3,maxMarks:4,teacherOverridden:true}),
       expect.objectContaining({roundNumber:2,answered:false,score:0,maxMarks:6,teacherOverridden:false}),
