@@ -6,6 +6,7 @@ import { parseRoute } from './lib/router';
 import { installQuestionStructureEnhancer } from './lib/question-structure-dom';
 import { installQuestionAssetFidelityEnhancer } from './lib/question-asset-fidelity-dom';
 import { installTeacherStructuredQuestionEnhancer } from './lib/teacher-structured-question-dom';
+import { installPresentationScrollController } from './teaching/presentation-scroll-controller';
 // The design tokens name Inter, Source Serif 4 and JetBrains Mono; shipping the
 // fonts makes every operating system render the same product instead of
 // falling back to whatever sans/serif/mono the machine happens to have.
@@ -16,6 +17,21 @@ import './theme.css';
 import './styles.css';
 import './question-structure.css';
 import './question-asset-fidelity.css';
+import './teaching/chapter14-presentation-polish.css';
+import './teaching/chapter14-presentation-v2.css';
+import './teaching/presentation-viewport-safety.css';
+import './teaching/presentation-reveal-fixes.css';
+import './teaching/presentation-density-pass.css';
+import './teaching/chapter14-presentation-v3.css';
+import './teaching/chapter14-presentation-v3-hardening.css';
+import './teaching/chapter14-presentation-v4-visuals.css';
+import './teaching/chapter14-presentation-v5-visuals.css';
+// Load the final projector design after every legacy/prototype layer so it is
+// authoritative for Chapter 14 presentation mode.
+import './teaching/chapter14-presentation-professional.css';
+// Chapter 1 reuses the same projector shell but has source-specific multimedia
+// diagrams that need their own responsive visual layer.
+import './teaching/chapter1-presentation-media.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
@@ -44,6 +60,7 @@ function Root() {
   useEffect(() => installQuestionStructureEnhancer(), []);
   useEffect(() => installQuestionAssetFidelityEnhancer(), []);
   useEffect(() => installTeacherStructuredQuestionEnhancer(), []);
+  useEffect(() => installPresentationScrollController(), []);
 
   return <App />;
 }

@@ -265,7 +265,12 @@ const slides: HodderLessonSlide[] = [
     lead:'The source finishes with exam-style material. CamPath preserves the coverage while using current 2021–2025 questions in the live checkpoints above.',sourcePages:[22,23],sourceElements:['Chapter 13 end-of-chapter questions: floating point'],
     richBlocks:[
       {kind:'bullets',items:['Interpret three 24-bit floating patterns.','Identify the non-normalised value and explain why normalisation is used.','Discuss accuracy/range and the zero problem.','Convert 12+6 binary floating values to denary and denary values to binary.','Encode +3.5 and −3.5 in an 8+8 two’s-complement format.']},
-    ],visual:'recap',accent:'indigo',
+    ],
+    example:{
+      title:'End-of-chapter Question 2 values',
+      lines:['Convert 011100100000 000111 and 101001110000 111100 to denary.','Convert +4.75 and −8.375 to binary floating-point numbers.'],
+    },
+    visual:'recap',accent:'indigo',
   },
   {
     id:'h13-hodder-review-2',section:'Chapter review',eyebrow:'HODDER END-OF-CHAPTER QUESTIONS',title:'Review user-defined types and file organisation',

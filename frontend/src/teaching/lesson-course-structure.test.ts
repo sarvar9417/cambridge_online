@@ -20,8 +20,8 @@ describe('Lessons topic/page UI', () => {
     const studio = source('LessonStudioV2.tsx');
     expect(studio).toContain('data-page-id={activePage.id}');
     expect(studio).toContain("activePage.kind==='practice'");
-    expect(studio).toContain("'Keyingi topic →'");
-    expect(studio).toContain("'Keyingi page →'");
+    expect(studio).toContain("'Next topic →'");
+    expect(studio).toContain("'Next page →'");
     expect(studio).toContain('activeTopic.pages.map((page,pageIndex)');
     expect(studio).toContain("aria-current={pageIndex===activePageIndex?'page':undefined}");
   });

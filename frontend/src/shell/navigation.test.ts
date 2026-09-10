@@ -27,22 +27,16 @@ describe('who sees which surface', () => {
     expect(paths('teacher').some((path) => path.startsWith('boshqaruv/'))).toBe(false);
   });
 
-  it('gives a student only their own surface, with no class list', () => {
-    expect(labels('student')).toEqual(['O‘rganish']);
-    expect(paths('student').every((path) => path.startsWith('oquvchi/'))).toBe(true);
-  });
-
-  it('shows Live Challenges only on staff teaching navigation', () => {
-    expect(paths('owner')).toContain('oqitish/live-challenges');
-    expect(paths('teacher')).toContain('oqitish/live-challenges');
-    expect(paths('student')).not.toContain('oqitish/live-challenges');
-  });
-
   it('gives staff a lesson studio before worksheet-building tools', () => {
     const teaching = navigationFor('owner', classes).find((group) => group.label === 'O‘qitish')!;
     expect(teaching.items[0]?.path).toBe('oqitish/darslar');
     expect(sectionsFor('oqitish', 'darslar', 'owner')).toEqual(['analytics']);
     expect(sectionsFor('oqitish', 'darslar', 'teacher')).toEqual(['analytics']);
+  });
+
+  it('gives a student only their own surface, with no class list', () => {
+    expect(labels('student')).toEqual(['O‘rganish']);
+    expect(paths('student').every((path) => path.startsWith('oquvchi/'))).toBe(true);
   });
 
   it('omits the class group rather than showing an empty heading', () => {
@@ -75,8 +69,8 @@ describe('badges', () => {
 });
 
 describe('every rail link leads somewhere', () => {
-  /** Standalone pages with their own workspace layout, routed directly by App. */
-  const STANDALONE = new Set(['oqitish/savol-banki', 'oqitish/tanlovlar', 'oqitish/live-challenges']);
+  /** Standalone pages with their own chrome, routed in main.tsx, not by sectionsFor. */
+  const STANDALONE = new Set(['oqitish/savol-banki', 'oqitish/tanlovlar']);
 
   for (const role of ['owner', 'teacher', 'student'] as const) {
     it(`resolves every ${role} link to a page with content`, () => {

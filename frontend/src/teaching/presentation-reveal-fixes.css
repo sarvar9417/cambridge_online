@@ -1,0 +1,60 @@
+/* Progressive-reveal correctness fixes for Chapter 14 custom visuals.
+   Earlier polish used visibility:hidden for unrevealed items. That made them
+   invisible but they still occupied layout space, creating large blank areas
+   and pushing visible teaching content below the fixed projector viewport. */
+
+.lesson-experience.lx-present :is(
+  .h14v-layer,
+  .h14v-encapsulation section,
+  .h14v-node,
+  .h14v-mail-node,
+  .h14v-popimap > section,
+  .h14v-handshake-step,
+  .h14v-tracker,
+  .h14v-peer,
+  .h14v-piece,
+  .h14v-hop-node,
+  .h14v-header-strip > div:not(.h14v-payload),
+  .h14v-routing-router,
+  .h14v-routing > b,
+  .h14v-routing table
+):not(.is-visible) {
+  display: none;
+}
+
+.lesson-experience.lx-present :is(
+  .h14v-layer,
+  .h14v-encapsulation section,
+  .h14v-node,
+  .h14v-mail-node,
+  .h14v-popimap > section,
+  .h14v-handshake-step,
+  .h14v-tracker,
+  .h14v-peer,
+  .h14v-piece,
+  .h14v-hop-node,
+  .h14v-header-strip > div:not(.h14v-payload),
+  .h14v-routing-router,
+  .h14v-routing > b,
+  .h14v-routing table
+).is-visible {
+  visibility: visible;
+}
+
+/* DATA is not a reveal step. It is the persistent payload carried by the
+   packet header, so it must never be hidden by the generic header-field rule. */
+.lesson-experience.lx-present .h14v-header-strip > .h14v-payload {
+  display: grid;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* When only the first few fields have been revealed, keep rows compact rather
+   than reserving the final layout. */
+.lesson-experience.lx-present .h14v-stack-layers,
+.lesson-experience.lx-present .h14v-handshake-lines,
+.lesson-experience.lx-present .h14v-hop,
+.lesson-experience.lx-present .h14v-encapsulation {
+  align-content: start;
+}

@@ -18,8 +18,8 @@ const presentationText=(chapter:(typeof LESSON_EXPERIENCE_CHAPTERS)[number])=>no
 ));
 
 describe('lesson experience model',()=>{
-  it('keeps all five source-backed chapters in the active experience',()=>{
-    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,7,13,14]);
+  it('keeps all six source-backed chapters in the active experience',()=>{
+    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,3,7,13,14]);
   });
 
   it('turns every teachable topic into bounded projector beats',()=>{
@@ -31,8 +31,8 @@ describe('lesson experience model',()=>{
         const beats=presentationBeatsForTopic(topic);
         expect(beats.length,`${chapter.number} ${topic.code}`).toBeGreaterThan(0);
         for(const beat of beats){
-          expect(beat.bullets?.length??0).toBeLessThanOrEqual(4);
-          expect(beat.keyTerms?.length??0).toBeLessThanOrEqual(2);
+          expect(beat.bullets?.length??0,`${chapter.number} ${topic.code} ${beat.id}`).toBeLessThanOrEqual(4);
+          expect(beat.keyTerms?.length??0,`${chapter.number} ${topic.code} ${beat.id}`).toBeLessThanOrEqual(2);
           if(beat.richBlock?.kind==='table')expect(beat.richBlock.table.rows.length).toBeLessThanOrEqual(6);
           if(beat.richBlock?.kind==='code')expect(beat.richBlock.lines.length).toBeLessThanOrEqual(10);
         }

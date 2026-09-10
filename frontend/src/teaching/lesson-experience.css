@@ -109,7 +109,7 @@
 .lx-study-content{max-width:880px;margin:0 auto;padding:0 clamp(1.25rem,5vw,4.5rem)}
 .lx-study-section{position:relative;display:grid;gap:1.45rem;padding:2.6rem 0;border-top:1px solid var(--border,var(--lx-line))}
 .lx-study-section:first-child{border-top:0}
-.lx-study-section--source:before{content:'KITOB MANBASIDAN';width:max-content;padding:.28rem .45rem;border-radius:4px;background:var(--surface-soft,var(--lx-soft));color:var(--text-muted,var(--lx-muted));font:700 .58rem var(--font-mono,monospace);letter-spacing:.06em}
+.lx-study-section--source:before{content:'FROM THE COURSEBOOK';width:max-content;padding:.28rem .45rem;border-radius:4px;background:var(--surface-soft,var(--lx-soft));color:var(--text-muted,var(--lx-muted));font:700 .58rem var(--font-mono,monospace);letter-spacing:.06em}
 .lx-study-section-head{max-width:760px}
 .lx-study-section-head>span{display:block;margin-bottom:.65rem;color:var(--accent,var(--lx-blue));font:720 .66rem var(--font-mono,monospace);letter-spacing:.055em}
 .lx-study-section-head h2{margin:0 0 .7rem;font-size:clamp(1.42rem,2.8vw,2.1rem);line-height:1.16;letter-spacing:-.035em}

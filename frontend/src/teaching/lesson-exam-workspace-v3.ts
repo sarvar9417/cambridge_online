@@ -414,11 +414,11 @@ async function openCard(card:Element){
     sideColumn.append(renderTrust(response.detail.markScheme));
     const dependencies=renderDependencies(response.portable);
     if(dependencies)sideColumn.append(dependencies);
-    const reveal=button('lesson-workspace-reveal','Mark schemeni ko‘rsatish');
+    const reveal=button('lesson-workspace-reveal','Reveal mark scheme');
     const scheme=renderScheme(response.detail.markScheme);
     reveal.addEventListener('click',()=>{
       scheme.hidden=!scheme.hidden;
-      reveal.textContent=scheme.hidden?'Mark schemeni ko‘rsatish':'Mark schemeni yashirish';
+      reveal.textContent=scheme.hidden?'Reveal mark scheme':'Hide mark scheme';
     });
     sideColumn.append(reveal,scheme);
     body.append(questionColumn,sideColumn);

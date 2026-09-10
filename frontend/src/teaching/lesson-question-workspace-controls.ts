@@ -18,7 +18,7 @@ function updateProjectorLabels() {
     const shell = button.closest('.lesson-workspace-shell');
     const studio = shell?.closest('.lesson-studio');
     const active = Boolean(studio && document.fullscreenElement === studio);
-    button.textContent = active ? 'Projectordan chiqish' : 'Projector';
+    button.textContent = active ? 'Exit projector' : 'Projector';
     button.setAttribute('aria-pressed', String(active));
   });
 }
@@ -76,15 +76,15 @@ function enhanceWorkspace(shell: HTMLElement) {
     revealStatus.textContent = total ? `${revealedPoints} / ${total} mark points` : '';
 
     if (scheme.hidden) {
-      reveal.textContent = 'Mark schemeni ochish';
+      reveal.textContent = 'Reveal mark scheme';
       reveal.setAttribute('aria-expanded', 'false');
       return;
     }
 
     reveal.setAttribute('aria-expanded', 'true');
-    if (!total) reveal.textContent = 'Mark schemeni yashirish';
-    else if (revealedPoints < total) reveal.textContent = revealedPoints === 0 ? 'Birinchi mark pointni ko‘rsatish' : 'Keyingi mark point';
-    else reveal.textContent = 'Mark schemeni yashirish';
+    if (!total) reveal.textContent = 'Hide mark scheme';
+    else if (revealedPoints < total) reveal.textContent = revealedPoints === 0 ? 'Reveal first mark point' : 'Reveal next mark point';
+    else reveal.textContent = 'Hide mark scheme';
   };
 
   const resetScheme = () => {
@@ -150,7 +150,7 @@ function enhanceWorkspace(shell: HTMLElement) {
 
   const navHint = document.createElement('span');
   navHint.className = 'lesson-workspace-navigation-hint';
-  navHint.textContent = '← → savollar · T teacher · M mark point · P projector';
+  navHint.textContent = '← → questions · T teacher · M mark point · P projector';
   const next = navigation.querySelector<HTMLButtonElement>('.lesson-workspace-nav:last-child');
   if (next) navigation.insertBefore(navHint, next);
   else navigation.append(navHint);

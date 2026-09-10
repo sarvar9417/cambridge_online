@@ -9,6 +9,7 @@ import { sourceAtomsForChapter, sourceAtomsForSlide } from './lesson-source-atom
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { CHAPTER_2_KEY_TERMS_2_1, CHAPTER_2_KEY_TERMS_2_2 } from './chapter2-source-emphasis';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
+import { frameChapter2NetworkingPresentation } from './chapter2-networking-presentation';
 import type { HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
 import type { LessonVisual } from './lesson-content-full';
 import { studentFacingSlide, studentFacingText } from './lesson-student-facing';
@@ -119,9 +120,9 @@ export function displaySlide(slide:HodderLessonSlide, pageTitle:string) {
   const exact=isExactSourceTranscript(slide);
   return {
     ...projected,
-    eyebrow:exact?`${slide.subtopicCode??slide.section} · KITOBDAGI TO‘LIQ MAZMUN`:projected.eyebrow,
+    eyebrow:exact?`${slide.subtopicCode??slide.section} · COMPLETE COURSEBOOK CONTENT`:projected.eyebrow,
     title: exact?pageTitle:TECHNICAL_TITLE.test(projected.title) ? pageTitle : projected.title,
-    lead: exact?'Kitobdagi tushuncha, misol va topshiriqlarni ketma-ket o‘rganing.':projected.lead,
+    lead: exact?'Work through the coursebook concept, example and task in sequence.':projected.lead,
     // Filter source-audit atoms before wording is projected for learners. Some
     // audit prefixes are intentionally renamed by studentFacingText, which
     // would make them indistinguishable from real teaching bullets afterwards.
@@ -140,12 +141,12 @@ export function courseName(chapter:LessonExperienceChapter) {
 }
 
 export function topicLabel(topic:LessonTopic) {
-  return topic.code==='overview' ? 'Kirish' : topic.code;
+  return topic.code==='overview' ? 'Overview' : topic.code;
 }
 
 export function displayPageTitle(page:TopicPage, topic:LessonTopic) {
   if(topic.code==='13.3' && /file organisation|file access/i.test(page.title))return 'Floating-point chapter review';
-  return page.title.replace(/^Coursebook page\s+/i,'Manba sahifasi ');
+  return page.title.replace(/^Coursebook page\s+/i,'Source page ');
 }
 
 function chunks<T>(items:readonly T[], size:number) {
@@ -172,10 +173,10 @@ function splitRichBlock(block:LessonRichBlock):LessonRichBlock[] {
   if(block.kind==='paragraph')return textChunks(block.text).map(text=>({...block,text}));
   if(block.kind==='bullets')return chunks(block.items,4).map(items=>({...block,items}));
   if(block.kind==='steps')return chunks(block.items,5).map((items,index)=>({...block,title:index===0?block.title:undefined,items}));
-  if(block.kind==='code')return chunks(block.lines,10).map((lines,index)=>({...block,title:index===0?block.title:block.title?`${block.title} · davom`:undefined,lines}));
+  if(block.kind==='code')return chunks(block.lines,10).map((lines,index)=>({...block,title:index===0?block.title:block.title?`${block.title} · continued`:undefined,lines}));
   if(block.kind==='table')return chunks(block.table.rows,6).map((rows,index,parts)=>({
     ...block,
-    table:{...block.table,caption:parts.length>1?`${block.table.caption??'Jadval'} · ${index+1}/${parts.length}`:block.table.caption,rows},
+    table:{...block.table,caption:parts.length>1?`${block.table.caption??'Table'} · ${index+1}/${parts.length}`:block.table.caption,rows},
   }));
   if(block.kind==='comparison')return chunks(block.rows,4).map(rows=>({...block,rows}));
   return [block];
@@ -301,17 +302,17 @@ function presentationAtomsForSlide(chapter:1|2|7|13|14,slideId:string):Presentat
 }
 
 function sourceKindLabel(kind:string) {
-  if(kind==='objective')return 'O‘QUV MAQSADI';
-  if(kind==='prior')return 'OLDINGI BILIM';
-  if(kind==='keyword')return 'KEYWORD / ATAMA';
-  if(kind==='example')return 'ISHLANGAN MISOL';
-  if(kind==='activity')return 'MASHQ';
-  if(kind==='extension')return 'QO‘SHIMCHA TOPSHIRIQ';
-  if(kind==='table')return 'JADVAL';
-  if(kind==='figure')return 'RASM / DIAGRAMMA';
-  if(kind==='review')return 'YAKUNIY TAKRORLASH';
-  if(kind==='exam')return 'IMTIHON MASHQI';
-  return 'KITOBDAGI MUHIM TAFSILOT';
+  if(kind==='objective')return 'LEARNING OBJECTIVE';
+  if(kind==='prior')return 'PRIOR KNOWLEDGE';
+  if(kind==='keyword')return 'KEYWORD / TERM';
+  if(kind==='example')return 'WORKED EXAMPLE';
+  if(kind==='activity')return 'ACTIVITY';
+  if(kind==='extension')return 'EXTENSION ACTIVITY';
+  if(kind==='table')return 'TABLE';
+  if(kind==='figure')return 'FIGURE / DIAGRAM';
+  if(kind==='review')return 'END-OF-TOPIC REVIEW';
+  if(kind==='exam')return 'EXAM PRACTICE';
+  return 'IMPORTANT COURSEBOOK DETAIL';
 }
 
 function sourceBeatKind(kind:string):LessonBeatKind {
@@ -323,12 +324,12 @@ function sourceBeatKind(kind:string):LessonBeatKind {
 }
 
 function sourceIntro(kind:string) {
-  if(kind==='activity'||kind==='prior'||kind==='review'||kind==='exam')return 'Topshiriqni avval mustaqil bajaring, keyin yechim yo‘lini sinf bilan izohlang.';
-  if(kind==='example')return 'Qiymatlar va amallar ketma-ketligini kuzatib, har bir qadam nima uchun bajarilganini tushuntiring.';
-  if(kind==='keyword')return 'Rasmiy atamani aynan ishlating va uni shu mavzudagi vazifasi bilan bog‘lang.';
-  if(kind==='figure')return 'Vizualdagi qismlar va ular orasidagi bog‘lanishni og‘zaki tushuntiring.';
-  if(kind==='table')return 'Jadvaldagi qiymatlarni solishtiring va ko‘rinayotgan qonuniyatni ayting.';
-  return 'Bu manba tafsilotini asosiy tushuncha bilan bog‘lab, o‘z so‘zingiz bilan izohlang.';
+  if(kind==='activity'||kind==='prior'||kind==='review'||kind==='exam')return 'Attempt the task independently, then explain and justify the solution with the class.';
+  if(kind==='example')return 'Follow the values and operations in sequence, explaining the purpose of each step.';
+  if(kind==='keyword')return 'Use the formal term accurately and connect it to its function in this topic.';
+  if(kind==='figure')return 'Explain each part of the visual and the relationship between the parts.';
+  if(kind==='table')return 'Compare the values in the table and describe the pattern you can see.';
+  return 'Connect this source detail to the main concept and explain it in your own words.';
 }
 
 function sourceCoverageBeats(slide:HodderLessonSlide,pageTitle:string,chapter:1|2|7|13|14) {
@@ -342,7 +343,7 @@ function sourceCoverageBeats(slide:HodderLessonSlide,pageTitle:string,chapter:1|
     });
     return chunks(lines,4).map((items,index)=>beat(slide,pageTitle,`source-${atom.id}-${index+1}`,sourceBeatKind(atom.kind),{
       eyebrow:`${sourceKindLabel(atom.kind)} · COURSEBOOK p.${atom.printedPage}`,
-      title:index?`${atom.sourceRef} · davom`:atom.sourceRef,
+      title:index?`${atom.sourceRef} · continued`:atom.sourceRef,
       lead:sourceIntro(atom.kind),
       richBlock:{kind:'bullets',items},
       sourcePages:[atom.printedPage],
@@ -362,10 +363,10 @@ function emphasisExplanation(anchor:{text:string;printedPage:number},atoms:Prese
   if(direct)return direct;
   const companion=related?.needles.find(line=>normaliseKey(line)!==key&&line.trim().length>12);
   if(companion)return companion;
-  if(/^activity|^extension activity/i.test(anchor.text))return `Coursebook p.${anchor.printedPage} dagi topshiriq: bilimni amalda qo‘llash va yechimni asoslash uchun ishlatiladi.`;
-  if(/^figure/i.test(anchor.text))return `Coursebook p.${anchor.printedPage} dagi rasm: jarayon, tuzilma yoki qiymatlar orasidagi bog‘lanishni ko‘rsatadi.`;
-  if(/^table/i.test(anchor.text))return `Coursebook p.${anchor.printedPage} dagi jadval: tushunchalarni yoki qiymatlarni aniq solishtirish uchun ishlatiladi.`;
-  return `Coursebook p.${anchor.printedPage} da qalin ajratilgan muhim ibora; uni shu bo‘limdagi ta’rif, misol va savollar bilan bog‘lang.`;
+  if(/^activity|^extension activity/i.test(anchor.text))return `A task from coursebook p.${anchor.printedPage}: apply the knowledge and justify the solution.`;
+  if(/^figure/i.test(anchor.text))return `A figure from coursebook p.${anchor.printedPage}: explain the process, structure or relationship between the values shown.`;
+  if(/^table/i.test(anchor.text))return `A table from coursebook p.${anchor.printedPage}: use it to compare concepts or values precisely.`;
+  return `An important phrase emphasised on coursebook p.${anchor.printedPage}; connect it to the definition, example and questions in this section.`;
 }
 
 function emphasisBeatsForTopic(topic:LessonTopic,teaching:Array<{slide:HodderLessonSlide;page:TopicPage}>) {
@@ -380,8 +381,8 @@ function emphasisBeatsForTopic(topic:LessonTopic,teaching:Array<{slide:HodderLes
   const sourceSlide=teaching[0]!.slide;
   const pageTitle=displayPageTitle(teaching[0]!.page,topic);
   return chunks(anchors,2).map((group,index)=>beat(sourceSlide,pageTitle,`emphasis-${index+1}`,'emphasis',{
-    eyebrow:'COURSEBOOK · QALIN AJRATILGAN MAZMUN',
-    title:'Kitobdagi muhim ajratilgan tushunchalar',
+    eyebrow:'COURSEBOOK · EMPHASISED CONTENT',
+    title:'Important emphasised coursebook concepts',
     keyTerms:group.map(anchor=>({term:anchor.text,definition:emphasisExplanation(anchor,atoms)})),
     sourcePages:group.map(anchor=>anchor.printedPage),
     visual:undefined,
@@ -399,11 +400,11 @@ export function presentationBeatsForTopic(topic:LessonTopic) {
     const storyboard=chapter14PresentationStoryboard(topic.code);
     if(storyboard)return storyboard;
   }
-  const lesson=teaching.flatMap(({slide,page})=>[
-    ...presentationBeatsForSlide(presenterSlide(slide),displayPageTitle(page,topic)),
-    ...(chapter?sourceCoverageBeats(slide,displayPageTitle(page,topic),chapter):[]),
-  ]);
-  return [...lesson,...emphasisBeatsForTopic(topic,teaching)];
+  const lesson=teaching.flatMap(({slide,page})=>presentationBeatsForSlide(presenterSlide(slide),displayPageTitle(page,topic)));
+  const sourceAppendix=chapter?teaching.flatMap(({slide,page})=>sourceCoverageBeats(slide,displayPageTitle(page,topic),chapter)):[];
+  const emphasis=emphasisBeatsForTopic(topic,teaching);
+  if(chapter===2&&topic.code==='2.1')return frameChapter2NetworkingPresentation(lesson,[...sourceAppendix,...emphasis]);
+  return [...lesson,...sourceAppendix,...emphasis];
 }
 
 export function firstStudyPage(topic:LessonTopic) {

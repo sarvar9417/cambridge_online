@@ -7,6 +7,9 @@ import {
   type LessonPresentationBeat,
 } from './lesson-experience-model';
 import { Chapter14PresentationVisual, hasChapter14PresentationVisual } from './Chapter14PresentationVisuals';
+import { Chapter14PresentationVisualV3, hasChapter14PresentationVisualV3 } from './Chapter14PresentationVisualsV3';
+import { Chapter14PresentationVisualV4, hasChapter14PresentationVisualV4 } from './Chapter14PresentationVisualsV4';
+import { chapter14PresentationRevealCount } from './chapter14-presentation-runtime';
 import './chapter14-presentation-prototype.css';
 
 const VISUAL_LABELS:Record<LessonVisual,string[]> = {
@@ -34,6 +37,11 @@ function VisualGraphic({kind}:{kind?:LessonVisual}) {
   return <div className={`lx-visual lx-visual--${kind}`} aria-hidden="true">
     {VISUAL_LABELS[kind].map((label,index)=><span key={`${label}-${index}`}>{label}</span>)}
   </div>;
+}
+
+export function shouldRenderGenericVisual(kind:LessonVisual|undefined,contentId:string) {
+  if(!kind)return false;
+  return !(kind==='networking'&&/^h2(?:n)?-/.test(contentId));
 }
 
 function FigureView({figure,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{figure:LessonFigure;presenting?:boolean;reveal?:number}) {
@@ -71,9 +79,9 @@ function RichBlockView({block,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{
   if(block.kind==='bullets')return <ul className="lx-points">{block.items.slice(0,presenting?reveal:undefined).map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>;
   if(block.kind==='code')return <section className="lx-code">{block.title?<strong>{block.title}</strong>:null}<pre>{block.lines.join('\n')}</pre></section>;
   if(block.kind==='steps')return <section className="lx-steps">{block.title?<strong>{block.title}</strong>:null}<ol>{block.items.slice(0,presenting?reveal:undefined).map((item,index)=><li key={`${item}-${index}`}><span>{index+1}</span>{item}</li>)}</ol></section>;
-  if(block.kind==='callout')return <aside className={`lx-callout lx-callout--${block.tone??'info'}`}><span>{block.tone==='activity'?'MASHQ':block.tone==='extension'?'QO‘SHIMCHA':block.tone==='warning'?'EHTIYOT BO‘LING':'ASOSIY FIKR'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
+  if(block.kind==='callout')return <aside className={`lx-callout lx-callout--${block.tone??'info'}`}><span>{block.tone==='activity'?'ACTIVITY':block.tone==='extension'?'EXTENSION':block.tone==='warning'?'CAUTION':'KEY IDEA'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
   if(block.kind==='comparison')return <div className="lx-comparison"><section><strong>{block.leftTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</section><section><strong>{block.rightTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</section></div>;
-  if(block.kind==='source-note')return <aside className="lx-accuracy"><span>ANIQLIK IZOHI</span><h3>{block.title}</h3><div><p><strong>{block.sourceLabel}</strong>{block.sourceText}</p><p><strong>{block.examSafeLabel}</strong>{block.examSafeText}</p></div></aside>;
+  if(block.kind==='source-note')return <aside className="lx-accuracy"><span>ACCURACY NOTE</span><h3>{block.title}</h3><div><p><strong>{block.sourceLabel}</strong>{block.sourceText}</p><p><strong>{block.examSafeLabel}</strong>{block.examSafeText}</p></div></aside>;
   if(block.kind==='figure')return <FigureView figure={block.figure} presenting={presenting} reveal={reveal}/>;
   return <div className="lx-table-wrap"><table><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.slice(0,presenting?reveal:undefined).map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,columnIndex)=><td key={`${rowIndex}-${columnIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
@@ -85,19 +93,21 @@ export function LessonStudySlide({sourceSlide,pageTitle}:{sourceSlide:HodderLess
   const [answerOpen,setAnswerOpen]=useState(false);
   useEffect(()=>setAnswerOpen(false),[slide.id]);
   return <article className={`lx-study-section${exact?' lx-study-section--source':''}`} data-slide-id={slide.id}>
-    <header className="lx-study-section-head"><span>{slide.eyebrow}</span>{repeatsPageTitle&&!exact?null:<h2>{exact?'Kitobdagi asosiy mazmun':slide.title}</h2>}<p>{slide.lead}</p></header>
-    {slide.visual?<VisualGraphic kind={slide.visual}/>:null}
+    <header className="lx-study-section-head"><span>{slide.eyebrow}</span>{repeatsPageTitle&&!exact?null:<h2>{exact?'Core coursebook content':slide.title}</h2>}<p>{slide.lead}</p></header>
+    {shouldRenderGenericVisual(slide.visual,sourceSlide.id)?<VisualGraphic kind={slide.visual}/>:null}
     {slide.formula?<div className="lx-formula">{slide.formula}</div>:null}
     {slide.bullets?.length?<ul className="lx-points">{slide.bullets.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>:null}
-    {slide.keyTerms?.length?<div className="lx-terms">{slide.keyTerms.map(item=><section key={item.term}><span>ATAMA</span><h3>{item.term}</h3><p>{item.definition}</p></section>)}</div>:null}
+    {slide.keyTerms?.length?<div className="lx-terms">{slide.keyTerms.map(item=><section key={item.term}><span>KEY TERM</span><h3>{item.term}</h3><p>{item.definition}</p></section>)}</div>:null}
     {slide.richBlocks?.length?<div className="lx-rich">{slide.richBlocks.map((block,index)=><RichBlockView block={block} key={`${block.kind}-${index}`}/>)}</div>:null}
-    {slide.example?<section className="lx-example"><span>WORKED EXAMPLE</span><h3>{slide.example.title}</h3><ol>{slide.example.lines.map((line,index)=><li key={`${line}-${index}`}><b>{index+1}</b><span>{line}</span></li>)}</ol>{slide.example.answer?<p><strong>Javob</strong>{slide.example.answer}</p>:null}</section>:null}
-    {slide.teacherPrompt?<aside className="lx-check"><span>O‘YLANG VA TUSHUNTIRING</span><p>{slide.teacherPrompt}</p></aside>:null}
-    {slide.activity?<section className="lx-activity"><span>MUSTAQIL MASHQ</span><h3>{slide.activity.title}</h3><p>{slide.activity.prompt}</p>{slide.activity.reveal?<><button type="button" aria-expanded={answerOpen} onClick={()=>setAnswerOpen(open=>!open)}>{answerOpen?'Javobni yashirish':'Javobni ochish'}</button>{answerOpen?<div className="lx-model-answer"><strong>Javob va yo‘l-yo‘riq</strong><p>{slide.activity.reveal}</p></div>:null}</>:null}</section>:null}
+    {slide.example?<section className="lx-example"><span>WORKED EXAMPLE</span><h3>{slide.example.title}</h3><ol>{slide.example.lines.map((line,index)=><li key={`${line}-${index}`}><b>{index+1}</b><span>{line}</span></li>)}</ol>{slide.example.answer?<p><strong>Answer</strong>{slide.example.answer}</p>:null}</section>:null}
+    {slide.teacherPrompt?<aside className="lx-check"><span>THINK AND EXPLAIN</span><p>{slide.teacherPrompt}</p></aside>:null}
+    {slide.activity?<section className="lx-activity"><span>INDEPENDENT PRACTICE</span><h3>{slide.activity.title}</h3><p>{slide.activity.prompt}</p>{slide.activity.reveal?<><button type="button" aria-expanded={answerOpen} onClick={()=>setAnswerOpen(open=>!open)}>{answerOpen?'Hide answer':'Reveal answer'}</button>{answerOpen?<div className="lx-model-answer"><strong>Answer and guidance</strong><p>{slide.activity.reveal}</p></div>:null}</>:null}</section>:null}
   </article>;
 }
 
 export function revealCountForBeat(beat:LessonPresentationBeat) {
+  const chapter14Count=chapter14PresentationRevealCount(beat);
+  if(chapter14Count!==null)return chapter14Count;
   if(beat.bullets)return beat.bullets.length;
   if(beat.keyTerms)return beat.keyTerms.length;
   if(beat.example)return beat.example.lines.length+(beat.example.answer?1:0);
@@ -115,25 +125,25 @@ export function revealCountForBeat(beat:LessonPresentationBeat) {
 }
 
 const beatLabel:Record<LessonPresentationBeat['kind'],string> = {
-  concept:'YANGI TUSHUNCHA',
-  'key-idea':'ASOSIY FIKR',
-  definition:'ATAMALAR',
+  concept:'NEW CONCEPT',
+  'key-idea':'KEY IDEA',
+  definition:'KEY TERMS',
   example:'WORKED EXAMPLE',
-  activity:'MUSTAQIL MASHQ',
-  check:'TEZKOR TEKSHIRUV',
-  visual:'KO‘RSATISH',
-  source:'KITOBDAGI MUHIM TAFSILOT',
-  emphasis:'QALIN AJRATILGAN MAZMUN',
+  activity:'INDEPENDENT PRACTICE',
+  check:'QUICK CHECK',
+  visual:'VISUAL MODEL',
+  source:'IMPORTANT COURSEBOOK DETAIL',
+  emphasis:'EMPHASISED COURSEBOOK CONTENT',
 };
 
 const sceneLabel:Partial<Record<NonNullable<LessonPresentationBeat['sceneRole']>,string>> = {
   hook:'STARTER',
-  objective:'BUGUNGI MAQSAD',
-  concept:'YANGI TUSHUNCHA',
-  process:'BOSQICHMA-BOSQICH',
-  visual:'VIZUAL MODEL',
-  compare:'SOLISHTIRING',
-  challenge:'O‘YLANG',
+  objective:'LEARNING OBJECTIVES',
+  concept:'NEW CONCEPT',
+  process:'STEP BY STEP',
+  visual:'VISUAL MODEL',
+  compare:'COMPARE',
+  challenge:'THINK',
   exam:'CAMBRIDGE CHECK',
   recap:'RETRIEVAL',
 };
@@ -141,21 +151,25 @@ const sceneLabel:Partial<Record<NonNullable<LessonPresentationBeat['sceneRole']>
 export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}) {
   const role=beat.sceneRole??beat.kind;
   const label=beat.sceneRole?sceneLabel[beat.sceneRole]??beatLabel[beat.kind]:beatLabel[beat.kind];
-  const customVisual=hasChapter14PresentationVisual(beat);
+  const v4Visual=hasChapter14PresentationVisualV4(beat);
+  const v3Visual=!v4Visual&&hasChapter14PresentationVisualV3(beat);
+  const legacyVisual=!v4Visual&&!v3Visual&&hasChapter14PresentationVisual(beat);
+  const customVisual=v4Visual||v3Visual||legacyVisual;
+  const chapter14Owned=v4Visual&&beat.id.startsWith('h14p-');
   return <article className={`lx-present-screen lx-present-screen--${beat.kind} lx-present-screen--scene-${role}`} aria-live="polite">
     <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
-      {beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
-      {customVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
-      {!customVisual&&beat.visual && (beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
-      {beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
-      {beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
-      {beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>ATAMA</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
+      {!chapter14Owned&&beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
+      {v4Visual?<Chapter14PresentationVisualV4 beat={beat} reveal={reveal}/>:v3Visual?<Chapter14PresentationVisualV3 beat={beat} reveal={reveal}/>:legacyVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
+      {!customVisual&&shouldRenderGenericVisual(beat.visual,beat.slideId)&&(beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
+      {!chapter14Owned&&beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
+      {!chapter14Owned&&beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
+      {!chapter14Owned&&beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>KEY TERM</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
       {beat.richBlock&&!customVisual?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
-      {beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Javob</strong>{beat.example.answer}</p>:null}</section>:null}
-      {beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
-      {beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Javob va yo‘l-yo‘riq</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
+      {!chapter14Owned&&beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Answer</strong>{beat.example.answer}</p>:null}</section>:null}
+      {!chapter14Owned&&beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
+      {!chapter14Owned&&beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Answer and guidance</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
     </div>
-    {beat.showSource!==false&&beat.sourcePages.length?<footer>Manba: coursebook p. {beat.sourcePages.join(', ')}</footer>:null}
+    {beat.showSource!==false&&beat.sourcePages.length?<footer>Source: coursebook p. {beat.sourcePages.join(', ')}</footer>:null}
   </article>;
 }

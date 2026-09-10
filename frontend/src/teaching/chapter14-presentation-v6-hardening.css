@@ -1,0 +1,64 @@
+/* V6 rendering is authoritative for all 42 Chapter 14 scenes. Generic beat
+   blocks must not render underneath it, otherwise projector scenes duplicate
+   objectives, questions and activities and become taller than the viewport. */
+.lesson-experience.lx-present .lx-present-content:has(> [class^="h14v6-"]) > :is(
+  .lx-formula--present,
+  .lx-present-points,
+  .lx-present-terms,
+  .lx-present-example,
+  .lx-present-question,
+  .lx-present-activity
+){display:none!important}
+
+/* Progressive reveal should not look like missing content. Unrevealed V6 cards
+   leave the layout entirely, then enter when the teacher reveals them. */
+.lesson-experience.lx-present :is(
+  .h14v6-objectives,
+  .h14v6-protocol-map,
+  .h14v6-ftp,
+  .h14v6-mechanics,
+  .h14v6-popimap,
+  .h14v6-transport,
+  .h14v6-frame>div,
+  .h14v6-ethernet-detail,
+  .h14v6-wireless,
+  .h14v6-torrent-terms>div,
+  .h14v6-circuit-stages,
+  .h14v6-packet-basics,
+  .h14v6-extended,
+  .h14v6-routing-fields,
+  .h14v6-web-example,
+  .h14v6-activity,
+  .h14v6-practice,
+  .h14v6-recap
+) > :not(.is-visible):not(.data):not(.core){display:none!important}
+
+.lesson-experience.lx-present .h14v6-stack>div>section:not(.is-visible),
+.lesson-experience.lx-present .h14v6-encap>section:not(.is-visible),
+.lesson-experience.lx-present .h14v6-email .flow>section:not(.is-visible),
+.lesson-experience.lx-present .h14v6-handshake .message:not(.is-visible),
+.lesson-experience.lx-present .h14v6-torrent footer>span:not(.is-visible),
+.lesson-experience.lx-present .h14v6-proscons p:not(.is-visible),
+.lesson-experience.lx-present .h14v6-video .symptoms>span:not(.is-visible),
+.lesson-experience.lx-present .h14v6-video .call main>div:not(.is-visible),
+.lesson-experience.lx-present .h14v6-hop>section:not(.is-visible),
+.lesson-experience.lx-present .h14v6-header>div>section:not(.is-visible):not(.data),
+.lesson-experience.lx-present .h14v6-routing>:is(i,.router-box,table):not(.is-visible),
+.lesson-experience.lx-present .h14v6-control>section:nth-child(2):not(.is-visible),
+.lesson-experience.lx-present .h14v6-control>section:first-child>div>span:not(.is-visible):not(:first-child),
+.lesson-experience.lx-present .h14v6-http .steps>span:not(.is-visible),
+.lesson-experience.lx-present .h14v6-http g.node:not(.is-visible){display:none!important}
+
+/* display:contents comparison rows need an explicit reveal rule. */
+.lesson-experience.lx-present .h14v6-compare>div:not(.is-visible){display:none!important}
+.lesson-experience.lx-present .h14v6-compare>div.is-visible{display:contents}
+
+/* Source-completeness ribbons are intentionally compact and high-contrast. */
+.h14v6-source-ribbon{width:min(1120px,100%);margin:.5rem auto 0;display:flex;align-items:flex-start;gap:.55rem;flex-wrap:wrap;padding:.5rem .65rem;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft);color:var(--text-muted);font-size:clamp(.62rem,.82vw,.74rem);line-height:1.4}
+.h14v6-source-ribbon>strong{flex:none;color:var(--accent);font:850 .6rem var(--font-mono);letter-spacing:.05em}
+.h14v6-source-ribbon>span{color:var(--text)}
+.h14v6-source-ribbon>i{font-style:normal;color:var(--border-strong)}
+
+@media(max-height:760px) and (min-width:761px){
+  .h14v6-source-ribbon{margin-top:.35rem;padding:.38rem .5rem;font-size:.6rem}
+}

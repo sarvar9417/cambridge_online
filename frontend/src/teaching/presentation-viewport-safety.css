@@ -1,0 +1,150 @@
+/* Presentation viewport safety net.
+   Projector scenes should normally fit without scrolling, but content must never
+   be clipped when a laptop has a short viewport, browser chrome is visible, or
+   a source-rich scene grows taller than expected. */
+
+.lesson-experience.lx-present {
+  min-width: 0;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.lesson-experience.lx-present .lx-present-stage {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;
+  align-items: start;
+  justify-items: stretch;
+  padding-block: clamp(.85rem, 2.2vh, 1.65rem);
+}
+
+/* The old presentation shell forced every scene to exactly the remaining
+   viewport height and then hid overflow in both the stage and content area.
+   Use the viewport as a minimum instead: compact scenes still fill the screen,
+   while dense scenes are allowed to grow and become scrollable. */
+.lesson-experience.lx-present .lx-present-screen {
+  width: min(1380px, 100%);
+  height: auto;
+  min-height: 100%;
+  align-self: start;
+  padding-bottom: clamp(.75rem, 2vh, 1.5rem);
+}
+
+.lesson-experience.lx-present .lx-present-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* A nested visual/table should never make the whole slide disappear to the
+   right. Local horizontal scrolling is preferable to clipping source content. */
+.lesson-experience.lx-present :is(
+  .lx-table-wrap,
+  .lx-comparison,
+  .lx-bitfields,
+  .h14v-header,
+  .h14v-header-strip,
+  .h14v-routing,
+  .h14v-routing table,
+  .h14v-ethernet,
+  .h14v-ethernet-frame,
+  .h14v-switch-compare,
+  .h14v-protocol-map,
+  .h14v-bittorrent-wrap,
+  .h14v-email-wrap,
+  .h14v-tcp-wrap,
+  .h14v-hop-wrap
+) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lesson-experience.lx-present .lx-table-wrap,
+.lesson-experience.lx-present .h14v-header,
+.lesson-experience.lx-present .h14v-routing {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+/* Make it obvious that a long projector scene has more content below. */
+.lesson-experience.lx-present .lx-present-stage {
+  scrollbar-color: color-mix(in srgb, var(--accent, #1769d2) 55%, transparent)
+    color-mix(in srgb, var(--surface-soft, #f4f7fb) 90%, transparent);
+  scrollbar-width: thin;
+}
+.lesson-experience.lx-present .lx-present-stage::-webkit-scrollbar { width: 10px; height: 10px; }
+.lesson-experience.lx-present .lx-present-stage::-webkit-scrollbar-track { background: var(--surface-soft, #f4f7fb); }
+.lesson-experience.lx-present .lx-present-stage::-webkit-scrollbar-thumb {
+  border: 2px solid var(--surface-soft, #f4f7fb);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #1769d2) 62%, var(--surface-soft, #f4f7fb));
+}
+
+/* Short laptop/projector viewports: reduce chrome and spacing before sacrificing
+   instructional text size. Scrolling remains available as the final fallback. */
+@media (max-height: 900px) and (min-width: 761px) {
+  .lesson-experience.lx-present { grid-template-rows: 58px minmax(0, 1fr) 58px; }
+  .lesson-experience.lx-present .lx-present-stage { padding-block: .75rem; }
+  .lesson-experience.lx-present .lx-present-screen { gap: .8rem; }
+  .lesson-experience.lx-present .lx-present-screen > header h1 {
+    margin-top: .45rem;
+    font-size: clamp(2rem, 3.7vw, 3.25rem);
+    line-height: 1.03;
+  }
+  .lesson-experience.lx-present .lx-present-screen--scene-hook > header h1 {
+    font-size: clamp(2.65rem, 5vw, 4.4rem);
+  }
+  .lesson-experience.lx-present .lx-present-lead {
+    font-size: clamp(1.15rem, 2vw, 1.7rem);
+  }
+  .lesson-experience.lx-present .lx-present-screen[class*="lx-present-screen--scene-"] > header::after {
+    margin-top: .5rem;
+  }
+  .lesson-experience.lx-present .h14v-diagnostic section { min-height: 108px; padding: .8rem; }
+  .lesson-experience.lx-present .h14v-wireless section { min-height: 170px; padding: 1rem; }
+  .lesson-experience.lx-present .h14v-swarm { height: 350px; }
+  .lesson-experience.lx-present .h14v-network { max-height: 330px; }
+}
+
+@media (max-height: 720px) and (min-width: 761px) {
+  .lesson-experience.lx-present { grid-template-rows: 52px minmax(0, 1fr) 52px; }
+  .lesson-experience.lx-present .lx-present-stage {
+    padding: .55rem clamp(1rem, 3vw, 3rem);
+  }
+  .lesson-experience.lx-present .lx-present-screen { gap: .6rem; }
+  .lesson-experience.lx-present .lx-present-screen > header > span,
+  .lesson-experience.lx-present .lx-present-screen > header > small { font-size: .64rem; }
+  .lesson-experience.lx-present .lx-present-screen > header h1 {
+    font-size: clamp(1.8rem, 3.25vw, 2.75rem);
+  }
+  .lesson-experience.lx-present .lx-present-screen--scene-hook > header h1 {
+    font-size: clamp(2.25rem, 4.5vw, 3.65rem);
+  }
+  .lesson-experience.lx-present .lx-present-lead { font-size: clamp(1.05rem, 1.7vw, 1.45rem); }
+  .lesson-experience.lx-present .h14v-swarm { height: 320px; }
+  .lesson-experience.lx-present .h14v-network { max-height: 285px; }
+}
+
+@media (max-width: 760px) {
+  .lesson-experience.lx-present .lx-present-stage {
+    padding: .75rem;
+    scrollbar-gutter: auto;
+  }
+  .lesson-experience.lx-present .lx-present-screen {
+    min-height: 100%;
+    padding-bottom: 1rem;
+  }
+  .lesson-experience.lx-present .h14v-swarm {
+    /* The prototype used negative bottom margins after scaling. That can hide
+       the final row on small screens. Keep the scaled visual in normal flow. */
+    margin-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-experience.lx-present .lx-present-stage { scroll-behavior: auto; }
+}
