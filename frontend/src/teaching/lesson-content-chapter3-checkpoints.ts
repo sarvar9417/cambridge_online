@@ -39,7 +39,7 @@ const sourceGroundedSlides = [...CHAPTER_3.slides,...CHAPTER_3_DEVICE_SLIDES,...
 
 export const CHAPTER_3_FINAL: Chapter3Lesson = {
   ...CHAPTER_3,
-  sourceNote: 'Source-grounded from the exact connected Hodder 9618 Coursebook. Chapter 3 is printed pp.68–106; implemented lesson scenes currently cover pp.68–94, with later pages left explicitly unresolved until built.',
-  coverage: 'Source-complete through p.94: chapter objectives; memory/storage; RAM/ROM families; embedded systems; HDD/SSD/optical media; Extensions 3A–3F; printing; 3D printing; audio I/O; OLED/touch/VR; sensors and ADC/DAC; monitoring versus control; ABS; Activity 3A; logic-gate introduction; truth-table combination counts; and the source presentation of NOT, AND, OR, NAND, NOR and XOR with Figures 3.23–3.28 and associated truth tables · current 2026–2028 memory-family checkpoint queries approved 2021–2026 Cambridge papers through explicit LO compatibility',
+  sourceNote: 'Source-grounded from the exact connected Hodder 9618 Coursebook. Chapter 3 is printed pp.68–106 and the implemented lesson scenes now cover the complete chapter range.',
+  coverage: 'Source-complete pp.68–106: chapter objectives; memory/storage and RAM/ROM families; embedded systems; HDD/SSD/optical media; printing and 3D printing; audio I/O; OLED/touch/VR; sensors, ADC/DAC, monitoring/control and ABS; all Chapter 3 activities/extensions represented in sequence; logic gates and truth tables; worked Examples 3.1–3.3; real-world circuit design; NAND building blocks; simplification; multi-input gates; and end-of-chapter Questions 1–6 · current 2026–2028 memory-family checkpoint queries approved 2021–2026 Cambridge papers through explicit LO compatibility',
   slides: withMemoryCheckpoint(sourceGroundedSlides),
 };
