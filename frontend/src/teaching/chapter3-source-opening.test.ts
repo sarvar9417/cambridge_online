@@ -38,15 +38,17 @@ describe('Hodder Chapter 3 exact connected source lock', () => {
     expect(LESSON_CHAPTERS.some(chapter => chapter.number === 3)).toBe(true);
   });
 
-  it('preserves the earlier pp.68–77 draft while extending exact source coverage through p.83', () => {
+  it('preserves the earlier pp.68–83 scenes while extending exact source coverage through p.89', () => {
     expect(CHAPTER_3.number).toBe(3);
     expect(CHAPTER_3_VISUAL_IDS.length).toBeGreaterThanOrEqual(10);
     expect(CHAPTER_3_DEVICE_SLIDES).toHaveLength(6);
     expect(CHAPTER_3_DEVICE_VISUAL_IDS).toHaveLength(6);
     expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–106');
-    expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–83');
+    expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–89');
     expect(CHAPTER_3_FINAL.coverage).toContain('inkjet printing');
     expect(CHAPTER_3_FINAL.coverage).toContain('virtual headsets');
+    expect(CHAPTER_3_FINAL.coverage).toContain('monitoring versus control');
+    expect(CHAPTER_3_FINAL.coverage).toContain('Figure 3.22');
   });
 
   it('locks the p.78–83 source-specific scenes and terminology', () => {
