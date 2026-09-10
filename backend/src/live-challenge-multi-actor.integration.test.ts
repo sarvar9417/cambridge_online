@@ -23,13 +23,6 @@ const teacher={id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',role:'teacher' as const
 const studentA={id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',role:'student' as const,schoolId,fullName:'Student A'};
 const studentB={id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',role:'student' as const,schoolId,fullName:'Student B'};
 
-/**
- * Release-level multi-actor contract for Live Challenge.
- *
- * SQL/service unit tests own persistence details. This test composes the real
- * HTTP router and board projection while keeping deterministic in-memory state,
- * protecting the teacher/student/board handoff and Mark Scheme secrecy rules.
- */
 describe('Live Challenge multi-actor release contract',()=>{
   it('keeps teacher, two students and board on one authoritative Cambridge round through peer marking and finish',async()=>{
     const joined=new Set<string>();
@@ -65,7 +58,10 @@ describe('Live Challenge multi-actor release contract',()=>{
     }));
 
     const own=vi.fn(async(actor:{id:string})=>({challengeId,status,stateVersion,roundId,roundNumber:1,roundStatus:status,answer:answers.has(actor.id)?{id:actor.id===studentA.id?answerA:answerB,text:answers.get(actor.id),submittedAt:'2026-09-09T18:01:30Z',lockedAt:status==='QUESTION_ACTIVE'?null:'2026-09-09T18:02:00Z',submissionDurationMs:30000}:null}));
-    const submit=vi.fn(async(actor:{id:string},_id:string,text:string)=>{expect(status).toBe('QUESTION_ACTIVE');answers.set(actor.id,text);return{id:actor.id===studentA.id?answerA:answerB,immutable:true}});
+    const submit=vi.fn(async(actor:{id:string},_id:string,submittedRoundId:string,text:string)=>{
+      expect(status).toBe('QUESTION_ACTIVE');expect(submittedRoundId).toBe(roundId);answers.set(actor.id,text);
+      return{id:actor.id===studentA.id?answerA:answerB,immutable:true,idempotent:false};
+    });
     const lock=vi.fn(async()=>{expect(answers.size).toBe(2);status='ANSWERS_LOCKED';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,submissionCount:2}});
     const metrics=vi.fn(async()=>({challengeId,status,stateVersion,roundId,roundNumber:1,roundStatus:status,joinedCount:2,answerCount:answers.size,assignmentCount:status==='PEER_MARKING'?2:0,peerMarkCount:marks.size}));
     const events=vi.fn(async()=>({challengeId,stateVersion,cursor:'0',events:[]}));
@@ -74,7 +70,7 @@ describe('Live Challenge multi-actor release contract',()=>{
         {rank:1,displayName:'Student B',score:marks.get(studentA.id)??0,maxMarks:2,percentage:((marks.get(studentA.id)??0)/2)*100},
         {rank:2,displayName:'Student A',score:marks.get(studentB.id)??0,maxMarks:2,percentage:((marks.get(studentB.id)??0)/2)*100},
       ].sort((a,b)=>b.score-a.score).map((entry,index)=>({...entry,rank:index+1}));
-      return{challengeId,status,stateVersion,releasedRounds:status==='ROUND_RESULTS'||status==='FINISHED'?1:0,maxMarks:2,classAveragePercentage:entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length,entries};
+      return{challengeId,status,stateVersion,releasedRounds:status==='ROUND_RESULTS'||status==='FINISHED'?1:0,maxMarks:2,classAveragePercentage:entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length,leaderboardMode:'marks',entries};
     });
 
     const peerStart=vi.fn(async()=>{status='PEER_MARKING';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,assignmentCount:2,teacherModerationRequired:false}});
@@ -86,7 +82,11 @@ describe('Live Challenge multi-actor release contract',()=>{
         submittedMark:marks.has(actor.id)?{awardedMarks:marks.get(actor.id),markPointIds:[pointId],feedbackText:null,submittedAt:'2026-09-09T18:03:30Z'}:null,
       }};
     });
-    const peerSubmit=vi.fn(async(actor:{id:string},_id:string,input:{awardedMarks:number})=>{marks.set(actor.id,input.awardedMarks);return{peerAssignmentId:actor.id===studentA.id?assignmentA:assignmentB,awardedMarks:input.awardedMarks,immutable:true}});
+    const peerSubmit=vi.fn(async(actor:{id:string},_id:string,input:{peerAssignmentId:string;awardedMarks:number})=>{
+      expect(input.peerAssignmentId).toBe(actor.id===studentA.id?assignmentA:assignmentB);
+      marks.set(actor.id,input.awardedMarks);
+      return{peerAssignmentId:input.peerAssignmentId,awardedMarks:input.awardedMarks,immutable:true,idempotent:false};
+    });
     const release=vi.fn(async()=>{expect(marks.size).toBe(2);status='ROUND_RESULTS';stateVersion+=1;return{id:challengeId,status,stateVersion,roundId,markCount:2,overrideCount:0,resolvedCount:2,masteryApplied:true}});
     const advance=vi.fn(async()=>{status='FINISHED';stateVersion+=1;return{id:challengeId,status,stateVersion,roundNumber:1,finished:true}});
     const finalizeAnalytics=vi.fn(async()=>{analyticsFinalized=true;return{challengeId,recorded:true,masteryRows:0,releasedRounds:1}});
@@ -128,8 +128,8 @@ describe('Live Challenge multi-actor release contract',()=>{
     expect(aState.body.data.markScheme).toBeNull();
     expect(JSON.stringify(board.body.data)).not.toContain('answerText');
 
-    await request(app).post(`/live-challenges/${challengeId}/answer`).set('x-test-actor','a').send({answerText:'The CU controls processor operations.',expectedStateVersion:3}).expect(201);
-    await request(app).post(`/live-challenges/${challengeId}/answer`).set('x-test-actor','b').send({answerText:'It coordinates the CPU components.',expectedStateVersion:3}).expect(201);
+    await request(app).post(`/live-challenges/${challengeId}/answer`).set('x-test-actor','a').send({roundId,answerText:'The CU controls processor operations.',expectedStateVersion:3}).expect(201);
+    await request(app).post(`/live-challenges/${challengeId}/answer`).set('x-test-actor','b').send({roundId,answerText:'It coordinates the CPU components.',expectedStateVersion:3}).expect(201);
     await request(app).post(`/live-challenges/${challengeId}/answers/lock`).send({expectedStateVersion:3}).expect(200);
 
     await request(app).post(`/live-challenges/${challengeId}/peer-marking/start`).send({expectedStateVersion:4}).expect(200);
@@ -141,8 +141,8 @@ describe('Live Challenge multi-actor release contract',()=>{
     expect(JSON.stringify(aAssignment.body.data)).not.toContain(studentB.id);
     expect(JSON.stringify(bAssignment.body.data)).not.toContain(studentA.id);
 
-    await request(app).post(`/live-challenges/${challengeId}/peer-marking/submit`).set('x-test-actor','a').send({awardedMarks:1,markPointIds:[pointId],feedbackText:null}).expect(201);
-    await request(app).post(`/live-challenges/${challengeId}/peer-marking/submit`).set('x-test-actor','b').send({awardedMarks:2,markPointIds:[pointId],feedbackText:null}).expect(201);
+    await request(app).post(`/live-challenges/${challengeId}/peer-marking/submit`).set('x-test-actor','a').send({peerAssignmentId:assignmentA,awardedMarks:1,markPointIds:[pointId],feedbackText:null}).expect(201);
+    await request(app).post(`/live-challenges/${challengeId}/peer-marking/submit`).set('x-test-actor','b').send({peerAssignmentId:assignmentB,awardedMarks:2,markPointIds:[pointId],feedbackText:null}).expect(201);
     await request(app).post(`/live-challenges/${challengeId}/peer-marking/release`).send({expectedStateVersion:5}).expect(200);
 
     const releasedBoard=await request(app).get(`/live-challenges/${challengeId}/board`).expect(200);
