@@ -268,13 +268,13 @@ export class LiveChallengeService {
             'markSchemeSourcePaperId',occ.mark_scheme_source_paper_id,
             'sourcePath',occ.source_path,'displayRef',occ.display_ref,
             'equivalenceBasis',occ.equivalence_basis,'verifiedAt',occ.verified_at,
-            'qpSha256',lower(sp.sha256),'year',sp.year,'series',sp.series::text,
-            'variant',sp.variant,'component',c.number
+            'qpSha256',lower(sp.sha256),'msSha256',lower(ms_sp.sha256),
+            'year',sp.year,'series',sp.series::text,'variant',sp.variant,'component',c.number
           ) source_occurrence_snapshot,
           jsonb_build_object(
             'id',ms.id,'schemeType',ms.scheme_type::text,'maxMarks',ms.max_marks,
             'guidanceMd',ms.guidance_md,'reviewedAt',ms.reviewed_at,
-            'sourcePaperId',ms.source_paper_id,
+            'sourcePaperId',ms.source_paper_id,'sourceSha256',lower(ms_sp.sha256),
             'points',coalesce((select jsonb_agg(jsonb_build_object(
               'id',msp.id,'code',msp.code,'text',msp.text,'marks',msp.marks,
               'accept',msp.accept,'reject',msp.reject,'requires',msp.requires,
@@ -294,14 +294,16 @@ export class LiveChallengeService {
        join syllabi sy on sy.id=sp.syllabus_id and sy.code=$1
        join components c on c.id=q.component_id
        join mark_schemes ms on ms.question_id=q.id and ms.status='approved'::review_status and ms.max_marks=q.marks
+       join source_papers ms_sp on ms_sp.id=ms.source_paper_id and ms_sp.kind='MS'::paper_kind
        join question_source_occurrences occ on occ.question_id=q.id and occ.is_primary
-         and occ.source_paper_id=sp.id and occ.mark_scheme_source_paper_id is not null
-         and ms.source_paper_id=occ.mark_scheme_source_paper_id
+         and occ.source_paper_id=sp.id and occ.mark_scheme_source_paper_id=ms_sp.id
        where q.status='approved'::review_status
          and q.marks>0
          and q.answer_kind in ('text','pseudocode','code')
          and sp.source_url is not null
          and lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}$'
+         and ms_sp.source_url is not null
+         and lower(coalesce(ms_sp.sha256,'')) ~ '^[0-9a-f]{64}$'
          and q.content_version=1 and q.content_json is not null
          and q.content_json->'source'->>'paperId'=sp.id::text
          and lower(coalesce(q.content_json->'source'->>'sha256',''))=lower(sp.sha256)
