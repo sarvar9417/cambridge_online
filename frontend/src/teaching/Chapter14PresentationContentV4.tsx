@@ -75,7 +75,7 @@ function ExactPacketBasics({reveal}:{reveal:number}){
   const original=['P1','P2','P3','P4'];
   const arrival=['P1','P4','P3','P2'];
   return <div className="h14m-content-v2 h14d-packet-order" aria-label="Figure 14.8 packet order and reassembly">
-    <header><span>HODDER p.339 · FIGURE 14.8</span><strong>Four packets can arrive in a different order</strong></header>
+    <header><span>HODDER p.339 · FIGURE 14.8</span><strong>Four packets can travel independently and arrive in a different order</strong><p>Packet switching breaks a message into packets that can be sent independently from start point to end point; the destination must reassemble them into the correct order.</p></header>
     <main>
       <section className={visible(reveal,1)}><b>ORIGINAL ORDER</b><div>{original.map((p,i)=><span data-packet={i+1} key={p}>{p}</span>)}</div><small>The presentation labels the four source colours P1–P4 in the source's original order.</small></section>
       <i className={visible(reveal,2)}>independent routes ↓</i>
@@ -83,26 +83,48 @@ function ExactPacketBasics({reveal}:{reveal:number}){
       <i className={visible(reveal,4)}>sequence information ↓</i>
       <section className={visible(reveal,5)}><b>REASSEMBLED</b><div>{original.map((p,i)=><span data-packet={i+1} key={p}>{p}</span>)}</div><small>The destination restores the correct order.</small></section>
     </main>
-    <footer>Routing selection depends on the number of datagram packets waiting at each node/router; the shortest path available is selected.</footer>
+    <footer>Each packet follows its own path. Routing selection depends on the number of datagram packets waiting at each node/router; the shortest path available is selected.</footer>
   </div>;
 }
 
-const packetNodes={A:[60,170],R2:[205,100],R6:[205,245],R1:[340,55],R5:[365,145],R8:[365,255],R3:[535,85],R7:[560,185],R9:[700,275],R4:[735,90],R10:[835,220],B:[1010,170]} as const;
-type PacketNode=keyof typeof packetNodes;
-const packetRoutes:{label:string;packet:number;nodes:PacketNode[];display:string}[]=[
-  {label:'P1',packet:1,nodes:['A','R2','R5','R8','R7','R10','B'],display:'A → R2 → R5 → R8 → R7 → R10 → B'},
-  {label:'P2',packet:2,nodes:['A','R6','R8','R9','R10','B'],display:'A → R6 → R8 → R9 → R10 → B'},
-  {label:'P3',packet:3,nodes:['A','R2','R1','R3','R4','R10','B'],display:'A → R2 → R1 → R3 → R4 → R10 → B'},
-  {label:'P4',packet:4,nodes:['A','R6','R5','R3','R7','R10','B'],display:'A → R6 → R5 → R3 → R7 → R10 → B'},
+type NetworkNode='CA'|'A'|'R2'|'R6'|'R1'|'R5'|'R8'|'R3'|'R7'|'R9'|'R4'|'R10'|'B'|'CB';
+const sourceNodes:Record<NetworkNode,readonly [number,number]>={
+  CA:[60,40],A:[60,170],R2:[205,100],R6:[205,245],R1:[340,55],R5:[365,145],R8:[365,255],R3:[535,85],R7:[560,185],R9:[700,275],R4:[735,90],R10:[835,220],B:[1010,170],CB:[1010,40],
+};
+const sourceEdges:[NetworkNode,NetworkNode][]=[
+  ['CA','A'],['A','R2'],['A','R6'],['R2','R1'],['R2','R5'],['R2','R6'],['R6','R5'],['R6','R8'],['R1','R3'],['R5','R3'],['R5','R8'],['R3','R7'],['R3','R4'],['R8','R7'],['R8','R9'],['R7','R4'],['R7','R10'],['R7','R9'],['R9','R10'],['R4','R10'],['R4','B'],['R10','B'],['B','CB'],
 ];
-function pointsFor(nodes:PacketNode[]){return nodes.map(name=>packetNodes[name].join(',')).join(' ')}
+const packetRoutes:{label:string;packet:number;nodes:NetworkNode[];display:string}[]=[
+  {label:'P1',packet:1,nodes:['CA','A','R2','R5','R8','R7','R10','B','CB'],display:'router A → R2 → R5 → R8 → R7 → R10 → router B'},
+  {label:'P2',packet:2,nodes:['CA','A','R6','R8','R9','R10','B','CB'],display:'router A → R6 → R8 → R9 → R10 → router B'},
+  {label:'P3',packet:3,nodes:['CA','A','R2','R1','R3','R4','R10','B','CB'],display:'router A → R2 → R1 → R3 → R4 → R10 → router B'},
+  {label:'P4',packet:4,nodes:['CA','A','R6','R5','R3','R7','R10','B','CB'],display:'router A → R6 → R5 → R3 → R7 → R10 → router B'},
+];
+const circuitRoute:NetworkNode[]=['CA','A','R2','R5','R8','R7','R10','B','CB'];
+function pointsFor(nodes:NetworkNode[]){return nodes.map(name=>sourceNodes[name].join(',')).join(' ')}
+function NetworkBase(){return <>{sourceEdges.map(([a,b])=><line key={`${a}-${b}`} x1={sourceNodes[a][0]} y1={sourceNodes[a][1]} x2={sourceNodes[b][0]} y2={sourceNodes[b][1]} className="source-base"/>)}{(Object.entries(sourceNodes) as [NetworkNode,readonly [number,number]][]).map(([name,[x,y]])=>{
+  const endpoint=name==='CA'||name==='CB';
+  const label=name==='CA'?'computer A':name==='CB'?'computer B':name==='A'?'router A':name==='B'?'router B':name;
+  return <g key={name} transform={`translate(${x} ${y})`} className={endpoint?'endpoint':'router'}>{endpoint?<rect x="-38" y="-17" width="76" height="34" rx="7"/>:<circle r={name==='A'||name==='B'?25:20}/>}<text y="5">{label}</text></g>;
+})}</>}
+
 function ExactPacketNetwork({reveal}:{reveal:number}){
   return <div className="h14m-content-v2 h14d-packet-network" aria-label="Figure 14.8 reconstructed coloured routes">
-    <svg viewBox="0 0 1070 330" role="img" aria-label="Four source-coloured packet routes from Figure 14.8">
+    <svg viewBox="0 0 1070 330" role="img" aria-label="Four source-coloured packet routes from computer A through router A to router B and computer B">
+      <NetworkBase/>
       {packetRoutes.map(route=><polyline key={route.label} points={pointsFor(route.nodes)} className={`source-packet p${route.packet} ${visible(reveal,route.packet)}`}/>)}
-      {Object.entries(packetNodes).map(([name,[x,y]])=><g key={name} transform={`translate(${x} ${y})`}><circle r={name==='A'||name==='B'?28:21}/><text y="5">{name}</text></g>)}
     </svg>
-    <footer><div>{packetRoutes.map(route=><span data-packet={route.packet} key={route.label}><b>{route.label}</b>{route.display}</span>)}</div><p>P1–P4 are teaching labels assigned to the source colours in their original order. Queue load affects route selection; the shortest path available is selected.</p></footer>
+    <footer><div>{packetRoutes.map(route=><span data-packet={route.packet} key={route.label}><b>{route.label}</b>{route.display}</span>)}</div><p>The source shows four different coloured packet paths. P1–P4 are teaching labels assigned to those colours in their original order; all start at computer A/router A and finish at router B/computer B.</p></footer>
+  </div>;
+}
+
+function ExactCircuitNetwork({reveal,broken=false}:{reveal:number;broken?:boolean}){
+  return <div className="h14m-content-v2 h14d-packet-network h14d-circuit-network" aria-label="Figure 14.7 dedicated circuit route">
+    <svg viewBox="0 0 1070 330" role="img" aria-label="Figure 14.7 source topology with dedicated route">
+      <NetworkBase/>
+      <polyline points={pointsFor(circuitRoute)} className={`source-circuit ${visible(reveal,1)} ${broken?'is-broken':''}`}/>
+    </svg>
+    <footer><div className="route-summary"><span><b>EXACT SOURCE CONNECTIONS</b>A–R2 → R2–R5 → R5–R8 → R8–R7 → R7–R10 → R10–B</span><span><b>ENDPOINTS</b>computer A → router A → dedicated route → router B → computer B</span></div><p>{broken?'A fault on the dedicated line leaves no alternative routing for this established circuit.':'All packets/frames follow the same route; communication takes place provided device B is not busy.'}</p></footer>
   </div>;
 }
 
@@ -123,6 +145,48 @@ function BitTorrentProcessExact({reveal}:{reveal:number}){
     <ol>{steps.map(([title,text],i)=><li className={visible(reveal,Math.min(i+1,5))} key={title}><b>{i+1}</b><span><strong>{title}</strong><small>{text}</small></span></li>)}</ol>
     <footer>Peers share directly rather than through a web server. Completed peers are requested to remain online to seed until all peers have the whole file; pieces may arrive non-sequentially and are rearranged.</footer>
   </div>;
+}
+
+function BitTorrentSwarmExact({reveal}:{reveal:number}){
+  const peers=[
+    ['O','original','uploading file'],
+    ['S1','seed','seed'],['S2','seed','seed'],['S3','seed','seed'],['S4','seed','seed'],['S5','seed','seed'],['S6','seed','seed'],
+    ['L1','leech','leech'],['L2','leech','leech'],
+    ['N1','new','new'],['N2','new','new'],['N3','new','new'],
+  ] as const;
+  const positions=[[535,35],[700,55],[825,120],[860,230],[700,290],[370,290],[235,230],[210,120],[370,55],[350,165],[720,165],[535,300]] as const;
+  return <div className="h14m-content-v2 h14d-swarm" aria-label="Figure 14.6 BitTorrent swarm with 12 peers">
+    <header><span>HODDER pp.336–337 · FIGURE 14.6</span><strong>12 peers connected to one tracker</strong><p>1 original uploader · 6 seeds · 2 leeches · 3 new peers requesting the file</p></header>
+    <svg viewBox="0 0 1070 340" role="img" aria-label="Tracker connected to twelve BitTorrent peers">
+      {peers.map(([id,role],i)=>{const [x,y]=positions[i];return <line key={`line-${id}`} x1="535" y1="170" x2={x} y2={y} className={`swarm-link ${role} ${visible(reveal,Math.min(i%5+1,5))}`}/>})}
+      <g transform="translate(535 170)" className="swarm-tracker"><ellipse rx="76" ry="34"/><text y="5">TRACKER</text></g>
+      {peers.map(([id,role,note],i)=>{const [x,y]=positions[i];return <g key={id} transform={`translate(${x} ${y})`} className={`swarm-peer ${role} ${visible(reveal,Math.min(i%5+1,5))}`}><circle r="22"/><text y="4">{id}</text><text y="38" className="role-label">{note}</text></g>})}
+    </svg>
+    <footer>
+      <div className="swarm-counts"><span><b>SEED</b>downloaded file/pieces and makes them available</span><span><b>AVAILABILITY</b>complete copies of torrent contents distributed amongst the swarm</span><span><b>SHARE RATIO</b>uploaded data ÷ downloaded data; &gt;1 positive, &lt;1 negative</span><span><b>LURKER</b>downloads files but supplies no new content</span></div>
+      <p><b>LEECH · THREE COURSEBOOK WORDINGS</b> p.329: peer with negative feedback from swarm members; p.336 narrative: peer who logs off once the full download is complete; p.336 summary: peer with poor share ratio / negative impact. These source variations are preserved rather than silently reconciled.</p>
+      <p><b>FIGURE LEGEND</b> upload/download pieces · download file only · upload file only · request for file download. More seeds make downloading faster; peers are requested to remain online to seed.</p>
+    </footer>
+  </div>;
+}
+
+function IpLinkExact(){
+  return <div className="h14m-content-v2 h14d-iplink-exact" aria-label="Internet network data-link and physical network layers">
+    <section><header>INTERNET / NETWORK LAYER · IP</header><ul><li>Identifies the intended network and host; the common protocol is IP.</li><li>Ensures correct routing of packets over the internet/network.</li><li>Is responsible for protocols when communicating between networks.</li><li>Takes a packet from transport and adds a header containing sender and recipient IP addresses.</li><li>Sends the IP packet/datagram to the data-link layer.</li></ul></section>
+    <section><header>NETWORK / DATA-LINK LAYER</header><ul><li>Identifies and moves traffic across local segments.</li><li>Encapsulates IP packets/datagrams into frames for transmission.</li><li>Maps IP addresses to MAC (physical) addresses.</li><li>Ensures correct protocols are followed.</li><li>Identifies network protocols in the packet header and delivers packets to the network.</li></ul></section>
+    <footer><b>PHYSICAL NETWORK LAYER</b><span>Specifies the requirements of the hardware to be used for the network.</span><strong>Ethernet is local; communication with external devices requires IP above Ethernet.</strong></footer>
+  </div>;
+}
+
+function Activity14AExact({reveal}:{reveal:number}){
+  const tasks=[
+    ['1 · TCP/IP + EMAIL','a) Name the four TCP/IP layers. b) Name one protocol associated with each layer. c-i) Describe protocols used when sending/receiving email. c-ii) Explain the difference between SMTP and MIME when sending email.'],
+    ['2 · ETHERNET','a) Define Ethernet. b) Describe the contents of an Ethernet frame. c) Explain how external devices can be communicated with when Ethernet itself does not provide communication outside a LAN.'],
+    ['3 · BITTORRENT','a) Explain peer, swarm, tracker, leech and seed. b) Explain how it could be possible to deal with peers acting as leeches.'],
+    ['4 · ROUTING','a) Describe the difference between a packet header and a routing table. b) Explain how the header and routing table are used to route a package.'],
+    ['5 · VoIP','Explain how packet switching could be used for a video call and describe problems that might occur.'],
+  ];
+  return <div className="h14m-content-v2 h14d-activity14a" aria-label="Activity 14A complete task map"><header><span>HODDER p.343 · ACTIVITY 14A</span><strong>Five-part consolidation task</strong></header>{tasks.map(([label,text],i)=><section className={visible(reveal,i+1)} key={label}><b>{label}</b><p>{text}</p></section>)}</div>;
 }
 
 function deepSupplement(beatId:string){
@@ -155,20 +219,10 @@ function deepSupplement(beatId:string){
     ]}/>;
     case 'h14p-141-wireless':return <DeepStrip page="HODDER p.335" title="WIRELESS SCOPE + PURPOSE" items={[
       ['CSMA/CA ≠ CSMA/CD','The coursebook explicitly says CSMA/CA is a totally different concept from CSMA/CD.'],
-      ['WLAN NOTE','The source links DCF/acknowledgement behaviour to security and integrity of data sent over a WLAN.'],
+      ['DCF','A WiFi device transmits only when a free channel is available; if acknowledgement is missing it assumes a collision will occur, waits a random time and tries again.'],
+      ['WLAN NOTE','The source links this DCF/acknowledgement behaviour to security and integrity of data sent over a WLAN.'],
       ['BLUETOOTH','IEEE 802.15; numerous additional Bluetooth protocols are stated to be outside the scope of the textbook.'],
       ['WIMAX / WMAN','IEEE 802.16 was designed originally for wireless MANs (WMAN); fixed 802.16-2004, mobile 802.16-2005.'],
-    ]}/>;
-    case 'h14p-141-bittorrent-terms':return <DeepStrip page="HODDER pp.336–337" title="BITTORRENT SOURCE WORDING" items={[
-      ['SWARM','A group of connected peers sharing a torrent/tracker.'],
-      ['SEED','A peer that has downloaded a file or pieces and made them available to other peers.'],
-      ['AVAILABILITY','Number of complete copies of torrent contents distributed amongst the swarm.'],
-      ['SOURCE WORDING · TORRENT','The process first calls .torrent a small metadata file; the later summary also says “a torrent” is the name given to a file being shared. Both source statements are retained.'],
-      ['LEECH · TWO SOURCE DESCRIPTIONS','The narrative calls a peer that logs off after completing the file a leech; the summary defines a leech by poor share ratio / negative impact.'],
-      ['SHARE RATIO','uploaded data ÷ downloaded data; >1 positive impact, <1 negative effect.'],
-      ['LURKER','A peer that downloads files but supplies no new content to the community.'],
-      ['FIGURE 14.6 LEGEND','Upload/download pieces · download file only · upload file only · request for file download.'],
-      ['HISTORICAL SNAPSHOT','At the time of writing: about 12% BitTorrent video-file sharing versus about 50% YouTube.'],
     ]}/>;
     case 'h14p-142-hop':return <DeepStrip page="HODDER p.340" title="WHY HOPPING EXISTS" items={[
       ['BOUNCING','Without a limit, lost packets can keep bouncing from router to router and clog the system.'],
@@ -183,9 +237,15 @@ function deepSupplement(beatId:string){
     ]}/>;
     case 'h14p-142-header-extended':return <DeepStrip page="HODDER p.341" title="HEADER PRECISION" items={[
       ['VERSION · 4 BITS','Identifies protocol version; IPv4 and IPv6 are source examples.'],
-      ['HEADER LENGTH','4 bits in multiples of four; value 6 → 6 × 4 = 24 bytes.'],
-      ['FRAGMENTATION','3 bits include DF = do not fragment and MF = more fragments; 13-bit offset locates the fragment.'],
+      ['HEADER LENGTH · 4 BITS','Stored in multiples of four; value 6 → 6 × 4 = 24 bytes.'],
+      ['PRIORITY · 8 BITS','Represents packet priority.'],
+      ['PACKET LENGTH · 16 BITS','Identifies the length of the packet in bytes.'],
+      ['FRAGMENTATION · 3 + 13 BITS','DF = do not fragment, MF = more fragments; 13-bit offset locates the fragment in the original packet.'],
+      ['HOP · 8 BITS','Stores the current hop number.'],
+      ['COUNT + SEQUENCE · 16 BITS EACH','Stores number of packets in the message and packet sequence number.'],
       ['TRANSPORT · 8 BITS','The source gives TCP and UDP as examples.'],
+      ['CHECKSUM · 16 BITS','Stores the header checksum value.'],
+      ['SOURCE + DESTINATION · 32 BITS EACH','Stores source IP address and destination IP address.'],
     ]}/>;
     case 'h14p-142-routing':return <DeepStrip page="HODDER pp.341–342" title="FIGURE 14.10 ROUTER DECISION" items={[
       ['COMPARE','Packet header is examined and compared with the routing table.'],
@@ -194,7 +254,10 @@ function deepSupplement(beatId:string){
       ['DELETE','If no route can be found or hop number = 0, the router deletes the data package.'],
     ]}/>;
     case 'h14p-142-routing-fields':return <DeepStrip page="HODDER p.341" title="ROUTING TABLE FIELD MEANING" items={[
+      ['NUMBER OF HOPS','A route-distance/hop value used by the router.'],
+      ['NEXT-ROUTER MAC','MAC address of the next router to which the packet is forwarded/hopped.'],
       ['METRICS','A cost is assigned to each available route so the most efficient route/path is found.'],
+      ['NETWORK DESTINATION','Network ID or pathway.'],
       ['GATEWAY','Same information as the next hop; points to the gateway through which the target network can be reached.'],
       ['NETMASK','Used to generate the network ID.'],
       ['INTERFACE','The locally available interface responsible for reaching the gateway.'],
@@ -206,11 +269,16 @@ function deepSupplement(beatId:string){
 export function Chapter14PresentationContentV4({beat,reveal}:Props){
   if(beat.id==='h14p-141-objectives')return <ChapterObjectivesExact/>;
   if(beat.id==='h14p-141-protocol-map')return <ApplicationProtocolsExact/>;
+  if(beat.id==='h14p-141-ip-link')return <IpLinkExact/>;
+  if(beat.id==='h14p-141-bittorrent')return <BitTorrentProcessExact reveal={reveal}/>;
+  if(beat.id==='h14p-141-bittorrent-terms')return <BitTorrentSwarmExact reveal={reveal}/>;
+  if(beat.id==='h14p-142-circuit-route')return <ExactCircuitNetwork reveal={reveal}/>;
+  if(beat.id==='h14p-142-circuit-failure')return <ExactCircuitNetwork reveal={Math.max(reveal,1)} broken/>;
   if(beat.id==='h14p-142-circuit-pros-cons')return <ExactProsCons kind="circuit" reveal={reveal}/>;
-  if(beat.id==='h14p-142-packet-pros-cons')return <ExactProsCons kind="packet" reveal={reveal}/>;
   if(beat.id==='h14p-142-packet-basics')return <ExactPacketBasics reveal={reveal}/>;
   if(beat.id==='h14p-142-packet-route')return <ExactPacketNetwork reveal={reveal}/>;
-  if(beat.id==='h14p-141-bittorrent')return <BitTorrentProcessExact reveal={reveal}/>;
+  if(beat.id==='h14p-142-packet-pros-cons')return <ExactProsCons kind="packet" reveal={reveal}/>;
+  if(beat.id==='h14p-142-activity14a')return <Activity14AExact reveal={reveal}/>;
 
   const extra=deepSupplement(beat.id);
   const core=<Chapter14PresentationContentV3 beat={beat} reveal={reveal}/>;
