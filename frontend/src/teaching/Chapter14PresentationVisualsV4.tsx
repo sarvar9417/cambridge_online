@@ -1,5 +1,5 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
-import { hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
+import { Chapter14PresentationMaster, hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
 import { Chapter14PresentationContentV2 } from './Chapter14PresentationContentV2';
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
@@ -36,6 +36,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter2PresentationVisual(beat))return <Chapter2PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
+  if(beat.id==='h14p-142-recap-routing')return <Chapter14PresentationMaster beat={beat} reveal={reveal}/>;
   if(hasChapter14PresentationMaster(beat))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
   return null;
 }
