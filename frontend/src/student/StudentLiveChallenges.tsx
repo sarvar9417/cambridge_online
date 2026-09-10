@@ -14,7 +14,8 @@ type OwnAnswerState={challengeId:string;challengeStatus:string;stateVersion:numb
 type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null};
 type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
 type OwnResultRound={roundId:string;roundNumber:number;questionRef:string;answered:boolean;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean};
-type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean;rounds:OwnResultRound[];totalScore:number;totalMax:number;overallPercentage:number};
+type LearningObjectiveResult={id:string;code:string;text:string;subtopicCode:string;subtopicTitle:string;topicNumber:number;topicTitle:string;questionCount:number;marksEarned:number;marksPossible:number;percentage:number};
+type OwnResult={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;questionRef:string;score:number;maxMarks:number;percentage:number;teacherOverridden:boolean;rounds:OwnResultRound[];totalScore:number;totalMax:number;overallPercentage:number;learningObjectives:LearningObjectiveResult[];strengths:LearningObjectiveResult[];reviewAreas:LearningObjectiveResult[]};
 type HistoryCard={id:string;title:string;classId:string;className:string;status:'FINISHED';teacherName:string;syllabusCode:string;topicTitle:string|null;subtopicTitle:string|null;finishedAt:string|null;roundCount:number;totalScore:number;totalMax:number;overallPercentage:number};
 
 export function StudentLiveChallenges(){
@@ -174,5 +175,9 @@ function RoundResultPanel({result}:{result:OwnResult|null}){
     <p>{result.questionRef}{result.teacherOverridden?' · Teacher override qo‘llangan':''}</p>
     <div className="slc-result-total"><span>Challenge jami</span><strong>{result.totalScore}/{result.totalMax}</strong><b>{result.overallPercentage}%</b></div>
     <div className="slc-result-rounds">{result.rounds.map(round=><div key={round.roundId}><span>R{round.roundNumber} · {round.questionRef}</span><strong>{round.score}/{round.maxMarks}</strong><b>{round.percentage}%</b>{!round.answered?<em>Javob topshirilmagan</em>:round.teacherOverridden?<em>Teacher override</em>:null}</div>)}</div>
+    {result.strengths.length||result.reviewAreas.length?<div className="slc-result-insights">
+      {result.strengths.length?<section><span>STRONGEST AREAS</span>{result.strengths.map(item=><article key={item.id}><div><strong>{item.code}</strong><small>{item.subtopicTitle}</small></div><p>{item.text}</p><b>{item.percentage}%</b></article>)}</section>:null}
+      {result.reviewAreas.length?<section><span>REVIEW AREAS</span>{result.reviewAreas.map(item=><article key={item.id}><div><strong>{item.code}</strong><small>{item.subtopicTitle}</small></div><p>{item.text}</p><b>{item.percentage}%</b></article>)}</section>:null}
+    </div>:null}
   </section>;
 }
