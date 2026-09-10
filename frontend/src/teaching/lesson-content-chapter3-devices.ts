@@ -18,7 +18,7 @@ export const CHAPTER_3_DEVICE_SLIDES: readonly HodderLessonSlide[] = [
     subtopicCode: '3.1.2',
     eyebrow: 'FIGURE 3.10 + TABLE 3.6 · INKJET PRINTER',
     title: 'Inkjet printing moves a nozzle head across the page and advances the paper line by line',
-    lead: 'Hodder identifies the print head, ink cartridge(s), stepper motor and belt, and paper feed, then gives a nine-stage print sequence.',
+    lead: 'Hodder identifies the print head, ink cartridge(s), stepper motor and belt, and paper feed, then gives a nine-stage print sequence. The source caption for Table 3.6 says “Sequence to print using a laser printer” even though it appears in the inkjet-printer section; that label is preserved rather than silently corrected.',
     richBlocks: [
       {
         kind: 'comparison',
@@ -31,11 +31,11 @@ export const CHAPTER_3_DEVICE_SLIDES: readonly HodderLessonSlide[] = [
       },
       {
         kind: 'steps',
-        title: 'Table 3.6 · nine-stage sequence',
+        title: 'Table 3.6 · “Sequence to print using a laser printer” · source caption retained',
         items: [
           '1–4 · document data → printer driver → printer availability check → printer buffer',
           '5 · paper-feed sensor checks paper and reports paper-out or jam errors',
-          '6–7 · print head moves side to side; colour droplets are sprayed; paper advances after each pass',
+          '6–7 · print head moves side to side; four ink colours are sprayed in exact amounts; paper advances after each pass',
           '8 · stages from paper feed repeat while data remains in the printer buffer',
           '9 · an empty buffer causes the printer to interrupt the processor and request more data',
         ],
@@ -43,7 +43,7 @@ export const CHAPTER_3_DEVICE_SLIDES: readonly HodderLessonSlide[] = [
     ],
     visual: 'types',
     accent: 'cyan',
-    ...source(78, ['Figure 3.10 An inkjet printer', 'Table 3.6 inkjet print sequence', 'thermal bubble', 'piezoelectric', 'printer buffer', 'interrupt']),
+    ...source(78, ['Figure 3.10 An inkjet printer', 'Table 3.6 Sequence to print using a laser printer', 'thermal bubble', 'piezoelectric', 'printer buffer', 'interrupt']),
   },
   {
     id: 'h3-312-3d-printer',
