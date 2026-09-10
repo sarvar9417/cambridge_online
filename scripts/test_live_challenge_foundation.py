@@ -16,17 +16,25 @@ class LiveChallengeFoundationTests(unittest.TestCase):
         self.assertIn("QUESTION_ACTIVE → ANSWERS_LOCKED → PEER_MARKING", plan)
         self.assertIn("Teacher create → Publish", plan)
 
-    def test_schema_makes_self_marking_and_answer_rewrite_fail_closed(self) -> None:
+    def test_schema_makes_cross_challenge_links_self_marking_and_answer_rewrite_fail_closed(self) -> None:
         sql = (ROOT / "backend/src/database/migrations/0163_live_challenge_foundation.sql").read_text(
             encoding="utf-8"
         )
         lowered = sql.lower()
         self.assertIn("references questions", lowered)
         self.assertIn("mark_scheme_snapshot", lowered)
+        self.assertIn("foreign key (challenge_question_id, challenge_id)", lowered)
+        self.assertIn("references live_challenge_questions (id, challenge_id)", lowered)
+        self.assertIn("guard_live_challenge_answer_membership_v1", lowered)
+        self.assertIn("live_challenge_answer_participant_invalid", lowered)
         self.assertIn("guard_locked_live_challenge_answer_v1", lowered)
         self.assertIn("live_challenge_answer_locked", lowered)
         self.assertIn("marker_student_id <> answer_student_id", lowered)
-        self.assertIn("foreign key (answer_id, answer_student_id)", lowered)
+        self.assertIn("foreign key (answer_id, round_id, answer_student_id)", lowered)
+        self.assertIn("references live_challenge_answers (id, round_id, student_id)", lowered)
+        self.assertIn("guard_live_challenge_peer_marker_membership_v1", lowered)
+        self.assertIn("live_challenge_peer_marker_participant_invalid", lowered)
+        self.assertIn("foreign key (answer_id, round_id)", lowered)
         self.assertIn("unique (round_id, student_id)", lowered)
         self.assertIn("state_version", lowered)
 
