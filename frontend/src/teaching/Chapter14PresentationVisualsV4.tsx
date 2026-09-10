@@ -16,12 +16,14 @@ import './chapter14-presentation-master-projector.css';
 import './chapter14-presentation-density-master.css';
 import './chapter14-presentation-source-complete.css';
 import './chapter14-presentation-deep-audit.css';
+import './chapter14-presentation-deep-network.css';
+import './chapter14-presentation-deep-content.css';
 import './chapter13-presentation-hardening.css';
 
 /**
  * Stable presentation facade. Chapter 14 uses the MASTER shell/design and the
- * deep-audited V4 renderer. The final deep-audit layer fixes page-by-page
- * omissions and Figure 14.8 source fidelity while preserving CONTENT-DENSITY:
+ * deep-audited V4 renderer. The final deep-audit layers fix page-by-page
+ * omissions and source-figure fidelity while preserving CONTENT-DENSITY:
  * unrevealed structure stays visible and reveal changes emphasis only.
  */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
