@@ -9,9 +9,12 @@
 --   * canonical questions remain FK-backed;
 --   * active join codes are unique and six-character uppercase alpha-numeric;
 --   * one participant/answer per student per challenge/round;
+--   * a round can reference only a question selected for that same challenge;
+--   * an answer can be created only by a currently joined challenge participant;
 --   * locked answers cannot be rewritten;
---   * peer assignments carry the answer owner's id through a composite FK and
---     a CHECK constraint makes self-marking impossible at the database layer;
+--   * peer assignments are same-round, carry the answer owner's id, require a
+--     currently joined marker and make self-marking impossible at database level;
+--   * score overrides can reference only an answer from that same round;
 --   * teacher score changes are append-only audit rows rather than silent edits.
 
 CREATE TYPE live_challenge_status AS ENUM (
@@ -99,7 +102,8 @@ CREATE TABLE live_challenge_questions (
   time_limit_seconds int CHECK (time_limit_seconds IS NULL OR time_limit_seconds > 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (challenge_id, position),
-  UNIQUE (challenge_id, question_id)
+  UNIQUE (challenge_id, question_id),
+  UNIQUE (id, challenge_id)
 );
 CREATE INDEX live_challenge_questions_question_idx
   ON live_challenge_questions (question_id);
@@ -120,7 +124,7 @@ CREATE INDEX live_challenge_participants_student_idx
 CREATE TABLE live_challenge_rounds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   challenge_id uuid NOT NULL REFERENCES live_challenges ON DELETE CASCADE,
-  challenge_question_id uuid NOT NULL REFERENCES live_challenge_questions ON DELETE CASCADE,
+  challenge_question_id uuid NOT NULL,
   round_number int NOT NULL CHECK (round_number > 0),
   status live_challenge_round_status NOT NULL DEFAULT 'PENDING',
   started_at timestamptz,
@@ -128,8 +132,11 @@ CREATE TABLE live_challenge_rounds (
   marking_started_at timestamptz,
   results_released_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (challenge_question_id, challenge_id)
+    REFERENCES live_challenge_questions (id, challenge_id) ON DELETE CASCADE,
   UNIQUE (challenge_id, round_number),
-  UNIQUE (challenge_id, challenge_question_id)
+  UNIQUE (challenge_id, challenge_question_id),
+  UNIQUE (id, challenge_id)
 );
 CREATE INDEX live_challenge_rounds_status_idx
   ON live_challenge_rounds (challenge_id, status);
@@ -145,10 +152,38 @@ CREATE TABLE live_challenge_answers (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (round_id, student_id),
-  UNIQUE (id, student_id)
+  UNIQUE (id, student_id),
+  UNIQUE (id, round_id),
+  UNIQUE (id, round_id, student_id)
 );
 CREATE INDEX live_challenge_answers_round_submitted_idx
   ON live_challenge_answers (round_id, submitted_at);
+
+CREATE OR REPLACE FUNCTION public.guard_live_challenge_answer_membership_v1()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM live_challenge_rounds r
+    JOIN live_challenge_participants p
+      ON p.challenge_id=r.challenge_id
+     AND p.student_id=NEW.student_id
+     AND p.status='JOINED'
+    WHERE r.id=NEW.round_id
+  ) THEN
+    RAISE EXCEPTION 'live_challenge_answer_participant_invalid';
+  END IF;
+  RETURN NEW;
+END
+$function$;
+
+CREATE TRIGGER live_challenge_answers_membership_guard
+BEFORE INSERT ON live_challenge_answers
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_live_challenge_answer_membership_v1();
 
 CREATE OR REPLACE FUNCTION public.guard_locked_live_challenge_answer_v1()
 RETURNS trigger
@@ -190,13 +225,39 @@ CREATE TABLE live_challenge_peer_assignments (
   status live_challenge_peer_assignment_status NOT NULL DEFAULT 'ASSIGNED',
   assigned_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz,
-  FOREIGN KEY (answer_id, answer_student_id)
-    REFERENCES live_challenge_answers (id, student_id) ON DELETE CASCADE,
+  FOREIGN KEY (answer_id, round_id, answer_student_id)
+    REFERENCES live_challenge_answers (id, round_id, student_id) ON DELETE CASCADE,
   CHECK (marker_student_id <> answer_student_id),
   UNIQUE (round_id, marker_student_id)
 );
 CREATE INDEX live_challenge_peer_assignments_answer_idx
   ON live_challenge_peer_assignments (round_id, answer_id);
+
+CREATE OR REPLACE FUNCTION public.guard_live_challenge_peer_marker_membership_v1()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM live_challenge_rounds r
+    JOIN live_challenge_participants p
+      ON p.challenge_id=r.challenge_id
+     AND p.student_id=NEW.marker_student_id
+     AND p.status='JOINED'
+    WHERE r.id=NEW.round_id
+  ) THEN
+    RAISE EXCEPTION 'live_challenge_peer_marker_participant_invalid';
+  END IF;
+  RETURN NEW;
+END
+$function$;
+
+CREATE TRIGGER live_challenge_peer_marker_membership_guard
+BEFORE INSERT ON live_challenge_peer_assignments
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_live_challenge_peer_marker_membership_v1();
 
 CREATE TABLE live_challenge_peer_marks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -211,12 +272,14 @@ CREATE TABLE live_challenge_peer_marks (
 CREATE TABLE live_challenge_score_overrides (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   round_id uuid NOT NULL REFERENCES live_challenge_rounds ON DELETE CASCADE,
-  answer_id uuid NOT NULL REFERENCES live_challenge_answers ON DELETE CASCADE,
+  answer_id uuid NOT NULL,
   teacher_id uuid NOT NULL REFERENCES users,
   previous_score numeric(6,2) CHECK (previous_score IS NULL OR previous_score >= 0),
   new_score numeric(6,2) NOT NULL CHECK (new_score >= 0),
   reason text CHECK (reason IS NULL OR btrim(reason) <> ''),
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (answer_id, round_id)
+    REFERENCES live_challenge_answers (id, round_id) ON DELETE CASCADE
 );
 CREATE INDEX live_challenge_score_overrides_answer_idx
   ON live_challenge_score_overrides (answer_id, created_at DESC);
