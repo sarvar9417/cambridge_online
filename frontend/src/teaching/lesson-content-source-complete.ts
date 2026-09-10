@@ -2,6 +2,7 @@ import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from 
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_14_FINAL } from './lesson-content-chapter14-checkpoints';
+import { canBuildSourceGroundedHodderChapter } from './hodder-source-readiness';
 import { buildPdfFirst9618Chapter } from './pdf-first-section-lessons';
 
 export type { LessonVisual } from './lesson-content-full';
@@ -14,20 +15,30 @@ export type {
 } from './lesson-content-hodder-types';
 
 /**
- * Active 9618 lesson route.
+ * Candidate 9618 lesson chapters.
  *
- * Chapters 1 and 13 retain the historical PDF-first source-hardening pipeline.
- * Chapters 2 and 14 are complete source-grounded presentation chapters.
- * Chapter 3 is sourced from the exact connected Hodder full coursebook; only
- * the implemented source range is exposed, with a source-backed Cambridge
- * checkpoint layered onto the covered primary-memory objectives.
+ * A chapter draft may exist before its exact Hodder source is locked. Keeping
+ * candidates separate from the active route lets implementation continue
+ * without presenting an unresolved draft as source-backed content.
  */
-export const LESSON_CHAPTERS = [
+const CANDIDATE_9618_LESSON_CHAPTERS = [
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_1),
   CHAPTER_2_FINAL,
   CHAPTER_3_FINAL,
   buildPdfFirst9618Chapter(SOURCE_FILE_FIDELITY_CHAPTER_13),
   CHAPTER_14_FINAL,
 ];
+
+/**
+ * Active 9618 lesson route.
+ *
+ * The same source-readiness gate used by implementation planning now controls
+ * runtime exposure. This prevents a chapter backed only by a syllabus,
+ * workbook, different Hodder title, or an unregistered draft manifest from
+ * being advertised in Lesson Studio as a source-backed chapter.
+ */
+export const LESSON_CHAPTERS = CANDIDATE_9618_LESSON_CHAPTERS.filter(chapter =>
+  canBuildSourceGroundedHodderChapter('9618', chapter.number),
+);
 
 export const lessonChapter = (number: number) => LESSON_CHAPTERS.find((chapter) => chapter.number === number) ?? null;
