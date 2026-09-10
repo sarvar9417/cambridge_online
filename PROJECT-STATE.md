@@ -26,7 +26,7 @@ not a claim that it is the live branch head.
     "branch": "main",
     "evidence_base_sha": "58c43183940b7e2b1d8352b672c3393aaf542648",
     "maturity": "late_product_integration_and_production_hardening",
-    "latest_migration": "0162_missing_qp_source_ingest.sql",
+    "latest_migration": "0163_9618_2026_lo_mapping_corrections.sql",
     "corpus_window": {
       "9618_lesson_checkpoints": "2021-2026 through current 2026-2028 targets and explicit compatibility edges",
       "0478_chapter_7_checkpoints": "2015-2026 through curated current-target compatibility",
@@ -42,7 +42,7 @@ not a claim that it is the live branch head.
       "audited_at": null,
       "target": "production Supabase; syllabus 9618; complete SHA-backed QP inventory",
       "strict_gate": "detector-v6 verified-source coverage + guarded original-source assets + SHA-pinned missing-QP/MS ingest + full source audit",
-      "note": "All previously detected source-fidelity gaps in scored 2021-2026 leaves are closed: unresolved fidelity errors=0, unreferenced renderable scored-leaf assets=0 and fidelity-demoted needs_review=0. The final three genuine legacy structures were recovered from original QPs with source paper/SHA/page/bbox provenance. A fresh full source-audit bootstrap then exposed 21 historical SHA-backed QP/MS pairs with zero scored leaves; these are real source-registration-without-ingestion gaps, not duplicate rows. Migration 0162 and qp-source-missing-ingest-v1 provide a fail-closed all-paper parse-before-write path. Deployment remains out of scope until this historical source inventory is ingested and the full audit passes."
+      "note": "All previously detected source-fidelity gaps in scored 2021-2026 leaves are closed: unresolved fidelity errors=0, unreferenced renderable scored-leaf assets=0 and fidelity-demoted needs_review=0. The final three genuine legacy structures were recovered from original QPs with source paper/SHA/page/bbox provenance. A fresh full source-audit bootstrap then exposed 21 historical SHA-backed QP/MS pairs with zero scored leaves; these are real source-registration-without-ingestion gaps, not duplicate rows. Migration 0162 and qp-source-missing-ingest-v1 provide a fail-closed all-paper parse-before-write path. Migration 0163 is a repository candidate for source-verifiable 2026 LO corrections and a narrowly audited Chapter 3 RAM-vs-ROM compatibility edge; production application remains pending verification. Deployment remains out of scope until the historical source inventory is ingested and the full audit passes."
     }
   },
   "product": {
@@ -78,7 +78,7 @@ not a claim that it is the live branch head.
     }
   },
   "infrastructure": {
-    "database": "production Supabase has source-fidelity reconciliation through migration 0161; migration 0162 is the guarded candidate for SHA-registered QP/MS pairs that currently have no scored question leaves",
+    "database": "production Supabase has source-fidelity reconciliation through migration 0161; migration 0162 is the guarded missing-source ingest candidate, and repository migration 0163 contains source-verifiable LO corrections whose production application remains pending CI and postcondition verification",
     "storage": "private question-assets bucket is live; source-fidelity assets remain source-paper/SHA/page/bbox pinned and canonical scored-leaf references are audited",
     "worker": "corpus/source-audit workflows are active; missing-source ingest is plan-only by default and requires every selected QP/MS SHA plus 75-mark parse gate before writes",
     "deployment": "application deployment remains a separate external gate; corpus repair does not assume a Vercel release is current"
@@ -96,6 +96,8 @@ not a claim that it is the live branch head.
     "backend/src/database/migrations/0160_source_fidelity_multicue_asset_sync.sql",
     "backend/src/database/migrations/0161_source_fidelity_verified_coverage_reconciliation.sql",
     "backend/src/database/migrations/0162_missing_qp_source_ingest.sql",
+    "backend/src/database/migrations/0163_9618_2026_lo_mapping_corrections.sql",
+    "backend/src/database/9618-2026-lo-mapping-corrections.test.ts",
     "backend/scripts/qp-source-structure-repair-v10.py",
     "backend/scripts/qp-source-missing-ingest-v1.py",
     "scripts/test_source_asset_order_sync_v3.py",
@@ -131,6 +133,12 @@ be downloaded and SHA-verified, the mark scheme must derive an exact 75-mark lea
 proven QP parser must parse every leaf before any write is attempted. Inserted leaves and mark
 schemes remain `needs_review`; source identity and occurrences are preserved. No deployment is
 part of this branch.
+
+Migration `0163_9618_2026_lo_mapping_corrections.sql` is a narrower taxonomy hardening step for
+chapter-scoped Past Papers. It corrects only source-verifiable 2026 LO assignments, removes one
+audited historical RAM-performance false positive, and enables only the cleaned RAM-vs-ROM
+compatibility edge. Production application remains pending until the migration passes CI and
+its postconditions are verified against the live database.
 
 ## Remaining external release/admin gates
 
