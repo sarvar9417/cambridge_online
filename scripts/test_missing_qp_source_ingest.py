@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import runpy
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,10 +43,31 @@ class MissingQpSourceIngestTests(unittest.TestCase):
     def test_v2_accepts_only_numbers_aligned_to_printed_marks_column(self) -> None:
         script = (ROOT / "backend/scripts/qp-source-missing-ingest-v2.py").read_text(encoding="utf-8")
         self.assertIn('"Question" in line and "Answer" in line and "Marks" in line', script)
+        self.assertIn('fallback_column = int(round(median(trusted_columns)))', script)
+        self.assertIn('HEADERLESS_MAX_INDENT = 8', script)
+        self.assertIn('HEADERLESS_MARK_WINDOW = 32', script)
         self.assertIn('mark_position < marks_column', script)
-        self.assertIn('mark_position > marks_column + 20', script)
-        self.assertIn('marks_column is None', script)
+        self.assertIn('mark_position > marks_column + window', script)
         self.assertIn('BASE["build_manifest"].__globals__["extract_ms_leaves"] = extract_ms_leaves', script)
+
+    def test_v2_recovers_a_scored_row_when_a_continuation_page_omits_the_table_header(self) -> None:
+        module = runpy.run_path(
+            str(ROOT / "backend/scripts/qp-source-missing-ingest-v2.py"),
+            run_name="qp_source_missing_ingest_v2_test",
+        )
+        header = " Question                                                               Answer                              Marks"
+        row_a = "   2(a)      1 mark each to max 4                                                                             4"
+        # Mirrors the May/June 2024 9618/43 continuation-page geometry: the
+        # 2(b) mark is printed farther right even though the table header is omitted.
+        row_b = "     2(b)       1 mark for:                                                                                                        7"
+        misleading = "                1 mark each to max 6"
+        text = f"{header}\n{row_a}\n\fcontinuation\n{row_b}\n{misleading}\n"
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            module["BASE"], {"pdftotext_layout": lambda _path: text}
+        ):
+            leaves, marks = module["extract_ms_leaves"](Path(tmp) / "dummy.pdf", 11)
+        self.assertEqual(marks, {"2.a": 4, "2.b": 7})
+        self.assertEqual([leaf["marks"] for leaf in leaves], [4, 7])
 
     def test_edge_runner_exposes_only_guarded_manifest_actions(self) -> None:
         edge = (ROOT / "supabase/functions/qp-source-repair-runner/index.ts").read_text(encoding="utf-8")
