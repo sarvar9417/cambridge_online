@@ -1,40 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import source from './Chapter14PresentationContentV2.tsx?raw';
+import source from './Chapter14PresentationContentV4.tsx?raw';
 import densityCss from './chapter14-presentation-density-master.css?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 
 describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
-  it('keeps all six Table 14.4 packet-switching benefit/drawback pairs in the authored slide',()=>{
+  it('keeps all six Table 14.4 packet-switching benefit/drawback pairs in the live authored layer',()=>{
     for(const text of [
-      'No need to tie up a communication line',
-      'Faulty lines can be bypassed by rerouting',
-      'Traffic usage can be expanded easily',
-      'Users charged for connectivity duration in source comparison',
-      'High data transmission possible',
-      'Uses digital networks',
-      'Protocols can be more complex',
-      'Lost packet must be resent',
-      'Poor for real-time data streams',
-      'Bandwidth is shared with other packets',
-      'Delay while destination reassembles packets',
-      'Large amounts of RAM may be needed',
+      'No need to tie up a communication line.',
+      'Failed or faulty lines can be overcome by re-routing packets.',
+      'Traffic usage is easy to expand.',
+      'circuit switching uses distance and duration; packet switching uses duration of connectivity',
+      'High data transmission is possible with packet switching.',
+      'Packet switching always uses digital networks',
+      'Packet-switching protocols can be more complex than circuit-switching protocols.',
+      'If a packet is lost, the sender must re-send it',
+      'It does not work well with real-time data streams.',
+      'share its bandwidth with other packets',
+      'delay at the destination while packets are reassembled',
+      'Large amounts of RAM may be needed to handle the data.',
     ])expect(source).toContain(text);
   });
 
-  it('keeps all six Table 14.3 circuit-switching benefit/drawback pairs in the authored slide',()=>{
+  it('keeps all six Table 14.3 circuit-switching benefit/drawback pairs in the live authored layer',()=>{
     for(const text of [
-      'Dedicated to one transmission',
-      'Whole bandwidth available',
-      'Faster transfer rate than packet switching',
-      'Frames arrive in same order',
-      'A data packet cannot get lost by taking another route',
-      'Works better for real-time applications',
-      'Not flexible; single dedicated line',
-      'Nobody else can use it even when idle',
-      'Circuit remains reserved whether used or not',
-      'No alternative routing after line fault',
-      'Dedicated channels require greater bandwidth',
-      'Link establishment can take time',
+      'The circuit is dedicated to the single transmission only.',
+      'The whole of the bandwidth is available.',
+      'The data transfer rate is faster than with packet switching.',
+      'Packets/frames arrive at the destination in the same order as sent.',
+      'all packets follow in sequence along the same single route',
+      'It works better than packet switching in real-time applications.',
+      'it can send empty frames and has to use one dedicated line',
+      'Nobody else can use the circuit/channel even when it is idle.',
+      'The circuit is always there whether or not it is used.',
+      'failure/fault on the dedicated line leaves no alternative routing',
+      'Dedicated channels require a greater bandwidth.',
+      'time required to establish a link can be long',
     ])expect(source).toContain(text);
   });
 
