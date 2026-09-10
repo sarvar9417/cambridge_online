@@ -20,6 +20,7 @@ const suppliedDetailPageCount = (chapter:1|13) =>
   new Set(SUPPLIED_PDF_DETAIL_ATOMS.filter(atom=>atom.chapter===chapter).map(atom=>atom.page)).size;
 
 const addFileFingerprints = (chapter:HodderLessonChapter, manifest:SourceFileFidelityManifest):HodderLessonChapter => {
+  if(chapter.number!==1&&chapter.number!==13)return chapter;
   const detailPages=suppliedDetailPageCount(chapter.number);
   return {
     ...chapter,

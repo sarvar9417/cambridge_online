@@ -116,6 +116,7 @@ export const coursebookPageSlides9618 = (chapter:1|13):HodderLessonSlide[] => {
 };
 
 export const withCoursebookReferenceSlides9618 = (chapter:HodderLessonChapter):HodderLessonChapter => {
+  if(chapter.number!==1&&chapter.number!==13)return chapter;
   const glossary=coursebookGlossarySlides9618(chapter.number);
   const pages=coursebookPageSlides9618(chapter.number);
   const emphasis=rawPdfEmphasisForChapter(chapter.number);

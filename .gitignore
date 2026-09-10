@@ -21,3 +21,4 @@ tmp/
 # code depends on them living here. They are inputs to the corpus, not part of
 # the product, and they are third-party exam material.
 papers/
+chapterlar/

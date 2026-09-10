@@ -171,42 +171,50 @@ export const PDF_FIRST_SECTION_EXAM_LENS: Readonly<Record<PdfFirstSectionId, Pdf
   },
 };
 
-const chunk = <T,>(items: readonly T[], size: number): T[][] =>
-  Array.from({length:Math.ceil(items.length/size)}, (_,index) => items.slice(index*size,(index+1)*size) as T[]);
-
 const sectionLabel = (meta:PdfFirstSectionMeta) => `${meta.id} ${meta.title}`;
 
+/**
+ * Keep the extracted source transcript on the physical PDF page it came from.
+ * The earlier implementation chunked a whole section every seven fragments,
+ * which could silently mix two source pages and then attach the mixed content to
+ * the lower page number. Page identity is part of source provenance, so it must
+ * never be inferred from an arbitrary presentation chunk.
+ */
 const sourceSlidesForSection = (meta:PdfFirstSectionMeta): HodderLessonSlide[] => {
-  const units = pdfFirstSegmentsForSection(meta.id).flatMap(segment =>
-    segment.blocks.map((text,blockIndex) => ({
+  const segments=pdfFirstSegmentsForSection(meta.id);
+  const pdfPages=[...new Set(segments.map(segment=>segment.pdfPage))];
+  return pdfPages.map((pdfPage,index)=>{
+    const pageSegments=segments.filter(segment=>segment.pdfPage===pdfPage);
+    const units=pageSegments.flatMap(segment=>segment.blocks.map((text,blockIndex)=>({
       text,
       pdfPage:segment.pdfPage,
       printedPage:segment.printedPage,
       part:segment.part,
       blockIndex,
-    })),
-  );
-  const groups = chunk(units, 7);
-  return groups.map((group,index) => ({
-    id:`pdf-first-${meta.id.replace('.','')}-${String(index+1).padStart(2,'0')}`,
-    section:sectionLabel(meta),
-    subtopicCode:meta.id,
-    eyebrow:`${meta.id} · COURSEBOOK LESSON · ${index+1}/${groups.length}`,
-    title:`${meta.title} · coursebook sequence ${index+1}`,
-    lead:'Supplied coursebook material is taught here in its original section and source order. The next screen continues the same section; the Exam Lens and live Past Papers appear only after the section source is complete.',
-    bullets:group.map(item=>item.text),
-    sourcePages:[...new Set(group.map(item=>item.printedPage))],
-    sourceElements:group.map(item=>`PDF p.${item.printedPage} · part ${item.part} · block ${item.blockIndex+1}`),
-    sourceAtomEvidence:group.map((item,evidenceIndex)=>({
-      id:`pdf-first-${meta.id.replace('.','')}-${index+1}-${evidenceIndex+1}`,
-      page:item.pdfPage,
-      kind:'concept' as const,
-      sourceRef:`Exact supplied PDF p.${item.printedPage} · ${meta.id}`,
-      lines:[item.text],
-    })),
-    sourceLabel:`${meta.sourceLabel} · exact supplied PDF`,
-    accent:meta.accent,
-  }));
+    })));
+    const printedPages=[...new Set(units.map(item=>item.printedPage))];
+    const printedLabel=printedPages.join(', ');
+    return {
+      id:`pdf-first-${meta.id.replace('.','')}-${String(index+1).padStart(2,'0')}`,
+      section:sectionLabel(meta),
+      subtopicCode:meta.id,
+      eyebrow:`${meta.id} · COURSEBOOK SOURCE · p.${printedLabel}`,
+      title:`${meta.title} · source page ${printedLabel}`,
+      lead:'Exact extracted text from the supplied coursebook page, kept together on its physical source page. Cambridge Exam Lens and Past Paper practice follow after the topic study pages.',
+      bullets:units.map(item=>item.text),
+      sourcePages:printedPages,
+      sourceElements:units.map(item=>`PDF p.${item.printedPage} · part ${item.part} · block ${item.blockIndex+1}`),
+      sourceAtomEvidence:units.map((item,evidenceIndex)=>({
+        id:`pdf-first-${meta.id.replace('.','')}-${index+1}-${evidenceIndex+1}`,
+        page:item.pdfPage,
+        kind:'concept' as const,
+        sourceRef:`Exact extracted PDF p.${item.printedPage} · ${meta.id}`,
+        lines:[item.text],
+      })),
+      sourceLabel:`${meta.sourceLabel} · exact extracted PDF source`,
+      accent:meta.accent,
+    };
+  });
 };
 
 const examLensSlideForSection = (meta:PdfFirstSectionMeta): HodderLessonSlide => {
@@ -241,12 +249,13 @@ const cloneIntoSection = (slide:HodderLessonSlide, meta:PdfFirstSectionMeta):Hod
 /**
  * Rebuild a 9618 chapter without the old glossary/page-by-page learner appendix.
  * Existing curated teaching slides stay in their source section, exact PDF
- * blocks follow in source order, then one Exam Lens and finally all live/current
- * Past Paper checkpoints for that section.
+ * page transcripts follow in source-page order, then one Exam Lens and finally
+ * all live/current Past Paper checkpoints for that section.
  */
 export function buildPdfFirst9618Chapter(baseChapter:HodderLessonChapter):HodderLessonChapter {
+  if(baseChapter.number===2)return baseChapter;
   const current=applyCurrent9618CheckpointTargets(baseChapter);
-  const metas=pdfFirstSectionsForChapter(baseChapter.number);
+  const metas=pdfFirstSectionsForChapter(baseChapter.number as 1|7|13);
   const routedIds=new Set<string>();
   const routed:HodderLessonSlide[]=[];
 
@@ -273,7 +282,7 @@ export function buildPdfFirst9618Chapter(baseChapter:HodderLessonChapter):Hodder
     ...current,
     subtitle:`${current.subtitle} Exact supplied-PDF teaching now runs section-first: source → Cambridge Exam Lens → live Past Papers.`,
     subtopics:metas.map(sectionLabel),
-    coverage:`${current.coverage} · PDF-first active route · ${sourceBlockCount}/${sourceBlockCount} exact source blocks assigned to their source sections · glossary/page-by-page appendix removed from learner route`,
+    coverage:`${current.coverage} · PDF-first active route · ${sourceBlockCount}/${sourceBlockCount} exact source blocks assigned to physical source pages · glossary/page-by-page appendix removed from learner route`,
     slides:[...prelude,...routed],
   };
 }

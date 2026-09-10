@@ -1,3 +1,5 @@
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import type { StructuredQuestionBlock,StructuredQuestionContent } from './structured-question-content';
 
 export type StructuredAssetResolver=(assetId:string)=>string|null|undefined;
@@ -27,6 +29,34 @@ export function readableBooleanLatex(latex:string){
     .replace(/\\mathrm\{(AND|OR|NOT|NAND|NOR|XOR)\}/g,'$1')
     .replace(/\s+/g,' ')
     .trim();
+}
+
+function renderMath(block:Extract<StructuredQuestionBlock,{type:'math'}>){
+  const node=document.createElement(block.display?'div':'span');
+  node.className=`structured-question-math structured-question-${block.semantics.replaceAll('_','-')}`;
+  node.dataset.questionBlock='math';
+  node.dataset.latex=block.latex;
+  node.dataset.mathRenderer='katex';
+  node.setAttribute('role','math');
+  node.setAttribute(
+    'aria-label',
+    block.semantics==='boolean_expression' ? readableBooleanLatex(block.latex) : block.latex,
+  );
+
+  try {
+    katex.render(block.latex,node,{
+      displayMode:block.display,
+      throwOnError:true,
+      strict:'warn',
+      trust:false,
+      output:'htmlAndMathml',
+    });
+  } catch (error) {
+    node.classList.add('structured-question-math-invalid');
+    node.dataset.mathError=error instanceof Error ? error.message : 'Invalid LaTeX';
+    node.textContent=block.latex;
+  }
+  return node;
 }
 
 function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
@@ -103,16 +133,7 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
       paragraph.textContent=block.text;
       return paragraph;
     }
-    case 'math': {
-      const node=document.createElement(block.display?'div':'span');
-      node.className=`structured-question-math structured-question-${block.semantics.replaceAll('_','-')}`;
-      node.dataset.questionBlock='math';
-      node.dataset.latex=block.latex;
-      node.setAttribute('role','math');
-      node.setAttribute('aria-label',block.semantics==='boolean_expression'?'Boolean expression':'Mathematical expression');
-      node.textContent=block.semantics==='boolean_expression'?readableBooleanLatex(block.latex):block.latex;
-      return node;
-    }
+    case 'math': return renderMath(block);
     case 'code': {
       const pre=document.createElement('pre');
       pre.className='structured-question-code';

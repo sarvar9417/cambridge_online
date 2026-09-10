@@ -84,6 +84,15 @@ function ensureSourceIntakeBadge(studio:HTMLElement){
 function ensureCompactNavigation(studio:HTMLElement){
   const nav=studio.querySelector<HTMLElement>('.lesson-nav');
   if(!nav)return;
+
+  /* Topic pages already have a bounded, semantic page navigator. The legacy
+     slide scrubber would relabel those page dots as “Lesson slide”, hide the
+     native controls and attach obsolete keyboard instructions. */
+  if(studio.classList.contains('lesson-topic-studio')){
+    nav.querySelector('.lesson-v3-nav-center')?.remove();
+    return;
+  }
+
   const dots=originalDots(studio);
   if(!dots.length)return;
   const index=activeSlide(studio,dots);
@@ -126,6 +135,16 @@ function ensureCompactNavigation(studio:HTMLElement){
 }
 
 function enrichOutline(studio:HTMLElement){
+  if(studio.classList.contains('lesson-topic-studio')){
+    studio.querySelectorAll<HTMLButtonElement>('.lesson-topic-nav-topic').forEach(button=>{
+      button.title=`Open topic: ${button.querySelector('b')?.textContent?.trim()??button.textContent?.trim()??''}`;
+    });
+    studio.querySelectorAll<HTMLButtonElement>('.lesson-topic-nav-pages > button').forEach((button,index)=>{
+      button.title=`Open page ${index+1}: ${button.querySelector('b')?.textContent?.trim()??''}`;
+    });
+    return;
+  }
+
   const buttons=[...studio.querySelectorAll<HTMLButtonElement>('.lesson-outline button')];
   buttons.forEach((button,index)=>{
     if(button.dataset.boardHintReady==='true')return;
@@ -174,9 +193,9 @@ function setup(){
 }
 
 /**
- * Keep teacher navigation compact even when source-complete lessons contain
- * dozens of slides. Installation is tied to the React Lesson Studio lifecycle
- * rather than module import, so tests/HMR/unmounts do not leave global observers.
+ * Keep teacher navigation compact for the legacy slide route while leaving the
+ * semantic topic/page navigator untouched. Installation is tied to the React
+ * Lesson Studio lifecycle so tests/HMR/unmounts do not leave global observers.
  */
 export function installLessonStudioProfessionalControls(){
   if(typeof document==='undefined')return()=>{};

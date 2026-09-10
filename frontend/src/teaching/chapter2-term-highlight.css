@@ -1,0 +1,30 @@
+/* Chapter 2 coursebook key-term highlighting (teacher + student views). */
+
+mark.ch2-term-highlight {
+  background: linear-gradient(transparent 55%, rgba(11, 145, 198, 0.22) 55%);
+  color: inherit;
+  font-weight: 800;
+  padding: 0 1px;
+  border-radius: 3px;
+}
+
+.accent-cyan mark.ch2-term-highlight {
+  background: linear-gradient(transparent 55%, rgba(11, 145, 198, 0.26) 55%);
+  color: #075e80;
+}
+
+.accent-emerald mark.ch2-term-highlight {
+  background: linear-gradient(transparent 55%, rgba(12, 138, 104, 0.22) 55%);
+  color: #085c46;
+}
+
+.accent-amber mark.ch2-term-highlight {
+  background: linear-gradient(transparent 55%, rgba(198, 120, 16, 0.22) 55%);
+  color: #8a530a;
+}
+
+/* The essential-terms slides read as a term-board: give the cards more presence. */
+.lesson-terms:has(mark.ch2-term-highlight) article {
+  border-color: color-mix(in srgb, var(--lesson-accent, #4f46e5) 28%, #e1e6ef);
+  background: linear-gradient(150deg, #fff, var(--lesson-accent-soft, #fbfcfe));
+}

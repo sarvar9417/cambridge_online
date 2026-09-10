@@ -33,6 +33,7 @@ export function studentFacingText(value:string){
   if(/^(?:this checkpoint is loaded live|only approved .* leaves explicitly mapped|approved .* leaves)/i.test(text))return 'Apply what you have just learned to real Cambridge past-paper questions. Attempt each question before the mark scheme is revealed.';
   if(/^complete Hodder Chapter 1 teaching route/i.test(text))return 'Numbers, text, graphics, sound and compression — explained with clear examples, visual models and Cambridge practice.';
   if(/^complete Hodder Chapter 13 route/i.test(text))return 'User-defined data types, file organisation, hashing and floating-point representation — explained step by step with Cambridge practice.';
+  if(/^The six Hodder diagnostic groups intentionally revisit Chapter 1 before floating point\.?$/i.test(text))return 'Review the six prerequisite skills from Chapter 1 before learning floating point.';
   if(/^guided discovery first, then a source-atom-complete Chapter 7/i.test(text))return 'Discover how a problem becomes a working program, then learn the formal Cambridge terms through examples, design tasks and past-paper practice.';
 
   if(/^Hodder labels this video material as beyond the 9618 syllabus/i.test(text))return 'Video is included here as an extension beyond the assessed 9618 content. No unrelated multimedia question is substituted when there is no exact Cambridge past-paper match.';
@@ -142,6 +143,8 @@ export function studentFacingSlide<T extends LessonSlide>(slide:T):T{
 
 export function lessonPurpose(slide:LessonSlide){
   if(slide.examPractice)return 'CAMBRIDGE PRACTICE';
+  if((slide as { emphasisBoard?:boolean }).emphasisBoard)return 'KEY TERMS BOARD';
+  if((slide as { essentialTerms?:boolean }).essentialTerms)return 'ESSENTIAL VOCABULARY';
   if(/recap|review|summary/i.test(`${slide.section} ${slide.title}`))return 'RECAP';
   if(slide.activity)return 'YOUR TURN';
   if(slide.example)return 'WORKED EXAMPLE';

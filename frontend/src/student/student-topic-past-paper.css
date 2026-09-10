@@ -1,0 +1,193 @@
+/* Student Past Paper: plain exam-paper presentation.
+ * Only source reference, marks, required source context and the full question
+ * are visible. No badges, helper copy, action chrome or implementation metadata. */
+
+.student-topic-exam {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.student-topic-exam-list {
+  display: block;
+}
+
+.student-topic-exam-question {
+  display: block;
+  padding: 24px 0 28px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.student-topic-exam-question:first-child {
+  padding-top: 8px;
+}
+
+.student-topic-exam-question:last-child {
+  border-bottom: 0;
+}
+
+.student-topic-exam-question > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.student-topic-exam-question > header > strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: .92rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.student-topic-exam-marks {
+  flex: 0 0 auto;
+  color: var(--text);
+  font: 700 .9rem var(--font-mono);
+}
+
+.student-topic-exam-required-context,
+.student-topic-exam-context-block {
+  display: block;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.student-topic-exam-required-context > strong {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: .9rem;
+  font-weight: 650;
+}
+
+.student-topic-exam-required-context > p,
+.student-topic-exam-context,
+.student-topic-exam-stem {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  mask-image: none;
+  -webkit-mask-image: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.student-topic-exam-required-context > p,
+.student-topic-exam-context {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 400 1rem/1.65 var(--font-read);
+}
+
+.student-topic-exam-stem {
+  margin: 0;
+  color: var(--text);
+  font: 500 clamp(1rem, 1.25vw, 1.12rem)/1.65 var(--font-read);
+}
+
+/* The global source-asset enhancer converts these source payloads into the
+ * original image/table/code view. Its technical labels remain hidden here. */
+.student-topic-exam-asset {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.student-topic-exam-asset > strong,
+.student-topic-exam-asset > span,
+.student-topic-exam-asset > figcaption {
+  display: none !important;
+}
+
+.student-topic-exam-asset > img,
+.student-topic-exam-asset .qb-asset-image,
+.student-topic-exam-asset .structured-question-table,
+.student-topic-exam-asset .structured-question-code,
+.student-topic-exam-asset pre {
+  max-width: 100%;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+}
+
+.student-topic-exam-asset > img,
+.student-topic-exam-asset .qb-asset-image {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.student-topic-exam-asset .structured-question-table {
+  width: auto;
+  border-collapse: collapse;
+}
+
+.student-topic-exam-asset .structured-question-table th,
+.student-topic-exam-asset .structured-question-table td {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.student-topic-exam-state {
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.student-topic-exam-state.is-error {
+  color: #8a1c13;
+}
+
+@media (max-width: 620px) {
+  .student-topic-exam-question {
+    padding: 20px 0 24px;
+  }
+
+  .student-topic-exam-question > header {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .student-topic-exam-required-context > p,
+  .student-topic-exam-context,
+  .student-topic-exam-stem {
+    font-size: 1rem;
+  }
+
+  .student-topic-exam-asset {
+    overflow-x: auto;
+  }
+}

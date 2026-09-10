@@ -1,0 +1,11 @@
+/* Tablet safeguards for the visual refresh. Loaded after the refresh so the
+   original compact-workspace behaviour is not accidentally reopened. */
+@media (max-width: 1050px) {
+  html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html:not(.lesson-presenting) .lesson-studio:not(:fullscreen) .lesson-outline {
+    display: none;
+  }
+}

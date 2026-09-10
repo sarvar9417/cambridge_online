@@ -4,7 +4,7 @@ export type SourceFilePageFingerprint = {
 };
 
 export type SourceFileFidelityManifest = {
-  chapter: 1 | 7 | 13;
+  chapter: 1 | 2 | 7 | 13 | 14;
   sourceFile: string;
   sourceFileSha256: string;
   pageCount: number;
@@ -36,6 +36,83 @@ export const CHAPTER_13_SOURCE_FILE_MANIFEST: SourceFileFidelityManifest = {
   ].map(([printedPage,sha256])=>({printedPage:printedPage as number,sha256:sha256 as string})),
 };
 
+export const CHAPTER_2_SOURCE_FILE_MANIFEST: SourceFileFidelityManifest = {
+  chapter: 2,
+  sourceFile: '9618_Chapter_2.pdf',
+  sourceFileSha256: '8788c2659eb35e3e9a25e054ddc9da7cf374408f309224bf26d8546add6a4f15',
+  pageCount: 41,
+  pages: [
+    [27,'88daab1128cfa5a4e9b43905457fc796e70078d6d383f058ff1ab309ad17f40d'],
+    [28,'48770fdd110fcb91b158229f9d786a5e2dab7dbc0063170521b608d2d967e02e'],
+    [29,'0bdd55c7c2389dc4cfdf96f481ce1efc3d266c2d810be1cb3e5449d4606a4706'],
+    [30,'081b1c8c65694fcb3b30780e4efaaa9b5385d97632f4ff202bbfba736c4723ce'],
+    [31,'fdb9956573eee51a8c93a2e78b754df8c630d1efa814d1196031b5f297e835ac'],
+    [32,'53723ca0154816f4bc588e17d5a04af1bb3da99090fa8211544b7ebdc3882a07'],
+    [33,'108d2c6eaca317545e4203120356870be8e7aab57780820ce346ea63d423cabb'],
+    [34,'c6d193810b6895b064d49539f12dc75014687039d5c1ac0a2dcfe80fb3815825'],
+    [35,'084705138353cd1d12c3e2e160b6d37557b6536cc65e05b79578d04cc03338af'],
+    [36,'5b7ef9c88fd91e35a790ec19469828523a5a494a4dc4d18f0b888f58d7732318'],
+    [37,'d654b2312e778d053bab67c213897aad0a9bbfa312379d23a3ebc521fa580722'],
+    [38,'97049bb1a92a90349fe000cafb6105f0e1ca4e1fcec76ae679fcd69595ac0704'],
+    [39,'1111587d24caf78c3e1cffcfdb97ce3fd403da98e62bbc5a63b01640502151c8'],
+    [40,'7439fc4ac097a025d94bab40bfce0c08c4843513846a71a572e95c2e4c6f7f5d'],
+    [41,'f726ef0216b7dce421c7a02cc56546bbe98ffa993976f7a172ee46a4e0bf2a78'],
+    [42,'16ea60f0fd205b348d1dd8d18a173e8aff573ee772ce182fef3a036b43da23b8'],
+    [43,'baf4ef5f221cf6e8ce0eb723ccd2adc616d6f6597489a785d7fb8f17d0042874'],
+    [44,'08489aa5c25955962a52a37053b9a7ee5f180a2b35fcc2e2070fb5afdf966a20'],
+    [45,'0d5b4853a1819ef128e3f4b7c3e1e764084ac05a6b1a1f352ff6bcacd185b8e9'],
+    [46,'651355e78e04353758e1087633a1a74f1e8c3e9de5a06b65c27647ba0b031db8'],
+    [47,'8df38a517a30de98e49953f4b9f5f83a14901f0eab5c9d7cee0353fda63dd65d'],
+    [48,'0464e067fdde6aa1e7d9ca4429da5690ee68b31d179ff84953772f30d86a2ba5'],
+    [49,'e7780599bf3cf0e22141b194552cd92e7889d9ed1c6acedaa6f470c1d72d88b1'],
+    [50,'0748350e5b23b96c35b0ad2c5a14afe070b22332f8369a53f2c0f2b6b5dff2d4'],
+    [51,'805983cb8da1862ca5de10eb95806612706c7b9a9d78c0af6ab714914281e8d9'],
+    [52,'fa09c723ba2e5cb88413329e69efb3312d4afbeed40aff57869c2361be6a0171'],
+    [53,'5722457c6344f50d040fbf11063c4ae49de6609057affa8b43973e7e23625c61'],
+    [54,'a351ee3826ec6eb81a9ab2b5662624f5a09a1d832730e5e5d1a55da193f9f4bb'],
+    [55,'a35b9636c2e2b0bb8c761efab1db69d491d17b94a32e2a11de95dd70baa4ac88'],
+    [56,'045835f3f56472dd1b091c390d33367769802e9254ded53d9d63aa462ec28ddc'],
+    [57,'15a3bef94b42167041a7476197af42a4bb3f0be1ed3c82d769410921aaeb8277'],
+    [58,'4a5e5af75c6ad49520a7bdea123de166f9c0702af3146a529a8cf11424aab4a8'],
+    [59,'021b519a34c9d4c1338c9104e1947a11905ac7b068d80ddfee70896baaedad8f'],
+    [60,'f7edeb1e6ea0221a5cf9b0d77c40a759c7756f2c6f6bb2138da1a0040044ab6c'],
+    [61,'1c72898b00429de5a47d67136da7944d81c0b32db0e7e3f7298689d69d876b84'],
+    [62,'0b519c6a921dea14b361c68bb391f7cb1184c81cd703b7e3b53a2552660ddda7'],
+    [63,'2ca05931ad453ab4aa8906d67c98e2f12ece0785c7c99554496dfcf01f14c650'],
+    [64,'b3d2babba361789ba386effa9c4a1a3d4ffe1d132b80136bbb214976451a0c48'],
+    [65,'ffe8c625c8024d348fa5b1b5acf0104ad1e2395e71e5703da15bdf5331908120'],
+    [66,'4c6f697c6e969f0f477bfbf4309ea90ca7bd5b7d0e8993b80be3ffaf1cc77526'],
+    [67,'710631d5d9eb811a21e7223c2a5842fda6af8d34b1a1183f8b0776e0693a4cda'],
+  ].map(([printedPage,sha256])=>({printedPage:printedPage as number,sha256:sha256 as string})),
+};
+
+export const CHAPTER_14_SOURCE_FILE_MANIFEST: SourceFileFidelityManifest = {
+  chapter: 14,
+  sourceFile: '9618_chapter_14.pdf',
+  sourceFileSha256: '0fe9ed66f8fc3d02c043cbff45fa523c002d01c16fa1ee6075057b9729eb088f',
+  pageCount: 18,
+  pages: [
+    [328,'e12f23827416478f2855538763af6462eebe62d3c1dafd3ce802fb15d17eda20'],
+    [329,'be78d83dd50857e4b10af016e77d41639fd5dd5a1175dc5066e99caf89868714'],
+    [330,'45d274fcd92526634b277394d14506abae9eaaab52f2e6d2a3f61d924dfc305d'],
+    [331,'c539c6d5dd349fc03f61f9a65fd2db3cd3e4f67cf864fc801725ce219e2d36f1'],
+    [332,'1f189da4334f5071127cd90c748de492f816de6b3698127d710563a711bd665c'],
+    [333,'cb83d8b7f13e74f6ffb0cf1a1c448f5c46f2a59b02e78f5e20124f2ba656278d'],
+    [334,'8cce1d7d26e892a42687a55b57c43f3e74c70e1ac0eef2184882ce2e1cb2c447'],
+    [335,'a4aabd6e9526fb161227d9781ebec6f86ae5f7d6db4c2a8e1d954550a5d1db7a'],
+    [336,'5527a09e72a6949d37e570d188e60f172fe0f2e03d9af30a52ad852e8f40d3c1'],
+    [337,'bfd39d50969178170fed09522690b74de93d7db90c89acb566344b0155a8faec'],
+    [338,'07a1d1814ae16a2288abd024583e4528173b12c8f9ad7c06864b67d434b8cec2'],
+    [339,'55fd76f937fbb3f4042a01381ba482ad5d60a8505ffecb8e1202f88c5b823e48'],
+    [340,'054a31b9f08cd254320b4949f1f0ddbe35e3f6058a18ff83e11a209e13776f96'],
+    [341,'24c2ab1e0a3de98303d373a86661c4bc60dc45ba190fe8fc85a7a2ac74a1b4c1'],
+    [342,'998774b45e32806ed487baf40a84cd6036c60b73ba486c497973a37ade8dd2e4'],
+    [343,'3bf52726508734f86f3a7e70d7f6b384165f0a68330277bbd962e1fa5e3654ac'],
+    [344,'c8fbd85cc07b733c838d3f351afff069add96bfc78ddf9e75004e7d92456bdab'],
+    [345,'6402c6ba249195c6246ef9ba1cc7303949473037a5599dd84f0271fbd7a28f93'],
+  ].map(([printedPage,sha256])=>({printedPage:printedPage as number,sha256:sha256 as string})),
+};
+
 export const CHAPTER_7_SOURCE_FILE_MANIFEST: SourceFileFidelityManifest = {
   chapter: 7,
   sourceFile: 'Cambridge_IGCSE_and_O_Level_Computer_Science_by_David_Watson_Helen-270-310 (1).pdf',
@@ -48,6 +125,8 @@ export const CHAPTER_7_SOURCE_FILE_MANIFEST: SourceFileFidelityManifest = {
 
 export const SOURCE_FILE_FIDELITY_MANIFESTS = [
   CHAPTER_1_SOURCE_FILE_MANIFEST,
+  CHAPTER_2_SOURCE_FILE_MANIFEST,
   CHAPTER_7_SOURCE_FILE_MANIFEST,
   CHAPTER_13_SOURCE_FILE_MANIFEST,
+  CHAPTER_14_SOURCE_FILE_MANIFEST,
 ] as const;

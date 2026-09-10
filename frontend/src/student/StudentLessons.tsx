@@ -1,17 +1,44 @@
+import { useEffect, useMemo } from 'react';
 import { navigate, useRoute } from '../lib/router';
-import { CHAPTER_7 } from '../teaching/lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from '../teaching/Chapter7SlideBody';
 import {
-  LESSON_CHAPTERS as SOURCE_CHAPTERS,
   type LessonFigure,
   type LessonRichBlock,
   type LessonVisual,
 } from '../teaching/lesson-content-source-complete';
 import type { LessonSlide as BaseLessonSlide } from '../teaching/lesson-content-full';
+import type { LessonTopic, TopicPage } from '../teaching/lesson-topic-plan';
+import { studentFacingText } from '../teaching/lesson-student-facing';
+import { StudentTopicPastPaper } from './StudentTopicPastPaper';
+import {
+  STUDENT_STUDY_CHAPTERS,
+  pageSlideIds,
+  resolveStudentStudyLocation,
+  resolveStudySlideIndex,
+  studentStudyChapter,
+  studentStudyPages,
+  studentStudyTopics,
+  studentStudyUrl,
+  type StudyChapter,
+} from './student-lesson-topic-model';
 import '../teaching/lesson-studio.css';
 import '../teaching/lesson-studio-hodder.css';
 import '../teaching/chapter7-lesson.css';
+import '../teaching/chapter2-term-highlight.css';
+import { highlightChapter2Terms, isChapter2Slide } from '../teaching/chapter2-term-highlight';
 import './student-lessons.css';
+import './student-lessons-topic.css';
+import './student-topic-past-paper.css';
+
+export {
+  STUDENT_STUDY_CHAPTERS,
+  resolveStudySlideIndex,
+  studentStudyChapter,
+  studentStudyPages,
+  studentStudyTopics,
+  studentStudyUrl,
+};
+export type { StudyChapter };
 
 type StudySlide = BaseLessonSlide & {
   richBlocks?: LessonRichBlock[];
@@ -23,20 +50,8 @@ type StudySlide = BaseLessonSlide & {
   checkpointUnavailableReason?: string;
   checkpointSyllabusCode?: '9618' | '0478';
 };
-type StudyChapter = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
 
-export const STUDENT_STUDY_CHAPTERS: StudyChapter[] = [...SOURCE_CHAPTERS, CHAPTER_7]
-  .sort((a, b) => a.number - b.number);
-
-export function studentStudyChapter(number: number) {
-  return STUDENT_STUDY_CHAPTERS.find((chapter) => chapter.number === number) ?? null;
-}
-
-export function resolveStudySlideIndex(chapter: StudyChapter, slideId: string | null) {
-  if (!slideId) return 0;
-  const index = chapter.slides.findIndex((slide) => slide.id === slideId);
-  return index < 0 ? 0 : index;
-}
+const isExactSourceTranscript=(slide:StudySlide)=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-')&&!slide.examPractice;
 
 function Visual({ kind }: { kind?: LessonVisual }) {
   if (!kind) return null;
@@ -44,6 +59,7 @@ function Visual({ kind }: { kind?: LessonVisual }) {
     binary:['1','0','1','1','0','0','1','0'], bases:['2','10','16','BCD'], arithmetic:['0110','+0011','=1001'], characters:['A','65','01000001'],
     pixels:['▦','24-bit','1920×1080'], vectors:['○','△','⌁'], sound:['∿','44.1 kHz','16 bit'], compression:['100%','→','28%'],
     types:['ENUM','RECORD','SET'], files:['SERIAL','SEQ','RANDOM'], hashing:['KEY','ƒ(x)','217'], floating:['M','× 2','E'], precision:['PRECISION','↔','RANGE'], recap:['✓','✓','✓'],
+    networking:['LAN','WAN','📡','🔌'], internet:['WWW','DNS','IP','🌐'], html:['<html>','<body>','🔗','📄'],
   };
   return <div className={`lesson-visual lesson-visual-${kind}`} aria-hidden="true">{labels[kind].map((item,index)=><span key={`${item}-${index}`}>{item}</span>)}</div>;
 }
@@ -70,9 +86,9 @@ function FigureBlock({ figure }: { figure: LessonFigure }) {
 
 function RichBlock({ block }: { block: LessonRichBlock }) {
   if(block.kind==='paragraph')return <p className="hodder-paragraph">{block.text}</p>;
-  if(block.kind==='bullets')return <ul className="hodder-bullets">{block.items.map(item=><li key={item}>{item}</li>)}</ul>;
+  if(block.kind==='bullets')return <ul className="hodder-bullets">{block.items.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>;
   if(block.kind==='code')return <div className="hodder-code">{block.title&&<strong>{block.title}</strong>}<pre>{block.lines.join('\n')}</pre></div>;
-  if(block.kind==='steps')return <div className="hodder-steps">{block.title&&<strong>{block.title}</strong>}<ol>{block.items.map(item=><li key={item}>{item}</li>)}</ol></div>;
+  if(block.kind==='steps')return <div className="hodder-steps">{block.title&&<strong>{block.title}</strong>}<ol>{block.items.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ol></div>;
   if(block.kind==='callout')return <aside className={`hodder-callout tone-${block.tone||'info'}`}><span>{block.tone==='extension'?'EXTENSION':block.tone==='activity'?'ACTIVITY':'NOTE'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
   if(block.kind==='comparison')return <div className="hodder-comparison"><div><strong>{block.leftTitle}</strong>{block.rows.map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</div><div><strong>{block.rightTitle}</strong>{block.rows.map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</div></div>;
   if(block.kind==='source-note')return <aside className="hodder-source-note student-source-note"><header><span>MANBA IZOHI</span><strong>{block.title}</strong></header><div><section><b>{block.sourceLabel}</b><p>{block.sourceText}</p></section><section><b>{block.examSafeLabel}</b><p>{block.examSafeText}</p></section></div></aside>;
@@ -80,34 +96,87 @@ function RichBlock({ block }: { block: LessonRichBlock }) {
   return <div className="hodder-table-wrap"><table className="hodder-table"><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,index)=><td key={`${rowIndex}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-function StudentCheckpoint({ slide }: { slide: StudySlide }) {
-  const codes=slide.learningObjectiveCodes??[];
-  return <section className="student-checkpoint"><span>CAMBRIDGE CHECKPOINT</span><h2>{slide.title}</h2><p>{slide.checkpointUnavailableReason??slide.lead}</p>{codes.length>0&&<div>{codes.map(code=><code key={code}>{code}</code>)}</div>}<p className="student-checkpoint-safety">Student oynasi diagramma yoki dependency kerak bo‘ladigan past-paper savolini matnning bir qismi bilan ko‘rsatmaydi. Tayyor, to‘liq mashqlar O‘rganish bo‘limida ochiladi.</p><button type="button" onClick={()=>navigate('oquvchi/organish')}>O‘rganish bo‘limiga →</button></section>;
+function GenericStudySlide({ slide }: { slide: StudySlide }) {
+  const highlight=isChapter2Slide(slide.id);
+  const mark=(text:string)=>highlightChapter2Terms(text,highlight);
+  return <div className="student-study-slide-body"><div className="lesson-copy hodder-copy"><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{mark(slide.title)}</h1><p className="lesson-lead">{mark(slide.lead)}</p>{slide.formula&&<div className="lesson-formula">{slide.formula}</div>}{slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map((item,index)=><li key={`${item}-${index}`}>{mark(item)}</li>)}</ul>}{slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{mark(item.term)}</strong><p>{mark(item.definition)}</p></article>)}</div>}{slide.richBlocks&&<div className="hodder-rich-blocks">{slide.richBlocks.map((block,index)=><RichBlock block={block} key={`${block.kind}-${index}`}/>)}</div>}{slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}{slide.teacherPrompt&&<aside className="lesson-prompt student-self-check"><span>O‘ZINGNI TEKSHIR</span><p>{mark(slide.teacherPrompt)}</p></aside>}{slide.activity&&<details className="lesson-activity"><summary><span>MASHQ</span><strong>{slide.activity.title}</strong></summary><p>{slide.activity.prompt}</p>{slide.activity.reveal&&<div className="lesson-activity-answer"><span>JAVOB / YO‘L-YO‘RIQ</span><p>{slide.activity.reveal}</p></div>}</details>}{slide.sourcePages?.length?<p className="student-source-pages">Manba sahifalari: {slide.sourcePages.join(', ')}</p>:null}</div><Visual kind={slide.visual}/></div>;
 }
 
-function GenericStudySlide({ slide }: { slide: StudySlide }) {
-  if(slide.examPractice)return <StudentCheckpoint slide={slide}/>;
-  return <div className="student-study-slide-body"><div className="lesson-copy hodder-copy"><p className="lesson-eyebrow">{slide.eyebrow}</p><h1>{slide.title}</h1><p className="lesson-lead">{slide.lead}</p>{slide.formula&&<div className="lesson-formula">{slide.formula}</div>}{slide.bullets&&<ul className="lesson-bullets">{slide.bullets.map(item=><li key={item}>{item}</li>)}</ul>}{slide.keyTerms&&<div className="lesson-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><p>{item.definition}</p></article>)}</div>}{slide.richBlocks&&<div className="hodder-rich-blocks">{slide.richBlocks.map((block,index)=><RichBlock block={block} key={`${block.kind}-${index}`}/>)}</div>}{slide.example&&<div className="lesson-example"><div><span>WORKED EXAMPLE</span><strong>{slide.example.title}</strong></div><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p className="lesson-answer">{slide.example.answer}</p>}</div>}{slide.teacherPrompt&&<aside className="lesson-prompt student-self-check"><span>O‘ZINGNI TEKSHIR</span><p>{slide.teacherPrompt}</p></aside>}{slide.activity&&<details className="lesson-activity"><summary><span>MASHQ</span><strong>{slide.activity.title}</strong></summary><p>{slide.activity.prompt}</p>{slide.activity.reveal&&<div className="lesson-activity-answer"><span>JAVOB / YO‘L-YO‘RIQ</span><p>{slide.activity.reveal}</p></div>}</details>}{slide.sourcePages?.length?<p className="student-source-pages">Manba sahifalari: {slide.sourcePages.join(', ')}</p>:null}</div><Visual kind={slide.visual}/></div>;
+function StudyFragment({ sourceSlide, collapseExactSource=false }: { sourceSlide:StudySlide; collapseExactSource?:boolean }) {
+  if(isExactSourceTranscript(sourceSlide)){
+    const sourcePage=(sourceSlide.sourcePages??[]).join(', ');
+    return <details className="student-source-transcript" open={!collapseExactSource} data-slide-id={sourceSlide.id}>
+      <summary><span>Exact source transcript</span><strong>{sourcePage?`Coursebook source page ${sourcePage}`:sourceSlide.title}</strong></summary>
+      <div className="student-source-transcript-body"><GenericStudySlide slide={sourceSlide}/></div>
+    </details>;
+  }
+  return <article className="student-topic-fragment" data-slide-id={sourceSlide.id}>
+    {sourceSlide.id.startsWith('ch7-')?<Chapter7SlideBody slide={sourceSlide}/>:<GenericStudySlide slide={sourceSlide}/>} 
+  </article>;
 }
+
+function StudentTopicCheckpoint({ page, topic }: { page:TopicPage; topic:LessonTopic }) {
+  return <StudentTopicPastPaper page={page} topic={topic}/>;
+}
+
+function StudyPage({ page }: { page:TopicPage }) {
+  const slides=page.slides as StudySlide[];
+  const hasCurated=slides.some(slide=>!isExactSourceTranscript(slide));
+  return <div className="student-topic-page-content">{slides.map(slide=><StudyFragment sourceSlide={slide} collapseExactSource={hasCurated} key={slide.id}/>)}</div>;
+}
+
+function PracticePage({ page, topic }: { page:TopicPage; topic:LessonTopic }) {
+  const slides=page.slides as StudySlide[];
+  const lenses=slides.filter(slide=>!slide.examPractice);
+  const checkpoints=slides.filter(slide=>slide.examPractice);
+  return <div className="student-topic-page-content student-topic-practice-content">
+    {lenses.map(slide=><StudyFragment sourceSlide={slide} key={slide.id}/>)}
+    {checkpoints.length>0&&<StudentTopicCheckpoint page={page} topic={topic}/>} 
+  </div>;
+}
+
+function topicLabel(topic:LessonTopic){return topic.code==='overview'?'Overview':topic.code;}
 
 export function StudentLessons() {
   const route=useRoute();
   const chapterNo=Number(route.params.get('chapter')||0);
+  const topicParam=route.params.get('topic');
+  const pageParam=route.params.get('page');
+  const legacySlideId=route.params.get('slide');
   const chosen=studentStudyChapter(chapterNo);
-  const sections=chosen?[...new Set(chosen.slides.map(item=>item.section))]:[];
+  const location=useMemo(
+    ()=>chosen?resolveStudentStudyLocation(chosen,topicParam,pageParam,legacySlideId):null,
+    [chosen,topicParam,pageParam,legacySlideId],
+  );
 
-  if(!chosen)return <section className="student-lessons-library"><header><div><p className="lesson-eyebrow">STUDY MODE</p><h1>Darslar</h1><p>Teacher Studio bilan bir xil source-backed lesson ma’lumotlari. Bu ko‘rinish o‘quvchi mustaqil o‘qishi, misollarni ko‘rishi va mashqlarni ochib tekshirishi uchun soddalashtirilgan.</p></div><span>{STUDENT_STUDY_CHAPTERS.length} chapter</span></header><div className="student-lessons-grid">{STUDENT_STUDY_CHAPTERS.map(chapter=><button type="button" key={chapter.number} onClick={()=>navigate(`oquvchi/darslar?chapter=${chapter.number}&slide=${chapter.slides[0]?.id??''}`)}><span className="student-chapter-number">{String(chapter.number).padStart(2,'0')}</span><small>{chapter.level}</small><h2>{chapter.title}</h2><p>{chapter.subtitle}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><strong>{chapter.slides.length} qism</strong><span>O‘rganishni boshlash →</span></footer></button>)}</div></section>;
+  useEffect(()=>{
+    if(!chosen||!location?.legacySlideMatched)return;
+    navigate(studentStudyUrl(chosen.number,location.topic.code,location.pageIndex));
+  },[chosen,location?.legacySlideMatched,location?.topic.code,location?.pageIndex]);
 
-  const slideIndex=resolveStudySlideIndex(chosen,route.params.get('slide'));
-  const slide=chosen.slides[slideIndex] as StudySlide|undefined;
-  if(!slide)return null;
-  const go=(index:number)=>{const target=chosen.slides[Math.max(0,Math.min(chosen.slides.length-1,index))];if(target)navigate(`oquvchi/darslar?chapter=${chosen.number}&slide=${target.id}`)};
-  const sectionStarts=sections.map(section=>chosen.slides.findIndex(item=>item.section===section));
+  if(!chosen)return <section className="student-lessons-library"><header><div><p className="lesson-eyebrow">STUDY MODE</p><h1>Darslar</h1><p>Teacher Studio bilan bir xil source-backed Chapter → Topic → Page tuzilmasi. Har topic kitob sahifalari bo‘yicha o‘qiladi va Past Paper practice bilan yakunlanadi.</p></div><span>{STUDENT_STUDY_CHAPTERS.length} chapter</span></header><div className="student-lessons-grid">{STUDENT_STUDY_CHAPTERS.map(chapter=>{const topics=studentStudyTopics(chapter);const first=studentStudyPages(chapter)[0];const topicCount=topics.filter(topic=>topic.code!=='overview').length;return <button type="button" key={chapter.number} onClick={()=>first&&navigate(studentStudyUrl(chapter.number,first.topic.code,first.pageIndex))}><span className="student-chapter-number">{String(chapter.number).padStart(2,'0')}</span><small>{chapter.level}</small><h2>{chapter.title}</h2><p>{studentFacingText(chapter.subtitle)}</p><div>{chapter.subtopics.map(item=><span key={item}>{item}</span>)}</div><footer><strong>{topicCount} topic</strong><span>O‘rganishni boshlash →</span></footer></button>})}</div></section>;
 
-  return <section className={`student-study-mode accent-${slide.accent||'indigo'}`}>
-    <header className="student-study-header"><button type="button" className="secondary" onClick={()=>navigate('oquvchi/darslar')}>← Chapters</button><div><small>{chosen.level} · Chapter {chosen.number}</small><strong>{chosen.title}</strong></div><span>{slideIndex+1}/{chosen.slides.length}</span></header>
-    <div className="student-study-progress" aria-hidden="true"><span style={{width:`${((slideIndex+1)/chosen.slides.length)*100}%`}}/></div>
-    <div className="student-study-layout"><aside className="student-study-outline" aria-label="Dars bo‘limlari"><p>BO‘LIMLAR</p>{sections.map((section,index)=><button type="button" className={slide.section===section?'active':''} key={section} onClick={()=>go(sectionStarts[index]??0)}><span>{String(index+1).padStart(2,'0')}</span>{section}</button>)}</aside><main className="student-study-paper">{chosen.number===7&&!slide.examPractice?<Chapter7SlideBody slide={slide}/>:<GenericStudySlide slide={slide}/>}</main></div>
-    <footer className="student-study-nav"><button type="button" className="secondary" disabled={slideIndex===0} onClick={()=>go(slideIndex-1)}>← Oldingi</button><div>{chosen.slides.map((item,index)=><button type="button" key={item.id} aria-label={`${index+1}-qism`} className={index===slideIndex?'active':item.section===slide.section?'same-section':''} onClick={()=>go(index)}/>)}</div><button type="button" disabled={slideIndex===chosen.slides.length-1} onClick={()=>go(slideIndex+1)}>Keyingi →</button></footer>
+  if(!location)return null;
+  const {topics,flatPages,topic,page,pageIndex,flatIndex}=location;
+  const previous=flatIndex>0?flatPages[flatIndex-1]:null;
+  const next=flatIndex>=0&&flatIndex<flatPages.length-1?flatPages[flatIndex+1]:null;
+  const prevCrossesTopic=Boolean(previous&&previous.topic.code!==topic.code);
+  const nextCrossesTopic=Boolean(next&&next.topic.code!==topic.code);
+  const accent=(page.slides[0] as StudySlide|undefined)?.accent||'indigo';
+  const openPage=(targetTopic:LessonTopic,targetPageIndex:number)=>navigate(studentStudyUrl(chosen.number,targetTopic.code,targetPageIndex));
+  const openFlat=(targetIndex:number)=>{const target=flatPages[targetIndex];if(target)openPage(target.topic,target.pageIndex);};
+  const sourceIds=pageSlideIds(page);
+
+  return <section className={`student-study-mode student-topic-study-mode accent-${accent}`} data-topic-code={topic.code} data-page-id={page.id} data-page-slide-count={sourceIds.length}>
+    <header className="student-study-header"><button type="button" className="secondary" onClick={()=>navigate('oquvchi/darslar')}>← Darslar</button><div><small>{chosen.level} · Chapter {chosen.number} · {topicLabel(topic)}</small><strong>{topic.title}</strong></div><span>{flatIndex+1}/{flatPages.length}</span></header>
+    <div className="student-study-progress" aria-hidden="true"><span style={{width:`${((flatIndex+1)/flatPages.length)*100}%`}}/></div>
+    <div className="student-study-layout student-topic-layout">
+      <aside className="student-study-outline student-topic-outline" aria-label={`Chapter ${chosen.number} topics`}><p>TOPICS</p>{topics.map(item=><section className={`student-topic-group${item.code===topic.code?' active':''}`} key={item.code}><button type="button" className="student-topic-button" aria-current={item.code===topic.code?'true':undefined} onClick={()=>openPage(item,0)}><span>{topicLabel(item)}</span><b>{item.title}</b><small>{item.pages.length}</small></button>{item.code===topic.code&&<div className="student-topic-pages">{item.pages.map((itemPage,itemPageIndex)=><button type="button" className={itemPageIndex===pageIndex?'active':''} aria-current={itemPageIndex===pageIndex?'page':undefined} key={itemPage.id} onClick={()=>openPage(item,itemPageIndex)}><span>{String(itemPageIndex+1).padStart(2,'0')}</span><b>{itemPage.title}</b>{itemPage.kind==='practice'&&<em>Past Paper</em>}</button>)}</div>}</section>)}</aside>
+      <main className={`student-study-paper student-topic-paper${page.kind==='practice'?' is-practice':''}`}>
+        <header className="student-topic-page-head"><div><span>{topicLabel(topic)} · PAGE {String(pageIndex+1).padStart(2,'0')}</span><h1>{page.title}</h1></div><p>{page.kind==='practice'?'Topic tugadi: endi approved Cambridge Past Paper practice bilan bilimni tekshiring.':'Bu semantic page ichidagi tushuntirish, misol va mashqlarni tugatib keyingi page’ga o‘ting.'}</p></header>
+        {page.kind==='practice'?<PracticePage page={page} topic={topic}/>:<StudyPage page={page}/>} 
+      </main>
+    </div>
+    <footer className="student-study-nav student-topic-nav"><button type="button" className="secondary" disabled={!previous} onClick={()=>previous&&openFlat(flatIndex-1)}>{prevCrossesTopic?'← Oldingi topic':'← Oldingi page'}</button><div aria-label={`${topic.code} pages`}>{topic.pages.map((itemPage,itemPageIndex)=><button type="button" key={itemPage.id} aria-label={`${topic.code} page ${itemPageIndex+1}: ${itemPage.title}`} aria-current={itemPageIndex===pageIndex?'page':undefined} className={itemPageIndex===pageIndex?'active':''} onClick={()=>openPage(topic,itemPageIndex)}/>)}</div><button type="button" disabled={!next} onClick={()=>next&&openFlat(flatIndex+1)}>{nextCrossesTopic?'Keyingi topic →':'Keyingi page →'}</button></footer>
   </section>;
 }

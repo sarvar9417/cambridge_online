@@ -59,5 +59,3 @@ jobs:
           name: 9618-source-audit-report
           path: source-audit-report.json
           if-no-files-found: warn
-
-# deploy-readiness audit trigger: 2026-09-08

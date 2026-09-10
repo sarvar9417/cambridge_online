@@ -1,0 +1,113 @@
+/* Projector density pass.
+   Study/Audit remain source-complete. Presentation deliberately shows the
+   highest-value teaching moves instead of every secondary source detail on the
+   same screen. The viewport-safety layer still allows scrolling if required. */
+
+/* Prior-knowledge checks read better as 3 + 2 cards than five narrow columns. */
+.lesson-experience.lx-present .h14v-diagnostic {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1040px;
+}
+.lesson-experience.lx-present .h14v-diagnostic section {
+  min-height: 112px;
+}
+
+/* Keep the protocol map as a fast classification board. FTP command syntax is
+   useful source detail, but it belongs in Study / a dedicated teaching scene,
+   not underneath the same eight-card protocol overview. */
+.lesson-experience.lx-present .h14v-source-spotlight {
+  display: none;
+}
+
+/* Email route first. Push/pull and historical coursebook commentary were making
+   the same scene behave like a reading page. */
+.lesson-experience.lx-present .h14v-email-notes {
+  display: none;
+}
+
+/* The TCP handshake is the teaching move; protocol-family context stays as a
+   compact heading and PAR remains the single follow-up detail. */
+.lesson-experience.lx-present .h14v-transport-family small {
+  display: none;
+}
+
+/* Ethernet frame anatomy should stay readable from the back of a classroom.
+   The extra broadcast/type/VLAN notes remain available in Study. */
+.lesson-experience.lx-present .h14v-ethernet-notes {
+  display: none;
+}
+.lesson-experience.lx-present .h14v-ethernet-frame {
+  min-height: 104px;
+}
+
+/* Keep BitTorrent as a visual swarm/process scene. Definitions such as share
+   ratio, lurker and availability are secondary teaching moves and should not be
+   stacked under the same network diagram. */
+.lesson-experience.lx-present .h14v-bittorrent-notes {
+  display: none;
+}
+.lesson-experience.lx-present .h14v-swarm {
+  height: 350px;
+}
+
+/* The source contains long advantage/disadvantage lists. A projector comparison
+   needs representative contrasts, not 24 simultaneous bullets. Show the first
+   three pros and three cons for each method; the full lists remain in Study. */
+.lesson-experience.lx-present .h14v-switch-compare ul li:nth-child(n + 4) {
+  display: none;
+}
+.lesson-experience.lx-present .h14v-switch-compare > aside {
+  display: none;
+}
+.lesson-experience.lx-present .h14v-switch-compare > section > div {
+  gap: .65rem;
+}
+.lesson-experience.lx-present .h14v-switch-compare li {
+  font-size: clamp(.78rem, 1vw, .92rem);
+  line-height: 1.42;
+  padding: .5rem .6rem;
+}
+
+/* Core packet-header fields are enough for the first teaching scene. The six
+   low-level extension fields were forcing a second textbook page below it. */
+.lesson-experience.lx-present .h14v-header-detail {
+  display: none;
+}
+.lesson-experience.lx-present .h14v-header-explain {
+  margin-top: .7rem;
+}
+.lesson-experience.lx-present .h14v-header-explain p {
+  font-size: .86rem;
+}
+
+/* Routing decision first; exhaustive routing-table field names stay in Study. */
+.lesson-experience.lx-present .h14v-routing-fields {
+  display: none;
+}
+
+/* Generic comparison tables should not become tiny spreadsheets. */
+.lesson-experience.lx-present .lx-present-screen--scene-compare .lx-table-wrap table {
+  font-size: clamp(.82rem, 1.05vw, 1rem);
+}
+.lesson-experience.lx-present .lx-present-screen--scene-compare .lx-table-wrap th,
+.lesson-experience.lx-present .lx-present-screen--scene-compare .lx-table-wrap td {
+  padding: .62rem .72rem;
+}
+
+@media (max-width: 1050px) {
+  .lesson-experience.lx-present .h14v-diagnostic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .lesson-experience.lx-present .h14v-diagnostic {
+    grid-template-columns: 1fr;
+  }
+  .lesson-experience.lx-present .h14v-switch-compare {
+    grid-template-columns: 1fr;
+  }
+  .lesson-experience.lx-present .h14v-swarm {
+    height: 330px;
+  }
+}

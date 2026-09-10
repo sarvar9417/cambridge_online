@@ -1,0 +1,169 @@
+/* Structural guard for semantic Topic/Page classroom mode.
+ * Legacy slide presentation CSS has highly-specific !important selectors that
+ * intentionally hid .lesson-outline, forced a one-column workspace and turned
+ * Past Paper into nested horizontal carousels. Topic lessons use one vertical
+ * semantic-page model, so these selectors deliberately outrank that legacy
+ * slide contract. Keep this file last in LessonStudio.tsx. */
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting {
+  --classroom-rail: clamp(210px, 15vw, 280px);
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-workspace.lesson-topic-workspace,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-workspace.lesson-topic-workspace,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-workspace.lesson-topic-workspace {
+  display: grid !important;
+  grid-template-columns: var(--classroom-rail) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  place-items: stretch !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-outline.lesson-topic-outline,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-outline.lesson-topic-outline,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-outline.lesson-topic-outline {
+  display: block !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: auto !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+/* The rail is visible to the class, so its orientation labels must be readable,
+ * not 10px dashboard metadata. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-topic-nav-topic > b,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-topic-nav-topic > b,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-topic-nav-topic > b {
+  font-size: clamp(13px, .9vw, 16px) !important;
+  line-height: 1.3 !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-topic-nav-pages > button > b,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-topic-nav-pages > button > b,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-topic-nav-pages > button > b {
+  font-size: clamp(12px, .8vw, 14px) !important;
+  line-height: 1.3 !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-topic-outline-head strong,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-topic-outline-head strong,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-topic-outline-head strong {
+  font-size: 18px !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-slide.lesson-topic-page,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-slide.lesson-topic-page,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-slide.lesson-topic-page {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  align-items: start !important;
+  align-content: start !important;
+}
+
+/* A semantic Page heading and its first source fragment can occasionally be
+ * exactly the same. The runtime marks only exact duplicates; keep one heading
+ * on the projector instead of asking students to read the same title twice. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .classroom-redundant-heading,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .classroom-redundant-heading,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .classroom-redundant-heading {
+  display: none !important;
+}
+
+/* Past Paper is the final page of a Topic, so classroom projection keeps the
+ * same vertical reading/teaching behavior. This removes nested horizontal
+ * scroll areas that compete with PageDown/Space and projector remotes. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-scroll,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-scroll,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-scroll {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  scroll-snap-type: none !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-year-group,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-year-group,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-year-group {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 28px !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-grid,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-grid,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 20px !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  scroll-snap-type: none !important;
+}
+
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  scroll-snap-align: none !important;
+}
+
+/* Preview cards clamp question/context text in the normal teacher index. On a
+ * classroom screen that can remove source-required wording, so the projected
+ * Past Paper page must show the complete stored preview content. */
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card .lesson-question-context,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card .lesson-question-context,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card .lesson-question-context,
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card > p,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card > p,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card > p,
+html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-exam-card > .qtext-host,
+.lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-exam-card > .qtext-host,
+.lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-exam-card > .qtext-host {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  mask-image: none !important;
+}
+
+@media (max-width: 1100px) {
+  html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio,
+  .lesson-studio.hodder-studio.lesson-topic-studio:fullscreen,
+  .lesson-studio.hodder-studio.lesson-topic-studio.is-presenting {
+    --classroom-rail: 190px;
+  }
+}
+
+@media (max-width: 720px) {
+  html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-workspace.lesson-topic-workspace,
+  .lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-workspace.lesson-topic-workspace,
+  .lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-workspace.lesson-topic-workspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  html.lesson-presenting .lesson-studio.hodder-studio.lesson-topic-studio .lesson-outline.lesson-topic-outline,
+  .lesson-studio.hodder-studio.lesson-topic-studio:fullscreen .lesson-outline.lesson-topic-outline,
+  .lesson-studio.hodder-studio.lesson-topic-studio.is-presenting .lesson-outline.lesson-topic-outline {
+    display: none !important;
+  }
+}

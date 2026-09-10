@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "finalize-lessons-no-deploy": false,
+      "fix/9618-full-source-audit": false
+    }
+  },
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "frontend/dist",
   "functions": { "api/[...path].ts": { "maxDuration": 60 }, "api/maintenance.ts": { "maxDuration": 60 } },

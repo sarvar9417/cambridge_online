@@ -1,0 +1,49 @@
+.lesson-topic-studio .ch7-source-evidence {
+  margin: 16px 0 4px;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.lesson-topic-studio .ch7-source-evidence > summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+.lesson-topic-studio .ch7-source-evidence[open] > summary {
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.lesson-topic-studio .ch7-source-evidence > ul {
+  display: block !important;
+  margin: 0 !important;
+  padding: 12px 16px 16px 32px !important;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lesson-topic-studio .ch7-source-evidence > ul > li {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 5px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px !important;
+  line-height: 1.5 !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .ch7-source-evidence > ul,
+.lesson-topic-studio:fullscreen .ch7-source-evidence > ul {
+  max-height: 52vh;
+}

@@ -1,0 +1,337 @@
+/* Chapter 14 projector polish pass.
+   This file intentionally overrides the prototype visuals with theme-safe,
+   projector-readable surfaces. It fixes the light-card/light-text failure in
+   dark mode and strengthens secondary information without turning it into
+   visual noise. */
+
+.lesson-experience.lx-present {
+  --h14-card: var(--surface, #fff);
+  --h14-card-soft: var(--surface-soft, #f1f5fa);
+  --h14-border: var(--border-strong, #c7d2df);
+  --h14-line: var(--border, #dfe6ef);
+  --h14-ink: var(--text, #142033);
+  --h14-muted: var(--text-muted, #5f6d82);
+  --h14-accent: var(--accent, #1769d2);
+  --h14-accent-soft: var(--accent-soft, #e8f1fc);
+  --h14-good: var(--awarded, #27734f);
+  --h14-good-soft: var(--awarded-bg, #eaf5ef);
+  --h14-warn: var(--uncertain, #a85a0e);
+  --h14-warn-soft: var(--uncertain-bg, #fff3e6);
+  --h14-bad: var(--missed, #a63d40);
+  --h14-bad-soft: var(--missed-bg, #fbeeee);
+}
+
+/* Global scene hierarchy */
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] {
+  color: var(--h14-ink);
+}
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] > header {
+  position: relative;
+  padding-bottom: .35rem;
+}
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] > header::after {
+  content: '';
+  display: block;
+  width: 72px;
+  height: 4px;
+  margin-top: .75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--h14-accent), color-mix(in srgb, var(--h14-accent) 25%, transparent));
+}
+.lesson-experience .lx-present-screen--scene-hook > header::after { margin-inline: auto; }
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] > header > small,
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] small,
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] .lx-present-lead {
+  color: var(--h14-muted);
+}
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] > header > span {
+  border: 1px solid color-mix(in srgb, var(--h14-accent) 34%, var(--h14-line));
+  background: var(--h14-accent-soft);
+  color: var(--h14-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h14-card) 45%, transparent);
+}
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] h1,
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] h2,
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] h3,
+.lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] strong {
+  color: var(--h14-ink);
+}
+
+/* Cards and second-level information */
+.lesson-experience .lx-present-screen--scene-objective .lx-present-points li,
+.lesson-experience .lx-present-screen--scene-process .lx-sequence-item > span,
+.lesson-experience .lx-present-screen--scene-visual .lx-sequence-item > span,
+.lesson-experience .lx-present-screen--scene-visual .lx-bitfield,
+.lesson-experience .lx-present-screen--scene-compare .lx-comparison > section,
+.lesson-experience .lx-present-screen--scene-recap .lx-present-points li {
+  border-color: var(--h14-border);
+  background: linear-gradient(145deg, var(--h14-card), color-mix(in srgb, var(--h14-card-soft) 72%, var(--h14-card)));
+  color: var(--h14-ink);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .lx-present-screen--scene-process .lx-sequence-item small,
+.lesson-experience .lx-present-screen--scene-visual .lx-sequence-item small,
+.lesson-experience .lx-present-screen--scene-visual .lx-bitfield small,
+.lesson-experience .lx-present-screen--scene-compare td,
+.lesson-experience .lx-present-screen--scene-compare .lx-comparison p {
+  color: var(--h14-muted);
+  opacity: 1;
+}
+.lesson-experience .lx-present-screen--scene-compare table {
+  background: var(--h14-card);
+  color: var(--h14-ink);
+}
+.lesson-experience .lx-present-screen--scene-compare th {
+  background: var(--h14-card-soft);
+  color: var(--h14-ink);
+}
+.lesson-experience .lx-present-screen--scene-compare th,
+.lesson-experience .lx-present-screen--scene-compare td {
+  border-color: var(--h14-line);
+}
+
+/* Unrevealed material should be absent, not ghosted against the background. */
+.lesson-experience :is(.h14v-layer,.h14v-encapsulation section,.h14v-node,.h14v-mail-node,.h14v-popimap>section,.h14v-handshake-step,.h14v-tracker,.h14v-peer,.h14v-piece,.h14v-hop-node,.h14v-header-strip>div,.h14v-routing-router,.h14v-routing>b,.h14v-routing table):not(.is-visible) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.lesson-experience :is(.h14v-layer,.h14v-encapsulation section,.h14v-node,.h14v-mail-node,.h14v-popimap>section,.h14v-handshake-step,.h14v-tracker,.h14v-peer,.h14v-piece,.h14v-hop-node,.h14v-header-strip>div,.h14v-routing-router,.h14v-routing>b,.h14v-routing table).is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* TCP/IP stack */
+.lesson-experience .h14v-layer {
+  border-color: var(--h14-border);
+  background: linear-gradient(100deg, var(--h14-card), var(--h14-card-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-layer strong { color: var(--h14-ink); }
+.lesson-experience .h14v-layer small { color: var(--h14-muted); font-weight: 650; }
+.lesson-experience .h14v-stack-arrow { color: var(--h14-muted); }
+.lesson-experience .h14v-stack-arrow b { color: var(--h14-accent); }
+.lesson-experience .h14v-stack-arrow--up b { color: var(--h14-good); }
+
+/* Encapsulation */
+.lesson-experience .h14v-encapsulation section > span { color: var(--h14-accent); }
+.lesson-experience .h14v-encapsulation section > div {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-encapsulation b {
+  border-color: var(--h14-line);
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-encapsulation b:first-child {
+  background: var(--h14-accent-soft);
+  color: var(--h14-accent);
+}
+
+/* Browser / HTTP / email path */
+.lesson-experience .h14v-browser-window {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--h14-ink) 9%, transparent);
+}
+.lesson-experience .h14v-browser-window > span { background: var(--h14-border); }
+.lesson-experience .h14v-browser-window strong {
+  background: var(--h14-card-soft);
+  color: var(--h14-ink);
+  border: 1px solid var(--h14-line);
+}
+.lesson-experience .h14v-node,
+.lesson-experience .h14v-mail-node {
+  border-color: var(--h14-border);
+  background: linear-gradient(160deg, var(--h14-card), var(--h14-card-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-node small,
+.lesson-experience .h14v-mail-node small { color: var(--h14-muted); font-weight: 600; }
+.lesson-experience .h14v-node i { background: var(--h14-accent); color: var(--accent-contrast, #fff); }
+.lesson-experience .h14v-node > b,
+.lesson-experience .h14v-mail-node > b { color: var(--h14-accent); }
+
+/* POP / IMAP */
+.lesson-experience .h14v-popimap > section {
+  border-color: var(--h14-border);
+  background: linear-gradient(160deg, var(--h14-card), var(--h14-card-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--h14-ink) 9%, transparent);
+}
+.lesson-experience .h14v-popimap > section p { color: var(--h14-muted); font-weight: 600; text-align: center; }
+.lesson-experience .h14v-server {
+  background: var(--h14-card-soft);
+  border: 1px solid var(--h14-border);
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-sync { color: var(--h14-good); }
+
+/* TCP handshake */
+.lesson-experience .h14v-host {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-handshake-step {
+  background: var(--h14-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--h14-accent) 25%, var(--h14-border));
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-handshake-step strong { color: var(--h14-accent); }
+.lesson-experience .h14v-handshake-step:last-child {
+  background: var(--h14-good-soft);
+  border-color: color-mix(in srgb, var(--h14-good) 35%, var(--h14-border));
+}
+.lesson-experience .h14v-handshake-step:last-child strong { color: var(--h14-good); }
+
+/* BitTorrent */
+.lesson-experience .h14v-tracker {
+  background: color-mix(in srgb, var(--h14-ink) 94%, var(--h14-card));
+  color: var(--h14-card);
+  border: 2px solid color-mix(in srgb, var(--h14-accent) 42%, var(--h14-border));
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--h14-ink) 22%, transparent);
+}
+.lesson-experience .h14v-tracker strong,
+.lesson-experience .h14v-tracker small { color: inherit; }
+.lesson-experience .h14v-peer {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-peer[data-type="seed"] { border-color: var(--h14-good); background: color-mix(in srgb, var(--h14-good-soft) 68%, var(--h14-card)); }
+.lesson-experience .h14v-peer[data-type="leech"] { border-color: var(--h14-bad); background: color-mix(in srgb, var(--h14-bad-soft) 68%, var(--h14-card)); }
+.lesson-experience .h14v-peer i { background: var(--h14-border); }
+.lesson-experience .h14v-piece { background: var(--h14-accent-soft); color: var(--h14-accent); border: 1px solid var(--h14-border); }
+
+/* Circuit / packet network */
+.lesson-experience .h14v-links path { stroke: var(--h14-border); }
+.lesson-experience .h14v-router circle { fill: var(--h14-card); stroke: color-mix(in srgb, var(--h14-muted) 75%, var(--h14-border)); }
+.lesson-experience .h14v-router text { fill: var(--h14-ink); }
+.lesson-experience .h14v-router:first-of-type circle,
+.lesson-experience .h14v-router:last-of-type circle { fill: var(--h14-accent-soft); stroke: var(--h14-accent); }
+.lesson-experience .h14v-dedicated { stroke: var(--h14-warn); }
+.lesson-experience .h14v-dedicated.is-failed { stroke: var(--h14-bad); }
+.lesson-experience .h14v-failure circle { fill: var(--h14-bad-soft); stroke: var(--h14-bad); }
+.lesson-experience .h14v-failure text { fill: var(--h14-bad); }
+.lesson-experience .h14v-network-caption,
+.lesson-experience .h14v-packet-key,
+.lesson-experience .h14v-reassembly { color: var(--h14-muted); }
+.lesson-experience .h14v-network-caption b {
+  background: var(--h14-warn-soft);
+  color: var(--h14-warn);
+  border: 1px solid color-mix(in srgb, var(--h14-warn) 35%, var(--h14-border));
+}
+.lesson-experience .h14v-packet-key span {
+  background: var(--h14-card-soft);
+  color: var(--h14-ink);
+  border: 1px solid var(--h14-border);
+}
+.lesson-experience .h14v-reassembly.is-visible {
+  margin-top: .8rem;
+  padding: .75rem 1rem;
+  border-radius: 12px;
+  background: var(--h14-good-soft);
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-reassembly strong { color: var(--h14-good); }
+
+/* Hop / packet header */
+.lesson-experience .h14v-hop-node {
+  border-color: var(--h14-border);
+  background: linear-gradient(160deg, var(--h14-card), var(--h14-card-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-hop-node > span { color: var(--h14-muted); font-weight: 700; }
+.lesson-experience .h14v-hop-node > b { color: var(--h14-accent); }
+.lesson-experience .h14v-hop-node.is-zero { border-color: var(--h14-bad); background: var(--h14-bad-soft); }
+.lesson-experience .h14v-hop > p { color: var(--h14-muted); }
+.lesson-experience .h14v-hop > p strong { color: var(--h14-bad); }
+.lesson-experience .h14v-header-strip {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-header-strip > div { border-color: var(--h14-line); color: var(--h14-ink); }
+.lesson-experience .h14v-header-strip > div.is-visible { background: var(--h14-accent-soft); }
+.lesson-experience .h14v-header-strip > div span { color: var(--h14-muted); }
+.lesson-experience .h14v-header-strip .h14v-payload { background: var(--h14-good-soft); color: var(--h14-good); }
+.lesson-experience .h14v-header-explain p {
+  background: var(--h14-card-soft);
+  color: var(--h14-muted);
+  border: 1px solid var(--h14-border);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--h14-ink) 6%, transparent);
+}
+.lesson-experience .h14v-header-explain b { color: var(--h14-ink); }
+
+/* Router decision */
+.lesson-experience .h14v-routing-packet,
+.lesson-experience .h14v-routing-router {
+  border-color: var(--h14-border);
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-routing-packet span,
+.lesson-experience .h14v-routing-router span { color: var(--h14-muted); font-weight: 700; }
+.lesson-experience .h14v-routing > b { color: var(--h14-accent); font-size: 1.45rem; }
+.lesson-experience .h14v-routing table {
+  background: var(--h14-card);
+  color: var(--h14-ink);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--h14-ink) 8%, transparent);
+}
+.lesson-experience .h14v-routing th {
+  background: var(--h14-card-soft);
+  color: var(--h14-ink);
+}
+.lesson-experience .h14v-routing th,
+.lesson-experience .h14v-routing td { border-color: var(--h14-line); }
+.lesson-experience .h14v-routing tr.is-best { background: var(--h14-good-soft); color: var(--h14-ink); }
+.lesson-experience .h14v-routing-result { background: var(--h14-ink); color: var(--h14-card); box-shadow: 0 8px 18px color-mix(in srgb, var(--h14-ink) 18%, transparent); }
+.lesson-experience .h14v-routing-result strong { color: inherit; }
+
+/* Challenge / exam scenes get a stronger information hierarchy. */
+.lesson-experience .lx-present-screen--scene-challenge .lx-present-activity {
+  border: 2px solid color-mix(in srgb, var(--h14-warn) 45%, var(--h14-border));
+  background: linear-gradient(145deg, var(--h14-card), var(--h14-warn-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--h14-warn) 12%, transparent);
+}
+.lesson-experience .lx-present-screen--scene-exam .lx-present-activity {
+  border-color: var(--h14-accent);
+  background: linear-gradient(145deg, var(--h14-card), var(--h14-accent-soft));
+  color: var(--h14-ink);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--h14-accent) 12%, transparent);
+}
+.lesson-experience .lx-present-screen--scene-challenge .lx-present-activity p,
+.lesson-experience .lx-present-screen--scene-exam .lx-present-activity p { color: var(--h14-ink); }
+.lesson-experience .lx-present-screen--scene-challenge .lx-present-activity > div,
+.lesson-experience .lx-present-screen--scene-exam .lx-present-activity > div {
+  color: var(--h14-muted);
+  border-color: var(--h14-border);
+}
+
+/* Stronger projector readability at normal classroom distance. */
+@media (min-width: 1000px) {
+  .lesson-experience .h14v-node small,
+  .lesson-experience .h14v-mail-node small,
+  .lesson-experience .h14v-layer small,
+  .lesson-experience .h14v-popimap p,
+  .lesson-experience .h14v-header-explain p {
+    font-size: max(.96rem, 1.05vw);
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 700px) {
+  .lesson-experience .lx-present-screen[class*="lx-present-screen--scene-"] > header::after { width: 52px; }
+  .lesson-experience .h14v-network-caption b { border-radius: 10px; text-align: center; }
+}

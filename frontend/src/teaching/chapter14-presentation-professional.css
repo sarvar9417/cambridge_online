@@ -1,0 +1,1165 @@
+/* Chapter 14 — Professional Projector Deck
+   ------------------------------------------------------------
+   This layer deliberately overrides the earlier prototype aesthetics.
+   The presentation gets its own projector-safe visual language instead of
+   inheriting the application theme: dark matte canvas, large typography,
+   high contrast secondary text, restrained surfaces, and visual-first scenes.
+
+   Design rules:
+   • one dominant teaching move per screen
+   • no decorative card soup / excessive shadows
+   • minimum projector-readable secondary text
+   • visual area owns most of the screen
+   • scroll remains a safety net, not the normal layout
+   • source/audit metadata never competes with the learner-facing canvas
+*/
+
+.lesson-experience.lx-present{
+  --surface:#0b1726;
+  --surface-soft:#101f31;
+  --border:#26384c;
+  --border-strong:#38506a;
+  --text:#f6f9fd;
+  --text-muted:#b9c7d7;
+  --accent:#66b6ff;
+  --accent-soft:#102e4a;
+  --accent-strong:#8bcbff;
+  --accent-contrast:#04111e;
+  --awarded:#5cdbc5;
+  --awarded-bg:#0d302f;
+  --missed:#ff7f8a;
+  --uncertain:#ffc66d;
+  --deck-bg:#06101d;
+  --deck-panel:#0b1726;
+  --deck-panel-2:#102033;
+  --deck-line:#26384c;
+  --deck-line-strong:#3a536d;
+  --deck-ink:#f7fbff;
+  --deck-muted:#b9c7d7;
+  --deck-blue:#66b6ff;
+  --deck-blue-soft:#102e4a;
+  --deck-teal:#5cdbc5;
+  --deck-amber:#ffc66d;
+  --deck-red:#ff7f8a;
+  --deck-shadow:0 32px 90px rgb(0 0 0 / 34%);
+  color-scheme:dark;
+  grid-template-rows:56px minmax(0,1fr) 58px;
+  background:
+    radial-gradient(circle at 10% -10%,rgb(44 113 171 / 20%),transparent 38%),
+    radial-gradient(circle at 92% 108%,rgb(42 138 121 / 13%),transparent 34%),
+    var(--deck-bg);
+  color:var(--deck-ink);
+}
+
+/* ---------- projector chrome ---------- */
+.lesson-experience.lx-present .lx-present-bar{
+  min-height:56px;
+  padding:0 clamp(.9rem,2vw,1.7rem);
+  border:0;
+  border-bottom:1px solid rgb(255 255 255 / 8%);
+  background:rgb(6 16 29 / 82%);
+  backdrop-filter:blur(18px);
+  box-shadow:none;
+}
+.lesson-experience.lx-present .lx-present-bar button{
+  min-height:36px;
+  padding:.38rem .62rem;
+  border:1px solid rgb(255 255 255 / 10%);
+  border-radius:10px;
+  background:rgb(255 255 255 / 4%);
+  color:var(--deck-muted);
+  box-shadow:none;
+  font-size:.76rem;
+  transition:border-color 150ms ease,background 150ms ease,color 150ms ease;
+}
+.lesson-experience.lx-present .lx-present-bar button:hover{
+  border-color:rgb(102 182 255 / 40%);
+  background:rgb(102 182 255 / 8%);
+  color:var(--deck-ink);
+}
+.lesson-experience.lx-present .lx-present-bar>div span{
+  color:#8fa5bb;
+  font-size:.64rem;
+  letter-spacing:.04em;
+}
+.lesson-experience.lx-present .lx-present-bar>div strong{
+  color:var(--deck-ink);
+  font-size:.86rem;
+  font-weight:700;
+}
+.lesson-experience.lx-present .lx-present-bar>span{
+  min-width:58px;
+  padding:.26rem .45rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:999px;
+  color:var(--deck-muted);
+  background:rgb(255 255 255 / 3%);
+  text-align:center;
+  font-size:.68rem;
+}
+
+.lesson-experience.lx-present .lx-present-stage{
+  min-width:0;
+  min-height:0;
+  display:grid;
+  place-items:start center;
+  padding:clamp(.8rem,1.8vh,1.35rem) clamp(1rem,3.2vw,3.5rem);
+  overflow:auto;
+  scrollbar-gutter:stable;
+  background:transparent;
+}
+
+.lesson-experience.lx-present .lx-present-screen{
+  position:relative;
+  isolation:isolate;
+  width:min(1440px,100%);
+  min-height:calc(100dvh - 146px);
+  height:auto;
+  margin:0 auto;
+  padding:clamp(1.25rem,2.4vw,2.35rem) clamp(1.35rem,3vw,3rem) clamp(1.2rem,2vw,2rem);
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  gap:clamp(.85rem,1.8vh,1.35rem);
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:24px;
+  background:
+    linear-gradient(180deg,rgb(255 255 255 / 2.5%),transparent 30%),
+    var(--deck-panel);
+  box-shadow:var(--deck-shadow);
+}
+.lesson-experience.lx-present .lx-present-screen::before{
+  content:'';
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg,rgb(255 255 255 / 2%) 1px,transparent 1px),
+    linear-gradient(rgb(255 255 255 / 1.7%) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:linear-gradient(to bottom,rgb(0 0 0 / 35%),transparent 38%);
+}
+.lesson-experience.lx-present .lx-present-screen::after{
+  content:'';
+  position:absolute;
+  left:0;
+  top:0;
+  width:5px;
+  height:100%;
+  background:linear-gradient(var(--deck-blue),rgb(92 219 197 / 70%));
+}
+
+.lesson-experience.lx-present .lx-present-screen>header{
+  position:relative;
+  max-width:1260px;
+  padding-left:.15rem;
+}
+.lesson-experience.lx-present .lx-present-screen>header>span{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:.25rem .5rem;
+  border:1px solid rgb(102 182 255 / 30%);
+  border-radius:999px;
+  background:rgb(102 182 255 / 7%);
+  color:var(--deck-blue);
+  font:800 .64rem/1 var(--font-mono,monospace);
+  letter-spacing:.11em;
+}
+.lesson-experience.lx-present .lx-present-screen>header>small{
+  margin-left:.65rem;
+  color:#8fa5bb;
+  font:650 .68rem var(--font-mono,monospace);
+  letter-spacing:.035em;
+}
+.lesson-experience.lx-present .lx-present-screen>header h1{
+  max-width:1220px;
+  margin:.56rem 0 0;
+  color:var(--deck-ink);
+  font-size:clamp(2rem,3.55vw,3.9rem);
+  line-height:1.02;
+  letter-spacing:-.052em;
+  font-weight:760;
+  text-wrap:balance;
+}
+.lesson-experience.lx-present .lx-present-screen--scene-hook>header h1{
+  max-width:1120px;
+  font-size:clamp(2.55rem,4.7vw,5.1rem);
+  line-height:.98;
+}
+.lesson-experience.lx-present .lx-present-screen--scene-objective>header h1,
+.lesson-experience.lx-present .lx-present-screen--scene-recap>header h1{
+  font-size:clamp(2.15rem,3.7vw,4.1rem);
+}
+
+.lesson-experience.lx-present .lx-present-content{
+  min-width:0;
+  min-height:0;
+  display:grid;
+  align-content:center;
+  gap:clamp(.7rem,1.5vh,1rem);
+  overflow:visible;
+}
+.lesson-experience.lx-present .lx-present-content:has(>[class^="h14v6-"])>.lx-present-lead,
+.lesson-experience.lx-present .lx-present-content:has(>[class*=" h14v6-"])>.lx-present-lead{
+  display:none;
+}
+.lesson-experience.lx-present .lx-present-screen--scene-hook .lx-present-content:has(>[class^="h14v6-"])>.lx-present-lead,
+.lesson-experience.lx-present .lx-present-screen--scene-hook .lx-present-content:has(>[class*=" h14v6-"])>.lx-present-lead{
+  display:block;
+  max-width:900px;
+  margin:0;
+  color:var(--deck-muted);
+  font-size:clamp(1rem,1.5vw,1.28rem);
+  line-height:1.55;
+  letter-spacing:-.01em;
+}
+.lesson-experience.lx-present .lx-present-screen>footer{
+  color:#728aa3;
+  font-size:.62rem;
+}
+
+.lesson-experience.lx-present .lx-present-nav{
+  min-height:58px;
+  padding:0 clamp(.75rem,2vw,1.5rem);
+  border:0;
+  border-top:1px solid rgb(255 255 255 / 8%);
+  background:rgb(6 16 29 / 86%);
+  backdrop-filter:blur(18px);
+}
+.lesson-experience.lx-present .lx-present-nav button{
+  min-height:38px;
+  padding:.38rem .68rem;
+  border:1px solid rgb(255 255 255 / 10%);
+  border-radius:10px;
+  background:rgb(255 255 255 / 4%);
+  color:var(--deck-ink);
+  box-shadow:none;
+}
+.lesson-experience.lx-present .lx-present-nav button:hover:not(:disabled){
+  border-color:rgb(102 182 255 / 38%);
+  background:rgb(102 182 255 / 8%);
+}
+.lesson-experience.lx-present .lx-present-nav p{
+  width:max-content;
+  max-width:100%;
+  margin:auto;
+  padding:.28rem .62rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:999px;
+  background:rgb(255 255 255 / 3%);
+  color:#91a7bc;
+  font-size:.68rem;
+}
+.lesson-experience.lx-present .lx-present-outline{
+  border-right:1px solid rgb(255 255 255 / 10%);
+  background:#081421;
+  color:var(--deck-ink);
+  box-shadow:24px 0 70px rgb(0 0 0 / 38%);
+}
+.lesson-experience.lx-present .lx-present-outline header,
+.lesson-experience.lx-present .lx-present-outline nav button{
+  border-color:rgb(255 255 255 / 8%);
+  color:var(--deck-ink);
+}
+.lesson-experience.lx-present .lx-present-outline nav button.is-active{
+  background:rgb(102 182 255 / 10%);
+  color:var(--deck-ink);
+}
+
+/* Teacher/source audit belongs outside the projector canvas. */
+.lesson-experience.lx-present .h14v6-source-ribbon{display:none!important}
+
+/* ---------- V6 global visual language ---------- */
+.lesson-experience.lx-present :is([class^="h14v6-"],[class*=" h14v6-"]){
+  --surface:var(--deck-panel);
+  --surface-soft:var(--deck-panel-2);
+  --border:var(--deck-line);
+  --border-strong:var(--deck-line-strong);
+  --text:var(--deck-ink);
+  --text-muted:var(--deck-muted);
+  --accent:var(--deck-blue);
+  --accent-soft:var(--deck-blue-soft);
+  --awarded:var(--deck-teal);
+  --awarded-bg:#0d302f;
+  --missed:var(--deck-red);
+  --uncertain:var(--deck-amber);
+  width:min(1220px,100%);
+  margin-inline:auto;
+  color:var(--deck-ink);
+}
+.lesson-experience.lx-present :is([class^="h14v6-"],[class*=" h14v6-"]) :is(small,p){
+  color:var(--deck-muted);
+}
+.lesson-experience.lx-present :is([class^="h14v6-"],[class*=" h14v6-"]) small{
+  font-size:clamp(.76rem,.9vw,.92rem)!important;
+  line-height:1.42!important;
+}
+.lesson-experience.lx-present :is([class^="h14v6-"],[class*=" h14v6-"]) strong{
+  letter-spacing:-.012em;
+}
+.lesson-experience.lx-present :is(
+  .h14v6-diagnostic section,.h14v6-objectives section,.h14v6-protocol-map section,
+  .h14v6-ftp section,.h14v6-mechanics section,.h14v6-transport section,
+  .h14v6-ethernet-detail section,.h14v6-wireless section,.h14v6-routing-fields section,
+  .h14v6-activity section,.h14v6-practice section
+){
+  border:1px solid rgb(255 255 255 / 9%)!important;
+  background:rgb(255 255 255 / 3.5%)!important;
+  box-shadow:none!important;
+}
+
+/* ---------- 14.1 starter / objectives / protocol ---------- */
+.lesson-experience.lx-present .h14v6-diagnostic{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.7rem;
+  align-items:stretch;
+}
+.lesson-experience.lx-present .h14v6-diagnostic section{
+  position:relative;
+  min-height:116px;
+  padding:1rem 1rem 1rem 4rem;
+  display:grid;
+  align-content:center;
+  gap:.3rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-diagnostic section>span{
+  position:absolute;
+  left:1rem;
+  top:1rem;
+  width:34px;
+  height:34px;
+  border-radius:9px;
+  background:rgb(102 182 255 / 10%);
+  border:1px solid rgb(102 182 255 / 22%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-diagnostic strong{font-size:clamp(.95rem,1.15vw,1.18rem)}
+.lesson-experience.lx-present .h14v6-diagnostic small{max-width:28ch}
+
+.lesson-experience.lx-present .h14v6-objectives{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1px;
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 8%);
+}
+.lesson-experience.lx-present .h14v6-objectives section{
+  min-height:180px;
+  padding:1.3rem 1.35rem;
+  border:0!important;
+  border-radius:0!important;
+  background:var(--deck-panel)!important;
+  align-items:flex-start;
+}
+.lesson-experience.lx-present .h14v6-objectives section>span{
+  width:34px;
+  height:34px;
+  background:var(--deck-blue);
+  color:#071321;
+}
+.lesson-experience.lx-present .h14v6-objectives p{
+  color:var(--deck-ink)!important;
+  font-size:clamp(1rem,1.35vw,1.28rem);
+  line-height:1.5;
+}
+
+.lesson-experience.lx-present .h14v6-protocol-need{
+  grid-template-columns:1fr 210px 1fr;
+  gap:1.2rem;
+}
+.lesson-experience.lx-present .h14v6-host-card{
+  min-height:190px;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:20px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-host-card::before{
+  content:'DEVICE';
+  display:grid;
+  place-items:center;
+  width:62px;
+  height:42px;
+  border:2px solid var(--deck-blue);
+  border-radius:8px;
+  color:var(--deck-blue);
+  font:800 .57rem var(--font-mono,monospace);
+  box-shadow:inset 0 -7px rgb(102 182 255 / 8%);
+}
+.lesson-experience.lx-present .h14v6-host-card span{color:#8fa5bb}
+.lesson-experience.lx-present .h14v6-host-card strong{font-size:clamp(1.15rem,1.8vw,1.65rem)}
+.lesson-experience.lx-present .h14v6-rule{
+  min-width:0;
+  padding:1rem;
+  border:1px solid rgb(102 182 255 / 36%);
+  background:rgb(102 182 255 / 9%);
+  box-shadow:0 0 40px rgb(71 163 246 / 10%);
+}
+.lesson-experience.lx-present .h14v6-rule b{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-protocol-need footer{
+  padding:.75rem 1rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+}
+
+/* ---------- TCP/IP + encapsulation ---------- */
+.lesson-experience.lx-present .h14v6-stack{
+  grid-template-columns:78px minmax(0,900px) 78px;
+  gap:1rem;
+}
+.lesson-experience.lx-present .h14v6-stack>div{gap:.52rem}
+.lesson-experience.lx-present .h14v6-stack>div section{
+  min-height:78px;
+  grid-template-columns:38px 185px 1fr auto;
+  padding:.65rem .85rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-left:4px solid var(--deck-blue);
+  border-radius:12px;
+  background:rgb(255 255 255 / 3.5%);
+  box-shadow:none;
+}
+.lesson-experience.lx-present .h14v6-stack section>i{
+  background:rgb(102 182 255 / 10%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-stack section strong{font-size:clamp(.92rem,1.15vw,1.12rem)}
+.lesson-experience.lx-present .h14v6-stack section>b{
+  min-width:104px;
+  border-color:rgb(255 255 255 / 10%);
+  background:rgb(255 255 255 / 4%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-stack>aside b{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-stack>aside.receive b{color:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-stack>footer{background:rgb(255 255 255 / 3%);color:var(--deck-muted)}
+
+.lesson-experience.lx-present .h14v6-encap{max-width:980px;gap:.55rem}
+.lesson-experience.lx-present .h14v6-encap section{
+  grid-template-columns:160px 1fr;
+  min-height:68px;
+  padding:.6rem .75rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:12px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-encap section>div span{
+  min-height:44px;
+  display:grid;
+  place-items:center;
+  border-color:rgb(255 255 255 / 9%);
+  background:rgb(255 255 255 / 4%);
+  color:var(--deck-ink);
+  font-size:.75rem;
+}
+.lesson-experience.lx-present .h14v6-encap section>div span[data-part="0"]{
+  border-color:rgb(102 182 255 / 30%);
+  background:rgb(102 182 255 / 10%);
+  color:var(--deck-blue);
+}
+
+/* ---------- protocols / FTP ---------- */
+.lesson-experience.lx-present .h14v6-protocol-map{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.6rem;
+}
+.lesson-experience.lx-present .h14v6-protocol-map section{
+  min-height:118px;
+  padding:.9rem;
+  border-radius:15px!important;
+}
+.lesson-experience.lx-present .h14v6-protocol-map section>span{color:#8fa5bb;font-size:.62rem}
+.lesson-experience.lx-present .h14v6-protocol-map strong{color:var(--deck-blue);font-size:1.05rem}
+.lesson-experience.lx-present .h14v6-protocol-map small{font-size:.78rem!important}
+
+.lesson-experience.lx-present .h14v6-ftp{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.7rem;
+  max-width:1060px;
+}
+.lesson-experience.lx-present .h14v6-ftp section{
+  min-height:112px;
+  padding:1rem 1rem 1rem 3.7rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-ftp section>span{
+  left:1rem;
+  top:1rem;
+  background:rgb(102 182 255 / 10%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-ftp code{
+  padding:.48rem .58rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:#07111d;
+  color:#d8e9f8;
+  font-size:.8rem;
+}
+
+/* ---------- HTTP / email ---------- */
+.lesson-experience.lx-present .h14v6-http{max-width:1180px}
+.lesson-experience.lx-present .h14v6-http .browser{
+  top:100px;
+  width:185px;
+  border:1px solid rgb(255 255 255 / 12%);
+  border-radius:16px;
+  background:#0c1928;
+  box-shadow:0 18px 45px rgb(0 0 0 / 25%);
+}
+.lesson-experience.lx-present .h14v6-http .browser header{
+  border-bottom-color:rgb(255 255 255 / 8%);
+  background:#122237;
+}
+.lesson-experience.lx-present .h14v6-http .browser code{color:#a8bbcd;font-size:.62rem}
+.lesson-experience.lx-present .h14v6-http .browser main b{font-size:.82rem}
+.lesson-experience.lx-present .h14v6-http svg{max-height:330px}
+.lesson-experience.lx-present .h14v6-http .backbone{stroke:#3a5067;stroke-width:3.5}
+.lesson-experience.lx-present .h14v6-http .node rect{fill:#0e1d2e;stroke:var(--deck-blue);stroke-width:2}
+.lesson-experience.lx-present .h14v6-http .node text{fill:var(--deck-ink);font-size:14px}
+.lesson-experience.lx-present .h14v6-http .node text.note{fill:#b3c2d0;font-size:10px}
+.lesson-experience.lx-present .h14v6-http .steps{grid-template-columns:repeat(6,minmax(0,1fr));gap:.35rem}
+.lesson-experience.lx-present .h14v6-http .steps span{
+  min-height:66px;
+  padding:.45rem .5rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-http .steps strong{font-size:.72rem}
+.lesson-experience.lx-present .h14v6-http .steps small{font-size:.68rem!important}
+
+.lesson-experience.lx-present .h14v6-email{min-height:230px}
+.lesson-experience.lx-present .h14v6-email .flow{gap:.4rem}
+.lesson-experience.lx-present .h14v6-email .flow section{
+  min-height:132px;
+  padding:.65rem .45rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:14px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-email .flow section[data-role="push"]{
+  background:rgb(102 182 255 / 8%);
+  border-color:rgb(102 182 255 / 30%);
+}
+.lesson-experience.lx-present .h14v6-email .flow section[data-role="pull"]{
+  background:rgb(92 219 197 / 7%);
+  border-color:rgb(92 219 197 / 28%);
+}
+.lesson-experience.lx-present .h14v6-email .flow strong{font-size:.74rem}
+.lesson-experience.lx-present .h14v6-email .flow small{font-size:.68rem!important}
+.lesson-experience.lx-present .h14v6-email .mail-pulse{
+  background:var(--deck-blue);
+  color:#06101d;
+}
+.lesson-experience.lx-present .h14v6-mechanics{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.7rem;
+}
+.lesson-experience.lx-present .h14v6-mechanics section{
+  min-height:116px;
+  padding:1rem;
+  border-radius:15px!important;
+}
+.lesson-experience.lx-present .h14v6-mechanics strong{font-size:.9rem}
+.lesson-experience.lx-present .h14v6-mechanics p{font-size:.8rem;line-height:1.5}
+
+.lesson-experience.lx-present .h14v6-popimap{gap:1rem}
+.lesson-experience.lx-present .h14v6-popimap>section{
+  padding:1.05rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 3%);
+  box-shadow:none;
+}
+.lesson-experience.lx-present .h14v6-popimap>section>header{
+  margin-bottom:.8rem;
+  color:var(--deck-blue);
+  font-size:1rem;
+}
+.lesson-experience.lx-present .h14v6-popimap .server,
+.lesson-experience.lx-present .h14v6-popimap .device,
+.lesson-experience.lx-present .h14v6-popimap .devices b{
+  border-color:rgb(255 255 255 / 10%);
+  background:#0d1b2b;
+}
+.lesson-experience.lx-present .h14v6-popimap>section p{font-size:.82rem;line-height:1.5}
+
+/* ---------- transport / handshake / IP-link ---------- */
+.lesson-experience.lx-present .h14v6-transport{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.65rem;
+}
+.lesson-experience.lx-present .h14v6-transport section{
+  min-height:128px;
+  padding:1rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-transport section[data-main="true"]{
+  border-color:rgb(102 182 255 / 28%)!important;
+  background:rgb(102 182 255 / 7%)!important;
+}
+.lesson-experience.lx-present .h14v6-transport strong{font-size:1.05rem;color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-transport section>div{margin-top:.7rem}
+
+.lesson-experience.lx-present .h14v6-handshake>header section{
+  min-height:88px;
+  border:1px solid rgb(255 255 255 / 10%);
+  border-radius:16px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-handshake>header b{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border-radius:11px;
+  background:rgb(102 182 255 / 10%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-handshake main{height:270px}
+.lesson-experience.lx-present .h14v6-handshake main>i{background:linear-gradient(var(--deck-line-strong),transparent)}
+.lesson-experience.lx-present .h14v6-handshake .message{
+  border:1px solid rgb(102 182 255 / 26%);
+  background:#10253b;
+}
+.lesson-experience.lx-present .h14v6-handshake .message strong{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-handshake>footer{
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+}
+
+.lesson-experience.lx-present .h14v6-iplink{
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-iplink header{background:#0d1d2e}
+.lesson-experience.lx-present .h14v6-iplink>div{border-top-color:rgb(255 255 255 / 8%)}
+.lesson-experience.lx-present .h14v6-iplink p{font-size:.86rem}
+
+/* ---------- Ethernet / wireless ---------- */
+.lesson-experience.lx-present .h14v6-frame>div{
+  gap:3px;
+  padding:.55rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:16px;
+  background:#081522;
+}
+.lesson-experience.lx-present .h14v6-frame section{
+  min-height:108px;
+  border:0;
+  border-radius:9px;
+  background:#122337;
+}
+.lesson-experience.lx-present .h14v6-frame section:nth-child(3),
+.lesson-experience.lx-present .h14v6-frame section:nth-child(4),
+.lesson-experience.lx-present .h14v6-frame section:nth-child(5){background:#15304a}
+.lesson-experience.lx-present .h14v6-frame section:nth-child(6){background:#103529}
+.lesson-experience.lx-present .h14v6-frame section strong{font-size:.72rem}
+.lesson-experience.lx-present .h14v6-frame section small{color:#d3deea!important}
+.lesson-experience.lx-present .h14v6-frame>footer{color:var(--deck-muted);font-size:.8rem}
+
+.lesson-experience.lx-present .h14v6-ethernet-detail{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.7rem;
+}
+.lesson-experience.lx-present .h14v6-ethernet-detail section{
+  min-height:132px;
+  padding:1rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-ethernet-detail section>span{color:#8fa5bb}
+.lesson-experience.lx-present .h14v6-ethernet-detail section>strong{font-size:1rem;color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-ethernet-detail .lan{border-color:rgb(255 255 255 / 9%);background:#091724}
+
+.lesson-experience.lx-present .h14v6-wireless{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.75rem;
+}
+.lesson-experience.lx-present .h14v6-wireless section{
+  min-height:190px;
+  padding:1.1rem;
+  border-radius:18px!important;
+}
+.lesson-experience.lx-present .h14v6-wireless section>span{color:#8fa5bb}
+.lesson-experience.lx-present .h14v6-wireless strong{font-size:1.12rem}
+.lesson-experience.lx-present .h14v6-wireless code{
+  width:max-content;
+  padding:.25rem .42rem;
+  border-radius:6px;
+  background:rgb(102 182 255 / 9%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-wireless p{font-size:.82rem;line-height:1.5}
+
+/* ---------- BitTorrent ---------- */
+.lesson-experience.lx-present .h14v6-torrent{
+  display:grid;
+  gap:.45rem;
+}
+.lesson-experience.lx-present .h14v6-torrent svg{
+  width:100%;
+  max-height:390px;
+  padding:.25rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:20px;
+  background:radial-gradient(circle at 50% 50%,rgb(102 182 255 / 7%),transparent 42%),#081522;
+}
+.lesson-experience.lx-present .h14v6-torrent .links line{stroke:#344b62}
+.lesson-experience.lx-present .h14v6-torrent .tracker circle{fill:#102f4b;stroke:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-torrent .tracker text,
+.lesson-experience.lx-present .h14v6-torrent .peer text{fill:var(--deck-ink)}
+.lesson-experience.lx-present .h14v6-torrent .peer circle{fill:#102033;stroke:#526a81}
+.lesson-experience.lx-present .h14v6-torrent .peer[data-role="seed"] circle{fill:#0e332f;stroke:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-torrent .peer[data-role="leech"] circle{fill:#342513;stroke:var(--deck-amber)}
+.lesson-experience.lx-present .h14v6-torrent footer{grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem}
+.lesson-experience.lx-present .h14v6-torrent footer span{
+  min-height:48px;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+  color:var(--deck-muted);
+  font-size:.72rem;
+}
+.lesson-experience.lx-present .h14v6-torrent-terms>div{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.6rem;
+}
+.lesson-experience.lx-present .h14v6-torrent-terms section{
+  min-height:104px;
+  padding:.9rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:15px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-torrent-terms section strong{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-torrent-terms>footer{
+  border:1px solid rgb(92 219 197 / 22%);
+  background:rgb(92 219 197 / 7%);
+}
+
+/* ---------- quick checks / section starters ---------- */
+.lesson-experience.lx-present .h14v6-check{
+  grid-template-columns:1fr 1fr;
+  gap:1rem;
+}
+.lesson-experience.lx-present .h14v6-check section{
+  min-height:180px;
+  padding:1.3rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-check section>span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-check section strong{font-size:1rem}
+.lesson-experience.lx-present .h14v6-check section p{font-size:1rem!important;line-height:1.55}
+.lesson-experience.lx-present .h14v6-check footer{
+  border-color:rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+}
+
+.lesson-experience.lx-present .h14v6-circuit-stages{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1px;
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 8%);
+}
+.lesson-experience.lx-present .h14v6-circuit-stages section{
+  min-height:185px;
+  padding:1.2rem;
+  border:0;
+  border-radius:0;
+  background:var(--deck-panel);
+}
+.lesson-experience.lx-present .h14v6-circuit-stages section>span{
+  background:var(--deck-blue);
+  color:#071321;
+}
+.lesson-experience.lx-present .h14v6-circuit-stages section strong{font-size:1.02rem}
+.lesson-experience.lx-present .h14v6-circuit-stages section p{font-size:.9rem;line-height:1.5}
+
+/* ---------- circuit / packet network ---------- */
+.lesson-experience.lx-present .h14v6-network{
+  display:grid;
+  gap:.45rem;
+}
+.lesson-experience.lx-present .h14v6-network svg{
+  width:100%;
+  max-height:390px;
+  padding:.25rem;
+  border:1px solid rgb(255 255 255 / 8%);
+  border-radius:20px;
+  background:radial-gradient(circle at 50% 48%,rgb(102 182 255 / 5%),transparent 45%),#081522;
+}
+.lesson-experience.lx-present .h14v6-network .network-lines path{stroke:#344b62;stroke-width:2.4}
+.lesson-experience.lx-present .h14v6-network .router circle{fill:#0f2032;stroke:#526a81;stroke-width:2.4}
+.lesson-experience.lx-present .h14v6-network .router text{fill:var(--deck-ink)}
+.lesson-experience.lx-present .h14v6-network .dedicated{stroke:var(--deck-blue);filter:drop-shadow(0 0 8px rgb(102 182 255 / 28%))}
+.lesson-experience.lx-present .h14v6-network .dedicated.failed{stroke:var(--deck-red)}
+.lesson-experience.lx-present .h14v6-network .flow-dot{fill:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-network .failure circle{fill:#401923;stroke:var(--deck-red)}
+.lesson-experience.lx-present .h14v6-network footer{
+  min-height:50px;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-network footer b{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-network .packet-route{opacity:.36}
+.lesson-experience.lx-present .h14v6-network .packet-route.r1{stroke:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-network .packet-route.r2{stroke:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-network .packet-route.r3{stroke:var(--deck-amber)}
+.lesson-experience.lx-present .h14v6-network .packet-route.r4{stroke:#b78cff}
+
+.lesson-experience.lx-present .h14v6-packet-basics{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.65rem;
+}
+.lesson-experience.lx-present .h14v6-packet-basics section{
+  min-height:148px;
+  padding:1rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:16px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-packet-basics section>span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-packet-basics strong{font-size:.92rem}
+
+/* ---------- comparison / pros-cons / video ---------- */
+.lesson-experience.lx-present .h14v6-compare{
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:#0a1725;
+}
+.lesson-experience.lx-present .h14v6-compare header{
+  background:#102033;
+  border-bottom:1px solid rgb(255 255 255 / 8%);
+}
+.lesson-experience.lx-present .h14v6-compare>div>*{border-top-color:rgb(255 255 255 / 7%)}
+.lesson-experience.lx-present .h14v6-compare p{color:var(--deck-ink)!important;font-size:.86rem}
+.lesson-experience.lx-present .h14v6-proscons{gap:1rem}
+.lesson-experience.lx-present .h14v6-proscons>section{
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-proscons>section:first-child{border-color:rgb(92 219 197 / 18%)}
+.lesson-experience.lx-present .h14v6-proscons>section:last-child{border-color:rgb(255 127 138 / 18%)}
+.lesson-experience.lx-present .h14v6-proscons header{background:#0d1d2d}
+.lesson-experience.lx-present .h14v6-proscons p{
+  min-height:45px;
+  margin:0;
+  padding:.6rem .8rem;
+  border-top:1px solid rgb(255 255 255 / 7%);
+  color:var(--deck-ink)!important;
+  font-size:.84rem;
+}
+.lesson-experience.lx-present .h14v6-proscons p span{font-size:1rem}
+
+.lesson-experience.lx-present .h14v6-video .call{
+  min-height:190px;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:#081522;
+}
+.lesson-experience.lx-present .h14v6-video .call>section{
+  border-color:rgb(255 255 255 / 9%);
+  background:#102033;
+}
+.lesson-experience.lx-present .h14v6-video .symptoms{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.45rem;
+}
+.lesson-experience.lx-present .h14v6-video .symptoms>span{
+  min-height:72px;
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+  color:var(--deck-muted);
+}
+.lesson-experience.lx-present .h14v6-video .symptoms b{color:var(--deck-amber)}
+.lesson-experience.lx-present .h14v6-video>footer{
+  border:1px solid rgb(92 219 197 / 18%);
+  background:rgb(92 219 197 / 6%);
+}
+.lesson-experience.lx-present .h14v6-video>footer strong{color:var(--deck-teal)}
+
+/* ---------- hop / control / headers ---------- */
+.lesson-experience.lx-present .h14v6-hop{
+  gap:.45rem;
+}
+.lesson-experience.lx-present .h14v6-hop>section{
+  min-height:120px;
+  border:1px solid rgb(255 255 255 / 9%);
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-hop>section strong{font-size:1.08rem;color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-hop>section.zero{border-color:rgb(255 127 138 / 28%);background:rgb(255 127 138 / 6%)}
+.lesson-experience.lx-present .h14v6-hop>section.zero strong{color:var(--deck-red)}
+.lesson-experience.lx-present .h14v6-hop>footer{border-color:rgb(255 127 138 / 20%);background:rgb(255 127 138 / 5%);color:#ffd8dc}
+
+.lesson-experience.lx-present .h14v6-control{
+  grid-template-columns:1.25fr .75fr;
+  gap:1rem;
+}
+.lesson-experience.lx-present .h14v6-control>section{
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:18px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-control header{background:#102033;border-bottom-color:rgb(255 255 255 / 8%)}
+.lesson-experience.lx-present .h14v6-control code{background:#07111d;color:#d8e9f8}
+.lesson-experience.lx-present .h14v6-control code.bad{color:var(--deck-red)}
+.lesson-experience.lx-present .h14v6-control p{background:rgb(255 127 138 / 6%);color:#ffd8dc!important}
+
+.lesson-experience.lx-present .h14v6-header>div{
+  gap:3px;
+  padding:.5rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:16px;
+  background:#081522;
+}
+.lesson-experience.lx-present .h14v6-header>div section{
+  min-height:108px;
+  border:0;
+  border-radius:8px;
+  background:#122337;
+}
+.lesson-experience.lx-present .h14v6-header>div section.active{
+  background:#153a58;
+  box-shadow:inset 0 0 0 1px rgb(102 182 255 / 45%);
+}
+.lesson-experience.lx-present .h14v6-header>div section.data{background:#0f342b;color:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-header>footer span{
+  border:1px solid rgb(255 255 255 / 8%);
+  background:rgb(255 255 255 / 3%);
+  color:var(--deck-muted);
+}
+.lesson-experience.lx-present .h14v6-extended{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.6rem;
+}
+.lesson-experience.lx-present .h14v6-extended section{
+  min-height:118px;
+  padding:1rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:16px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-extended section>span{color:var(--deck-blue)}
+
+/* ---------- routing ---------- */
+.lesson-experience.lx-present .h14v6-routing{
+  max-width:1080px;
+  gap:.45rem;
+}
+.lesson-experience.lx-present .h14v6-routing .packet,
+.lesson-experience.lx-present .h14v6-routing .router-box,
+.lesson-experience.lx-present .h14v6-routing aside{
+  border:1px solid rgb(255 255 255 / 9%);
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-routing .packet span,
+.lesson-experience.lx-present .h14v6-routing aside span{color:#8fa5bb}
+.lesson-experience.lx-present .h14v6-routing table{
+  overflow:hidden;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:14px;
+  background:#0b1928;
+}
+.lesson-experience.lx-present .h14v6-routing th{background:#102033;color:#9db0c3}
+.lesson-experience.lx-present .h14v6-routing td{border-top-color:rgb(255 255 255 / 7%)}
+.lesson-experience.lx-present .h14v6-routing tr.best{background:rgb(92 219 197 / 8%)}
+.lesson-experience.lx-present .h14v6-routing aside strong{color:var(--deck-teal)}
+.lesson-experience.lx-present .h14v6-routing-fields{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.6rem;
+}
+.lesson-experience.lx-present .h14v6-routing-fields section{
+  min-height:112px;
+  padding:1rem;
+  border-radius:15px!important;
+}
+.lesson-experience.lx-present .h14v6-routing-fields strong{font-size:.86rem;color:var(--deck-blue)}
+
+/* ---------- web example / exam / activity / practice / recap ---------- */
+.lesson-experience.lx-present .h14v6-web-example{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.55rem;
+}
+.lesson-experience.lx-present .h14v6-web-example section{
+  min-height:112px;
+  padding:.85rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:15px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-web-example section>span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-web-example strong{font-size:.84rem}
+.lesson-experience.lx-present .h14v6-web-example section>i{color:#607d98}
+
+.lesson-experience.lx-present .h14v6-exam{
+  max-width:1050px;
+  overflow:hidden;
+  border:1px solid rgb(102 182 255 / 22%);
+  border-radius:22px;
+  background:linear-gradient(135deg,rgb(102 182 255 / 7%),rgb(255 255 255 / 2%));
+}
+.lesson-experience.lx-present .h14v6-exam>header{
+  border-bottom:1px solid rgb(255 255 255 / 8%);
+  background:rgb(102 182 255 / 7%);
+  color:var(--deck-blue);
+}
+.lesson-experience.lx-present .h14v6-exam blockquote{
+  color:var(--deck-ink);
+  font-size:clamp(1.2rem,2vw,1.75rem);
+  line-height:1.45;
+}
+.lesson-experience.lx-present .h14v6-exam>div span,
+.lesson-experience.lx-present .h14v6-exam>div strong{
+  border-color:rgb(255 255 255 / 9%);
+  background:#0d1d2e;
+}
+.lesson-experience.lx-present .h14v6-exam>div strong{color:var(--deck-teal)}
+
+.lesson-experience.lx-present .h14v6-activity{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.5rem;
+}
+.lesson-experience.lx-present .h14v6-activity section{
+  min-height:150px;
+  padding:1rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-activity section>span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-activity strong{font-size:.82rem}
+.lesson-experience.lx-present .h14v6-practice{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.65rem;
+}
+.lesson-experience.lx-present .h14v6-practice section{
+  min-height:142px;
+  padding:1rem;
+  border-radius:16px!important;
+}
+.lesson-experience.lx-present .h14v6-practice strong{color:var(--deck-blue);font-size:1.05rem}
+.lesson-experience.lx-present .h14v6-practice p{font-size:.84rem;line-height:1.5}
+.lesson-experience.lx-present .h14v6-practice section>span{color:#7f96ad;font-size:.62rem}
+
+.lesson-experience.lx-present .h14v6-recap{
+  grid-template-columns:minmax(260px,.8fr) repeat(2,minmax(0,1fr));
+  gap:.65rem;
+}
+.lesson-experience.lx-present .h14v6-recap .core{
+  grid-row:span 3;
+  min-height:300px;
+  padding:1.35rem;
+  border:1px solid rgb(102 182 255 / 22%);
+  border-radius:20px;
+  background:linear-gradient(145deg,rgb(102 182 255 / 9%),rgb(92 219 197 / 5%));
+  align-content:end;
+}
+.lesson-experience.lx-present .h14v6-recap .core span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-recap .core strong{font-size:clamp(1.05rem,1.6vw,1.45rem);line-height:1.35}
+.lesson-experience.lx-present .h14v6-recap section{
+  min-height:88px;
+  padding:.8rem .9rem;
+  border:1px solid rgb(255 255 255 / 9%);
+  border-radius:14px;
+  background:rgb(255 255 255 / 3%);
+}
+.lesson-experience.lx-present .h14v6-recap section>span{color:var(--deck-blue)}
+.lesson-experience.lx-present .h14v6-recap section p{color:var(--deck-ink)!important;font-size:.88rem}
+
+/* ---------- motion ---------- */
+.lesson-experience.lx-present .is-visible{
+  transition:opacity 220ms ease,transform 220ms ease,border-color 220ms ease,background 220ms ease;
+}
+.lesson-experience.lx-present :is(.h14v6-objectives,.h14v6-protocol-map,.h14v6-ftp,.h14v6-mechanics,.h14v6-transport,.h14v6-ethernet-detail,.h14v6-wireless,.h14v6-routing-fields,.h14v6-activity,.h14v6-practice)>.is-visible{
+  animation:deckReveal 260ms cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes deckReveal{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+
+/* ---------- short projectors ---------- */
+@media(max-height:820px) and (min-width:761px){
+  .lesson-experience.lx-present{grid-template-rows:50px minmax(0,1fr) 52px}
+  .lesson-experience.lx-present .lx-present-bar{min-height:50px}
+  .lesson-experience.lx-present .lx-present-nav{min-height:52px}
+  .lesson-experience.lx-present .lx-present-stage{padding:.55rem clamp(.8rem,2.2vw,2rem)}
+  .lesson-experience.lx-present .lx-present-screen{
+    min-height:calc(100dvh - 118px);
+    padding:1rem clamp(1rem,2.4vw,2.2rem);
+    gap:.65rem;
+    border-radius:18px;
+  }
+  .lesson-experience.lx-present .lx-present-screen>header h1{font-size:clamp(1.75rem,3.2vw,3.15rem);margin-top:.4rem}
+  .lesson-experience.lx-present .lx-present-screen--scene-hook>header h1{font-size:clamp(2.2rem,4.2vw,4rem)}
+  .lesson-experience.lx-present .h14v6-http svg,
+  .lesson-experience.lx-present .h14v6-network svg,
+  .lesson-experience.lx-present .h14v6-torrent svg{max-height:310px}
+  .lesson-experience.lx-present .h14v6-handshake main{height:220px}
+  .lesson-experience.lx-present .h14v6-objectives section,
+  .lesson-experience.lx-present .h14v6-circuit-stages section{min-height:145px}
+  .lesson-experience.lx-present .h14v6-wireless section{min-height:155px}
+  .lesson-experience.lx-present .h14v6-activity section{min-height:122px}
+}
+
+@media(max-width:900px){
+  .lesson-experience.lx-present .lx-present-screen{border-radius:16px;padding:1rem}
+  .lesson-experience.lx-present .h14v6-diagnostic,
+  .lesson-experience.lx-present .h14v6-objectives,
+  .lesson-experience.lx-present .h14v6-protocol-map,
+  .lesson-experience.lx-present .h14v6-transport,
+  .lesson-experience.lx-present .h14v6-wireless,
+  .lesson-experience.lx-present .h14v6-packet-basics,
+  .lesson-experience.lx-present .h14v6-extended,
+  .lesson-experience.lx-present .h14v6-routing-fields,
+  .lesson-experience.lx-present .h14v6-web-example,
+  .lesson-experience.lx-present .h14v6-activity,
+  .lesson-experience.lx-present .h14v6-practice{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lesson-experience.lx-present .h14v6-stack{grid-template-columns:1fr}
+  .lesson-experience.lx-present .h14v6-stack>aside{display:none}
+  .lesson-experience.lx-present .h14v6-stack>div section{grid-template-columns:36px minmax(100px,150px) 1fr auto}
+  .lesson-experience.lx-present .h14v6-protocol-need{grid-template-columns:1fr}
+  .lesson-experience.lx-present .h14v6-rule{width:min(260px,100%);justify-self:center}
+  .lesson-experience.lx-present .h14v6-email .flow{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .lesson-experience.lx-present .h14v6-email .flow section i{display:none}
+  .lesson-experience.lx-present .h14v6-http .steps{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lesson-experience.lx-present .h14v6-recap{grid-template-columns:1fr 1fr}
+  .lesson-experience.lx-present .h14v6-recap .core{grid-row:auto;grid-column:1/-1;min-height:140px}
+}
+
+@media(max-width:600px){
+  .lesson-experience.lx-present .lx-present-stage{padding:.45rem}
+  .lesson-experience.lx-present .lx-present-screen{min-height:100%;border-radius:12px}
+  .lesson-experience.lx-present .lx-present-screen::after{width:3px}
+  .lesson-experience.lx-present .lx-present-screen>header h1{font-size:clamp(1.65rem,8vw,2.45rem)}
+  .lesson-experience.lx-present .lx-present-screen--scene-hook>header h1{font-size:clamp(2rem,9vw,3rem)}
+  .lesson-experience.lx-present :is(.h14v6-diagnostic,.h14v6-objectives,.h14v6-protocol-map,.h14v6-ftp,.h14v6-mechanics,.h14v6-transport,.h14v6-ethernet-detail,.h14v6-wireless,.h14v6-packet-basics,.h14v6-extended,.h14v6-routing-fields,.h14v6-web-example,.h14v6-activity,.h14v6-practice,.h14v6-recap){grid-template-columns:1fr}
+  .lesson-experience.lx-present .h14v6-popimap,
+  .lesson-experience.lx-present .h14v6-proscons,
+  .lesson-experience.lx-present .h14v6-control{grid-template-columns:1fr}
+  .lesson-experience.lx-present .h14v6-email .flow{grid-template-columns:1fr 1fr}
+  .lesson-experience.lx-present .h14v6-http .browser{position:relative;top:auto;width:100%}
+  .lesson-experience.lx-present .h14v6-http svg{display:none}
+  .lesson-experience.lx-present .h14v6-http .steps{grid-template-columns:1fr 1fr}
+  .lesson-experience.lx-present .h14v6-torrent footer{grid-template-columns:1fr 1fr}
+  .lesson-experience.lx-present .h14v6-video .symptoms{grid-template-columns:1fr 1fr}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .lesson-experience.lx-present *,
+  .lesson-experience.lx-present *::before,
+  .lesson-experience.lx-present *::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+}

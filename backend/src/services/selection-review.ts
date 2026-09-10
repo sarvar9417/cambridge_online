@@ -24,6 +24,8 @@ export interface PortableQuestion {
     path: string;
     displayRef: string;
     stem: string;
+    stemLatex?: string | null;
+    bodyFormat?: 'markdown' | 'latex';
     /** Source-backed v1 content frozen with the selection/assignment snapshot. */
     contentJson?: StructuredQuestionContent | null;
     commandWord: string | null;
@@ -38,6 +40,7 @@ export interface PortableQuestion {
     displayRef: string;
     depth: number;
     context: string | null;
+    contextLatex?: string | null;
     assets: PortableAsset[];
   }>;
   dependencies: Array<{

@@ -1,0 +1,42 @@
+/*
+ * Board mode scroll contract.
+ *
+ * Presentation mode intentionally keeps the lesson on a 16:9 projector canvas.
+ * Some lesson screens are taller than that canvas, so the canvas itself must be
+ * the vertical scroll container. The presentation stylesheet previously forced
+ * overflow:hidden !important, which made lower lesson content unreachable.
+ */
+
+.lesson-studio.hodder-studio:fullscreen .lesson-workspace,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-workspace {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lesson-studio.hodder-studio:fullscreen .lesson-slide,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide {
+  /* Keep the same 16:9 board footprint while giving overflow a definite box. */
+  height: min(calc(100vh - 116px), 54vw) !important;
+  max-height: min(calc(100vh - 116px), 54vw) !important;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  align-content: start;
+  align-items: start;
+}
+
+/* Wide source artefacts keep their own horizontal scrolling without stealing
+   the board's vertical scroll. */
+.lesson-studio.hodder-studio:fullscreen .lesson-slide .hodder-table-wrap,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide .hodder-table-wrap,
+.lesson-studio.hodder-studio:fullscreen .lesson-slide .hodder-figure,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide .hodder-figure,
+.lesson-studio.hodder-studio:fullscreen .lesson-slide .hodder-code pre,
+.lesson-studio.hodder-studio:-webkit-full-screen .lesson-slide .hodder-code pre {
+  max-width: 100%;
+}

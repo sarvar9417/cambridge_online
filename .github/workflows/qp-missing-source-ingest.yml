@@ -1,0 +1,74 @@
+name: Missing 9618 QP Source Ingest
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply verified ingestion (YES to write; otherwise plan only)'
+        required: false
+        default: 'NO'
+      only:
+        description: 'Optional sourcePaperId or paper key, e.g. 2021-MJ-13'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+      - finalize-lessons-no-deploy
+      - fix/9618-full-source-audit
+    paths:
+      - 'backend/scripts/qp-source-missing-ingest-v1.py'
+      - 'backend/scripts/qp-source-missing-ingest-v2.py'
+      - 'backend/scripts/qp-source-repair.py'
+      - 'backend/scripts/qp-source-repair-v3.py'
+      - 'backend/src/database/migrations/0162_missing_qp_source_ingest.sql'
+      - 'supabase/functions/qp-source-repair-runner/index.ts'
+      - '.source-missing-ingest'
+      - '.github/workflows/qp-missing-source-ingest.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PDF extraction dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Determine ingest mode
+        id: mode
+        shell: bash
+        run: |
+          apply=NO
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "YES" ]]; then
+            apply=YES
+          elif [[ "${{ github.event_name }}" == "push" && -f .source-missing-ingest ]]; then
+            marker="$(tr -d '\r\n' < .source-missing-ingest)"
+            if [[ "$marker" == "APPLY_MISSING_QP_SOURCE_INGEST_V1_ONCE" ]]; then
+              apply=YES
+            fi
+          fi
+          echo "apply=$apply" >> "$GITHUB_OUTPUT"
+      - name: Parse and verify every selected QP/MS pair before writes
+        env:
+          CORPUS_REPAIR_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/qp-source-repair-runner
+          SOURCE_MISSING_APPLY: ${{ steps.mode.outputs.apply }}
+          SOURCE_MISSING_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '' }}
+          SOURCE_MISSING_REPORT: source-missing-ingest-report.json
+        run: python3 backend/scripts/qp-source-missing-ingest-v2.py
+      - name: Upload ingest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: missing-qp-source-ingest-report
+          path: source-missing-ingest-report.json
+          if-no-files-found: warn
+          retention-days: 14

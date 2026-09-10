@@ -1,0 +1,53 @@
+/* Final projector hardening for Chapter 14 MASTER.
+   The stage remains readable at common classroom projector sizes without
+   relying on dashboard cards or hidden overflow. */
+.lesson-experience.lx-present .lx-present-stage{min-height:0;overflow:auto;scroll-padding-block:20px}
+.lesson-experience.lx-present .lx-present-screen{display:grid;grid-template-rows:auto minmax(0,1fr);align-content:start;min-height:calc(100dvh - 124px)}
+.lesson-experience.lx-present .lx-present-content{align-self:center;min-width:0}
+.lesson-experience.lx-present .lx-present-nav{position:relative;z-index:40}
+.lesson-experience.lx-present .lx-present-nav button{min-width:150px;min-height:50px;touch-action:manipulation}
+.lesson-experience.lx-present .lx-present-outline{z-index:60}
+
+.h14eoc{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1080px;margin:auto;border-block:1px solid var(--h14-line)}
+.h14eoc-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--h14-line)}
+.h14eoc>section{min-height:178px;padding:22px 28px;border-bottom:1px solid var(--h14-line);opacity:0;transform:translateY(10px);transition:.25s ease}
+.h14eoc>section:nth-of-type(odd){padding-right:38px}.h14eoc>section:nth-of-type(even){padding-left:38px}
+.h14eoc section header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}
+.h14eoc section header span{color:var(--h14-cyan);font:800 12px var(--font-mono);letter-spacing:.1em}.h14eoc section header small{color:var(--h14-muted);font:800 11px var(--font-mono)}
+.h14eoc section>strong{display:block;color:var(--h14-ink);font-size:clamp(18px,1.5vw,25px);line-height:1.2}
+.h14eoc section>p{margin:9px 0 0;color:var(--h14-muted);font-size:clamp(14px,1.05vw,18px);line-height:1.45}
+.h14eoc>footer{grid-column:1/-1;display:flex;gap:18px;align-items:center;padding:16px 28px;background:rgba(255,200,87,.055);opacity:0;transform:translateY(8px);transition:.25s ease}
+.h14eoc>footer b{flex:none;color:var(--h14-amber);font:800 12px var(--font-mono);letter-spacing:.1em}.h14eoc>footer span{color:var(--h14-ink);font-size:14px;line-height:1.4}
+.h14eoc .is-visible{opacity:1!important;transform:none!important}
+
+@media (max-width:1366px){
+  .lesson-experience.lx-present .lx-present-screen{padding:20px 34px 18px}
+  .lesson-experience.lx-present .lx-present-screen>header{margin-bottom:16px}
+  .lesson-experience.lx-present .lx-present-screen>header>h1{font-size:clamp(29px,3.4vw,46px)}
+  .h14m-hero{min-height:360px;padding:40px 54px}.h14m-hero>strong{font-size:clamp(38px,4.7vw,62px)}
+  .h14m-stack{grid-template-columns:90px minmax(0,780px) 90px;min-height:360px}.h14m-stack>main section{min-height:78px}
+  .h14m-orbit{height:360px}.h14m-email{min-height:270px}.h14m-email section{min-height:128px}
+  .h14m-network svg{max-height:360px}.h14m-torrent svg{max-height:350px}
+  .h14m-bitfield,.h14m-header{min-height:300px}.h14m-bitfield>div{min-height:135px}.h14m-header>div{min-height:220px}
+  .h14eoc>section{min-height:150px;padding-top:16px;padding-bottom:16px}
+}
+
+@media (max-height:768px) and (min-width:1000px){
+  .lesson-experience.lx-present .lx-present-screen{min-height:calc(100dvh - 116px);padding-top:16px;padding-bottom:14px}
+  .lesson-experience.lx-present .lx-present-screen>header>h1{font-size:clamp(28px,3vw,42px)}
+  .lesson-experience.lx-present .lx-present-lead{font-size:16px;margin-bottom:12px}
+  .h14m-flow .h14m-step{min-height:58px;padding:8px 0}.h14m-step>b{width:48px;height:48px}.h14m-flow:before{left:24px}.h14m-step{grid-template-columns:50px 1fr;gap:16px}.h14m-step p{font-size:14px}
+  .h14m-split{min-height:330px}.h14m-split p{padding:11px 0;font-size:14px}
+  .h14eoc>section{min-height:132px}.h14eoc section>p{font-size:14px;line-height:1.35}
+}
+
+@media (max-width:900px){
+  .h14m-stack{grid-template-columns:1fr}.h14m-stack>aside{display:none}
+  .h14m-email{grid-template-columns:1fr 1fr}.h14m-email section i{display:none}
+  .h14m-split{grid-template-columns:1fr}.h14m-vs{padding:10px}.h14m-orbit{width:100%;height:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}.h14m-orbit>div,.h14m-orbit>section{position:static;width:auto;transform:none}.h14m-orbit>div{grid-column:1/-1;height:90px;border-radius:18px}.h14m-orbit>section{padding:10px}
+  .h14eoc{grid-template-columns:1fr}.h14eoc-spine{display:none}.h14eoc>section:nth-of-type(n){padding:18px 20px}.h14eoc>footer{grid-column:1;align-items:flex-start;flex-direction:column}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .lesson-experience.lx-present [class^="h14m-"],.lesson-experience.lx-present [class*=" h14m-"],.h14eoc *{animation:none!important;transition:none!important}
+}

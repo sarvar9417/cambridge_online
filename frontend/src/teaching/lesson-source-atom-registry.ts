@@ -29,5 +29,5 @@ export const COMPLETE_SOURCE_ATOMS: LessonSourceAtom[] = [
   ...SUPPLIED_PDF_DETAIL_ATOMS,
 ].map(correctAtom);
 
-export const sourceAtomsForChapter = (chapter: 1 | 13) => COMPLETE_SOURCE_ATOMS.filter((item) => item.chapter === chapter);
+export const sourceAtomsForChapter = (chapter: 1 | 2 | 13) => COMPLETE_SOURCE_ATOMS.filter((item) => item.chapter === chapter);
 export const sourceAtomsForSlide = (slideId: string) => COMPLETE_SOURCE_ATOMS.filter((item) => item.targetSlideId === slideId);

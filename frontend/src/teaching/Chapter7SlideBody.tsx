@@ -23,6 +23,15 @@ const steps = [
   'Found an error, corrected it and re-ran different cases',
 ];
 
+const SOURCE_ATOM_LABEL=/^(?:LEARNING OUTLINE|KEY TERM \/ IMPORTANT TERM|WORKED EXAMPLE|ACTIVITY|EXTENSION|TABLE|FIGURE \/ DIAGRAM|SUMMARY \/ REVIEW|EXAM-STYLE PRACTICE|COURSEBOOK DETAIL) · /;
+const splitVisibleBullets=(items:string[]|undefined)=>{
+  const bullets=items??[];
+  const sourceStart=bullets.findIndex(item=>SOURCE_ATOM_LABEL.test(item));
+  return sourceStart<0
+    ? {primaryBullets:bullets,sourceBullets:[] as string[]}
+    : {primaryBullets:bullets.slice(0,sourceStart),sourceBullets:bullets.slice(sourceStart)};
+};
+
 function MenuVisual() {
   return <div className="ch7-menu">
     <div className="ch7-counter"><span>ORDER</span><b>?</b></div>
@@ -156,14 +165,16 @@ export function Chapter7SlideBody({ slide }: { slide:LessonSlide }) {
   useEffect(()=>setRevealed(false),[slide.id]);
   const isBookSlide=slide.id.startsWith('ch7-book-');
   const hasReveal=Boolean(slide.activity?.reveal)||['ch7-02-understand','ch7-03-small-jobs','ch7-04-filter','ch7-05-hierarchy','ch7-06-sequence','ch7-07-shapes','ch7-08-structured-text','ch7-09-command-cards','ch7-10-human-computer','ch7-11-predict-check','ch7-12-bug'].includes(slide.id);
+  const {primaryBullets,sourceBullets}=splitVisibleBullets(slide.bullets);
   return <div className="ch7-slide-body">
     <div className="ch7-copy">
       <p className="lesson-eyebrow">{slide.eyebrow}</p>
       <h1>{slide.title}</h1>
       <p className="ch7-lead">{slide.lead}</p>
-      {slide.bullets&&<ul>{slide.bullets.map(item=><li key={item}>{item}</li>)}</ul>}
+      {primaryBullets.length>0&&<ul>{primaryBullets.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>}
+      {sourceBullets.length>0&&<details className="ch7-source-evidence"><summary>Exact coursebook source evidence · {sourceBullets.length} extracted items</summary><ul>{sourceBullets.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul></details>}
       {slide.keyTerms&&<div className="ch7-terms">{slide.keyTerms.map(item=><article key={item.term}><strong>{item.term}</strong><span>{item.definition}</span></article>)}</div>}
-      {slide.example&&<div className="ch7-answer ch7-worked-example"><b>WORKED EXAMPLE</b><strong>{slide.example.title}</strong><ol>{slide.example.lines.map(item=><li key={item}>{item}</li>)}</ol>{slide.example.answer&&<p>{slide.example.answer}</p>}</div>}
+      {slide.example&&<div className="ch7-answer ch7-worked-example"><b>WORKED EXAMPLE</b><strong>{slide.example.title}</strong><ol>{slide.example.lines.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ol>{slide.example.answer&&<p>{slide.example.answer}</p>}</div>}
       {slide.teacherPrompt&&<div className="ch7-question"><span>THINK / EXPLAIN</span><p>{slide.teacherPrompt}</p></div>}
       {slide.activity&&<div className="ch7-task"><span>YOUR TURN</span><strong>{slide.activity.title}</strong><p>{slide.activity.prompt}</p></div>}
       {hasReveal&&<button type="button" className="ch7-reveal-button" onClick={()=>setRevealed(value=>!value)}>{revealed?'Hide model answer':'Show model answer / example'}</button>}

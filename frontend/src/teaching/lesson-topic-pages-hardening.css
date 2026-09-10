@@ -1,0 +1,227 @@
+/* Deep hardening for the semantic topic/page route.
+   Loaded after every legacy Lesson Studio layer so old slide-first rules cannot
+   silently turn a reading page back into a projector card. */
+
+/* Topic mode owns its own page dots. The legacy v3 stylesheet hides the first
+   direct nav div because dozens of slide dots used to be unmanageable. A topic
+   has only a bounded set of semantic pages, so keep those controls visible. */
+.lesson-topic-studio .lesson-topic-nav > div:not(.lesson-v3-nav-center) {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.lesson-topic-studio .lesson-v3-nav-center {
+  display: none !important;
+}
+
+.lesson-topic-studio .lesson-topic-nav > div > button {
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.lesson-topic-studio .lesson-topic-nav > div > button.active {
+  width: 24px;
+  background: var(--lesson-accent, #2563eb);
+}
+
+/* The global presentation layer turns any bullet-only .lesson-slide into a
+   grid of large cards. In a book page bullets are normal reading flow. */
+.lesson-topic-studio .lesson-topic-page .lesson-page-fragment .lesson-bullets {
+  display: block !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  margin: 16px 0 0 !important;
+  padding: 0 !important;
+}
+
+.lesson-topic-studio .lesson-topic-page .lesson-page-fragment .lesson-bullets > li {
+  position: relative;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 7px 0 7px 24px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  line-height: 1.62 !important;
+}
+
+.lesson-topic-studio .lesson-topic-page .lesson-page-fragment .lesson-bullets > li::before {
+  left: 2px !important;
+  top: 7px !important;
+  content: '•' !important;
+  font-size: 18px !important;
+}
+
+/* Exact extraction is audit/source evidence, not a second pedagogical copy of
+   the page. Keep it accessible and searchable, but collapsed behind a clearly
+   labelled disclosure when curated teaching material is also present. */
+.lesson-source-transcript {
+  margin: 18px 28px 26px;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  overflow: clip;
+}
+
+.lesson-source-transcript > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 13px 15px;
+  cursor: pointer;
+  list-style: none;
+  color: #334155;
+}
+
+.lesson-source-transcript > summary::-webkit-details-marker { display: none; }
+
+.lesson-source-transcript > summary > span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.lesson-source-transcript > summary > strong {
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.lesson-source-transcript > summary::after {
+  content: 'Show';
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.lesson-source-transcript[open] > summary::after { content: 'Hide'; }
+
+.lesson-source-transcript .lesson-page-fragment {
+  padding: 20px 18px 26px;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 0;
+  background: #fff;
+}
+
+.lesson-source-transcript .lesson-screen-purpose,
+.lesson-source-transcript .lesson-eyebrow,
+.lesson-source-transcript .lesson-lead {
+  display: none;
+}
+
+.lesson-source-transcript .lesson-copy h1 {
+  margin-top: 0;
+  font-size: 17px !important;
+  color: #475569;
+}
+
+.lesson-source-transcript .lesson-bullets > li {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: #475569;
+}
+
+/* Aggregated teacher provenance can contain many source atoms. Keep the toolbar
+   compact while allowing the details panel itself to scroll. */
+.lesson-topic-studio .lesson-page-source-trace > div {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Fullscreen/Board mode must be a scrollable reading page, not the old 16:9
+   fixed slide. These selectors intentionally outrank lesson-studio-presentation. */
+html.lesson-presenting .lesson-topic-studio .lesson-topic-workspace,
+.lesson-topic-studio:fullscreen .lesson-topic-workspace,
+.lesson-topic-studio.is-presenting .lesson-topic-workspace {
+  place-items: stretch !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-slide.lesson-topic-page,
+.lesson-topic-studio:fullscreen .lesson-slide.lesson-topic-page,
+.lesson-topic-studio.is-presenting .lesson-slide.lesson-topic-page {
+  aspect-ratio: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  align-items: start !important;
+  align-content: start !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-topic-page-head,
+.lesson-topic-studio:fullscreen .lesson-topic-page-head,
+.lesson-topic-studio.is-presenting .lesson-topic-page-head {
+  max-width: 1180px;
+  padding: 26px 40px 20px;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-topic-page-content,
+.lesson-topic-studio:fullscreen .lesson-topic-page-content,
+.lesson-topic-studio.is-presenting .lesson-topic-page-content {
+  width: min(100% - 56px, 1120px) !important;
+  padding: 8px 0 82px !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-page-fragment,
+.lesson-topic-studio:fullscreen .lesson-page-fragment,
+.lesson-topic-studio.is-presenting .lesson-page-fragment {
+  padding: 28px 24px 32px !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-page-fragment .lesson-bullets,
+.lesson-topic-studio:fullscreen .lesson-page-fragment .lesson-bullets,
+.lesson-topic-studio.is-presenting .lesson-page-fragment .lesson-bullets {
+  display: block !important;
+  grid-template-columns: none !important;
+}
+
+html.lesson-presenting .lesson-topic-studio .lesson-page-fragment .lesson-bullets > li,
+.lesson-topic-studio:fullscreen .lesson-page-fragment .lesson-bullets > li,
+.lesson-topic-studio.is-presenting .lesson-page-fragment .lesson-bullets > li {
+  min-height: 0 !important;
+  padding: 8px 0 8px 28px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: clamp(17px, 1.35vw, 22px) !important;
+  line-height: 1.55 !important;
+}
+
+@media (max-width: 860px) {
+  .lesson-source-transcript { margin-inline: 10px; }
+  .lesson-topic-studio .lesson-topic-nav > div:not(.lesson-v3-nav-center) {
+    max-width: 46vw;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-topic-studio .lesson-topic-nav > div > button { transition: none !important; }
+}

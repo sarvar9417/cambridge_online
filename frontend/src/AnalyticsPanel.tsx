@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ClassItem } from './lib/api';
 import { useRoute } from './lib/router';
-import { LessonStudio } from './teaching/LessonStudio';
+import { LessonExperience } from './teaching/LessonExperience';
 
 interface HeatCell { studentId:string;studentName:string;topic:number;mastery:number|null;evidence:number }
 interface MarkPoint { id:string;code:string;text:string;displayRef:string;commandWord:string|null;missed:number;total:number;missPct:number }
@@ -25,7 +25,7 @@ export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:b
     owner?api<{data:AiQuality[]}>('/analytics/ai-quality'):Promise.resolve({data:[]}),
   ]).then(([h,p,w,q])=>{setHeat(h.data);setPoints(p.data);setWords(w.data);setQuality(q.data)}).catch(cause=>setError(cause instanceof Error?cause.message:'Analitika yuklanmadi.'))},[classId,owner,route.page]);
 
-  if(route.page==='darslar')return <LessonStudio user={{id:'lesson-studio',fullName:'',role:owner?'owner':'teacher',schoolId:null}}/>;
+  if(route.page==='darslar')return <LessonExperience audience="teacher"/>;
 
   const students=[...new Map(heat.map(cell=>[cell.studentId,cell.studentName])).entries()];
   const topics=[...new Set(heat.map(cell=>cell.topic))];
