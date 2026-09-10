@@ -1,20 +1,22 @@
--- Correct source-verifiable 9618 May/June 2026 learning-objective mappings
--- before exposing the affected questions through chapter-scoped Past Papers.
+-- Correct source-verifiable 9618 learning-objective mappings before exposing
+-- the affected questions through chapter-scoped Past Papers.
 --
--- These corrections are deliberately narrow. Each row is identified by its
+-- Current-paper corrections are deliberately narrow. Each row is identified by
 -- canonical display_ref inside the 9618/2026/MJ Paper 1 corpus and moves only
 -- the specific low-confidence mapping whose assessed task contradicts the
 -- current 2026-2028 learning objective. Unrelated mappings are preserved.
 --
--- The same migration also adds the three exact historical Chapter 3 memory/ROM
--- compatibility edges needed for current-target practice. They are genuine
--- wording-preserving equivalents across the 2021-2023 / 2024-2025 and
--- 2026-2028 9618 syllabuses; no fuzzy or cross-subtopic mapping is introduced.
+-- Historical compatibility is narrower still. The 2024-2025 source pool for
+-- 3.1-lo-03 contains one RAM-performance question that does not assess RAM-vs-ROM.
+-- Remove only that bad source assignment, then map current 3.1.5 to the cleaned
+-- historical 3.1-lo-03 objective. Other Chapter 3 historical pools remain
+-- intentionally unavailable until their own source mappings are audited.
 
 DO $$
 DECLARE
   v_questions integer;
   v_target_los integer;
+  v_historical_question integer;
 BEGIN
   WITH corrections(display_ref,old_code,new_code) AS (
     VALUES
@@ -58,6 +60,22 @@ BEGIN
 
   IF v_target_los<>12 THEN
     RAISE EXCEPTION '0163 9618/2026 LO correction blocked: current target LOs=% expected=12',v_target_los;
+  END IF;
+
+  SELECT count(*) INTO v_historical_question
+  FROM public.questions q
+  JOIN public.source_papers sp ON sp.id=q.source_paper_id
+  JOIN public.syllabi s ON s.id=sp.syllabus_id
+  JOIN public.components component ON component.id=q.component_id
+  WHERE q.display_ref='9618/11/M/J/25 Q6(a)(ii)'
+    AND s.code='9618'
+    AND sp.kind='QP'::paper_kind
+    AND sp.year=2025
+    AND sp.series='MJ'::exam_series
+    AND component.number=1;
+
+  IF v_historical_question<>1 THEN
+    RAISE EXCEPTION '0163 historical RAM-performance cleanup blocked: resolved questions=% expected=1',v_historical_question;
   END IF;
 END $$;
 
@@ -127,14 +145,40 @@ INSERT INTO public.question_learning_objectives(question_id,lo_id,confidence)
 SELECT question_id,new_lo_id,1.0 FROM resolved
 ON CONFLICT(question_id,lo_id) DO UPDATE SET confidence=EXCLUDED.confidence;
 
+-- Remove one historical source assignment that would otherwise leak a RAM
+-- performance question into current RAM-vs-ROM practice through compatibility.
+WITH resolved AS (
+  SELECT q.id question_id,lo.id lo_id
+  FROM public.questions q
+  JOIN public.source_papers sp ON sp.id=q.source_paper_id
+  JOIN public.syllabi paper_s ON paper_s.id=sp.syllabus_id
+  JOIN public.components component ON component.id=q.component_id
+  JOIN public.learning_objectives lo ON lo.code='3.1-lo-03'
+  JOIN public.subtopics st ON st.id=lo.subtopic_id
+  JOIN public.topics t ON t.id=st.topic_id
+  JOIN public.syllabi lo_s ON lo_s.id=t.syllabus_id
+  WHERE q.display_ref='9618/11/M/J/25 Q6(a)(ii)'
+    AND paper_s.code='9618'
+    AND sp.kind='QP'::paper_kind
+    AND sp.year=2025
+    AND sp.series='MJ'::exam_series
+    AND component.number=1
+    AND lo_s.code='9618'
+    AND lo_s.version_label='2024-2025'
+)
+DELETE FROM public.question_learning_objectives qlo
+USING resolved r
+WHERE qlo.question_id=r.question_id AND qlo.lo_id=r.lo_id;
+
+-- Only the audited RAM-vs-ROM historical pool is enabled now. 3.1.6 and 3.1.7
+-- remain fail-closed until every question already assigned to their historical
+-- source objectives has been adjudicated.
 WITH curated(target_code,source_code,relation,rationale) AS (
   VALUES
-    ('3.1.5','3.1-lo-03','equivalent','RAM versus ROM assessed scope is unchanged.'),
-    ('3.1.6','3.1-lo-04','equivalent','SRAM versus DRAM assessed scope is unchanged.'),
-    ('3.1.7','3.1-lo-05','equivalent','PROM, EPROM and EEPROM comparison scope is unchanged.')
+    ('3.1.5','3.1-lo-03','equivalent','RAM versus ROM assessed scope is retained after removing the one source-misclassified RAM-performance leaf.')
 ), resolved AS (
   SELECT target_lo.id target_lo_id,source_lo.id source_lo_id,c.relation,
-         'chapter3-memory-compatibility-0163: ' || c.rationale AS evidence
+         'chapter3-ram-rom-compatibility-0163: ' || c.rationale AS evidence
   FROM curated c
   JOIN public.learning_objectives target_lo ON target_lo.code=c.target_code
   JOIN public.subtopics target_st ON target_st.id=target_lo.subtopic_id
@@ -157,6 +201,7 @@ DO $$
 DECLARE
   v_new_mappings integer;
   v_old_mappings integer;
+  v_bad_historical_mapping integer;
   v_compatibility integer;
 BEGIN
   WITH corrections(display_ref,old_code,new_code) AS (
@@ -204,6 +249,21 @@ BEGIN
     RAISE EXCEPTION '0163 mapping postcondition failed: new=% old=%',v_new_mappings,v_old_mappings;
   END IF;
 
+  SELECT count(*) INTO v_bad_historical_mapping
+  FROM public.questions q
+  JOIN public.question_learning_objectives qlo ON qlo.question_id=q.id
+  JOIN public.learning_objectives lo ON lo.id=qlo.lo_id
+  JOIN public.subtopics st ON st.id=lo.subtopic_id
+  JOIN public.topics t ON t.id=st.topic_id
+  JOIN public.syllabi s ON s.id=t.syllabus_id
+  WHERE q.display_ref='9618/11/M/J/25 Q6(a)(ii)'
+    AND s.code='9618' AND s.version_label='2024-2025'
+    AND lo.code='3.1-lo-03';
+
+  IF v_bad_historical_mapping<>0 THEN
+    RAISE EXCEPTION '0163 historical RAM-performance mapping still present';
+  END IF;
+
   SELECT count(*) INTO v_compatibility
   FROM public.learning_objective_compatibility c
   JOIN public.learning_objectives target_lo ON target_lo.id=c.target_lo_id
@@ -216,11 +276,11 @@ BEGIN
   JOIN public.syllabi source_s ON source_s.id=source_t.syllabus_id
   WHERE target_s.code='9618' AND target_s.version_label='2026-2028'
     AND source_s.code='9618' AND source_s.version_label IN ('2021-2023','2024-2025')
-    AND target_lo.code IN ('3.1.5','3.1.6','3.1.7')
-    AND source_lo.code IN ('3.1-lo-03','3.1-lo-04','3.1-lo-05')
+    AND target_lo.code='3.1.5'
+    AND source_lo.code='3.1-lo-03'
     AND c.relation='equivalent';
 
-  IF v_compatibility<>6 THEN
-    RAISE EXCEPTION '0163 Chapter 3 compatibility postcondition failed: edges=% expected=6',v_compatibility;
+  IF v_compatibility<>2 THEN
+    RAISE EXCEPTION '0163 Chapter 3 RAM-vs-ROM compatibility postcondition failed: edges=% expected=2',v_compatibility;
   END IF;
 END $$;
