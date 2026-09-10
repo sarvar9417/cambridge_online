@@ -1,5 +1,6 @@
 import { CHAPTER_3, type Chapter3Lesson } from './lesson-content-chapter3';
 import { CHAPTER_3_DEVICE_SLIDES } from './lesson-content-chapter3-devices';
+import { CHAPTER_3_SENSOR_SLIDES } from './lesson-content-chapter3-sensors';
 import type { HodderLessonSlide } from './lesson-content-hodder-types';
 
 /**
@@ -49,11 +50,15 @@ function withMemoryCheckpoint(slides: readonly HodderLessonSlide[]) {
   return result;
 }
 
-const sourceGroundedSlides = [...CHAPTER_3.slides, ...CHAPTER_3_DEVICE_SLIDES];
+const sourceGroundedSlides = [
+  ...CHAPTER_3.slides,
+  ...CHAPTER_3_DEVICE_SLIDES,
+  ...CHAPTER_3_SENSOR_SLIDES,
+];
 
 export const CHAPTER_3_FINAL: Chapter3Lesson = {
   ...CHAPTER_3,
-  sourceNote: 'Source-grounded from the exact connected Hodder 9618 Coursebook. Chapter 3 is printed pp.68–106; implemented lesson scenes currently cover pp.68–83, with later pages left explicitly unresolved until built.',
-  coverage: 'Source-complete through p.83: chapter objectives; memory/storage; RAM/ROM families; embedded systems; HDD/SSD/optical media; Extensions 3A–3D; laser and inkjet printing; 3D printing; speakers/microphones; OLED/pixels/touch screens; and virtual headsets · current 2026–2028 memory-family checkpoint queries approved 2021–2026 Cambridge papers through explicit LO compatibility',
+  sourceNote: 'Source-grounded from the exact connected Hodder 9618 Coursebook. Chapter 3 is printed pp.68–106; implemented lesson scenes currently cover pp.68–89, with later pages left explicitly unresolved until built.',
+  coverage: 'Source-complete through p.89: chapter objectives; memory/storage; RAM/ROM families; embedded systems; HDD/SSD/optical media; Extensions 3A–3F; laser and inkjet printing; 3D printing; speakers/microphones; OLED/pixels/touch screens; virtual headsets; sensors and ADC/DAC; Tables 3.7–3.8; monitoring versus control; ABS; Activity 3A; and the 3.2 logic-gates introduction with Figure 3.22 · current 2026–2028 memory-family checkpoint queries approved 2021–2026 Cambridge papers through explicit LO compatibility',
   slides: withMemoryCheckpoint(sourceGroundedSlides),
 };
