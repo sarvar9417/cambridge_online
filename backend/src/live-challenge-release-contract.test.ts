@@ -16,6 +16,20 @@ describe('Cambridge Live Challenge release security contract',()=>{
     expect(builder).toContain('validation_findings');
   });
 
+  it('requires target-syllabus learning-objective evidence for eligible questions and analytics',()=>{
+    const builder=source('src/services/live-challenge-service.ts');
+    const analytics=source('src/services/live-challenge-analytics-service.ts');
+    const results=source('src/services/live-challenge-results-service.ts');
+    for(const text of [builder,analytics,results]){
+      expect(text).toContain('question_learning_objectives');
+      expect(text).toContain('learning_objective_compatibility');
+      expect(text).toContain("compat.relation in('equivalent','subtopic_compatible')");
+    }
+    expect(builder).toContain('target_t.syllabus_id=$4::uuid');
+    expect(analytics).toContain("r.status='ROUND_RESULTS'");
+    expect(results).toContain("r.status='ROUND_RESULTS'");
+  });
+
   it('withholds Mark Scheme until the marking/result phase',()=>{
     const domain=source('src/services/live-challenge-domain.ts');
     expect(domain).toContain("status === 'PEER_MARKING' || status === 'ROUND_RESULTS' || status === 'FINISHED'");
@@ -65,7 +79,7 @@ describe('Cambridge Live Challenge release security contract',()=>{
   });
 
   it('preserves DB-level answer locking and anti-self-marking constraints',()=>{
-    const migration=source('src/database/migrations/0163_live_challenge_foundation.sql');
+    const migration=source('src/database/migrations/0166_live_challenge_foundation.sql');
     expect(migration).toContain('marker_student_id <> answer_student_id');
     expect(migration).toContain('guard_locked_live_challenge_answer_v1');
     expect(migration).toContain('live_challenge_answer_locked');
