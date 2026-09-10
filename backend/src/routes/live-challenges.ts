@@ -6,7 +6,6 @@ import type { LiveChallengeAnswerService } from '../services/live-challenge-answ
 import type { LiveChallengePeerMarkingService } from '../services/live-challenge-peer-marking-service.js';
 import type { LiveChallengeModerationService } from '../services/live-challenge-moderation-service.js';
 import type { LiveChallengeTimingService } from '../services/live-challenge-timing-service.js';
-import { DomainError } from '../services/assignments-service.js';
 import { projectLiveChallengeForBoard } from '../services/live-challenge-board-projection.js';
 
 const uuid = z.string().uuid();
@@ -160,10 +159,10 @@ export function createLiveChallengesRouter(
 
   router.post('/:id/answer',async(req,res)=>{
     const id=uuid.parse(req.params.id);
-    const body=z.object({answerText:z.string().trim().min(1).max(50000),expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body);
-    const deadline=await timing.reconcile(req.actor!,id);
-    if(deadline.changed)throw new DomainError('live_challenge_answer_closed',409);
-    res.status(201).json({data:await answers.submit(req.actor!,id,body.answerText,body.expectedStateVersion)});
+    const body=z.object({roundId:uuid,answerText:z.string().trim().min(1).max(50000),expectedStateVersion:z.number().int().min(0).optional()}).strict().parse(req.body);
+    await timing.reconcile(req.actor!,id);
+    const data=await answers.submit(req.actor!,id,body.roundId,body.answerText,body.expectedStateVersion);
+    res.status(data.idempotent?200:201).json({data});
   });
 
   router.post('/:id/answers/lock',async(req,res)=>{
