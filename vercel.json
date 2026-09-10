@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "finalize-lessons-no-deploy": false
+      "finalize-lessons-no-deploy": false,
+      "fix/9618-full-source-audit": false
     }
   },
   "buildCommand": "npm run vercel-build",
