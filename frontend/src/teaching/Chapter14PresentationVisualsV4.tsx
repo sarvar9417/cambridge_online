@@ -1,5 +1,6 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
 import { Chapter14PresentationMaster, hasChapter14PresentationMaster } from './Chapter14PresentationMaster';
+import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter2PresentationVisual, hasChapter2PresentationVisual } from './Chapter2PresentationVisuals';
 import { Chapter2InternetVisual, hasChapter2InternetVisual } from './Chapter2InternetVisuals';
@@ -7,6 +8,7 @@ import { Chapter2DeviceVisual, hasChapter2DeviceVisual } from './Chapter2DeviceV
 import { Chapter2ActivityVisual, hasChapter2ActivityVisual } from './Chapter2ActivityVisuals';
 import { Chapter1PresentationVisual, hasChapter1PresentationVisual } from './Chapter1PresentationVisuals';
 import './chapter14-presentation-master.css';
+import './chapter14-presentation-master-projector.css';
 import './chapter13-presentation-hardening.css';
 
 /**
@@ -24,5 +26,6 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter2DeviceVisual(beat))return <Chapter2DeviceVisual beat={beat} reveal={reveal}/>;
   if(hasChapter2PresentationVisual(beat))return <Chapter2PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
+  if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
   return <Chapter14PresentationMaster beat={beat} reveal={reveal}/>;
 }
