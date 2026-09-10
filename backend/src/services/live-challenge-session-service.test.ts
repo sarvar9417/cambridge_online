@@ -36,7 +36,7 @@ describe('LiveChallengeSessionService',()=>{
     expect(clientQuery).toHaveBeenCalledWith('rollback');
   });
 
-  it('upserts a joined participant and records an event for a valid class-scoped code',async()=>{
+  it('upserts a joined participant and records a non-secret event for a valid class-scoped code',async()=>{
     const clientQuery=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('from live_challenges lc'))return{rowCount:1,rows:[{id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'LOBBY',settings_json:{allow_late_join:false},started_at:null,join_code:'ABC234',teacher_name:'Teacher'}]};
@@ -50,6 +50,9 @@ describe('LiveChallengeSessionService',()=>{
     const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
     await expect(service.join(student,'abc234')).resolves.toMatchObject({id:challengeId,status:'LOBBY',joinedCount:3,joined:true});
     expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('join enrollments e'))).toBe(true);
+    const eventSql=String(clientQuery.mock.calls.find(([sql])=>String(sql).includes("'participant.joined'"))?.[0]);
+    expect(eventSql).not.toContain('payload_json');
+    expect(eventSql).not.toContain('joinCode');
     expect(clientQuery).toHaveBeenCalledWith('commit');
   });
 
