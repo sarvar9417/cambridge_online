@@ -9,11 +9,13 @@ const facade=fixture('Chapter14PresentationVisualsV4.tsx');
 const css=fixture('chapter14-presentation-content-v2.css');
 
 describe('Chapter 14 source-semantic presentation V2',()=>{
-  it('renders every non-EOC Chapter 14 scene with authored semantic content',()=>{
+  it('renders every scene owned by the V2 semantic renderer',()=>{
     const scenes=chapter14PresentationStoryboard('overview')??[];
-    for(const scene of scenes.filter(scene=>scene.id!=='h14p-142-practice')){
+    for(const scene of scenes.filter(scene=>!['h14p-142-practice','h14p-142-recap-routing'].includes(scene.id))){
       expect(source).toContain(`case '${scene.id}'`);
     }
+    expect(facade).toContain("beat.id==='h14p-142-recap-routing'");
+    expect(facade).toContain('<Chapter14PresentationMaster beat={beat} reveal={reveal}/>');
   });
 
   it('locks the source-sensitive communication processes instead of generic decoration',()=>{
