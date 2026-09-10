@@ -56,7 +56,7 @@ describe('LiveChallengeService teacher builder',()=>{
   });
 
   it('builds the eligible pool with QP/MS source, fidelity, target-LO, dependency and asset gates',async()=>{
-    const query=vi.fn(async(sql:string)=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
       if(sql.includes('from syllabi s')&&sql.includes('left join topics'))return{rowCount:1,rows:[taxonomyRow()]};
       if(sql.includes('from questions q'))return{rowCount:1,rows:[eligibleRow()]};
       throw new Error(`Unexpected SQL: ${sql}`);
