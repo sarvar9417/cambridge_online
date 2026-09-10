@@ -246,9 +246,9 @@ export class LiveChallengeSessionService{
         [challenge.id,actor.id],
       );
       await client.query(
-        `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
-         values($1,$2,'participant.joined',jsonb_build_object('joinCode',$3))`,
-        [challenge.id,actor.id,normalized],
+        `insert into live_challenge_events(challenge_id,actor_id,event_type)
+         values($1,$2,'participant.joined')`,
+        [challenge.id,actor.id],
       );
       const count=await client.query(
         `select count(*)::int joined_count from live_challenge_participants where challenge_id=$1 and status='JOINED'`,
