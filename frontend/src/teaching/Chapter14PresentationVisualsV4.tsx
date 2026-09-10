@@ -4,6 +4,7 @@ import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
+import { Chapter4InstructionsBitVisual, hasChapter4InstructionsBitVisual } from './Chapter4InstructionsBitVisuals';
 import { Chapter4FetchAssemblyVisual, hasChapter4FetchAssemblyVisual } from './Chapter4FetchAssemblyVisuals';
 import { Chapter4ProcessorVisual, hasChapter4ProcessorVisual } from './Chapter4ProcessorVisuals';
 import { Chapter3LogicVisual, hasChapter3LogicVisual } from './Chapter3LogicVisuals';
@@ -32,7 +33,7 @@ import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
-  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
+  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
@@ -47,6 +48,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter3SensorVisual(beat))return <Chapter3SensorVisual beat={beat} reveal={reveal}/>;
   if(hasChapter3DeviceVisual(beat))return <Chapter3DeviceVisual beat={beat} reveal={reveal}/>;
   if(hasChapter3PresentationVisual(beat))return <Chapter3PresentationVisual beat={beat} reveal={reveal}/>;
+  if(hasChapter4InstructionsBitVisual(beat))return <Chapter4InstructionsBitVisual beat={beat} reveal={reveal}/>;
   if(hasChapter4FetchAssemblyVisual(beat))return <Chapter4FetchAssemblyVisual beat={beat} reveal={reveal}/>;
   if(hasChapter4ProcessorVisual(beat))return <Chapter4ProcessorVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
