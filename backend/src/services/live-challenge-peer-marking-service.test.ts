@@ -14,6 +14,10 @@ const nextChallengeQuestionId='77777777-7777-4777-8777-777777777777';
 const nextRoundId='88888888-8888-4888-8888-888888888888';
 const scheme={maxMarks:2,guidanceMd:null,points:[{id:pointId,code:'A1',text:'Mentions decode',marks:1}],groups:[],levels:[]};
 const client=(query:ReturnType<typeof vi.fn>)=>({query,release:vi.fn()} as unknown as PoolClient);
+const peerRow=(overrides:Record<string,unknown>={})=>({
+  challenge_status:'PEER_MARKING',state_version:10,round_id:roundId,round_number:1,round_status:'PEER_MARKING',current_round_number:1,
+  peer_assignment_id:assignmentId,assignment_status:'ASSIGNED',max_marks_snapshot:2,mark_scheme_snapshot:scheme,...overrides,
+});
 
 describe('LiveChallengePeerMarkingService',()=>{
   it('creates a deterministic derangement from currently joined students only',async()=>{
@@ -67,11 +71,16 @@ describe('LiveChallengePeerMarkingService',()=>{
     expect(JSON.stringify(result)).not.toContain('student-2');
   });
 
-  it('stores one immutable peer mark and validates selected snapshot points',async()=>{
+  it('stores one immutable peer mark bound to the explicit assignment',async()=>{
     const submittedAt=new Date('2026-09-09T17:15:00Z');
-    const query=vi.fn(async(sql:string)=>{
+    const query=vi.fn(async(sql:string,params?:unknown[])=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
-      if(sql.includes('select lc.status::text challenge_status'))return{rowCount:1,rows:[{challenge_status:'PEER_MARKING',round_id:roundId,peer_assignment_id:assignmentId,assignment_status:'ASSIGNED',max_marks_snapshot:2,mark_scheme_snapshot:scheme}]};
+      if(sql.includes('select lc.status::text challenge_status')){
+        expect(params?.[2]).toBe(assignmentId);
+        expect(sql).toContain('pa.id=$3');
+        expect(sql).toContain('pa.marker_student_id=$2');
+        return{rowCount:1,rows:[peerRow()]};
+      }
       if(sql.includes('select awarded_marks,mark_points_json'))return{rowCount:0,rows:[]};
       if(sql.includes('insert into live_challenge_peer_marks'))return{rowCount:1,rows:[{awarded_marks:'1',mark_points_json:[pointId],feedback_text:'Good',submitted_at:submittedAt}]};
       if(sql.includes("set status='SUBMITTED'"))return{rowCount:1,rows:[]};
@@ -79,7 +88,45 @@ describe('LiveChallengePeerMarkingService',()=>{
       throw new Error(`Unexpected SQL: ${sql}`);
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
-    await expect(service.submit(student,challengeId,{awardedMarks:1,markPointIds:[pointId],feedbackText:'Good'})).resolves.toMatchObject({peerAssignmentId:assignmentId,awardedMarks:1,immutable:true});
+    await expect(service.submit(student,challengeId,{peerAssignmentId:assignmentId,awardedMarks:1,markPointIds:[pointId],feedbackText:'Good'})).resolves.toMatchObject({peerAssignmentId:assignmentId,awardedMarks:1,immutable:true,idempotent:false});
+  });
+
+  it('returns the original peer mark for an identical network retry after results are released',async()=>{
+    const submittedAt=new Date('2026-09-09T17:15:00Z');
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.status::text challenge_status'))return{rowCount:1,rows:[peerRow({challenge_status:'ROUND_RESULTS',state_version:11,round_status:'ROUND_RESULTS'})]};
+      if(sql.includes('select awarded_marks,mark_points_json'))return{rowCount:1,rows:[{awarded_marks:'1',mark_points_json:[pointId],feedback_text:'Good',submitted_at:submittedAt}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.submit(student,challengeId,{peerAssignmentId:assignmentId,awardedMarks:1,markPointIds:[pointId],feedbackText:' Good '})).resolves.toMatchObject({peerAssignmentId:assignmentId,awardedMarks:1,immutable:true,idempotent:true});
+    expect(query.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_peer_marks'))).toBe(false);
+    expect(query.mock.calls.some(([sql])=>String(sql).includes("'peer_mark.submitted'"))).toBe(false);
+  });
+
+  it('rejects a changed peer-mark retry so the submitted mark remains immutable',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.status::text challenge_status'))return{rowCount:1,rows:[peerRow({challenge_status:'ROUND_RESULTS',round_status:'ROUND_RESULTS'})]};
+      if(sql.includes('select awarded_marks,mark_points_json'))return{rowCount:1,rows:[{awarded_marks:'1',mark_points_json:[pointId],feedback_text:'Good',submitted_at:new Date()}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.submit(student,challengeId,{peerAssignmentId:assignmentId,awardedMarks:2,markPointIds:[pointId],feedbackText:'Changed'})).rejects.toMatchObject({code:'live_challenge_peer_mark_already_submitted',status:409});
+    expect(query).toHaveBeenCalledWith('rollback');
+  });
+
+  it('rejects a stale old assignment with no submitted mark after a newer round starts',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.status::text challenge_status'))return{rowCount:1,rows:[peerRow({challenge_status:'QUESTION_ACTIVE',round_status:'PEER_MARKING',current_round_number:2})]};
+      if(sql.includes('select awarded_marks,mark_points_json'))return{rowCount:0,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.submit(student,challengeId,{peerAssignmentId:assignmentId,awardedMarks:1,markPointIds:[pointId],feedbackText:'Good'})).rejects.toMatchObject({code:'live_challenge_peer_marking_not_open',status:409});
+    expect(query.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_peer_marks'))).toBe(false);
   });
 
   it('releases and records mastery only for currently joined answer owners',async()=>{
