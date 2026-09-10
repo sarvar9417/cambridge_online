@@ -1,10 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_14_MASTER_PRINTED_PAGES, CHAPTER_14_MASTER_SOURCE_MAP, chapter14SourcePagesCovered } from './chapter14-master-source-map';
 import { CHAPTER_14_MASTER_VISUAL_IDS } from './Chapter14PresentationMaster';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
-import facadeSource from './Chapter14PresentationVisualsV4.tsx?raw';
-import projectorCss from './chapter14-presentation-master-projector.css?raw';
-import navigationSource from './presentation-scroll-controller.ts?raw';
+
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const facadeSource=fixture('Chapter14PresentationVisualsV4.tsx');
+const projectorCss=fixture('chapter14-presentation-master-projector.css');
+const navigationSource=fixture('presentation-scroll-controller.ts');
 
 const TERMS_141=['Protocol','HTTP','Packet','Segment','FTP','SMTP','Push protocol','Binary file','MIME','POP','IMAP','TCP','Pull protocol','Host-to-host','Host','BitTorrent','Peer','Metadata','Pieces','Tracker','Swarm','Seed','Leech','Lurker'];
 
