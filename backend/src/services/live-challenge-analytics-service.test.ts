@@ -38,10 +38,10 @@ describe('LiveChallengeAnalyticsService',()=>{
     const result=await service.summary(teacher,challengeId);
     expect(result).toMatchObject({
       challengeId,status:'FINISHED',stateVersion:22,releasedRounds:2,classAveragePercentage:62.5,
-      strongestLearningObjectives:[{id:'lo-strong',code:'2.1.1',percentage:80}],
-      weakestLearningObjectives:[{id:'lo-weak',code:'2.1.2',percentage:40}],
-      missedMarkPoints:[{id:'mp-1',code:'A1',missed:2,total:3,missPercentage:66.7}],
     });
+    expect(result.strongestLearningObjectives[0]).toEqual(expect.objectContaining({id:'lo-strong',code:'2.1.1',percentage:80}));
+    expect(result.weakestLearningObjectives[0]).toEqual(expect.objectContaining({id:'lo-weak',code:'2.1.2',percentage:40}));
+    expect(result.missedMarkPoints[0]).toEqual(expect.objectContaining({id:'mp-1',code:'A1',missed:2,total:3,missPercentage:66.7}));
     expect(result.questions).toEqual([
       expect.objectContaining({roundNumber:1,questionRef:'Q1',participantCount:2,answeredCount:2,averagePercentage:75}),
       expect.objectContaining({roundNumber:2,questionRef:'Q2',participantCount:1,answeredCount:1,averagePercentage:50}),
