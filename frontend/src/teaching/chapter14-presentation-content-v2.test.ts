@@ -16,7 +16,7 @@ describe('Chapter 14 source-semantic presentation V2',()=>{
     for(const anchor of [
       'EVEN or ODD?',
       'SENDING<br/>4 → 1',
-      'PORT 80',
+      'port 80',
       '331 Anonymous access allowed',
       'SMTP · PUSH',
       'MIME · ATTACHMENT SUPPORT',
