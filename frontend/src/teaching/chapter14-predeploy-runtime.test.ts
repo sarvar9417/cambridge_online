@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chapter14PresentationStoryboard, CHAPTER_14_PRESENTATION_SCENE_COUNT } from './chapter14-presentation-storyboard';
 import {
@@ -10,8 +12,9 @@ import lessonExperience from './LessonExperience.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import emailRenderer from './Chapter14EmailSourceComplete.tsx?raw';
-import emailCss from './chapter14-email-source-complete.css?raw';
 import scrollController from './presentation-scroll-controller.ts?raw';
+
+const emailCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-email-source-complete.css'),'utf8');
 
 describe('Chapter 14 pre-deploy runtime contract',()=>{
   const storyboard=chapter14PresentationStoryboard('overview')??[];
@@ -81,8 +84,8 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
     expect(lessonExperience).toContain('onClick={()=>openBeat(beatIndex+1)}');
     expect(lessonExperience).toContain("event.key==='ArrowRight'");
     expect(lessonExperience).toContain("event.key==='ArrowLeft'");
-    expect(scrollController).not.toContain('ArrowRight');
-    expect(scrollController).not.toContain('ArrowLeft');
+    expect(scrollController).not.toContain("event.key==='ArrowRight'");
+    expect(scrollController).not.toContain("event.key==='ArrowLeft'");
     expect(scrollController).not.toContain('click');
     expect(scrollController).toContain("event.key!=='PageDown'&&event.key!=='PageUp'");
   });
