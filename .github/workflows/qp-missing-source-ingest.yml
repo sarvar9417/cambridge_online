@@ -21,6 +21,7 @@ on:
       - 'backend/scripts/qp-source-repair.py'
       - 'backend/scripts/qp-source-repair-v3.py'
       - 'backend/src/database/migrations/0162_missing_qp_source_ingest.sql'
+      - 'backend/src/database/migrations/0163_missing_qp_source_equivalence_guard.sql'
       - 'supabase/functions/qp-source-repair-runner/index.ts'
       - '.source-missing-ingest'
       - '.github/workflows/qp-missing-source-ingest.yml'
