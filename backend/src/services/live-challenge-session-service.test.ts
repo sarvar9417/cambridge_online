@@ -10,14 +10,16 @@ const challengeQuestionId='33333333-3333-4333-8333-333333333333';
 const questionId='44444444-4444-4444-8444-444444444444';
 
 describe('LiveChallengeSessionService',()=>{
-  it('student feed is enrollment-scoped and never selects question or mark-scheme content',async()=>{
-    const query=vi.fn(async(sql:string)=>({rowCount:1,rows:[{id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'PUBLISHED',join_code:'ABC234',settings_json:{allow_late_join:false},published_at:new Date(),started_at:null,current_question_position:null,teacher_name:'Teacher',syllabus_code:'9618',topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',participant_status:null,joined_at:null,question_count:5,joined_count:0}]}));
+  it('student feed is enrollment-scoped and never selects join code, question or mark-scheme content',async()=>{
+    const query=vi.fn(async(_sql:string)=>({rowCount:1,rows:[{id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'PUBLISHED',settings_json:{allow_late_join:false},published_at:new Date(),started_at:null,current_question_position:null,teacher_name:'Teacher',syllabus_code:'9618',topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',participant_status:null,joined_at:null,question_count:5,joined_count:0}]}));
     const service=new LiveChallengeSessionService({query} as unknown as Pool);
     const feed=await service.studentFeed(student);
     expect(feed[0]).toMatchObject({id:challengeId,status:'PUBLISHED',canJoin:true,questionCount:5});
+    expect(feed[0]).not.toHaveProperty('joinCode');
     const sql=String(query.mock.calls[0]?.[0]);
     expect(sql).toContain('from enrollments e');
     expect(sql).toContain('e.student_id=$1');
+    expect(sql).not.toContain('lc.join_code');
     expect(sql).not.toContain('mark_scheme_snapshot');
     expect(sql).not.toContain('content_json');
   });
@@ -87,11 +89,12 @@ describe('LiveChallengeSessionService',()=>{
     expect(clientQuery).toHaveBeenCalledWith('commit');
   });
 
-  it('starts exactly one server-authoritative first round and advances the challenge version',async()=>{
+  it('starts exactly one server-authoritative first round when at least one participant joined',async()=>{
     const startedAt=new Date('2026-09-09T16:00:00Z');
     const clientQuery=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('select lc.*,c.name class_name'))return{rowCount:1,rows:[{id:challengeId,status:'LOBBY',state_version:7,settings_json:{question_order:'fixed'},started_at:null}]};
+      if(sql.includes('select count(*)::int count from live_challenge_participants'))return{rowCount:1,rows:[{count:2}]};
       if(sql.includes('from live_challenge_questions lcq'))return{rowCount:1,rows:[{id:challengeQuestionId,position:1}]};
       if(sql.includes('insert into live_challenge_rounds'))return{rowCount:1,rows:[{id:roundId,round_number:1,started_at:startedAt}]};
       if(sql.includes("set status='QUESTION_ACTIVE'"))return{rowCount:1,rows:[{id:challengeId,status:'QUESTION_ACTIVE',state_version:8,current_question_position:1,started_at:startedAt}]};
@@ -106,13 +109,31 @@ describe('LiveChallengeSessionService',()=>{
     expect(clientQuery).toHaveBeenCalledWith('commit');
   });
 
-  it('projects the active canonical question to a joined student without leaking the mark scheme or source controls',async()=>{
+  it('fails closed instead of starting an empty classroom challenge',async()=>{
+    const clientQuery=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.*,c.name class_name'))return{rowCount:1,rows:[{id:challengeId,status:'LOBBY',state_version:7,settings_json:{question_order:'fixed'},started_at:null}]};
+      if(sql.includes('select count(*)::int count from live_challenge_participants'))return{rowCount:1,rows:[{count:0}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client={query:clientQuery,release:vi.fn()} as unknown as PoolClient;
+    const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    await expect(service.start(teacher,challengeId,7)).rejects.toMatchObject({code:'live_challenge_participants_required',status:409});
+    expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_rounds'))).toBe(false);
+    expect(clientQuery).toHaveBeenCalledWith('rollback');
+  });
+
+  it('projects the active canonical question to a joined student without selecting join code or leaking scheme/source controls',async()=>{
     const query=vi.fn(async(sql:string)=>{
-      if(sql.includes('join live_challenge_participants p'))return{rowCount:1,rows:[{
-        id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'QUESTION_ACTIVE',
-        state_version:8,current_question_position:1,settings_json:{timing_mode:'teacher'},syllabus_code:'9618',
-        topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',participant_status:'JOINED',
-      }]};
+      if(sql.includes('join live_challenge_participants p')){
+        expect(sql).not.toContain('lc.*');
+        expect(sql).not.toContain('join_code');
+        return{rowCount:1,rows:[{
+          id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'QUESTION_ACTIVE',
+          state_version:8,current_question_position:1,settings_json:{timing_mode:'teacher'},syllabus_code:'9618',
+          topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',participant_status:'JOINED',
+        }]};
+      }
       if(sql.includes('from live_challenge_questions lcq'))return{rowCount:1,rows:[{
         challenge_question_id:challengeQuestionId,position:1,max_marks_snapshot:4,time_limit_seconds:null,
         source_occurrence_snapshot:{sourcePaperId:'paper-1'},mark_scheme_snapshot:{maxMarks:4,points:[{code:'A1'}]},
@@ -126,6 +147,7 @@ describe('LiveChallengeSessionService',()=>{
     const service=new LiveChallengeSessionService({query} as unknown as Pool);
     const state=await service.state(student,challengeId);
     expect(state).toMatchObject({id:challengeId,status:'QUESTION_ACTIVE',stateVersion:8,currentQuestionPosition:1,markScheme:null,source:null});
+    expect(state).not.toHaveProperty('joinCode');
     expect(state.question).toMatchObject({id:questionId,displayRef:'9618/12/M/J/26 Q3(a)',marks:4,answerKind:'text'});
   });
 });
