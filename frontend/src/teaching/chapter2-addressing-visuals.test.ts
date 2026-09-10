@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_2_ADDRESSING_VISUAL_IDS, hasChapter2AddressingVisual } from './Chapter2AddressingVisuals';
 import { presentationBeatsForSlide } from './lesson-experience-model';
 
-const visual = readFileSync(new URL('./Chapter2AddressingVisuals.tsx', import.meta.url), 'utf8');
-const css = readFileSync(new URL('./chapter2-addressing-visuals.css', import.meta.url), 'utf8');
-const facade = readFileSync(new URL('./Chapter14PresentationVisualsV4.tsx', import.meta.url), 'utf8');
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const visual=fixture('Chapter2AddressingVisuals.tsx');
+const css=fixture('chapter2-addressing-visuals.css');
+const facade=fixture('Chapter14PresentationVisualsV4.tsx');
 
 describe('Chapter 2 Hodder addressing visual-first batch', () => {
   it('routes every addressing source scene through the projector facade', () => {
