@@ -12,7 +12,17 @@ const batchText = JSON.stringify(CHAPTER_4_FETCH_ASSEMBLY_SLIDES);
 
 describe('Hodder 9618 Chapter 4 pp115-123 source completeness', () => {
   it('extends the working draft without rewriting the verified pp107-114 batch', () => {
-    expect(CHAPTER_4_FETCH_ASSEMBLY_SLIDES.map(slide => slide.sourcePages?.[0])).toEqual([115, 116, 117, 118, 119, 120, 121, 122, 123]);
+    expect(CHAPTER_4_FETCH_ASSEMBLY_SLIDES.map(slide => slide.sourcePages)).toEqual([
+      [115, 116],
+      [116, 117],
+      [117, 118],
+      [118],
+      [119],
+      [119, 120],
+      [121],
+      [121, 122],
+      [122, 123],
+    ]);
     expect(CHAPTER_4_CURRENT_SLIDES).toHaveLength(17);
     expect(CHAPTER_4_CURRENT_SLIDES.slice(-9)).toEqual(CHAPTER_4_FETCH_ASSEMBLY_SLIDES);
     expect(CHAPTER_4_CURRENT_DRAFT.coverage).toContain('Source-complete through p.123');
