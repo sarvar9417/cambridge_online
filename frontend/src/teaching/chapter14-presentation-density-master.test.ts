@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import source from './Chapter14PresentationContentV2.tsx?raw';
-import densityCss from './chapter14-presentation-density-master.css?raw';
-import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+
+const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const source=fixture('Chapter14PresentationContentV2.tsx');
+const densityCss=fixture('chapter14-presentation-density-master.css');
+const facade=fixture('Chapter14PresentationVisualsV4.tsx');
 
 describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
   it('keeps all six Table 14.4 packet-switching benefit/drawback pairs in the authored slide',()=>{
