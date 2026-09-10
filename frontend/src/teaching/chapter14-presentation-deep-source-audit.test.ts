@@ -9,15 +9,21 @@ import deepCss from './chapter14-presentation-deep-audit.css?raw';
 import networkCss from './chapter14-presentation-deep-network.css?raw';
 import contentCss from './chapter14-presentation-deep-content.css?raw';
 import finalCss from './chapter14-presentation-final-source.css?raw';
+import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_DEEP_LIVE_PAGES, CHAPTER_14_DEEP_LIVE_REQUIREMENTS } from './chapter14-deep-live-source-contract';
 
 const live=[v2,v3,v4,finalRenderer,eoc].join('\n');
 const css=[deepCss,networkCss,contentCss,finalCss].join('\n');
 
 describe('Chapter 14 final page-by-page live source audit',()=>{
-  it('covers every supplied printed page 328–345 exactly once in the strong contract',()=>{
+  it('covers every supplied printed page 328–345 exactly once and maps requirements to real scenes',()=>{
     expect(CHAPTER_14_DEEP_LIVE_PAGES).toEqual(Array.from({length:18},(_,i)=>328+i));
     expect(new Set(CHAPTER_14_DEEP_LIVE_PAGES).size).toBe(18);
+    const sceneIds=new Set((chapter14PresentationStoryboard('overview')??[]).map(scene=>scene.id));
+    for(const requirement of CHAPTER_14_DEEP_LIVE_REQUIREMENTS){
+      expect(requirement.scenes.length).toBeGreaterThan(0);
+      for(const scene of requirement.scenes)expect(sceneIds.has(scene),`p.${requirement.page} maps to missing scene ${scene}`).toBe(true);
+    }
   });
 
   it('requires every page-significant source anchor to exist in the live projector renderer',()=>{
