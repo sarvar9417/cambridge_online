@@ -101,8 +101,8 @@ describe('LiveChallengeService teacher builder',()=>{
     expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('delete from live_challenge_questions'))).toBe(false);
   });
 
-  it('revalidates selected questions and refreshes source/mark snapshots before publish',async()=>{
-    const clientQuery=vi.fn(async(sql:string)=>{
+  it('revalidates selected questions, refreshes snapshots and never duplicates the join code into the publish audit event',async()=>{
+    const clientQuery=vi.fn(async(sql:string,_params?:unknown[])=>{
       if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
       if(sql.includes('from live_challenges lc'))return{rowCount:1,rows:[{id:challengeId,teacher_id:teacher.id,class_id:'class-1',syllabus_id:syllabusId,topic_id:topicId,subtopic_id:subtopicId,status:'DRAFT'}]};
       if(sql.includes('from live_challenge_questions')&&sql.includes('order by position'))return{rowCount:1,rows:[{question_id:questionId,position:1}]};
@@ -117,9 +117,12 @@ describe('LiveChallengeService teacher builder',()=>{
     const pool={connect:vi.fn().mockResolvedValue(client)} as unknown as Pool;
     const service=new LiveChallengeService(pool);
     const result=await service.publish(teacher,challengeId);
-    expect(result).toMatchObject({id:challengeId,status:'PUBLISHED',questionCount:1});
+    expect(result).toMatchObject({id:challengeId,status:'PUBLISHED',questionCount:1,joinCode:'ABC234'});
     expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('update live_challenge_questions set'))).toBe(true);
-    expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes("'challenge.published'"))).toBe(true);
+    const eventCall=clientQuery.mock.calls.find(([sql])=>String(sql).includes("'challenge.published'"))!;
+    const payload=JSON.parse(String(eventCall[1]?.[2]));
+    expect(payload).toEqual({questionCount:1});
+    expect(payload).not.toHaveProperty('joinCode');
     expect(clientQuery).toHaveBeenCalledWith('commit');
   });
 });
