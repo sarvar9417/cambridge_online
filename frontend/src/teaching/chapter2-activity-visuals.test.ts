@@ -14,9 +14,9 @@ describe('Chapter 2 Hodder activity projector scenes',()=>{
       expect(presentationBeatsForSlide(slide,slide.title).some(hasChapter2ActivityVisual),slide.id).toBe(true);
   });
   it('locks source-specific task markers without inventing answers',()=>{
-    for(const marker of ['20 EMPLOYEES','FINANCIAL CONSULTANTS','20-FLOOR BUILDING','GEO · MEO · LEO','PEER-TO-PEER','f = c / λ','3 × 10⁸ m/s','three LANs','Figure 2.20','NAT','line 09','line 03'])expect(visual).toContain(marker);
+    for(const marker of ['20 EMPLOYEES','FINANCIAL CONSULTANTS','20-FLOOR BUILDING','GEO · MEO · LEO','35 800 km','5000–12 000 km','500–2500 km','PEER-TO-PEER','f = c / λ','3 × 10⁸ m/s','three LANs','Figure 2.20','NAT','line 09','line 03'])expect(visual).toContain(marker);
   });
   it('keeps projector and narrow-screen layouts responsive',()=>{
-    for(const marker of ['h2av-taskgrid','h2av-gateway','h2av-loop','h2av-codecompare','@media(max-height:820px)','@media(max-width:900px)'])expect(css).toContain(marker);
+    for(const marker of ['h2av-taskgrid','h2av-orbits','h2av-gateway','h2av-loop','h2av-codecompare','@media(max-height:820px)','@media(max-width:900px)'])expect(css).toContain(marker);
   });
 });
