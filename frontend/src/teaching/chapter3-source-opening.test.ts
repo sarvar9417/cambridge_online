@@ -50,7 +50,8 @@ describe('Hodder Chapter 3 opening source batch', () => {
     expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointSyllabusCode).toBe('9618');
     expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointYearFrom).toBe(2021);
     expect(CHAPTER_3_MEMORY_CHECKPOINT.checkpointYearTo).toBe(2026);
-    expect(CHAPTER_3_MEMORY_CHECKPOINT.sourcePages).toEqual([70, 71, 72]);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.sourcePages).toEqual([70, 71, 72, 74]);
+    expect(CHAPTER_3_MEMORY_CHECKPOINT.sourceElements).toContain('Solid state drives · EEPROM/NOR erase/read characteristics');
     expect(CHAPTER_3_MEMORY_CHECKPOINT.examPractice).toBe(true);
   });
 
