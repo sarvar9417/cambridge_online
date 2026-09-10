@@ -28,6 +28,19 @@ class MissingQpSourceIngestTests(unittest.TestCase):
         self.assertNotIn("delete from public.source_papers", lowered)
         self.assertNotIn("'approved'::review_status", sql)
 
+    def test_equivalent_source_bootstrap_requires_complete_occurrence_ledger(self) -> None:
+        sql = (ROOT / "backend/src/database/migrations/0163_missing_qp_source_equivalence_guard.sql").read_text(encoding="utf-8")
+        self.assertIn("source_paper_equivalences", sql)
+        self.assertIn("equivalence_kind='exact_content'", sql)
+        self.assertIn("source_verified_exact", sql)
+        self.assertIn("o.verified_at IS NULL", sql)
+        self.assertIn("o.mark_scheme_source_paper_id IS DISTINCT FROM e.ms_id", sql)
+        self.assertGreaterEqual(sql.count("EXCEPT"), 2)
+        self.assertIn("missing_qp_source_equivalent_occurrence_incomplete", sql)
+        self.assertIn("excludedEquivalentPaperCount", sql)
+        self.assertIn("source_verified_occurrence_ledger_v1", sql)
+        self.assertIn("SELECT * FROM eligible WHERE canonical_source_paper_id IS NULL", sql)
+
     def test_runner_parses_all_sources_before_apply_loop(self) -> None:
         script = (ROOT / "backend/scripts/qp-source-missing-ingest-v1.py").read_text(encoding="utf-8")
         parse_gate = script.index("if failures:")
@@ -83,6 +96,7 @@ class MissingQpSourceIngestTests(unittest.TestCase):
         self.assertIn("default: 'NO'", workflow)
         self.assertIn("APPLY_MISSING_QP_SOURCE_INGEST_V1_ONCE", workflow)
         self.assertIn("qp-source-missing-ingest-v2.py", workflow)
+        self.assertIn("0163_missing_qp_source_equivalence_guard.sql", workflow)
         self.assertEqual(marker, "PLAN_MISSING_QP_SOURCE_INGEST_V1")
 
 
