@@ -83,4 +83,15 @@ describe('Darslar Past Paper plain display contract',()=>{
     expect(inlineCss).toContain('max-height: none !important;');
     expect(inlineCss).toContain('overflow: visible !important;');
   });
+
+  it('labels the Past Papers experience by chapter rather than the active topic',()=>{
+    const experience=source('LessonExperience.tsx');
+    const workspace=source('LessonPastPaper.tsx');
+    expect(experience).toContain('{courseCode(chapter)} · CHAPTER {chapter.number} · PAST PAPERS');
+    expect(experience).toContain('<h1>{chapter.title}</h1>');
+    expect(experience).toContain("Approved Cambridge questions mapped to this chapter's learning objectives.");
+    expect(experience).not.toContain('{topicLabel(activeTopic)} · EXAM PRACTICE');
+    expect(workspace).toContain('CHAPTER {chapterNumber} · PAST PAPERS');
+    expect(workspace).toContain('{questions.length} approved questions');
+  });
 });
