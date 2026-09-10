@@ -132,6 +132,10 @@ export function createLiveChallengesRouter(
     res.json({data:withLiveChallengeScoreDistribution(scoreboard)});
   });
 
+  router.get('/:id/analytics',async(req,res)=>{
+    res.json({data:await moderation.analyticsSummary(req.actor!,uuid.parse(req.params.id))});
+  });
+
   router.get('/:id/board',async(req,res)=>{
     const id=uuid.parse(req.params.id);
     await timing.reconcile(req.actor!,id);
