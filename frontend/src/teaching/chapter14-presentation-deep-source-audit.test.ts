@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
 import v3 from './Chapter14PresentationContentV3.tsx?raw';
@@ -5,13 +7,14 @@ import v4 from './Chapter14PresentationContentV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import eoc from './Chapter14EndOfChapterMaster.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
-import deepCss from './chapter14-presentation-deep-audit.css?raw';
-import networkCss from './chapter14-presentation-deep-network.css?raw';
-import contentCss from './chapter14-presentation-deep-content.css?raw';
-import finalCss from './chapter14-presentation-final-source.css?raw';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_DEEP_LIVE_PAGES, CHAPTER_14_DEEP_LIVE_REQUIREMENTS, CHAPTER_14_REQUIRED_SOURCE_TERMS } from './chapter14-deep-live-source-contract';
 
+const sourceFile=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching',name),'utf8');
+const deepCss=sourceFile('chapter14-presentation-deep-audit.css');
+const networkCss=sourceFile('chapter14-presentation-deep-network.css');
+const contentCss=sourceFile('chapter14-presentation-deep-content.css');
+const finalCss=sourceFile('chapter14-presentation-final-source.css');
 const live=[v2,v3,v4,finalRenderer,eoc].join('\n');
 const css=[deepCss,networkCss,contentCss,finalCss].join('\n');
 
