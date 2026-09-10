@@ -23,6 +23,12 @@ function snapshot(value:unknown):MarkSchemeSnapshot{
   };
 }
 
+function sameIds(a:unknown,b:string[]){
+  if(!Array.isArray(a))return false;
+  const left=a.map(String).sort(),right=[...b].sort();
+  return left.length===right.length&&left.every((value,index)=>value===right[index]);
+}
+
 export class LiveChallengePeerMarkingService{
   constructor(private readonly pool:Pool){}
   private student(actor:Actor){if(actor.role!=='student')throw new DomainError('students_only',403)}
@@ -151,24 +157,25 @@ export class LiveChallengePeerMarkingService{
     };
   }
 
-  async submit(actor:Actor,id:string,input:{awardedMarks:number;markPointIds:string[];feedbackText?:string|null}){
+  async submit(actor:Actor,id:string,input:{peerAssignmentId:string;awardedMarks:number;markPointIds:string[];feedbackText?:string|null}){
     this.student(actor);
     const client=await this.pool.connect();
     try{
       await client.query('begin');
       const result=await client.query(
-        `select lc.status::text challenge_status,r.id round_id,pa.id peer_assignment_id,pa.status::text assignment_status,
-           lcq.max_marks_snapshot,lcq.mark_scheme_snapshot
+        `select lc.status::text challenge_status,lc.state_version,r.id round_id,r.round_number,r.status::text round_status,
+           (select max(x.round_number) from live_challenge_rounds x where x.challenge_id=lc.id) current_round_number,
+           pa.id peer_assignment_id,pa.status::text assignment_status,lcq.max_marks_snapshot,lcq.mark_scheme_snapshot
          from live_challenges lc
          join classes c on c.id=lc.class_id and c.archived_at is null
          join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
          join live_challenge_participants p on p.challenge_id=lc.id and p.student_id=$2 and p.status='JOINED'
-         join live_challenge_rounds r on r.challenge_id=lc.id and r.status='PEER_MARKING'
+         join live_challenge_rounds r on r.challenge_id=lc.id
          join live_challenge_questions lcq on lcq.id=r.challenge_question_id
-         join live_challenge_peer_assignments pa on pa.round_id=r.id and pa.marker_student_id=$2 and pa.status<>'CANCELLED'
-         where lc.id=$1 and lc.status='PEER_MARKING'
-         order by r.round_number desc limit 1 for update of pa`,
-        [id,actor.id],
+         join live_challenge_peer_assignments pa on pa.round_id=r.id and pa.id=$3 and pa.marker_student_id=$2 and pa.status<>'CANCELLED'
+         where lc.id=$1
+         for update of pa`,
+        [id,actor.id,input.peerAssignmentId],
       );
       if(!result.rowCount)throw new DomainError('live_challenge_peer_marking_not_open',409);
       const row=result.rows[0],maxMarks=Number(row.max_marks_snapshot),scheme=snapshot(row.mark_scheme_snapshot);
@@ -176,17 +183,24 @@ export class LiveChallengePeerMarkingService{
       const allowed=new Set((scheme.points??[]).map(point=>point.id));
       if(input.markPointIds.some(pointId=>!allowed.has(pointId)))throw new DomainError('live_challenge_peer_mark_point_invalid',400);
       if(new Set(input.markPointIds).size!==input.markPointIds.length)throw new DomainError('live_challenge_peer_mark_point_invalid',400);
+      const normalizedFeedback=input.feedbackText?.trim()||null;
       const existing=await client.query(`select awarded_marks,mark_points_json,feedback_text,submitted_at from live_challenge_peer_marks where peer_assignment_id=$1`,[row.peer_assignment_id]);
       if(existing.rowCount){
-        await client.query('commit');
         const mark=existing.rows[0];
-        return {challengeId:id,peerAssignmentId:row.peer_assignment_id,awardedMarks:Number(mark.awarded_marks),markPointIds:mark.mark_points_json,feedbackText:mark.feedback_text,submittedAt:mark.submitted_at,immutable:true};
+        const same=Number(mark.awarded_marks)===input.awardedMarks&&sameIds(mark.mark_points_json,input.markPointIds)&&(mark.feedback_text??null)===normalizedFeedback;
+        if(!same)throw new DomainError('live_challenge_peer_mark_already_submitted',409);
+        await client.query('commit');
+        return {challengeId:id,peerAssignmentId:row.peer_assignment_id,awardedMarks:Number(mark.awarded_marks),markPointIds:mark.mark_points_json,feedbackText:mark.feedback_text,submittedAt:mark.submitted_at,immutable:true,idempotent:true};
       }
+      if(
+        row.challenge_status!=='PEER_MARKING'||row.round_status!=='PEER_MARKING'||row.assignment_status!=='ASSIGNED'||
+        Number(row.round_number)!==Number(row.current_round_number)
+      )throw new DomainError('live_challenge_peer_marking_not_open',409);
       const inserted=await client.query(
         `insert into live_challenge_peer_marks(peer_assignment_id,awarded_marks,mark_points_json,feedback_text)
          values($1,$2,$3::jsonb,$4)
          returning awarded_marks,mark_points_json,feedback_text,submitted_at`,
-        [row.peer_assignment_id,input.awardedMarks,JSON.stringify(input.markPointIds),input.feedbackText?.trim()||null],
+        [row.peer_assignment_id,input.awardedMarks,JSON.stringify(input.markPointIds),normalizedFeedback],
       );
       await client.query(`update live_challenge_peer_assignments set status='SUBMITTED',completed_at=now() where id=$1`,[row.peer_assignment_id]);
       await client.query(
@@ -196,7 +210,7 @@ export class LiveChallengePeerMarkingService{
       );
       await client.query('commit');
       const mark=inserted.rows[0];
-      return {challengeId:id,peerAssignmentId:row.peer_assignment_id,awardedMarks:Number(mark.awarded_marks),markPointIds:mark.mark_points_json,feedbackText:mark.feedback_text,submittedAt:mark.submitted_at,immutable:true};
+      return {challengeId:id,peerAssignmentId:row.peer_assignment_id,awardedMarks:Number(mark.awarded_marks),markPointIds:mark.mark_points_json,feedbackText:mark.feedback_text,submittedAt:mark.submitted_at,immutable:true,idempotent:false};
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
