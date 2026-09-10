@@ -6,10 +6,11 @@ import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 const byId = Object.fromEntries(CHAPTER_3_SENSOR_SLIDES.map(slide => [slide.id, slide]));
 
 describe('Hodder Chapter 3 sensors and control source completeness', () => {
-  it('covers printed pp.84–89 with source-specific scenes', () => {
+  it('covers printed pp.84–89 with source-specific scenes inside the complete Chapter 3 build', () => {
     expect(CHAPTER_3_SENSOR_SLIDES).toHaveLength(6);
     expect(CHAPTER_3_SENSOR_SLIDES.flatMap(slide => slide.sourcePages ?? [])).toEqual([84, 85, 86, 87, 88, 89]);
-    expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–89');
+    expect(CHAPTER_3_FINAL.sourceNote).toContain('pp.68–106');
+    expect(CHAPTER_3_FINAL.sourceNote).toContain('complete chapter range');
     expect(CHAPTER_3_FINAL.coverage).toContain('monitoring versus control');
     expect(CHAPTER_3_FINAL.coverage).toContain('Activity 3A');
     expect(CHAPTER_3_FINAL.coverage).toContain('Figure 3.22');
