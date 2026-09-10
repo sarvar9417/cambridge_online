@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "backend/src/database/migrations/0165_live_challenge_foundation.sql"
+MIGRATION = ROOT / "backend/src/database/migrations/0166_live_challenge_foundation.sql"
 
 
 class LiveChallengeFoundationTests(unittest.TestCase):
