@@ -55,7 +55,7 @@ describe('Hodder Chapter 3 exact connected source lock', () => {
     expect(byId['h3-312-inkjet-printer'].sourcePages).toEqual([78]);
     expect(byId['h3-312-inkjet-printer'].sourceElements).toEqual(expect.arrayContaining([
       'Figure 3.10 An inkjet printer',
-      'Table 3.6 inkjet print sequence',
+      'Table 3.6 Sequence to print using a laser printer',
       'thermal bubble',
       'piezoelectric',
       'printer buffer',
