@@ -8,18 +8,20 @@ const challengeId='11111111-1111-4111-8111-111111111111';
 const syllabusId='22222222-2222-4222-8222-222222222222';
 
 describe('LiveChallengeResultsService',()=>{
-  it('returns cumulative totals plus relative LO strengths/review areas and counts a missed round as zero',async()=>{
+  it('returns cumulative totals plus relative LO strengths/review areas and counts a missed eligible round as zero',async()=>{
     const query=vi.fn(async(sql:string,params?:unknown[])=>{
       if(sql.includes('with scored_rounds as')){
         expect(params).toEqual([challengeId,student.id,syllabusId]);
         expect(sql).toContain("compat.relation in('equivalent','subtopic_compatible')");
         expect(sql).toContain('target_t.syllabus_id=$3');
+        expect(sql).toContain('participant.joined_at <= r.locked_at');
         return{rowCount:2,rows:[
           {lo_id:'lo-strong',lo_code:'2.1.1',lo_text:'Explain CPU components',subtopic_code:'2.1',subtopic_title:'CPU architecture',topic_number:2,topic_title:'Processor fundamentals',question_count:1,marks_earned:'3',marks_possible:'4',percentage:'75'},
           {lo_id:'lo-review',lo_code:'2.1.2',lo_text:'Explain register use',subtopic_code:'2.1',subtopic_title:'CPU architecture',topic_number:2,topic_title:'Processor fundamentals',question_count:1,marks_earned:'0',marks_possible:'6',percentage:'0'},
         ]};
       }
       if(!sql.includes("r.status='ROUND_RESULTS'"))throw new Error(`Unexpected SQL: ${sql}`);
+      expect(sql).toContain('p.joined_at <= r.locked_at');
       return{rowCount:2,rows:[
         {challenge_status:'FINISHED',state_version:20,syllabus_id:syllabusId,round_id:'r1',round_number:1,display_ref:'Q1',max_marks_snapshot:4,answer_id:'a1',effective_score:'3',teacher_overridden:true},
         {challenge_status:'FINISHED',state_version:20,syllabus_id:syllabusId,round_id:'r2',round_number:2,display_ref:'Q2',max_marks_snapshot:6,answer_id:null,effective_score:'0',teacher_overridden:false},
@@ -39,12 +41,29 @@ describe('LiveChallengeResultsService',()=>{
     expect(JSON.stringify(result)).not.toContain('answer_text');
   });
 
+  it('excludes rounds that were locked before the student joined from finished history',async()=>{
+    const query=vi.fn(async(sql:string,params:unknown[])=>{
+      expect(sql).toContain('p.joined_at <= r.locked_at');
+      expect(sql).toContain("lc.status='FINISHED'");
+      expect(params).toEqual([student.id,10]);
+      return{rowCount:1,rows:[{
+        id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',teacher_name:'Teacher',
+        syllabus_code:'9618',topic_title:'Processor fundamentals',subtopic_title:'CPU architecture',finished_at:new Date('2026-09-09T18:30:00Z'),
+        round_count:1,total_score:'4',total_max:'4',
+      }]};
+    });
+    const service=new LiveChallengeResultsService({query} as unknown as Pool);
+    const result=await service.history(student);
+    expect(result[0]).toMatchObject({roundCount:1,totalScore:4,totalMax:4,overallPercentage:100});
+  });
+
   it('returns only joined finished challenge history without answer or mark-scheme payloads',async()=>{
     const finishedAt=new Date('2026-09-09T18:30:00Z');
     const query=vi.fn(async(sql:string,params:unknown[])=>{
       expect(sql).toContain("p.status='JOINED'");
       expect(sql).toContain("lc.status='FINISHED'");
       expect(sql).toContain('e.student_id=$1');
+      expect(sql).toContain('p.joined_at <= r.locked_at');
       expect(params).toEqual([student.id,10]);
       return{rowCount:1,rows:[{
         id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',teacher_name:'Teacher',
