@@ -1,6 +1,8 @@
 import type { LessonPresentationBeat, LessonSceneRole } from './lesson-experience-model';
 
 const normalise=(value:string)=>value.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9]+/g,' ').trim();
+const isSourceDetail=(beat:LessonPresentationBeat)=>beat.id.includes('-source-');
+const isEmphasis=(beat:LessonPresentationBeat)=>beat.kind==='emphasis'||beat.id.includes('-emphasis-');
 
 function isLeadOnly(beat:LessonPresentationBeat){
   return beat.kind==='concept'
@@ -77,14 +79,14 @@ function sourceEyebrow(beat:LessonPresentationBeat,topicCode:string){
 }
 
 function polishBeat(beat:LessonPresentationBeat,topicCode:string,index:number):LessonPresentationBeat{
-  if(beat.kind==='emphasis')return {
+  if(isEmphasis(beat))return {
     ...beat,
     sceneRole:inferSceneRole(beat,topicCode,index),
     showSource:false,
     eyebrow:`${topicCode==='overview'?'CHAPTER':topicCode} · KEY WORDING`,
     title:'Key wording to remember',
   };
-  if(beat.kind==='source')return {
+  if(isSourceDetail(beat))return {
     ...beat,
     sceneRole:inferSceneRole(beat,topicCode,index),
     showSource:false,
@@ -128,9 +130,9 @@ function filterEmphasisBeat(beat:LessonPresentationBeat,covered:string){
 export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topicCode:string){
   const merged=mergeLeadOnlyScenes(rawBeats);
   const polished=merged.map((beat,index)=>polishBeat(beat,topicCode,index));
-  const primary=polished.filter(beat=>beat.kind!=='source'&&beat.kind!=='emphasis');
-  const source=polished.filter(beat=>beat.kind==='source');
-  const emphasis=polished.filter(beat=>beat.kind==='emphasis');
+  const primary=polished.filter(beat=>!isSourceDetail(beat)&&!isEmphasis(beat));
+  const source=polished.filter(isSourceDetail);
+  const emphasis=polished.filter(isEmphasis);
 
   let covered=normalise(JSON.stringify(primary));
   const sourceBySlide=new Map<string,LessonPresentationBeat[]>();
