@@ -70,7 +70,7 @@ describe('Chapter 7 authored presentation storyboard',()=>{
   it('keeps validation and verification distinctions source-accurate',()=>{
     const validation=deck('7.5');
     expect(validation.find(scene=>scene.id==='h7p-75-difference')?.keyTerms?.map(item=>item.term)).toEqual(['Validation','Verification']);
-    expect(validation.find(scene=>scene.id==='h7p-75-range-code')?.example?.lines?.join(' ')).toContain('0 to 100 inclusive');
+    expect(validation.find(scene=>scene.id==='h7p-75-range-code')?.example?.lines?.join(' ')).toContain('range 0 to 100');
     expect(validation.find(scene=>scene.id==='h7p-75-type-presence')?.example?.lines?.join(' ')).toContain('DIV(NumberOfBrothers, 1)');
     expect(validation.find(scene=>scene.id==='h7p-75-format-checkdigit')?.bullets?.join(' ')).toContain('data-entry');
     expect(validation.find(scene=>scene.id==='h7p-75-verification')?.keyTerms?.map(item=>item.term)).toEqual(['Double entry','Screen/visual check']);
