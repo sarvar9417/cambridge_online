@@ -13,6 +13,9 @@ const OPENABLE=new Set<LiveChallengeStudentCard['status']>(['PUBLISHED','LOBBY',
 export function studentCanOpenLiveChallenge(item:Pick<LiveChallengeStudentCard,'status'|'participantStatus'>){
   return item.participantStatus==='JOINED'&&OPENABLE.has(item.status);
 }
+export function studentCanSubmitLiveChallengeAnswer(input:{status:LiveChallengeState['status'];hasAnswer:boolean;hasQuestion:boolean;structuredPresent:boolean;structuredReady:boolean}){
+  return input.status==='QUESTION_ACTIVE'&&!input.hasAnswer&&input.hasQuestion&&(!input.structuredPresent||input.structuredReady);
+}
 type OwnAnswerState={challengeId:string;challengeStatus:string;stateVersion:number;roundId:string|null;roundNumber:number|null;roundStatus:string|null;answer:{id:string;text:string;submittedAt:string;lockedAt:string|null;submissionDurationMs:number|null}|null};
 type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null};
 type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
@@ -136,12 +139,14 @@ function ActiveRound({state,answer,peer,result,loading,onSubmit,onPeerMark,onRef
   const[draft,setDraft]=useState(answer?.text??'');
   useEffect(()=>{setDraft(answer?.text??'')},[state.round?.id,answer?.id]);
   const structured=question?.contentJson??null;
+  const structuredPresent=structured!==null;
   const structuredReady=Boolean(structured&&question?.contentVersion===1&&structuredQuestionUsable(structured)&&structuredQuestionAssetsReady(structured,question.assetUrls??{}));
-  const canAnswer=state.status==='QUESTION_ACTIVE'&&!answer&&Boolean(question);
+  const sourceContentBlocked=structuredPresent&&!structuredReady;
+  const canAnswer=studentCanSubmitLiveChallengeAnswer({status:state.status,hasAnswer:Boolean(answer),hasQuestion:Boolean(question),structuredPresent,structuredReady});
   return <section className="slc-round" aria-live="polite">
     <header><div><span>LIVE ROUND {state.round?.number??''}</span><h3>{state.title}</h3><small>{state.status.replaceAll('_',' ')}</small></div><div><button type="button" className="slc-secondary" disabled={loading} onClick={()=>void onRefresh()}>{loading?'…':'Yangilash'}</button><button type="button" className="slc-secondary" onClick={onClose}>Yopish</button></div></header>
     {question?<div className="slc-question"><div className="slc-question-meta"><strong>{question.displayRef}</strong>{question.commandWord?<span>{question.commandWord}</span>:null}<b>{question.marks} ball</b></div>{structuredReady&&structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:structured?<StructuredQuestionView content={structured} assetUrls={question.assetUrls}/>:<>{question.contextMd?<AttemptContext value={question.contextMd}/>:null}<p className="slc-stem">{question.stemMd}</p></>}</div>:<p className="slc-empty">O‘qituvchi savolni ochishini kuting.</p>}
-    {question?<section className={`slc-answer${answer?' is-submitted':''}`}><div><strong>{answer?'Javob topshirildi':'Javobingiz'}</strong>{answer?<small>{new Date(answer.submittedAt).toLocaleTimeString()} · o‘zgartirib bo‘lmaydi</small>:<small>Topshirgandan keyin javob o‘zgarmaydi</small>}</div><textarea disabled={!canAnswer||loading} value={draft} onChange={event=>setDraft(event.target.value)} placeholder={canAnswer?'Javobingizni yozing…':answer?'Topshirilgan javob':'Javob qabul qilish yopilgan.'}/>{canAnswer?<button type="button" disabled={loading||draft.trim().length===0} onClick={()=>void onSubmit(draft)}>{loading?'Yuborilmoqda…':'Javobni topshirish'}</button>:null}</section>:null}
+    {question?<section className={`slc-answer${answer?' is-submitted':''}`}><div><strong>{answer?'Javob topshirildi':'Javobingiz'}</strong>{answer?<small>{new Date(answer.submittedAt).toLocaleTimeString()} · o‘zgartirib bo‘lmaydi</small>:sourceContentBlocked?<small>Source-backed savol to‘liq yuklanmaguncha javob bloklangan</small>:<small>Topshirgandan keyin javob o‘zgarmaydi</small>}</div><textarea disabled={!canAnswer||loading} value={draft} onChange={event=>setDraft(event.target.value)} placeholder={sourceContentBlocked?'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.':canAnswer?'Javobingizni yozing…':answer?'Topshirilgan javob':'Javob qabul qilish yopilgan.'}/>{canAnswer?<button type="button" disabled={loading||draft.trim().length===0} onClick={()=>void onSubmit(draft)}>{loading?'Yuborilmoqda…':'Javobni topshirish'}</button>:null}</section>:null}
     {answer&&state.status==='QUESTION_ACTIVE'?<p className="slc-round-note">Javob qabul qilindi. O‘qituvchi roundni yopishini kuting.</p>:null}
     {state.status==='ANSWERS_LOCKED'?<p className="slc-round-note">Barcha ochiq javoblar qulflandi. Peer marking boshlanishini kuting.</p>:null}
     {state.status==='PEER_MARKING'?<PeerMarkingPanel peer={peer} loading={loading} onSubmit={onPeerMark}/>:null}
