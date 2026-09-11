@@ -8,11 +8,9 @@ import {
 } from './live-challenge-domain.js';
 import { DomainError } from './assignments-service.js';
 
-const ACTIVE_STATES = ['PUBLISHED','LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS','PAUSED'] as const;
-
 function joinable(status:string,settings:unknown){
   if(status==='PUBLISHED'||status==='LOBBY')return true;
-  if(!ACTIVE_STATES.includes(status as typeof ACTIVE_STATES[number]))return false;
+  if(status!=='QUESTION_ACTIVE')return false;
   if(!settings||typeof settings!=='object'||Array.isArray(settings))return false;
   return (settings as Record<string,unknown>).allow_late_join===true;
 }
