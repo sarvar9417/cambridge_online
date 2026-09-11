@@ -25,7 +25,7 @@ describe('Chapter 2.1 classroom presentation',()=>{
     expect(ids.indexOf('h2n-l1-recap')).toBeLessThan(ids.indexOf('h2n-l2-cover'));
     expect(ids.indexOf('h2n-l2-recap')).toBeLessThan(ids.indexOf('h2n-l3-cover'));
     expect(ids.indexOf('h2n-l3-recap')).toBeLessThan(ids.indexOf('h2n-l4-cover'));
-    expect(ids.indexOf('h2n-l4-recap')).toBeLessThan(ids.indexOf('h2n-reference-appendix'));
+    expect(ids).not.toContain('h2n-reference-appendix');
     expect(ids.indexOf('h2n-l3-starter')).toBeLessThan(beats.findIndex(beat=>beat.slideId==='h2-216-wnic'));
     expect(beats.findIndex(beat=>beat.slideId==='h2-216-softmodem')).toBeLessThan(ids.indexOf('h2n-l3-recap'));
   });
@@ -38,6 +38,15 @@ describe('Chapter 2.1 classroom presentation',()=>{
     const sessionCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter2-presentation-visuals.css'),'utf8');
     expect(sessionCss).toContain('@keyframes h2pvPacketJourney');
     expect(sessionCss).toContain('prefers-reduced-motion');
+  });
+
+  it('keeps source detail inside the teaching flow instead of a technical appendix',()=>{
+    expect(ids).not.toContain('h2n-reference-appendix');
+    expect(beats.every(beat=>Boolean(beat.sceneRole))).toBe(true);
+    expect(beats.every(beat=>beat.showSource===false)).toBe(true);
+    const visible=JSON.stringify(beats);
+    expect(visible).not.toContain('COURSEBOOK · EMPHASISED CONTENT');
+    expect(visible).not.toContain('Important emphasised coursebook concepts');
   });
 
   it('contains no Uzbek learner-facing wording',()=>{
