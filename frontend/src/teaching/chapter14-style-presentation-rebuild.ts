@@ -202,14 +202,13 @@ function groupBySlide(beats:LessonPresentationBeat[]) {
 function rebuildSlideGroup(
   group:{slideId:string;beats:LessonPresentationBeat[]},
   chapter:RebuiltPresentationChapter,
-  serial:{value:number},
+  nextId:()=>string,
 ) {
   const result:LessonPresentationBeat[]=[];
   const beats=filterAlreadyCovered(group.beats);
   const foundation=beats.filter(beat=>
     !beat.richBlock&&!beat.example&&!beat.activity&&!beat.prompt&&!beat.formula&&beat.kind!=='source'&&beat.kind!=='emphasis',
   );
-  const nextId=()=>`c14r-${chapter}-${++serial.value}`;
   result.push(...foundationScenes(foundation,chapter,nextId));
 
   // Preserve source order. Chapter 14's strength comes from conceptual
@@ -307,7 +306,9 @@ export function rebuildChapter14StylePresentation(
   chapter:RebuiltPresentationChapter,
 ) {
   const serial={value:0};
-  const scenes=groupBySlide(sourceBeats).flatMap(group=>rebuildSlideGroup(group,chapter,serial));
+  const safeTopic=topicCode.replace(/[^0-9a-z]+/gi,'-');
+  const nextId=()=>`c14r-${chapter}-${safeTopic}-${++serial.value}`;
+  const scenes=groupBySlide(sourceBeats).flatMap(group=>rebuildSlideGroup(group,chapter,nextId));
   return ensureTopicArc(scenes,chapter,topicCode);
 }
 
