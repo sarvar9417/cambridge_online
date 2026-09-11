@@ -56,7 +56,12 @@ const sendAuthError = (res: Response, error: unknown) => {
 export function createAuthRouter(auth: AuthService) {
   const router = Router();
 
-  router.post('/login', rateLimit({windowMs:15*60_000,max:5,key:req=>`login:${req.ip}:${String(req.body?.identifier).toLowerCase()}`}), validateBody(loginSchema), async (req, res) => {
+  router.post('/login', rateLimit({
+    windowMs: 15 * 60_000,
+    max: 5,
+    key: req => `login:${req.ip}:${String(req.body?.identifier).toLowerCase()}`,
+    refundOnServerError: true,
+  }), validateBody(loginSchema), async (req, res) => {
     try {
       const session = await auth.login(req.body);
       setRefreshCookie(res, session);
