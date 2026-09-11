@@ -30,7 +30,8 @@ export class LiveChallengeResultsService{
        join syllabi s on s.id=lc.syllabus_id
        left join topics t on t.id=lc.topic_id
        left join subtopics st on st.id=lc.subtopic_id
-       join live_challenge_rounds r on r.challenge_id=lc.id and r.status='ROUND_RESULTS'
+       join live_challenge_rounds r
+         on r.challenge_id=lc.id and r.status='ROUND_RESULTS' and p.joined_at <= r.locked_at
        join live_challenge_questions lcq on lcq.id=r.challenge_question_id
        left join live_challenge_answers a on a.round_id=r.id and a.student_id=$1
        where lc.status='FINISHED'
@@ -69,7 +70,8 @@ export class LiveChallengeResultsService{
        join classes c on c.id=lc.class_id and c.archived_at is null
        join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
        join live_challenge_participants p on p.challenge_id=lc.id and p.student_id=$2 and p.status='JOINED'
-       join live_challenge_rounds r on r.challenge_id=lc.id and r.status='ROUND_RESULTS'
+       join live_challenge_rounds r
+         on r.challenge_id=lc.id and r.status='ROUND_RESULTS' and p.joined_at <= r.locked_at
        join live_challenge_questions lcq on lcq.id=r.challenge_question_id
        join questions q on q.id=lcq.question_id
        left join live_challenge_answers a on a.round_id=r.id and a.student_id=$2
@@ -109,7 +111,8 @@ export class LiveChallengeResultsService{
          join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
          join live_challenge_participants participant
            on participant.challenge_id=lc.id and participant.student_id=$2 and participant.status='JOINED'
-         join live_challenge_rounds r on r.challenge_id=lc.id and r.status='ROUND_RESULTS'
+         join live_challenge_rounds r
+           on r.challenge_id=lc.id and r.status='ROUND_RESULTS' and participant.joined_at <= r.locked_at
          join live_challenge_questions lcq on lcq.id=r.challenge_question_id
          left join live_challenge_answers a on a.round_id=r.id and a.student_id=$2
          where lc.id=$1 and lc.status in ('ROUND_RESULTS','FINISHED')
