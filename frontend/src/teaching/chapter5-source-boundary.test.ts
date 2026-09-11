@@ -16,6 +16,15 @@ describe('9618 Hodder Chapter 5 exact-source boundary', () => {
     expect(CHAPTER_5_DRAFT.coverage).toContain('Source-complete through p.141');
   });
 
+  it('records the connected-source audit without treating adjacent sources as Hodder evidence', () => {
+    expect(CHAPTER_5_SOURCE_BOUNDARY.connectedSourceAudit).toEqual({
+      status: 'exact-pages-not-resolved',
+      requiredPrintedPages: [142, 158],
+      searchedLocations: ['ChatGPT Library', 'Google Drive mount'],
+      rule: 'Do not promote syllabus/work-plan/0478 material to 9618 Hodder coursebook evidence.',
+    });
+  });
+
   it('allows the syllabus only as a scope cross-check, never as Hodder page content', () => {
     expect(CHAPTER_5_SOURCE_BOUNDARY.fallbackPolicy).toBe('scope-only-never-coursebook-content');
     expect(CHAPTER_5_SOURCE_BOUNDARY.syllabusScopeCrossCheck.operatingSystemManagement).toEqual([
