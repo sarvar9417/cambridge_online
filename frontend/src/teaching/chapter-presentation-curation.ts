@@ -4,39 +4,58 @@ const normalise=(value:string)=>value.toLowerCase().replace(/[’‘]/g,"'").rep
 const isSourceDetail=(beat:LessonPresentationBeat)=>beat.id.includes('-source-');
 const isEmphasis=(beat:LessonPresentationBeat)=>beat.kind==='emphasis'||beat.id.includes('-emphasis-');
 
-function isLeadOnly(beat:LessonPresentationBeat){
-  return beat.kind==='concept'
-    && Boolean(beat.lead)
-    && !beat.bullets
-    && !beat.keyTerms
-    && !beat.formula
+function isFoundationBeat(beat:LessonPresentationBeat){
+  return beat.id.startsWith(`${beat.slideId}-`)
+    && !isSourceDetail(beat)
+    && !isEmphasis(beat)
     && !beat.richBlock
     && !beat.example
     && !beat.activity
-    && !beat.prompt;
+    && !beat.prompt
+    && (beat.kind==='concept'||beat.kind==='key-idea'||beat.kind==='definition'||beat.kind==='visual');
 }
 
-function mergeLeadOnlyScenes(beats:LessonPresentationBeat[]){
+function canMergeFoundation(left:LessonPresentationBeat,right:LessonPresentationBeat){
+  if(left.slideId!==right.slideId||!isFoundationBeat(left)||!isFoundationBeat(right))return false;
+  if(normalise(left.title)!==normalise(right.title))return false;
+  const bullets=[...(left.bullets??[]),...(right.bullets??[])];
+  const keyTerms=[...(left.keyTerms??[]),...(right.keyTerms??[])];
+  const lead=[left.lead,right.lead].filter(Boolean).join(' ');
+  const formulas=[left.formula,right.formula].filter((item):item is string=>Boolean(item));
+  if(bullets.length>4||keyTerms.length>2||lead.length>620)return false;
+  if(formulas.length>1&&new Set(formulas.map(normalise)).size>1)return false;
+  return true;
+}
+
+/**
+ * Chapter 14 rarely projects a lonely sentence and then makes the class click
+ * again for the closely-related bullets/term. Do the same for the other source
+ * chapters: combine the compact foundation fragments that belong to one source
+ * slide, while keeping worked examples, diagrams, tables and activities as
+ * deliberate standalone teaching scenes.
+ */
+function mergeFoundationScenes(beats:LessonPresentationBeat[]){
   const result:LessonPresentationBeat[]=[];
-  let index=0;
-  while(index<beats.length){
-    const beat=beats[index]!;
-    if(!isLeadOnly(beat)){result.push(beat);index+=1;continue;}
-    const slideId=beat.slideId;
-    const leads:string[]=[];
-    let cursor=index;
-    while(cursor<beats.length&&beats[cursor]!.slideId===slideId&&isLeadOnly(beats[cursor]!)){
-      leads.push(beats[cursor]!.lead!);
-      cursor+=1;
-    }
-    const next=beats[cursor];
-    if(next&&next.slideId===slideId&&!isLeadOnly(next)){
-      result.push({...next,lead:next.lead?[...leads,next.lead].join(' '):leads.join(' ')});
-      index=cursor+1;
+  for(const beat of beats){
+    const previous=result.at(-1);
+    if(!previous||!canMergeFoundation(previous,beat)){
+      result.push(beat);
       continue;
     }
-    result.push({...beat,lead:leads.join(' ')});
-    index=cursor;
+    const bullets=[...(previous.bullets??[]),...(beat.bullets??[])];
+    const keyTerms=[...(previous.keyTerms??[]),...(beat.keyTerms??[])];
+    const lead=[previous.lead,beat.lead].filter(Boolean).join(' ');
+    const sourcePages=[...new Set([...previous.sourcePages,...beat.sourcePages])];
+    result[result.length-1]={
+      ...previous,
+      kind:previous.kind==='visual'||beat.kind==='visual'?'visual':previous.kind==='definition'&&beat.kind==='definition'?'definition':'key-idea',
+      sourcePages,
+      lead:lead||undefined,
+      bullets:bullets.length?bullets:undefined,
+      keyTerms:keyTerms.length?keyTerms:undefined,
+      formula:previous.formula??beat.formula,
+      visual:previous.visual??beat.visual,
+    };
   }
   return result;
 }
@@ -94,60 +113,128 @@ function polishBeat(beat:LessonPresentationBeat,topicCode:string,index:number):L
     showSource:false,
     eyebrow:sourceEyebrow(beat,topicCode),
     title:cleanSourceTitle(beat.title)||'Important detail',
-    lead:undefined,
   };
   return {...beat,sceneRole:inferSceneRole(beat,topicCode,index),showSource:false};
 }
 
-function filterSourceBeat(beat:LessonPresentationBeat,covered:string){
-  if(beat.richBlock?.kind!=='bullets')return {beat,covered};
-  const items=beat.richBlock.items.filter(item=>{
-    const key=normalise(item);
-    return key&&!covered.includes(key);
-  });
-  if(!items.length)return {beat:null,covered};
-  const next={...beat,richBlock:{...beat.richBlock,items}} satisfies LessonPresentationBeat;
-  return {beat:next,covered:`${covered} ${normalise(JSON.stringify(next))}`};
+function addNormalised(target:Set<string>,value:string|undefined){
+  if(!value)return;
+  const key=normalise(value);
+  if(key)target.add(key);
 }
 
-function filterEmphasisBeat(beat:LessonPresentationBeat,covered:string){
-  if(!beat.keyTerms?.length)return {beat,covered};
+function addRichBlockStrings(target:Set<string>,beat:LessonPresentationBeat){
+  const block=beat.richBlock;
+  if(!block)return;
+  if(block.kind==='paragraph')addNormalised(target,block.text);
+  else if(block.kind==='bullets'||block.kind==='steps')block.items.forEach(item=>addNormalised(target,item));
+  else if(block.kind==='code')block.lines.forEach(item=>addNormalised(target,item));
+  else if(block.kind==='callout'){
+    addNormalised(target,block.title);
+    addNormalised(target,block.text);
+  }else if(block.kind==='comparison'){
+    addNormalised(target,block.leftTitle);
+    addNormalised(target,block.rightTitle);
+    block.rows.flat().forEach(item=>addNormalised(target,item));
+  }else if(block.kind==='table'){
+    addNormalised(target,block.table.caption);
+    block.table.headers.forEach(item=>addNormalised(target,item));
+    block.table.rows.flat().forEach(item=>addNormalised(target,item));
+  }else if(block.kind==='source-note'){
+    addNormalised(target,block.title);
+    addNormalised(target,block.sourceText);
+    addNormalised(target,block.examSafeText);
+  }else if(block.kind==='figure'){
+    addNormalised(target,block.figure.title);
+    addNormalised(target,block.figure.caption);
+    if(block.figure.kind==='sequence')block.figure.items.forEach(item=>{addNormalised(target,item.label);addNormalised(target,item.note);});
+    else if(block.figure.kind==='bitfield')block.figure.fields.forEach(item=>{addNormalised(target,item.label);addNormalised(target,item.bits);addNormalised(target,item.detail);});
+    else if(block.figure.kind==='pixel-scale')block.figure.stages.forEach(item=>{addNormalised(target,item.label);addNormalised(target,item.note);});
+    else if(block.figure.kind==='grid')block.figure.legend?.forEach(item=>addNormalised(target,item.label));
+    else block.figure.series.forEach(item=>addNormalised(target,item.label));
+  }
+}
+
+/**
+ * De-duplicate only exact projected statements. The previous substring test
+ * could remove a longer source explanation merely because a short phrase from
+ * it already appeared on a concept slide. That made the non-Chapter-14 decks
+ * visibly thinner than Chapter 14 even though the source evidence existed.
+ */
+function exactContentCoverage(beats:LessonPresentationBeat[]){
+  const covered=new Set<string>();
+  for(const beat of beats){
+    addNormalised(covered,beat.lead);
+    beat.bullets?.forEach(item=>addNormalised(covered,item));
+    beat.keyTerms?.forEach(item=>{addNormalised(covered,item.term);addNormalised(covered,item.definition);});
+    addNormalised(covered,beat.formula);
+    addRichBlockStrings(covered,beat);
+    if(beat.example){
+      addNormalised(covered,beat.example.title);
+      beat.example.lines.forEach(item=>addNormalised(covered,item));
+      addNormalised(covered,beat.example.answer);
+    }
+    addNormalised(covered,beat.prompt);
+    if(beat.activity){
+      addNormalised(covered,beat.activity.title);
+      addNormalised(covered,beat.activity.prompt);
+      addNormalised(covered,beat.activity.reveal);
+    }
+  }
+  return covered;
+}
+
+function filterSourceBeat(beat:LessonPresentationBeat,covered:Set<string>){
+  if(beat.richBlock?.kind!=='bullets')return beat;
+  const items=beat.richBlock.items.filter(item=>{
+    const key=normalise(item);
+    if(!key||covered.has(key))return false;
+    covered.add(key);
+    return true;
+  });
+  if(!items.length)return null;
+  return {...beat,richBlock:{...beat.richBlock,items}} satisfies LessonPresentationBeat;
+}
+
+function filterEmphasisBeat(beat:LessonPresentationBeat,covered:Set<string>){
+  if(!beat.keyTerms?.length)return beat;
   const keyTerms=beat.keyTerms.filter(item=>{
     const term=normalise(item.term);
     const definition=normalise(item.definition);
-    return !(term&&definition&&covered.includes(term)&&covered.includes(definition));
+    if(term&&definition&&covered.has(term)&&covered.has(definition))return false;
+    if(term)covered.add(term);
+    if(definition)covered.add(definition);
+    return true;
   });
-  if(!keyTerms.length)return {beat:null,covered};
-  const next={...beat,keyTerms} satisfies LessonPresentationBeat;
-  return {beat:next,covered:`${covered} ${normalise(JSON.stringify(next))}`};
+  if(!keyTerms.length)return null;
+  return {...beat,keyTerms} satisfies LessonPresentationBeat;
 }
 
 /**
  * Applies the classroom presentation contract used by Chapter 14 to the other
- * source-backed chapters without changing their academic content. Core teaching
- * stays in source order; source-fidelity details are de-duplicated and placed
- * beside the slide they belong to instead of being dumped into a technical
- * appendix. Every screen receives a scene role and hides source-audit chrome.
+ * source-backed chapters without changing academic content. Closely-related
+ * foundation fragments are combined into richer teaching screens; exact source
+ * details stay beside the concept/diagram they support; only exact duplicate
+ * statements are removed; and technical source-audit chrome stays hidden.
  */
 export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topicCode:string){
-  const merged=mergeLeadOnlyScenes(rawBeats);
+  const merged=mergeFoundationScenes(rawBeats);
   const polished=merged.map((beat,index)=>polishBeat(beat,topicCode,index));
   const primary=polished.filter(beat=>!isSourceDetail(beat)&&!isEmphasis(beat));
   const source=polished.filter(isSourceDetail);
   const emphasis=polished.filter(isEmphasis);
 
-  let covered=normalise(JSON.stringify(primary));
+  const covered=exactContentCoverage(primary);
   const sourceBySlide=new Map<string,LessonPresentationBeat[]>();
   const unplaced:LessonPresentationBeat[]=[];
   const primaryIds=new Set(primary.map(beat=>beat.slideId));
   for(const candidate of source){
     const filtered=filterSourceBeat(candidate,covered);
-    covered=filtered.covered;
-    if(!filtered.beat)continue;
-    if(!primaryIds.has(filtered.beat.slideId)){unplaced.push(filtered.beat);continue;}
-    const group=sourceBySlide.get(filtered.beat.slideId)??[];
-    group.push(filtered.beat);
-    sourceBySlide.set(filtered.beat.slideId,group);
+    if(!filtered)continue;
+    if(!primaryIds.has(filtered.slideId)){unplaced.push(filtered);continue;}
+    const group=sourceBySlide.get(filtered.slideId)??[];
+    group.push(filtered);
+    sourceBySlide.set(filtered.slideId,group);
   }
 
   const lastPrimaryIndex=new Map<string,number>();
@@ -159,11 +246,10 @@ export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topi
   });
   result.push(...unplaced);
 
-  covered=normalise(JSON.stringify(result));
+  const visibleCoverage=exactContentCoverage(result);
   for(const candidate of emphasis){
-    const filtered=filterEmphasisBeat(candidate,covered);
-    covered=filtered.covered;
-    if(filtered.beat)result.push(filtered.beat);
+    const filtered=filterEmphasisBeat(candidate,visibleCoverage);
+    if(filtered)result.push(filtered);
   }
   return result;
 }

@@ -68,15 +68,18 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
 
   it('lets the Chapter 14 renderer own projector content without duplicate generic blocks',()=>{
     expect(lessonContent).toContain("const chapter14Owned=v4Visual&&beat.id.startsWith('h14p-')");
+    expect(lessonContent).toContain('const v4OwnsStructuredContent=v4Visual&&presentationVisualOwnsBeatContent(beat)');
+    expect(facade).toContain('return hasChapter14PresentationRuntime(beat)||hasChapter1PresentationVisual(beat)||hasChapter13PresentationVisual(beat)');
     for(const marker of [
       '!chapter14Owned&&beat.lead',
-      '!chapter14Owned&&beat.formula',
-      '!chapter14Owned&&beat.bullets',
-      '!chapter14Owned&&beat.keyTerms',
-      '!chapter14Owned&&beat.example',
+      '!chapter14Owned&&!v4OwnsStructuredContent&&beat.formula',
+      '!chapter14Owned&&!v4OwnsStructuredContent&&beat.bullets',
+      '!chapter14Owned&&!v4OwnsStructuredContent&&beat.keyTerms',
+      '!chapter14Owned&&!v4OwnsStructuredContent&&beat.example',
       '!chapter14Owned&&beat.prompt',
       '!chapter14Owned&&beat.activity',
     ])expect(lessonContent).toContain(marker);
+    expect(lessonContent).toContain("beat.richBlock&&(!customVisual||(v4Visual&&!v4OwnsStructuredContent))");
   });
 
   it('keeps deterministic scene navigation separate from overflow scroll safety',()=>{
