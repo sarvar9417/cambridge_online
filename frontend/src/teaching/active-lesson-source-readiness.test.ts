@@ -5,7 +5,7 @@ import { canBuildSourceGroundedHodderChapter } from './hodder-source-readiness';
 
 describe('active Hodder lesson source readiness', () => {
   it('exposes only 9618 chapters whose exact Hodder source is centrally locked', () => {
-    expect(LESSON_CHAPTERS.map(chapter => chapter.number)).toEqual([1, 2, 3, 13, 14]);
+    expect(LESSON_CHAPTERS.map(chapter => chapter.number)).toEqual([1, 2, 3, 4, 13, 14]);
     LESSON_CHAPTERS.forEach(chapter => expect(canBuildSourceGroundedHodderChapter('9618', chapter.number)).toBe(true));
   });
 
