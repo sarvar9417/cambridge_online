@@ -29,6 +29,14 @@ describe('Lesson Experience fullscreen controls',()=>{
     expect(controller).toContain("window.addEventListener('keydown',onKeyDown,true)");
   });
 
+  it('does not create a mutation-observer feedback loop while lesson content changes',()=>{
+    const controller=source('lesson-fullscreen-controls.ts');
+    expect(controller).toContain('if(root?.isConnected&&button?.isConnected)return;');
+    expect(controller).toContain("if(label&&label.textContent!==labelText)label.textContent=labelText;");
+    expect(controller).toContain("if(icon&&icon.textContent!==iconText)icon.textContent=iconText;");
+    expect(controller).not.toContain('const observer=new MutationObserver(ensureButton);');
+  });
+
   it('provides fullscreen layout hardening for Study, Presentation and Past Papers',()=>{
     const css=source('lesson-fullscreen-controls.css');
     expect(css).toContain('.lesson-experience:fullscreen');
