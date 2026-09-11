@@ -56,6 +56,35 @@ describe('LiveChallengeSessionService',()=>{
     expect(clientQuery).toHaveBeenCalledWith('commit');
   });
 
+  it('allows late join only while the answer window is actively open',async()=>{
+    const clientQuery=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('from live_challenges lc'))return{rowCount:1,rows:[{id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'QUESTION_ACTIVE',settings_json:{allow_late_join:true},started_at:new Date(),join_code:'ABC234',teacher_name:'Teacher'}]};
+      if(sql.includes('select status::text status from live_challenge_participants'))return{rowCount:0,rows:[]};
+      if(sql.includes('insert into live_challenge_participants'))return{rowCount:1,rows:[]};
+      if(sql.includes("'participant.joined'"))return{rowCount:1,rows:[]};
+      if(sql.includes('select count(*)::int joined_count'))return{rowCount:1,rows:[{joined_count:4}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client={query:clientQuery,release:vi.fn()} as unknown as PoolClient;
+    const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    await expect(service.join(student,'ABC234')).resolves.toMatchObject({status:'QUESTION_ACTIVE',joined:true,joinedCount:4});
+    expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_participants'))).toBe(true);
+  });
+
+  it('closes late join after answers lock even when the setting is enabled',async()=>{
+    const clientQuery=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('from live_challenges lc'))return{rowCount:1,rows:[{id:challengeId,title:'CPU Live',class_id:'class-1',class_name:'11-A',status:'PEER_MARKING',settings_json:{allow_late_join:true},started_at:new Date(),join_code:'ABC234',teacher_name:'Teacher'}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const client={query:clientQuery,release:vi.fn()} as unknown as PoolClient;
+    const service=new LiveChallengeSessionService({connect:vi.fn().mockResolvedValue(client)} as unknown as Pool);
+    await expect(service.join(student,'ABC234')).rejects.toMatchObject({code:'live_challenge_join_closed',status:409});
+    expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_participants'))).toBe(false);
+    expect(clientQuery).toHaveBeenCalledWith('rollback');
+  });
+
   it('blocks staff from the student join action before any database read',async()=>{
     const connect=vi.fn();
     const service=new LiveChallengeSessionService({connect} as unknown as Pool);
