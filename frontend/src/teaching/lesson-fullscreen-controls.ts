@@ -16,13 +16,15 @@ export function installLessonFullscreenControls(){
   const updateButton=()=>{
     if(!button||!root)return;
     const active=document.fullscreenElement===root;
-    button.setAttribute('aria-pressed',String(active));
-    button.setAttribute('aria-label',active?'Exit full screen':'Full screen');
-    button.title=active?'Exit full screen':'Full screen';
+    const labelText=active?'Exit full screen':'Full screen';
+    const iconText=active?'↙':'⛶';
+    if(button.getAttribute('aria-pressed')!==String(active))button.setAttribute('aria-pressed',String(active));
+    if(button.getAttribute('aria-label')!==labelText)button.setAttribute('aria-label',labelText);
+    if(button.title!==labelText)button.title=labelText;
     const label=button.querySelector<HTMLElement>('.lesson-fullscreen-label');
     const icon=button.querySelector<HTMLElement>('.lesson-fullscreen-icon');
-    if(label)label.textContent=active?'Exit full screen':'Full screen';
-    if(icon)icon.textContent=active?'↙':'⛶';
+    if(label&&label.textContent!==labelText)label.textContent=labelText;
+    if(icon&&icon.textContent!==iconText)icon.textContent=iconText;
   };
 
   const toggleFullscreen=async()=>{
@@ -43,6 +45,7 @@ export function installLessonFullscreenControls(){
     const nextRoot=document.querySelector<HTMLElement>(ROOT_SELECTOR);
     if(root!==nextRoot){
       root?.classList.remove(ENABLED_CLASS);
+      button?.removeEventListener('click',toggleFullscreen);
       button?.remove();
       button=null;
       root=nextRoot;
@@ -76,7 +79,14 @@ export function installLessonFullscreenControls(){
     event.stopImmediatePropagation();
   };
 
-  const observer=new MutationObserver(ensureButton);
+  const observer=new MutationObserver(()=>{
+    if(disposed)return;
+    // Lesson content can mutate frequently (answers, reveal steps, filters). Do
+    // not re-run the fullscreen installer for those mutations. We only need to
+    // recover when React replaced the LessonExperience root or our button.
+    if(root?.isConnected&&button?.isConnected)return;
+    ensureButton();
+  });
   observer.observe(document.body,{childList:true,subtree:true});
   document.addEventListener('fullscreenchange',onFullscreenChange);
   window.addEventListener('keydown',onKeyDown,true);
