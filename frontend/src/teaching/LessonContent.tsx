@@ -8,9 +8,14 @@ import {
 } from './lesson-experience-model';
 import { Chapter14PresentationVisual, hasChapter14PresentationVisual } from './Chapter14PresentationVisuals';
 import { Chapter14PresentationVisualV3, hasChapter14PresentationVisualV3 } from './Chapter14PresentationVisualsV3';
-import { Chapter14PresentationVisualV4, hasChapter14PresentationVisualV4 } from './Chapter14PresentationVisualsV4';
+import {
+  Chapter14PresentationVisualV4,
+  hasChapter14PresentationVisualV4,
+  presentationVisualOwnsBeatContent,
+} from './Chapter14PresentationVisualsV4';
 import { chapter14PresentationRevealCount } from './chapter14-presentation-runtime';
 import './chapter14-presentation-prototype.css';
+import './chapter-presentation-richness.css';
 
 const VISUAL_LABELS:Record<LessonVisual,string[]> = {
   binary:['1','0','1','1','0','0','1','0'],
@@ -105,23 +110,30 @@ export function LessonStudySlide({sourceSlide,pageTitle}:{sourceSlide:HodderLess
   </article>;
 }
 
-export function revealCountForBeat(beat:LessonPresentationBeat) {
-  const chapter14Count=chapter14PresentationRevealCount(beat);
-  if(chapter14Count!==null)return chapter14Count;
-  if(beat.bullets)return beat.bullets.length;
-  if(beat.keyTerms)return beat.keyTerms.length;
-  if(beat.example)return beat.example.lines.length+(beat.example.answer?1:0);
-  if(beat.activity?.reveal)return 1;
-  const block=beat.richBlock;
-  if(block?.kind==='bullets'||block?.kind==='steps')return block.items.length;
-  if(block?.kind==='comparison')return block.rows.length;
-  if(block?.kind==='table')return block.table.rows.length;
-  if(block?.kind==='figure'){
+function revealCountForRichBlock(block:LessonRichBlock|undefined){
+  if(!block)return 0;
+  if(block.kind==='bullets'||block.kind==='steps')return block.items.length;
+  if(block.kind==='comparison')return block.rows.length;
+  if(block.kind==='table')return block.table.rows.length;
+  if(block.kind==='code')return block.lines.length;
+  if(block.kind==='figure'){
     if(block.figure.kind==='sequence')return block.figure.items.length;
     if(block.figure.kind==='bitfield')return block.figure.fields.length;
     if(block.figure.kind==='pixel-scale')return block.figure.stages.length;
   }
   return 0;
+}
+
+export function revealCountForBeat(beat:LessonPresentationBeat) {
+  const chapter14Count=chapter14PresentationRevealCount(beat);
+  if(chapter14Count!==null)return chapter14Count;
+  return Math.max(
+    beat.bullets?.length??0,
+    beat.keyTerms?.length??0,
+    beat.example?beat.example.lines.length+(beat.example.answer?1:0):0,
+    beat.activity?.reveal?1:0,
+    revealCountForRichBlock(beat.richBlock),
+  );
 }
 
 const beatLabel:Record<LessonPresentationBeat['kind'],string> = {
@@ -156,17 +168,27 @@ export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationB
   const legacyVisual=!v4Visual&&!v3Visual&&hasChapter14PresentationVisual(beat);
   const customVisual=v4Visual||v3Visual||legacyVisual;
   const chapter14Owned=v4Visual&&beat.id.startsWith('h14p-');
-  return <article className={`lx-present-screen lx-present-screen--${beat.kind} lx-present-screen--scene-${role}`} aria-live="polite">
+  const v4OwnsStructuredContent=v4Visual&&presentationVisualOwnsBeatContent(beat);
+  const hasStructuredSupport=Boolean(beat.formula||beat.bullets?.length||beat.keyTerms?.length||beat.richBlock||beat.example);
+  const splitRich=v4Visual&&!chapter14Owned&&!v4OwnsStructuredContent&&hasStructuredSupport;
+  const articleClass=[
+    'lx-present-screen',
+    `lx-present-screen--${beat.kind}`,
+    `lx-present-screen--scene-${role}`,
+    splitRich?'lx-present-screen--split-rich':'',
+  ].filter(Boolean).join(' ');
+  const v4Node=<Chapter14PresentationVisualV4 beat={beat} reveal={reveal}/>;
+  return <article className={articleClass} aria-live="polite">
     <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
       {!chapter14Owned&&beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
-      {v4Visual?<Chapter14PresentationVisualV4 beat={beat} reveal={reveal}/>:v3Visual?<Chapter14PresentationVisualV3 beat={beat} reveal={reveal}/>:legacyVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
+      {v4Visual?(splitRich?<div className="lx-present-custom-visual">{v4Node}</div>:v4Node):v3Visual?<Chapter14PresentationVisualV3 beat={beat} reveal={reveal}/>:legacyVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
       {!customVisual&&shouldRenderGenericVisual(beat.visual,beat.slideId)&&(beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
-      {!chapter14Owned&&beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
-      {!chapter14Owned&&beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
-      {!chapter14Owned&&beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>KEY TERM</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
-      {beat.richBlock&&!customVisual?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
-      {!chapter14Owned&&beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Answer</strong>{beat.example.answer}</p>:null}</section>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>KEY TERM</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
+      {beat.richBlock&&(!customVisual||(v4Visual&&!v4OwnsStructuredContent))?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Answer</strong>{beat.example.answer}</p>:null}</section>:null}
       {!chapter14Owned&&beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
       {!chapter14Owned&&beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Answer and guidance</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
     </div>
