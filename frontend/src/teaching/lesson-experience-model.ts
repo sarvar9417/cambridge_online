@@ -10,10 +10,11 @@ import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { CHAPTER_2_KEY_TERMS_2_1, CHAPTER_2_KEY_TERMS_2_2 } from './chapter2-source-emphasis';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { frameChapter2NetworkingPresentation } from './chapter2-networking-presentation';
+import { curateChapterPresentation } from './chapter-presentation-curation';
 import type { HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
 import type { LessonVisual } from './lesson-content-full';
 import { studentFacingSlide, studentFacingText } from './lesson-student-facing';
-import type { LessonTopic, TopicPage } from './lesson-topic-plan';
+import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 
 export type LessonExperienceChapter = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
 
@@ -248,6 +249,20 @@ function chapterNumberForTopic(topic:LessonTopic,slides:readonly HodderLessonSli
   return null;
 }
 
+function deckChapterNumberForTopic(topic:LessonTopic,slides:readonly HodderLessonSlide[]=[]):LessonExperienceChapter['number']|null {
+  const value=Number(topic.code.split('.')[0]);
+  if([1,2,3,4,7,13,14].includes(value))return value as LessonExperienceChapter['number'];
+  const firstId=slides[0]?.id??'';
+  if(firstId.startsWith('h14-'))return 14;
+  if(firstId.startsWith('h13-'))return 13;
+  if(firstId.startsWith('h4-'))return 4;
+  if(firstId.startsWith('h3-'))return 3;
+  if(firstId.startsWith('h2-'))return 2;
+  if(firstId.startsWith('h1-'))return 1;
+  if(firstId.startsWith('ch7-'))return 7;
+  return null;
+}
+
 function presentationAtomsForChapter(chapter:1|2|7|13|14):PresentationSourceAtom[] {
   if(chapter===2)return [...CHAPTER_2_KEY_TERMS_2_1,...CHAPTER_2_KEY_TERMS_2_2].map((item,index)=>({
     id:`chapter-2-term-${index+1}`,
@@ -389,22 +404,42 @@ function emphasisBeatsForTopic(topic:LessonTopic,teaching:Array<{slide:HodderLes
   }));
 }
 
-export function presentationBeatsForTopic(topic:LessonTopic) {
+function teachingRouteForTopic(topic:LessonTopic){
   const routed=topic.pages
     .filter(page=>page.kind==='study')
     .flatMap(page=>page.slides.map(slide=>({slide,page}))) as Array<{slide:HodderLessonSlide;page:TopicPage}>;
   const curated=routed.filter(item=>!isExactSourceTranscript(item.slide));
-  const teaching=curated.length?curated:routed;
+  return curated.length?curated:routed;
+}
+
+function presentationBeatsForSingleTopic(topic:LessonTopic){
+  const teaching=teachingRouteForTopic(topic);
   const chapter=chapterNumberForTopic(topic,teaching.map(item=>item.slide));
   if(chapter===14){
     const storyboard=chapter14PresentationStoryboard(topic.code);
     if(storyboard)return storyboard;
   }
   const lesson=teaching.flatMap(({slide,page})=>presentationBeatsForSlide(presenterSlide(slide),displayPageTitle(page,topic)));
-  const sourceAppendix=chapter?teaching.flatMap(({slide,page})=>sourceCoverageBeats(slide,displayPageTitle(page,topic),chapter)):[];
+  const sourceDetails=chapter?teaching.flatMap(({slide,page})=>sourceCoverageBeats(slide,displayPageTitle(page,topic),chapter)):[];
   const emphasis=emphasisBeatsForTopic(topic,teaching);
-  if(chapter===2&&topic.code==='2.1')return frameChapter2NetworkingPresentation(lesson,[...sourceAppendix,...emphasis]);
-  return [...lesson,...sourceAppendix,...emphasis];
+  if(chapter===2&&topic.code==='2.1'){
+    const framed=frameChapter2NetworkingPresentation(lesson,[]);
+    return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
+  }
+  return curateChapterPresentation([...lesson,...sourceDetails,...emphasis],topic.code);
+}
+
+export function presentationBeatsForTopic(topic:LessonTopic) {
+  const teaching=teachingRouteForTopic(topic);
+  const deckChapter=deckChapterNumberForTopic(topic,teaching.map(item=>item.slide));
+  const current=presentationBeatsForSingleTopic(topic);
+  if(topic.code!=='overview'||deckChapter===14||deckChapter===null)return current;
+
+  const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===deckChapter);
+  if(!chapter)return current;
+  const remaining=buildTopicPlan(chapter.slides,chapter.subtopics)
+    .filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'));
+  return [...current,...remaining.flatMap(presentationBeatsForSingleTopic)];
 }
 
 export function firstStudyPage(topic:LessonTopic) {

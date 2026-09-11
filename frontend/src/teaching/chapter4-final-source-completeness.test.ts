@@ -37,7 +37,7 @@ describe('Hodder 9618 Chapter 4 final source completeness', () => {
   });
 
   it('preserves both worked assembly examples, Activities 4B/4C and exact shift examples', () => {
-    for (const token of ['total = first + second + third','start: LDD first','first 106','total 109','index register (IX)','LDX number','JPN loop','number: #5 · #7 · #3','Activity 4B','Activity 4C','10101111 → 01111000','10101111 → 11110101','10101111 → 01111101','AND #B100','XOR #B100']) expect(batchText).toContain(token);
+    for (const token of ['total = first + second + third','start: LDD first','"first","106"','"total","109"','index register (IX)','LDX number','JPN loop','number: #5 · #7 · #3','Activity 4B','Activity 4C','10101111 → 01111000','10101111 → 11110101','10101111 → 01111101','AND #B100','XOR #B100']) expect(batchText).toContain(token);
   });
 
   it('retains the end-of-chapter question sequence and source attribution', () => {
