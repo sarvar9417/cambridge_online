@@ -18,23 +18,25 @@ function isLeadOnly(beat:LessonPresentationBeat){
 
 function mergeLeadOnlyScenes(beats:LessonPresentationBeat[]){
   const result:LessonPresentationBeat[]=[];
-  const pending=new Map<string,string[]>();
-  for(const beat of beats){
-    if(isLeadOnly(beat)){
-      const lines=pending.get(beat.slideId)??[];
-      lines.push(beat.lead!);
-      pending.set(beat.slideId,lines);
+  let index=0;
+  while(index<beats.length){
+    const beat=beats[index]!;
+    if(!isLeadOnly(beat)){result.push(beat);index+=1;continue;}
+    const slideId=beat.slideId;
+    const leads:string[]=[];
+    let cursor=index;
+    while(cursor<beats.length&&beats[cursor]!.slideId===slideId&&isLeadOnly(beats[cursor]!)){
+      leads.push(beats[cursor]!.lead!);
+      cursor+=1;
+    }
+    const next=beats[cursor];
+    if(next&&next.slideId===slideId&&!isLeadOnly(next)){
+      result.push({...next,lead:next.lead?[...leads,next.lead].join(' '):leads.join(' ')});
+      index=cursor+1;
       continue;
     }
-    const lead=pending.get(beat.slideId);
-    if(lead?.length){
-      result.push({...beat,lead:beat.lead?[...lead,beat.lead].join(' '):lead.join(' ')});
-      pending.delete(beat.slideId);
-    }else result.push(beat);
-  }
-  for(const [slideId,lines] of pending){
-    const original=beats.find(beat=>beat.slideId===slideId&&isLeadOnly(beat));
-    if(original)result.push({...original,lead:lines.join(' ')});
+    result.push({...beat,lead:leads.join(' ')});
+    index=cursor;
   }
   return result;
 }
