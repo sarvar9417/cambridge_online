@@ -3,25 +3,26 @@
 Status: **Code-complete candidate; deployment not authorized**  
 Last updated: **2026-09-11**  
 Feature branch: `feature/cambridge-live-challenge-phase-1`  
-PR: **#181**  
-Current feature HEAD at time of this document: `c50bae0e4b0fb91f066272d5b5115a60f711d7f3`
+PR: **#181**
 
-This document is the release gate for Cambridge Live Challenge. It does not authorize a merge, database migration, preview promotion, or production deployment. Those remain explicit release actions.
+This document is the release gate for Cambridge Live Challenge. It does not authorize a merge, database migration, preview promotion, or production deployment. Those remain explicit release actions. The exact feature SHA must be recorded at release time rather than pinned here, because every documentation or hardening commit changes the branch HEAD.
 
 ## 1. Current evidence
 
 ### Feature-specific verification
 
-The latest PR CI run on the current Live Challenge head completed:
+GitHub Actions **CI #4101** tested Live Challenge fairness/security head `76da300084dd03dc780b9935b17e1f3e5766011c` on the PR merge ref:
 
 - project-state check: PASS
 - backend TypeScript: PASS
 - frontend TypeScript: PASS
-- backend Vitest: **139/139 files, 856/856 tests PASS**
+- backend Vitest: **140/140 files, 857/857 tests PASS**
+- `live-challenge-scoreboard-fairness.test.ts`: PASS
 - all Live Challenge service, security, timing, multi-client, multi-actor, analytics and release-contract tests: PASS
-- frontend test phase reached unrelated Lesson Studio / Study Mode failures before inventory/build could run
+- frontend reached **110 passing files / 563 passing tests** and then failed only in four unrelated Chapter 4 / Lesson Studio contracts inherited from the independently red target `main`
+- inventory/build did not run because the unrelated frontend failures stop the repository verify chain
 
-The most recent full repository green run before the final security-hardening commits was GitHub Actions **CI #3997** on `9c736c9527fe62dc53d42d8e2db8995820422824`:
+The most recent fully green full-repository run before the later Live Challenge release/security hardening was GitHub Actions **CI #3997** on `9c736c9527fe62dc53d42d8e2db8995820422824`:
 
 - backend: 139/139 files, 856/856 tests PASS
 - frontend: 106/106 files, 526/526 tests PASS
@@ -30,13 +31,13 @@ The most recent full repository green run before the final security-hardening co
 - frontend production build: PASS
 - private-environment / credential guard: PASS
 
-The post-#3997 commits are limited to Live Challenge release hardening: removing join-code duplication from audit events, adding fail-closed RLS/privilege boundaries to the Live Challenge foundation migration, and locking those invariants with tests.
+Post-#3997 Live Challenge changes are release/security hardening: removing join-code duplication from audit events, adding fail-closed RLS/privilege boundaries to the foundation migration, locking those invariants with tests, and making speed tie-break eligibility require participation in every released round.
 
 ### Current-main baseline
 
-As of this document, `main` is independently red in CI. The current main HEAD is `76b43a9a6fed1f30f7710ea5397ec5f0a01fb737`; its CI run #4095 fails in unrelated Lesson Studio / chapter-content contracts. This means a red PR merge check must not automatically be attributed to Live Challenge.
+As of this document, `main` is independently red in CI. The current main HEAD is `76b43a9a6fed1f30f7710ea5397ec5f0a01fb737`; its CI run #4095 fails in unrelated Lesson Studio / Chapter 4 content contracts. The same four Chapter 4 failures appear on PR CI #4101 after all Live Challenge/backend tests have passed.
 
-**Release rule:** Cambridge Live Challenge must not be merged while the target `main` baseline is red. Restore a green `main`, synchronize the feature branch, and run the full repository verification again.
+**Release rule:** Cambridge Live Challenge must not be merged while the target `main` baseline is red. Restore a green `main`, synchronize the feature branch to that exact green SHA, and run the full repository verification again. Do not weaken unrelated lesson contracts inside this feature PR merely to manufacture a green check.
 
 ## 2. Database migration gate
 
@@ -135,6 +136,7 @@ Use separate authenticated browser sessions for **Teacher**, **Board**, **Studen
 | Peer submit | Mark is credited to the reviewed answer owner, not the marker |
 | Moderation | Teacher override is append-only audited and does not silently mutate peer evidence |
 | Round results | Board scoreboard and distribution use released authoritative scores only |
+| Speed tie-break | Cambridge marks rank first; speed only breaks equal marks and only for students who answered every released round; incomplete participation has no speed advantage |
 | Next question | Only `ROUND_RESULTS` advances; question identity changes consistently for every client |
 | Finish | Terminal `FINISHED` state is persisted; further invalid transitions fail closed |
 | Student result | Student sees only their result plus allowed learning insights |
@@ -158,6 +160,7 @@ Release is blocked unless these fail closed:
 - direct `anon` or `authenticated` database API attempts to read/write Live Challenge tables;
 - stale `state_version` attempts a teacher transition;
 - duplicate start / next action is retried;
+- incomplete/late-join participant with equal Cambridge marks attempts to gain rank through a shorter speed sample;
 - terminal challenge receives a normal runtime transition.
 
 ## 8. Performance / resilience checks
@@ -171,7 +174,8 @@ Verify:
 - one slow/reconnecting student does not block other participants;
 - signed-asset refresh works after URL expiry;
 - duplicate HTTP retries remain idempotent where designed;
-- teacher state remains usable after browser refresh during every runtime phase.
+- teacher state remains usable after browser refresh during every runtime phase;
+- optional speed tie-break remains stable under the target serverless environment and never alters raw Cambridge marks.
 
 ## 9. Release sequence
 
@@ -209,6 +213,7 @@ Abort the release immediately if any of the following occurs:
 - locked answer changes;
 - self-marking occurs;
 - scoring is credited to marker instead of answer owner;
+- speed changes raw Cambridge marks or rewards incomplete participation;
 - reconnect cannot reconstruct the current phase from persistent state;
 - analytics writes duplicate evidence/mastery on retry;
 - a terminal challenge can re-enter the normal runtime state machine.
