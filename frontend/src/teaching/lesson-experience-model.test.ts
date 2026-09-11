@@ -18,8 +18,8 @@ const presentationText=(chapter:(typeof LESSON_EXPERIENCE_CHAPTERS)[number])=>no
 ));
 
 describe('lesson experience model',()=>{
-  it('keeps all six source-backed chapters in the active experience',()=>{
-    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,3,7,13,14]);
+  it('keeps every source-backed chapter in the active experience',()=>{
+    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,3,4,7,13,14]);
   });
 
   it('turns every teachable topic into bounded projector beats',()=>{
@@ -39,6 +39,34 @@ describe('lesson experience model',()=>{
       }
     }
   }, 15000);
+
+  it('gives every non-Chapter-14 projector screen a scene role and hides audit chrome',()=>{
+    for(const chapter of LESSON_EXPERIENCE_CHAPTERS.filter(item=>item.number!==14)){
+      const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
+      for(const topic of topics.filter(item=>item.pages.some(page=>page.kind==='study'))){
+        const beats=presentationBeatsForTopic(topic);
+        expect(beats.every(beat=>Boolean(beat.sceneRole)),`${chapter.number} ${topic.code} scene roles`).toBe(true);
+        expect(beats.every(beat=>beat.showSource===false),`${chapter.number} ${topic.code} source chrome`).toBe(true);
+        const visible=JSON.stringify(beats);
+        expect(visible).not.toContain('COURSEBOOK · EMPHASISED CONTENT');
+        expect(visible).not.toContain('Important emphasised coursebook concepts');
+      }
+    }
+  },15000);
+
+  it('opens a complete chapter presentation from the overview route',()=>{
+    for(const chapter of LESSON_EXPERIENCE_CHAPTERS.filter(item=>item.number!==14)){
+      const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
+      const overview=topics.find(item=>item.code==='overview');
+      if(!overview)continue;
+      const deck=presentationBeatsForTopic(overview);
+      for(const topic of topics.filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))){
+        const slideId=topic.pages.find(page=>page.kind==='study')?.slides.find(slide=>!slide.id.startsWith('pdf-first-'))?.id
+          ?? topic.pages.find(page=>page.kind==='study')?.slides[0]?.id;
+        if(slideId)expect(deck.some(beat=>beat.slideId===slideId),`${chapter.number} ${topic.code}`).toBe(true);
+      }
+    }
+  },15000);
 
   it('does not duplicate exact parser transcripts beside curated learner content',()=>{
     for(const chapter of LESSON_EXPERIENCE_CHAPTERS){
