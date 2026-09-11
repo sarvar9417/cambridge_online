@@ -1,4 +1,6 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
+import { HODDER_CHAPTER_1 } from './lesson-content-hodder-ch1';
+import { chapter1PresentationStoryboard } from './chapter1-presentation-storyboard';
 import {
   rebuildChapter14StylePresentation,
   type RebuiltPresentationChapter,
@@ -21,19 +23,30 @@ function chapterFromBeats(beats:LessonPresentationBeat[],topicCode:string):Rebui
   return null;
 }
 
+function chapter1SourceSlides(topicCode:string) {
+  if(topicCode==='overview')return HODDER_CHAPTER_1.slides;
+  return HODDER_CHAPTER_1.slides.filter(slide=>slide.subtopicCode===topicCode);
+}
+
 /**
- * Compatibility entry point retained because the lesson experience model calls
- * this function. The former non-Chapter-14 curation implementation has been
- * removed. All active non-Chapter-14 decks are rebuilt from their source beats
- * by the Chapter 14-derived scene engine.
+ * Presentation dispatch for the non-Chapter-14 rebuild.
  *
- * Chapter 2's historical h2n-* framing screens are intentionally discarded
- * here; they belonged to the retired presentation implementation and are not
- * source content.
+ * Chapter 1 is now genuinely hand-authored scene-by-scene from its approved
+ * Hodder source rather than being passed through the generic reconstruction
+ * engine. The remaining active chapters stay on the temporary rebuild engine
+ * only until their own authored storyboards land in this branch.
+ *
+ * Chapter 14 never calls this entry point for its dedicated storyboard/runtime.
  */
 export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topicCode:string) {
   const sourceBeats=rawBeats.filter(beat=>!beat.id.startsWith('h2n-'));
   const chapter=chapterFromBeats(sourceBeats,topicCode);
   if(!chapter)return sourceBeats;
+
+  if(chapter===1){
+    const storyboard=chapter1PresentationStoryboard(topicCode,chapter1SourceSlides(topicCode));
+    if(storyboard)return storyboard;
+  }
+
   return rebuildChapter14StylePresentation(sourceBeats,topicCode,chapter);
 }
