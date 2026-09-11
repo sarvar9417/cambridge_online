@@ -328,7 +328,10 @@ export class LiveChallengeAnswerService{
     const ranked=result.rows.map(row=>{
       const score=Number(row.score??0),maxMarks=Number(row.max_marks??0),fullName=String(row.full_name??'Student');
       const answeredRounds=Number(row.answered_round_count??0);
-      const averageResponseMs=answeredRounds>0?Math.round(Number(row.total_duration_ms??0)/answeredRounds):null;
+      const releasedRounds=Number(row.released_round_count??0);
+      const averageResponseMs=answeredRounds>0&&answeredRounds===releasedRounds
+        ?Math.round(Number(row.total_duration_ms??0)/answeredRounds)
+        :null;
       return {fullName,score,maxMarks,percentage:maxMarks>0?Math.round(score/maxMarks*1000)/10:0,averageResponseMs};
     }).sort((a,b)=>{
       if(a.score!==b.score)return b.score-a.score;
