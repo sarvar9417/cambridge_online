@@ -11,13 +11,21 @@ const all=()=>TOPICS.flatMap(deck);
 
 function sceneText(scene:LessonPresentationBeat) {
   const block=scene.richBlock;
-  const blockText=block?.kind==='table'
-    ? [...block.table.headers,...block.table.rows.flat()].join(' ')
-    : block?.kind==='comparison'
-      ? [block.leftTitle,block.rightTitle,...block.rows.flat()].join(' ')
-      : block?.kind==='bullets'||block?.kind==='steps'||block?.kind==='sequence'||block?.kind==='bitfields'||block?.kind==='code'
-        ? [...('title' in block&&block.title?[block.title]:[]),...('items' in block?block.items:[]),...('lines' in block?block.lines:[])].join(' ')
-        : '';
+  let blockText='';
+  if(block?.kind==='table')blockText=[...block.table.headers,...block.table.rows.flat()].join(' ');
+  if(block?.kind==='comparison')blockText=[block.leftTitle,block.rightTitle,...block.rows.flat()].join(' ');
+  if(block?.kind==='bullets'||block?.kind==='steps')blockText=[...('title' in block&&block.title?[block.title]:[]),...block.items].join(' ');
+  if(block?.kind==='code')blockText=[...(block.title?[block.title]:[]),...block.lines].join(' ');
+  if(block?.kind==='figure'){
+    const figure=block.figure;
+    blockText=[figure.title];
+    if(figure.kind==='sequence')blockText.push(...figure.items.flatMap(item=>[item.label,item.note??'']));
+    if(figure.kind==='bitfield')blockText.push(...figure.fields.flatMap(item=>[item.label,item.bits,item.detail??'']));
+    if(figure.kind==='pixel-scale')blockText.push(...figure.stages.flatMap(item=>[item.label,item.note??'']));
+    if(figure.kind==='grid')blockText.push(...figure.rows,...(figure.legend??[]).flatMap(item=>[item.symbol,item.label]));
+    if(figure.kind==='wave')blockText.push(...figure.series.map(item=>item.label));
+    blockText=blockText.join(' ');
+  }
   return [scene.eyebrow,scene.title,scene.lead,...(scene.bullets??[]),...(scene.keyTerms??[]).flatMap(item=>[item.term,item.definition]),...(scene.example?.lines??[]),scene.activity?.prompt,scene.activity?.reveal,blockText].filter(Boolean).join(' ');
 }
 
