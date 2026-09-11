@@ -17,6 +17,12 @@ export const CHAPTER_5_SOURCE_BOUNDARY = {
   nextRequiredPrintedPage: 142,
   coursebookStatus: 'partial-exact-source' as const,
   fallbackPolicy: 'scope-only-never-coursebook-content' as const,
+  connectedSourceAudit: {
+    status: 'exact-pages-not-resolved' as const,
+    requiredPrintedPages: CHAPTER_5_UNRESOLVED_HODDER_RANGE,
+    searchedLocations: ['ChatGPT Library', 'Google Drive mount'] as const,
+    rule: 'Do not promote syllabus/work-plan/0478 material to 9618 Hodder coursebook evidence.' as const,
+  },
   syllabusScopeCrossCheck: {
     operatingSystemManagement: [
       'memory management',
