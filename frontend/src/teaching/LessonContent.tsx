@@ -37,6 +37,9 @@ const VISUAL_LABELS:Record<LessonVisual,string[]> = {
   html:['<html>','<body>','</html>'],
 };
 
+const revealItemClass=(presenting:boolean,reveal:number,index:number)=>
+  presenting?(index<reveal?'is-visible':'is-upcoming'):undefined;
+
 function VisualGraphic({kind}:{kind?:LessonVisual}) {
   if(!kind)return null;
   return <div className={`lx-visual lx-visual--${kind}`} aria-hidden="true">
@@ -67,28 +70,21 @@ function FigureView({figure,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{fi
     </svg>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
   }
   if(figure.kind==='grid')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-grid" style={{gridTemplateColumns:`repeat(${Math.max(...figure.rows.map(row=>row.length))},1fr)`}}>{figure.rows.flatMap((row,rowIndex)=>[...row].map((symbol,columnIndex)=><span data-symbol={symbol} key={`${rowIndex}-${columnIndex}`}>{symbol}</span>))}</div>{figure.legend?<div className="lx-legend">{figure.legend.map(item=><span key={`${item.symbol}-${item.label}`}><b data-symbol={item.symbol}>{item.symbol}</b>{item.label}</span>)}</div>:null}{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  if(figure.kind==='sequence'){
-    const items=figure.items.slice(0,presenting?reveal:undefined);
-    return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-sequence">{items.map((item,index)=><div className="lx-sequence-item" key={`${item.label}-${index}`}><span><strong>{item.label}</strong>{item.note?<small>{item.note}</small>:null}</span>{index<items.length-1?<b aria-hidden="true">→</b>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  }
-  if(figure.kind==='bitfield'){
-    const fields=figure.fields.slice(0,presenting?reveal:undefined);
-    return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-bitfields">{fields.map((field,index)=><div className="lx-bitfield" key={`${field.label}-${index}`}><span><strong>{field.label}</strong>{field.detail?<small>{field.detail}</small>:null}</span><code>{field.bits}</code></div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
-  }
-  const stages=figure.stages.slice(0,presenting?reveal:undefined);
-  return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-scale">{stages.map((stage,index)=><div key={`${stage.label}-${index}`}><span className={`level-${Math.max(1,Math.min(5,stage.level))}`} aria-hidden="true">{Array.from({length:16},(_,pixel)=><i key={pixel}/>)}</span><strong>{stage.label}</strong>{stage.note?<small>{stage.note}</small>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  if(figure.kind==='sequence')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-sequence">{figure.items.map((item,index)=><div className={`lx-sequence-item ${revealItemClass(presenting,reveal,index)??''}`.trim()} key={`${item.label}-${index}`}><span><strong>{item.label}</strong>{item.note?<small>{item.note}</small>:null}</span>{index<figure.items.length-1?<b aria-hidden="true">→</b>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  if(figure.kind==='bitfield')return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-bitfields">{figure.fields.map((field,index)=><div className={`lx-bitfield ${revealItemClass(presenting,reveal,index)??''}`.trim()} key={`${field.label}-${index}`}><span><strong>{field.label}</strong>{field.detail?<small>{field.detail}</small>:null}</span><code>{field.bits}</code></div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
+  return <figure className="lx-figure"><figcaption>{figure.title}</figcaption><div className="lx-pixel-scale">{figure.stages.map((stage,index)=><div className={revealItemClass(presenting,reveal,index)} key={`${stage.label}-${index}`}><span className={`level-${Math.max(1,Math.min(5,stage.level))}`} aria-hidden="true">{Array.from({length:16},(_,pixel)=><i key={pixel}/>)}</span><strong>{stage.label}</strong>{stage.note?<small>{stage.note}</small>:null}</div>)}</div>{figure.caption?<p>{figure.caption}</p>:null}</figure>;
 }
 
 function RichBlockView({block,presenting=false,reveal=Number.MAX_SAFE_INTEGER}:{block:LessonRichBlock;presenting?:boolean;reveal?:number}) {
   if(block.kind==='paragraph')return <p className="lx-paragraph">{block.text}</p>;
-  if(block.kind==='bullets')return <ul className="lx-points">{block.items.slice(0,presenting?reveal:undefined).map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul>;
+  if(block.kind==='bullets')return <ul className="lx-points">{block.items.map((item,index)=><li className={revealItemClass(presenting,reveal,index)} key={`${item}-${index}`}>{item}</li>)}</ul>;
   if(block.kind==='code')return <section className="lx-code">{block.title?<strong>{block.title}</strong>:null}<pre>{block.lines.join('\n')}</pre></section>;
-  if(block.kind==='steps')return <section className="lx-steps">{block.title?<strong>{block.title}</strong>:null}<ol>{block.items.slice(0,presenting?reveal:undefined).map((item,index)=><li key={`${item}-${index}`}><span>{index+1}</span>{item}</li>)}</ol></section>;
+  if(block.kind==='steps')return <section className="lx-steps">{block.title?<strong>{block.title}</strong>:null}<ol>{block.items.map((item,index)=><li className={revealItemClass(presenting,reveal,index)} key={`${item}-${index}`}><span>{index+1}</span>{item}</li>)}</ol></section>;
   if(block.kind==='callout')return <aside className={`lx-callout lx-callout--${block.tone??'info'}`}><span>{block.tone==='activity'?'ACTIVITY':block.tone==='extension'?'EXTENSION':block.tone==='warning'?'CAUTION':'KEY IDEA'}</span><strong>{block.title}</strong><p>{block.text}</p></aside>;
-  if(block.kind==='comparison')return <div className="lx-comparison"><section><strong>{block.leftTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([left],index)=><p key={`${left}-${index}`}>{left}</p>)}</section><section><strong>{block.rightTitle}</strong>{block.rows.slice(0,presenting?reveal:undefined).map(([,right],index)=><p key={`${right}-${index}`}>{right}</p>)}</section></div>;
+  if(block.kind==='comparison')return <div className="lx-comparison"><section><strong>{block.leftTitle}</strong>{block.rows.map(([left],index)=><p className={revealItemClass(presenting,reveal,index)} key={`${left}-${index}`}>{left}</p>)}</section><section><strong>{block.rightTitle}</strong>{block.rows.map(([,right],index)=><p className={revealItemClass(presenting,reveal,index)} key={`${right}-${index}`}>{right}</p>)}</section></div>;
   if(block.kind==='source-note')return <aside className="lx-accuracy"><span>ACCURACY NOTE</span><h3>{block.title}</h3><div><p><strong>{block.sourceLabel}</strong>{block.sourceText}</p><p><strong>{block.examSafeLabel}</strong>{block.examSafeText}</p></div></aside>;
   if(block.kind==='figure')return <FigureView figure={block.figure} presenting={presenting} reveal={reveal}/>;
-  return <div className="lx-table-wrap"><table><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.slice(0,presenting?reveal:undefined).map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,columnIndex)=><td key={`${rowIndex}-${columnIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
+  return <div className="lx-table-wrap"><table><caption>{block.table.caption}</caption><thead><tr>{block.table.headers.map(header=><th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{block.table.rows.map((row,rowIndex)=><tr className={revealItemClass(presenting,reveal,rowIndex)} key={rowIndex}>{row.map((cell,columnIndex)=><td key={`${rowIndex}-${columnIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
 export function LessonStudySlide({sourceSlide,pageTitle}:{sourceSlide:HodderLessonSlide;pageTitle:string}) {
@@ -185,10 +181,10 @@ export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationB
       {v4Visual?(splitRich?<div className="lx-present-custom-visual">{v4Node}</div>:v4Node):v3Visual?<Chapter14PresentationVisualV3 beat={beat} reveal={reveal}/>:legacyVisual?<Chapter14PresentationVisual beat={beat} reveal={reveal}/>:null}
       {!customVisual&&shouldRenderGenericVisual(beat.visual,beat.slideId)&&(beat.lead||beat.formula)?<VisualGraphic kind={beat.visual}/>:null}
       {!chapter14Owned&&!v4OwnsStructuredContent&&beat.formula?<div className="lx-formula lx-formula--present">{beat.formula}</div>:null}
-      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.bullets?<ul className="lx-present-points">{beat.bullets.slice(0,reveal).map((item,index)=><li key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
-      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.slice(0,reveal).map(item=><section key={item.term}><span>KEY TERM</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.bullets?<ul className="lx-present-points">{beat.bullets.map((item,index)=><li className={revealItemClass(true,reveal,index)} key={`${item}-${index}`}><span>{String(index+1).padStart(2,'0')}</span>{item}</li>)}</ul>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.keyTerms?<div className="lx-present-terms">{beat.keyTerms.map((item,index)=><section className={revealItemClass(true,reveal,index)} key={item.term}><span>KEY TERM</span><h2>{item.term}</h2><p>{item.definition}</p></section>)}</div>:null}
       {beat.richBlock&&(!customVisual||(v4Visual&&!v4OwnsStructuredContent))?<RichBlockView block={beat.richBlock} presenting reveal={reveal}/>:null}
-      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.slice(0,reveal).map((line,index)=><li key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Answer</strong>{beat.example.answer}</p>:null}</section>:null}
+      {!chapter14Owned&&!v4OwnsStructuredContent&&beat.example?<section className="lx-present-example"><h2>{beat.example.title}</h2><ol>{beat.example.lines.map((line,index)=><li className={revealItemClass(true,reveal,index)} key={`${line}-${index}`}><span>{index+1}</span>{line}</li>)}</ol>{beat.example.answer && reveal>beat.example.lines.length?<p><strong>Answer</strong>{beat.example.answer}</p>:null}</section>:null}
       {!chapter14Owned&&beat.prompt?<blockquote className="lx-present-question">{beat.prompt}</blockquote>:null}
       {!chapter14Owned&&beat.activity?<section className="lx-present-activity"><h2>{beat.activity.title}</h2><p>{beat.activity.prompt}</p>{beat.activity.reveal&&reveal>0?<div><strong>Answer and guidance</strong><p>{beat.activity.reveal}</p></div>:null}</section>:null}
     </div>
