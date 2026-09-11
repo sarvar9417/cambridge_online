@@ -95,21 +95,21 @@ const TOPIC_13:AuthoredSceneSpec[]=[
 
 export function chapter1PresentationStoryboard(topicCode:string,slides:readonly HodderLessonSlide[]):LessonPresentationBeat[]|null {
   if(topicCode==='overview')return buildAuthoredStoryboard(slides,OVERVIEW);
-  const opening=topicCode==='1.1'[
+  const opening=topicCode==='1.1'?[
     authoredStaticScene('h1p-11-hook','h1-111-number-systems','hook','1.1 · STARTER','How can the same bits represent numbers, text and machine data?',[2],{
       lead:'Representation only works when the system knows the base, width or character encoding used to interpret the stored pattern.',
     }),
     authoredStaticScene('h1p-11-objectives','h1-111-number-systems','objective','1.1 · LESSON GOALS','By the end of 1.1 you should be able to…',[2,15],{
       bullets:['Convert and calculate with binary, denary and hexadecimal.','Represent signed integers with two’s complement and explain overflow.','Use BCD, ASCII and Unicode appropriately.','Distinguish decimal and binary storage prefixes.'],
     }),
-  ]:topicCode==='1.2'[
+  ]:topicCode==='1.2'?[
     authoredStaticScene('h1p-12-hook','h1-121-bitmap-basics','hook','1.2 · STARTER','A photograph and a sound clip are both bits. What changes between them?',[15,19],{
       lead:'The stored bits need a representation model: pixels for a bitmap, geometric objects for vectors, and sampled amplitude values for sound.',
     }),
     authoredStaticScene('h1p-12-objectives','h1-121-bitmap-basics','objective','1.2 · LESSON GOALS','By the end of 1.2 you should be able to…',[15,21],{
       bullets:['Explain bitmap, vector and sampled-sound representations.','Calculate raw bitmap storage from resolution and colour depth.','Explain the quality/file-size effects of image and sound sampling choices.','Choose an appropriate representation for a multimedia task.'],
     }),
-  ]:topicCode==='1.3'[
+  ]:topicCode==='1.3'?[
     authoredStaticScene('h1p-13-hook','h1-13-need','hook','1.3 · STARTER','Can every file be made smaller without losing anything?',[21],{
       lead:'Compression decisions depend on whether exact reconstruction is required and whether repeated or perceptually unimportant data can be exploited.',
     }),
