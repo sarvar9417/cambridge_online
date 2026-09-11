@@ -61,9 +61,8 @@ describe('lesson experience model',()=>{
       if(!overview)continue;
       const deck=presentationBeatsForTopic(overview);
       for(const topic of topics.filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))){
-        const slideId=topic.pages.find(page=>page.kind==='study')?.slides.find(slide=>!slide.id.startsWith('pdf-first-'))?.id
-          ?? topic.pages.find(page=>page.kind==='study')?.slides[0]?.id;
-        if(slideId)expect(deck.some(beat=>beat.slideId===slideId),`${chapter.number} ${topic.code}`).toBe(true);
+        const topicSlideIds=new Set(presentationBeatsForTopic(topic).map(beat=>beat.slideId));
+        expect(deck.some(beat=>topicSlideIds.has(beat.slideId)),`${chapter.number} ${topic.code}`).toBe(true);
       }
     }
   },15000);
