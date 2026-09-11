@@ -29,9 +29,6 @@ import './teaching/chapter14-presentation-v5-visuals.css';
 // Load the final projector design after every legacy/prototype layer so it is
 // authoritative for Chapter 14 presentation mode.
 import './teaching/chapter14-presentation-professional.css';
-// Chapter 1 reuses the same projector shell but has source-specific multimedia
-// diagrams that need their own responsive visual layer.
-import './teaching/chapter1-presentation-media.css';
 
 /** Bookmarks made before the routes were named. */
 const RENAMED: Record<string, string> = {
@@ -57,16 +54,16 @@ function Root() {
     return () => window.removeEventListener('hashchange', redirect);
   }, []);
 
-  useEffect(() => installQuestionStructureEnhancer(), []);
-  useEffect(() => installQuestionAssetFidelityEnhancer(), []);
-  useEffect(() => installTeacherStructuredQuestionEnhancer(), []);
-  useEffect(() => installPresentationScrollController(), []);
+  useEffect(() => {
+    applyStoredTheme();
+    installQuestionStructureEnhancer();
+    installQuestionAssetFidelityEnhancer();
+    installTeacherStructuredQuestionEnhancer();
+    installPresentationScrollController();
+  }, []);
 
   return <App />;
 }
-
-// Before the first paint: a dark-mode user must not see a white flash.
-applyStoredTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
