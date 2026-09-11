@@ -38,6 +38,16 @@ export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
   return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
+/**
+ * Chapter 14, Chapter 1 and Chapter 13 render the beat payload inside their
+ * specialised visual surface. The Chapter 2/3/4 systems are deliberately
+ * diagram-only: their source text/table/steps must therefore remain visible
+ * beside the visual instead of being suppressed by the generic presenter.
+ */
+export function presentationVisualOwnsBeatContent(beat:LessonPresentationBeat){
+  return hasChapter14PresentationRuntime(beat)||hasChapter1PresentationVisual(beat)||hasChapter13PresentationVisual(beat);
+}
+
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   if(hasChapter1PresentationVisual(beat))return <Chapter1PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter2DnsVisual(beat))return <Chapter2DnsVisual beat={beat} reveal={reveal}/>;
