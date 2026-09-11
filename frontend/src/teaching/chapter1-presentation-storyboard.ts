@@ -20,10 +20,10 @@ const TOPIC_11:AuthoredSceneSpec[]=[
   s({id:'h1p-112-convert-example',slideId:'h1-112-convert',role:'challenge',eyebrow:'1.1.2 · WORKED CHECK',title:'Can you reconstruct the model conversion?',example:true}),
   s({id:'h1p-112-convert-practice',slideId:'h1-112-convert',role:'challenge',eyebrow:'1.1.2 · PRACTICE',title:'Practise both conversion directions',block:{index:3}}),
 
-  s({id:'h1p-112-signed-compare',slideId:'h1-112-signed',role:'compare',eyebrow:'1.1.2 · COMPARE',lead:true,keyTerms:true,formula:true}),
+  s({id:'h1p-112-signed-compare',slideId:'h1-112-signed',role:'compare',eyebrow:'1.1.2 · COMPARE',lead:true,keyTerms:[0,1],formula:true}),
   s({id:'h1p-112-signed-method',slideId:'h1-112-signed',role:'process',eyebrow:'1.1.2 · TWO’S COMPLEMENT',title:'Build a negative value in three moves',block:{index:0}}),
   s({id:'h1p-112-signed-practice',slideId:'h1-112-signed',role:'challenge',eyebrow:'1.1.2 · PRACTICE',title:'Represent positive and negative values',block:{index:1}}),
-  s({id:'h1p-112-signed-extension',slideId:'h1-112-signed',role:'challenge',eyebrow:'1.1.2 · EXTEND',title:'Extend the signed pattern to 16 bits',block:{index:2}}),
+  s({id:'h1p-112-signed-extension',slideId:'h1-112-signed',role:'challenge',eyebrow:'1.1.2 · EXTEND',title:'Extend the signed pattern to 16 bits',block:{index:2},keyTerms:[2]}),
 
   s({id:'h1p-112-arithmetic-models',slideId:'h1-112-arithmetic',role:'visual',eyebrow:'1.1.2 · WORKED MODELS',lead:true,block:{index:0}}),
   s({id:'h1p-112-arithmetic-overflow',slideId:'h1-112-arithmetic',role:'concept',eyebrow:'1.1.2 · OVERFLOW',title:'Correct mathematics can still exceed the word size',block:{index:2}}),
@@ -94,7 +94,12 @@ const TOPIC_13:AuthoredSceneSpec[]=[
 ];
 
 export function chapter1PresentationStoryboard(topicCode:string,slides:readonly HodderLessonSlide[]):LessonPresentationBeat[]|null {
-  if(topicCode==='overview')return buildAuthoredStoryboard(slides,OVERVIEW);
+  if(topicCode==='overview')return [
+    authoredStaticScene('h1p-overview-prior-activity','h1-prior','hook','CHAPTER 1 · PRIOR ACTIVITY','Reconstruct the source binary-addition task',[1],{
+      bullets:['Carry out these binary additions and convert each answer to denary:'],
+    }),
+    ...buildAuthoredStoryboard(slides,OVERVIEW),
+  ];
   const opening=topicCode==='1.1'?[
     authoredStaticScene('h1p-11-hook','h1-111-number-systems','hook','1.1 · STARTER','How can the same bits represent numbers, text and machine data?',[2],{
       lead:'Representation only works when the system knows the base, width or character encoding used to interpret the stored pattern.',
