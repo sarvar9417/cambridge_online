@@ -201,6 +201,9 @@ export function chapter2PresentationStoryboard(topicCode:string,slides:readonly 
       ...thinThickScenes(),
       ...buildAuthoredStoryboard(slides,TOPIC_21_AFTER_CLIENTS),
     ];
+    result.splice(2,0,authoredStaticScene('h2p-211-arpanet-keyterm','h2-211-arpanet-lan-wan','concept','2.1.1 · KEY TERM','ARPAnet · Advanced Research Projects Agency Network',[29],{
+      bullets:['ARPAnet – Advanced Research Projects Agency Network.'],
+    }));
     result.push(authoredStaticScene('h2p-21-recap','h2-activity-2b','recap','2.1 · RETRIEVAL','Rebuild the networking route without notes',[29,53],{
       bullets:['Scale and infrastructure: PAN/LAN/MAN/WAN plus hardware, software and services.','Models and layouts: client-server/P2P, thin/thick clients, bus/star/mesh/hybrid.','Media and devices: wired/wireless choices; hub, switch, bridge, router, gateway, modem, NIC/WNIC and repeater.','Transmission: Ethernet, collision handling with CSMA/CD, buffering, on-demand and real-time bit streaming.'],
     }));
