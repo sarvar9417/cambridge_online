@@ -1,6 +1,8 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
 import { HODDER_CHAPTER_1 } from './lesson-content-hodder-ch1';
+import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { chapter1PresentationStoryboard } from './chapter1-presentation-storyboard';
+import { chapter2PresentationStoryboard } from './chapter2-presentation-storyboard';
 import {
   rebuildChapter14StylePresentation,
   type RebuiltPresentationChapter,
@@ -31,10 +33,10 @@ function chapter1SourceSlides(topicCode:string) {
 /**
  * Presentation dispatch for the non-Chapter-14 rebuild.
  *
- * Chapter 1 is now genuinely hand-authored scene-by-scene from its approved
- * Hodder source rather than being passed through the generic reconstruction
- * engine. The remaining active chapters stay on the temporary rebuild engine
- * only until their own authored storyboards land in this branch.
+ * Chapters 1 and 2 now use genuinely hand-authored, source-shaped scene plans
+ * rather than the generic reconstruction engine. Chapters 3, 4, 7 and 13 stay
+ * on the temporary rebuild engine only until their own authored storyboards
+ * land in this branch.
  *
  * Chapter 14 never calls this entry point for its dedicated storyboard/runtime.
  */
@@ -45,6 +47,11 @@ export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topi
 
   if(chapter===1){
     const storyboard=chapter1PresentationStoryboard(topicCode,chapter1SourceSlides(topicCode));
+    if(storyboard)return storyboard;
+  }
+
+  if(chapter===2){
+    const storyboard=chapter2PresentationStoryboard(topicCode,CHAPTER_2_FINAL.slides);
     if(storyboard)return storyboard;
   }
 
