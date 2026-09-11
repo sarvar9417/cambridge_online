@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type ClassItem } from './lib/api';
 import { useRoute } from './lib/router';
 import { LessonExperience } from './teaching/LessonExperience';
+import { installLessonFullscreenControls } from './teaching/lesson-fullscreen-controls';
 
 interface HeatCell { studentId:string;studentName:string;topic:number;mastery:number|null;evidence:number }
 interface MarkPoint { id:string;code:string;text:string;displayRef:string;commandWord:string|null;missed:number;total:number;missPct:number }
@@ -17,6 +18,11 @@ export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:b
   const [quality,setQuality]=useState<AiQuality[]>([]);
   const [computing,setComputing]=useState(false);
   const [error,setError]=useState('');
+
+  useEffect(()=>{
+    if(route.page!=='darslar')return;
+    return installLessonFullscreenControls();
+  },[route.page]);
 
   useEffect(()=>{if(!classId||route.page==='darslar')return;setError('');Promise.all([
     api<{data:HeatCell[]}>(`/analytics/classes/${classId}/heatmap`),

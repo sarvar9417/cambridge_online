@@ -1,0 +1,86 @@
+.lesson-fullscreen-toggle{
+  position:fixed;
+  top:86px;
+  right:24px;
+  z-index:1300;
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.48rem;
+  padding:.55rem .78rem;
+  border:1px solid color-mix(in srgb,var(--accent,#1769d2) 34%,#c7d2df);
+  border-radius:8px;
+  background:var(--surface,#fff);
+  color:var(--text,#122033);
+  box-shadow:0 8px 24px rgb(18 42 72 / 14%);
+  font:750 .74rem/1 var(--font-ui,Inter,sans-serif);
+  cursor:pointer;
+}
+.lesson-fullscreen-toggle:hover{
+  border-color:var(--accent,#1769d2);
+  color:var(--accent,#1769d2);
+  transform:translateY(-1px);
+}
+.lesson-fullscreen-toggle:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--accent,#1769d2) 28%,transparent);
+  outline-offset:2px;
+}
+.lesson-fullscreen-toggle[aria-pressed="true"]{
+  border-color:var(--accent,#1769d2);
+  background:var(--accent,#1769d2);
+  color:var(--accent-contrast,#fff);
+}
+.lesson-fullscreen-icon{
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  font-size:1.05rem;
+  line-height:1;
+}
+
+/* LessonExperience already had a Past Papers-only fullscreen button. The shared
+   control replaces it so Study, Presentation and Past Papers behave identically. */
+.lesson-fullscreen-controls-enabled .lx-exam-topic-head>button{display:none!important}
+
+.lesson-experience:fullscreen{
+  width:100vw;
+  height:100dvh;
+  max-width:none;
+  max-height:100dvh;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:var(--surface,#fff);
+}
+.lesson-experience.lx-reader:fullscreen{
+  overflow:auto;
+}
+.lesson-experience.lx-reader:fullscreen .lx-chapter-bar{
+  position:sticky;
+  top:0;
+  z-index:1200;
+}
+.lesson-experience.lx-reader:fullscreen .lx-layout{
+  min-height:calc(100dvh - 71px);
+}
+.lesson-experience.lx-present .lesson-fullscreen-toggle{
+  top:76px;
+}
+
+@media (max-width:840px){
+  .lesson-fullscreen-toggle{
+    top:72px;
+    right:10px;
+    width:42px;
+    min-width:42px;
+    padding:0;
+  }
+  .lesson-fullscreen-label{display:none}
+  .lesson-experience.lx-present .lesson-fullscreen-toggle{top:66px}
+}
+
+@media print{
+  .lesson-fullscreen-toggle{display:none!important}
+}
