@@ -3,10 +3,12 @@ import { HODDER_CHAPTER_1 } from './lesson-content-hodder-ch1';
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_4_CURRENT_DRAFT } from './lesson-content-chapter4-current';
+import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { chapter1PresentationStoryboard } from './chapter1-presentation-storyboard';
 import { chapter2PresentationStoryboard } from './chapter2-presentation-storyboard';
 import { chapter3PresentationStoryboard } from './chapter3-presentation-storyboard';
 import { chapter4PresentationStoryboard } from './chapter4-presentation-storyboard';
+import { chapter7PresentationStoryboard } from './chapter7-presentation-storyboard';
 import {
   rebuildChapter14StylePresentation,
   type RebuiltPresentationChapter,
@@ -37,10 +39,10 @@ function chapter1SourceSlides(topicCode:string) {
 /**
  * Presentation dispatch for the non-Chapter-14 rebuild.
  *
- * Chapters 1, 2, 3 and 4 now use genuinely hand-authored, source-shaped scene
- * plans rather than the generic reconstruction engine. Chapters 7 and 13 stay
- * on the temporary rebuild engine only until their own authored storyboards
- * land in this branch.
+ * Chapters 1, 2, 3, 4 and 7 now use genuinely hand-authored, source-shaped
+ * scene plans rather than the generic reconstruction engine. Chapter 13 stays
+ * on the temporary rebuild engine only until its authored storyboard lands in
+ * this branch.
  *
  * Chapter 14 never calls this entry point for its dedicated storyboard/runtime.
  */
@@ -66,6 +68,11 @@ export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topi
 
   if(chapter===4){
     const storyboard=chapter4PresentationStoryboard(topicCode,CHAPTER_4_CURRENT_DRAFT.slides);
+    if(storyboard)return storyboard;
+  }
+
+  if(chapter===7){
+    const storyboard=chapter7PresentationStoryboard(topicCode,CHAPTER_7.slides);
     if(storyboard)return storyboard;
   }
 
