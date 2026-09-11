@@ -4,6 +4,7 @@ import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
+import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
 import { Chapter5OperatingSystemVisual, hasChapter5OperatingSystemVisual } from './Chapter5OperatingSystemVisuals';
 import { Chapter4InstructionsBitVisual, hasChapter4InstructionsBitVisual } from './Chapter4InstructionsBitVisuals';
 import { Chapter4FetchAssemblyVisual, hasChapter4FetchAssemblyVisual } from './Chapter4FetchAssemblyVisuals';
@@ -34,7 +35,7 @@ import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
-  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
+  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
@@ -53,6 +54,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter4FetchAssemblyVisual(beat))return <Chapter4FetchAssemblyVisual beat={beat} reveal={reveal}/>;
   if(hasChapter4ProcessorVisual(beat))return <Chapter4ProcessorVisual beat={beat} reveal={reveal}/>;
   if(hasChapter5OperatingSystemVisual(beat))return <Chapter5OperatingSystemVisual beat={beat} reveal={reveal}/>;
+  if(hasChapter7PresentationVisual(beat))return <Chapter7PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
