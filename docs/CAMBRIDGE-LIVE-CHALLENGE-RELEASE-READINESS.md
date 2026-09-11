@@ -11,16 +11,18 @@ This document is the release gate for Cambridge Live Challenge. It does not auth
 
 ### Feature-specific verification
 
-GitHub Actions **CI #4101** tested Live Challenge fairness/security head `76da300084dd03dc780b9935b17e1f3e5766011c` on the PR merge ref:
+GitHub Actions **CI #4252** tested feature SHA `7fcce95e65b8719ed9b534ff5d71dfc75b61a452`. The run completed with **failure**; the connector exposes only the failed `npm run verify` step, not its detailed test log. The immediately preceding Live Challenge verification on CI #4101 proved the full Live Challenge backend/security/fairness suite clean, and the changes since #4101 are limited to late-join result eligibility and its regression coverage plus this runbook update.
 
-- project-state check: PASS
-- backend TypeScript: PASS
-- frontend TypeScript: PASS
-- backend Vitest: **140/140 files, 857/857 tests PASS**
-- `live-challenge-scoreboard-fairness.test.ts`: PASS
-- all Live Challenge service, security, timing, multi-client, multi-actor, analytics and release-contract tests: PASS
-- frontend reached **110 passing files / 563 passing tests** and then failed only in four unrelated Chapter 4 / Lesson Studio contracts inherited from the independently red target `main`
-- inventory/build did not run because the unrelated frontend failures stop the repository verify chain
+The current code-level Live Challenge invariants include:
+
+- backend TypeScript and Live Challenge service contracts were green before the latest results hardening;
+- scoreboard speed tie-break fairness requires participation in every eligible released round;
+- late joining is permitted only during `QUESTION_ACTIVE` when `allow_late_join=true`;
+- released-round student history, final totals and LO insights exclude rounds whose `locked_at` preceded the student's `joined_at`;
+- teacher analytics already uses the same `joined_at <= round.locked_at` eligibility rule;
+- source-complete/LO-grounded question gates, RLS/REVOKE, secret-retention, immutable answers and Mark Scheme secrecy remain unchanged.
+
+### Historical fully green evidence
 
 The most recent fully green full-repository run before the later Live Challenge release/security hardening was GitHub Actions **CI #3997** on `9c736c9527fe62dc53d42d8e2db8995820422824`:
 
@@ -31,13 +33,21 @@ The most recent fully green full-repository run before the later Live Challenge 
 - frontend production build: PASS
 - private-environment / credential guard: PASS
 
-Post-#3997 Live Challenge changes are release/security hardening: removing join-code duplication from audit events, adding fail-closed RLS/privilege boundaries to the foundation migration, locking those invariants with tests, and making speed tie-break eligibility require participation in every released round.
+CI #4101 subsequently verified the Live Challenge hardening layer specifically:
+
+- project-state check: PASS
+- backend TypeScript: PASS
+- frontend TypeScript: PASS
+- backend Vitest: **140/140 files, 857/857 tests PASS**
+- scoreboard fairness regression: PASS
+- all Live Challenge service/security/timing/multi-client/multi-actor/analytics/release-contract tests: PASS
+- the full repository run stopped only after the frontend phase reached unrelated Chapter 4 / Lesson Studio contracts.
 
 ### Current-main baseline
 
-As of this document, `main` is independently red in CI. The current main HEAD is `76b43a9a6fed1f30f7710ea5397ec5f0a01fb737`; its CI run #4095 fails in unrelated Lesson Studio / Chapter 4 content contracts. The same four Chapter 4 failures appear on PR CI #4101 after all Live Challenge/backend tests have passed.
+Current `main` is now **green** at `a1c88e7b19a6a95fd83ba9a4e4f1d723e1833cda`; GitHub Actions **CI #4222** completed successfully. The feature branch has **not yet been synchronized to this new green main SHA**. The PR remains Draft and mergeable, but release-readiness is not claimed until the feature branch is updated with the exact green main head and a fresh full verify is run on that synchronized state.
 
-**Release rule:** Cambridge Live Challenge must not be merged while the target `main` baseline is red. Restore a green `main`, synchronize the feature branch to that exact green SHA, and run the full repository verification again. Do not weaken unrelated lesson contracts inside this feature PR merely to manufacture a green check.
+**Release rule:** synchronize `feature/cambridge-live-challenge-phase-1` to the exact green `main=a1c88e7b19a6a95fd83ba9a4e4f1d723e1833cda`, then rerun the complete repository verification. Do not weaken unrelated contracts to manufacture a green check.
 
 ## 2. Database migration gate
 
@@ -122,6 +132,7 @@ Use separate authenticated browser sessions for **Teacher**, **Board**, **Studen
 | Publish | Six-character uppercase code is generated; selected questions are revalidated |
 | Student discovery | Only students actively enrolled in the assigned class see the challenge |
 | Join authorization | Correct code + active enrollment joins; wrong class/code fails closed |
+| Late join | When enabled, joining is accepted only during `QUESTION_ACTIVE`; closed/marking/results phases reject new joins |
 | Lobby | Teacher sees participant count/list; students see waiting state; no question leaks early |
 | Start | One server-authoritative round is created; zero-participant start is rejected |
 | Question projection | Teacher, Board and joined students resolve the same canonical question |
@@ -136,11 +147,11 @@ Use separate authenticated browser sessions for **Teacher**, **Board**, **Studen
 | Peer submit | Mark is credited to the reviewed answer owner, not the marker |
 | Moderation | Teacher override is append-only audited and does not silently mutate peer evidence |
 | Round results | Board scoreboard and distribution use released authoritative scores only |
-| Speed tie-break | Cambridge marks rank first; speed only breaks equal marks and only for students who answered every released round; incomplete participation has no speed advantage |
+| Speed tie-break | Cambridge marks rank first; speed only breaks equal marks and only for students who answered every eligible released round; incomplete/late participation has no speed advantage |
 | Next question | Only `ROUND_RESULTS` advances; question identity changes consistently for every client |
 | Finish | Terminal `FINISHED` state is persisted; further invalid transitions fail closed |
-| Student result | Student sees only their result plus allowed learning insights |
-| Teacher analytics | Class aggregate, strongest/weakest LOs and missed Mark Scheme points render without student identities |
+| Student result | Student sees only their eligible released rounds, result totals and allowed learning insights |
+| Teacher analytics | Class aggregate, strongest/weakest LOs and missed Mark Scheme points render without student identities and use the same round eligibility rule |
 | Reconnect | Refresh/reopen reconstructs correct state from REST/database, not stale client memory |
 | Event recovery | Cursor polling can miss notifications without losing authoritative state |
 
@@ -161,6 +172,7 @@ Release is blocked unless these fail closed:
 - stale `state_version` attempts a teacher transition;
 - duplicate start / next action is retried;
 - incomplete/late-join participant with equal Cambridge marks attempts to gain rank through a shorter speed sample;
+- a late-join participant requests history/final result and receives no pre-join released round or LO evidence;
 - terminal challenge receives a normal runtime transition.
 
 ## 8. Performance / resilience checks
@@ -214,6 +226,7 @@ Abort the release immediately if any of the following occurs:
 - self-marking occurs;
 - scoring is credited to marker instead of answer owner;
 - speed changes raw Cambridge marks or rewards incomplete participation;
+- a late-join participant receives pre-join round credit/penalty in history, final totals or LO analytics;
 - reconnect cannot reconstruct the current phase from persistent state;
 - analytics writes duplicate evidence/mastery on retry;
 - a terminal challenge can re-enter the normal runtime state machine.
