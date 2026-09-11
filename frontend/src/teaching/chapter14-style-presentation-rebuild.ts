@@ -89,6 +89,16 @@ function uniqTerms(items:NonNullable<LessonPresentationBeat['keyTerms']>) {
   });
 }
 
+function uniqNumbers(items:readonly number[]) {
+  return [...new Set(items)].sort((a,b)=>a-b);
+}
+
+function chunks<T>(items:readonly T[],size:number) {
+  const result:T[][]=[];
+  for(let index=0;index<items.length;index+=size)result.push(items.slice(index,index+size));
+  return result;
+}
+
 function contentStrings(beat:LessonPresentationBeat) {
   const result:string[]=[];
   if(beat.lead)result.push(beat.lead);
@@ -134,35 +144,33 @@ function filterAlreadyCovered(beats:LessonPresentationBeat[]) {
   });
 }
 
-function foundationScene(
+function foundationScenes(
   beats:LessonPresentationBeat[],
   chapter:RebuiltPresentationChapter,
-  id:string,
-):LessonPresentationBeat | null {
-  if(!beats.length)return null;
-  const lead=beats.map(item=>item.lead).find(Boolean);
-  const bullets=uniqStrings(beats.flatMap(item=>item.bullets??[])).slice(0,4);
-  const keyTerms=uniqTerms(beats.flatMap(item=>item.keyTerms??[])).slice(0,2);
+  nextId:()=>string,
+):LessonPresentationBeat[] {
+  if(!beats.length)return [];
   const first=beats[0]!;
   const role=inferRole(first);
-  return {
-    id,
+  const leads=uniqStrings(beats.flatMap(item=>item.lead?[item.lead]:[]));
+  const bulletGroups=chunks(uniqStrings(beats.flatMap(item=>item.bullets??[])),4);
+  const termGroups=chunks(uniqTerms(beats.flatMap(item=>item.keyTerms??[])),2);
+  const count=Math.max(leads.length,bulletGroups.length,termGroups.length,1);
+  const sourcePages=uniqNumbers(beats.flatMap(item=>item.sourcePages));
+  return Array.from({length:count},(_,index)=>({
+    id:nextId(),
     slideId:first.slideId,
     kind:role==='objective'||role==='hook'||role==='concept'||role==='recap'?'concept':'key-idea',
     sceneRole:role,
     eyebrow:cleanEyebrow(first,chapter,role),
-    title:first.title,
-    sourcePages:uniqNumbers(beats.flatMap(item=>item.sourcePages)),
+    title:index===0?first.title:`${first.title} · continued`,
+    sourcePages,
     showSource:false,
-    lead,
-    bullets:bullets.length?bullets:undefined,
-    keyTerms:keyTerms.length?keyTerms:undefined,
+    lead:leads[index],
+    bullets:bulletGroups[index]?.length?bulletGroups[index]:undefined,
+    keyTerms:termGroups[index]?.length?termGroups[index]:undefined,
     visual:undefined,
-  };
-}
-
-function uniqNumbers(items:readonly number[]) {
-  return [...new Set(items)].sort((a,b)=>a-b);
+  }));
 }
 
 function rebuiltScene(
@@ -191,20 +199,6 @@ function groupBySlide(beats:LessonPresentationBeat[]) {
   return order.map(slideId=>({slideId,beats:groups.get(slideId)!}));
 }
 
-function scenePriority(beat:LessonPresentationBeat) {
-  if(beat.activity||beat.prompt)return 7;
-  if(beat.example)return 6;
-  if(beat.richBlock){
-    if(beat.richBlock.kind==='figure')return 3;
-    if(beat.richBlock.kind==='table'||beat.richBlock.kind==='comparison')return 4;
-    if(beat.richBlock.kind==='steps'||beat.richBlock.kind==='code')return 5;
-    return 2;
-  }
-  if(beat.formula)return 3;
-  if(beat.kind==='source'||beat.kind==='emphasis')return 8;
-  return 1;
-}
-
 function rebuildSlideGroup(
   group:{slideId:string;beats:LessonPresentationBeat[]},
   chapter:RebuiltPresentationChapter,
@@ -215,19 +209,14 @@ function rebuildSlideGroup(
   const foundation=beats.filter(beat=>
     !beat.richBlock&&!beat.example&&!beat.activity&&!beat.prompt&&!beat.formula&&beat.kind!=='source'&&beat.kind!=='emphasis',
   );
-  if(foundation.length){
-    const scene=foundationScene(foundation,chapter,`c14r-${chapter}-${++serial.value}`);
-    if(scene)result.push(scene);
-  }
+  const nextId=()=>`c14r-${chapter}-${++serial.value}`;
+  result.push(...foundationScenes(foundation,chapter,nextId));
 
-  const structured=beats
-    .filter(beat=>!foundation.includes(beat))
-    .sort((left,right)=>scenePriority(left)-scenePriority(right));
-
+  // Preserve source order. Chapter 14's strength comes from conceptual
+  // sequencing, not from sorting every source shape into a generic template.
+  const structured=beats.filter(beat=>!foundation.includes(beat));
   for(const beat of structured){
-    // Exact source-detail beats are retained, but presented as learner-facing
-    // concept/process scenes instead of audit/source cards.
-    const scene=rebuiltScene(beat,chapter,`c14r-${chapter}-${++serial.value}`);
+    const scene=rebuiltScene(beat,chapter,nextId());
     if((beat.kind==='source'||beat.kind==='emphasis')&&scene.richBlock?.kind==='bullets'){
       scene.sceneRole='concept';
       scene.kind='key-idea';
@@ -242,15 +231,15 @@ function rebuildSlideGroup(
 function ensureTopicArc(scenes:LessonPresentationBeat[],chapter:RebuiltPresentationChapter,topicCode:string) {
   if(!scenes.length)return scenes;
   const result=[...scenes];
+  const safeTopic=topicCode.replace(/[^0-9a-z]+/gi,'-');
   const hasHook=result.some(scene=>scene.sceneRole==='hook');
   const hasObjective=result.some(scene=>scene.sceneRole==='objective');
   const hasRecap=result.some(scene=>scene.sceneRole==='recap'||scene.sceneRole==='exam');
 
-  // Use existing source material for the opening scene whenever possible.
   if(!hasHook&&result.length>2){
     const first=result[0]!;
     result.unshift({
-      id:`c14r-${chapter}-${topicCode.replace(/[^0-9a-z]+/gi,'-')}-hook`,
+      id:`c14r-${chapter}-${safeTopic}-hook`,
       slideId:first.slideId,
       kind:'concept',
       sceneRole:'hook',
@@ -258,7 +247,7 @@ function ensureTopicArc(scenes:LessonPresentationBeat[],chapter:RebuiltPresentat
       title:first.title,
       sourcePages:first.sourcePages,
       showSource:false,
-      lead:first.lead ?? 'Recall what you already know about this idea, then identify the question this section needs to answer.',
+      lead:'Recall what you already know about this idea, then identify the question this section needs to answer.',
     });
   }
 
@@ -266,7 +255,7 @@ function ensureTopicArc(scenes:LessonPresentationBeat[],chapter:RebuiltPresentat
     const concepts=result.filter(scene=>['concept','process','visual','compare'].includes(scene.sceneRole??'')).slice(0,4);
     if(concepts.length){
       result.splice(1,0,{
-        id:`c14r-${chapter}-${topicCode.replace(/[^0-9a-z]+/gi,'-')}-objectives`,
+        id:`c14r-${chapter}-${safeTopic}-objectives`,
         slideId:concepts[0]!.slideId,
         kind:'concept',
         sceneRole:'objective',
@@ -274,7 +263,7 @@ function ensureTopicArc(scenes:LessonPresentationBeat[],chapter:RebuiltPresentat
         title:'By the end of this lesson you should be able to…',
         sourcePages:uniqNumbers(concepts.flatMap(scene=>scene.sourcePages)),
         showSource:false,
-        bullets:concepts.map(scene=>`Explain or apply: ${scene.title}`).slice(0,4),
+        bullets:concepts.map(scene=>`Explain or apply: ${scene.title.replace(/ · continued$/,'')}`).slice(0,4),
       });
     }
   }
@@ -282,13 +271,13 @@ function ensureTopicArc(scenes:LessonPresentationBeat[],chapter:RebuiltPresentat
   if(!hasRecap){
     const anchors=result
       .filter(scene=>['concept','process','visual','compare'].includes(scene.sceneRole??''))
-      .map(scene=>scene.title)
+      .map(scene=>scene.title.replace(/ · continued$/,''))
       .filter((title,index,all)=>all.findIndex(item=>NORMALISE(item)===NORMALISE(title))===index)
       .slice(-3);
     if(anchors.length){
       const last=result[result.length-1]!;
       result.push({
-        id:`c14r-${chapter}-${topicCode.replace(/[^0-9a-z]+/gi,'-')}-recap`,
+        id:`c14r-${chapter}-${safeTopic}-recap`,
         slideId:last.slideId,
         kind:'concept',
         sceneRole:'recap',
