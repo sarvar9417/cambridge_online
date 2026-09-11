@@ -9,7 +9,10 @@ const STATE_LABEL:Record<LiveChallengeStudentCard['status'],string>={
   PUBLISHED:'Kutilmoqda',LOBBY:'Lobby ochiq',QUESTION_ACTIVE:'Jonli',ANSWERS_LOCKED:'Javoblar yopildi',
   PEER_MARKING:'Peer marking',ROUND_RESULTS:'Natijalar',PAUSED:'Pauza',
 };
-const QUESTION_VISIBLE=new Set<LiveChallengeStudentCard['status']>(['QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS']);
+const OPENABLE=new Set<LiveChallengeStudentCard['status']>(['PUBLISHED','LOBBY','QUESTION_ACTIVE','ANSWERS_LOCKED','PEER_MARKING','ROUND_RESULTS','PAUSED']);
+export function studentCanOpenLiveChallenge(item:Pick<LiveChallengeStudentCard,'status'|'participantStatus'>){
+  return item.participantStatus==='JOINED'&&OPENABLE.has(item.status);
+}
 type OwnAnswerState={challengeId:string;challengeStatus:string;stateVersion:number;roundId:string|null;roundNumber:number|null;roundStatus:string|null;answer:{id:string;text:string;submittedAt:string;lockedAt:string|null;submissionDurationMs:number|null}|null};
 type MarkPoint={id:string;code:string;text:string;marks:number;accept?:string|null;reject?:string|null};
 type PeerAssignmentState={challengeId:string;status:string;stateVersion:number;roundId:string;roundNumber:number;assignment:null|{id:string;status:string;questionRef:string;answerText:string;maxMarks:number;markScheme:{maxMarks:number;guidanceMd?:string|null;points?:MarkPoint[];groups?:unknown[];levels?:unknown[]};submittedMark:null|{awardedMarks:number;markPointIds:string[];feedbackText:string|null;submittedAt:string}}};
@@ -114,7 +117,7 @@ export function StudentLiveChallenges(){
 
 function ChallengeRow({item,busy,onJoin,onOpen}:{item:LiveChallengeStudentCard;busy:boolean;onJoin:()=>Promise<void>;onOpen:()=>Promise<void>}){
   const joined=item.participantStatus==='JOINED';
-  const canOpen=joined&&QUESTION_VISIBLE.has(item.status);
+  const canOpen=studentCanOpenLiveChallenge(item);
   return <article className={`slc-row slc-row--${item.status.toLowerCase()}`}>
     <div className="slc-main"><span className="slc-state">{STATE_LABEL[item.status]}</span><strong>{item.title}</strong><small>{item.className} · {item.syllabusCode}{item.topicTitle?` · ${item.topicTitle}`:''}{item.subtopicTitle?` · ${item.subtopicTitle}`:''}</small><small>{item.teacherName} · {item.questionCount} savol · {item.joinedCount} joined</small></div>
     <div className="slc-action">{canOpen?<button disabled={busy} onClick={()=>void onOpen()}>{busy?'…':'Ochish'}</button>:joined?<span className="slc-joined">✓ Joined</span>:item.canJoin?<button disabled={busy} onClick={()=>void onJoin()}>{busy?'…':'Join'}</button>:<span className="slc-closed">Join yopiq</span>}</div>
