@@ -224,7 +224,7 @@ export class LiveChallengeAnswerService{
        where lc.id=$1 and (
          ($2='owner' and c.school_id=$3)
          or lc.teacher_id=$4
-         or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)
+         or exists(select 1 from class_teachers ct where ct.class_id=lc.id and ct.teacher_id=$4)
        )`,
       [id,actor.role,actor.schoolId,actor.id],
     );
@@ -291,7 +291,9 @@ export class LiveChallengeAnswerService{
     if(!access.rowCount)throw new DomainError('not_found',404);
     const result=await this.pool.query(
       `with released_rounds as (
-         select r.id,lcq.max_marks_snapshot
+         select r.id,r.locked_at,lcq.max_marks_snapshot,
+           count(*) over()::int challenge_released_count,
+           sum(lcq.max_marks_snapshot) over()::numeric challenge_max_marks
          from live_challenge_rounds r
          join live_challenge_questions lcq on lcq.id=r.challenge_question_id
          where r.challenge_id=$1 and r.status='ROUND_RESULTS'
@@ -314,10 +316,12 @@ export class LiveChallengeAnswerService{
          coalesce(sum(rr.max_marks_snapshot),0)::numeric max_marks,
          coalesce(sum(ea.submission_duration_ms),0)::numeric total_duration_ms,
          count(ea.round_id)::int answered_round_count,
-         count(rr.id)::int released_round_count
+         count(rr.id)::int eligible_round_count,
+         max(rr.challenge_released_count)::int released_round_count,
+         max(rr.challenge_max_marks)::numeric challenge_max_marks
        from live_challenge_participants p
        join users u on u.id=p.student_id
-       cross join released_rounds rr
+       join released_rounds rr on p.joined_at<=rr.locked_at
        left join effective_answers ea on ea.round_id=rr.id and ea.student_id=p.student_id
        where p.challenge_id=$1 and p.status='JOINED'
        group by p.student_id,u.full_name`,
@@ -328,8 +332,8 @@ export class LiveChallengeAnswerService{
     const ranked=result.rows.map(row=>{
       const score=Number(row.score??0),maxMarks=Number(row.max_marks??0),fullName=String(row.full_name??'Student');
       const answeredRounds=Number(row.answered_round_count??0);
-      const releasedRounds=Number(row.released_round_count??0);
-      const averageResponseMs=answeredRounds>0&&answeredRounds===releasedRounds
+      const eligibleRounds=Number(row.eligible_round_count??0);
+      const averageResponseMs=answeredRounds>0&&answeredRounds===eligibleRounds
         ?Math.round(Number(row.total_duration_ms??0)/answeredRounds)
         :null;
       return {fullName,score,maxMarks,percentage:maxMarks>0?Math.round(score/maxMarks*1000)/10:0,averageResponseMs};
@@ -349,11 +353,12 @@ export class LiveChallengeAnswerService{
         averageResponseMs:rankingMode==='marks_plus_small_speed_bonus'?row.averageResponseMs:null,
       };
     });
-    const maxMarks=entries[0]?.maxMarks??0;
+    const releasedRounds=Number(result.rows[0]?.released_round_count??0);
+    const maxMarks=Number(result.rows[0]?.challenge_max_marks??0);
     const average=entries.length?Math.round(entries.reduce((sum,item)=>sum+item.percentage,0)/entries.length*10)/10:0;
     return {
       challengeId:id,status:access.rows[0].status,stateVersion:Number(access.rows[0].state_version),
-      releasedRounds:Number(result.rows[0]?.released_round_count??0),maxMarks,classAveragePercentage:average,
+      releasedRounds,maxMarks,classAveragePercentage:average,
       leaderboardMode:rankingMode,entries,
     };
   }
