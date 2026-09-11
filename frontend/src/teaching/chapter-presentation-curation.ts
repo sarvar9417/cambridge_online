@@ -4,21 +4,20 @@ import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_4_CURRENT_DRAFT } from './lesson-content-chapter4-current';
 import { CHAPTER_7 } from './lesson-content-chapter7-complete';
+import { SOURCE_FILE_FIDELITY_CHAPTER_13 } from './lesson-content-source-file-fidelity';
 import { chapter1PresentationStoryboard } from './chapter1-presentation-storyboard';
 import { chapter2PresentationStoryboard } from './chapter2-presentation-storyboard';
 import { chapter3PresentationStoryboard } from './chapter3-presentation-storyboard';
 import { chapter4PresentationStoryboard } from './chapter4-presentation-storyboard';
 import { chapter7PresentationStoryboard } from './chapter7-presentation-storyboard';
-import {
-  rebuildChapter14StylePresentation,
-  type RebuiltPresentationChapter,
-} from './chapter14-style-presentation-rebuild';
+import { chapter13PresentationStoryboard } from './chapter13-presentation-storyboard';
 
-const REBUILT_CHAPTERS = new Set<RebuiltPresentationChapter>([1,2,3,4,7,13]);
+type AuthoredPresentationChapter=1|2|3|4|7|13;
+const AUTHORED_CHAPTERS=new Set<AuthoredPresentationChapter>([1,2,3,4,7,13]);
 
-function chapterFromBeats(beats:LessonPresentationBeat[],topicCode:string):RebuiltPresentationChapter|null {
+function chapterFromBeats(beats:LessonPresentationBeat[],topicCode:string):AuthoredPresentationChapter|null {
   const topicNumber=Number(topicCode.split('.')[0]);
-  if(REBUILT_CHAPTERS.has(topicNumber as RebuiltPresentationChapter))return topicNumber as RebuiltPresentationChapter;
+  if(AUTHORED_CHAPTERS.has(topicNumber as AuthoredPresentationChapter))return topicNumber as AuthoredPresentationChapter;
   for(const beat of beats){
     const id=`${beat.slideId} ${beat.id}`;
     if(/(?:^|\s)h13-/.test(id))return 13;
@@ -37,12 +36,11 @@ function chapter1SourceSlides(topicCode:string) {
 }
 
 /**
- * Presentation dispatch for the non-Chapter-14 rebuild.
+ * Presentation dispatch for the Chapter-14-standard rebuild.
  *
- * Chapters 1, 2, 3, 4 and 7 now use genuinely hand-authored, source-shaped
- * scene plans rather than the generic reconstruction engine. Chapter 13 stays
- * on the temporary rebuild engine only until its authored storyboard lands in
- * this branch.
+ * Every active non-Chapter-14 presentation chapter now has its own hand-authored,
+ * source-shaped storyboard. There is deliberately no generic presentation
+ * reconstruction fallback for Chapters 1, 2, 3, 4, 7 or 13.
  *
  * Chapter 14 never calls this entry point for its dedicated storyboard/runtime.
  */
@@ -51,30 +49,12 @@ export function curateChapterPresentation(rawBeats:LessonPresentationBeat[],topi
   const chapter=chapterFromBeats(sourceBeats,topicCode);
   if(!chapter)return sourceBeats;
 
-  if(chapter===1){
-    const storyboard=chapter1PresentationStoryboard(topicCode,chapter1SourceSlides(topicCode));
-    if(storyboard)return storyboard;
-  }
+  if(chapter===1)return chapter1PresentationStoryboard(topicCode,chapter1SourceSlides(topicCode))??sourceBeats;
+  if(chapter===2)return chapter2PresentationStoryboard(topicCode,CHAPTER_2_FINAL.slides)??sourceBeats;
+  if(chapter===3)return chapter3PresentationStoryboard(topicCode,CHAPTER_3_FINAL.slides)??sourceBeats;
+  if(chapter===4)return chapter4PresentationStoryboard(topicCode,CHAPTER_4_CURRENT_DRAFT.slides)??sourceBeats;
+  if(chapter===7)return chapter7PresentationStoryboard(topicCode,CHAPTER_7.slides)??sourceBeats;
+  if(chapter===13)return chapter13PresentationStoryboard(topicCode,SOURCE_FILE_FIDELITY_CHAPTER_13.slides)??sourceBeats;
 
-  if(chapter===2){
-    const storyboard=chapter2PresentationStoryboard(topicCode,CHAPTER_2_FINAL.slides);
-    if(storyboard)return storyboard;
-  }
-
-  if(chapter===3){
-    const storyboard=chapter3PresentationStoryboard(topicCode,CHAPTER_3_FINAL.slides);
-    if(storyboard)return storyboard;
-  }
-
-  if(chapter===4){
-    const storyboard=chapter4PresentationStoryboard(topicCode,CHAPTER_4_CURRENT_DRAFT.slides);
-    if(storyboard)return storyboard;
-  }
-
-  if(chapter===7){
-    const storyboard=chapter7PresentationStoryboard(topicCode,CHAPTER_7.slides);
-    if(storyboard)return storyboard;
-  }
-
-  return rebuildChapter14StylePresentation(sourceBeats,topicCode,chapter);
+  return sourceBeats;
 }
