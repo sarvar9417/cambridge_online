@@ -1,8 +1,11 @@
 -- 9618 LaTeX conversion coverage, paper by paper.
 --
--- Read-only. The original QP/MS rows remain the source of truth; this report
--- measures reviewed question-level LaTeX, browser structured content, and
--- LaTeX-authored visual assets with compiled SVG output.
+-- Read-only. The original QP/MS rows remain the source of truth.
+--
+-- Important: a source paper can be a verified exact-content equivalent of a
+-- canonical content owner. Such a source row intentionally has no duplicated
+-- question tree. Coverage therefore follows source_paper_equivalences instead
+-- of treating every zero-question source row as missing work.
 
 with qp as (
   select
@@ -13,10 +16,14 @@ with qp as (
     sp.series,
     sp.variant,
     sp.storage_path,
+    sp.source_url,
     sp.sha256,
     sp.page_count,
     c.number as component,
     s.code as syllabus_code,
+    eq.canonical_source_paper_id,
+    eq.equivalence_kind,
+    coalesce(eq.canonical_source_paper_id, sp.id) as effective_qp_id,
     exists (
       select 1
       from source_papers ms
@@ -30,6 +37,9 @@ with qp as (
   from source_papers sp
   join syllabi s on s.id = sp.syllabus_id
   join components c on c.id = sp.component_id
+  left join source_paper_equivalences eq
+    on eq.source_paper_id = sp.id
+   and eq.equivalence_kind = 'exact_content'
   where s.code = '9618'
     and sp.kind = 'QP'
     and sp.year between 2021 and 2026
@@ -50,9 +60,26 @@ question_stats as (
       where nullif(btrim(coalesce(q.context_latex, '')), '') is not null
     )::int as nodes_with_context_latex,
     count(*) filter (where q.marks is not null and q.content_json is not null)::int as structured_leaves,
-    count(*) filter (where q.marks is not null and q.content_version = 1)::int as structured_v1_leaves,
+    count(*) filter (
+      where q.marks is not null
+        and q.content_json is not null
+        and q.content_version = 1
+    )::int as structured_v1_leaves,
     count(*) filter (where q.marks is not null and q.status = 'approved')::int as approved_leaves,
-    count(*) filter (where q.marks is not null and q.status = 'needs_review')::int as needs_review_leaves
+    count(*) filter (where q.marks is not null and q.status = 'needs_review')::int as needs_review_leaves,
+    count(*) filter (
+      where q.marks is not null
+        and q.body_format = 'latex'
+        and coalesce(q.stem_latex, '') ~*
+          '(source[- ]backed visual|accompanying (tables?|pseudocode block|8-bit register|asset|diagram|monospaced output))'
+        and concat_ws(
+          E'\n',
+          coalesce(q.stem_md, ''),
+          coalesce(q.context_md, ''),
+          coalesce(q.content_json::text, '')
+        ) !~*
+          '(source[- ]backed visual|accompanying (tables?|pseudocode block|8-bit register|asset|diagram|monospaced output))'
+    )::int as latex_source_wording_review_leaves
   from questions q
   group by q.source_paper_id
 ),
@@ -100,38 +127,89 @@ asset_stats as (
   from questions q
   left join question_assets qa on qa.question_id = q.id
   group by q.source_paper_id
+),
+rollout as (
+  select
+    qp.*,
+    coalesce(local_qs.question_nodes, 0) as local_question_nodes,
+    coalesce(qs.question_nodes, 0) as effective_question_nodes,
+    coalesce(qs.leaf_questions, 0) as leaf_questions,
+    coalesce(qs.leaves_with_stem_latex, 0) as leaves_with_stem_latex,
+    coalesce(qs.latex_body_leaves, 0) as latex_body_leaves,
+    coalesce(qs.nodes_with_context_latex, 0) as nodes_with_context_latex,
+    coalesce(qs.structured_leaves, 0) as structured_leaves,
+    coalesce(qs.structured_v1_leaves, 0) as structured_v1_leaves,
+    coalesce(qs.approved_leaves, 0) as approved_leaves,
+    coalesce(qs.needs_review_leaves, 0) as needs_review_leaves,
+    coalesce(qs.latex_source_wording_review_leaves, 0) as latex_source_wording_review_leaves,
+    coalesce(bs.math_blocks, 0) as math_blocks,
+    coalesce(bs.latex_math_blocks, 0) as latex_math_blocks,
+    coalesce(bs.structured_table_blocks, 0) as structured_table_blocks,
+    coalesce(bs.structured_asset_blocks, 0) as structured_asset_blocks,
+    coalesce(ast.assets, 0) as assets,
+    coalesce(ast.visual_assets, 0) as visual_assets,
+    coalesce(ast.latex_authored_assets, 0) as latex_authored_assets,
+    coalesce(ast.compiled_svg_assets, 0) as compiled_svg_assets,
+    coalesce(ast.latex_visuals_ready, 0) as latex_visuals_ready,
+    coalesce(ast.unresolved_visual_assets, 0) as unresolved_visual_assets
+  from qp
+  left join question_stats local_qs on local_qs.source_paper_id = qp.id
+  left join question_stats qs on qs.source_paper_id = qp.effective_qp_id
+  left join block_stats bs on bs.source_paper_id = qp.effective_qp_id
+  left join asset_stats ast on ast.source_paper_id = qp.effective_qp_id
 )
 select
-  qp.year,
-  qp.series::text as series,
-  qp.component,
-  qp.variant,
-  case when qp.variant between 1 and 3 then 'canonical' else 'legacy_or_noncanonical' end as source_class,
-  qp.has_mark_scheme,
-  qp.page_count,
-  coalesce(qs.question_nodes, 0) as question_nodes,
-  coalesce(qs.leaf_questions, 0) as leaf_questions,
-  coalesce(qs.leaves_with_stem_latex, 0) as leaves_with_stem_latex,
-  coalesce(qs.latex_body_leaves, 0) as latex_body_leaves,
-  coalesce(qs.nodes_with_context_latex, 0) as nodes_with_context_latex,
-  coalesce(qs.structured_leaves, 0) as structured_leaves,
-  coalesce(qs.structured_v1_leaves, 0) as structured_v1_leaves,
-  coalesce(bs.math_blocks, 0) as math_blocks,
-  coalesce(bs.latex_math_blocks, 0) as latex_math_blocks,
-  coalesce(bs.structured_table_blocks, 0) as structured_table_blocks,
-  coalesce(bs.structured_asset_blocks, 0) as structured_asset_blocks,
-  coalesce(ast.assets, 0) as assets,
-  coalesce(ast.visual_assets, 0) as visual_assets,
-  coalesce(ast.latex_authored_assets, 0) as latex_authored_assets,
-  coalesce(ast.compiled_svg_assets, 0) as compiled_svg_assets,
-  coalesce(ast.latex_visuals_ready, 0) as latex_visuals_ready,
-  coalesce(ast.unresolved_visual_assets, 0) as unresolved_visual_assets,
-  coalesce(qs.approved_leaves, 0) as approved_leaves,
-  coalesce(qs.needs_review_leaves, 0) as needs_review_leaves,
-  qp.storage_path,
-  qp.sha256
-from qp
-left join question_stats qs on qs.source_paper_id = qp.id
-left join block_stats bs on bs.source_paper_id = qp.id
-left join asset_stats ast on ast.source_paper_id = qp.id
-order by qp.year, qp.series, qp.component, qp.variant;
+  year,
+  series::text as series,
+  component,
+  variant,
+  case
+    when variant not between 1 and 3 then 'legacy_or_noncanonical'
+    when canonical_source_paper_id is not null then 'exact_equivalent'
+    else 'content_owner'
+  end as source_class,
+  equivalence_kind,
+  effective_qp_id as effective_source_paper_id,
+  has_mark_scheme,
+  page_count,
+  local_question_nodes,
+  effective_question_nodes,
+  leaf_questions,
+  leaves_with_stem_latex,
+  latex_body_leaves,
+  nodes_with_context_latex,
+  structured_leaves,
+  structured_v1_leaves,
+  math_blocks,
+  latex_math_blocks,
+  structured_table_blocks,
+  structured_asset_blocks,
+  assets,
+  visual_assets,
+  latex_authored_assets,
+  compiled_svg_assets,
+  latex_visuals_ready,
+  unresolved_visual_assets,
+  approved_leaves,
+  needs_review_leaves,
+  latex_source_wording_review_leaves,
+  case
+    when variant not between 1 and 3 then 'LEGACY_NONCANONICAL'
+    when sha256 is null or not has_mark_scheme then 'SOURCE_INCOMPLETE'
+    when leaf_questions = 0 then 'QUESTION_TREE_MISSING'
+    when latex_body_leaves = 0 then 'LATEX_NOT_STARTED'
+    when latex_body_leaves < leaf_questions
+      or leaves_with_stem_latex < leaf_questions then 'LATEX_IN_PROGRESS'
+    when structured_v1_leaves < leaf_questions then 'STRUCTURED_CONTENT_INCOMPLETE'
+    when unresolved_visual_assets > 0 then 'VISUALS_UNRESOLVED'
+    when latex_source_wording_review_leaves > 0 then 'SOURCE_WORDING_REVIEW'
+    when approved_leaves < leaf_questions
+      or needs_review_leaves > 0 then 'REVIEW_PENDING'
+    when canonical_source_paper_id is not null then 'EXACT_EQUIVALENT_READY_CANDIDATE'
+    else 'LATEX_READY_CANDIDATE'
+  end as rollout_state,
+  storage_path,
+  source_url,
+  sha256
+from rollout
+order by year, series, component, variant;
