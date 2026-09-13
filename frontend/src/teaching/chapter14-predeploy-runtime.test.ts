@@ -69,7 +69,9 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
   it('lets the Chapter 14 renderer own projector content without duplicate generic blocks',()=>{
     expect(lessonContent).toContain("const chapter14Owned=v4Visual&&beat.id.startsWith('h14p-')");
     expect(lessonContent).toContain('const v4OwnsStructuredContent=v4Visual&&presentationVisualOwnsBeatContent(beat)');
-    expect(facade).toContain('return hasChapter14PresentationRuntime(beat)||hasChapter1PresentationVisual(beat)||hasChapter13PresentationVisual(beat)');
+    expect(facade).toContain('return hasChapter14PresentationRuntime(beat);');
+    expect(facade).not.toContain('hasChapter1PresentationVisual');
+    expect(facade).not.toContain('hasChapter13PresentationVisual');
     for(const marker of [
       '!chapter14Owned&&beat.lead',
       '!chapter14Owned&&!v4OwnsStructuredContent&&beat.formula',

@@ -1,23 +1,22 @@
 /*
- * Chapter 14 richness contract for the rest of Lesson Studio.
+ * Chapter 14-derived projector contract for rebuilt Chapters 1, 2, 3, 4, 7
+ * and 13. Chapter 14 itself renders through its dedicated h14* surfaces.
  *
- * 1. Reveal is emphasis, not absence: the complete source-grounded structure is
- *    readable from first paint; Space progressively promotes the speaking focus.
- * 2. Diagram-only chapter visuals (notably Chapters 2–4) share the projector
- *    canvas with their exact table/steps/source detail instead of replacing it.
- * 3. The layout stays projector-sized: no tiny appendix typography and no hidden
- *    source-detail region below an oversized decorative visual.
+ * Reveal is emphasis, not absence. Only answers/model answers remain genuinely
+ * gated by React rendering; explanatory structure stays on the canvas.
  */
 .lesson-experience.lx-present{
-  --chapter-rich-upcoming:.38;
+  --chapter-rich-upcoming:.34;
   --chapter-rich-visible:1;
+  --chapter-rich-line:rgba(148,163,184,.26);
+  --chapter-rich-card:rgba(15,23,42,.055);
 }
 
 .lesson-experience.lx-present .lx-present-screen .is-upcoming{
   opacity:var(--chapter-rich-upcoming)!important;
   visibility:visible!important;
   transform:none!important;
-  filter:saturate(.58);
+  filter:saturate(.5);
 }
 
 .lesson-experience.lx-present .lx-present-screen .is-visible{
@@ -39,129 +38,296 @@
   .lx-bitfield,
   .lx-pixel-scale>div
 ){
-  transition:opacity .2s ease,background .2s ease,filter .2s ease;
+  transition:opacity .18s ease,background .18s ease,filter .18s ease,box-shadow .18s ease;
 }
 
-/*
- * Chapter 2/3/4 custom visuals are visual reconstructions, not replacements for
- * the beat payload. Keep visual + exact explanation visible together, matching
- * the dense source/diagram pairing used by Chapter 14.
- */
-@media(min-width:960px){
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-content{
-    display:grid;
-    grid-template-columns:minmax(0,1.18fr) minmax(330px,.82fr);
-    grid-auto-rows:min-content;
-    column-gap:clamp(18px,2.2vw,34px);
-    row-gap:clamp(10px,1.25vh,18px);
-    align-items:start;
-    min-height:clamp(390px,54vh,570px);
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-custom-visual{
-    grid-column:1;
-    grid-row:1 / span 20;
-    min-width:0;
-    width:100%;
-    align-self:center;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-content>:not(.lx-present-custom-visual){
-    grid-column:2;
-    min-width:0;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-lead{
-    margin-top:0;
-    font-size:clamp(15px,1.25vw,20px);
-    line-height:1.42;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich :is(.lx-present-points,.lx-points){
-    margin:0;
-    gap:8px;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich :is(.lx-present-points,.lx-points) li{
-    font-size:clamp(13px,1.03vw,17px);
-    line-height:1.32;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-terms{
-    grid-template-columns:1fr;
-    gap:9px;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-terms section{
-    padding:12px 14px;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-terms h2{
-    font-size:clamp(17px,1.35vw,22px);
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-terms p{
-    font-size:clamp(12.5px,.96vw,16px);
-    line-height:1.35;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich :is(.lx-steps,.lx-comparison,.lx-table-wrap,.lx-code,.lx-callout,.lx-figure,.lx-present-example){
-    margin:0;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-steps li{
-    padding:8px 10px;
-    font-size:clamp(12.5px,.95vw,15.5px);
-    line-height:1.28;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-comparison p{
-    padding:8px 10px;
-    font-size:clamp(12px,.92vw,15px);
-    line-height:1.28;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-table-wrap table{
-    font-size:clamp(11.5px,.88vw,14.5px);
-    line-height:1.24;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-table-wrap :is(th,td){
-    padding:7px 9px;
-  }
-
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-example li{
-    font-size:clamp(12.5px,.96vw,15.5px);
-    line-height:1.28;
-  }
+/* Chapter 14 uses a strong heading and lets the teaching model dominate the
+   remainder of the screen. Rebuilt scenes follow the same hierarchy. */
+.lesson-experience.lx-present .lx-present-screen>header{
+  margin-bottom:clamp(10px,1.25vh,18px);
 }
 
-/* Keep the source model complete on shorter classroom projectors. */
-@media(max-height:768px) and (min-width:960px){
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-content{
-    min-height:350px;
-    column-gap:18px;
-    row-gap:8px;
-  }
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-lead{
-    font-size:14px;
-    line-height:1.34;
-  }
-  .lesson-experience.lx-present .lx-present-screen--split-rich :is(.lx-present-points,.lx-points) li,
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-steps li,
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-comparison p,
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-example li{
-    font-size:12px;
-    line-height:1.22;
-  }
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-table-wrap table{
-    font-size:11px;
-  }
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-table-wrap :is(th,td){padding:5px 7px}
+.lesson-experience.lx-present .lx-present-screen>header>span{
+  letter-spacing:.13em;
+  font-weight:800;
 }
 
-@media(max-width:959px){
-  .lesson-experience.lx-present .lx-present-screen--split-rich .lx-present-custom-visual{
-    margin-bottom:14px;
-  }
+.lesson-experience.lx-present .lx-present-screen>header>small{
+  opacity:.72;
+}
+
+.lesson-experience.lx-present .lx-present-screen>header>h1{
+  max-width:1200px;
+  text-wrap:balance;
+  line-height:1.04;
+}
+
+.lesson-experience.lx-present .lx-present-content{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:clamp(12px,1.7vh,22px);
+  min-height:clamp(420px,58vh,650px);
+}
+
+.lesson-experience.lx-present .lx-present-lead{
+  max-width:1120px;
+  margin:0;
+  font-size:clamp(18px,1.55vw,27px);
+  line-height:1.42;
+  text-wrap:pretty;
+}
+
+.lesson-experience.lx-present :is(.lx-present-points,.lx-points){
+  display:grid;
+  gap:clamp(10px,1.25vh,16px);
+  max-width:1180px;
+  margin:0;
+}
+
+.lesson-experience.lx-present :is(.lx-present-points,.lx-points) li{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:14px;
+  background:var(--chapter-rich-card);
+  padding:clamp(11px,1.2vw,17px) clamp(14px,1.55vw,22px);
+  font-size:clamp(16px,1.28vw,22px);
+  line-height:1.35;
+}
+
+.lesson-experience.lx-present .lx-present-terms{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(12px,1.45vw,20px);
+  max-width:1180px;
+}
+
+.lesson-experience.lx-present .lx-present-terms section{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:18px;
+  background:var(--chapter-rich-card);
+  padding:clamp(16px,1.6vw,24px);
+}
+
+.lesson-experience.lx-present .lx-present-terms section>span{
+  font-size:12px;
+  letter-spacing:.12em;
+  font-weight:800;
+}
+
+.lesson-experience.lx-present .lx-present-terms h2{
+  margin:7px 0 8px;
+  font-size:clamp(21px,1.7vw,30px);
+  line-height:1.08;
+}
+
+.lesson-experience.lx-present .lx-present-terms p{
+  margin:0;
+  font-size:clamp(15px,1.18vw,20px);
+  line-height:1.42;
+}
+
+.lesson-experience.lx-present .lx-formula--present{
+  max-width:1180px;
+  padding:clamp(18px,2vw,30px);
+  border-radius:18px;
+  font-size:clamp(22px,2vw,36px);
+  line-height:1.2;
+}
+
+.lesson-experience.lx-present :is(.lx-steps,.lx-comparison,.lx-table-wrap,.lx-code,.lx-callout,.lx-figure,.lx-present-example){
+  width:min(100%,1180px);
+  margin:0;
+}
+
+.lesson-experience.lx-present .lx-steps>strong,
+.lesson-experience.lx-present .lx-figure>figcaption,
+.lesson-experience.lx-present .lx-code>strong{
+  display:block;
+  margin-bottom:10px;
+  font-size:clamp(17px,1.3vw,22px);
+}
+
+.lesson-experience.lx-present .lx-steps ol{
+  display:grid;
+  gap:8px;
+  margin:0;
+}
+
+.lesson-experience.lx-present .lx-steps li{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:13px;
+  padding:clamp(9px,1vw,14px) clamp(11px,1.2vw,18px);
+  font-size:clamp(15px,1.14vw,19px);
+  line-height:1.32;
+}
+
+.lesson-experience.lx-present .lx-comparison{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+
+.lesson-experience.lx-present .lx-comparison section{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:18px;
+  overflow:hidden;
+}
+
+.lesson-experience.lx-present .lx-comparison section>strong{
+  display:block;
+  padding:13px 16px;
+  font-size:clamp(17px,1.3vw,22px);
+  border-bottom:1px solid var(--chapter-rich-line);
+}
+
+.lesson-experience.lx-present .lx-comparison p{
+  margin:0;
+  padding:clamp(9px,.95vw,13px) 16px;
+  font-size:clamp(14px,1.05vw,18px);
+  line-height:1.32;
+  border-bottom:1px solid var(--chapter-rich-line);
+}
+
+.lesson-experience.lx-present .lx-table-wrap{
+  overflow:auto;
+  border:1px solid var(--chapter-rich-line);
+  border-radius:17px;
+}
+
+.lesson-experience.lx-present .lx-table-wrap table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:clamp(13px,1vw,17px);
+  line-height:1.28;
+}
+
+.lesson-experience.lx-present .lx-table-wrap caption{
+  text-align:left;
+  padding:12px 15px;
+  font-weight:800;
+  font-size:clamp(15px,1.15vw,19px);
+}
+
+.lesson-experience.lx-present .lx-table-wrap :is(th,td){
+  padding:clamp(8px,.8vw,12px) clamp(9px,1vw,15px);
+  border-top:1px solid var(--chapter-rich-line);
+  vertical-align:top;
+}
+
+.lesson-experience.lx-present .lx-code pre{
+  max-height:47vh;
+  overflow:auto;
+  padding:18px 20px;
+  border-radius:16px;
+  font-size:clamp(14px,1.02vw,18px);
+  line-height:1.38;
+}
+
+.lesson-experience.lx-present .lx-callout{
+  border-radius:18px;
+  padding:clamp(18px,1.8vw,27px);
+}
+
+.lesson-experience.lx-present .lx-callout strong{
+  display:block;
+  margin:5px 0 9px;
+  font-size:clamp(20px,1.65vw,29px);
+}
+
+.lesson-experience.lx-present .lx-callout p{
+  margin:0;
+  font-size:clamp(16px,1.22vw,21px);
+  line-height:1.4;
+}
+
+.lesson-experience.lx-present .lx-sequence{
+  display:flex;
+  align-items:stretch;
+  gap:9px;
+  overflow-x:auto;
+}
+
+.lesson-experience.lx-present .lx-sequence-item{
+  min-width:150px;
+  flex:1 0 0;
+}
+
+.lesson-experience.lx-present .lx-sequence-item span{
+  height:100%;
+  border:1px solid var(--chapter-rich-line);
+  border-radius:15px;
+  padding:12px;
+}
+
+.lesson-experience.lx-present .lx-sequence-item strong{
+  font-size:clamp(14px,1.05vw,18px);
+}
+
+.lesson-experience.lx-present .lx-sequence-item small{
+  font-size:clamp(12px,.9vw,15px);
+  line-height:1.3;
+}
+
+.lesson-experience.lx-present .lx-bitfields{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:9px;
+}
+
+.lesson-experience.lx-present .lx-bitfield{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:14px;
+  padding:11px 12px;
+}
+
+.lesson-experience.lx-present .lx-present-example{
+  border:1px solid var(--chapter-rich-line);
+  border-radius:18px;
+  padding:clamp(15px,1.5vw,23px);
+}
+
+.lesson-experience.lx-present .lx-present-example ol{
+  display:grid;
+  gap:8px;
+}
+
+.lesson-experience.lx-present .lx-present-example li{
+  font-size:clamp(15px,1.12vw,19px);
+  line-height:1.34;
+}
+
+/* Scene-role pacing mirrors Chapter 14: hook/challenge screens breathe more;
+   compare/process screens use the full projector canvas. */
+.lesson-experience.lx-present .lx-present-screen--scene-hook .lx-present-content,
+.lesson-experience.lx-present .lx-present-screen--scene-challenge .lx-present-content{
+  justify-content:center;
+  max-width:1120px;
+}
+
+.lesson-experience.lx-present .lx-present-screen--scene-compare .lx-present-content,
+.lesson-experience.lx-present .lx-present-screen--scene-process .lx-present-content,
+.lesson-experience.lx-present .lx-present-screen--scene-visual .lx-present-content{
+  justify-content:flex-start;
+}
+
+@media(max-height:768px){
+  .lesson-experience.lx-present .lx-present-content{min-height:360px;gap:9px}
+  .lesson-experience.lx-present .lx-present-lead{font-size:16px;line-height:1.34}
+  .lesson-experience.lx-present :is(.lx-present-points,.lx-points) li{font-size:13px;padding:8px 11px}
+  .lesson-experience.lx-present .lx-present-terms h2{font-size:18px}
+  .lesson-experience.lx-present .lx-present-terms p{font-size:12.5px}
+  .lesson-experience.lx-present .lx-steps li,
+  .lesson-experience.lx-present .lx-comparison p,
+  .lesson-experience.lx-present .lx-present-example li{font-size:12.5px;padding-top:6px;padding-bottom:6px}
+  .lesson-experience.lx-present .lx-table-wrap table{font-size:11.5px}
+  .lesson-experience.lx-present .lx-table-wrap :is(th,td){padding:5px 7px}
+  .lesson-experience.lx-present .lx-code pre{max-height:38vh;font-size:12px}
+}
+
+@media(max-width:760px){
+  .lesson-experience.lx-present .lx-present-terms,
+  .lesson-experience.lx-present .lx-comparison{grid-template-columns:1fr}
+  .lesson-experience.lx-present .lx-sequence{display:grid;grid-template-columns:1fr}
+  .lesson-experience.lx-present .lx-sequence-item{min-width:0}
+  .lesson-experience.lx-present .lx-sequence-item>b{display:none}
 }
