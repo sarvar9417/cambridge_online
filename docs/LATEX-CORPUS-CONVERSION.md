@@ -1,36 +1,54 @@
 # 9618 Past Paper LaTeX Conversion Contract
 
-Updated: 2026-09-08
+Updated: 2026-09-13
 
 ## Goal
 
-Reconstruct the Cambridge International AS & A Level Computer Science 9618 past-paper corpus as a source-faithful, editable LaTeX representation without replacing the original Cambridge QP/MS evidence.
+Reconstruct the Cambridge International AS & A Level Computer Science 9618 past-paper corpus as a **source-faithful, editable, syllabus-mapped LaTeX assessment corpus** without replacing the original Cambridge QP/MS evidence.
 
-The conversion is deliberately **paper-by-paper and question-by-question**. It is not OCR-to-LaTeX bulk replacement.
+The conversion is deliberately **paper-by-paper and question-by-question**. It is not an OCR-to-LaTeX bulk replacement.
 
 Target range for this conversion programme:
 
 - years: **2021–2026**
 - syllabus: **9618**
 - components: **1–4**
-- examination series: every canonical source session actually present and verified
-- question paper and corresponding mark scheme retained as provenance
+- examination series: every verified source session actually present
+- every source QP and corresponding MS retained as provenance
+- exact-content variants represented through source equivalence instead of duplicated question trees
 
-The pre-2026 Drive baseline contains 118 canonical QP/MS pairs for 2021–2025 MJ/ON. The supplied 2026 May/June folder contains a further 12 canonical QP/MS pairs (11–13, 21–23, 31–33, 41–43). Counts are source-discovered, not forced to a fixed 12-paper assumption per session.
+The long-term product unit is not a PDF page. It is a source-verifiable question part connected to:
+
+```text
+source paper
+  -> question hierarchy
+     -> source-faithful LaTeX / structured content
+     -> visual assets
+     -> marks + mark scheme
+     -> topic / subtopic
+     -> learning objective
+     -> dependencies
+     -> student attempts / analytics
+```
 
 ## Existing database support
 
-The live schema already contains the question-level fields needed for this programme:
+The live schema already contains the fields needed for this programme:
 
 - `questions.stem_latex`
 - `questions.context_latex`
 - `questions.body_format` with `markdown | latex`
+- `questions.content_json` / `content_version`
 - `question_assets.latex_source`
 - `question_assets.svg_markup`
+- `question_subtopics`
+- `question_learning_objectives`
+- source-paper hashes, URLs and equivalence records
+- structured mark-scheme tables
 
-Therefore the conversion does **not** need a destructive question-schema rewrite. Existing Markdown/structured content remains available while the reviewed LaTeX representation is populated and verified.
+Therefore the conversion does **not** need a destructive question-schema rewrite. Existing Markdown/structured content remains available for search, interaction, accessibility and audit while reviewed LaTeX is populated and verified.
 
-A leaf is not considered migrated just because `stem_latex` is non-empty. `body_format = 'latex'` is the explicit promotion flag and is set only after source comparison and rendering checks pass.
+A leaf is not considered migrated merely because `stem_latex` is non-empty. `body_format = 'latex'` is a promotion flag, not proof by itself that the source has been reproduced faithfully.
 
 ## Source-of-truth rule
 
@@ -39,14 +57,17 @@ The original Cambridge PDFs remain authoritative.
 ```text
 original QP/MS
     ↓
+verified source identity (URL + SHA-256 + page count)
+    ↓
 verified question tree + source page/bbox
     ↓
-questions.stem_latex / context_latex
-question_assets.latex_source
+source text + structured content + LaTeX authoring source
+    ↓
+question_assets.latex_source / source-backed image
     ↓
 KaTeX or worker-compiled SVG
     ↓
-visual + semantic comparison with the original
+visual + semantic + wording comparison with original
     ↓
 body_format = latex only after acceptance
 ```
@@ -58,42 +79,93 @@ LaTeX is a presentation/authoring representation. It must never erase:
 - question hierarchy
 - marks
 - source page and source bounding box when available
-- QP ↔ MS relationship
+- QP <-> MS relationship
 - dependencies between question parts
+- topic / subtopic / learning-objective mapping
 - original extracted text/history needed for audit
+
+## Wording fidelity: no invented bridge prose
+
+The LaTeX representation must preserve Cambridge wording. It may perform only transformations needed for faithful LaTeX representation, for example:
+
+- escaping LaTeX-sensitive characters
+- representing `×`, subscripts, superscripts or Boolean/mathematical notation correctly
+- preserving paragraph boundaries and line order where semantically relevant
+- representing a source table/code/diagram as a structured/asset block
+
+It must **not** silently rewrite a question or insert explanatory bridge text that Cambridge did not write.
+
+For example, if the source has a sentence followed by a table, the corpus should store:
+
+```text
+source sentence
++ ordered table/asset block
+```
+
+not a rewritten sentence such as:
+
+```text
+"... shown in the accompanying source-backed visual"
+```
+
+unless those words are actually present in the source.
+
+This matters because a visually correct question can still be textually non-faithful. `content_json` preserves ordered source blocks and source pages; `question_assets` carries reconstructed visual content. `stem_latex`/`context_latex` must not invent prose merely to point at those blocks.
+
+The read-only coverage audit therefore reports `latex_source_wording_review_leaves`. These are review candidates, not automatic proof of an error.
 
 ## Representation policy
 
-### Complete question text
+### Complete question package
 
-Each reviewed leaf gets a complete source-faithful `stem_latex`. Shared parent/scenario material gets `context_latex` at the node where it belongs.
+The complete source-faithful representation of a leaf is the ordered combination of:
 
-This is the canonical LaTeX authoring form for the question. It can contain normal prose and inline/display mathematical notation in one representation, so expressions do not need to be awkwardly separated from the sentence merely to render them.
+1. inherited source context,
+2. source question text,
+3. structured table/code/math blocks,
+4. source-backed or LaTeX-authored assets,
+5. answer area semantics where needed.
 
-The existing `stem_md`, `context_md` and `content_json` are retained for search, interaction, accessibility and backward compatibility during migration.
+`stem_latex` contains the textual LaTeX authoring portion. Shared parent/scenario material belongs in `context_latex` at the node where it appears in the source. Visual content is not duplicated into invented prose; it is carried by the ordered structured/asset representation.
+
+The existing `stem_md`, `context_md` and `content_json` are retained for audit, search, interaction, accessibility and backward compatibility.
+
+### Topic, subtopic and learning-objective mapping
+
+Classification is performed at the **smallest meaningful marked question part**, not only at the root question.
+
+Rules:
+
+- every marked leaf must have at least one syllabus subtopic mapping;
+- one mapping is primary when several subtopics apply;
+- secondary mappings are allowed for genuinely cross-topic questions;
+- learning-objective mapping is preferred where the syllabus model supports it;
+- automated classification is a proposal, not source truth;
+- high-confidence values are still reviewable and must be corrected when the source contradicts them;
+- classification corrections should leave an audit trail.
+
+This enables later selection by topic/subtopic/learning objective without duplicating or rewriting the original question.
 
 ### Mathematical and Boolean notation
 
-The structured content model already has a `math` block with canonical `latex`. Browser rendering uses KaTeX. Raw LaTeX is preserved in `data-latex` for provenance/debugging and a render failure is shown visibly rather than silently dropping notation.
-
-Question-level `stem_latex` remains the complete authoring source; structured math blocks are the browser-semantic representation where applicable.
+The structured content model already supports a `math` block with canonical LaTeX. Browser rendering uses KaTeX. Raw LaTeX is retained for provenance/debugging and render failure must be visible rather than silently dropping notation.
 
 ### Tables and trace tables
 
-The source-faithful question LaTeX may use `tabular`, `array`, `booktabs`, TikZ matrices or another reviewed LaTeX structure matching the paper.
+Source-faithful authoring may use `tabular`, `array`, TikZ matrices or another reviewed LaTeX structure matching the paper.
 
-When a table contains candidate-editable cells, the browser also keeps a semantic structured `table` block so the cells remain interactive and accessible. Interactive semantics are not sacrificed merely to make the browser display a static table image.
+When a table contains candidate-editable cells, the browser also keeps a semantic structured `table` block so cells remain interactive and accessible. Interactive semantics are not sacrificed merely to display a static table image.
 
 ### Pseudocode and program code
 
-The LaTeX authoring source uses a controlled monospaced/verbatim-style representation matching Cambridge line order and indentation. The browser also retains a structured `code` block so the content remains selectable and machine-readable.
+The LaTeX authoring source uses a controlled monospaced/verbatim-style representation matching Cambridge line order and indentation. The browser retains a structured `code` block so the content remains selectable and machine-readable.
 
 ### Diagrams, flowcharts and logic circuits
 
-Where the source visual is reproducible as vector geometry, it is authored as reviewed LaTeX/TikZ/circuitikz:
+Where the source visual is truthfully reproducible as vector geometry, it is authored as reviewed LaTeX/TikZ/circuitikz:
 
-- `question_assets.latex_source` — reviewed authoring source
-- `question_assets.svg_markup` — compiled vector output
+- `question_assets.latex_source` - reviewed authoring source
+- `question_assets.svg_markup` - compiled vector output
 
 The worker compiler is `backend/scripts/latex-asset-compile.py`.
 
@@ -118,9 +190,9 @@ A photograph or source image that cannot be truthfully reconstructed from vector
 Full TikZ is **not** compiled in the browser or on every page request.
 
 ```text
-question stem/context LaTeX
-       ├── math / Boolean fragments → KaTeX in browser
-       └── complete authoring source retained in DB
+question text / math LaTeX
+       ├── prose + math -> browser renderer / KaTeX
+       └── authoring source retained in DB
 
 TikZ / circuitikz source
         ↓ reviewed worker compilation
@@ -129,25 +201,41 @@ TikZ / circuitikz source
    normal browser asset rendering
 ```
 
-This keeps student/teacher pages fast while preserving editable LaTeX source for diagrams.
+## Exact-content source equivalence
+
+“All past papers are present” does not mean “duplicate every question tree for every filename”.
+
+When two official source papers have been independently verified as exact-content equivalents:
+
+- both source-paper identities remain in `source_papers`;
+- each keeps its own filename/source URL/hash/evidence;
+- `source_paper_equivalences` points the equivalent source to the canonical content owner;
+- questions/assets/LaTeX are maintained once on the content owner;
+- coverage/readiness follows the effective content owner.
+
+Therefore a verified equivalent source with zero local question nodes is **not** automatically missing ingestion.
 
 ## Per-paper conversion procedure
 
-Every canonical paper follows the same gate:
+Every content-owning paper follows the same gate:
 
-1. Identify the canonical QP and exact MS pair from filename/source metadata.
-2. Confirm source SHA-256 and page count.
-3. Inventory every question node and leaf in the database.
-4. Compare the question tree with the original PDF page by page.
-5. Write complete `stem_latex` and required `context_latex` from the source.
-6. Reconstruct tables, code, mathematical/Boolean notation and answer structures.
-7. Rebuild reproducible diagrams/flowcharts/logic circuits in LaTeX/TikZ/circuitikz.
-8. Compile every LaTeX visual asset to SVG.
-9. Render the complete question in the application.
-10. Compare rendered output with the original source for meaning, order, labels, values, marks and visual relationships.
-11. Compare question/part mapping with the mark scheme.
-12. Resolve all source-fidelity findings.
-13. Promote accepted leaves to `body_format = 'latex'` only after mandatory checks pass.
+1. Identify the QP and exact MS pair from source metadata.
+2. Confirm source URL, SHA-256 and page count.
+3. Resolve exact-content equivalence before creating a duplicate question tree.
+4. Inventory every question node and marked leaf in the database.
+5. Compare the question tree with the original PDF page by page.
+6. Confirm paper mark total and per-part marks.
+7. Confirm primary subtopic mapping for every marked leaf; add secondary mappings only where justified.
+8. Confirm learning-objective mapping where applicable.
+9. Write source-faithful `stem_latex` and required `context_latex` without invented bridge prose.
+10. Reconstruct tables, code, mathematical/Boolean notation and answer structures.
+11. Rebuild reproducible diagrams/flowcharts/logic circuits in LaTeX/TikZ/circuitikz.
+12. Compile every LaTeX-authored visual asset to SVG.
+13. Render the complete ordered question package in the application.
+14. Compare rendered output with the original source for wording, meaning, order, labels, values, marks and visual relationships.
+15. Compare question/part mapping with the mark scheme.
+16. Resolve all source-fidelity and review findings.
+17. Promote accepted leaves to `body_format = 'latex'` only after mandatory checks pass.
 
 A corrected retry is not accepted merely because it compiles; source fidelity must be rechecked.
 
@@ -155,26 +243,33 @@ A corrected retry is not accepted merely because it compiles; source fidelity mu
 
 A paper is `LATEX_READY` only when all applicable conditions are true:
 
-- canonical QP/MS pair verified
-- every leaf question accounted for
-- every leaf has reviewed `stem_latex`
-- every shared scenario that needs it has reviewed `context_latex`
+- QP/MS pair verified
+- source URL/hash identity is pinned
+- exact-content equivalence resolved
+- every marked leaf accounted for
+- paper-level mark total matches the source
+- every marked leaf has correct primary subtopic mapping
+- learning-objective mappings reviewed where applicable
+- every leaf has source-faithful `stem_latex`
+- shared source context has correct `context_latex`
+- no invented wording is accepted as source text
 - all accepted leaves use `body_format = 'latex'`
-- every structured content object remains valid at the supported version
+- structured content remains valid at the supported version
 - every mathematical/Boolean block has valid LaTeX and renders
 - every required table/trace grid is complete
 - every required code/pseudocode block is complete
-- every reproducible visual has reviewed `latex_source` and compiled SVG
-- every non-LaTeX source image has a valid source-backed asset
+- every reproducible visual has reviewed `latex_source` and usable compiled SVG
+- every non-LaTeX image has a valid source-backed asset
 - no required visual is unresolved
-- question hierarchy and marks match the source
 - dependencies are preserved
-- paper-level mark total remains correct
+- QP/MS mapping is complete
 - human/source review complete
 
-## First pilot: 9618/11/M/J/21
+The coverage report uses `*_READY_CANDIDATE`, not `LATEX_READY`, because the final source review remains an explicit gate.
 
-The first pilot is `9618_s21_qp_11.pdf` because it exercises a broad set of structures in one paper:
+## Pilot audit: 9618/11/M/J/21
+
+`9618_s21_qp_11.pdf` remains the reference pilot because it exercises a broad set of structures:
 
 - descriptive table
 - matching-line task
@@ -187,27 +282,43 @@ The first pilot is `9618_s21_qp_11.pdf` because it exercises a broad set of stru
 - relationship table
 - logic-gate selection table
 
-The live database currently contains 42 question nodes for this source: 12 context nodes and 30 marked leaves. All 30 marked leaves have structured v1 content.
+The exact Drive QP was re-fetched and SHA-256 matched the live source record.
 
-Current LaTeX baseline for this pilot:
+Current live pilot state on 2026-09-13:
 
+- 42 question nodes
 - 30 marked leaves
-- 0 leaves with `stem_latex`
-- 0 leaves promoted to `body_format = 'latex'`
-- 0 nodes with `context_latex`
-- 12 table assets
-- 3 pseudocode assets
-- 1 diagram asset
-- 0 assets with `latex_source`
-- 0 assets with compiled `svg_markup`
+- 75 total marks, matching the paper
+- 30/30 marked leaves have structured v1 content
+- 30/30 marked leaves have `stem_latex`
+- 30/30 marked leaves are promoted to `body_format = 'latex'`
+- all 30 structured leaves pin the source-paper SHA
+- all structured blocks are source-page pinned
+- 16 question assets
+- 16/16 assets have `latex_source`
+- 16/16 assets have compiled `svg_markup`
+- no unresolved visual asset in the current audit
 
-No production content is overwritten by the foundation work. The pilot is converted only after the renderer/compiler gates are in place and the exact source-to-database comparison is complete.
+The strengthened wording audit currently flags **7 pilot leaves for source-wording review** because their LaTeX contains bridge wording not present in the source-backed text/structured blocks. Therefore this pilot is not considered fully `LATEX_READY` under the strengthened contract until those leaves are reconciled.
 
-## Corpus reconciliation note
+The same pilot audit also found two overconfident learning-objective mappings that contradicted the source question intent. They were corrected in the live database with `audit_log` evidence on 2026-09-13:
 
-The live database contains a legacy 2026 MJ Paper 1 `variant = 0` QP/MS pair in addition to canonical variants 1–3. That legacy pair is **not** a fourth Cambridge variant and must not inflate canonical LaTeX coverage. Coverage tools classify variants 1–3 as canonical and report other rows separately.
+- Q4(b): peer-to-peer **benefits/drawbacks** objective
+- Q4(c)(i): **router role and function** objective
 
-The database also contains canonical source rows that may intentionally have no duplicated question tree when their content is represented through verified source-equivalence/canonicalisation. A zero-question source row must therefore be reconciled against the equivalence model before it is treated as missing conversion work.
+The primary subtopic (`2.1 Networks including the internet`) did not need changing in either case.
+
+## Current corpus baseline
+
+Live marked-question rows on 2026-09-13:
+
+- 2793 marked 9618 leaf rows in the current question trees
+- 1298 leaves currently promoted to LaTeX with non-empty `stem_latex`
+- 1495 leaves not yet promoted to LaTeX
+
+These are question-tree counts, **not a count of unique official source filenames**. Exact-content source variants can intentionally share one canonical question tree through `source_paper_equivalences`.
+
+The equivalence-aware coverage audit shows the next chronological content-owner paper with `LATEX_NOT_STARTED` after the already-converted run is currently `9618/21/O/N/22` (`9618_w22_qp_21.pdf`): 22 marked leaves, structured v1 content present, and no promoted LaTeX yet. It must still pass exact QP/MS source verification before writes are promoted.
 
 ## Read-only coverage audit
 
@@ -217,33 +328,47 @@ Run:
 psql "$DATABASE_URL" -f backend/src/database/audits/9618-latex-coverage.sql
 ```
 
-The report shows per paper:
+The report now distinguishes:
 
-- source classification and MS pairing
-- question/leaf counts
-- `stem_latex`, `context_latex` and `body_format` coverage
-- structured-content coverage
-- math/LaTeX block coverage
-- table/asset counts
-- asset `latex_source` coverage
-- compiled SVG coverage
-- unresolved visuals
-- review status
+- `content_owner`
+- `exact_equivalent`
+- `legacy_or_noncanonical`
+
+and reports an effective content owner so exact-equivalent source rows are not misclassified as missing conversion work.
+
+It also emits a `rollout_state`, including:
+
+- `SOURCE_INCOMPLETE`
+- `QUESTION_TREE_MISSING`
+- `LATEX_NOT_STARTED`
+- `LATEX_IN_PROGRESS`
+- `STRUCTURED_CONTENT_INCOMPLETE`
+- `VISUALS_UNRESOLVED`
+- `SOURCE_WORDING_REVIEW`
+- `REVIEW_PENDING`
+- `LATEX_READY_CANDIDATE`
+- `EXACT_EQUIVALENT_READY_CANDIDATE`
+- `LEGACY_NONCANONICAL`
 
 ## Rollout order
 
-After the pilot gate is accepted, convert one canonical paper at a time in chronological order:
+Continue one **content owner** at a time in chronological order, while exact-equivalent source rows inherit verified content coverage:
 
 ```text
-2021 MJ → 2021 ON
-2022 MJ → 2022 ON
-2023 MJ → 2023 ON
-2024 MJ → 2024 ON
-2025 MJ → 2025 ON
+finish/re-audit already-converted papers
+        ↓
+2022 ON unresolved/non-LaTeX content owners
+        ↓
+2023 MJ/ON unresolved/non-LaTeX content owners
+        ↓
+2024 MJ/ON
+        ↓
+2025 MJ/ON
+        ↓
 2026 verified sessions
 ```
 
-The exact 2026 sessions are taken from verified source/database reconciliation, not from assumptions.
+A later paper must not be bulk-promoted merely because a converter can generate syntactically valid LaTeX. Source fidelity and syllabus mapping remain blocking gates.
 
 ## Repository policy
 
