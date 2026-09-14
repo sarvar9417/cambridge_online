@@ -5,6 +5,7 @@ import flow from './Chapter14FlowHeroes.tsx?raw';
 import routingTransfer from './Chapter14RoutingTransferHero.tsx?raw';
 import networkControl from './Chapter14NetworkControlHeroes.tsx?raw';
 import routingTable from './Chapter14RoutingTableHero.tsx?raw';
+import packetControl from './Chapter14PacketControlHero.tsx?raw';
 import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
 import switching from './Chapter14SwitchingCompareHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
@@ -19,6 +20,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).toContain("from './Chapter14RoutingTransferHero'");
     expect(facade).toContain("from './Chapter14NetworkControlHeroes'");
     expect(facade).toContain("from './Chapter14RoutingTableHero'");
+    expect(facade).toContain("from './Chapter14PacketControlHero'");
     expect(facade).toContain("from './Chapter14BitTorrentHero'");
     expect(facade).toContain("from './Chapter14SwitchingCompareHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
@@ -96,6 +98,20 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['Route set up before transmission','Dedicated transmission path','Each packet uses the same route','Packets arrive in the correct order','All channel bandwidth is required','Bandwidth is wasted'])expect(switching).toContain(marker);
   });
 
+  it('teaches hop lifetime as a decrementing router-to-router control',()=>{
+    expect(packetControl).toContain('function Chapter14HopHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-hop')return <Chapter14HopHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-hop',");
+    for(const marker of ['HODDER p.340 · HOPPING','HOP = 4','after router: hop − 1','DELETE PACKET','hop number = 0','bouncing forever','network protocol and routing table'])expect(packetControl).toContain(marker);
+  });
+
+  it('teaches packet controls as lifetime error-check and queue mechanisms',()=>{
+    expect(packetControl).toContain('function Chapter14PacketControlHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-packet-control')return <Chapter14PacketControlHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-packet-control',");
+    for(const marker of ['HOP NUMBER','CHECKSUM / PARITY','PRIORITY','different values → request re-send','packet queue','lifetime','integrity','queue selection'])expect(packetControl.toLowerCase()).toContain(marker.toLowerCase());
+  });
+
   it('keeps all Figure 14.9 core packet-header fields while grouping them by purpose',()=>{
     expect(networkControl).toContain('function Chapter14PacketHeaderHero');
     expect(facade).toContain("if(beat.id==='h14p-142-header')return <Chapter14PacketHeaderHero reveal={reveal}/>;");
@@ -150,10 +166,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   });
 
   it('routes remaining explanation-heavy scenes to hand-authored visual diagrams',()=>{
-    for(const id of [
-      'h14p-141-hook','h14p-141-protocol-map','h14p-141-pop-imap',
-      'h14p-142-hook','h14p-142-circuit-stages','h14p-142-hop','h14p-142-packet-control',
-    ])expect(facade).toContain(`'${id}'`);
+    for(const id of ['h14p-141-hook','h14p-141-protocol-map','h14p-141-pop-imap','h14p-142-hook','h14p-142-circuit-stages'])expect(facade).toContain(`'${id}'`);
   });
 
   it('keeps richer source-exact specialist surfaces where they teach better than V2',()=>{
@@ -184,5 +197,6 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['destination IP','routing table','next router MAC','hop value'])expect(routingTransfer.toLowerCase()).toContain(marker.toLowerCase());
     for(const marker of ['SOURCE IP','DESTINATION IP','IEEE 802.11','HEADER CHECKSUM','reconstructed message'])expect(networkControl.toLowerCase()).toContain(marker.toLowerCase());
     for(const marker of ['metrics / cost','gateway','netmask','interface','dedicated channel','full bandwidth'])expect(routingTable.toLowerCase()).toContain(marker.toLowerCase());
+    for(const marker of ['hop = 0','checksum','parity','priority'])expect(packetControl.toLowerCase()).toContain(marker.toLowerCase());
   });
 });
