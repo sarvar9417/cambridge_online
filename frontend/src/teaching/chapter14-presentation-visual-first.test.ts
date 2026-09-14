@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import hero from './Chapter14HeroVisuals.tsx?raw';
+import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
 import v4 from './Chapter14PresentationContentV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
@@ -9,6 +10,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   it('uses the existing dark-blue visual master instead of an extra rebuild layer',()=>{
     expect(facade).toContain("import { Chapter14PresentationContentV2 }");
     expect(facade).toContain("from './Chapter14HeroVisuals'");
+    expect(facade).toContain("from './Chapter14BitTorrentHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
     expect(facade).toContain('return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>');
     expect(facade).not.toContain('Chapter14PresentationRebuild');
@@ -28,6 +30,13 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['URL → HTTP(S)','TCP/port 80','DNS lookup','TCP acknowledgement','HTML response','browser display'])expect(hero).toContain(marker);
   });
 
+  it('renders BitTorrent as tracker discovery plus direct peer piece sharing',()=>{
+    expect(bittorrent).toContain('function Chapter14BitTorrentHero');
+    expect(facade).toContain("if(beat.id==='h14p-141-bittorrent')return <Chapter14BitTorrentHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-141-bittorrent',");
+    for(const marker of ['ORIGINAL PEER','FILE SPLIT INTO PIECES','TRACKER','connected peer details','IP addresses','PEER-TO-PEER','SEED + REASSEMBLY','not the shared file store','DASHED LINKS','SOLID ARROWS'])expect(bittorrent).toContain(marker);
+  });
+
   it('renders router forwarding as header to routing-table to next-hop journey',()=>{
     expect(hero).toContain('function Chapter14RouterJourney');
     expect(facade).toContain("if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;");
@@ -38,7 +47,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const id of [
       'h14p-141-hook','h14p-141-units','h14p-141-protocol-map',
       'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
-      'h14p-141-wireless','h14p-141-bittorrent','h14p-142-hook','h14p-142-circuit-stages',
+      'h14p-141-wireless','h14p-142-hook','h14p-142-circuit-stages',
       'h14p-142-packet-basics','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons',
       'h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing-fields',
       'h14p-142-web-page','h14p-142-exam','h14p-142-recap',
@@ -65,7 +74,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   it('retains visual teaching primitives for the benchmark-style sequence',()=>{
     for(const marker of [
       'h14c-agreement','h14c-encapsulation','h14c-protocol-map','h14c-email-mechanics',
-      'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless','h14c-bittorrent-process',
+      'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless',
       'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing','h14c-final-map',
     ])expect(v2).toContain(marker);
   });
@@ -73,8 +82,8 @@ describe('Chapter 14 visual-first projector routing',()=>{
   it('keeps benchmark-critical concepts visible on the presentation surface',()=>{
     for(const marker of [
       'SENDING','RECEIVING','APPLICATION DATA','SEGMENT','DATAGRAM','FRAME',
-      'SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y',
-      'TRACKER','SEED','destination IP','routing table',
+      'SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y','destination IP','routing table',
     ])expect(v2).toContain(marker);
+    for(const marker of ['TRACKER','SEED','piece','peer'])expect(bittorrent.toLowerCase()).toContain(marker.toLowerCase());
   });
 });
