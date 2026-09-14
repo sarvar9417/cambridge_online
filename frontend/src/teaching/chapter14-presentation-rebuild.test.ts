@@ -6,6 +6,7 @@ import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import runtime from './chapter14-presentation-runtime.ts?raw';
 
 const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-rebuild.css'),'utf8');
+const conceptCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-rebuild-concepts.css'),'utf8');
 
 describe('Chapter 14 presentation rebuild',()=>{
   it('keeps the four TCP/IP layers and both communication directions visible on the projector',()=>{
@@ -25,6 +26,21 @@ describe('Chapter 14 presentation rebuild',()=>{
     expect(rebuild).toContain('Receiving uses the same stack in reverse');
   });
 
+  it('maps application protocols to their actual jobs instead of presenting an acronym list',()=>{
+    for(const term of ['HTTP','FTP','SMTP','POP3/4','IMAP','DNS','RIP','SNMP'])expect(rebuild).toContain(term);
+    expect(rebuild).toContain('HTTP = web · FTP = files · SMTP = send · POP/IMAP = receive · DNS = domain name to IP');
+  });
+
+  it('makes circuit versus packet switching a visible route-level comparison',()=>{
+    expect(rebuild).toContain('CIRCUIT SWITCHING');
+    expect(rebuild).toContain('PACKET SWITCHING');
+    expect(rebuild).toContain('Reserve one dedicated path');
+    expect(rebuild).toContain('route packets independently');
+    expect(rebuild).toContain('Packets may arrive out of order and must be reassembled');
+    expect(conceptCss).toContain('@keyframes h14r-route-move');
+    expect(conceptCss).toContain('@media (prefers-reduced-motion:reduce)');
+  });
+
   it('turns routing into an explicit header-table-next-hop loop',()=>{
     for(const term of ['READ THE HEADER','LOOK UP THE ROUTE','CHOOSE THE NEXT HOP','FORWARD · REPEAT · ARRIVE']){
       expect(rebuild).toContain(term);
@@ -37,7 +53,7 @@ describe('Chapter 14 presentation rebuild',()=>{
   it('routes only the selected Chapter 14 flagship scenes through the new surface',()=>{
     expect(facade).toContain("import { Chapter14PresentationRebuild, hasChapter14PresentationRebuild }");
     expect(facade).toContain('if(hasChapter14PresentationRebuild(beat))return <Chapter14PresentationRebuild');
-    for(const id of ['h14p-141-stack','h14p-141-units','h14p-142-routing']){
+    for(const id of ['h14p-141-stack','h14p-141-units','h14p-141-protocol-map','h14p-142-compare','h14p-142-routing']){
       expect(rebuild).toContain(id);
       expect(runtime).toContain(id);
     }
@@ -45,8 +61,9 @@ describe('Chapter 14 presentation rebuild',()=>{
     expect(facade).toContain('Chapter14EndOfChapterMaster');
   });
 
-  it('loads its isolated projector layer last and keeps unrevealed teaching content present',()=>{
-    expect(facade.trim().indexOf("./chapter14-presentation-rebuild.css")).toBeGreaterThan(facade.indexOf("./chapter14-presentation-final-source.css"));
+  it('loads its isolated projector layers last and keeps unrevealed teaching content present',()=>{
+    expect(facade.indexOf("./chapter14-presentation-rebuild.css")).toBeGreaterThan(facade.indexOf("./chapter14-presentation-final-source.css"));
+    expect(facade.indexOf("./chapter14-presentation-rebuild-concepts.css")).toBeGreaterThan(facade.indexOf("./chapter14-presentation-rebuild.css"));
     expect(css).toContain('.h14r-layer.is-current');
     expect(css).toContain('.h14r-unit.is-current');
     expect(css).toContain('.h14r-routing-stage.is-current');
