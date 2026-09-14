@@ -40,6 +40,13 @@ import './chapter13-presentation-hardening.css';
  * detailed source renderers remain in the repository for audit/study fidelity, while
  * projector mode follows one consistent dark-blue visual language: process, topology,
  * lifeline, comparison, bitfield and retrieval.
+ *
+ * Two deliberate exceptions stay out of this set even though V2 has versions:
+ * - BitTorrent terminology keeps the richer source-exact swarm diagram from V4.
+ * - Activity 14A keeps the complete source task map from V4.
+ * The final chapter recap does use V2 because its four-part vertical story matches the
+ * supplied professional benchmark better; the following routing-retrieval scene still
+ * carries the denser source-complete exam explanation.
  */
 const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-hook',
@@ -58,7 +65,6 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-ethernet-detail',
   'h14p-141-wireless',
   'h14p-141-bittorrent',
-  'h14p-141-bittorrent-terms',
   'h14p-142-hook',
   'h14p-142-objectives',
   'h14p-142-circuit-stages',
@@ -73,7 +79,7 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-142-routing-fields',
   'h14p-142-web-page',
   'h14p-142-exam',
-  'h14p-142-activity14a',
+  'h14p-142-recap',
 ]);
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
