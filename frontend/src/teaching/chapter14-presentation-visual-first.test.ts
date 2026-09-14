@@ -40,4 +40,12 @@ describe('Chapter 14 visual-first projector routing',()=>{
       'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing',
     ])expect(v2).toContain(marker);
   });
+
+  it('keeps benchmark-critical concepts visible on the presentation surface',()=>{
+    for(const marker of [
+      'SENDING','RECEIVING','APPLICATION DATA','SEGMENT','DATAGRAM','FRAME',
+      'HTTP(S)','DNS','SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y',
+      'TRACKER','SEED','destination IP','routing table',
+    ])expect(v2).toContain(marker);
+  });
 });
