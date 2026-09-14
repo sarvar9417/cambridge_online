@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import hero from './Chapter14HeroVisuals.tsx?raw';
 import flow from './Chapter14FlowHeroes.tsx?raw';
+import routingTransfer from './Chapter14RoutingTransferHero.tsx?raw';
 import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
 import switching from './Chapter14SwitchingCompareHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
@@ -13,6 +14,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).toContain("import { Chapter14PresentationContentV2 }");
     expect(facade).toContain("from './Chapter14HeroVisuals'");
     expect(facade).toContain("from './Chapter14FlowHeroes'");
+    expect(facade).toContain("from './Chapter14RoutingTransferHero'");
     expect(facade).toContain("from './Chapter14BitTorrentHero'");
     expect(facade).toContain("from './Chapter14SwitchingCompareHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
@@ -82,11 +84,25 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['PACKET HEADER','Destination IP','ROUTING TABLE','NEXT HOP','Next-router MAC','READ HEADER','LOOK UP','CHOOSE','UPDATE','FORWARD','hop = 0'])expect(hero).toContain(marker);
   });
 
+  it('renders Example 14.2 as a complete web-page packet-switching journey',()=>{
+    expect(routingTransfer).toContain('function Chapter14WebPageTransferHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-web-page')return <Chapter14WebPageTransferHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-web-page',");
+    for(const marker of ['Divide the web page into data packets','destination IP address','compare the header with the routing table','next router MAC address','hop value has reached zero','Different packets may travel by different routes','rebuilds the final web page'])expect(routingTransfer).toContain(marker);
+  });
+
+  it('turns the routing exam prompt into a visible answer-building chain',()=>{
+    expect(routingTransfer).toContain('function Chapter14RoutingExamBuilder');
+    expect(facade).toContain("if(beat.id==='h14p-142-exam')return <Chapter14RoutingExamBuilder reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-exam',");
+    for(const marker of ['CAMBRIDGE-STYLE PROMPT','HEADER → TABLE → NEXT HOP → MAC → FORWARD','READ','COMPARE','SELECT','UPDATE','FORWARD','STOP / ARRIVE','Sequence number','Hop number','Checksum'])expect(routingTransfer).toContain(marker);
+  });
+
   it('routes remaining explanation-heavy scenes to hand-authored visual diagrams',()=>{
     for(const id of [
       'h14p-141-hook','h14p-141-protocol-map','h14p-141-pop-imap','h14p-141-ip-link','h14p-141-wireless',
       'h14p-142-hook','h14p-142-circuit-stages','h14p-142-video-example','h14p-142-hop','h14p-142-packet-control',
-      'h14p-142-routing-fields','h14p-142-web-page','h14p-142-exam','h14p-142-recap',
+      'h14p-142-routing-fields','h14p-142-recap',
     ])expect(facade).toContain(`'${id}'`);
   });
 
@@ -121,5 +137,6 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['SENDING','RECEIVING','destination IP','routing table'])expect(v2).toContain(marker);
     for(const marker of ['APPLICATION DATA','SEGMENT','DATAGRAM','FRAME','SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y'])expect(flow).toContain(marker);
     for(const marker of ['TRACKER','SEED','piece','peer'])expect(bittorrent.toLowerCase()).toContain(marker.toLowerCase());
+    for(const marker of ['destination IP','routing table','next router MAC','hop value'])expect(routingTransfer.toLowerCase()).toContain(marker.toLowerCase());
   });
 });
