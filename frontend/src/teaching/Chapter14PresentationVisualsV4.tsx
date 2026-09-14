@@ -9,6 +9,7 @@ import { Chapter14SwitchingCompareHero } from './Chapter14SwitchingCompareHero';
 import { Chapter14EmailMechanicsHero, Chapter14EncapsulationHero, Chapter14TcpHandshakeHero, Chapter14TransportReliabilityHero } from './Chapter14FlowHeroes';
 import { Chapter14RoutingExamBuilder, Chapter14WebPageTransferHero } from './Chapter14RoutingTransferHero';
 import { Chapter14IpLinkHero, Chapter14PacketHeaderExtendedHero, Chapter14PacketHeaderHero, Chapter14RecapHero, Chapter14WirelessHero } from './Chapter14NetworkControlHeroes';
+import { Chapter14RoutingTableHero, Chapter14VideoConferenceHero } from './Chapter14RoutingTableHero';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
@@ -49,9 +50,9 @@ import './chapter13-presentation-hardening.css';
  *
  * Deliberate specialist exceptions stay out of this set:
  * - TCP/IP, encapsulation, HTTP, email mechanics, transport/PAR, TCP handshake,
- *   IP/link, wireless, packet headers, BitTorrent process, switching comparison,
- *   router decision, Example 14.2 web transfer, routing exam-builder and final recap
- *   use large benchmark-style hero visuals.
+ *   IP/link, wireless, packet headers, routing-table, video-conference example,
+ *   BitTorrent process, switching comparison, router decision, Example 14.2 web transfer,
+ *   routing exam-builder and final recap use large benchmark-style hero visuals.
  * - Packet-order basics, switching pros/cons, BitTorrent terminology and Activity 14A
  *   use richer source-exact V4 surfaces.
  */
@@ -66,10 +67,8 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-142-hook',
   'h14p-142-objectives',
   'h14p-142-circuit-stages',
-  'h14p-142-video-example',
   'h14p-142-hop',
   'h14p-142-packet-control',
-  'h14p-142-routing-fields',
 ]);
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
@@ -118,7 +117,9 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(beat.id==='h14p-142-compare')return <Chapter14SwitchingCompareHero reveal={reveal}/>;
   if(beat.id==='h14p-142-header')return <Chapter14PacketHeaderHero reveal={reveal}/>;
   if(beat.id==='h14p-142-header-extended')return <Chapter14PacketHeaderExtendedHero reveal={reveal}/>;
+  if(beat.id==='h14p-142-routing-fields')return <Chapter14RoutingTableHero reveal={reveal}/>;
   if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;
+  if(beat.id==='h14p-142-video-example')return <Chapter14VideoConferenceHero reveal={reveal}/>;
   if(beat.id==='h14p-142-web-page')return <Chapter14WebPageTransferHero reveal={reveal}/>;
   if(beat.id==='h14p-142-exam')return <Chapter14RoutingExamBuilder reveal={reveal}/>;
   if(beat.id==='h14p-142-recap')return <Chapter14RecapHero reveal={reveal}/>;
