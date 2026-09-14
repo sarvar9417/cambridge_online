@@ -11,6 +11,7 @@ import { Chapter14RoutingExamBuilder, Chapter14WebPageTransferHero } from './Cha
 import { Chapter14IpLinkHero, Chapter14PacketHeaderExtendedHero, Chapter14PacketHeaderHero, Chapter14RecapHero, Chapter14WirelessHero } from './Chapter14NetworkControlHeroes';
 import { Chapter14RoutingTableHero, Chapter14VideoConferenceHero } from './Chapter14RoutingTableHero';
 import { Chapter14HopHero, Chapter14PacketControlHero } from './Chapter14PacketControlHero';
+import { Chapter14ApplicationProtocolHero, Chapter14FtpHero, Chapter14PopImapHero } from './Chapter14ApplicationHeroes';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
@@ -50,10 +51,11 @@ import './chapter13-presentation-hardening.css';
  * lifeline, comparison, bitfield and retrieval.
  *
  * Deliberate specialist exceptions stay out of this set:
- * - TCP/IP, encapsulation, HTTP, email mechanics, transport/PAR, TCP handshake,
- *   IP/link, wireless, packet headers, hop/control, routing-table, video-conference
- *   example, BitTorrent process, switching comparison, router decision, Example 14.2
- *   web transfer, routing exam-builder and final recap use benchmark-style hero visuals.
+ * - TCP/IP, application protocols, FTP, POP/IMAP, encapsulation, HTTP, email mechanics,
+ *   transport/PAR, TCP handshake, IP/link, wireless, packet headers, hop/control,
+ *   routing-table, video-conference example, BitTorrent process, switching comparison,
+ *   router decision, Example 14.2 web transfer, routing exam-builder and final recap
+ *   use benchmark-style hero visuals.
  * - Packet-order basics, switching pros/cons, BitTorrent terminology and Activity 14A
  *   use richer source-exact V4 surfaces.
  */
@@ -61,9 +63,6 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-hook',
   'h14p-141-objectives',
   'h14p-141-protocol',
-  'h14p-141-protocol-map',
-  'h14p-141-ftp-detail',
-  'h14p-141-pop-imap',
   'h14p-141-ethernet-detail',
   'h14p-142-hook',
   'h14p-142-objectives',
@@ -105,9 +104,12 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-stack')return <Chapter14TcpIpJourney reveal={reveal}/>;
   if(beat.id==='h14p-141-units')return <Chapter14EncapsulationHero reveal={reveal}/>;
+  if(beat.id==='h14p-141-protocol-map')return <Chapter14ApplicationProtocolHero reveal={reveal}/>;
+  if(beat.id==='h14p-141-ftp-detail')return <Chapter14FtpHero reveal={reveal}/>;
   if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;
   if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
   if(beat.id==='h14p-141-email-mechanics')return <Chapter14EmailMechanicsHero reveal={reveal}/>;
+  if(beat.id==='h14p-141-pop-imap')return <Chapter14PopImapHero reveal={reveal}/>;
   if(beat.id==='h14p-141-transport-family')return <Chapter14TransportReliabilityHero reveal={reveal}/>;
   if(beat.id==='h14p-141-tcp')return <Chapter14TcpHandshakeHero reveal={reveal}/>;
   if(beat.id==='h14p-141-ip-link')return <Chapter14IpLinkHero reveal={reveal}/>;
