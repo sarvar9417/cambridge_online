@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
+import v4 from './Chapter14PresentationContentV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 
 describe('Chapter 14 visual-first projector routing',()=>{
@@ -12,18 +13,25 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).not.toContain('chapter14-presentation-rebuild.css');
   });
 
-  it('routes the explanation-heavy scenes to hand-authored visual diagrams',()=>{
+  it('routes explanation-heavy scenes to hand-authored visual diagrams',()=>{
     for(const id of [
       'h14p-141-hook','h14p-141-stack','h14p-141-units','h14p-141-protocol-map','h14p-141-http',
       'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
-      'h14p-141-wireless','h14p-141-bittorrent','h14p-141-bittorrent-terms','h14p-142-hook','h14p-142-circuit-stages',
+      'h14p-141-wireless','h14p-141-bittorrent','h14p-142-hook','h14p-142-circuit-stages',
       'h14p-142-packet-basics','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons',
       'h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing','h14p-142-routing-fields',
-      'h14p-142-web-page','h14p-142-exam','h14p-142-activity14a',
+      'h14p-142-web-page','h14p-142-exam','h14p-142-recap',
     ])expect(facade).toContain(`'${id}'`);
   });
 
-  it('keeps the source-exact specialist surfaces for diagrams where precision matters',()=>{
+  it('keeps richer source-exact specialist surfaces where they teach better than V2',()=>{
+    expect(facade).not.toContain("  'h14p-141-bittorrent-terms',");
+    expect(facade).not.toContain("  'h14p-142-activity14a',");
+    expect(v4).toContain("if(beat.id==='h14p-141-bittorrent-terms')return <BitTorrentSwarmExact");
+    expect(v4).toContain("if(beat.id==='h14p-142-activity14a')return <Activity14AExact");
+  });
+
+  it('keeps source-exact specialist surfaces for diagrams where precision matters',()=>{
     for(const marker of [
       "if(beat.id==='h14p-141-ethernet')return <EthernetFrameSourceComplete",
       "if(beat.id==='h14p-142-circuit-route')return <SourceNetwork mode=\"circuit\"",
@@ -37,7 +45,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of [
       'h14c-agreement','h14c-stack','h14c-encapsulation','h14c-protocol-map','h14c-http','h14c-email-mechanics',
       'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless','h14c-bittorrent-process',
-      'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing',
+      'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing','h14c-final-map',
     ])expect(v2).toContain(marker);
   });
 
