@@ -102,7 +102,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(packetControl).toContain('function Chapter14HopHero');
     expect(facade).toContain("if(beat.id==='h14p-142-hop')return <Chapter14HopHero reveal={reveal}/>;");
     expect(facade).not.toContain("  'h14p-142-hop',");
-    for(const marker of ['HODDER p.340 · HOPPING','HOP = 4','after router: hop − 1','DELETE PACKET','hop number = 0','bouncing forever','network protocol and routing table'])expect(packetControl).toContain(marker);
+    for(const marker of ['HODDER p.340 · HOPPING','HOP = 4','after router: hop − 1','DELETE PACKET','hop number = 0','STOP LOST PACKETS BOUNCING FOREVER','network protocol and routing table'])expect(packetControl).toContain(marker);
   });
 
   it('teaches packet controls as lifetime error-check and queue mechanisms',()=>{
