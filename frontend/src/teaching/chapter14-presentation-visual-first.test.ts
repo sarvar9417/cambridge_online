@@ -47,7 +47,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(flow).toContain('function Chapter14EmailMechanicsHero');
     expect(facade).toContain("if(beat.id==='h14p-141-email-mechanics')return <Chapter14EmailMechanicsHero reveal={reveal}/>;");
     expect(facade).not.toContain("  'h14p-141-email-mechanics',");
-    for(const marker of ['SMTP · PUSH','CLIENT → EMAIL SERVER','MIME · ATTACHMENTS','MIME HEADER','POP / IMAP · PULL','CLIENT ← EMAIL SERVER','SMTP remains used between email servers'])expect(flow).toContain(marker);
+    for(const marker of ['SMTP · PUSH','CLIENT → EMAIL SERVER','MIME · ATTACHMENTS','MIME HEADER','POP / IMAP · PULL','CLIENT ← EMAIL SERVER','SMTP is still used between email servers'])expect(flow).toContain(marker);
   });
 
   it('teaches transport reliability with PAR before the TCP handshake',()=>{
@@ -61,7 +61,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(flow).toContain('function Chapter14TcpHandshakeHero');
     expect(facade).toContain("if(beat.id==='h14p-141-tcp')return <Chapter14TcpHandshakeHero reveal={reveal}/>;");
     expect(facade).not.toContain("  'h14p-141-tcp',");
-    for(const marker of ['HOST X','HOST Y','synchronisation sequence bits','acknowledgement + Y’s own synchronisation sequence bits','normal data transmission can now take place','connection-oriented and host-to-host'])expect(flow).toContain(marker);
+    for(const marker of ['HOST X','HOST Y','segment containing synchronisation sequence bits','acknowledgement + Y’s own synchronisation sequence bits','transmission between X and Y can now take place','connection-oriented and host-to-host'])expect(flow).toContain(marker);
   });
 
   it('renders BitTorrent as tracker discovery plus direct peer piece sharing',()=>{
