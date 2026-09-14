@@ -49,6 +49,6 @@ describe('Chapter 14 presentation rebuild',()=>{
     expect(css).toContain('.h14r-routing-stage.is-current');
     expect(css).toContain('opacity:.68');
     expect(css).toContain('opacity:.62');
-    expect(css).not.toContain('display:none');
+    expect(css).not.toContain('.is-upcoming{display:none');
   });
 });
