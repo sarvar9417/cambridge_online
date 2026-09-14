@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import hero from './Chapter14HeroVisuals.tsx?raw';
 import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
+import switching from './Chapter14SwitchingCompareHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
 import v4 from './Chapter14PresentationContentV4.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
@@ -11,6 +12,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).toContain("import { Chapter14PresentationContentV2 }");
     expect(facade).toContain("from './Chapter14HeroVisuals'");
     expect(facade).toContain("from './Chapter14BitTorrentHero'");
+    expect(facade).toContain("from './Chapter14SwitchingCompareHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
     expect(facade).toContain('return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>');
     expect(facade).not.toContain('Chapter14PresentationRebuild');
@@ -37,6 +39,13 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['ORIGINAL PEER','FILE SPLIT INTO PIECES','TRACKER','connected peer details','IP addresses','PEER-TO-PEER','SEED + REASSEMBLY','not the shared file store','DASHED LINKS','SOLID ARROWS'])expect(bittorrent).toContain(marker);
   });
 
+  it('uses a source-exact visual comparison for circuit and packet switching',()=>{
+    expect(switching).toContain('function Chapter14SwitchingCompareHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-compare')return <Chapter14SwitchingCompareHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-compare',");
+    for(const marker of ['Route set up before transmission','Dedicated transmission path','Each packet uses the same route','Packets arrive in the correct order','All channel bandwidth is required','Bandwidth is wasted'])expect(switching).toContain(marker);
+  });
+
   it('renders router forwarding as header to routing-table to next-hop journey',()=>{
     expect(hero).toContain('function Chapter14RouterJourney');
     expect(facade).toContain("if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;");
@@ -48,17 +57,19 @@ describe('Chapter 14 visual-first projector routing',()=>{
       'h14p-141-hook','h14p-141-units','h14p-141-protocol-map',
       'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
       'h14p-141-wireless','h14p-142-hook','h14p-142-circuit-stages',
-      'h14p-142-packet-basics','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons',
       'h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing-fields',
       'h14p-142-web-page','h14p-142-exam','h14p-142-recap',
     ])expect(facade).toContain(`'${id}'`);
   });
 
   it('keeps richer source-exact specialist surfaces where they teach better than V2',()=>{
-    expect(facade).not.toContain("  'h14p-141-bittorrent-terms',");
-    expect(facade).not.toContain("  'h14p-142-activity14a',");
+    for(const id of ['h14p-141-bittorrent-terms','h14p-142-packet-basics','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons','h14p-142-activity14a'])expect(facade).not.toContain(`  '${id}',`);
     expect(v4).toContain("if(beat.id==='h14p-141-bittorrent-terms')return <BitTorrentSwarmExact");
+    expect(v4).toContain("if(beat.id==='h14p-142-packet-basics')return <ExactPacketBasics");
+    expect(v4).toContain("if(beat.id==='h14p-142-circuit-pros-cons')return <ExactProsCons kind=\"circuit\"");
+    expect(v4).toContain("if(beat.id==='h14p-142-packet-pros-cons')return <ExactProsCons kind=\"packet\"");
     expect(v4).toContain("if(beat.id==='h14p-142-activity14a')return <Activity14AExact");
+    expect(v4).toContain("const arrival=['P1','P4','P3','P2']");
   });
 
   it('keeps source-exact specialist surfaces for diagrams where precision matters',()=>{
@@ -75,7 +86,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of [
       'h14c-agreement','h14c-encapsulation','h14c-protocol-map','h14c-email-mechanics',
       'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless',
-      'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing','h14c-final-map',
+      'h14c-switch-hook','h14c-circuit-stages','h14c-routing','h14c-final-map',
     ])expect(v2).toContain(marker);
   });
 
