@@ -6,6 +6,7 @@ import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
 import { Chapter14HttpJourney, Chapter14RouterJourney, Chapter14TcpIpJourney } from './Chapter14HeroVisuals';
 import { Chapter14BitTorrentHero } from './Chapter14BitTorrentHero';
 import { Chapter14SwitchingCompareHero } from './Chapter14SwitchingCompareHero';
+import { Chapter14EmailMechanicsHero, Chapter14EncapsulationHero, Chapter14TcpHandshakeHero, Chapter14TransportReliabilityHero } from './Chapter14FlowHeroes';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
@@ -45,8 +46,11 @@ import './chapter13-presentation-hardening.css';
  * lifeline, comparison, bitfield and retrieval.
  *
  * Deliberate specialist exceptions stay out of this set:
- * - TCP/IP, HTTP, BitTorrent process, switching comparison and router-decision scenes use large benchmark-style hero visuals.
- * - Packet-order basics, switching pros/cons, BitTorrent terminology and Activity 14A use richer source-exact V4 surfaces.
+ * - TCP/IP, encapsulation, HTTP, email mechanics, transport/PAR, TCP handshake,
+ *   BitTorrent process, switching comparison and router-decision scenes use large
+ *   benchmark-style hero visuals.
+ * - Packet-order basics, switching pros/cons, BitTorrent terminology and Activity 14A
+ *   use richer source-exact V4 surfaces.
  * The final chapter recap does use V2 because its four-part vertical story matches the
  * supplied professional benchmark better; the following routing-retrieval scene still
  * carries the denser source-complete exam explanation.
@@ -55,13 +59,9 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-hook',
   'h14p-141-objectives',
   'h14p-141-protocol',
-  'h14p-141-units',
   'h14p-141-protocol-map',
   'h14p-141-ftp-detail',
-  'h14p-141-email-mechanics',
   'h14p-141-pop-imap',
-  'h14p-141-transport-family',
-  'h14p-141-tcp',
   'h14p-141-ip-link',
   'h14p-141-ethernet-detail',
   'h14p-141-wireless',
@@ -111,12 +111,16 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter7PresentationVisual(beat))return <Chapter7PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-stack')return <Chapter14TcpIpJourney reveal={reveal}/>;
+  if(beat.id==='h14p-141-units')return <Chapter14EncapsulationHero reveal={reveal}/>;
   if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;
+  if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
+  if(beat.id==='h14p-141-email-mechanics')return <Chapter14EmailMechanicsHero reveal={reveal}/>;
+  if(beat.id==='h14p-141-transport-family')return <Chapter14TransportReliabilityHero reveal={reveal}/>;
+  if(beat.id==='h14p-141-tcp')return <Chapter14TcpHandshakeHero reveal={reveal}/>;
   if(beat.id==='h14p-141-bittorrent')return <Chapter14BitTorrentHero reveal={reveal}/>;
   if(beat.id==='h14p-142-compare')return <Chapter14SwitchingCompareHero reveal={reveal}/>;
   if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;
   if(CHAPTER_14_VISUAL_FIRST_SCENES.has(beat.id))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
-  if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
   if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
   return null;
