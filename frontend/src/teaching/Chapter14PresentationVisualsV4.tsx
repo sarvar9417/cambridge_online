@@ -4,6 +4,7 @@ import { Chapter14PresentationContentV2 } from './Chapter14PresentationContentV2
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
 import { Chapter14HttpJourney, Chapter14RouterJourney, Chapter14TcpIpJourney } from './Chapter14HeroVisuals';
+import { Chapter14BitTorrentHero } from './Chapter14BitTorrentHero';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
@@ -43,8 +44,8 @@ import './chapter13-presentation-hardening.css';
  * lifeline, comparison, bitfield and retrieval.
  *
  * Deliberate specialist exceptions stay out of this set:
- * - TCP/IP, HTTP and router-decision scenes use the large benchmark-style hero visuals.
- * - BitTorrent terminology keeps the richer source-exact swarm diagram from V4.
+ * - TCP/IP, HTTP, BitTorrent process and router-decision scenes use large benchmark-style hero visuals.
+ * - BitTorrent terminology keeps the richer source-exact swarm terminology diagram from V4.
  * - Activity 14A keeps the complete source task map from V4.
  * The final chapter recap does use V2 because its four-part vertical story matches the
  * supplied professional benchmark better; the following routing-retrieval scene still
@@ -64,7 +65,6 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-ip-link',
   'h14p-141-ethernet-detail',
   'h14p-141-wireless',
-  'h14p-141-bittorrent',
   'h14p-142-hook',
   'h14p-142-objectives',
   'h14p-142-circuit-stages',
@@ -116,6 +116,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-stack')return <Chapter14TcpIpJourney reveal={reveal}/>;
   if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;
+  if(beat.id==='h14p-141-bittorrent')return <Chapter14BitTorrentHero reveal={reveal}/>;
   if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;
   if(CHAPTER_14_VISUAL_FIRST_SCENES.has(beat.id))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
