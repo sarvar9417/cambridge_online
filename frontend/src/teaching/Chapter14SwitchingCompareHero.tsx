@@ -26,7 +26,7 @@ export function Chapter14SwitchingCompareHero({reveal}:{reveal:number}){
 
     <div style={{display:'grid',gap:0,borderTop:'2px solid var(--h14-cyan)'}}>
       <header style={{display:'grid',gridTemplateColumns:'1.7fr .65fr .65fr',padding:'8px 14px',color:'var(--h14-muted)',font:'800 10px var(--font-mono)'}}><span>TABLE 14.5 · FEATURE</span><b style={{textAlign:'center'}}>CIRCUIT</b><b style={{textAlign:'center'}}>PACKET</b></header>
-      {rows.map(([feature,circuit,packet],i)=><section key={feature} style={{...emphasis(reveal,i+1),display:'grid',gridTemplateColumns:'1.7fr .65fr .65fr',padding:'8px 14px',borderTop:'1px solid var(--h14-line)',alignItems:'center'}}><span style={{fontSize:12.5}}>{feature}</span><b style={{textAlign:'center',color:circuit==='YES'?'var(--h14-amber)':'var(--h14-muted)',font:'900 11px var(--font-mono)'}}>{circuit}</b><b style={{textAlign:'center',color:packet==='YES'?'var(--h14-cyan)':'var(--h14-muted)',font:'900 11px var(--font-mono)'}}>{packet}</b></section>)}
+      {rows.map(([feature,circuit,packet],i)=><section key={feature} style={{...emphasis(reveal,i+1),display:'grid',gridTemplateColumns:'1.7fr .65fr .65fr',padding:'8px 14px',borderTop:'1px solid var(--h14-line)',alignItems:'center'}}><span style={{fontSize:12.5}}>{feature}</span><b style={{textAlign:'center',color:'var(--h14-amber)',font:'900 11px var(--font-mono)'}}>{circuit}</b><b style={{textAlign:'center',color:'var(--h14-muted)',font:'900 11px var(--font-mono)'}}>{packet}</b></section>)}
     </div>
   </div>;
 }
