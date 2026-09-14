@@ -1,0 +1,43 @@
+import { describe, expect, it } from 'vitest';
+import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+import v2 from './Chapter14PresentationContentV2.tsx?raw';
+import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
+
+describe('Chapter 14 visual-first projector routing',()=>{
+  it('uses the existing dark-blue visual master instead of an extra rebuild layer',()=>{
+    expect(facade).toContain("import { Chapter14PresentationContentV2 }");
+    expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
+    expect(facade).toContain('return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>');
+    expect(facade).not.toContain('Chapter14PresentationRebuild');
+    expect(facade).not.toContain('chapter14-presentation-rebuild.css');
+  });
+
+  it('routes the explanation-heavy scenes to hand-authored visual diagrams',()=>{
+    for(const id of [
+      'h14p-141-hook','h14p-141-stack','h14p-141-units','h14p-141-protocol-map','h14p-141-http',
+      'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
+      'h14p-141-wireless','h14p-141-bittorrent','h14p-141-bittorrent-terms','h14p-142-hook','h14p-142-circuit-stages',
+      'h14p-142-packet-basics','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons',
+      'h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing','h14p-142-routing-fields',
+      'h14p-142-web-page','h14p-142-exam','h14p-142-activity14a',
+    ])expect(facade).toContain(`'${id}'`);
+  });
+
+  it('keeps the source-exact specialist surfaces for diagrams where precision matters',()=>{
+    for(const marker of [
+      "if(beat.id==='h14p-141-ethernet')return <EthernetFrameSourceComplete",
+      "if(beat.id==='h14p-142-circuit-route')return <SourceNetwork mode=\"circuit\"",
+      "if(beat.id==='h14p-142-packet-route')return <SourceNetwork mode=\"packet\"",
+      "if(beat.id==='h14p-142-header')return <PacketHeaderCoreExact",
+      "if(beat.id==='h14p-142-header-extended')return <PacketHeaderExtendedExact",
+    ])expect(finalRenderer).toContain(marker);
+  });
+
+  it('retains visual teaching primitives for the benchmark-style sequence',()=>{
+    for(const marker of [
+      'h14c-agreement','h14c-stack','h14c-encapsulation','h14c-protocol-map','h14c-http','h14c-email-mechanics',
+      'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless','h14c-bittorrent-process',
+      'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing',
+    ])expect(v2).toContain(marker);
+  });
+});
