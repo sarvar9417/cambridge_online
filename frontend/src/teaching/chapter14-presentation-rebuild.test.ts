@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import rebuild from './Chapter14PresentationRebuild.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import runtime from './chapter14-presentation-runtime.ts?raw';
-import css from './chapter14-presentation-rebuild.css?raw';
+
+const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-rebuild.css'),'utf8');
 
 describe('Chapter 14 presentation rebuild',()=>{
   it('keeps the four TCP/IP layers and both communication directions visible on the projector',()=>{
