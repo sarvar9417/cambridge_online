@@ -7,6 +7,7 @@ import { Chapter14HttpJourney, Chapter14RouterJourney, Chapter14TcpIpJourney } f
 import { Chapter14BitTorrentHero } from './Chapter14BitTorrentHero';
 import { Chapter14SwitchingCompareHero } from './Chapter14SwitchingCompareHero';
 import { Chapter14EmailMechanicsHero, Chapter14EncapsulationHero, Chapter14TcpHandshakeHero, Chapter14TransportReliabilityHero } from './Chapter14FlowHeroes';
+import { Chapter14RoutingExamBuilder, Chapter14WebPageTransferHero } from './Chapter14RoutingTransferHero';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
@@ -47,8 +48,8 @@ import './chapter13-presentation-hardening.css';
  *
  * Deliberate specialist exceptions stay out of this set:
  * - TCP/IP, encapsulation, HTTP, email mechanics, transport/PAR, TCP handshake,
- *   BitTorrent process, switching comparison and router-decision scenes use large
- *   benchmark-style hero visuals.
+ *   BitTorrent process, switching comparison, router decision, Example 14.2 web transfer
+ *   and the routing exam-builder use large benchmark-style hero visuals.
  * - Packet-order basics, switching pros/cons, BitTorrent terminology and Activity 14A
  *   use richer source-exact V4 surfaces.
  * The final chapter recap does use V2 because its four-part vertical story matches the
@@ -72,8 +73,6 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-142-hop',
   'h14p-142-packet-control',
   'h14p-142-routing-fields',
-  'h14p-142-web-page',
-  'h14p-142-exam',
   'h14p-142-recap',
 ]);
 
@@ -120,6 +119,8 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(beat.id==='h14p-141-bittorrent')return <Chapter14BitTorrentHero reveal={reveal}/>;
   if(beat.id==='h14p-142-compare')return <Chapter14SwitchingCompareHero reveal={reveal}/>;
   if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;
+  if(beat.id==='h14p-142-web-page')return <Chapter14WebPageTransferHero reveal={reveal}/>;
+  if(beat.id==='h14p-142-exam')return <Chapter14RoutingExamBuilder reveal={reveal}/>;
   if(CHAPTER_14_VISUAL_FIRST_SCENES.has(beat.id))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
   if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
