@@ -13,6 +13,12 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).not.toContain('chapter14-presentation-rebuild.css');
   });
 
+  it('renders the TCP IP stack as a large send and receive journey',()=>{
+    expect(facade).toContain('function Chapter14TcpIpJourney');
+    expect(facade).toContain("if(beat.id==='h14p-141-stack')return <Chapter14TcpIpJourney reveal={reveal}/>;");
+    for(const marker of ['SENDER','SEND · 4 → 1','APPLICATION','TRANSPORT','INTERNET','LINK','RECEIVE · 1 → 4','RECEIVER','decomposition'])expect(facade).toContain(marker);
+  });
+
   it('renders the HTTP journey as an integrated browser-to-server teaching diagram',()=>{
     expect(facade).toContain('function Chapter14HttpJourney');
     expect(facade).toContain("if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;");
@@ -22,7 +28,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
 
   it('routes explanation-heavy scenes to hand-authored visual diagrams',()=>{
     for(const id of [
-      'h14p-141-hook','h14p-141-stack','h14p-141-units','h14p-141-protocol-map',
+      'h14p-141-hook','h14p-141-units','h14p-141-protocol-map',
       'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
       'h14p-141-wireless','h14p-141-bittorrent','h14p-142-hook','h14p-142-circuit-stages',
       'h14p-142-packet-basics','h14p-142-compare','h14p-142-circuit-pros-cons','h14p-142-packet-pros-cons',
@@ -50,7 +56,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
 
   it('retains visual teaching primitives for the benchmark-style sequence',()=>{
     for(const marker of [
-      'h14c-agreement','h14c-stack','h14c-encapsulation','h14c-protocol-map','h14c-email-mechanics',
+      'h14c-agreement','h14c-encapsulation','h14c-protocol-map','h14c-email-mechanics',
       'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless','h14c-bittorrent-process',
       'h14c-switch-hook','h14c-circuit-stages','h14c-packet-basics','h14c-routing','h14c-final-map',
     ])expect(v2).toContain(marker);
