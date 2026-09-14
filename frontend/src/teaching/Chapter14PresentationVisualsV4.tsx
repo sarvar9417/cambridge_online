@@ -1,5 +1,6 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
 import { Chapter14PresentationContentFinal } from './Chapter14PresentationContentFinal';
+import { Chapter14PresentationContentV2 } from './Chapter14PresentationContentV2';
 import { Chapter14EndOfChapterMaster } from './Chapter14EndOfChapterMaster';
 import { Chapter14EmailSourceComplete } from './Chapter14EmailSourceComplete';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
@@ -32,6 +33,48 @@ import './chapter14-presentation-deep-content.css';
 import './chapter14-presentation-final-source.css';
 import './chapter14-email-source-complete.css';
 import './chapter13-presentation-hardening.css';
+
+/**
+ * These Chapter 14 scenes already have hand-authored visual teaching surfaces in V2.
+ * Route them directly instead of wrapping them in later source-audit composites. The
+ * detailed source renderers remain in the repository for audit/study fidelity, while
+ * projector mode follows one consistent dark-blue visual language: process, topology,
+ * lifeline, comparison, bitfield and retrieval.
+ */
+const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
+  'h14p-141-hook',
+  'h14p-141-objectives',
+  'h14p-141-protocol',
+  'h14p-141-stack',
+  'h14p-141-units',
+  'h14p-141-protocol-map',
+  'h14p-141-ftp-detail',
+  'h14p-141-http',
+  'h14p-141-email-mechanics',
+  'h14p-141-pop-imap',
+  'h14p-141-transport-family',
+  'h14p-141-tcp',
+  'h14p-141-ip-link',
+  'h14p-141-ethernet-detail',
+  'h14p-141-wireless',
+  'h14p-141-bittorrent',
+  'h14p-141-bittorrent-terms',
+  'h14p-142-hook',
+  'h14p-142-objectives',
+  'h14p-142-circuit-stages',
+  'h14p-142-packet-basics',
+  'h14p-142-compare',
+  'h14p-142-circuit-pros-cons',
+  'h14p-142-packet-pros-cons',
+  'h14p-142-video-example',
+  'h14p-142-hop',
+  'h14p-142-packet-control',
+  'h14p-142-routing',
+  'h14p-142-routing-fields',
+  'h14p-142-web-page',
+  'h14p-142-exam',
+  'h14p-142-activity14a',
+]);
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
@@ -66,6 +109,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter5OperatingSystemVisual(beat))return <Chapter5OperatingSystemVisual beat={beat} reveal={reveal}/>;
   if(hasChapter7PresentationVisual(beat))return <Chapter7PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
+  if(CHAPTER_14_VISUAL_FIRST_SCENES.has(beat.id))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
   if(beat.id==='h14p-142-practice')return <Chapter14EndOfChapterMaster beat={beat} reveal={reveal}/>;
   if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationContentFinal beat={beat} reveal={reveal}/>;
