@@ -4,6 +4,7 @@ import hero from './Chapter14HeroVisuals.tsx?raw';
 import flow from './Chapter14FlowHeroes.tsx?raw';
 import routingTransfer from './Chapter14RoutingTransferHero.tsx?raw';
 import networkControl from './Chapter14NetworkControlHeroes.tsx?raw';
+import routingTable from './Chapter14RoutingTableHero.tsx?raw';
 import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
 import switching from './Chapter14SwitchingCompareHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
@@ -17,6 +18,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
     expect(facade).toContain("from './Chapter14FlowHeroes'");
     expect(facade).toContain("from './Chapter14RoutingTransferHero'");
     expect(facade).toContain("from './Chapter14NetworkControlHeroes'");
+    expect(facade).toContain("from './Chapter14RoutingTableHero'");
     expect(facade).toContain("from './Chapter14BitTorrentHero'");
     expect(facade).toContain("from './Chapter14SwitchingCompareHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
@@ -106,10 +108,24 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['PROTOCOL VERSION','4 bits','HEADER LENGTH','PRIORITY','8 bits','FRAGMENT FLAGS','3 bits','FRAGMENT OFFSET','13 bits','CURRENT HOP','PACKET COUNT','SEQUENCE','TRANSPORT PROTOCOL','TCP or UDP','HEADER CHECKSUM','SOURCE IP','DESTINATION IP','DF = do not fragment','MF = more fragments follow','6 × 4 = 24 bytes'])expect(networkControl).toContain(marker);
   });
 
+  it('shows every source routing-table field beside the Figure 14.10 decision loop',()=>{
+    expect(routingTable).toContain('function Chapter14RoutingTableHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-routing-fields')return <Chapter14RoutingTableHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-routing-fields',");
+    for(const marker of ['NUMBER OF HOPS','NEXT ROUTER MAC','METRICS / COST','NETWORK DESTINATION','GATEWAY','NETMASK','INTERFACE','HEADER → TABLE → NEXT HOP','READ','COMPARE','CHOOSE','UPDATE','FORWARD','hop number = 0'])expect(routingTable).toContain(marker);
+  });
+
   it('renders router forwarding as header to routing-table to next-hop journey',()=>{
     expect(hero).toContain('function Chapter14RouterJourney');
     expect(facade).toContain("if(beat.id==='h14p-142-routing')return <Chapter14RouterJourney reveal={reveal}/>;");
     for(const marker of ['PACKET HEADER','Destination IP','ROUTING TABLE','NEXT HOP','Next-router MAC','READ HEADER','LOOK UP','CHOOSE','UPDATE','FORWARD','hop = 0'])expect(hero).toContain(marker);
+  });
+
+  it('turns Example 14.1 into symptom cause and circuit-switching remedy pairs',()=>{
+    expect(routingTable).toContain('function Chapter14VideoConferenceHero');
+    expect(facade).toContain("if(beat.id==='h14p-142-video-example')return <Chapter14VideoConferenceHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-142-video-example',");
+    for(const marker of ['OUT OF SYNC','PAUSES / FREEZES','DEGRADED QUALITY','DROP-OUT','packets can arrive at different times','time is needed to reassemble packets','compete for communication-line bandwidth','packet loss possible','ONE ROUTE','CORRECT ORDER','DEDICATED CHANNEL','FULL BANDWIDTH','SYNCHRONISATION'])expect(routingTable).toContain(marker);
   });
 
   it('renders Example 14.2 as a complete web-page packet-switching journey',()=>{
@@ -136,7 +152,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   it('routes remaining explanation-heavy scenes to hand-authored visual diagrams',()=>{
     for(const id of [
       'h14p-141-hook','h14p-141-protocol-map','h14p-141-pop-imap',
-      'h14p-142-hook','h14p-142-circuit-stages','h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing-fields',
+      'h14p-142-hook','h14p-142-circuit-stages','h14p-142-hop','h14p-142-packet-control',
     ])expect(facade).toContain(`'${id}'`);
   });
 
@@ -159,7 +175,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   });
 
   it('retains visual teaching primitives for scenes that still use V2',()=>{
-    for(const marker of ['h14c-agreement','h14c-protocol-map','h14c-popimap','h14c-switch-hook','h14c-circuit-stages','h14c-routing'])expect(v2).toContain(marker);
+    for(const marker of ['h14c-agreement','h14c-protocol-map','h14c-popimap','h14c-switch-hook','h14c-circuit-stages'])expect(v2).toContain(marker);
   });
 
   it('keeps benchmark-critical concepts visible on presentation surfaces',()=>{
@@ -167,5 +183,6 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['TRACKER','SEED','piece','peer'])expect(bittorrent.toLowerCase()).toContain(marker.toLowerCase());
     for(const marker of ['destination IP','routing table','next router MAC','hop value'])expect(routingTransfer.toLowerCase()).toContain(marker.toLowerCase());
     for(const marker of ['SOURCE IP','DESTINATION IP','IEEE 802.11','HEADER CHECKSUM','reconstructed message'])expect(networkControl.toLowerCase()).toContain(marker.toLowerCase());
+    for(const marker of ['metrics / cost','gateway','netmask','interface','dedicated channel','full bandwidth'])expect(routingTable.toLowerCase()).toContain(marker.toLowerCase());
   });
 });
