@@ -34,6 +34,7 @@ import './chapter14-presentation-final-source.css';
 import './chapter14-email-source-complete.css';
 import './chapter13-presentation-hardening.css';
 import './chapter14-presentation-rebuild.css';
+import './chapter14-presentation-rebuild-concepts.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
