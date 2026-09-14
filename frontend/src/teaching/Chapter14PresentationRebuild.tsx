@@ -7,6 +7,8 @@ type StageState='is-complete'|'is-current'|'is-upcoming';
 const REBUILT_SCENE_IDS=new Set([
   'h14p-141-stack',
   'h14p-141-units',
+  'h14p-141-protocol-map',
+  'h14p-142-compare',
   'h14p-142-routing',
 ]);
 
@@ -72,6 +74,30 @@ function TcpIpStackRebuild({reveal}:{reveal:number}){
   </div>;
 }
 
+function ApplicationProtocolMapRebuild(){
+  const protocols=[
+    ['HTTP','WEB','Transfer the files/resources that make up web pages.'],
+    ['FTP','FILES','Transfer files between computers/devices over a network.'],
+    ['SMTP','EMAIL · SEND','Send email; the chapter later describes SMTP as a push protocol.'],
+    ['POP3/4','EMAIL · RECEIVE','Receive/download email from a mail server.'],
+    ['IMAP','EMAIL · RECEIVE + SYNC','Receive email while keeping the client and server mailbox synchronised.'],
+    ['DNS','NAME → ADDRESS','Find the IP address associated with a domain name.'],
+    ['RIP','ROUTING INFO','Allow routers to exchange routing information over an IP network.'],
+    ['SNMP','NETWORK MANAGEMENT','Exchange network-management information between management software and network devices.'],
+  ] as const;
+  return <div className="h14r h14r-protocols" aria-label="Application layer protocol map">
+    <section className="h14r-intro">
+      <span>APPLICATION LAYER · CHOOSE BY TASK</span>
+      <strong>Do not memorise a random acronym list. Match each protocol to the communication job it performs.</strong>
+      <p>The application layer is where software uses agreed protocols for services such as web access, file transfer, email, name lookup and network management.</p>
+    </section>
+    <div className="h14r-protocol-grid">
+      {protocols.map(([protocol,task,meaning])=><section key={protocol}><header><strong>{protocol}</strong><span>{task}</span></header><p>{meaning}</p></section>)}
+    </div>
+    <footer className="h14r-rule"><b>Fast recall</b><span><strong>HTTP = web · FTP = files · SMTP = send · POP/IMAP = receive · DNS = domain name to IP.</strong> RIP and SNMP support routing-information exchange and network management.</span></footer>
+  </div>;
+}
+
 function MessageJourneyRebuild({reveal}:{reveal:number}){
   const sender=[
     {step:1,label:'APPLICATION DATA',parts:['DATA'],note:'The application creates the original message.'},
@@ -90,7 +116,7 @@ function MessageJourneyRebuild({reveal}:{reveal:number}){
         <header><span>SENDER</span><strong>Move down the stack</strong></header>
         {sender.map(item=><div className={`h14r-unit ${stageState(reveal,item.step)}`} key={item.label}>
           <b>{item.label}</b>
-          <div>{item.parts.map(part=><span data-payload={part==='DATA'} key={part}>{part}</span>)}</div>
+          <div>{item.parts.map(part=><span data-payload={part==='DATA'?'true':undefined} key={part}>{part}</span>)}</div>
           <small>{item.note}</small>
         </div>)}
       </section>
@@ -107,6 +133,41 @@ function MessageJourneyRebuild({reveal}:{reveal:number}){
       </section>
     </div>
     <footer className="h14r-rule"><b>Remember the names</b><span>Application data → <strong>segment</strong> → <strong>datagram</strong> → <strong>frame</strong>. Receiving uses the same stack in reverse.</span></footer>
+  </div>;
+}
+
+function SwitchingCompareRebuild(){
+  return <div className="h14r h14r-switching" aria-label="Circuit switching and packet switching visual comparison">
+    <section className="h14r-intro">
+      <span>ONE MESSAGE · TWO DELIVERY STRATEGIES</span>
+      <strong>The decisive question is whether the communication reserves one route or lets packets choose routes independently.</strong>
+      <p>Use the route picture first, then connect it to bandwidth, order, faults and real-time behaviour.</p>
+    </section>
+    <div className="h14r-switch-grid">
+      <section className="h14r-switch-card h14r-switch-card--circuit">
+        <header><span>CIRCUIT SWITCHING</span><strong>Reserve one dedicated path</strong></header>
+        <div className="h14r-circuit-path"><b>A</b><i/><i/><i/><i/><strong>B</strong><em className="h14r-moving-dot"/></div>
+        <ul>
+          <li>Set up the circuit before data transfer.</li>
+          <li>All frames use the same route and arrive in order.</li>
+          <li>The whole channel bandwidth is reserved for this communication.</li>
+          <li>A fault on the dedicated route gives no alternative route for that established circuit.</li>
+          <li>Works better for real-time applications in the coursebook comparison.</li>
+        </ul>
+      </section>
+      <section className="h14r-switch-card h14r-switch-card--packet">
+        <header><span>PACKET SWITCHING</span><strong>Split the message and route packets independently</strong></header>
+        <div className="h14r-packet-paths"><b>A</b><div><i/><i/><i/></div><strong>B</strong><em className="h14r-moving-dot h14r-moving-dot--p1"/><em className="h14r-moving-dot h14r-moving-dot--p2"/></div>
+        <ul>
+          <li>No dedicated path is established for the whole communication.</li>
+          <li>Different packets can use different available routes.</li>
+          <li>Bandwidth is shared with other packets/data.</li>
+          <li>Packets may arrive out of order and must be reassembled.</li>
+          <li>Faulty lines can be bypassed by rerouting packets.</li>
+        </ul>
+      </section>
+    </div>
+    <footer className="h14r-rule"><b>Exam contrast</b><span><strong>Circuit = one reserved route.</strong> <strong>Packet = independent packets, shared routes, reassembly.</strong></span></footer>
   </div>;
 }
 
@@ -156,6 +217,8 @@ function RouterJourneyRebuild({reveal}:{reveal:number}){
 export function Chapter14PresentationRebuild({beat,reveal}:Props){
   if(beat.id==='h14p-141-stack')return <TcpIpStackRebuild reveal={reveal}/>;
   if(beat.id==='h14p-141-units')return <MessageJourneyRebuild reveal={reveal}/>;
+  if(beat.id==='h14p-141-protocol-map')return <ApplicationProtocolMapRebuild/>;
+  if(beat.id==='h14p-142-compare')return <SwitchingCompareRebuild/>;
   if(beat.id==='h14p-142-routing')return <RouterJourneyRebuild reveal={reveal}/>;
   return null;
 }
