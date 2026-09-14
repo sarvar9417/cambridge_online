@@ -37,6 +37,39 @@ import './chapter13-presentation-hardening.css';
 const emphasis=(reveal:number,step:number)=>({opacity:reveal>=step?1:.36,transition:'opacity .2s ease'});
 
 /**
+ * Hodder pp.329–330. A large projector-first master model keeps send 4→1 and
+ * receive 1→4 visible at the same time, while each layer still states its source
+ * function. This mirrors the strongest idea in the supplied benchmark without
+ * losing the coursebook explanation.
+ */
+function Chapter14TcpIpJourney({reveal}:{reveal:number}){
+  const layers=[
+    ['4','APPLICATION','Programs and application protocols exchange data.'],
+    ['3','TRANSPORT','Regulates connections; sequencing, acknowledgement and retransmission.'],
+    ['2','INTERNET','IP addressing and routing between networks.'],
+    ['1','LINK','Local frames, link addressing and IP-to-MAC mapping.'],
+  ] as const;
+  return <div className="h14m-content-v2" aria-label="TCP IP four layer send and receive journey" style={{display:'grid',gridTemplateColumns:'180px minmax(0,1fr) 180px',gap:20,minHeight:420,alignItems:'center'}}>
+    <aside style={{display:'grid',placeItems:'center',gap:15,textAlign:'center'}}>
+      <div style={{width:118,height:76,border:'2px solid var(--h14-blue)',borderRadius:12,background:'rgba(84,166,255,.06)',display:'grid',placeItems:'center',fontWeight:900}}>SENDER</div>
+      <strong style={{fontSize:28,color:'var(--h14-cyan)'}}>SEND · 4 → 1</strong>
+      <div style={{fontSize:66,lineHeight:.8,color:'var(--h14-cyan)'}}>↓</div>
+      <small style={{color:'var(--h14-muted)',lineHeight:1.4}}>Data moves down the stack before local transmission.</small>
+    </aside>
+    <main style={{display:'grid',gap:8}}>
+      {layers.map(([n,name,job],i)=><section key={name} style={{...emphasis(reveal,i+1),display:'grid',gridTemplateColumns:'56px 1fr',gap:16,alignItems:'center',minHeight:82,padding:'12px 18px',borderLeft:'5px solid var(--h14-blue)',borderBottom:'1px solid var(--h14-line)',background:'linear-gradient(90deg,rgba(84,166,255,.10),rgba(12,27,46,.28))'}}><b style={{display:'grid',placeItems:'center',width:42,height:42,border:'1px solid var(--h14-cyan)',borderRadius:'50%',color:'var(--h14-cyan)',font:'800 13px var(--font-mono)'}}>{n}</b><div><strong style={{display:'block',fontSize:22}}>{name}</strong><p style={{margin:'4px 0 0',fontSize:13.5,lineHeight:1.35,color:'var(--h14-muted)'}}>{job}</p></div></section>)}
+      <footer style={{padding:'10px 14px',borderLeft:'3px solid var(--h14-amber)',background:'rgba(255,200,87,.04)',fontSize:12,color:'var(--h14-muted)'}}>Layering is <b style={{color:'var(--h14-amber)'}}>decomposition</b>: communication is split into self-contained software modules, improving manageability and compatibility.</footer>
+    </main>
+    <aside style={{display:'grid',placeItems:'center',gap:15,textAlign:'center'}}>
+      <div style={{fontSize:66,lineHeight:.8,color:'var(--h14-cyan)'}}>↑</div>
+      <strong style={{fontSize:28,color:'var(--h14-cyan)'}}>RECEIVE · 1 → 4</strong>
+      <div style={{width:118,height:76,border:'2px solid var(--h14-cyan)',borderRadius:12,background:'rgba(82,224,210,.06)',display:'grid',placeItems:'center',fontWeight:900}}>RECEIVER</div>
+      <small style={{color:'var(--h14-muted)',lineHeight:1.4}}>At the destination the same stack is processed in reverse.</small>
+    </aside>
+  </div>;
+}
+
+/**
  * Hodder p.331, presented with the same explanatory visual grammar as the supplied
  * professional deck. The coursebook order is kept deliberately: URL → HTTP(S) →
  * TCP/port 80 → DNS lookup → TCP acknowledgement → HTML response → browser display.
@@ -120,6 +153,7 @@ function Chapter14HttpJourney({reveal}:{reveal:number}){
  * lifeline, comparison, bitfield and retrieval.
  *
  * Deliberate specialist exceptions stay out of this set:
+ * - TCP/IP stack uses the large send/receive hero model above.
  * - HTTP uses the source-faithful browser → protocol → network → server visual above.
  * - BitTorrent terminology keeps the richer source-exact swarm diagram from V4.
  * - Activity 14A keeps the complete source task map from V4.
@@ -131,7 +165,6 @@ const CHAPTER_14_VISUAL_FIRST_SCENES=new Set([
   'h14p-141-hook',
   'h14p-141-objectives',
   'h14p-141-protocol',
-  'h14p-141-stack',
   'h14p-141-units',
   'h14p-141-protocol-map',
   'h14p-141-ftp-detail',
@@ -193,6 +226,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter5OperatingSystemVisual(beat))return <Chapter5OperatingSystemVisual beat={beat} reveal={reveal}/>;
   if(hasChapter7PresentationVisual(beat))return <Chapter7PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
+  if(beat.id==='h14p-141-stack')return <Chapter14TcpIpJourney reveal={reveal}/>;
   if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;
   if(CHAPTER_14_VISUAL_FIRST_SCENES.has(beat.id))return <Chapter14PresentationContentV2 beat={beat} reveal={reveal}/>;
   if(beat.id==='h14p-141-email')return <Chapter14EmailSourceComplete reveal={reveal}/>;
