@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import hero from './Chapter14HeroVisuals.tsx?raw';
+import flow from './Chapter14FlowHeroes.tsx?raw';
 import bittorrent from './Chapter14BitTorrentHero.tsx?raw';
 import switching from './Chapter14SwitchingCompareHero.tsx?raw';
 import v2 from './Chapter14PresentationContentV2.tsx?raw';
@@ -11,6 +12,7 @@ describe('Chapter 14 visual-first projector routing',()=>{
   it('uses the existing dark-blue visual master instead of an extra rebuild layer',()=>{
     expect(facade).toContain("import { Chapter14PresentationContentV2 }");
     expect(facade).toContain("from './Chapter14HeroVisuals'");
+    expect(facade).toContain("from './Chapter14FlowHeroes'");
     expect(facade).toContain("from './Chapter14BitTorrentHero'");
     expect(facade).toContain("from './Chapter14SwitchingCompareHero'");
     expect(facade).toContain('CHAPTER_14_VISUAL_FIRST_SCENES');
@@ -25,11 +27,39 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['SENDER','SEND · 4 → 1','APPLICATION','TRANSPORT','INTERNET','LINK','RECEIVE · 1 → 4','RECEIVER','decomposition'])expect(hero).toContain(marker);
   });
 
+  it('renders encapsulation as nested wrappers with send and receive directions',()=>{
+    expect(flow).toContain('function Chapter14EncapsulationHero');
+    expect(facade).toContain("if(beat.id==='h14p-141-units')return <Chapter14EncapsulationHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-141-units',");
+    for(const marker of ['APPLICATION DATA','SEGMENT','DATAGRAM','FRAME','TCP HEADER','IP HEADER','LINK HEADER','FRAME CHECK','4 → 1','1 → 4'])expect(flow).toContain(marker);
+  });
+
   it('renders the HTTP journey as an integrated browser-to-server teaching diagram',()=>{
     expect(hero).toContain('function Chapter14HttpJourney');
     expect(facade).toContain("if(beat.id==='h14p-141-http')return <Chapter14HttpJourney reveal={reveal}/>;");
     for(const marker of ['BROWSER','HTTP(S)','TCP packet','PORT 80','DNS','IP / INTERNET ROUTING','WEB SERVER','HTML RESPONSE'])expect(hero).toContain(marker);
     for(const marker of ['URL → HTTP(S)','TCP/port 80','DNS lookup','TCP acknowledgement','HTML response','browser display'])expect(hero).toContain(marker);
+  });
+
+  it('separates SMTP push, MIME attachment support and POP IMAP pull',()=>{
+    expect(flow).toContain('function Chapter14EmailMechanicsHero');
+    expect(facade).toContain("if(beat.id==='h14p-141-email-mechanics')return <Chapter14EmailMechanicsHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-141-email-mechanics',");
+    for(const marker of ['SMTP · PUSH','CLIENT → EMAIL SERVER','MIME · ATTACHMENTS','MIME HEADER','POP / IMAP · PULL','CLIENT ← EMAIL SERVER','SMTP remains used between email servers'])expect(flow).toContain(marker);
+  });
+
+  it('teaches transport reliability with PAR before the TCP handshake',()=>{
+    expect(flow).toContain('function Chapter14TransportReliabilityHero');
+    expect(facade).toContain("if(beat.id==='h14p-141-transport-family')return <Chapter14TransportReliabilityHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-141-transport-family',");
+    for(const marker of ['MESSAGE','P1','P2','P3','P4','NO POSITIVE ACK FOR P3','RE-SEND P3','PAR','TCP · UDP · SCTP'])expect(flow).toContain(marker);
+  });
+
+  it('renders the source TCP connection setup as a host-to-host dialogue',()=>{
+    expect(flow).toContain('function Chapter14TcpHandshakeHero');
+    expect(facade).toContain("if(beat.id==='h14p-141-tcp')return <Chapter14TcpHandshakeHero reveal={reveal}/>;");
+    expect(facade).not.toContain("  'h14p-141-tcp',");
+    for(const marker of ['HOST X','HOST Y','synchronisation sequence bits','acknowledgement + Y’s own synchronisation sequence bits','normal data transmission can now take place','connection-oriented and host-to-host'])expect(flow).toContain(marker);
   });
 
   it('renders BitTorrent as tracker discovery plus direct peer piece sharing',()=>{
@@ -52,13 +82,11 @@ describe('Chapter 14 visual-first projector routing',()=>{
     for(const marker of ['PACKET HEADER','Destination IP','ROUTING TABLE','NEXT HOP','Next-router MAC','READ HEADER','LOOK UP','CHOOSE','UPDATE','FORWARD','hop = 0'])expect(hero).toContain(marker);
   });
 
-  it('routes explanation-heavy scenes to hand-authored visual diagrams',()=>{
+  it('routes remaining explanation-heavy scenes to hand-authored visual diagrams',()=>{
     for(const id of [
-      'h14p-141-hook','h14p-141-units','h14p-141-protocol-map',
-      'h14p-141-email-mechanics','h14p-141-pop-imap','h14p-141-transport-family','h14p-141-tcp','h14p-141-ip-link',
-      'h14p-141-wireless','h14p-142-hook','h14p-142-circuit-stages',
-      'h14p-142-video-example','h14p-142-hop','h14p-142-packet-control','h14p-142-routing-fields',
-      'h14p-142-web-page','h14p-142-exam','h14p-142-recap',
+      'h14p-141-hook','h14p-141-protocol-map','h14p-141-pop-imap','h14p-141-ip-link','h14p-141-wireless',
+      'h14p-142-hook','h14p-142-circuit-stages','h14p-142-video-example','h14p-142-hop','h14p-142-packet-control',
+      'h14p-142-routing-fields','h14p-142-web-page','h14p-142-exam','h14p-142-recap',
     ])expect(facade).toContain(`'${id}'`);
   });
 
@@ -84,17 +112,14 @@ describe('Chapter 14 visual-first projector routing',()=>{
 
   it('retains visual teaching primitives for the benchmark-style sequence',()=>{
     for(const marker of [
-      'h14c-agreement','h14c-encapsulation','h14c-protocol-map','h14c-email-mechanics',
-      'h14c-popimap','h14c-transport','h14c-handshake','h14c-iplink','h14c-wireless',
+      'h14c-agreement','h14c-protocol-map','h14c-popimap','h14c-iplink','h14c-wireless',
       'h14c-switch-hook','h14c-circuit-stages','h14c-routing','h14c-final-map',
     ])expect(v2).toContain(marker);
   });
 
-  it('keeps benchmark-critical concepts visible on the presentation surface',()=>{
-    for(const marker of [
-      'SENDING','RECEIVING','APPLICATION DATA','SEGMENT','DATAGRAM','FRAME',
-      'SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y','destination IP','routing table',
-    ])expect(v2).toContain(marker);
+  it('keeps benchmark-critical concepts visible on presentation surfaces',()=>{
+    for(const marker of ['SENDING','RECEIVING','destination IP','routing table'])expect(v2).toContain(marker);
+    for(const marker of ['APPLICATION DATA','SEGMENT','DATAGRAM','FRAME','SMTP · PUSH','POP / IMAP · PULL','HOST X','HOST Y'])expect(flow).toContain(marker);
     for(const marker of ['TRACKER','SEED','piece','peer'])expect(bittorrent.toLowerCase()).toContain(marker.toLowerCase());
   });
 });
