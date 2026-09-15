@@ -49,7 +49,7 @@ const pointSlide = (
     id: `h${chapter.number}-${point.code.replace(/\./g, '-')}-${String(index + 1).padStart(2, '0')}`,
     section: `${topic.code} ${topic.title}`,
     subtopicCode: topicCode(point.code),
-    eyebrow: `${point.code} · HODDER COURSEBOOK · pp.${point.pages[0]}–${point.pages[1]}`,
+    eyebrow: `${point.code} ${point.title} · HODDER COURSEBOOK · pp.${point.pages[0]}–${point.pages[1]}`,
     title: point.title,
     lead: point.lead,
     bullets: [...point.bullets],
@@ -79,6 +79,24 @@ export function buildSourceBacked9618Chapter(spec: SourceBackedChapterSpec): Hod
 
   const [printedStart, printedEnd] = range.printedPageRange;
   const chapterPageCount = printedEnd - printedStart + 1;
+
+  for (const topic of spec.topics) {
+    if (!topic.code.startsWith(`${spec.number}.`)) {
+      throw new Error(`Chapter ${spec.number} contains mismatched topic code ${topic.code}`);
+    }
+    for (const point of topic.points) {
+      const [from, to] = point.pages;
+      if (!point.code.startsWith(`${topic.code}.`) && point.code !== topic.code) {
+        throw new Error(`Chapter ${spec.number} topic ${topic.code} contains mismatched point code ${point.code}`);
+      }
+      if (from > to || from < printedStart || to > printedEnd) {
+        throw new Error(
+          `Chapter ${spec.number} point ${point.code} has source pages ${from}–${to} outside printed chapter range ${printedStart}–${printedEnd}`,
+        );
+      }
+    }
+  }
+
   const slides: HodderLessonSlide[] = [
     {
       id: `h${spec.number}-overview`,
@@ -104,7 +122,7 @@ export function buildSourceBacked9618Chapter(spec: SourceBackedChapterSpec): Hod
       subtopicCode: topic.code,
       eyebrow: `${topic.code} · TOPIC MAP`,
       title: topic.title,
-      lead: `This lesson route follows the numbered Hodder subsections in source order before the chapter review.`,
+      lead: 'This lesson route follows the numbered Hodder subsections in source order before the chapter review.',
       bullets: topic.points.map(point => `${point.code} ${point.title}`),
       visual: topicIndex % 2 === 0 ? 'types' : 'recap',
       accent: topicIndex % 2 === 0 ? 'cyan' : 'emerald',
