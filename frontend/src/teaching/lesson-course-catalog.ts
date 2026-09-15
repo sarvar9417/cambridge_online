@@ -30,12 +30,12 @@ export function lessonCatalogChapter(course:'9618'|'0478',chapterNumber:number) 
 /**
  * The historic 0478 Chapter 7 and the new 9618 Chapter 7 share the number 7.
  * The older presentation builder predates that overlap and expands an overview
- * by chapter number alone. For a catalog chapter, rebuild the overview from the
- * exact chapter object's own topics so neither syllabus can borrow the other
- * syllabus's screens.
+ * by chapter number alone. Keep its existing 9618 behaviour unchanged, while
+ * rebuilding only the 0478 overview from the exact 0478 chapter object's own
+ * topics so neither syllabus can borrow the other syllabus's screens.
  */
 export function presentationBeatsForCatalogTopic(chapter:LessonExperienceChapter,topic:LessonTopic) {
-  if(topic.code!=='overview')return presentationBeatsForTopic(topic);
+  if(courseCode(chapter)==='9618'||topic.code!=='overview')return presentationBeatsForTopic(topic);
   const ownSlideIds=new Set(chapter.slides.map(slide=>slide.id));
   const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
   const overview=topics.find(item=>item.code==='overview');
