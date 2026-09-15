@@ -1,0 +1,323 @@
+import type { HodderLessonChapter, HodderLessonSlide } from './lesson-content-hodder-types';
+
+const source = (page: number, elements: string[] = []) => ({
+  sourcePages: [page],
+  sourceLabel: `Hodder Chapter 8 · p.${page}`,
+  sourceElements: [`Hodder p.${page}`, ...elements],
+});
+
+const sourceRange = (from: number, to: number, elements: string[] = []) => ({
+  sourcePages: Array.from({ length: to - from + 1 }, (_, index) => from + index),
+  sourceLabel: `Hodder Chapter 8 · pp.${from}–${to}`,
+  sourceElements: [`Hodder pp.${from}–${to}`, ...elements],
+});
+
+export const CHAPTER_8_DEEP_SLIDES: HodderLessonSlide[] = [
+  {
+    id: 'h8-overview', section: 'Chapter overview', eyebrow: 'CHAPTER 8 · DATABASES',
+    title: 'From file-based data to relational design, DBMS tools and SQL',
+    lead: 'The chapter develops one connected route: identify file-based limitations, design relational tables and relationships, normalise to 3NF, understand DBMS facilities, then define and manipulate the database with SQL.',
+    richBlocks: [{ kind: 'steps', title: 'Chapter route', items: [
+      'Compare file-based storage with a relational database.',
+      'Use entity, attribute, tuple, keys, relationships and referential integrity precisely.',
+      'Document a design with E-R diagrams and cardinality.',
+      'Normalise data through 1NF, 2NF and 3NF.',
+      'Explain how a DBMS manages structure, security and queries.',
+      'Use SQL as both DDL and DML.',
+    ] }],
+    activity: { title: 'Prior knowledge check', prompt: 'Explain table, field and record, then give one reason a database is useful when several applications need the same data.' },
+    visual: 'types', accent: 'indigo', ...source(196, ['Chapter 8 learning objectives', 'What you should already know', 'Database key terms']),
+  },
+  {
+    id: 'h8-811-file-structure', section: '8.1 Database concepts', subtopicCode: '8.1.1', eyebrow: '8.1.1 · FILE-BASED APPROACH',
+    title: 'A file structure is tightly coupled to the program that processes it',
+    lead: 'In a file-based system, each application is written around the exact organisation of its records. If one record structure changes, another application that expects the old structure may also need to change.',
+    bullets: [
+      'A file can be organised as records, and each record contains fields about the same thing.',
+      'Records may be fixed or variable length and can carry structural information such as field count or record length.',
+      'A second program must understand the same record structure to process the same file correctly.',
+      'The payroll and sales example uses separate applications and separate record descriptions for overlapping staff data.',
+    ],
+    visual: 'files', accent: 'cyan', ...source(197, ['8.1.1 The limitations of a file-based approach', 'File', 'Record', 'Field', 'Payroll and sales example']),
+  },
+  {
+    id: 'h8-811-limitations', section: '8.1 Database concepts', subtopicCode: '8.1.1', eyebrow: 'REDUNDANCY · INCONSISTENCY · DEPENDENCY',
+    title: 'Three limitations explain why separate application files become difficult to manage',
+    lead: 'The payroll and sales example exposes duplication, inconsistent updates and dependence on application-specific record structure.',
+    richBlocks: [{ kind: 'table', table: { caption: 'File-based limitations', headers: ['Limitation', 'What goes wrong'], rows: [
+      ['Data redundancy', 'The same staff details are stored in more than one application file, wasting storage.'],
+      ['Data inconsistency', 'One application can change a value while another still holds an older value.'],
+      ['Data dependency', 'Available enquiries depend on the record structure and the software written to use it.'],
+    ] } }],
+    activity: { title: 'Activity 8A idea', prompt: 'For the payroll and sales example, match each concrete problem to redundancy, inconsistency or dependency.' },
+    visual: 'files', accent: 'rose', ...source(198, ['Figure 8.1 File-based approach', 'Activity 8A']),
+  },
+  {
+    id: 'h8-812-database-approach', section: '8.1 Database concepts', subtopicCode: '8.1.2', eyebrow: '8.1.2 · RELATIONAL DATABASE ADVANTAGES',
+    title: 'Shared relational data removes the three major file-based limitations',
+    lead: 'The database approach stores common data once and makes it available to multiple applications through one controlled structure.',
+    richBlocks: [{ kind: 'comparison', leftTitle: 'File-based approach', rightTitle: 'Database approach', rows: [
+      ['Duplicate values appear in separate application files.', 'Common data is stored once, so redundant data is reduced.'],
+      ['Applications can hold different versions of the same value.', 'A change is visible to every application using that stored value.'],
+      ['Queries depend on each program and record structure.', 'Data is independent of individual application record structures.'],
+    ] }],
+    visual: 'types', accent: 'emerald', ...source(199, ['Figure 8.2 Database approach', '8.1.2 relational database advantages']),
+  },
+  {
+    id: 'h8-813-entity-attribute-tuple', section: '8.1 Database concepts', subtopicCode: '8.1.3', eyebrow: '8.1.3 · RELATIONAL MODEL TERMINOLOGY',
+    title: 'Entity, attribute, tuple and table describe the logical model precisely',
+    lead: 'A relational table contains rows representing instances of an entity and columns representing attributes stored about that entity.',
+    keyTerms: [
+      { term: 'Entity', definition: 'A person, place, event or object about which data can be stored.' },
+      { term: 'Attribute', definition: 'An individual data item stored for an entity.' },
+      { term: 'Tuple', definition: 'One instance of an entity represented by a row in a table.' },
+      { term: 'Table', definition: 'A group of similar data with one row per entity instance and one column per attribute.' },
+    ],
+    teacherPrompt: 'Classify Student, DateOfBirth, one student row and the whole Student structure as entity, attribute, tuple or table.',
+    visual: 'types', accent: 'indigo', ...sourceRange(199, 200, ['Tables 8.1–8.2', 'Entity', 'Attribute', 'Tuple', 'Table']),
+  },
+  {
+    id: 'h8-813-keys', section: '8.1 Database concepts', subtopicCode: '8.1.3', eyebrow: 'CANDIDATE · PRIMARY · SECONDARY · FOREIGN KEY',
+    title: 'Keys identify tuples and create controlled links between tables',
+    lead: 'Relational databases minimise repeated data by linking tables through keys rather than copying full records between applications.',
+    richBlocks: [{ kind: 'table', table: { caption: 'Key roles', headers: ['Key', 'Role'], rows: [
+      ['Candidate key', 'An attribute or smallest attribute set whose value is unique for every tuple.'],
+      ['Primary key', 'The candidate key selected as the table’s unique identifier.'],
+      ['Secondary key', 'A candidate key not chosen as the primary key.'],
+      ['Foreign key', 'Attribute(s) in one table referring to the primary key of another table.'],
+    ] } }],
+    activity: { title: 'Elements table', prompt: 'If Symbol, Name and Atomic Weight are each unique, identify the candidate keys and explain what changes when Symbol is selected as the primary key.' },
+    visual: 'types', accent: 'cyan', ...source(200, ['Table 8.3 Elements', 'Candidate key', 'Primary key', 'Secondary key', 'Foreign key']),
+  },
+  {
+    id: 'h8-813-relationships', section: '8.1 Database concepts', subtopicCode: '8.1.3', eyebrow: 'RELATIONSHIPS · REFERENTIAL INTEGRITY',
+    title: 'A relationship is implemented when a foreign key references another table’s primary key',
+    lead: 'The Student/Class example links ClassID in Student to the Class table. Referential integrity prevents a Student row from using a ClassID that has no corresponding Class row.',
+    bullets: [
+      'StudentID is the primary key of Student in the chapter example.',
+      'ClassID is the primary key of Class and a foreign key in Student.',
+      'Relationship forms include 1:1, 1:m, m:1 and m:m.',
+      'The Student-to-Class relationship is many-to-one because many students can share one ClassID.',
+    ],
+    visual: 'types', accent: 'emerald', ...source(201, ['Tables 8.4–8.6', 'Relationship', 'Referential integrity']),
+  },
+  {
+    id: 'h8-814-er-cardinality', section: '8.1 Database concepts', subtopicCode: '8.1.4', eyebrow: '8.1.4 · E-R DIAGRAMS · CARDINALITY',
+    title: 'E-R diagrams make entities, attributes and relationship cardinality visible',
+    lead: 'The school E-R diagram documents Student and Class and shows that one class has many students. Cardinality also records whether a relationship is mandatory or optional.',
+    richBlocks: [
+      { kind: 'steps', title: 'Read an E-R diagram in this order', items: ['Identify each entity.', 'Read the attributes attached to each entity.', 'Locate the relationship line.', 'Interpret one/many cardinality.', 'Check whether each end is mandatory or optional.'] },
+      { kind: 'bullets', items: ['The chapter’s cardinalities include one, many, one-and-only-one, zero-or-one, one-or-many and zero-or-many.', 'An index can be built from one or more columns to speed searching, for example class lists ordered by surname.'] },
+    ],
+    activity: { title: 'Activity 8B', prompt: 'Add Teacher to the school design when one teacher can have more than one class, then identify which attribute should link Teacher and Class.' },
+    visual: 'types', accent: 'amber', ...sourceRange(202, 203, ['Figure 8.3 school E-R diagram', 'Figure 8.4 cardinality', 'Activity 8B']),
+  },
+  {
+    id: 'h8-815-normalisation-rules', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: '8.1.5 · NORMALISATION TO 3NF',
+    title: 'Normalisation reduces redundancy while protecting integrity',
+    lead: 'The chapter starts from one large school table and separates data systematically so updates do not require repeated changes and important data is not lost when rows disappear.',
+    richBlocks: [{ kind: 'steps', title: 'Normal forms', items: [
+      '1NF: remove repeating groups of attributes.',
+      '2NF: be in 1NF and remove partial dependencies so non-key attributes depend on the whole primary key.',
+      '3NF: be in 2NF and remove non-key dependencies so non-key attributes are independent of one another.',
+      'In 3NF, attributes depend on the key, the whole key and nothing but the key.',
+    ] }],
+    visual: 'recap', accent: 'indigo', ...source(203, ['Table 8.7', 'Normalisation rules', '1NF', '2NF', '3NF']),
+  },
+  {
+    id: 'h8-815-1nf', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: 'FIRST NORMAL FORM · REPEATING GROUPS',
+    title: '1NF moves repeating subject data into a separate table',
+    lead: 'In the un-normalised school design, each student stores several SubjectName/SubjectTeacher pairs. Those repeating attributes are removed into a linked STUDENTSUBJECT table.',
+    bullets: [
+      'The main STUDENT row keeps the non-repeating student, class and teacher-related fields at this stage.',
+      'STUDENTSUBJECT stores one row for each student/subject combination.',
+      'StudentID links STUDENTSUBJECT back to STUDENT as a foreign key.',
+      'StudentID plus SubjectName forms a composite primary key for STUDENTSUBJECT.',
+    ],
+    example: { title: '1NF table structure', lines: ['STUDENT(StudentID, FirstName, SecondName, DateOfBirth, ...)', 'STUDENTSUBJECT(StudentID, SubjectName, SubjectTeacher)'] },
+    visual: 'types', accent: 'cyan', ...sourceRange(204, 205, ['Tables 8.8–8.9', 'First normal form', 'Composite key']),
+  },
+  {
+    id: 'h8-815-2nf', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: 'SECOND NORMAL FORM · PARTIAL DEPENDENCY',
+    title: '2NF removes an attribute that depends on only part of a composite key',
+    lead: 'In STUDENTSUBJECT, SubjectTeacher depends on SubjectName rather than on the full StudentID + SubjectName composite key. The chapter removes that partial dependency into SUBJECT.',
+    example: { title: '2NF structure', lines: ['STUDENTSUBJECT(StudentID, SubjectName)', 'SUBJECT(SubjectName, SubjectTeacher)'] },
+    activity: { title: 'Dependency check', prompt: 'Explain why SubjectTeacher belongs with SubjectName rather than with the full StudentID + SubjectName key.' },
+    visual: 'types', accent: 'emerald', ...source(205, ['Table 8.10 School database in 2NF', 'Partial dependency', 'SUBJECT table']),
+  },
+  {
+    id: 'h8-815-3nf', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: 'THIRD NORMAL FORM · NON-KEY DEPENDENCY',
+    title: '3NF removes dependencies between non-key attributes',
+    lead: 'The remaining STUDENT structure still contains class and teacher details that depend on ClassID or LicenceNumber rather than directly on StudentID.',
+    bullets: [
+      'Location and the class-teacher link depend on ClassID.',
+      'TeacherName, Address and TeacherDateOfBirth belong with the teacher identifier rather than with StudentID.',
+      'Teacher names may not be unique, so the chapter prefers LicenceNumber as the teacher primary key.',
+      'Class teachers and subject teachers are combined in one TEACHER table.',
+    ],
+    visual: 'types', accent: 'rose', ...source(206, ['Third normal form', 'Non-key dependencies', 'Teacher licence number']),
+  },
+  {
+    id: 'h8-815-final-design', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: 'FULLY NORMALISED SCHOOL DATABASE',
+    title: 'The chapter’s 3NF design separates students, classes, teachers, subjects and student-subject links',
+    lead: 'After removing repeating groups, partial dependencies and non-key dependencies, the school data is represented by five linked tables.',
+    richBlocks: [{ kind: 'code', title: '3NF relation set', lines: [
+      'STUDENT(StudentID, FirstName, SecondName, DateOfBirth, ClassID)',
+      'CLASS(ClassID, Location, LicenceNumber)',
+      'TEACHER(LicenceNumber, TeacherName, Address, TeacherDateOfBirth)',
+      'STUDENTSUBJECT(StudentID, SubjectName)',
+      'SUBJECT(SubjectName, LicenceNumber)',
+    ] }],
+    activity: { title: 'Activities 8C–8D', prompt: 'Draw the E-R diagram for the fully normalised school design, then apply the same normalisation reasoning to the employee/contact example.' },
+    visual: 'types', accent: 'indigo', ...source(207, ['Fully normalised School database', 'Activity 8C', 'Activity 8D', 'Table 8.12 employee database']),
+  },
+  {
+    id: 'h8-815-synthesis', section: '8.1 Database concepts', subtopicCode: '8.1.5', eyebrow: 'ACTIVITY 8E · DESIGN SYNTHESIS',
+    title: 'A complete database design task combines normalisation with an E-R model',
+    lead: 'The end of Section 8.1 asks learners to explain file-based limitations and normalisation, then design a fully normalised warehouse-parts database and draw its E-R diagram.',
+    activity: { title: 'Warehouse parts design', prompt: 'Separate part data from manufacturer data, select suitable keys and relationships, then justify how the design reduces repeated manufacturer details.' },
+    visual: 'recap', accent: 'amber', ...source(208, ['Activity 8E', 'Warehouse parts database', '8.2 DBMS introduction']),
+  },
+  {
+    id: 'h8-821-dbms-limitations', section: '8.2 Database management systems (DBMSs)', subtopicCode: '8.2.1', eyebrow: '8.2.1 · HOW A DBMS SOLVES FILE-BASED PROBLEMS',
+    title: 'A DBMS manages shared structure so data is less redundant, more consistent and more independent',
+    lead: 'The DBMS stores linked tables under one managed design and separates the logical database structure from individual application programs.',
+    richBlocks: [{ kind: 'table', table: { caption: 'DBMS response to file-based limitations', headers: ['Problem', 'DBMS response'], rows: [
+      ['Redundancy', 'Most data is stored once; repeated foreign-key values are controlled links rather than copied full records.'],
+      ['Inconsistency', 'An update to a shared stored item becomes visible to all applications that use it.'],
+      ['Dependency', 'The DBMS manages structural changes and applications access only the fields/tables they require.'],
+    ] } }],
+    visual: 'files', accent: 'cyan', ...source(209, ['8.2.1 DBMS limitations', 'Data redundancy', 'Data inconsistency', 'Data dependency']),
+  },
+  {
+    id: 'h8-821-dictionary-security', section: '8.2 Database management systems (DBMSs)', subtopicCode: '8.2.1', eyebrow: 'DATA DICTIONARY · LOGICAL SCHEMA · SECURITY',
+    title: 'Metadata, logical modelling and security controls make the database manageable',
+    lead: 'The DBMS data dictionary records metadata about tables, attributes, relationships, indexing, validation and physical storage, while the logical schema models the database independently of a particular DBMS.',
+    bullets: [
+      'Security can use usernames and passwords to block unauthorised access.',
+      'Access rights can control actions such as read, write, delete or append and can restrict users to selected views or tables.',
+      'The DBMS can schedule backups, encrypt stored data and maintain an audit trail or activity log.',
+      'An E-R diagram is one example of a data model used to describe database structure.',
+    ],
+    keyTerms: [
+      { term: 'Data dictionary', definition: 'Metadata describing the database structure and management rules.' },
+      { term: 'Logical schema', definition: 'A model of a particular database that is independent of the DBMS used to implement it.' },
+      { term: 'Access rights', definition: 'Permissions controlling which database data and operations a user may access.' },
+    ],
+    visual: 'files', accent: 'emerald', ...sourceRange(209, 210, ['Data dictionary', 'Data modelling', 'Logical schema', 'DBMS security measures']),
+  },
+  {
+    id: 'h8-822-query-processor', section: '8.2 Database management systems (DBMSs)', subtopicCode: '8.2.2', eyebrow: '8.2.2 · DEVELOPER INTERFACE · QUERY PROCESSOR',
+    title: 'The developer interface sends SQL to a query processor that interprets DDL and compiles DML',
+    lead: 'The chapter separates the developer-facing SQL interface from the internal query-processing components that prepare and execute database work.',
+    richBlocks: [{ kind: 'steps', title: 'Query-processing path', items: [
+      'The developer writes SQL rather than using only query-by-example.',
+      'The query processor receives the SQL statement.',
+      'The DDL interpreter handles definition statements and records them in the data dictionary.',
+      'The DML compiler converts manipulation statements into lower-level instructions and can optimise the query.',
+      'The query evaluation engine executes the resulting work.',
+    ] }],
+    activity: { title: 'Activity 8F', prompt: 'Explain how a school DBMS can give administrators, teachers and pupils different permitted views of the same timetabling database.' },
+    visual: 'types', accent: 'indigo', ...source(210, ['Developer interface', 'Query processor', 'DDL interpreter', 'DML compiler', 'Query evaluation engine', 'Activity 8F']),
+  },
+  {
+    id: 'h8-831-ddl-dml', section: '8.3 DDL and DML', subtopicCode: '8.3.1', eyebrow: '8.3.1 · DDL ↔ DML',
+    title: 'DDL changes database structure; DML works with the data stored inside that structure',
+    lead: 'Both are commonly expressed using SQL, but they solve different problems: definition statements build or modify the schema, while manipulation statements add, change, delete or retrieve data.',
+    richBlocks: [{ kind: 'comparison', leftTitle: 'DDL', rightTitle: 'DML', rows: [
+      ['Creates, modifies or removes database structures.', 'Adds, modifies, deletes or retrieves stored data.'],
+      ['Works with tables, keys and schema definitions.', 'Works with rows and query results.'],
+      ['Can be stored as SQL definition scripts.', 'Can be stored as SQL query/maintenance scripts.'],
+    ] }],
+    keyTerms: [
+      { term: 'SQL script', definition: 'A sequence of SQL commands saved to perform a task, often for reuse.' },
+    ],
+    visual: 'types', accent: 'cyan', ...source(211, ['8.3 DDL and DML', 'What you should already know', 'DDL', 'DML', 'SQL script']),
+  },
+  {
+    id: 'h8-832-ddl', section: '8.3 DDL and DML', subtopicCode: '8.3.2', eyebrow: '8.3.2 · SQL DDL COMMANDS',
+    title: 'DDL creates the database, tables, attributes and key relationships',
+    lead: 'The chapter expects learners to understand SQL commands for creating databases/tables and altering table definitions to add primary and foreign keys.',
+    richBlocks: [
+      { kind: 'table', table: { caption: 'DDL commands', headers: ['Command', 'Purpose'], rows: [
+        ['CREATE DATABASE', 'Create a database.'], ['CREATE TABLE', 'Create a table definition.'], ['ALTER TABLE', 'Change a table definition.'], ['PRIMARY KEY', 'Define the primary key.'], ['FOREIGN KEY … REFERENCES …', 'Define a foreign-key relationship.'],
+      ] } },
+      { kind: 'table', table: { caption: 'Attribute data types', headers: ['Type', 'Use'], rows: [
+        ['CHARACTER', 'Fixed-length text'], ['VARCHAR(n)', 'Variable-length text'], ['BOOLEAN', 'True/False represented using 1/0 in the chapter'], ['INTEGER', 'Whole number'], ['REAL', 'Number with decimal places'], ['DATE', 'Date'], ['TIME', 'Time'],
+      ] } },
+    ],
+    activity: { title: 'Activity 8G', prompt: 'Write a Teacher table definition and add LicenceNumber as the foreign key required by the Class table design.' },
+    visual: 'types', accent: 'emerald', ...source(212, ['Tables 8.13–8.14', 'CREATE DATABASE', 'CREATE TABLE', 'ALTER TABLE', 'PRIMARY KEY', 'FOREIGN KEY REFERENCES', 'Activity 8G']),
+  },
+  {
+    id: 'h8-833-query-dml', section: '8.3 DDL and DML', subtopicCode: '8.3.3', eyebrow: '8.3.3 · SQL DML QUERY COMMANDS',
+    title: 'SELECT queries filter, order, group, join and aggregate relational data',
+    lead: 'The DML query vocabulary in the chapter covers selecting rows/columns, applying conditions, ordering results, grouping, joining tables and calculating totals, counts and averages.',
+    richBlocks: [{ kind: 'table', table: { caption: 'DML query toolkit', headers: ['Command', 'Purpose'], rows: [
+      ['SELECT … FROM', 'Fetch required data.'], ['WHERE', 'Keep rows that meet a condition.'], ['ORDER BY', 'Sort query results.'], ['GROUP BY', 'Arrange rows into groups.'], ['INNER JOIN', 'Combine rows from different tables when the join condition is true.'], ['SUM / COUNT / AVG', 'Calculate aggregate results.'],
+    ] } }],
+    example: { title: 'Class-list pattern from the school example', lines: [
+      'SELECT FirstName, SecondName',
+      'FROM Student',
+      "WHERE ClassID = '7A'",
+      'ORDER BY SecondName',
+    ] },
+    visual: 'types', accent: 'indigo', ...source(213, ['Table 8.15 DML commands', 'SELECT', 'WHERE', 'ORDER BY', 'GROUP BY', 'INNER JOIN', 'SUM', 'COUNT', 'AVG']),
+  },
+  {
+    id: 'h8-833-maintenance-dml', section: '8.3 DDL and DML', subtopicCode: '8.3.3', eyebrow: 'INSERT · DELETE · UPDATE · AGGREGATES',
+    title: 'Maintenance statements change rows; aggregate functions summarise stored values',
+    lead: 'The chapter demonstrates adding a Student row, deleting a selected Student row and using aggregate functions with an exam-mark column.',
+    richBlocks: [{ kind: 'steps', title: 'Safe maintenance reasoning', items: [
+      'INSERT INTO adds a new row; column names can be stated when only some values are supplied.',
+      'DELETE FROM removes rows selected by its condition; without a limiting condition it can remove all rows from the table.',
+      'UPDATE edits existing rows.',
+      'SUM totals numeric values; AVG calculates a mean; COUNT counts recorded values/rows according to the expression used.',
+    ] }],
+    activity: { title: 'Activities 8H–8I', prompt: 'Design a query showing each student with the subjects they study, then write aggregate queries to calculate the average mark and count recorded marks.' },
+    visual: 'recap', accent: 'amber', ...source(214, ['Activity 8H', 'INSERT INTO', 'DELETE FROM', 'SUM', 'Activity 8I', 'End of chapter questions']),
+  },
+  {
+    id: 'h8-review-normalisation', section: 'Chapter review', eyebrow: 'END-OF-CHAPTER REVIEW · NORMALISATION',
+    title: 'The programmer/program database tests whether you can diagnose 1NF and 3NF problems',
+    lead: 'The first review problem starts with a ProgDev table in which each programmer can work on several programs, then asks learners to redesign the relations and explain how the relationship is implemented.',
+    bullets: [
+      'Recognise the repeating ProgramName/NoOfDays/Customer groups that prevent 1NF.',
+      'Separate programmer data from program-assignment data.',
+      'Identify the key used to link the revised tables.',
+      'Inspect the Program relation for a remaining non-key dependency before claiming 3NF.',
+    ],
+    activity: { title: 'Review task', prompt: 'Write a 3NF relation set for the programmer/program scenario and justify each key and dependency change.' },
+    visual: 'recap', accent: 'rose', ...source(215, ['End-of-chapter question 1', 'ProgDev', '1NF', '3NF']),
+  },
+  {
+    id: 'h8-review-dbms-sql', section: 'Chapter review', eyebrow: 'END-OF-CHAPTER REVIEW · DBMS + SQL',
+    title: 'The final review integrates DBMS security, relationships and multi-table SQL',
+    lead: 'The school scenario asks for DBMS security measures, query-processor use, relational advantages, relationship implementation and SQL that filters or joins class data.',
+    richBlocks: [{ kind: 'steps', title: 'Final retrieval checklist', items: [
+      'Explain what a DBMS provides beyond separate files.',
+      'Choose access-right and security features suitable for student data.',
+      'Describe how primary/foreign keys implement one-to-many relationships.',
+      'Write SELECT queries using WHERE and ORDER BY.',
+      'Use linked tables when a requested result spans more than one relation.',
+    ] }],
+    activity: { title: 'Exam-style synthesis', prompt: 'Given STUDENT, CLASS and CLASS-GROUP relations, describe the relationships and plan SQL for a tutor-group list and a class-membership list.' },
+    examPractice: true,
+    visual: 'recap', accent: 'indigo', ...source(216, ['End-of-chapter question 2', 'DBMS security', 'Query processor', 'Relationships', 'SQL scripts']),
+  },
+];
+
+export const CHAPTER_8_FINAL: HodderLessonChapter = {
+  number: 8,
+  level: 'AS Level',
+  title: 'Databases',
+  subtitle: 'Relational database design · E-R models · normalisation · DBMS tools · SQL DDL and DML',
+  subtopics: [
+    '8.1 Database concepts',
+    '8.2 Database management systems (DBMSs)',
+    '8.3 Data definition language (DDL) and data manipulation language (DML)',
+  ],
+  sourceNote: 'Deep source-backed teaching route from the uploaded Hodder 9618 Chapter 8, printed pp.196–216. Every printed chapter page is represented in slide provenance, with the source section order and terminology preserved as teaching paraphrase.',
+  coverage: '21/21 printed chapter pages represented (pp.196–216): file-based limitations and relational advantages; relational terminology, keys, referential integrity, indexes and E-R cardinality; normalisation through 1NF, 2NF and 3NF with the school and employee examples; DBMS data dictionary, logical schema, security, developer interface and query processor; SQL DDL commands/data types; SQL DML query, maintenance and aggregate commands; activities and end-of-chapter synthesis.',
+  slides: CHAPTER_8_DEEP_SLIDES,
+};
