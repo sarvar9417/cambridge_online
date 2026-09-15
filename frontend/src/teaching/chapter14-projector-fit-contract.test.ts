@@ -1,18 +1,20 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const projectorCss=readFileSync(new URL('./chapter14-presentation-master-projector.css', import.meta.url),'utf8');
+const source=(file:string)=>readFileSync(resolve(process.cwd(),'src/teaching',file),'utf8');
+const projectorCss=source('chapter14-presentation-master-projector.css');
 const heroFiles=[
-  './Chapter14ApplicationHeroes.tsx',
-  './Chapter14BitTorrentHero.tsx',
-  './Chapter14FlowHeroes.tsx',
-  './Chapter14HeroVisuals.tsx',
-  './Chapter14NetworkControlHeroes.tsx',
-  './Chapter14PacketControlHero.tsx',
-  './Chapter14RoutingTableHero.tsx',
-  './Chapter14RoutingTransferHero.tsx',
-  './Chapter14SwitchingCompareHero.tsx',
-].map(path=>readFileSync(new URL(path, import.meta.url),'utf8')).join('\n');
+  'Chapter14ApplicationHeroes.tsx',
+  'Chapter14BitTorrentHero.tsx',
+  'Chapter14FlowHeroes.tsx',
+  'Chapter14HeroVisuals.tsx',
+  'Chapter14NetworkControlHeroes.tsx',
+  'Chapter14PacketControlHero.tsx',
+  'Chapter14RoutingTableHero.tsx',
+  'Chapter14RoutingTransferHero.tsx',
+  'Chapter14SwitchingCompareHero.tsx',
+].map(source).join('\n');
 
 describe('Chapter 14 classroom projector fit contract',()=>{
   it('keeps the presentation stage scroll-safe rather than clipping overflowing content',()=>{
