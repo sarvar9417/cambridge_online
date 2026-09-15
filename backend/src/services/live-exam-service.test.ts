@@ -71,6 +71,9 @@ describe('LiveExamService source fidelity', () => {
     const selectionSql = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'))?.[0];
     expect(selectionSql).toContain('with recursive ancestry');
     expect(selectionSql).toContain('join question_assets qa on qa.question_id=ancestry.id');
+    expect(selectionSql).toContain('select candidate.id');
+    expect(selectionSql).toContain(') candidate');
+    expect(selectionSql).toContain('order by md5(candidate.id::text || $2::text)');
   });
 
   it('refuses a visual question whose private source asset cannot be rendered', async () => {

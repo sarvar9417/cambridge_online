@@ -257,11 +257,14 @@ export class LiveExamService {
     }
     values.push(input.questionCount);
     const result = await this.pool.query(
-      `select distinct q.id
-       from questions q
-       join mark_schemes ms on ms.question_id=q.id
-       where ${filters.join(' and ')}
-       order by md5(q.id::text || $2::text)
+      `select candidate.id
+       from (
+         select distinct q.id
+         from questions q
+         join mark_schemes ms on ms.question_id=q.id
+         where ${filters.join(' and ')}
+       ) candidate
+       order by md5(candidate.id::text || $2::text)
        limit $${values.length}`,
       values,
     );
