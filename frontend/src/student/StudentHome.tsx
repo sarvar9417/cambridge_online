@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Assignment, Flashcard, MasteryItem, ResultItem, User } from '../lib/api';
 import { navigate } from '../lib/router';
 import { StudentNextAction } from './StudentNextAction';
+import { StudentLiveChallenges } from './StudentLiveChallenges';
 import './student-home.css';
 
 export interface StudentHomeProps {
@@ -85,6 +86,8 @@ export function StudentHome({
       <div><p className="sh-greeting">{greeting()}, {user.fullName.split(' ')[0]}</p><h1>{headline}</h1></div>
       {average !== null ? <div className="sh-average" title="Chiqarilgan natijalar bo‘yicha o‘rtacha"><span className="sh-average-value">{average}%</span><span className="sh-average-label">o‘rtacha</span></div> : null}
     </header>
+
+    <StudentLiveChallenges />
 
     <StudentNextAction assignments={assignments} results={results} mastery={mastery} flashcards={flashcards} onStart={onStart} onPractice={onPractice} />
 
