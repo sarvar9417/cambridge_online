@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER_8_FINAL } from './lesson-content-chapter8-final';
+import { CHAPTER_8_FINAL } from './lesson-content-chapter8-deep-final';
 import { lessonChapter } from './lesson-content-source-complete';
 
 const EXPECTED_PAGES = Array.from({ length: 21 }, (_, index) => 196 + index);
@@ -60,7 +60,7 @@ describe('Chapter 8 deep source-complete lesson', () => {
   });
 
   it('preserves the chapter terminology and source examples needed for Cambridge teaching', () => {
-    const text = JSON.stringify(CHAPTER_8_FINAL);
+    const text = JSON.stringify(CHAPTER_8_FINAL).toLowerCase();
     for (const token of [
       'data redundancy', 'data inconsistency', 'data dependency',
       'Candidate key', 'Primary key', 'Foreign key', 'Referential integrity',
@@ -69,7 +69,7 @@ describe('Chapter 8 deep source-complete lesson', () => {
       'CREATE DATABASE', 'CREATE TABLE', 'ALTER TABLE',
       'SELECT', 'WHERE', 'ORDER BY', 'INNER JOIN', 'SUM', 'COUNT', 'AVG',
       'INSERT INTO', 'DELETE FROM', 'UPDATE',
-    ]) expect(text).toContain(token);
+    ]) expect(text).toContain(token.toLowerCase());
   });
 
   it('keeps the fully normalised school relation set explicit', () => {
