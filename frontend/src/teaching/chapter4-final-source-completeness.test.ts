@@ -61,9 +61,9 @@ describe('Hodder 9618 Chapter 4 final source completeness', () => {
     expect(facade).toContain('<Chapter4InstructionsBitVisual beat={beat} reveal={reveal}/>');
   });
 
-  it('activates completed Chapter 4 and advances the 9618 queue to Chapter 5', () => {
+  it('keeps completed Chapter 4 active after the full 9618 course is source-locked', () => {
     expect(canBuildSourceGroundedHodderChapter('9618', 4)).toBe(true);
     expect(lessonChapter(4)?.number).toBe(4);
-    expect(NEXT_9618_HODDER_CHAPTER).toBe(5);
+    expect(NEXT_9618_HODDER_CHAPTER).toBeNull();
   });
 });
