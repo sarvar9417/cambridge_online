@@ -9,6 +9,7 @@ import emailRenderer from './Chapter14EmailSourceComplete.tsx?raw';
 import eoc from './Chapter14EndOfChapterMaster.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
 import registry from './Chapter14PresentationHeroRegistry.tsx?raw';
+import styles from './chapter14-presentation-styles.ts?raw';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_DEEP_LIVE_PAGES, CHAPTER_14_DEEP_LIVE_REQUIREMENTS, CHAPTER_14_REQUIRED_SOURCE_TERMS } from './chapter14-deep-live-source-contract';
 
@@ -118,11 +119,12 @@ describe('Chapter 14 final page-by-page live source audit',()=>{
 
   it('routes live Chapter 14 through the registry fallback and loads final CSS after deep layers',()=>{
     expect(facade).toContain('Chapter14PresentationHero');
+    expect(facade).toContain("./chapter14-presentation-styles");
     expect(registry).toContain('Chapter14PresentationContentFinal');
     expect(facade).not.toContain('return <Chapter14PresentationContentV4 beat={beat}');
-    expect(facade).toContain("./chapter14-presentation-final-source.css");
-    expect(facade.indexOf("./chapter14-presentation-deep-audit.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-final-source.css"));
-    expect(facade.indexOf("./chapter14-presentation-deep-content.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-final-source.css"));
+    expect(styles).toContain("./chapter14-presentation-final-source.css");
+    expect(styles.indexOf("./chapter14-presentation-deep-audit.css")).toBeLessThan(styles.indexOf("./chapter14-presentation-final-source.css"));
+    expect(styles.indexOf("./chapter14-presentation-deep-content.css")).toBeLessThan(styles.indexOf("./chapter14-presentation-final-source.css"));
   });
 
   it('keeps dense first-paint projector rules without hiding source content',()=>{
