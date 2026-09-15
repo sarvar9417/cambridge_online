@@ -184,7 +184,11 @@ export class LiveExamService {
   }
 
   private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput) {
-    const values: unknown[] = [input.classId, randomUUID()];
+    // Keep the random ordering seed as the first parameter. The class ID is
+    // only needed when "exclude seen" is enabled; binding it unconditionally
+    // leaves an unreferenced $1 parameter when that option is off, which
+    // PostgreSQL correctly rejects because its type cannot be inferred.
+    const values: unknown[] = [randomUUID()];
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
@@ -244,15 +248,17 @@ export class LiveExamService {
       )`);
     }
     if (input.excludeSeen) {
+      values.push(input.classId);
+      const classParameter = `$${values.length}`;
       filters.push(`not exists(
         select 1 from assignment_questions aq
         join assignments a on a.id=aq.assignment_id
-        where aq.question_id=q.id and a.class_id=$1
+        where aq.question_id=q.id and a.class_id=${classParameter}
       )`);
       filters.push(`not exists(
         select 1 from live_exam_questions leq
         join live_exam_sessions previous on previous.id=leq.session_id
-        where leq.question_id=q.id and previous.class_id=$1
+        where leq.question_id=q.id and previous.class_id=${classParameter}
       )`);
     }
     values.push(input.questionCount);
@@ -264,7 +270,7 @@ export class LiveExamService {
          join mark_schemes ms on ms.question_id=q.id
          where ${filters.join(' and ')}
        ) candidate
-       order by md5(candidate.id::text || $2::text)
+       order by md5(candidate.id::text || $1::text)
        limit $${values.length}`,
       values,
     );

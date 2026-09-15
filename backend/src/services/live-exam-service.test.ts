@@ -61,19 +61,22 @@ describe('LiveExamService source fidelity', () => {
   };
 
   it('excludes diagrams inherited from any parent context when diagrams are disabled', async () => {
-    const query = vi.fn(async (sql:string) => {
+    const query = vi.fn(async (sql:string, _params?: unknown[]) => {
       if (sql.includes('from classes c')) return { rowCount:1,rows:[{ id:input.classId,name:'AS' }] };
       if (sql.includes('select distinct q.id')) return { rowCount:0,rows:[] };
       throw new Error(`unexpected query: ${sql}`);
     });
     const service = new LiveExamService({ query } as unknown as Pool, {} as PgQuestionsRepository);
     await expect(service.create(actor,input)).rejects.toMatchObject({ code:'live_question_pool_small' });
-    const selectionSql = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'))?.[0];
+    const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
+    const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('with recursive ancestry');
     expect(selectionSql).toContain('join question_assets qa on qa.question_id=ancestry.id');
     expect(selectionSql).toContain('select candidate.id');
     expect(selectionSql).toContain(') candidate');
-    expect(selectionSql).toContain('order by md5(candidate.id::text || $2::text)');
+    expect(selectionSql).toContain('order by md5(candidate.id::text || $1::text)');
+    expect(selectionSql).toContain('selected_topic.id=any($2::uuid[])');
+    expect(selectionCall?.[1]).toEqual([expect.any(String), input.topicIds, input.questionCount]);
   });
 
   it('refuses a visual question whose private source asset cannot be rendered', async () => {
