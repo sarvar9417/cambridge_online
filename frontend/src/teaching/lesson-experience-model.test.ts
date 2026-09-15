@@ -3,6 +3,7 @@ import { formal9618Terms } from './coursebook-page-slides';
 import { sourceAtomsForChapter } from './lesson-source-atom-registry';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { buildTopicPlan } from './lesson-topic-plan';
+import { presentationBeatsForCatalogTopic } from './lesson-course-catalog';
 import {
   LESSON_EXPERIENCE_CHAPTERS,
   courseCode,
@@ -62,7 +63,7 @@ describe('lesson experience model',()=>{
       const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
       const overview=topics.find(item=>item.code==='overview');
       if(!overview)continue;
-      const deck=presentationBeatsForTopic(overview);
+      const deck=presentationBeatsForCatalogTopic(chapter,overview);
       for(const topic of topics.filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))){
         const topicSlideIds=new Set(presentationBeatsForTopic(topic).map(beat=>beat.slideId));
         expect(deck.some(beat=>topicSlideIds.has(beat.slideId)),`${chapter.number} ${topic.code}`).toBe(true);
