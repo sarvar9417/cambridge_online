@@ -18,15 +18,18 @@ describe('Live Challenge scoreboard fairness',()=>{
         return{rowCount:3,rows:[
           {
             student_id:'incomplete',full_name:'A Incomplete',score:'8',max_marks:'10',
-            total_duration_ms:'100',answered_round_count:1,released_round_count:2,
+            total_duration_ms:'100',answered_round_count:1,eligible_round_count:2,
+            released_round_count:2,challenge_max_marks:'10',
           },
           {
             student_id:'complete',full_name:'Z Complete',score:'8',max_marks:'10',
-            total_duration_ms:'10000',answered_round_count:2,released_round_count:2,
+            total_duration_ms:'10000',answered_round_count:2,eligible_round_count:2,
+            released_round_count:2,challenge_max_marks:'10',
           },
           {
             student_id:'lower',full_name:'Fast Lower Marks',score:'7',max_marks:'10',
-            total_duration_ms:'1000',answered_round_count:2,released_round_count:2,
+            total_duration_ms:'1000',answered_round_count:2,eligible_round_count:2,
+            released_round_count:2,challenge_max_marks:'10',
           },
         ]};
       }
