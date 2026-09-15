@@ -10,6 +10,7 @@ import {
 import lessonContent from './LessonContent.tsx?raw';
 import lessonExperience from './LessonExperience.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+import registry from './Chapter14PresentationHeroRegistry.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import emailRenderer from './Chapter14EmailSourceComplete.tsx?raw';
 import scrollController from './presentation-scroll-controller.ts?raw';
@@ -33,11 +34,13 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
     }
   });
 
-  it('makes the final routing-retrieval scene reachable through the live facade',()=>{
+  it('makes the final routing-retrieval scene reachable through the registry fallback',()=>{
     expect(storyboard.at(-1)?.id).toBe('h14p-142-recap-routing');
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-recap-routing']).toBe(6);
     expect(facade).toContain('hasChapter14PresentationRuntime(beat)');
-    expect(facade).toContain('Chapter14PresentationContentFinal');
+    expect(facade).toContain('Chapter14PresentationHero');
+    expect(registry).toContain('Chapter14PresentationContentFinal');
+    expect(registry).toContain('if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationContentFinal');
     expect(finalRenderer).toContain("if(beat.id==='h14p-142-recap-routing')return <FinalRoutingRetrieval");
   });
 
@@ -45,23 +48,23 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-email']).toBe(6);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-ethernet']).toBe(5);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-141-check']).toBe(6);
-    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-packet-control']).toBe(2);
+    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-packet-control']).toBe(3);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-header']).toBe(4);
-    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-header-extended']).toBe(5);
+    expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-header-extended']).toBe(4);
     expect(CHAPTER_14_PRESENTATION_REVEAL_COUNTS['h14p-142-practice']).toBe(4);
     expect(lessonContent).toContain('chapter14PresentationRevealCount(beat)');
     expect(lessonContent).toContain('if(chapter14Count!==null)return chapter14Count');
   });
 
-  it('reconstructs Figures 14.3 and 14.4 without splitting protocols into false network nodes',()=>{
-    expect(facade).toContain("beat.id==='h14p-141-email'");
-    expect(facade).toContain('Chapter14EmailSourceComplete');
+  it('reconstructs Figures 14.3 and 14.4 and reveals the detailed route progressively',()=>{
+    expect(registry).toContain("'h14p-141-email':Chapter14EmailSourceComplete");
     for(const marker of [
       'FIGURES 14.3 + 14.4','SMTP','send email','EMAIL SERVER','POP / IMAP','receive email',
       "CLIENT'S ISP EMAIL SERVER",'uses SMTP/MIME protocol','INTERNET',"RECIPIENT'S DOMAIN EMAIL SERVER",'uses POP/IMAP protocol','RECIPIENT',
       'text-based, connection-based and a push protocol','media/binary attachments','pull protocols','does not keep server and client synchronised','keeps them synchronised',
     ])expect(emailRenderer).toContain(marker);
-    expect(emailCss).toContain('opacity:.42');
+    expect(emailCss).toContain('opacity:0;visibility:hidden');
+    expect(emailCss).toContain('.h14email-source>main>section.is-visible{opacity:1;visibility:visible');
     expect(emailCss).toContain('.h14email-source>main');
     expect(emailCss).toContain('@media(max-height:768px)');
   });

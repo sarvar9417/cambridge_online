@@ -1,8 +1,8 @@
 type Props={reveal:number};
 const visible=(reveal:number,step:number)=>reveal>=step?'is-visible':'';
 
-/** Hodder pp.332–333, Figures 14.3 and 14.4. The full route is always visible;
- * reveal changes emphasis only so the projector never shows an empty diagram. */
+/** Hodder pp.332–333, Figures 14.3 and 14.4. The compact overview remains visible;
+ * the detailed route and protocol mechanics reveal progressively for classroom use. */
 export function Chapter14EmailSourceComplete({reveal}:Props){
   const stages=[
     ['CLIENT','sender'],

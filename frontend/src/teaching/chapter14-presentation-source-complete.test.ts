@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import v3 from './Chapter14PresentationContentV3.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+import registry from './Chapter14PresentationHeroRegistry.tsx?raw';
+import styles from './chapter14-presentation-styles.ts?raw';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { CHAPTER_14_LIVE_PRINTED_PAGES, CHAPTER_14_LIVE_SOURCE_CONTRACT, chapter14LivePagesCovered } from './chapter14-live-source-contract';
 
@@ -54,10 +56,12 @@ describe('Chapter 14 live presentation source completeness',()=>{
     ])expect(v3).toContain(marker);
   });
 
-  it('routes Chapter 14 through the final renderer and keeps source-complete CSS after density CSS',()=>{
-    expect(facade).toContain('Chapter14PresentationContentFinal');
+  it('routes Chapter 14 through the registry fallback and keeps source-complete CSS after density CSS',()=>{
+    expect(facade).toContain('Chapter14PresentationHero');
+    expect(facade).toContain("./chapter14-presentation-styles");
+    expect(registry).toContain('Chapter14PresentationContentFinal');
     expect(facade).not.toContain('return <Chapter14PresentationContentV3 beat={beat}');
-    expect(facade.indexOf("./chapter14-presentation-density-master.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-source-complete.css"));
+    expect(styles.indexOf("./chapter14-presentation-density-master.css")).toBeLessThan(styles.indexOf("./chapter14-presentation-source-complete.css"));
   });
 
   it('keeps source detail projector-dense rather than creating empty scenes',()=>{
