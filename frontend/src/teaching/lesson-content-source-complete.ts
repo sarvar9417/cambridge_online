@@ -6,8 +6,8 @@ import { CHAPTER_5_FINAL } from './lesson-content-chapter5-deep-final';
 import { CHAPTER_6_FINAL } from './lesson-content-chapter6-final';
 import { CHAPTER_7_FINAL } from './lesson-content-chapter7-final';
 import { CHAPTER_8_FINAL } from './lesson-content-chapter8-deep-final';
+import { CHAPTER_9_FINAL } from './lesson-content-chapter9-final';
 import {
-  CHAPTER_9_COMPLETE_9618,
   CHAPTER_10_COMPLETE_9618,
   CHAPTER_11_COMPLETE_9618,
   CHAPTER_12_COMPLETE_9618,
@@ -37,7 +37,7 @@ export type {
  * Candidate 9618 lesson chapters.
  *
  * Every chapter is tied either to an existing deep-fidelity route or to the
- * exact byte-locked full Hodder 9618 coursebook chapter range. Chapters 5–8
+ * exact byte-locked full Hodder 9618 coursebook chapter range. Chapters 5–9
  * now use full deep source-backed routes instead of generic chapter-summary
  * builders. The runtime source gate remains in place so an accidental source-
  * registry regression cannot expose unresolved content.
@@ -51,7 +51,7 @@ const CANDIDATE_9618_LESSON_CHAPTERS = [
   CHAPTER_6_FINAL,
   CHAPTER_7_FINAL,
   CHAPTER_8_FINAL,
-  CHAPTER_9_COMPLETE_9618,
+  CHAPTER_9_FINAL,
   CHAPTER_10_COMPLETE_9618,
   CHAPTER_11_COMPLETE_9618,
   CHAPTER_12_COMPLETE_9618,
