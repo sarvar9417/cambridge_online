@@ -79,7 +79,7 @@ describe('Cambridge Live Challenge release security contract',()=>{
   });
 
   it('preserves DB-level answer locking and anti-self-marking constraints',()=>{
-    const migration=source('src/database/migrations/0166_live_challenge_foundation.sql');
+    const migration=source('src/database/migrations/0168_live_challenge_foundation.sql');
     expect(migration).toContain('marker_student_id <> answer_student_id');
     expect(migration).toContain('guard_locked_live_challenge_answer_v1');
     expect(migration).toContain('live_challenge_answer_locked');
