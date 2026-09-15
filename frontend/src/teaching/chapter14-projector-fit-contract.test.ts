@@ -18,32 +18,34 @@ const heroFiles=[
 ].map(source).join('\n');
 
 describe('Chapter 14 classroom projector fit contract',()=>{
-  it('keeps the presentation stage scroll-safe rather than clipping overflowing content',()=>{
+  it('keeps the stage and slide scroll-safe rather than clipping overflow',()=>{
     expect(projectorCss).toContain('.lesson-experience.lx-present .lx-present-stage{min-height:0;overflow:auto');
+    expect(projectorCss).toContain('max-height:calc(100dvh - 124px);overflow:auto');
     expect(projectorCss).not.toContain('.lesson-experience.lx-present .lx-present-stage{min-height:0;overflow:hidden');
   });
 
   it('keeps hero content fluid inside the projector stage',()=>{
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{min-width:0;max-width:100%;font-size:15px}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{min-width:0;max-width:100%;font-size:14px}');
     expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 svg{display:block;max-width:100%;height:auto}');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 :is(main,section,aside,header,footer,div){min-width:0}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 :is(main,section,aside,header,footer,div){min-width:0;max-width:100%}');
   });
 
-  it('raises the projector microtext floor instead of relying on 10px labels',()=>{
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 small{font-size:clamp(12.5px,.72vw,14px)!important;line-height:1.38}');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 code{font-size:clamp(12.5px,.72vw,14px)!important}');
+  it('keeps microtext readable without forcing oversized global typography',()=>{
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 small{font-size:clamp(11.5px,.68vw,13px)!important;line-height:1.34}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 code{font-size:clamp(11.5px,.68vw,13px)!important}');
   });
 
-  it('has an explicit 1366px classroom width hardening rule',()=>{
+  it('has an explicit 1366px classroom width fit rule',()=>{
     expect(projectorCss).toContain('@media (max-width:1366px)');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{width:min(1120px,100%);font-size:14.5px}');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .lx-present-screen{padding:20px 34px 18px}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{width:min(1120px,100%);font-size:13.5px}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .lx-present-screen{padding:16px 28px 14px;gap:10px}');
   });
 
-  it('has an explicit 768px classroom height hardening rule without crushing footer text',()=>{
+  it('has an explicit 768px classroom height fit rule',()=>{
     expect(projectorCss).toContain('@media (max-height:768px) and (min-width:1000px)');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{min-height:0!important}');
-    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2>footer{font-size:clamp(13px,.9vw,14px)!important;line-height:1.36}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{min-height:0!important;font-size:13px}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2>:is(section,main,aside){min-height:0!important}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2>footer{font-size:clamp(11.5px,.82vw,13px)!important;line-height:1.3}');
   });
 
   it('keeps the hero roots bounded and avoids fixed page-width containers',()=>{
@@ -54,7 +56,7 @@ describe('Chapter 14 classroom projector fit contract',()=>{
   });
 
   it('keeps long networking terms from forcing horizontal overflow',()=>{
-    expect(projectorCss).toContain(':is(p,small,span,strong,b,code){overflow-wrap:break-word}');
+    expect(projectorCss).toContain(':is(p,small,span,strong,b,code){overflow-wrap:break-word;word-break:normal}');
     expect(heroFiles).toContain('SYNCHRONISE');
     expect(heroFiles).toContain('next-router MAC');
   });
