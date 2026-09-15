@@ -8,6 +8,16 @@
 .lesson-experience.lx-present .lx-present-nav button{min-width:150px;min-height:50px;touch-action:manipulation}
 .lesson-experience.lx-present .lx-present-outline{z-index:60}
 
+/* Hero components use grid/flex layouts and several long Cambridge/networking terms.
+   Keep every child shrinkable and every SVG fluid so 1366×768 projectors do not
+   create accidental horizontal scrolling while preserving the 1160px desktop master. */
+.lesson-experience.lx-present .h14m-content-v2{min-width:0;max-width:100%}
+.lesson-experience.lx-present .h14m-content-v2 :is(main,section,aside,header,footer,div){min-width:0}
+.lesson-experience.lx-present .h14m-content-v2 svg{display:block;max-width:100%;height:auto}
+.lesson-experience.lx-present .h14m-content-v2 :is(p,small,span,strong,b,code){overflow-wrap:break-word}
+.lesson-experience.lx-present .h14m-content-v2 small{font-size:clamp(10.5px,.58vw,11.5px)!important;line-height:1.35}
+.lesson-experience.lx-present .h14m-content-v2 code{font-size:clamp(10.5px,.58vw,11.5px)!important}
+
 .h14eoc{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1080px;margin:auto;border-block:1px solid var(--h14-line)}
 .h14eoc-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--h14-line)}
 .h14eoc>section{min-height:178px;padding:22px 28px;border-bottom:1px solid var(--h14-line);opacity:0;transform:translateY(10px);transition:.25s ease}
@@ -24,6 +34,7 @@
   .lesson-experience.lx-present .lx-present-screen{padding:20px 34px 18px}
   .lesson-experience.lx-present .lx-present-screen>header{margin-bottom:16px}
   .lesson-experience.lx-present .lx-present-screen>header>h1{font-size:clamp(29px,3.4vw,46px)}
+  .lesson-experience.lx-present .h14m-content-v2{width:min(1120px,100%)}
   .h14m-hero{min-height:360px;padding:40px 54px}.h14m-hero>strong{font-size:clamp(38px,4.7vw,62px)}
   .h14m-stack{grid-template-columns:90px minmax(0,780px) 90px;min-height:360px}.h14m-stack>main section{min-height:78px}
   .h14m-orbit{height:360px}.h14m-email{min-height:270px}.h14m-email section{min-height:128px}
@@ -36,6 +47,8 @@
   .lesson-experience.lx-present .lx-present-screen{min-height:calc(100dvh - 116px);padding-top:16px;padding-bottom:14px}
   .lesson-experience.lx-present .lx-present-screen>header>h1{font-size:clamp(28px,3vw,42px)}
   .lesson-experience.lx-present .lx-present-lead{font-size:16px;margin-bottom:12px}
+  .lesson-experience.lx-present .h14m-content-v2{min-height:0!important}
+  .lesson-experience.lx-present .h14m-content-v2>footer{font-size:clamp(10px,.9vw,12px)!important;line-height:1.32}
   .h14m-flow .h14m-step{min-height:58px;padding:8px 0}.h14m-step>b{width:48px;height:48px}.h14m-flow:before{left:24px}.h14m-step{grid-template-columns:50px 1fr;gap:16px}.h14m-step p{font-size:14px}
   .h14m-split{min-height:330px}.h14m-split p{padding:11px 0;font-size:14px}
   .h14eoc>section{min-height:132px}.h14eoc section>p{font-size:14px;line-height:1.35}
