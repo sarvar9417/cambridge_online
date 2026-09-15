@@ -5,6 +5,10 @@ const sql = readFileSync(
   new URL('./migrations/0166_live_exam_sessions.sql', import.meta.url),
   'utf8',
 );
+const indexSql = readFileSync(
+  new URL('./migrations/0167_live_exam_fk_indexes.sql', import.meta.url),
+  'utf8',
+);
 
 const tables = [
   'live_exam_sessions',
@@ -41,5 +45,15 @@ describe('live exam schema migration', () => {
     expect(sql).toContain('live_exam_answers_question_submit_idx');
     expect(sql).toContain('live_exam_reviews_reviewer_status_idx');
     expect(sql).toContain('live_exam_events_session_version_idx');
+  });
+
+  it('covers the remaining live-exam foreign keys', () => {
+    expect(indexSql).toContain('live_exam_questions_question_idx');
+    expect(indexSql).toContain('live_exam_participants_student_idx');
+    expect(indexSql).toContain('live_exam_answers_participant_idx');
+    expect(indexSql).toContain('live_exam_answers_moderated_by_idx');
+    expect(indexSql).toContain('live_exam_reviews_answer_idx');
+    expect(indexSql).toContain('live_exam_reviews_moderated_by_idx');
+    expect(indexSql).toContain('live_exam_events_actor_idx');
   });
 });
