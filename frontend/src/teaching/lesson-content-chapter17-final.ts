@@ -1,0 +1,242 @@
+import type { HodderLessonChapter, HodderLessonSlide } from './lesson-content-hodder-types';
+
+const pageRange = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, index) => start + index);
+const source = (start: number, end: number = start, elements: string[] = []) => ({
+  sourcePages: pageRange(start, end),
+  sourceLabel: `Hodder Chapter 17 · pp.${start}${end === start ? '' : `–${end}`}`,
+  sourceElements: [`Hodder pp.${start}${end === start ? '' : `–${end}`}`, ...elements],
+});
+
+export const CHAPTER_17_DEEP_SLIDES: HodderLessonSlide[] = [
+  {
+    id: 'h17-overview', section: 'Chapter overview', eyebrow: 'CHAPTER 17 · SECURITY',
+    title: 'Secure communication combines encryption, key management, authenticated protocols, signatures and certificates',
+    lead: 'The chapter develops from plaintext/ciphertext and symmetric/asymmetric cryptography through QKD, SSL/TLS, digital signatures and public-key infrastructure.',
+    bullets: [
+      'Explain public/private keys, plaintext/ciphertext and symmetric/asymmetric encryption.',
+      'Explain how encryption keys can support confidential and verified communication.',
+      'Describe quantum cryptography and the QKD sequence.',
+      'Explain how SSL/TLS create a secure client/server session.',
+      'Explain how digital signatures use hashing, digests and asymmetric cryptography.',
+      'Explain how certificate authorities issue digital certificates and how PKI establishes trust.',
+    ],
+    keyTerms: [
+      { term: 'Plaintext', definition: 'The original readable message or document before encryption.' },
+      { term: 'Ciphertext', definition: 'The encrypted output produced from plaintext.' },
+      { term: 'Eavesdropper', definition: 'A person who intercepts transmitted data.' },
+    ],
+    activity: { title: 'Prior knowledge', prompt: 'Recall data integrity, privacy and security, methods of data recovery and protection, and the effects of hacking, malware, phishing and pharming.' },
+    visual: 'recap', accent: 'indigo', ...source(410, 410, ['Chapter objectives', 'Prior knowledge', 'Encryption key terms']),
+  },
+  {
+    id: 'h17-1711-security-concerns', section: '17.1 Encryption', subtopicCode: '17.1.1', eyebrow: '17.1.1 · WHY ENCRYPT? · FOUR SECURITY CONCERNS',
+    title: 'Encryption cannot stop interception, but it can prevent intercepted data from being intelligible',
+    lead: 'Public networks expose transmitted data to eavesdropping, so sensitive or confidential information needs protection even when the transmission medium itself is not trusted.',
+    richBlocks: [{ kind: 'table', table: { caption: 'Four source security concerns', headers: ['Concern', 'Meaning'], rows: [
+      ['Confidentiality', 'Only the intended recipient should be able to read or decipher the data.'],
+      ['Authenticity', 'The recipient needs evidence of who sent the data and whether the source is legitimate.'],
+      ['Integrity', 'Data should arrive without unauthorised change.'],
+      ['Non-repudiation', 'Sender and recipient should not be able to deny participation in the transmission.'],
+    ] } }],
+    visual: 'networking', accent: 'indigo', ...source(411, 411, ['Need for encryption', 'Confidentiality', 'Authenticity', 'Integrity', 'Non-repudiation']),
+  },
+  {
+    id: 'h17-1711-plaintext-ciphertext', section: '17.1 Encryption', subtopicCode: '17.1.1', eyebrow: 'PLAINTEXT · CIPHERTEXT · BLOCK CIPHER · STREAM CIPHER',
+    title: 'An encryption algorithm transforms plaintext into ciphertext under control of a key',
+    lead: 'Figure 17.1 traces plaintext through encryption, transmission and decryption; the source then distinguishes block and stream ciphers.',
+    bullets: [
+      'A block cipher encrypts a group of contiguous bits at one time.',
+      'A stream cipher encrypts bits in sequence as they arrive.',
+      'Block chaining XORs a plaintext block with the previous ciphertext block before encryption so identical plaintext blocks do not repeatedly produce identical ciphertext.',
+      'Encryption and decryption keys determine how the algorithms transform the data.',
+    ],
+    visual: 'networking', accent: 'cyan', ...source(411, 411, ['Figure 17.1', 'Block cipher', 'Stream cipher', 'Block chaining']),
+  },
+  {
+    id: 'h17-1712-symmetric-example', section: '17.1 Encryption', subtopicCode: '17.1.2', eyebrow: '17.1.2 · SYMMETRIC ENCRYPTION · FIGURE 17.2',
+    title: 'Symmetric encryption uses one shared secret key for both encryption and decryption',
+    lead: 'The coursebook illustrates the idea with a deliberately simple decimal-digit shift key before explaining that practical systems use much larger binary keys.',
+    bullets: [
+      'The source example applies a repeating 10-digit key to the message “computer science is exciting”.',
+      'A small key can be cracked quickly; the text contrasts it with 256-bit encryption and its very large key space.',
+      'The central weakness is not the use of one key itself but securely sharing that secret key with the recipient.',
+    ],
+    visual: 'networking', accent: 'emerald', ...source(411, 412, ['Figure 17.2', '256-bit key', 'Symmetric encryption']),
+  },
+  {
+    id: 'h17-1712-key-distribution', section: '17.1 Encryption', subtopicCode: '17.1.2', eyebrow: 'KEY DISTRIBUTION PROBLEM · TABLE 17.1 · EXTENSION 17A',
+    title: 'The key-distribution problem asks how both parties can obtain the same secret without simply transmitting that secret',
+    lead: 'Table 17.1 uses a simplified modular-arithmetic exchange to show sender and recipient independently arriving at the same final value.',
+    richBlocks: [{ kind: 'steps', title: 'Source demonstration', items: [
+      'Sender and recipient choose separate secret values.',
+      'Each applies the shared modular rule and sends only the calculated result.',
+      'Each combines the received result with their own secret value.',
+      'Both calculations produce the same final shared key.',
+    ] }],
+    activity: { title: 'Extension Activity 17A', prompt: 'Repeat the source method for X=3, Y=5 and then X=7, Y=6 to confirm that both parties obtain the same shared key.' },
+    visual: 'recap', accent: 'amber', ...source(412, 413, ['Table 17.1', 'Key distribution problem', 'Extension Activity 17A']),
+  },
+  {
+    id: 'h17-1713-asymmetric', section: '17.1 Encryption', subtopicCode: '17.1.3', eyebrow: '17.1.3 · ASYMMETRIC ENCRYPTION · PUBLIC + PRIVATE KEY',
+    title: 'Asymmetric encryption separates the shareable public key from the secret private key',
+    lead: 'The Tom-and-Meera example shows confidential delivery: Tom encrypts using Meera’s public key and only Meera’s matching private key can decrypt the ciphertext.',
+    bullets: [
+      'Each user generates a mathematically linked public/private key pair.',
+      'The public key can be distributed to other users; the private key remains secret.',
+      'For confidential delivery to Meera, senders encrypt with Meera’s public key.',
+      'Meera decrypts received ciphertext with her matching private key.',
+      'For two-way encrypted communication, every participant needs a key pair and exchanges public keys.',
+      'Encryption alone does not yet prove who sent the message or that it was not changed; Section 17.4 adds authenticity/integrity mechanisms.',
+    ],
+    visual: 'networking', accent: 'indigo', ...source(413, 414, ['Figures 17.3–17.4', 'Tom and Meera example', 'Public/private key pair']),
+  },
+  {
+    id: 'h17-172-quantum-principles', section: '17.2 Quantum cryptography', subtopicCode: '17.2', eyebrow: '17.2 · QUANTUM CRYPTOGRAPHY · QKD · QUBIT',
+    title: 'Quantum cryptography uses photon properties to distribute encryption-key information across fibre-optic links',
+    lead: 'The source introduces QKD through photon polarisation and the qubit, noting that a qubit can represent quantum states beyond a simple classical 0/1 description.',
+    bullets: [
+      'Quantum key distribution uses quantum mechanics to send encryption-key material securely.',
+      'The source names BB84 as a common QKD protocol.',
+      'Photons pass through one of four polarising filters to encode bit information.',
+      'Figure 17.5 illustrates photon oscillation and the four polariser outcomes.',
+    ],
+    visual: 'networking', accent: 'cyan', ...source(414, 414, ['Figure 17.5', 'Quantum cryptography', 'QKD', 'Qubit', 'BB84']),
+  },
+  {
+    id: 'h17-172-qkd-stages', section: '17.2 Quantum cryptography', subtopicCode: '17.2', eyebrow: 'QKD · ELEVEN-STAGE SOURCE SEQUENCE',
+    title: 'The source QKD sequence synchronises sender and recipient by comparing polariser and beam-splitter choices',
+    lead: 'The chapter gives an explicit eleven-stage procedure from photon generation to a synchronised key exchange.',
+    richBlocks: [{ kind: 'steps', title: 'QKD route', items: [
+      'Generate photons and pass them through randomly selected polarisers.',
+      'Send the polarised photons over fibre.',
+      'At the destination, randomly choose the diagonal or vertical/horizontal beam splitter and read the detector.',
+      'Repeat for the full key sequence.',
+      'Recipient returns the sequence of beam-splitter choices.',
+      'Sender compares those choices with the original polarisation sequence and identifies the positions where compatible choices were used.',
+      'Sender and recipient become synchronised and can use the resulting key material for encrypted communication.',
+    ] }],
+    bullets: [
+      'The source lists drawbacks: dedicated specialist hardware and lines, limited range at the time of writing, possible polarisation disturbance in fibre and the societal risk that very strong secrecy can also conceal criminal activity.',
+    ],
+    visual: 'recap', accent: 'emerald', ...source(415, 415, ['QKD stages 1–11', 'QKD limitations']),
+  },
+  {
+    id: 'h17-1731-ssl', section: '17.3 Protocols', subtopicCode: '17.3.1', eyebrow: '17.3.1 · SECURE SOCKETS LAYER (SSL)',
+    title: 'SSL establishes encrypted client/server communication and adds integrity checks and data compression',
+    lead: 'SSL and TLS sit in the transport-layer security discussion and normally authenticate the server to the client before protected data exchange begins.',
+    bullets: [
+      'HTTPS/secure-browser indicators show that protected web communication is being used.',
+      'TCP first establishes the client/server connection; a handshake then negotiates secure communication.',
+      'Part of the handshake agrees the encryption algorithms.',
+      'A web server needs an SSL digital certificate before the browser can establish the trusted secure connection described later.',
+    ],
+    visual: 'networking', accent: 'indigo', ...source(416, 416, ['Figure 17.6', 'SSL', 'HTTPS', 'Handshake', 'Digital certificate']),
+  },
+  {
+    id: 'h17-1732-tls', section: '17.3 Protocols', subtopicCode: '17.3.2', eyebrow: '17.3.2 · TLS · RECORD PROTOCOL · HANDSHAKE PROTOCOL',
+    title: 'TLS modernises SSL and separates carried data from the protocol that establishes the authenticated encrypted session',
+    lead: 'The chapter identifies a record protocol for transmitted data and a handshake protocol for authentication and cryptographic session establishment.',
+    richBlocks: [{ kind: 'table', table: { caption: 'TLS layers in the source', headers: ['Layer', 'Role'], rows: [
+      ['Record protocol', 'Contains the data being transmitted; it can operate with or without encryption.'],
+      ['Handshake protocol', 'Lets client and server authenticate each other and establish the encryption algorithms/session.'],
+    ] } }],
+    bullets: [
+      'The source lists online banking, commerce, restricted software distribution, email, cloud storage, intranets/extranets, VPN, VoIP, instant messaging and social networking as SSL/TLS use cases.',
+      'TLS can support newer authentication methods, separates handshake from record data and supports session caching.',
+      'Session caching can resume a previous session and avoid repeating all expensive cryptographic setup work.',
+    ],
+    visual: 'networking', accent: 'cyan', ...source(417, 417, ['SSL/TLS applications', 'Record protocol', 'Handshake protocol', 'Session caching']),
+  },
+  {
+    id: 'h17-173-handshake-pki', section: '17.3 Protocols', subtopicCode: '17.3.2', eyebrow: 'SEVEN-STAGE SECURE SESSION · PKI',
+    title: 'The secure-session sequence validates a certificate before moving to a temporary session key',
+    lead: 'The browser checks the CA signature, certificate dates and requested domain before trusting the certificate and using its public key in session establishment.',
+    richBlocks: [{ kind: 'steps', title: 'Source secure-session sequence', items: [
+      'Browser requests secure HTTPS pages.',
+      'Server returns a CA-signed digital certificate containing its public key.',
+      'Browser checks the CA signature/trust store, validity dates and domain name.',
+      'Once trusted, the browser uses the certificate public key to establish/send a temporary session key.',
+      'Server uses its private key to recover the session key and returns an acknowledgement protected by that key.',
+      'Browser and server then protect traffic using the shared session key.',
+    ] }],
+    bullets: ['Public key infrastructure (PKI) is the set of protocols, standards and services that lets clients and servers authenticate using CA-issued digital certificates.'],
+    visual: 'networking', accent: 'emerald', ...source(418, 418, ['Handshake stages', 'Certificate authority', 'PKI', 'X.509']),
+  },
+  {
+    id: 'h17-1741-signature-digest', section: '17.4 Digital signatures and digital certificates', subtopicCode: '17.4.1', eyebrow: '17.4.1 · DIGITAL SIGNATURE · HASH · DIGEST',
+    title: 'A digital signature signs a digest rather than encrypting the entire document solely to prove origin and integrity',
+    lead: 'The source hashes the plaintext to a fixed-size digest, combines the digest with the sender’s private key through asymmetric cryptography and sends the plaintext plus signature.',
+    richBlocks: [{ kind: 'steps', title: 'Signature verification', items: [
+      'Hash the sender’s plaintext to produce a digest.',
+      'Use the sender’s private key with the digest to produce the digital signature.',
+      'Send plaintext and digital signature as separate data.',
+      'Recipient uses the sender’s public key to recover the signed digest.',
+      'Recipient independently hashes the received plaintext.',
+      'Matching digests indicate that the document has not been tampered with and support identification of the signer.',
+    ] }],
+    bullets: [
+      'The source notes that this signing process does not itself make the plaintext confidential; confidentiality would require encryption as well.',
+      'A digest is a fixed-size numerical representation produced by a hashing algorithm.',
+    ],
+    visual: 'networking', accent: 'amber', ...source(419, 420, ['Figure 17.7', 'Hashing algorithm', 'Digest', 'Sender private key', 'Sender public key']),
+  },
+  {
+    id: 'h17-1742-certificate', section: '17.4 Digital signatures and digital certificates', subtopicCode: '17.4.2', eyebrow: '17.4.2 · DIGITAL CERTIFICATE · CERTIFICATE AUTHORITY',
+    title: 'A digital certificate binds a public key to a validated online identity through an independent certificate authority',
+    lead: 'The certificate addresses the problem that a bare public key could be forged or substituted by a third party.',
+    bullets: [
+      'Typical fields listed by the source include version, serial number, algorithm identification, issuer, validity period, company details, public key, identifiers, signature algorithm and digital signature.',
+      'The CA independently validates the website or individual requesting the certificate.',
+      'The CA creates the certificate signature by hashing certificate details and encrypting the resulting value with the CA’s private key.',
+      'Figure 17.8 shows the application process; Figure 17.9 illustrates a typical validated SSL certificate.',
+    ],
+    visual: 'networking', accent: 'indigo', ...source(420, 421, ['Figures 17.8–17.9', 'Certificate contents', 'CA validation']),
+  },
+  {
+    id: 'h17-1742-self-signed', section: '17.4 Digital signatures and digital certificates', subtopicCode: '17.4.2', eyebrow: 'SELF-SIGNED CERTIFICATE · TRUST WARNING',
+    title: 'A self-signed certificate can encrypt a connection but does not provide the same independent identity assurance as a trusted CA',
+    lead: 'The source shows a browser warning for a self-signed website because the browser cannot establish the same chain of trust to an independent certificate authority.',
+    bullets: [
+      'A user can generate a self-signed certificate instead of buying/obtaining one from a commercial CA.',
+      'The browser may warn that the connection is not trusted or secure because the site owner effectively vouched for itself.',
+      'Independent CA validation is what makes a certificate useful as evidence that the presented public key belongs to the claimed identity.',
+    ],
+    visual: 'networking', accent: 'rose', ...source(421, 422, ['Figure 17.10', 'Self-signed certificate', 'Browser warning']),
+  },
+  {
+    id: 'h17-activity-review', section: 'Chapter review', eyebrow: 'ACTIVITY 17A · CONCEPT CHECK',
+    title: 'The source activity checks the chapter’s vocabulary and relationships before the longer review questions',
+    lead: 'The multiple-choice activity asks learners to distinguish cipher/plaintext, private-key ownership, symmetric-key weaknesses, temporary session keys, PKI, SSL services and secure-site indicators.',
+    activity: { title: 'Activity 17A', prompt: 'Answer the ten source multiple-choice questions, then justify each answer using one sentence from the chapter concepts rather than guessing from terminology.' },
+    visual: 'recap', accent: 'cyan', ...source(422, 423, ['Activity 17A multiple choice']),
+  },
+  {
+    id: 'h17-review', section: 'Chapter review', eyebrow: 'END-OF-CHAPTER QUESTIONS · QKD · TLS · CERTIFICATES',
+    title: 'The final review requires ordered protocol reasoning, not just definitions',
+    lead: 'The printed review asks learners to sequence the QKD procedure, explain SSL/TLS and session caching, reconstruct the secure-certificate handshake and explain certificate/signature information.',
+    bullets: [
+      'Re-order the eleven QKD statements into the correct transmission sequence.',
+      'Explain SSL, TLS, record protocol, handshake protocol and session caching, then compare SSL and TLS.',
+      'Re-order the stages used to establish a secure connection with an SSL digital certificate.',
+      'List certificate fields and explain how a certificate’s digital signature is formed.',
+    ],
+    activity: { title: 'Mixed retrieval', prompt: 'Complete one QKD sequence, one TLS explanation and one certificate-handshake sequence from the printed review without referring back to the teaching slides.' },
+    visual: 'recap', accent: 'emerald', ...source(423, 424, ['End-of-chapter questions 1–3']),
+  },
+];
+
+export const CHAPTER_17_FINAL: HodderLessonChapter = {
+  number: 17,
+  level: 'A Level',
+  title: 'Security',
+  subtitle: 'Encryption · quantum cryptography · SSL/TLS · digital signatures · digital certificates',
+  subtopics: [
+    '17.1 Encryption',
+    '17.2 Quantum cryptography',
+    '17.3 Protocols',
+    '17.4 Digital signatures and digital certificates',
+  ],
+  sourceNote: 'Deep source-backed teaching route from the uploaded Hodder 9618 Chapter 17, printed pp.410–424. Every printed chapter page is represented in slide provenance; terminology, symmetric/asymmetric worked examples, QKD sequence, SSL/TLS handshake, signature/digest workflow, certificate trust model and source review tasks are preserved as teaching paraphrase.',
+  coverage: '15/15 printed chapter pages represented (pp.410–424): encryption concerns, plaintext/ciphertext, block/stream ciphers and chaining; symmetric encryption and key distribution; asymmetric public/private keys; quantum cryptography/QKD; SSL/TLS and session caching; secure-session PKI handshake; digital signatures, hashing and digests; certificate authority, digital certificates, self-signed trust warnings and chapter review.',
+  slides: CHAPTER_17_DEEP_SLIDES,
+};
