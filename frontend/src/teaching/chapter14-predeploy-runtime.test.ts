@@ -56,14 +56,15 @@ describe('Chapter 14 pre-deploy runtime contract',()=>{
     expect(lessonContent).toContain('if(chapter14Count!==null)return chapter14Count');
   });
 
-  it('reconstructs Figures 14.3 and 14.4 without splitting protocols into false network nodes',()=>{
+  it('reconstructs Figures 14.3 and 14.4 and reveals the detailed route progressively',()=>{
     expect(registry).toContain("'h14p-141-email':Chapter14EmailSourceComplete");
     for(const marker of [
       'FIGURES 14.3 + 14.4','SMTP','send email','EMAIL SERVER','POP / IMAP','receive email',
       "CLIENT'S ISP EMAIL SERVER",'uses SMTP/MIME protocol','INTERNET',"RECIPIENT'S DOMAIN EMAIL SERVER",'uses POP/IMAP protocol','RECIPIENT',
       'text-based, connection-based and a push protocol','media/binary attachments','pull protocols','does not keep server and client synchronised','keeps them synchronised',
     ])expect(emailRenderer).toContain(marker);
-    expect(emailCss).toContain('opacity:.42');
+    expect(emailCss).toContain('opacity:0;visibility:hidden');
+    expect(emailCss).toContain('.h14email-source>main>section.is-visible{opacity:1;visibility:visible');
     expect(emailCss).toContain('.h14email-source>main');
     expect(emailCss).toContain('@media(max-height:768px)');
   });
