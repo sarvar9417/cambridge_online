@@ -5,7 +5,9 @@ import type { HodderLessonSlide } from './lesson-content-hodder-types';
 import { buildTopicPlan, flattenTopicPages, sourceFilePageForSlide } from './lesson-topic-plan';
 
 const chapters = [...LESSON_CHAPTERS, CHAPTER_7];
-const pdfFirstTranscriptChapters = chapters.filter(chapter => chapter.number === 1 || chapter.number === 7 || chapter.number === 13);
+const pdfFirstTranscriptChapters = chapters.filter(chapter =>
+  chapter.slides.some(slide => slide.id.startsWith('pdf-first-') && !slide.id.startsWith('pdf-first-lens-')),
+);
 
 const fixtureSlide=(id:string,title:string,sourcePages:number[],extra:Partial<HodderLessonSlide>={}):HodderLessonSlide=>({
   id,
