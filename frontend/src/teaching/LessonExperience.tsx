@@ -15,7 +15,6 @@ import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic
 import {
   auditBullets,
   courseCode,
-  courseName,
   displayPageTitle,
   firstStudyPage,
   learnerSlidesForPage,
@@ -139,7 +138,7 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const activeTopic=topics.find(topic=>topic.code===(route.params.get('topic')??''))??topics[0]??null;
   const requestedMode=route.params.get('mode');
   const mode:LessonMode=requestedMode==='exam'||(requestedMode==='present'&&audience==='teacher')?requestedMode:'study';
-  const studyPages=activeTopic?.pages.filter(page=>page.kind==='study')??[];
+  const studyPages=useMemo(()=>activeTopic?.pages.filter(page=>page.kind==='study')??[],[activeTopic]);
   const requestedPage=Math.max(0,Number(route.params.get('page')??1)-1);
   const activePage=studyPages[Math.min(Number.isFinite(requestedPage)?requestedPage:0,Math.max(0,studyPages.length-1))]??null;
   const [outlineOpen,setOutlineOpen]=useState(false);
