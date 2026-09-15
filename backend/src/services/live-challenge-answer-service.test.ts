@@ -200,8 +200,8 @@ describe('LiveChallengeAnswerService',()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('select lc.id,lc.status::text status,lc.state_version,lc.settings_json'))return{rowCount:1,rows:[{id:challengeId,status:'ROUND_RESULTS',state_version:15,settings_json:{display_name_mode:'anonymous'}}]};
       if(sql.includes('with released_rounds as'))return{rowCount:2,rows:[
-        {student_id:'student-secret-a',full_name:'Alice Example',score:'7',max_marks:'10',total_duration_ms:'5000',answered_round_count:2,released_round_count:2},
-        {student_id:'student-secret-b',full_name:'Bob Example',score:'5',max_marks:'10',total_duration_ms:'4000',answered_round_count:2,released_round_count:2},
+        {student_id:'student-secret-a',full_name:'Alice Example',score:'7',max_marks:'10',total_duration_ms:'5000',answered_round_count:2,eligible_round_count:2,released_round_count:2,challenge_max_marks:'10'},
+        {student_id:'student-secret-b',full_name:'Bob Example',score:'5',max_marks:'10',total_duration_ms:'4000',answered_round_count:2,eligible_round_count:2,released_round_count:2,challenge_max_marks:'10'},
       ]};
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -220,9 +220,9 @@ describe('LiveChallengeAnswerService',()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('select lc.id,lc.status::text status,lc.state_version,lc.settings_json'))return{rowCount:1,rows:[{id:challengeId,status:'FINISHED',state_version:20,settings_json:{leaderboard_mode:'marks_plus_small_speed_bonus',display_name_mode:'full_name'}}]};
       if(sql.includes('with released_rounds as'))return{rowCount:3,rows:[
-        {student_id:'a',full_name:'Academic Slow',score:'8',max_marks:'10',total_duration_ms:'9000',answered_round_count:2,released_round_count:2},
-        {student_id:'b',full_name:'Academic Fast',score:'8',max_marks:'10',total_duration_ms:'3000',answered_round_count:2,released_round_count:2},
-        {student_id:'c',full_name:'Lower Fastest',score:'7',max_marks:'10',total_duration_ms:'1000',answered_round_count:2,released_round_count:2},
+        {student_id:'a',full_name:'Academic Slow',score:'8',max_marks:'10',total_duration_ms:'9000',answered_round_count:2,eligible_round_count:2,released_round_count:2,challenge_max_marks:'10'},
+        {student_id:'b',full_name:'Academic Fast',score:'8',max_marks:'10',total_duration_ms:'3000',answered_round_count:2,eligible_round_count:2,released_round_count:2,challenge_max_marks:'10'},
+        {student_id:'c',full_name:'Lower Fastest',score:'7',max_marks:'10',total_duration_ms:'1000',answered_round_count:2,eligible_round_count:2,released_round_count:2,challenge_max_marks:'10'},
       ]};
       throw new Error(`Unexpected SQL: ${sql}`);
     });
