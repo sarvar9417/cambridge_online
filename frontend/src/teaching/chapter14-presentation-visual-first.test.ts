@@ -22,10 +22,11 @@ describe('Chapter 14 final visual-first presentation contract',()=>{
     expect(registry).toContain('CHAPTER_14_V2_VISUAL_SCENES');
   });
 
-  it('uses a true hidden-until-revealed primitive',()=>{
-    expect(primitives).toContain("opacity:visible?1:0");
-    expect(primitives).toContain("visibility:visible?'visible':'hidden'");
-    expect(primitives).toContain("translateY(6px)");
+  it('keeps future reveal structure faintly visible while the current step is emphasised',()=>{
+    expect(primitives).toContain("opacity:visible?1:.28");
+    expect(primitives).toContain("visibility:'visible'");
+    expect(primitives).toContain("transform:'none'");
+    expect(primitives).not.toContain("visibility:visible?'visible':'hidden'");
   });
 
   it('adds a chapter road map without inventing syllabus content',()=>{
@@ -58,7 +59,7 @@ describe('Chapter 14 final visual-first presentation contract',()=>{
     for(const marker of ['SMTP · PUSH','MIME · ATTACHMENTS','MIME HEADER','POP / IMAP · PULL','SMTP is still used between email servers'])expect(flow).toContain(marker);
   });
 
-  it('teaches transport reliability and the TCP handshake with hidden future steps',()=>{
+  it('teaches transport reliability and the TCP handshake with staged emphasis',()=>{
     expect(registry).toContain("'h14p-141-transport-family':Chapter14TransportReliabilityHero");
     expect(registry).toContain("'h14p-141-tcp':Chapter14TcpHandshakeHero");
     for(const marker of ['S1','S2','S3','S4','NO POSITIVE ACK FOR S3','RE-SEND S3','PAR','TCP · UDP · SCTP','HOST X','HOST Y','connection-oriented and host-to-host'])expect(flow).toContain(marker);
