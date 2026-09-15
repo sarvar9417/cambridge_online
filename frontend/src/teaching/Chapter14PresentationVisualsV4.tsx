@@ -18,17 +18,7 @@ import { Chapter2ActivityVisual, hasChapter2ActivityVisual } from './Chapter2Act
 import { Chapter2AddressingVisual, hasChapter2AddressingVisual } from './Chapter2AddressingVisuals';
 import { Chapter2DnsVisual, hasChapter2DnsVisual } from './Chapter2DnsVisuals';
 import { Chapter1PresentationVisual, hasChapter1PresentationVisual } from './Chapter1PresentationVisuals';
-import './chapter14-presentation-master.css';
-import './chapter14-presentation-content-v2.css';
-import './chapter14-presentation-content-v2-eoc.css';
-import './chapter14-presentation-master-projector.css';
-import './chapter14-presentation-density-master.css';
-import './chapter14-presentation-source-complete.css';
-import './chapter14-presentation-deep-audit.css';
-import './chapter14-presentation-deep-network.css';
-import './chapter14-presentation-deep-content.css';
-import './chapter14-presentation-final-source.css';
-import './chapter14-email-source-complete.css';
+import './chapter14-presentation-styles';
 import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
