@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import source from './Chapter14PresentationContentV4.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+import styles from './chapter14-presentation-styles.ts?raw';
 
 const densityCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-density-master.css'),'utf8');
 
@@ -41,12 +42,13 @@ describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
     ])expect(source).toContain(text);
   });
 
-  it('makes future reveal content dim-but-visible rather than absent',()=>{
-    expect(densityCss).toContain('--h14-density-upcoming:.42');
+  it('hides future reveal content without collapsing its layout space',()=>{
+    expect(densityCss).toContain('--h14-density-upcoming:0');
     expect(densityCss).toContain('.h14c-proscons>section:not(.is-visible)');
     expect(densityCss).toContain('opacity:var(--h14-density-upcoming)!important');
-    expect(densityCss).toContain('visibility:visible!important');
-    expect(densityCss).toContain('transform:none!important');
+    expect(densityCss).toContain('visibility:hidden!important');
+    expect(densityCss).toContain('transform:translateY(6px)!important');
+    expect(densityCss).toContain('pointer-events:none');
   });
 
   it('uses dense six-row projector comparison geometry',()=>{
@@ -56,12 +58,13 @@ describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
     expect(densityCss).toContain('min-height:44px');
   });
 
-  it('applies density overrides after projector rules so reveal means emphasis',()=>{
-    expect(facade).toContain("./chapter14-presentation-density-master.css");
-    expect(facade.indexOf("./chapter14-presentation-master-projector.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-density-master.css"));
+  it('applies density overrides after projector rules through the style entrypoint',()=>{
+    expect(facade).toContain("./chapter14-presentation-styles");
+    expect(styles).toContain("./chapter14-presentation-density-master.css");
+    expect(styles.indexOf("./chapter14-presentation-master-projector.css")).toBeLessThan(styles.indexOf("./chapter14-presentation-density-master.css"));
   });
 
-  it('never hides unrevealed teaching structure with display none',()=>{
+  it('never collapses unrevealed teaching structure with display none',()=>{
     expect(densityCss).not.toContain('display:none');
   });
 });
