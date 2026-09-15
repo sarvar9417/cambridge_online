@@ -47,9 +47,11 @@ describe('9618 Hodder Chapter 5 opening source completeness', () => {
     ]);
   });
 
-  it('keeps the partial Chapter 5 candidate quarantined and queue target unchanged', () => {
-    expect(canBuildSourceGroundedHodderChapter('9618', 5)).toBe(false);
-    expect(lessonChapter(5)).toBeNull();
-    expect(NEXT_9618_HODDER_CHAPTER).toBe(5);
+  it('keeps the legacy opening extract audited while the full-book Chapter 5 route is active', () => {
+    expect(canBuildSourceGroundedHodderChapter('9618', 5)).toBe(true);
+    expect(lessonChapter(5)?.number).toBe(5);
+    expect(lessonChapter(5)?.title).toBe('System software');
+    expect(lessonChapter(5)).not.toBe(CHAPTER_5_DRAFT);
+    expect(NEXT_9618_HODDER_CHAPTER).toBeNull();
   });
 });

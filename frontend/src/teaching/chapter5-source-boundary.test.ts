@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CHAPTER_5_LEGACY_OPENING_EXTRACT_RANGE,
   CHAPTER_5_SOURCE_BOUNDARY,
   CHAPTER_5_UNRESOLVED_HODDER_RANGE,
   CHAPTER_5_VERIFIED_HODDER_RANGE,
@@ -9,20 +10,22 @@ import { canBuildSourceGroundedHodderChapter, NEXT_9618_HODDER_CHAPTER } from '.
 import { lessonChapter } from './lesson-content-source-complete';
 
 describe('9618 Hodder Chapter 5 exact-source boundary', () => {
-  it('locks the verified and unresolved printed-page ranges', () => {
-    expect(CHAPTER_5_VERIFIED_HODDER_RANGE).toEqual([136, 141]);
-    expect(CHAPTER_5_UNRESOLVED_HODDER_RANGE).toEqual([142, 158]);
-    expect(CHAPTER_5_SOURCE_BOUNDARY.nextRequiredPrintedPage).toBe(142);
+  it('locks the full printed chapter while preserving the independently audited opening extract', () => {
+    expect(CHAPTER_5_LEGACY_OPENING_EXTRACT_RANGE).toEqual([136, 141]);
+    expect(CHAPTER_5_VERIFIED_HODDER_RANGE).toEqual([136, 158]);
+    expect(CHAPTER_5_UNRESOLVED_HODDER_RANGE).toEqual([]);
+    expect(CHAPTER_5_SOURCE_BOUNDARY.nextRequiredPrintedPage).toBeNull();
+    expect(CHAPTER_5_SOURCE_BOUNDARY.fullBookSource.printedPageRange).toEqual([136, 158]);
+    expect(CHAPTER_5_SOURCE_BOUNDARY.fullBookSource.physicalPageRange).toEqual([152, 174]);
     expect(CHAPTER_5_DRAFT.coverage).toContain('Source-complete through p.141');
   });
 
-  it('records the connected-source audit without treating adjacent sources as Hodder evidence', () => {
-    expect(CHAPTER_5_SOURCE_BOUNDARY.connectedSourceAudit).toEqual({
-      status: 'exact-pages-not-resolved',
-      requiredPrintedPages: [142, 158],
-      searchedLocations: ['ChatGPT Library', 'Google Drive mount'],
-      rule: 'Do not promote syllabus/work-plan/0478 material to 9618 Hodder coursebook evidence.',
-    });
+  it('records the byte-locked connected-source completion without treating adjacent sources as Hodder evidence', () => {
+    expect(CHAPTER_5_SOURCE_BOUNDARY.connectedSourceAudit.status).toBe('connected-source-complete');
+    expect(CHAPTER_5_SOURCE_BOUNDARY.connectedSourceAudit.requiredPrintedPages).toEqual([]);
+    expect(CHAPTER_5_SOURCE_BOUNDARY.fullBookSource.sourceFile).toBe('9618 Coursebook Book (Hodder Education).pdf');
+    expect(CHAPTER_5_SOURCE_BOUNDARY.fullBookSource.sourceFileSha256).toBe('760c02dd059fa102b696a7424de2e298198535f06705c367d448e1391d799d95');
+    expect(CHAPTER_5_SOURCE_BOUNDARY.connectedSourceAudit.rule).toContain('exact byte-locked Hodder coursebook');
   });
 
   it('allows the syllabus only as a scope cross-check, never as Hodder page content', () => {
@@ -41,10 +44,10 @@ describe('9618 Hodder Chapter 5 exact-source boundary', () => {
     ]);
   });
 
-  it('keeps Chapter 5 quarantined until exact Hodder pp.142–158 are implemented', () => {
-    expect(CHAPTER_5_SOURCE_BOUNDARY.coursebookStatus).toBe('partial-exact-source');
-    expect(canBuildSourceGroundedHodderChapter('9618', 5)).toBe(false);
-    expect(lessonChapter(5)).toBeNull();
-    expect(NEXT_9618_HODDER_CHAPTER).toBe(5);
+  it('activates Chapter 5 only after the complete full-book source range is locked', () => {
+    expect(CHAPTER_5_SOURCE_BOUNDARY.coursebookStatus).toBe('source-locked-full-book');
+    expect(canBuildSourceGroundedHodderChapter('9618', 5)).toBe(true);
+    expect(lessonChapter(5)?.title).toBe('System software');
+    expect(NEXT_9618_HODDER_CHAPTER).toBeNull();
   });
 });

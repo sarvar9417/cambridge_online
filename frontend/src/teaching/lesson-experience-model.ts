@@ -18,9 +18,14 @@ import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic
 
 export type LessonExperienceChapter = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
 
+/**
+ * The active Lesson Experience is the Cambridge 9618 route. The older 0478
+ * Chapter 7 object is retained below only for its specialist source-audit
+ * helpers and backwards-compatible utility calls; it is no longer inserted
+ * into the 9618 chapter list where it collided with 9618 Chapter 7.
+ */
 export const LESSON_EXPERIENCE_CHAPTERS: LessonExperienceChapter[] = [
   ...SOURCE_CHAPTERS,
-  CHAPTER_7,
 ].sort((left, right) => left.number - right.number);
 
 export type LessonMode = 'study' | 'present' | 'exam';
@@ -132,11 +137,11 @@ export function displaySlide(slide:HodderLessonSlide, pageTitle:string) {
 }
 
 export function courseCode(chapter:LessonExperienceChapter) {
-  return chapter.number===7 ? '0478' : '9618';
+  return chapter === CHAPTER_7 ? '0478' : '9618';
 }
 
 export function courseName(chapter:LessonExperienceChapter) {
-  return chapter.number===7
+  return chapter === CHAPTER_7
     ? 'Cambridge IGCSE / O Level Computer Science'
     : 'Cambridge International AS & A Level Computer Science';
 }
@@ -239,7 +244,7 @@ type PresentationSourceAtom = {
 
 function chapterNumberForTopic(topic:LessonTopic,slides:readonly HodderLessonSlide[]=[]):1|2|7|13|14|null {
   const value=Number(topic.code.split('.')[0]);
-  if(value===1||value===2||value===7||value===13||value===14)return value;
+  if(value===1||value===2||value===13||value===14)return value;
   const firstId=slides[0]?.id??'';
   if(firstId.startsWith('h13-'))return 13;
   if(firstId.startsWith('h14-'))return 14;
@@ -251,7 +256,7 @@ function chapterNumberForTopic(topic:LessonTopic,slides:readonly HodderLessonSli
 
 function deckChapterNumberForTopic(topic:LessonTopic,slides:readonly HodderLessonSlide[]=[]):LessonExperienceChapter['number']|null {
   const value=Number(topic.code.split('.')[0]);
-  if([1,2,3,4,7,13,14].includes(value))return value as LessonExperienceChapter['number'];
+  if(Number.isInteger(value)&&value>=1&&value<=20)return value as LessonExperienceChapter['number'];
   const firstId=slides[0]?.id??'';
   if(firstId.startsWith('h14-'))return 14;
   if(firstId.startsWith('h13-'))return 13;

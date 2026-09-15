@@ -5,7 +5,8 @@ import { CheckCircle } from '@phosphor-icons/react/CheckCircle';
 import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass';
 import { Printer } from '@phosphor-icons/react/Printer';
 import { api } from '../lib/api';
-import { LESSON_EXPERIENCE_CHAPTERS, type LessonAudience } from './lesson-experience-model';
+import { type LessonAudience } from './lesson-experience-model';
+import { lessonCatalogChapter } from './lesson-course-catalog';
 import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import { chapterPastPaperScope } from './lesson-chapter-past-paper-scope';
 
@@ -82,13 +83,16 @@ function ExamQuestionView({question,audience}:{question:ExamQuestion;audience:Le
 export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic:LessonTopic;audience:LessonAudience}) {
   const scopeTopicCode=page?.topicCode??topic.code;
   const chapterNumber=Number(scopeTopicCode.split('.')[0]||0);
-  const chapter=useMemo(()=>LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber)??null,[chapterNumber]);
+  const checkpointSyllabus=page?.slides.map(slide=>slide.checkpointSyllabusCode).find((value):value is '9618'|'0478'=>value==='9618'||value==='0478');
+  const looksLike0478Chapter7=page?.slides.some(slide=>slide.id.startsWith('ch7-'))??false;
+  const catalogSyllabus:'9618'|'0478'=checkpointSyllabus??(looksLike0478Chapter7?'0478':'9618');
+  const chapter=useMemo(()=>lessonCatalogChapter(catalogSyllabus,chapterNumber),[catalogSyllabus,chapterNumber]);
   const chapterTopics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[topic],[chapter,topic]);
   const scope=useMemo(()=>chapterPastPaperScope(chapterTopics),[chapterTopics]);
   const codes=scope.learningObjectiveCodes;
   const codeKey=codes.join('|');
   const syllabuses=scope.syllabusCodes;
-  const syllabusCode=syllabuses[0]??'9618';
+  const syllabusCode=syllabuses[0]??catalogSyllabus;
   const yearFrom=scope.yearFrom;
   const yearTo=scope.yearTo;
   const chapterTitle=chapter?.title??topic.title;
@@ -128,7 +132,7 @@ export function LessonPastPaper({page,topic,audience}:{page:TopicPage|null;topic
   if(!questions.length)return <div className="lx-exam-state"><strong>No exact question match was found.</strong><p>A weakly related question has not been inserted. The approved corpus for this chapter needs to be expanded.</p></div>;
 
   return <div className="lx-exam-workspace">
-    <aside className="lx-exam-list"><header><span>CHAPTER {chapterNumber} · PAST PAPERS</span><strong>{questions.length} approved questions</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
+    <aside className="lx-exam-list"><header><span>{catalogSyllabus} · CHAPTER {chapterNumber} · PAST PAPERS</span><strong>{questions.length} approved questions</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
     <main className="lx-exam-main">{selected?<><div className="lx-exam-main-actions"><span>{selectedIndex+1}/{filtered.length}</span><button type="button" aria-label="Previous question" disabled={selectedIndex<=0} onClick={()=>setSelectedId(filtered[selectedIndex-1]!.id)}><ArrowLeft size={20}/></button><button type="button" aria-label="Next question" disabled={selectedIndex<0||selectedIndex>=filtered.length-1} onClick={()=>setSelectedId(filtered[selectedIndex+1]!.id)}><ArrowRight size={20}/></button><button type="button" onClick={()=>window.print()}><Printer size={20}/> Print</button></div><ExamQuestionView question={selected} audience={audience}/></>:<div className="lx-exam-state"><strong>No question matches the current filters.</strong><p>Change the search term or year filter.</p></div>}</main>
   </div>;
 }

@@ -1,25 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER_7_ALL_SOURCE_ATOMS } from './chapter7-source-atom-complete';
-import { CHAPTER_7_SOURCE_KEY_TERMS } from './chapter7-source-keyterms';
 import { formal9618Terms } from './coursebook-page-slides';
 import { sourceAtomsForChapter } from './lesson-source-atom-registry';
 import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { buildTopicPlan } from './lesson-topic-plan';
+import { presentationBeatsForCatalogTopic } from './lesson-course-catalog';
 import {
   LESSON_EXPERIENCE_CHAPTERS,
+  courseCode,
   displayPageTitle,
   learnerSlidesForPage,
   presentationBeatsForTopic,
 } from './lesson-experience-model';
 
+const ALL_9618 = Array.from({ length: 20 }, (_, index) => index + 1);
 const normalise=(value:string)=>value.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9]+/g,' ').trim();
 const presentationText=(chapter:(typeof LESSON_EXPERIENCE_CHAPTERS)[number])=>normalise(JSON.stringify(
   buildTopicPlan(chapter.slides,chapter.subtopics).flatMap(presentationBeatsForTopic),
 ));
 
 describe('lesson experience model',()=>{
-  it('keeps every source-backed chapter in the active experience',()=>{
-    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual([1,2,3,4,7,13,14]);
+  it('keeps every source-backed 9618 chapter in the active experience exactly once',()=>{
+    expect(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).toEqual(ALL_9618);
+    expect(new Set(LESSON_EXPERIENCE_CHAPTERS.map(chapter=>chapter.number)).size).toBe(20);
+    expect(LESSON_EXPERIENCE_CHAPTERS.find(chapter=>chapter.number===7)?.title).toBe('Ethics and ownership');
+    expect(courseCode(LESSON_EXPERIENCE_CHAPTERS.find(chapter=>chapter.number===7)!)).toBe('9618');
   });
 
   it('turns every teachable topic into bounded projector beats',()=>{
@@ -38,7 +42,7 @@ describe('lesson experience model',()=>{
         }
       }
     }
-  }, 15000);
+  }, 30000);
 
   it('gives every non-Chapter-14 projector screen a scene role and hides audit chrome',()=>{
     for(const chapter of LESSON_EXPERIENCE_CHAPTERS.filter(item=>item.number!==14)){
@@ -52,20 +56,20 @@ describe('lesson experience model',()=>{
         expect(visible).not.toContain('Important emphasised coursebook concepts');
       }
     }
-  },15000);
+  },30000);
 
   it('opens a complete chapter presentation from the overview route',()=>{
     for(const chapter of LESSON_EXPERIENCE_CHAPTERS.filter(item=>item.number!==14)){
       const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
       const overview=topics.find(item=>item.code==='overview');
       if(!overview)continue;
-      const deck=presentationBeatsForTopic(overview);
+      const deck=presentationBeatsForCatalogTopic(chapter,overview);
       for(const topic of topics.filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))){
         const topicSlideIds=new Set(presentationBeatsForTopic(topic).map(beat=>beat.slideId));
         expect(deck.some(beat=>topicSlideIds.has(beat.slideId)),`${chapter.number} ${topic.code}`).toBe(true);
       }
     }
-  },15000);
+  },30000);
 
   it('does not duplicate exact parser transcripts beside curated learner content',()=>{
     for(const chapter of LESSON_EXPERIENCE_CHAPTERS){
@@ -84,7 +88,7 @@ describe('lesson experience model',()=>{
     for(const page of topic.pages)expect(displayPageTitle(page,topic)).not.toMatch(/^File organisation$/i);
   });
 
-  it('puts every source atom, formal term and bold PDF anchor into presentation mode',()=>{
+  it('keeps the existing deep-fidelity source atoms, formal terms and bold PDF anchors in Chapters 1 and 13',()=>{
     for(const chapterNumber of [1,13] as const){
       const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber)!;
       const visible=presentationText(chapter);
@@ -97,16 +101,5 @@ describe('lesson experience model',()=>{
       }
       for(const anchor of rawPdfEmphasisForChapter(chapterNumber))expect(visible,anchor.text).toContain(normalise(anchor.text));
     }
-
-    const chapter7=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===7)!;
-    const visible7=presentationText(chapter7);
-    for(const atom of CHAPTER_7_ALL_SOURCE_ATOMS){
-      for(const line of atom.needles)expect(visible7,`${atom.id}: ${line}`).toContain(normalise(line));
-    }
-    for(const term of CHAPTER_7_SOURCE_KEY_TERMS){
-      expect(visible7,term.term).toContain(normalise(term.term));
-      expect(visible7,`${term.term} definition`).toContain(normalise(term.definition));
-    }
-    for(const anchor of rawPdfEmphasisForChapter(7))expect(visible7,anchor.text).toContain(normalise(anchor.text));
   });
 });

@@ -1,4 +1,3 @@
-import { CHAPTER_7 } from '../teaching/lesson-content-chapter7-complete';
 import { LESSON_CHAPTERS as SOURCE_CHAPTERS } from '../teaching/lesson-content-source-complete';
 import type { HodderLessonSlide } from '../teaching/lesson-content-hodder-types';
 import {
@@ -8,9 +7,10 @@ import {
   type TopicPage,
 } from '../teaching/lesson-topic-plan';
 
-export type StudyChapter = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
+export type StudyChapter = (typeof SOURCE_CHAPTERS)[number];
 
-export const STUDENT_STUDY_CHAPTERS: StudyChapter[] = [...SOURCE_CHAPTERS, CHAPTER_7]
+/** Canonical Cambridge 9618 study route. Chapter 7 is Ethics and ownership. */
+export const STUDENT_STUDY_CHAPTERS: StudyChapter[] = [...SOURCE_CHAPTERS]
   .sort((a, b) => a.number - b.number);
 
 export function studentStudyChapter(number: number) {
