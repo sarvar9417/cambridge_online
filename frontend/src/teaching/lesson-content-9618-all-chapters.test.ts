@@ -7,10 +7,9 @@ import {
 import { LESSON_CHAPTERS, lessonChapter } from './lesson-content-source-complete';
 
 const ALL_9618 = Array.from({ length: 20 }, (_, index) => index + 1);
-const GENERATED = [16,17,18,19,20] as const;
+const GENERATED = [17,18,19,20] as const;
 
 const EXPECTED_TITLES: Readonly<Record<number,string>> = {
-  16:'System software and virtual machines',
   17:'Security',
   18:'Artificial intelligence (AI)',
   19:'Computational thinking and problem solving',
