@@ -1,4 +1,5 @@
 import type { LessonSlide } from './lesson-content-full';
+import type { Hodder9618ChapterNumber } from './hodder-9618-full-book-manifest';
 
 export type LessonTable = {
   caption?: string;
@@ -47,7 +48,7 @@ export type HodderLessonSlide = LessonSlide & {
 };
 
 export type HodderLessonChapter = {
-  number: 1 | 2 | 3 | 4 | 13 | 14;
+  number: Hodder9618ChapterNumber;
   level: 'AS Level' | 'A Level';
   title: string;
   subtitle: string;
