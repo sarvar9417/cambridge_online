@@ -37,15 +37,17 @@ describe('Chapter 14 reveal runtime quality',()=>{
     });
   });
 
-  it('uses the shared true-reveal primitive rather than duplicated low-opacity emphasis helpers',()=>{
+  it('uses the shared reveal primitive rather than duplicated emphasis helpers',()=>{
     expect(progressiveHeroes).toContain("from './Chapter14VisualPrimitives'");
     expect(progressiveHeroes).not.toContain('const emphasis=(reveal:number,step:number)');
     expect(progressiveHeroes).toContain('revealStyle(reveal');
   });
 
-  it('keeps future answer content hidden in the shared primitive',()=>{
+  it('keeps future structure faintly visible while fully emphasising the current step',()=>{
     const primitives=source('Chapter14VisualPrimitives.ts');
-    expect(primitives).toContain("opacity:visible?1:0");
-    expect(primitives).toContain("visibility:visible?'visible':'hidden'");
+    expect(primitives).toContain("opacity:visible?1:.28");
+    expect(primitives).toContain("visibility:'visible'");
+    expect(primitives).toContain("transform:'none'");
+    expect(primitives).not.toContain("visibility:visible?'visible':'hidden'");
   });
 });
