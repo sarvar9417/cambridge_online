@@ -8,9 +8,12 @@ import {
   studentStudyUrl,
 } from './student-lesson-topic-model';
 
+const ALL_9618 = Array.from({ length: 20 }, (_, index) => index + 1);
+
 describe('student Study Mode source catalog',()=>{
-  it('uses the same source-backed chapter routes as Lesson Studio',()=>{
-    expect(STUDENT_STUDY_CHAPTERS.map((chapter)=>chapter.number)).toEqual([1,2,3,4,7,13,14]);
+  it('uses the same complete 9618 source-backed chapter routes as Lesson Studio',()=>{
+    expect(STUDENT_STUDY_CHAPTERS.map((chapter)=>chapter.number)).toEqual(ALL_9618);
+    expect(studentStudyChapter(7)?.title).toBe('Ethics and ownership');
     for(const chapter of STUDENT_STUDY_CHAPTERS){
       expect(chapter.slides.length).toBeGreaterThan(0);
       expect(chapter.coverage.length).toBeGreaterThan(0);
