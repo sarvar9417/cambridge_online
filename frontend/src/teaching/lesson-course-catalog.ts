@@ -5,6 +5,7 @@ import {
   courseCode,
   presentationBeatsForTopic,
   type LessonExperienceChapter,
+  type LessonPresentationBeat,
 } from './lesson-experience-model';
 
 /**
@@ -27,15 +28,29 @@ export function lessonCatalogChapter(course:'9618'|'0478',chapterNumber:number) 
   return LESSON_COURSE_CATALOG.find(chapter=>courseCode(chapter)===course&&chapter.number===chapterNumber)??null;
 }
 
+function uniqueBeats(beats:LessonPresentationBeat[]) {
+  const seen=new Set<string>();
+  return beats.filter(beat=>{
+    if(seen.has(beat.id))return false;
+    seen.add(beat.id);
+    return true;
+  });
+}
+
 /**
- * The historic 0478 Chapter 7 and the new 9618 Chapter 7 share the number 7.
- * The older presentation builder predates that overlap and expands an overview
- * by chapter number alone. Keep its existing 9618 behaviour unchanged, while
- * rebuilding only the 0478 overview from the exact 0478 chapter object's own
- * topics so neither syllabus can borrow the other syllabus's screens.
+ * Build a complete chapter presentation from the exact selected course object.
+ *
+ * The legacy presentation builder can infer a chapter from a numeric topic or
+ * slide id. That is useful for existing deep-fidelity chapters, but it cannot
+ * safely resolve two different Chapter 7s and older inference did not know the
+ * newer h5…h20 overview ids. The catalog therefore makes the chapter object the
+ * source of truth: keep only its own overview beats, append every one of its
+ * own teachable topics, then deduplicate any beats already expanded by a legacy
+ * chapter-specific presenter.
  */
 export function presentationBeatsForCatalogTopic(chapter:LessonExperienceChapter,topic:LessonTopic) {
-  if(courseCode(chapter)==='9618'||topic.code!=='overview')return presentationBeatsForTopic(topic);
+  if(topic.code!=='overview')return presentationBeatsForTopic(topic);
+
   const ownSlideIds=new Set(chapter.slides.map(slide=>slide.id));
   const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
   const overview=topics.find(item=>item.code==='overview');
@@ -44,6 +59,8 @@ export function presentationBeatsForCatalogTopic(chapter:LessonExperienceChapter
     : [];
   const remaining=topics
     .filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))
-    .flatMap(presentationBeatsForTopic);
-  return [...overviewBeats,...remaining];
+    .flatMap(item=>presentationBeatsForTopic(item))
+    .filter(beat=>ownSlideIds.has(beat.slideId));
+
+  return uniqueBeats([...overviewBeats,...remaining]);
 }
