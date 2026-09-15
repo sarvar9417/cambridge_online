@@ -26,6 +26,11 @@ describe('Chapter 14 classroom projector fit contract',()=>{
     expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 :is(main,section,aside,header,footer,div){min-width:0}');
   });
 
+  it('protects projector microtext without replacing hierarchy',()=>{
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 small{font-size:clamp(10.5px,.58vw,11.5px)!important;line-height:1.35}');
+    expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2 code{font-size:clamp(10.5px,.58vw,11.5px)!important}');
+  });
+
   it('has an explicit 1366px classroom width hardening rule',()=>{
     expect(projectorCss).toContain('@media (max-width:1366px)');
     expect(projectorCss).toContain('.lesson-experience.lx-present .h14m-content-v2{width:min(1120px,100%)}');
