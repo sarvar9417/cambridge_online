@@ -8,7 +8,6 @@ import {
   type LessonSlide,
   type LessonVisual,
 } from './lesson-content-source-complete';
-import { CHAPTER_7 } from './lesson-content-chapter7-complete';
 import { Chapter7SlideBody } from './Chapter7SlideBody';
 import { buildTopicPlan, flattenTopicPages, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import { lessonPurpose, studentFacingSlide, studentFacingText } from './lesson-student-facing';
@@ -26,9 +25,9 @@ type ExamPart = {
   matchedLearningObjectiveCodes:string[];
 };
 type CheckpointResponse = { data:ExamPart[]; learningObjectiveCodes:string[]; yearFrom:number; yearTo:number };
-type ChapterLike = (typeof SOURCE_CHAPTERS)[number] | typeof CHAPTER_7;
+type ChapterLike = (typeof SOURCE_CHAPTERS)[number];
 
-const LESSON_CHAPTERS: ChapterLike[] = [...SOURCE_CHAPTERS, CHAPTER_7].sort((a,b)=>a.number-b.number);
+const LESSON_CHAPTERS: ChapterLike[] = [...SOURCE_CHAPTERS].sort((a,b)=>a.number-b.number);
 const isExactSourceTranscript=(slide:LessonSlide)=>slide.id.startsWith('pdf-first-')&&!slide.id.startsWith('pdf-first-lens-')&&!slide.examPractice;
 
 function Visual({ kind }: { kind?: LessonVisual }) {
