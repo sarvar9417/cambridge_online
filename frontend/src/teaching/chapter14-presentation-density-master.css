@@ -1,24 +1,24 @@
 /* Chapter 14 CONTENT-DENSITY MASTER
-   Rule: unrevealed teaching answers reserve their layout space but stay hidden.
-   Space progressively reveals each source-grounded item without layout jumps.
+   Rule: unrevealed teaching structure stays faintly visible.
+   The current step is fully emphasised without making the rest of the slide look empty.
    This layer is intentionally imported after projector CSS. */
 .lesson-experience.lx-present{
-  --h14-density-upcoming:0;
+  --h14-density-upcoming:.28;
   --h14-density-complete:1;
 }
 
-/* Use the projector canvas for teaching content instead of leaving a large dead zone. */
+/* Use the projector canvas efficiently without forcing oversized minimum geometry. */
 .lesson-experience.lx-present .lx-present-content:has(.h14m-content-v2),
 .lesson-experience.lx-present .lx-present-content:has(.h14eoc){
-  min-height:clamp(390px,54vh,570px);
+  min-height:clamp(340px,48vh,520px);
   display:grid;
   align-items:center;
 }
 .lesson-experience.lx-present .h14m-content-v2{
-  min-height:clamp(370px,50vh,535px);
+  min-height:clamp(320px,45vh,500px);
 }
 
-/* Future reveal items reserve geometry but do not leak the answer. */
+/* Future reveal items remain visible as context, but current content owns attention. */
 .h14c-roadmap section:not(.is-visible),
 .h14c-stack>main section:not(.is-visible),
 .h14c-encapsulation section:not(.is-visible),
@@ -72,8 +72,8 @@
 .h14eoc>section:not(.is-visible),
 .h14eoc>footer:not(.is-visible){
   opacity:var(--h14-density-upcoming)!important;
-  visibility:hidden!important;
-  transform:translateY(6px)!important;
+  visibility:visible!important;
+  transform:none!important;
   pointer-events:none;
 }
 
@@ -89,37 +89,37 @@
 /* Dense comparison tables: all source rows fit in a single projector view. */
 .h14c-proscons{
   width:min(1120px,100%);
-  min-height:430px!important;
+  min-height:400px!important;
   align-content:center;
 }
 .h14c-proscons>header{
-  min-height:42px;
+  min-height:40px;
   align-items:center;
-  padding:10px 18px;
+  padding:9px 16px;
   border-bottom:2px solid var(--h14-cyan);
 }
 .h14c-proscons>header span:first-child{color:var(--h14-cyan)}
 .h14c-proscons>header span:last-child{color:var(--h14-red)}
 .h14c-proscons>section{
-  min-height:54px;
+  min-height:50px;
   background:linear-gradient(90deg,rgba(82,224,210,.025),transparent 49%,rgba(255,107,114,.025));
 }
 .h14c-proscons>section p{
-  min-height:54px;
+  min-height:50px;
   align-items:center;
-  padding:10px 18px!important;
-  font-size:clamp(13.5px,1vw,16px)!important;
-  line-height:1.3;
+  padding:9px 16px!important;
+  font-size:clamp(13px,.95vw,15.5px)!important;
+  line-height:1.28;
 }
 .h14c-proscons>section.is-visible{
   background:linear-gradient(90deg,rgba(82,224,210,.085),rgba(84,166,255,.025) 49%,rgba(255,107,114,.075));
   box-shadow:inset 3px 0 0 var(--h14-cyan),inset -3px 0 0 var(--h14-red);
 }
 
-.h14c-compare>section,.h14c-routing-table>section{min-height:46px}
+.h14c-compare>section,.h14c-routing-table>section{min-height:44px}
 .h14c-compare>section.is-visible,.h14c-routing-table>section.is-visible{background:rgba(84,166,255,.075)}
 
-/* Processes keep stable geometry while hidden stages are revealed. */
+/* Processes keep stable geometry while the current stage is emphasised. */
 .h14c-http .http-spine,
 .h14c-transport,
 .h14c-handshake>main,
@@ -138,32 +138,34 @@
 .h14c-stack>main section.is-visible,
 .h14c-http .http-spine section.is-visible,
 .h14c-routing-table>section.is-visible,
-.h14c-activity section.is-visible{transition:opacity .2s ease,transform .2s ease,background .2s ease,box-shadow .2s ease}
+.h14c-activity section.is-visible{transition:opacity .2s ease,background .2s ease,box-shadow .2s ease}
 
-/* EOC uses the same no-answer-leak reveal policy. */
-.h14eoc{min-height:430px;align-content:center}
-.h14eoc>section{opacity:0!important;visibility:hidden!important;transform:translateY(6px)!important}
+/* End-of-chapter content follows the same faint-context reveal policy. */
+.h14eoc{min-height:400px;align-content:center}
+.h14eoc>section{opacity:var(--h14-density-upcoming)!important;visibility:visible!important;transform:none!important}
 .h14eoc>section.is-visible{opacity:1!important;visibility:visible!important;transform:none!important;background:rgba(84,166,255,.045)}
-.h14eoc>footer{opacity:0!important;visibility:hidden!important;transform:translateY(6px)!important}
+.h14eoc>footer{opacity:var(--h14-density-upcoming)!important;visibility:visible!important;transform:none!important}
 .h14eoc>footer.is-visible{opacity:1!important;visibility:visible!important;transform:none!important}
 
 @media(max-width:1366px){
   .lesson-experience.lx-present .lx-present-content:has(.h14m-content-v2),
-  .lesson-experience.lx-present .lx-present-content:has(.h14eoc){min-height:410px}
-  .lesson-experience.lx-present .h14m-content-v2{min-height:390px}
-  .h14c-proscons{min-height:400px!important}
-  .h14c-proscons>section,.h14c-proscons>section p{min-height:48px}
-  .h14c-proscons>section p{font-size:13.5px!important;padding:8px 14px!important}
+  .lesson-experience.lx-present .lx-present-content:has(.h14eoc){min-height:350px}
+  .lesson-experience.lx-present .h14m-content-v2{min-height:330px}
+  .h14c-proscons{min-height:360px!important}
+  .h14c-proscons>section,.h14c-proscons>section p{min-height:44px}
+  .h14c-proscons>section p{font-size:13px!important;padding:7px 12px!important}
 }
 
 @media(max-height:768px) and (min-width:1000px){
   .lesson-experience.lx-present .lx-present-content:has(.h14m-content-v2),
-  .lesson-experience.lx-present .lx-present-content:has(.h14eoc){min-height:360px}
-  .lesson-experience.lx-present .h14m-content-v2{min-height:350px}
-  .h14c-proscons{min-height:350px!important}
-  .h14c-proscons>header{min-height:34px;padding:7px 14px}
-  .h14c-proscons>section,.h14c-proscons>section p{min-height:44px}
-  .h14c-proscons>section p{font-size:13px!important;padding:7px 12px!important}
+  .lesson-experience.lx-present .lx-present-content:has(.h14eoc){min-height:300px}
+  .lesson-experience.lx-present .h14m-content-v2{min-height:0!important}
+  .lesson-experience.lx-present .h14m-content-v2>:is(section,main,aside){min-height:0!important}
+  .h14c-proscons{min-height:320px!important}
+  .h14c-proscons>header{min-height:32px;padding:6px 12px}
+  .h14c-proscons>section,.h14c-proscons>section p{min-height:40px}
+  .h14c-proscons>section p{font-size:12.5px!important;padding:6px 10px!important}
+  .h14eoc{min-height:320px}
 }
 
 @media(max-width:900px){

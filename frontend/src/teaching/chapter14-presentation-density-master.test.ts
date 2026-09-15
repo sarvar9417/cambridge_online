@@ -42,20 +42,21 @@ describe('Chapter 14 CONTENT-DENSITY MASTER',()=>{
     ])expect(source).toContain(text);
   });
 
-  it('hides future reveal content without collapsing its layout space',()=>{
-    expect(densityCss).toContain('--h14-density-upcoming:0');
+  it('keeps future reveal context faintly visible instead of making the slide look empty',()=>{
+    expect(densityCss).toContain('--h14-density-upcoming:.28');
     expect(densityCss).toContain('.h14c-proscons>section:not(.is-visible)');
     expect(densityCss).toContain('opacity:var(--h14-density-upcoming)!important');
-    expect(densityCss).toContain('visibility:hidden!important');
-    expect(densityCss).toContain('transform:translateY(6px)!important');
+    expect(densityCss).toContain('visibility:visible!important');
+    expect(densityCss).toContain('transform:none!important');
     expect(densityCss).toContain('pointer-events:none');
+    expect(densityCss).not.toContain('visibility:hidden!important');
   });
 
-  it('uses dense six-row projector comparison geometry',()=>{
+  it('uses compact six-row projector comparison geometry',()=>{
     expect(densityCss).toContain('.h14c-proscons>section{');
-    expect(densityCss).toContain('min-height:54px');
+    expect(densityCss).toContain('min-height:50px');
     expect(densityCss).toContain('@media(max-height:768px)');
-    expect(densityCss).toContain('min-height:44px');
+    expect(densityCss).toContain('min-height:40px');
   });
 
   it('applies density overrides after projector rules through the style entrypoint',()=>{
