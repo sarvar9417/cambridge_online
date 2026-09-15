@@ -33,7 +33,7 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
   ] });
   if (role !== 'student') groups.push({ label: 'O‘qitish', items: [
     { path: 'oqitish/darslar', label: 'Darslar' }, { path: 'oqitish/savol-banki', label: 'Savol banki' },
-    { path: 'oqitish/live', label: 'Live imtihon' },
+    { path: 'oqitish/live', label: 'Live imtihon' }, { path: 'oqitish/live-challenges', label: 'Live Challenges' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
@@ -47,7 +47,7 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
 }
 
 const NAV_ICONS: Array<[RegExp, ComponentType<IconProps>]> = [
-  [/holat|\/uy$/, House], [/darslar|organish$/, BookOpenText], [/savol-banki/, FolderOpen], [/tanlovlar/, ListChecks],
+  [/holat|\/uy$/, House], [/darslar|organish$/, BookOpenText], [/live-challenges/, CirclesFour], [/savol-banki/, FolderOpen], [/tanlovlar/, ListChecks],
   [/\/live$/, Broadcast], [/vazifalar/, ClipboardText], [/tekshirish/, CheckSquare], [/oquvchilar|odamlar/, UsersThree], [/korpus/, Archive], [/sifat/, ChartBar], [/tizim/, GearSix],
 ];
 const iconFor = (path: string) => NAV_ICONS.find(([pattern]) => pattern.test(path))?.[1] ?? SquaresFour;
