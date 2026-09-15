@@ -5,7 +5,7 @@ import { CHAPTER_4_CURRENT_DRAFT } from './lesson-content-chapter4-current';
 import { CHAPTER_5_FINAL } from './lesson-content-chapter5-deep-final';
 import { CHAPTER_6_FINAL } from './lesson-content-chapter6-final';
 import { CHAPTER_7_FINAL } from './lesson-content-chapter7-final';
-import { CHAPTER_8_FINAL } from './lesson-content-chapter8-final';
+import { CHAPTER_8_FINAL } from './lesson-content-chapter8-deep-final';
 import {
   CHAPTER_9_COMPLETE_9618,
   CHAPTER_10_COMPLETE_9618,
