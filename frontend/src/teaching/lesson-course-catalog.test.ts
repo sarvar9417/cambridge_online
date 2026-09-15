@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTopicPlan } from './lesson-topic-plan';
-import { courseCode } from './lesson-experience-model';
+import { courseCode, presentationBeatsForTopic } from './lesson-experience-model';
 import {
   CAMBRIDGE_0478_CHAPTERS,
   LESSON_COURSE_CATALOG,
@@ -26,6 +26,12 @@ describe('lesson course catalog',()=>{
     expect(chapter0478.title).toBe('Algorithm design and problem-solving');
     expect(chapter9618).not.toBe(chapter0478);
   });
+
+  it('keeps the existing 9618 overview presentation route unchanged',()=>{
+    const chapter=lessonCatalogChapter('9618',7)!;
+    const overview=buildTopicPlan(chapter.slides,chapter.subtopics).find(topic=>topic.code==='overview')!;
+    expect(presentationBeatsForCatalogTopic(chapter,overview)).toEqual(presentationBeatsForTopic(overview));
+  },15000);
 
   it('builds the 0478 Chapter 7 overview presentation only from 0478 Chapter 7 slides',()=>{
     const chapter=lessonCatalogChapter('0478',7)!;
