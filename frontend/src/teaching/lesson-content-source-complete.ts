@@ -2,7 +2,7 @@ import { SOURCE_FILE_FIDELITY_CHAPTER_1, SOURCE_FILE_FIDELITY_CHAPTER_13 } from 
 import { CHAPTER_2_FINAL } from './lesson-content-chapter2-checkpoints';
 import { CHAPTER_3_FINAL } from './lesson-content-chapter3-checkpoints';
 import { CHAPTER_4_CURRENT_DRAFT } from './lesson-content-chapter4-current';
-import { CHAPTER_5_FINAL } from './lesson-content-chapter5-final';
+import { CHAPTER_5_FINAL } from './lesson-content-chapter5-deep-final';
 import {
   CHAPTER_6_COMPLETE_9618,
   CHAPTER_7_COMPLETE_9618,
