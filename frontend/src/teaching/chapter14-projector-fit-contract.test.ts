@@ -47,7 +47,7 @@ describe('Chapter 14 classroom projector fit contract',()=>{
 
   it('keeps long networking terms from forcing horizontal overflow',()=>{
     expect(projectorCss).toContain(':is(p,small,span,strong,b,code){overflow-wrap:break-word}');
-    expect(heroFiles).toContain('FF:FF:FF:FF:FF:FF');
     expect(heroFiles).toContain('SYNCHRONISE');
+    expect(heroFiles).toContain('next-router MAC');
   });
 });
