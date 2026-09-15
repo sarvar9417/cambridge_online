@@ -5,6 +5,7 @@ import { CHAPTER_14_MASTER_PRINTED_PAGES, CHAPTER_14_MASTER_SOURCE_MAP, chapter1
 import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import facadeSource from './Chapter14PresentationVisualsV4.tsx?raw';
+import registrySource from './Chapter14PresentationHeroRegistry.tsx?raw';
 import navigationSource from './presentation-scroll-controller.ts?raw';
 
 const projectorCss=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-master-projector.css'),'utf8');
@@ -35,9 +36,10 @@ describe('Chapter 14 PRESENTATION MASTER quality gates',()=>{
     for(const scene of scenes)expect(runtimeIds).toContain(scene.id);
   });
 
-  it('uses the dedicated four-group EOC master instead of the legacy supplemental patch',()=>{
-    expect(facadeSource).toContain('Chapter14EndOfChapterMaster');
-    expect(facadeSource).toContain("beat.id==='h14p-142-practice'");
+  it('uses the dedicated four-group EOC master through the Chapter 14 registry',()=>{
+    expect(registrySource).toContain('Chapter14EndOfChapterMaster');
+    expect(registrySource).toContain("beat.id==='h14p-142-practice'");
+    expect(facadeSource).toContain('Chapter14PresentationHero');
     expect(facadeSource).not.toContain('Chapter14PresentationVisualV6');
     expect(facadeSource).not.toContain('Chapter14PresentationCompleteness');
     expect(facadeSource).not.toContain('Chapter14PracticeQ4');
