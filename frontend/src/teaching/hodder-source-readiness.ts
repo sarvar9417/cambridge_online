@@ -1,6 +1,7 @@
 import { SOURCE_FILE_FIDELITY_MANIFESTS } from './source-file-fidelity-manifest';
 import { CONNECTED_HODDER_SOURCE_MANIFESTS } from './connected-hodder-source-manifest';
 import { CHAPTER_4_CONNECTED_HODDER_SOURCE_MANIFEST } from './connected-hodder-chapter4-manifest';
+import { HODDER_9618_FULL_BOOK_CHAPTER_RANGES } from './hodder-9618-full-book-manifest';
 
 export type HodderSyllabus = '9618' | '0478';
 export type HodderSourceReadiness = 'source-locked' | 'source-unresolved';
@@ -15,6 +16,15 @@ const locked9618 = new Map<number, string>([
   ...CONNECTED_HODDER_SOURCE_MANIFESTS.filter(manifest => manifest.syllabus === '9618').map(manifest => [manifest.chapter, manifest.sourceFile] as const),
   [CHAPTER_4_CONNECTED_HODDER_SOURCE_MANIFEST.chapter, CHAPTER_4_CONNECTED_HODDER_SOURCE_MANIFEST.sourceFile] as const,
 ]);
+
+/*
+ * The complete connected 576-page book is byte-locked. Keep any more-specific
+ * chapter extract already registered above, and use the full-book lock only to
+ * fill the chapters that previously had no exact source identity.
+ */
+HODDER_9618_FULL_BOOK_CHAPTER_RANGES.forEach(manifest => {
+  if (!locked9618.has(manifest.chapter)) locked9618.set(manifest.chapter, manifest.sourceFile);
+});
 
 const locked0478 = new Map<number, string>(CONNECTED_HODDER_SOURCE_MANIFESTS.filter(manifest => manifest.syllabus === '0478').map(manifest => [manifest.chapter, manifest.sourceFile] as const));
 
