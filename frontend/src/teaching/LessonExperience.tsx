@@ -13,7 +13,6 @@ import { api, type LessonProgress } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
 import {
-  LESSON_EXPERIENCE_CHAPTERS,
   auditBullets,
   courseCode,
   courseName,
@@ -21,12 +20,16 @@ import {
   firstStudyPage,
   learnerSlidesForPage,
   practicePage,
-  presentationBeatsForTopic,
   topicLabel,
   type LessonAudience,
   type LessonExperienceChapter,
   type LessonMode,
 } from './lesson-experience-model';
+import {
+  LESSON_COURSE_CATALOG,
+  lessonCatalogChapter,
+  presentationBeatsForCatalogTopic,
+} from './lesson-course-catalog';
 import { LessonPresentationScreen, LessonStudySlide, revealCountForBeat } from './LessonContent';
 import { LessonPastPaper } from './LessonPastPaper';
 import './lesson-experience.css';
@@ -69,7 +72,7 @@ function firstTopicWithPractice(topics:LessonTopic[]){return topics.find(topic=>
 function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:LessonProgress[]}){
   const [query,setQuery]=useState('');
   const [course,setCourse]=useState<'all'|'9618'|'0478'>('all');
-  const filtered=LESSON_EXPERIENCE_CHAPTERS.filter(chapter=>{
+  const filtered=LESSON_COURSE_CATALOG.filter(chapter=>{
     if(course!=='all'&&courseCode(chapter)!==course)return false;
     const term=query.trim().toLowerCase();
     return !term||`${chapter.number} ${chapter.title} ${chapter.subtopics.join(' ')}`.toLowerCase().includes(term);
@@ -131,7 +134,7 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const chapterNumber=Number(route.params.get('chapter')||0);
   const requestedCourse=route.params.get('course');
   const course:LessonCourseCode=requestedCourse==='0478'?'0478':'9618';
-  const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber&&courseCode(item)===course)??null;
+  const chapter=lessonCatalogChapter(course,chapterNumber);
   const topics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[],[chapter]);
   const activeTopic=topics.find(topic=>topic.code===(route.params.get('topic')??''))??topics[0]??null;
   const requestedMode=route.params.get('mode');
@@ -142,7 +145,7 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const [outlineOpen,setOutlineOpen]=useState(false);
   const [progress,setProgress]=useState<LessonProgress[]>([]);
   const [saving,setSaving]=useState(false);
-  const beats=useMemo(()=>activeTopic?presentationBeatsForTopic(activeTopic):[],[activeTopic]);
+  const beats=useMemo(()=>chapter&&activeTopic?presentationBeatsForCatalogTopic(chapter,activeTopic):[],[chapter,activeTopic]);
   const requestedBeat=Math.max(0,Number(route.params.get('beat')??1)-1);
   const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,beats.length-1));
   const activeBeat=beats[beatIndex]??null;
