@@ -7,10 +7,9 @@ import {
 import { LESSON_CHAPTERS, lessonChapter } from './lesson-content-source-complete';
 
 const ALL_9618 = Array.from({ length: 20 }, (_, index) => index + 1);
-const GENERATED = [19,20] as const;
+const GENERATED = [20] as const;
 
 const EXPECTED_TITLES: Readonly<Record<number,string>> = {
-  19:'Computational thinking and problem solving',
   20:'Further programming',
 };
 
