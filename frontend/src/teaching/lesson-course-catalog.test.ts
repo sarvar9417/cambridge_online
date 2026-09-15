@@ -27,10 +27,19 @@ describe('lesson course catalog',()=>{
     expect(chapter9618).not.toBe(chapter0478);
   });
 
-  it('keeps the existing 9618 overview presentation route unchanged',()=>{
+  it('builds a complete 9618 overview presentation only from the selected 9618 chapter',()=>{
     const chapter=lessonCatalogChapter('9618',7)!;
-    const overview=buildTopicPlan(chapter.slides,chapter.subtopics).find(topic=>topic.code==='overview')!;
-    expect(presentationBeatsForCatalogTopic(chapter,overview)).toEqual(presentationBeatsForTopic(overview));
+    const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
+    const overview=topics.find(topic=>topic.code==='overview')!;
+    const beats=presentationBeatsForCatalogTopic(chapter,overview);
+    const ownIds=new Set(chapter.slides.map(slide=>slide.id));
+
+    expect(beats.length).toBeGreaterThan(0);
+    expect(beats.every(beat=>ownIds.has(beat.slideId))).toBe(true);
+    for(const topic of topics.filter(item=>item.code!=='overview'&&item.pages.some(page=>page.kind==='study'))){
+      const topicSlideIds=new Set(presentationBeatsForTopic(topic).map(beat=>beat.slideId));
+      expect(beats.some(beat=>topicSlideIds.has(beat.slideId)),topic.code).toBe(true);
+    }
   },15000);
 
   it('builds the 0478 Chapter 7 overview presentation only from 0478 Chapter 7 slides',()=>{
