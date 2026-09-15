@@ -5,6 +5,7 @@ import { chapter14PresentationStoryboard } from './chapter14-presentation-storyb
 import source from './Chapter14PresentationContentV2.tsx?raw';
 import finalRenderer from './Chapter14PresentationContentFinal.tsx?raw';
 import facade from './Chapter14PresentationVisualsV4.tsx?raw';
+import registry from './Chapter14PresentationHeroRegistry.tsx?raw';
 import { CHAPTER_14_PRESENTATION_REVEAL_COUNTS } from './chapter14-presentation-runtime';
 
 const css=readFileSync(resolve(process.cwd(),'src','teaching','chapter14-presentation-content-v2.css'),'utf8');
@@ -56,9 +57,11 @@ describe('Chapter 14 source-semantic presentation base layer',()=>{
     ])expect(source).toContain(anchor);
   });
 
-  it('routes the live deck through the final source renderer while retaining base CSS',()=>{
-    expect(facade).toContain('Chapter14PresentationContentFinal');
+  it('routes the live deck through the registry fallback while retaining base CSS',()=>{
+    expect(facade).toContain('Chapter14PresentationHero');
     expect(facade).toContain('hasChapter14PresentationRuntime');
+    expect(registry).toContain('Chapter14PresentationContentFinal');
+    expect(registry).toContain('Chapter14PresentationContentV2');
     expect(facade).toContain("./chapter14-presentation-content-v2.css");
     expect(facade.indexOf("./chapter14-presentation-master.css")).toBeLessThan(facade.indexOf("./chapter14-presentation-content-v2.css"));
   });
