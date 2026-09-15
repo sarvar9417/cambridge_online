@@ -32,11 +32,12 @@ import { LessonPastPaper } from './LessonPastPaper';
 import './lesson-experience.css';
 
 type LessonExperienceProps = {audience:LessonAudience};
+type LessonCourseCode = '9618' | '0478';
 
 const modeLabel:Record<LessonMode,string>={study:'Study',present:'Presentation',exam:'Past Papers'};
 
-function lessonUrl(audience:LessonAudience,chapter:number,topic:string,pageIndex:number,mode:LessonMode,beat=0){
-  const params=new URLSearchParams({chapter:String(chapter),topic,page:String(pageIndex+1),mode});
+function lessonUrl(audience:LessonAudience,course:LessonCourseCode,chapter:number,topic:string,pageIndex:number,mode:LessonMode,beat=0){
+  const params=new URLSearchParams({course,chapter:String(chapter),topic,page:String(pageIndex+1),mode});
   if(mode==='present')params.set('beat',String(beat+1));
   return `${audience==='student'?'oquvchi':'oqitish'}/darslar?${params}`;
 }
@@ -81,10 +82,11 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
     const {topics}=chapterStats(chapter);
     const topic=mode==='exam'?firstTopicWithPractice(topics):topics[0];
     if(!topic)return;
-    const remembered=mode==='study'?safeStorageGet(`campath:lesson:last:${audience}:${chapter.number}`):null;
+    const syllabus=courseCode(chapter);
+    const remembered=mode==='study'?safeStorageGet(`campath:lesson:last:${audience}:${syllabus}:${chapter.number}`):null;
     if(remembered){navigate(remembered);return;}
     const page=firstStudyPage(topic);
-    navigate(lessonUrl(audience,chapter.number,topic.code,Math.max(0,topic.pages.indexOf(page!)),mode));
+    navigate(lessonUrl(audience,syllabus,chapter.number,topic.code,Math.max(0,topic.pages.indexOf(page!)),mode));
   };
   return <section className="lx-library" aria-labelledby="lx-library-title">
     <header className="lx-library-head"><div><span>LESSONS</span><h1 id="lx-library-title">A clear route through the course</h1><p>Choose a chapter, study the complete content or open the classroom presentation.</p></div><div className="lx-library-tools"><label><MagnifyingGlass size={19} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search chapters or topics" aria-label="Search chapters or topics"/></label><div role="group" aria-label="Course filter"><button type="button" className={course==='all'?'is-active':''} onClick={()=>setCourse('all')}>All</button><button type="button" className={course==='9618'?'is-active':''} onClick={()=>setCourse('9618')}>9618</button><button type="button" className={course==='0478'?'is-active':''} onClick={()=>setCourse('0478')}>0478</button></div></div></header>
@@ -95,7 +97,7 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
         const {topics,studyPages}=chapterStats(chapter);
         const complete=completedPageIds(progress,chapter).size;
         const percent=studyPages.length?Math.round((complete/studyPages.length)*100):0;
-        return <article className="lx-chapter-row" key={chapter.number}><div className="lx-chapter-number"><span>CHAPTER</span><strong>{String(chapter.number).padStart(2,'0')}</strong></div><div className="lx-chapter-copy"><div><span>{chapter.level}</span><span>{topics.filter(topic=>topic.code!=='overview').length} topics</span><span>{studyPages.length} study sections</span></div><h3>{chapter.title}</h3><p>{chapter.subtopics.join(' · ')}</p>{audience==='student'?<div className="lx-card-progress"><span><i style={{width:`${percent}%`}}/></span><small>{complete}/{studyPages.length} sections completed</small></div>:null}</div><div className="lx-chapter-actions"><button type="button" className="lx-primary" onClick={()=>open(chapter,'study')}><BookOpenText size={20}/>{audience==='student'&&complete?'Continue':'Study'}</button>{audience==='teacher'?<button type="button" onClick={()=>open(chapter,'present')}><ChalkboardTeacher size={20}/>Present</button>:null}<button type="button" onClick={()=>open(chapter,'exam')}><FileText size={20}/>Past Papers</button></div></article>;
+        return <article className="lx-chapter-row" key={`${group.code}-${chapter.number}`}><div className="lx-chapter-number"><span>CHAPTER</span><strong>{String(chapter.number).padStart(2,'0')}</strong></div><div className="lx-chapter-copy"><div><span>{chapter.level}</span><span>{topics.filter(topic=>topic.code!=='overview').length} topics</span><span>{studyPages.length} study sections</span></div><h3>{chapter.title}</h3><p>{chapter.subtopics.join(' · ')}</p>{audience==='student'?<div className="lx-card-progress"><span><i style={{width:`${percent}%`}}/></span><small>{complete}/{studyPages.length} sections completed</small></div>:null}</div><div className="lx-chapter-actions"><button type="button" className="lx-primary" onClick={()=>open(chapter,'study')}><BookOpenText size={20}/>{audience==='student'&&complete?'Continue':'Study'}</button>{audience==='teacher'?<button type="button" onClick={()=>open(chapter,'present')}><ChalkboardTeacher size={20}/>Present</button>:null}<button type="button" onClick={()=>open(chapter,'exam')}><FileText size={20}/>Past Papers</button></div></article>;
       })}</div></section>;
     })}
     {!filtered.length?<div className="lx-empty"><strong>No lessons found.</strong><p>Change the search term or course filter.</p></div>:null}
@@ -127,7 +129,9 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const route=useRoute();
   const rootRef=useRef<HTMLElement|null>(null);
   const chapterNumber=Number(route.params.get('chapter')||0);
-  const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber)??null;
+  const requestedCourse=route.params.get('course');
+  const course:LessonCourseCode=requestedCourse==='0478'?'0478':'9618';
+  const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNumber&&courseCode(item)===course)??null;
   const topics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[],[chapter]);
   const activeTopic=topics.find(topic=>topic.code===(route.params.get('topic')??''))??topics[0]??null;
   const requestedMode=route.params.get('mode');
@@ -145,10 +149,11 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const [reveal,setReveal]=useState(0);
 
   const navigateTo=useCallback((targetTopic:LessonTopic,targetPage:TopicPage,targetMode:LessonMode=mode,targetBeat=0)=>{
+    if(!chapter)return;
     const index=targetTopic.pages.filter(page=>page.kind==='study').findIndex(page=>page.id===targetPage.id);
-    navigate(lessonUrl(audience,chapterNumber,targetTopic.code,Math.max(0,index),targetMode,targetBeat));
+    navigate(lessonUrl(audience,courseCode(chapter),chapter.number,targetTopic.code,Math.max(0,index),targetMode,targetBeat));
     setOutlineOpen(false);
-  },[audience,chapterNumber,mode]);
+  },[audience,chapter,mode]);
 
   useEffect(()=>setReveal(activeBeat?Math.min(1,revealCountForBeat(activeBeat)):0),[activeBeat?.id]);
   useEffect(()=>{
@@ -159,13 +164,14 @@ export function LessonExperience({audience}:LessonExperienceProps){
   },[audience]);
   useEffect(()=>{
     if(!chapter||!activeTopic||!activePage||mode!=='study')return;
-    safeStorageSet(`campath:lesson:last:${audience}:${chapter.number}`,lessonUrl(audience,chapter.number,activeTopic.code,studyPages.indexOf(activePage),'study'));
+    const syllabus=courseCode(chapter);
+    safeStorageSet(`campath:lesson:last:${audience}:${syllabus}:${chapter.number}`,lessonUrl(audience,syllabus,chapter.number,activeTopic.code,studyPages.indexOf(activePage),'study'));
     if(audience!=='student')return;
     let cancelled=false;
     const ids=pageSlideIds(activePage);
     void Promise.all(ids.map(slideId=>api<LessonProgress>('/content/lessons/progress',{method:'PUT',body:JSON.stringify({chapterNo:chapter.number,slideId,completed:false})}))).then(saved=>{if(!cancelled)setProgress(current=>mergeProgress(current,saved))}).catch(()=>{});
     return()=>{cancelled=true};
-  },[audience,chapter?.number,activeTopic?.code,activePage?.id,mode]);
+  },[audience,chapter,activeTopic?.code,activePage?.id,mode,studyPages]);
 
   const exitPresentation=useCallback(()=>{
     if(!chapter||!activeTopic)return;
