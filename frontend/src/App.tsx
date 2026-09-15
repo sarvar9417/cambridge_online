@@ -43,6 +43,7 @@ import { GradingQueue } from './teaching/GradingQueue';
 import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
+import { LiveExamPage } from './live/LiveExamPage';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -143,7 +144,7 @@ export function App() {
   // a blank page with a working sidebar.
   useEffect(() => {
     if (!user) return;
-    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar'];
+    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar', 'oqitish/live', 'oquvchi/live'];
     const stranded = route.surface !== 'boshqaruv'
       && !STANDALONE.includes(route.path)
       && sectionsFor(route.surface, route.page, user.role).length === 0;
@@ -612,6 +613,8 @@ export function App() {
               // their own session on arrival.
               : route.path === 'oqitish/savol-banki' ? <QuestionBankPage user={user} />
                 : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
+                  : route.path === 'oqitish/live' || route.path === 'oquvchi/live'
+                    ? <LiveExamPage user={user} classes={classes} />
                   : routedSections;
 
   return (

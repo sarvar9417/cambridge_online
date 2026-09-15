@@ -11,6 +11,7 @@ import { FolderOpen } from '@phosphor-icons/react/FolderOpen';
 import { GearSix } from '@phosphor-icons/react/GearSix';
 import { House } from '@phosphor-icons/react/House';
 import { ListChecks } from '@phosphor-icons/react/ListChecks';
+import { Broadcast } from '@phosphor-icons/react/Broadcast';
 import { Question } from '@phosphor-icons/react/Question';
 import { SignOut } from '@phosphor-icons/react/SignOut';
 import { SquaresFour } from '@phosphor-icons/react/SquaresFour';
@@ -32,10 +33,12 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
   ] });
   if (role !== 'student') groups.push({ label: 'O‘qitish', items: [
     { path: 'oqitish/darslar', label: 'Darslar' }, { path: 'oqitish/savol-banki', label: 'Savol banki' },
+    { path: 'oqitish/live', label: 'Live imtihon' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
     { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/darslar', label: 'Darslar' },
+    { path: 'oquvchi/live', label: 'Live imtihon' },
     { path: 'oquvchi/vazifalar', label: 'Vazifalar' }, { path: 'oquvchi/natijalar', label: 'Natijalar' },
     { path: 'oquvchi/organish', label: 'Mashq va takrorlash' },
   ] });
@@ -45,7 +48,7 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
 
 const NAV_ICONS: Array<[RegExp, ComponentType<IconProps>]> = [
   [/holat|\/uy$/, House], [/darslar|organish$/, BookOpenText], [/savol-banki/, FolderOpen], [/tanlovlar/, ListChecks],
-  [/vazifalar/, ClipboardText], [/tekshirish/, CheckSquare], [/oquvchilar|odamlar/, UsersThree], [/korpus/, Archive], [/sifat/, ChartBar], [/tizim/, GearSix],
+  [/\/live$/, Broadcast], [/vazifalar/, ClipboardText], [/tekshirish/, CheckSquare], [/oquvchilar|odamlar/, UsersThree], [/korpus/, Archive], [/sifat/, ChartBar], [/tizim/, GearSix],
 ];
 const iconFor = (path: string) => NAV_ICONS.find(([pattern]) => pattern.test(path))?.[1] ?? SquaresFour;
 

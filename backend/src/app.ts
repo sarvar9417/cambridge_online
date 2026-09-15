@@ -48,6 +48,7 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
+import { createLiveExamsRouter } from './routes/live-exams.js';
 import { createSubmissionsRouter } from './routes/submissions.js';
 import { createGradingsRouter } from './routes/gradings.js';
 import { PrivacyService } from './services/privacy-service.js';
@@ -60,6 +61,7 @@ import { opportunisticMaintenance } from './middleware/opportunistic-maintenance
 import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
+import { LiveExamService } from './services/live-exam-service.js';
 
 export function createApp(
   auth?: AuthService,
@@ -143,6 +145,10 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/admin/quality', createQualityRouter(new QualityService(pool)));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
+  if (pool && questionsRepository) mountPrivate(
+    '/api/v1/live-exams',
+    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
+  );
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Manzil topilmadi.' } });
@@ -150,7 +156,7 @@ export function createApp(
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi yoki siz ushbu sinfga biriktirilmagansiz.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_answer_locked:'Javob yopilgan yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
