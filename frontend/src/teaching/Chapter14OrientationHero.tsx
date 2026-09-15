@@ -6,9 +6,11 @@ import { chapter14Mono as mono } from './Chapter14VisualPrimitives';
  */
 export function Chapter14OrientationHero(){
   const outcomes=[
-    'Explain why agreed protocols are required and describe the four TCP/IP layers.',
-    'Apply HTTP, FTP, email, Ethernet and BitTorrent terminology to communication scenarios.',
-    'Explain circuit switching, packet switching, routers, packet headers and routing tables.',
+    'Explain why agreed protocols are required for successful communication.',
+    'Describe the four TCP/IP layers, their purpose/function and the sender-to-receiver flow.',
+    'Apply HTTP, FTP, email protocols and BitTorrent terminology to communication scenarios.',
+    'Explain circuit switching and packet switching, including their advantages and disadvantages.',
+    'Explain how routers, packet headers and routing tables move packets across a network.',
   ];
   const roadmap=[
     ['A','PROTOCOLS','agreed communication rules'],
@@ -18,10 +20,10 @@ export function Chapter14OrientationHero(){
     ['E','SWITCHING','circuit vs packet'],
     ['F','ROUTERS','headers · tables · next hop'],
   ] as const;
-  return <div className="h14m-content-v2" aria-label="Chapter 14 learning outcomes and road map" style={{display:'grid',gridTemplateColumns:'1fr 1.55fr',gap:28,minHeight:420,alignItems:'center'}}>
-    <section style={{display:'grid',gap:14,padding:'22px 22px',borderTop:'4px solid var(--h14-cyan)',borderBottom:'1px solid var(--h14-line)',background:'rgba(82,224,210,.035)'}}>
-      <header><b style={{...mono,color:'var(--h14-cyan)',fontSize:14}}>CHAPTER 14 · LEARNING OUTCOMES</b><strong style={{display:'block',marginTop:6,fontSize:30}}>By the end, you should be able to…</strong></header>
-      <div style={{display:'grid',gap:11}}>{outcomes.map((text,i)=><div key={text} style={{display:'grid',gridTemplateColumns:'46px 1fr',gap:13,alignItems:'start',padding:'11px 0',borderBottom:'1px solid var(--h14-line)'}}><b style={{display:'grid',placeItems:'center',width:38,height:38,borderRadius:'50%',border:'1px solid var(--h14-cyan)',color:'var(--h14-cyan)',...mono,fontSize:12}}>{i+1}</b><p style={{margin:0,fontSize:16,lineHeight:1.45,color:'var(--h14-muted)'}}>{text}</p></div>)}</div>
+  return <div className="h14m-content-v2" aria-label="Chapter 14 learning outcomes and road map" style={{display:'grid',gridTemplateColumns:'1.08fr 1.45fr',gap:28,minHeight:420,alignItems:'center'}}>
+    <section style={{display:'grid',gap:10,padding:'20px 21px',borderTop:'4px solid var(--h14-cyan)',borderBottom:'1px solid var(--h14-line)',background:'rgba(82,224,210,.035)'}}>
+      <header><b style={{...mono,color:'var(--h14-cyan)',fontSize:14}}>CHAPTER 14 · LEARNING OUTCOMES</b><strong style={{display:'block',marginTop:6,fontSize:28}}>By the end, you should be able to…</strong></header>
+      <div style={{display:'grid',gap:5}}>{outcomes.map((text,i)=><div key={text} style={{display:'grid',gridTemplateColumns:'40px 1fr',gap:11,alignItems:'start',padding:'8px 0',borderBottom:'1px solid var(--h14-line)'}}><b style={{display:'grid',placeItems:'center',width:34,height:34,borderRadius:'50%',border:'1px solid var(--h14-cyan)',color:'var(--h14-cyan)',...mono,fontSize:11}}>{i+1}</b><p style={{margin:0,fontSize:14.5,lineHeight:1.42,color:'var(--h14-muted)'}}>{text}</p></div>)}</div>
     </section>
     <section style={{display:'grid',gap:12}}>
       <header style={{paddingBottom:10,borderBottom:'2px solid var(--h14-cyan)'}}><b style={{...mono,color:'var(--h14-amber)',fontSize:14}}>ROAD MAP</b><strong style={{display:'block',marginTop:5,fontSize:30}}>ONE COMMUNICATION STORY</strong></header>
