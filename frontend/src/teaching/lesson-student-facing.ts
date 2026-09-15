@@ -70,6 +70,13 @@ export function studentFacingText(value:string){
     return `Study ${object}. Why ${reason}?`;
   }
 
+  const giveAndAskWhich=text.match(/^Give (.+?) and ask (?:learners|students|the class) which (.+)$/i);
+  if(giveAndAskWhich){
+    const context=stripTerminalPeriod(giveAndAskWhich[1]!);
+    const question=stripTerminalPeriod(giveAndAskWhich[2]!);
+    return `Consider ${context}. Which ${question}?`;
+  }
+
   text=text.replace(/^Ask (?:learners|students|the class) to\s+/i,'');
   text=text.replace(/^Ask (?:learners|students|the class) why\s+/i,'Why ');
   text=text.replace(/^Ask (?:learners|students|the class) how\s+/i,'How ');
