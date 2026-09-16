@@ -3,11 +3,20 @@ import { buildTopicPlan } from './lesson-topic-plan';
 import { HODDER_9618_FULL_BOOK_CHAPTER_RANGES } from './hodder-9618-full-book-manifest';
 import { LESSON_CHAPTERS } from './lesson-content-source-complete';
 import {
+  CHAPTER_1_SOURCE_FILE_MANIFEST,
+  CHAPTER_13_SOURCE_FILE_MANIFEST,
+} from './source-file-fidelity-manifest';
+import {
   lessonCatalogChapter,
   presentationBeatsForCatalogTopic,
 } from './lesson-course-catalog';
 
 const rangeFor=(chapter:number)=>HODDER_9618_FULL_BOOK_CHAPTER_RANGES.find(item=>item.chapter===chapter)!;
+const localExtractManifestFor=(chapter:number)=>chapter===1
+  ? CHAPTER_1_SOURCE_FILE_MANIFEST
+  : chapter===13
+    ? CHAPTER_13_SOURCE_FILE_MANIFEST
+    : null;
 
 describe('course-wide lesson static integrity',()=>{
   it('keeps every active 9618 slide id globally unique and every chapter structurally usable',()=>{
@@ -27,17 +36,33 @@ describe('course-wide lesson static integrity',()=>{
     }
   });
 
-  it('keeps every declared 9618 source page inside the exact Hodder chapter boundary',()=>{
+  it('keeps every declared 9618 source page inside its exact source numbering boundary',()=>{
     for(const chapter of LESSON_CHAPTERS){
       const range=rangeFor(chapter.number);
-      const [start,end]=range.printedPageRange;
+      const extractManifest=localExtractManifestFor(chapter.number);
       const chapterPages=new Set<number>();
+
+      if(extractManifest){
+        const [printedStart,printedEnd]=range.printedPageRange;
+        expect(extractManifest.pageCount,`Chapter ${chapter.number} extract page count`).toBe(printedEnd-printedStart+1);
+        expect(extractManifest.pages[0]?.printedPage,`Chapter ${chapter.number} extract printed start`).toBe(printedStart);
+        expect(extractManifest.pages.at(-1)?.printedPage,`Chapter ${chapter.number} extract printed end`).toBe(printedEnd);
+      }
 
       for(const slide of chapter.slides){
         for(const page of slide.sourcePages??[]){
           chapterPages.add(page);
-          expect(page,`${slide.id} lower source bound`).toBeGreaterThanOrEqual(start);
-          expect(page,`${slide.id} upper source bound`).toBeLessThanOrEqual(end);
+          if(extractManifest){
+            // PDF-first Chapters 1 and 13 deliberately store page numbers local
+            // to their exact uploaded chapter extracts. The manifest maps those
+            // extracts back to the printed full-book range.
+            expect(page,`${slide.id} lower extract bound`).toBeGreaterThanOrEqual(1);
+            expect(page,`${slide.id} upper extract bound`).toBeLessThanOrEqual(extractManifest.pageCount);
+          }else{
+            const [start,end]=range.printedPageRange;
+            expect(page,`${slide.id} lower printed bound`).toBeGreaterThanOrEqual(start);
+            expect(page,`${slide.id} upper printed bound`).toBeLessThanOrEqual(end);
+          }
         }
       }
 
