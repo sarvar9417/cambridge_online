@@ -18,12 +18,13 @@ function appFor(service:Partial<LiveExamRealtimeService>) {
 }
 
 describe('live exam realtime route', () => {
-  it('parses the event cursor and forwards the authenticated actor', async () => {
+  it('parses the event cursor, disables caching and forwards the authenticated actor', async () => {
     const events=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',currentVersion:8,changed:false,events:[]});
     const response=await request(appFor({events}))
       .get('/live-exams/22222222-2222-4222-8222-222222222222/events?afterVersion=8&limit=25')
       .expect(200);
     expect(response.body.currentVersion).toBe(8);
+    expect(response.headers['cache-control']).toBe('private, no-store');
     expect(events).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',8,25);
   });
 

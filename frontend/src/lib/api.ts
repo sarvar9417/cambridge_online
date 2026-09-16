@@ -1,9 +1,18 @@
 import type { StructuredQuestionContent } from './structured-question-content';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
+const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LIVE_FULL_REFRESH_MS = 15_000;
+
+type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
+type LiveCursor = { currentVersion:number; changed:boolean };
+const liveSnapshotCache = new Map<string, LiveSnapshotCacheEntry>();
 
 let accessToken: string | null = null;
-export const setAccessToken = (token: string | null) => { accessToken = token; };
+export const setAccessToken = (token: string | null) => {
+  if (token !== accessToken) liveSnapshotCache.clear();
+  accessToken = token;
+};
 export const AUTH_EXPIRED_EVENT = 'campath:auth-expired';
 let refreshPromise: Promise<string> | null = null;
 let refreshRequest: Promise<Response> | null = null;
@@ -21,6 +30,7 @@ async function parseBody(response: Response) {
 
 function expireSession() {
   accessToken = null;
+  liveSnapshotCache.clear();
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 }
 
@@ -52,7 +62,7 @@ function send(path: string, init: RequestInit, token: string | null) {
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
 }
 
-export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
   const tokenUsed = accessToken;
   let response = await send(path, init, tokenUsed);
   const canRefresh = response.status === 401 && Boolean(tokenUsed) && path !== '/auth/refresh' && path !== '/auth/login';
@@ -71,6 +81,49 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
     throw new ApiError(body?.error?.message ?? 'So‘rov bajarilmadi.', body?.error?.code ?? 'request_failed', body?.error?.detail, response.status);
   }
   return body as T;
+}
+
+function liveSnapshotKey(path:string, init:RequestInit) {
+  const method=(init.method??'GET').toUpperCase();
+  return method==='GET'&&!init.body&&LIVE_SNAPSHOT_PATH.test(path)?path:null;
+}
+
+function snapshotVersion(body:unknown) {
+  if (!body || typeof body !== 'object' || !('session' in body)) return null;
+  const session=(body as {session?:unknown}).session;
+  if (!session || typeof session !== 'object' || !('version' in session)) return null;
+  const version=(session as {version?:unknown}).version;
+  return typeof version==='number'&&Number.isFinite(version)&&version>=0?version:null;
+}
+
+function rememberLiveSnapshot(key:string, body:unknown, version:number) {
+  liveSnapshotCache.set(key,{body,version,fetchedAt:Date.now()});
+  if(liveSnapshotCache.size>20){
+    const oldest=liveSnapshotCache.keys().next().value as string|undefined;
+    if(oldest)liveSnapshotCache.delete(oldest);
+  }
+}
+
+export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+  const cacheKey=liveSnapshotKey(path,init);
+  if(!cacheKey)return requestJson<T>(path,init,options);
+
+  const cached=liveSnapshotCache.get(cacheKey);
+  if(cached&&Date.now()-cached.fetchedAt<LIVE_FULL_REFRESH_MS){
+    try{
+      const cursor=await requestJson<LiveCursor>(`${path}/events?afterVersion=${cached.version}&limit=1`,{},options);
+      if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
+    }catch{
+      // During a rolling deployment the cursor route may briefly be absent or
+      // unreachable. Fall back to the authoritative snapshot instead of
+      // making Live Exam depend on the notification optimisation.
+    }
+  }
+
+  const body=await requestJson<T>(path,init,options);
+  const version=snapshotVersion(body);
+  if(version!==null)rememberLiveSnapshot(cacheKey,body,version);
+  return body;
 }
 
 export async function apiBlob(path:string){const tokenUsed=accessToken;let response=await send(path,{},tokenUsed);if(response.status===401&&tokenUsed){if(accessToken===tokenUsed)await refreshAccessToken();response=await send(path,{},accessToken)}if(!response.ok){const body=await parseBody(response);throw new Error(body?.error?.message??'Fayl yuklanmadi.')}return response.blob()}
@@ -102,6 +155,8 @@ export interface LiveExamSummary {
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
+export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}
+export interface LiveExamRealtimeCursor {sessionId:string;currentVersion:number;changed:boolean;events:LiveExamRealtimeEvent[]}
 export interface LiveExamAsset {id:string;kind:string;storagePath:string|null;url:string|null;contentMd:string|null;altText:string;sortOrder:number;sourcePage:number|null}
 export interface LiveExamPortableQuestion {
   leaf:{id:string;rootId:string;label:string;path:string;displayRef:string;stem:string;stemLatex?:string|null;bodyFormat?:'markdown'|'latex';contentJson?:StructuredQuestionContent|null;commandWord:string|null;marks:number;answerKind:string;answerLines:number|null};

@@ -120,3 +120,54 @@ describe('API access token refresh', () => {
     expect(events).toBe(0);
   });
 });
+
+describe('Live Exam snapshot synchronisation', () => {
+  const sessionId='22222222-2222-4222-8222-222222222222';
+  const path=`/live-exams/${sessionId}`;
+
+  it('uses the event cursor to reuse an unchanged authoritative snapshot', async () => {
+    const first={session:{version:3},question:{id:'q1'}};
+    const fetchMock=vi.fn()
+      .mockResolvedValueOnce(json(200,first))
+      .mockResolvedValueOnce(json(200,{sessionId,currentVersion:3,changed:false,events:[]}));
+    vi.stubGlobal('fetch',fetchMock);
+    setAccessToken('live-token');
+
+    await expect(api(path)).resolves.toEqual(first);
+    await expect(api(path)).resolves.toEqual(first);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0]![0])).toContain(`/live-exams/${sessionId}`);
+    expect(String(fetchMock.mock.calls[1]![0])).toContain(`/live-exams/${sessionId}/events?afterVersion=3&limit=1`);
+  });
+
+  it('refreshes the full snapshot immediately when the session version advances', async () => {
+    const first={session:{version:3},question:{id:'q1'}};
+    const next={session:{version:4},question:{id:'q2'}};
+    const fetchMock=vi.fn()
+      .mockResolvedValueOnce(json(200,first))
+      .mockResolvedValueOnce(json(200,{sessionId,currentVersion:4,changed:true,events:[{version:4,type:'question.opened',createdAt:'2026-09-16T05:00:00Z'}]}))
+      .mockResolvedValueOnce(json(200,next));
+    vi.stubGlobal('fetch',fetchMock);
+    setAccessToken('live-token');
+
+    await expect(api(path)).resolves.toEqual(first);
+    await expect(api(path)).resolves.toEqual(next);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('falls back to the snapshot if the cursor route is temporarily unavailable', async () => {
+    const first={session:{version:3},question:{id:'q1'}};
+    const fallback={session:{version:3},question:{id:'q1'},sessionMarker:'fresh'};
+    const fetchMock=vi.fn()
+      .mockResolvedValueOnce(json(200,first))
+      .mockResolvedValueOnce(json(404,{error:{message:'Not found',code:'not_found'}}))
+      .mockResolvedValueOnce(json(200,fallback));
+    vi.stubGlobal('fetch',fetchMock);
+    setAccessToken('live-token');
+
+    await api(path);
+    await expect(api(path)).resolves.toEqual(fallback);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
