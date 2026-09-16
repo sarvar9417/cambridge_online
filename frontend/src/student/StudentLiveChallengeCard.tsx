@@ -1,0 +1,47 @@
+import { useEffect, useState } from 'react';
+import { Broadcast, PlayCircle } from '@phosphor-icons/react';
+import { api, type LiveExamSummary } from '../lib/api';
+import { navigate } from '../lib/router';
+import './student-live-challenge.css';
+
+const ACTIVE_STATUS = new Set(['lobby','question_open','marking','review']);
+
+const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
+  lobby:'O‘qituvchi boshlashini kutmoqda',
+  question_open:'Savol ochiq',
+  marking:'Baholash davom etmoqda',
+  review:'Natijalar ochiq',
+  finished:'Yakunlangan',
+  cancelled:'Bekor qilingan',
+};
+
+export function StudentLiveChallengeCard() {
+  const [sessions,setSessions]=useState<LiveExamSummary[]>([]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const load=()=>api<{data:LiveExamSummary[]}>('/live-exams')
+      .then((result)=>{if(!cancelled)setSessions(result.data)})
+      .catch(()=>{});
+    void load();
+    const timer=window.setInterval(()=>void load(),15_000);
+    return()=>{cancelled=true;window.clearInterval(timer)};
+  },[]);
+
+  const active=sessions.find((session)=>ACTIVE_STATUS.has(session.status));
+  const destination=active?`oquvchi/live?id=${active.id}`:'oquvchi/live';
+
+  return <section className={`sh-live ${active?'is-active':''}`} aria-label="Live Challenge">
+    <div className="sh-live-icon"><Broadcast size={28} weight={active?'fill':'regular'}/></div>
+    <div className="sh-live-copy">
+      <span>CAMBRIDGE LIVE CHALLENGE</span>
+      <h2>{active?active.title:'Sinf bilan bir vaqtda past-paper ishlang'}</h2>
+      <p>{active
+        ? `${active.className} · ${STATUS_TEXT[active.status]} · ${active.participantCount} o‘quvchi`
+        : 'O‘qituvchi bergan 6 xonali kod bilan live sessiyaga qo‘shiling. Savol, mark scheme va natija bir xil ritmda ochiladi.'}</p>
+    </div>
+    <button type="button" onClick={()=>navigate(destination)}>
+      <PlayCircle size={20} weight="fill"/>{active?'Sessiyaga kirish':'Kodni kiritish'}
+    </button>
+  </section>;
+}

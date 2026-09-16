@@ -1,0 +1,9 @@
+.sh-live{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1rem;align-items:center;padding:1rem 1.1rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:linear-gradient(110deg,var(--surface),var(--accent-soft));box-shadow:var(--shadow)}
+.sh-live.is-active{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));background:linear-gradient(110deg,var(--accent-soft),var(--surface))}
+.sh-live-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:inset 0 0 0 1px var(--border)}
+.sh-live.is-active .sh-live-icon{animation:sh-live-pulse 2s ease-in-out infinite}
+.sh-live-copy{display:grid;gap:.15rem;min-width:0}.sh-live-copy>span{color:var(--accent);font-size:.68rem;font-weight:800;letter-spacing:.1em}.sh-live-copy h2{margin:0;font-size:1rem}.sh-live-copy p{margin:0;color:var(--text-muted);font-size:.8rem;line-height:1.45}
+.sh-live>button{display:flex;align-items:center;gap:.4rem;border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent);color:var(--accent-contrast);padding:.55rem .85rem;font:inherit;font-size:.82rem;font-weight:650;cursor:pointer;white-space:nowrap}.sh-live>button:hover{box-shadow:0 6px 16px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
+@keyframes sh-live-pulse{50%{box-shadow:inset 0 0 0 1px var(--border),0 0 0 7px color-mix(in srgb,var(--accent) 12%,transparent)}}
+@media(max-width:680px){.sh-live{grid-template-columns:auto 1fr}.sh-live>button{grid-column:1/-1;justify-self:stretch;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.sh-live.is-active .sh-live-icon{animation:none}}
