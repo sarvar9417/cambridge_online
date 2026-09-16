@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
 
@@ -23,10 +23,18 @@ function isPeerIntegrityConflict(error: unknown) {
     && 'message' in error && error.message === 'live_peer_assignment_impossible');
 }
 
+function privateNoStore(res: Response) {
+  res.set('Cache-Control', 'private, no-store');
+}
+
 export function createLiveExamsRouter(service: LiveExamService) {
   const router = Router();
 
   router.get('/', async (req, res) => {
+    // Session lists contain classroom membership state and room codes for
+    // authorised users. Never let a browser intermediary or shared device cache
+    // one user's view and replay it to the next signed-in user.
+    privateNoStore(res);
     res.json({ data: await service.list(req.actor!) });
   });
 
@@ -43,6 +51,9 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.get('/:id', async (req, res) => {
+    // A snapshot can contain the learner's draft/submitted answer and, after
+    // reveal, Mark Scheme or review data. Treat it as sensitive per-user state.
+    privateNoStore(res);
     res.json(await service.snapshot(req.actor!, id(req.params)));
   });
 
