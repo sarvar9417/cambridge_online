@@ -1,0 +1,64 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { LiveExamRoundSummaryService } from './live-exam-round-summary-service.js';
+
+const teacher = { id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher' };
+const student = { id:'student-1',role:'student' as const,schoolId:'school-1',fullName:'Student' };
+
+function serviceFor(query: ReturnType<typeof vi.fn>) {
+  return new LiveExamRoundSummaryService({ query } as unknown as Pool);
+}
+
+describe('LiveExamRoundSummaryService', () => {
+  it('is staff-only before querying the database', async () => {
+    const query=vi.fn();
+    await expect(serviceFor(query).summary(student,'session-1'))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('does not expose standings before round results are ready', async () => {
+    const query=vi.fn().mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'marking',current_question_index:0}]});
+    await expect(serviceFor(query).summary(teacher,'session-1'))
+      .rejects.toMatchObject({code:'live_results_not_ready',status:409});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns tied marks-first round standings, distribution and cumulative totals', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:1}]})
+      .mockResolvedValueOnce({rowCount:3,rows:[
+        {student_id:'s1',full_name:'Ali',score:4,marks:5,rank:1},
+        {student_id:'s2',full_name:'Vali',score:4,marks:5,rank:1},
+        {student_id:'s3',full_name:'Salim',score:2,marks:5,rank:3},
+      ]})
+      .mockResolvedValueOnce({rowCount:3,rows:[
+        {student_id:'s2',full_name:'Vali',score:8,rank:1},
+        {student_id:'s1',full_name:'Ali',score:7,rank:2},
+        {student_id:'s3',full_name:'Salim',score:5,rank:3},
+      ]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:10}]});
+
+    const result=await serviceFor(query).summary(teacher,'session-1');
+    expect(result.marksFirst).toBe(true);
+    expect(result.questionPosition).toBe(1);
+    expect(result.round.possible).toBe(5);
+    expect(result.round.average).toBeCloseTo(10/3);
+    expect(result.round.distribution).toEqual([{score:4,count:2},{score:2,count:1}]);
+    expect(result.round.standings.map((item)=>item.rank)).toEqual([1,1,3]);
+    expect(result.overall.possible).toBe(10);
+    expect(result.overall.standings[0]).toMatchObject({studentId:'s2',score:8,rank:1,possible:10});
+  });
+
+  it('never introduces a speed tie-breaker in the standings query', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'finished',current_question_index:0}]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:0}]});
+    await serviceFor(query).summary(teacher,'session-1');
+    const rankingSql=String(query.mock.calls[1]?.[0]??'');
+    expect(rankingSql).toContain('rank() over(order by coalesce(a.final_score,0) desc)');
+    expect(rankingSql).not.toContain('submitted_at');
+  });
+});
