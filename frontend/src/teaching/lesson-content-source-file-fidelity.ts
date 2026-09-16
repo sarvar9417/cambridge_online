@@ -34,6 +34,11 @@ const addFileFingerprints = (chapter:HodderLessonChapter, manifest:SourceFileFid
       if(!fingerprints.length)return slide;
       return {
         ...slide,
+        // Legacy Chapter 1/13 lesson objects predate per-slide sourceLabel.
+        // Attach the exact supplied-file identity once at the fidelity layer,
+        // but never relabel live checkpoints or an explicitly named enrichment
+        // source such as the current Cambridge Pseudocode Guide.
+        sourceLabel:slide.sourceLabel ?? (slide.examPractice ? undefined : `Hodder Chapter ${chapter.number} · exact supplied PDF extract · ${manifest.sourceFile}`),
         sourceElements:[...(slide.sourceElements??[]),...fingerprints],
       };
     }),
