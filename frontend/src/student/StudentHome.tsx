@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Assignment, Flashcard, MasteryItem, ResultItem, User } from '../lib/api';
 import { navigate } from '../lib/router';
 import { StudentNextAction } from './StudentNextAction';
+import { StudentLiveChallengeCard } from './StudentLiveChallengeCard';
 import './student-home.css';
 
 export interface StudentHomeProps {
@@ -87,6 +88,7 @@ export function StudentHome({
     </header>
 
     <StudentNextAction assignments={assignments} results={results} mastery={mastery} flashcards={flashcards} onStart={onStart} onPractice={onPractice} />
+    <StudentLiveChallengeCard />
 
     <section className="sh-card">
       <div className="sh-card-head"><h2>Topshirish kerak</h2>{open.length > 3 ? <button type="button" className="sh-link" onClick={() => navigate('oquvchi/vazifalar')}>Hammasi ({open.length}) →</button> : null}</div>
