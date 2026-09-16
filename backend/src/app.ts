@@ -48,6 +48,7 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
+import { createLiveExamRealtimeRouter } from './routes/live-exam-realtime.js';
 import { createLiveExamsRouter } from './routes/live-exams.js';
 import { createSubmissionsRouter } from './routes/submissions.js';
 import { createGradingsRouter } from './routes/gradings.js';
@@ -61,6 +62,7 @@ import { opportunisticMaintenance } from './middleware/opportunistic-maintenance
 import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
+import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
 
 export function createApp(
@@ -145,6 +147,13 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/admin/quality', createQualityRouter(new QualityService(pool)));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
+  // Mount the lightweight event cursor before the snapshot router. It carries
+  // no assessment payload; clients use version advances to trigger an
+  // authoritative snapshot refresh after a classroom event.
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',
+    createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
+  );
   if (pool && questionsRepository) mountPrivate(
     '/api/v1/live-exams',
     createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
