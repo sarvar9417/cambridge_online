@@ -23,10 +23,12 @@ describe('live exam override audit migration',()=>{
     expect(sql).toContain('AFTER UPDATE OF final_score, final_feedback_md, score_source, moderated_by, moderated_at');
   });
 
-  it('keeps the audit table behind the Express authorisation boundary',()=>{
+  it('keeps the audit table behind the Express authorisation boundary with indexed foreign keys',()=>{
     expect(sql).toContain('ALTER TABLE live_exam_score_overrides ENABLE ROW LEVEL SECURITY');
     expect(sql).toContain('REVOKE ALL ON live_exam_score_overrides FROM anon, authenticated');
     expect(sql).toContain('live_exam_score_overrides_session_created_idx');
+    expect(sql).toContain('live_exam_score_overrides_question_idx');
     expect(sql).toContain('live_exam_score_overrides_answer_created_idx');
+    expect(sql).toContain('live_exam_score_overrides_teacher_created_idx');
   });
 });
