@@ -14,6 +14,7 @@ export function createLiveExamRealtimeRouter(service: LiveExamRealtimeService) {
   router.get('/:id/events', async (req, res) => {
     const sessionId = uuid.parse(req.params.id);
     const query = queryInput.parse(req.query);
+    res.set('Cache-Control','private, no-store');
     res.json(await service.events(req.actor!, sessionId, query.afterVersion, query.limit));
   });
 
