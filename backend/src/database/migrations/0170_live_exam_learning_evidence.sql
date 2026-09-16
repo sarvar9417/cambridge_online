@@ -35,22 +35,62 @@ CREATE OR REPLACE FUNCTION persist_live_exam_learning_evidence()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  target_syllabus_id uuid;
 BEGIN
   IF NEW.status <> 'finished' OR OLD.status = 'finished' THEN
     RETURN NEW;
   END IF;
 
-  -- A finished assessment must have an explicit syllabus learning-objective
-  -- mapping. Do not silently turn an unmapped question into partial analytics.
+  -- Mastery belongs to the syllabus assigned to the class, not necessarily the
+  -- historical syllabus version from which a source-faithful past-paper
+  -- question originated. Direct current-syllabus LO mappings are accepted;
+  -- historical mappings may cross into the class syllabus only through an
+  -- explicitly reviewed compatibility edge.
+  SELECT c.syllabus_id INTO target_syllabus_id
+  FROM classes c
+  WHERE c.id = NEW.class_id;
+
+  IF target_syllabus_id IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'live_exam_analytics_target_syllabus_missing';
+  END IF;
+
+  -- Every question must resolve to at least one LO in the class's target
+  -- syllabus. Historical source LOs never become mastery buckets by accident.
   IF EXISTS (
+    WITH mapping_candidates AS (
+      SELECT leq.id session_question_id, qlo.lo_id learning_objective_id
+      FROM live_exam_questions leq
+      JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
+      JOIN learning_objectives direct_lo ON direct_lo.id = qlo.lo_id
+      JOIN subtopics direct_st ON direct_st.id = direct_lo.subtopic_id
+      JOIN topics direct_t ON direct_t.id = direct_st.topic_id
+      WHERE leq.session_id = NEW.id
+        AND direct_t.syllabus_id = target_syllabus_id
+
+      UNION
+
+      SELECT leq.id session_question_id, target_lo.id learning_objective_id
+      FROM live_exam_questions leq
+      JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
+      JOIN learning_objective_compatibility compat
+        ON compat.source_lo_id = qlo.lo_id
+       AND compat.relation IN ('equivalent','subtopic_compatible')
+      JOIN learning_objectives target_lo ON target_lo.id = compat.target_lo_id
+      JOIN subtopics target_st ON target_st.id = target_lo.subtopic_id
+      JOIN topics target_t ON target_t.id = target_st.topic_id
+      WHERE leq.session_id = NEW.id
+        AND target_t.syllabus_id = target_syllabus_id
+    )
     SELECT 1
     FROM live_exam_questions leq
     WHERE leq.session_id = NEW.id
       AND NOT EXISTS (
         SELECT 1
-        FROM question_learning_objectives qlo
-        JOIN learning_objectives lo ON lo.id = qlo.lo_id
-        WHERE qlo.question_id = leq.question_id
+        FROM mapping_candidates mapped
+        WHERE mapped.session_question_id = leq.id
       )
   ) THEN
     RAISE EXCEPTION USING
@@ -72,7 +112,52 @@ BEGIN
       MESSAGE = 'live_exam_analytics_ungraded_answer';
   END IF;
 
-  WITH inserted AS (
+  WITH mapping_candidates AS (
+    SELECT
+      leq.id session_question_id,
+      leq.question_id,
+      qlo.lo_id learning_objective_id,
+      direct_lo.subtopic_id,
+      qlo.confidence mapping_confidence
+    FROM live_exam_questions leq
+    JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
+    JOIN learning_objectives direct_lo ON direct_lo.id = qlo.lo_id
+    JOIN subtopics direct_st ON direct_st.id = direct_lo.subtopic_id
+    JOIN topics direct_t ON direct_t.id = direct_st.topic_id
+    WHERE leq.session_id = NEW.id
+      AND direct_t.syllabus_id = target_syllabus_id
+
+    UNION ALL
+
+    SELECT
+      leq.id session_question_id,
+      leq.question_id,
+      target_lo.id learning_objective_id,
+      target_lo.subtopic_id,
+      qlo.confidence mapping_confidence
+    FROM live_exam_questions leq
+    JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
+    JOIN learning_objective_compatibility compat
+      ON compat.source_lo_id = qlo.lo_id
+     AND compat.relation IN ('equivalent','subtopic_compatible')
+    JOIN learning_objectives target_lo ON target_lo.id = compat.target_lo_id
+    JOIN subtopics target_st ON target_st.id = target_lo.subtopic_id
+    JOIN topics target_t ON target_t.id = target_st.topic_id
+    WHERE leq.session_id = NEW.id
+      AND target_t.syllabus_id = target_syllabus_id
+  ), resolved_mapping AS (
+    -- Multiple historical source LOs can intentionally resolve to the same
+    -- current LO. Collapse those paths before inserting evidence so retries and
+    -- compatibility fan-in cannot duplicate one target objective.
+    SELECT
+      session_question_id,
+      question_id,
+      learning_objective_id,
+      subtopic_id,
+      max(mapping_confidence) mapping_confidence
+    FROM mapping_candidates
+    GROUP BY session_question_id,question_id,learning_objective_id,subtopic_id
+  ), inserted AS (
     INSERT INTO live_exam_learning_evidence(
       session_id,session_question_id,answer_id,student_id,question_id,
       learning_objective_id,subtopic_id,mapping_confidence,
@@ -80,24 +165,22 @@ BEGIN
     )
     SELECT
       NEW.id,
-      leq.id,
+      mapped.session_question_id,
       a.id,
       lep.student_id,
-      leq.question_id,
-      qlo.lo_id,
-      lo.subtopic_id,
-      qlo.confidence,
+      mapped.question_id,
+      mapped.learning_objective_id,
+      mapped.subtopic_id,
+      mapped.mapping_confidence,
       a.final_score,
       leq.marks,
       a.score_source,
       (a.moderated_by IS NOT NULL),
       coalesce(NEW.finished_at,now())
-    FROM live_exam_questions leq
-    JOIN live_exam_answers a ON a.session_question_id = leq.id
+    FROM resolved_mapping mapped
+    JOIN live_exam_questions leq ON leq.id = mapped.session_question_id
+    JOIN live_exam_answers a ON a.session_question_id = mapped.session_question_id
     JOIN live_exam_participants lep ON lep.id = a.participant_id
-    JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
-    JOIN learning_objectives lo ON lo.id = qlo.lo_id
-    WHERE leq.session_id = NEW.id
     ON CONFLICT (answer_id,learning_objective_id) DO NOTHING
     RETURNING student_id,subtopic_id,learning_objective_id,answer_id,marks_earned,marks_possible
   ), subtopic_answers AS (
