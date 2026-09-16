@@ -224,7 +224,7 @@ export class LiveChallengeAnswerService{
        where lc.id=$1 and (
          ($2='owner' and c.school_id=$3)
          or lc.teacher_id=$4
-         or exists(select 1 from class_teachers ct where ct.class_id=lc.id and ct.teacher_id=$4)
+         or exists(select 1 from class_teachers ct where ct.class_id=lc.class_id and ct.teacher_id=$4)
        )`,
       [id,actor.role,actor.schoolId,actor.id],
     );
