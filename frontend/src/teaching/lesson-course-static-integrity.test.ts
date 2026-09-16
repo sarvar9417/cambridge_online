@@ -12,7 +12,7 @@ import {
 } from './lesson-course-catalog';
 
 const rangeFor=(chapter:number)=>HODDER_9618_FULL_BOOK_CHAPTER_RANGES.find(item=>item.chapter===chapter)!;
-const localExtractManifestFor=(chapter:number)=>chapter===1
+const extractManifestFor=(chapter:number)=>chapter===1
   ? CHAPTER_1_SOURCE_FILE_MANIFEST
   : chapter===13
     ? CHAPTER_13_SOURCE_FILE_MANIFEST
@@ -36,11 +36,14 @@ describe('course-wide lesson static integrity',()=>{
     }
   });
 
-  it('keeps every declared 9618 source page inside its exact source numbering boundary',()=>{
+  it('keeps every declared 9618 source page inside its exact source provenance boundary',()=>{
     for(const chapter of LESSON_CHAPTERS){
       const range=rangeFor(chapter.number);
-      const extractManifest=localExtractManifestFor(chapter.number);
+      const extractManifest=extractManifestFor(chapter.number);
       const chapterPages=new Set<number>();
+      const printedPages=extractManifest
+        ? new Set(extractManifest.pages.map(page=>page.printedPage))
+        : null;
 
       if(extractManifest){
         const [printedStart,printedEnd]=range.printedPageRange;
@@ -52,12 +55,14 @@ describe('course-wide lesson static integrity',()=>{
       for(const slide of chapter.slides){
         for(const page of slide.sourcePages??[]){
           chapterPages.add(page);
-          if(extractManifest){
-            // PDF-first Chapters 1 and 13 deliberately store page numbers local
-            // to their exact uploaded chapter extracts. The manifest maps those
-            // extracts back to the printed full-book range.
-            expect(page,`${slide.id} lower extract bound`).toBeGreaterThanOrEqual(1);
-            expect(page,`${slide.id} upper extract bound`).toBeLessThanOrEqual(extractManifest.pageCount);
+          if(extractManifest&&printedPages){
+            // PDF-first source-fidelity chapters can contain both the legacy
+            // chapter-extract page number (1..N) and exact transcript slides
+            // labelled with the corresponding printed coursebook page. Both
+            // forms must resolve inside the same byte-locked extract manifest.
+            const isLocalExtractPage=page>=1&&page<=extractManifest.pageCount;
+            const isMappedPrintedPage=printedPages.has(page);
+            expect(isLocalExtractPage||isMappedPrintedPage,`${slide.id} source page ${page} is not represented by the Chapter ${chapter.number} extract`).toBe(true);
           }else{
             const [start,end]=range.printedPageRange;
             expect(page,`${slide.id} lower printed bound`).toBeGreaterThanOrEqual(start);
