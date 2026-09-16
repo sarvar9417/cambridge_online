@@ -14,6 +14,7 @@ import {
   presentationVisualOwnsBeatContent,
 } from './Chapter14PresentationVisualsV4';
 import { chapter14PresentationRevealCount } from './chapter14-presentation-runtime';
+import { presentationDensityClass, presentationDensityForBeat } from './presentation-classroom-audit';
 import './chapter14-presentation-prototype.css';
 import './chapter-presentation-richness.css';
 
@@ -42,8 +43,8 @@ const revealItemClass=(presenting:boolean,reveal:number,index:number)=>
 
 function VisualGraphic({kind}:{kind?:LessonVisual}) {
   if(!kind)return null;
-  return <div className={`lx-visual lx-visual--${kind}`} aria-hidden="true">
-    {VISUAL_LABELS[kind].map((label,index)=><span key={`${label}-${index}`}>{label}</span>)}
+  return <div className={`lx-visual lx-visual--${kind}`} data-visual-kind={kind} aria-hidden="true">
+    {VISUAL_LABELS[kind].map((label,index)=><span data-step={index+1} key={`${label}-${index}`}>{label}</span>)}
   </div>;
 }
 
@@ -167,14 +168,17 @@ export function LessonPresentationScreen({beat,reveal}:{beat:LessonPresentationB
   const v4OwnsStructuredContent=v4Visual&&presentationVisualOwnsBeatContent(beat);
   const hasStructuredSupport=Boolean(beat.formula||beat.bullets?.length||beat.keyTerms?.length||beat.richBlock||beat.example);
   const splitRich=v4Visual&&!chapter14Owned&&!v4OwnsStructuredContent&&hasStructuredSupport;
+  const density=presentationDensityForBeat(beat);
   const articleClass=[
     'lx-present-screen',
     `lx-present-screen--${beat.kind}`,
     `lx-present-screen--scene-${role}`,
+    !customVisual?'lx-present-screen--generic':'',
+    presentationDensityClass(beat),
     splitRich?'lx-present-screen--split-rich':'',
   ].filter(Boolean).join(' ');
   const v4Node=<Chapter14PresentationVisualV4 beat={beat} reveal={reveal}/>;
-  return <article className={articleClass} aria-live="polite">
+  return <article className={articleClass} data-slide-id={beat.slideId} data-beat-id={beat.id} data-density={density} aria-live="polite">
     <header><span>{label}</span><small>{beat.eyebrow}</small><h1>{beat.title}</h1></header>
     <div className="lx-present-content">
       {!chapter14Owned&&beat.lead?<p className="lx-present-lead">{beat.lead}</p>:null}
