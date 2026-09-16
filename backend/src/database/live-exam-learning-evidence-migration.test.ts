@@ -7,23 +7,28 @@ const sql=readFileSync(
 );
 
 describe('live exam learning evidence migration',()=>{
-  it('stores canonical question and syllabus-mapped score evidence',()=>{
+  it('stores canonical question and learning-objective score evidence',()=>{
     expect(sql).toContain('CREATE TABLE live_exam_learning_evidence');
     expect(sql).toContain('question_id uuid NOT NULL REFERENCES questions');
+    expect(sql).toContain('learning_objective_id uuid NOT NULL REFERENCES learning_objectives');
     expect(sql).toContain('subtopic_id uuid NOT NULL REFERENCES subtopics');
-    expect(sql).toContain('UNIQUE (answer_id, subtopic_id)');
+    expect(sql).toContain('mapping_confidence numeric(3,2)');
+    expect(sql).toContain('UNIQUE (answer_id, learning_objective_id)');
     expect(sql).toContain('teacher_overridden boolean NOT NULL DEFAULT false');
   });
 
   it('fails closed before publishing incomplete analytics evidence',()=>{
+    expect(sql).toContain('question_learning_objectives qlo');
     expect(sql).toContain('live_exam_analytics_unmapped_question');
     expect(sql).toContain('live_exam_analytics_ungraded_answer');
     expect(sql).toContain("WHEN (NEW.status = 'finished' AND OLD.status IS DISTINCT FROM NEW.status)");
   });
 
-  it('folds only newly inserted evidence into the existing mastery aggregate',()=>{
-    expect(sql).toContain('ON CONFLICT (answer_id,subtopic_id) DO NOTHING');
-    expect(sql).toContain('FROM inserted');
+  it('keeps LO evidence while avoiding duplicate subtopic mastery marks',()=>{
+    expect(sql).toContain('ON CONFLICT (answer_id,learning_objective_id) DO NOTHING');
+    expect(sql).toContain('subtopic_answers AS');
+    expect(sql).toContain('SELECT DISTINCT');
+    expect(sql).toContain('FROM subtopic_answers');
     expect(sql).toContain('INSERT INTO mastery');
     expect(sql).toContain('mastery.marks_earned + excluded.marks_earned');
     expect(sql).toContain('mastery.marks_possible + excluded.marks_possible');
