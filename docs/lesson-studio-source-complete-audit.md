@@ -2,12 +2,14 @@
 
 ## Current catalog status
 
-As of 2026-09-16, the canonical lesson catalog exposed by Lesson Studio and student Study Mode contains:
+As of 2026-09-16, teacher Lesson Studio exposes the course-aware lesson catalog:
 
 - Cambridge International AS & A Level Computer Science 9618 — Chapters 1–20;
 - Cambridge IGCSE Computer Science 0478 — Chapter 7 as a separate course-aware route.
 
-The 9618 catalog is source-backed across all twenty chapters. Chapters 5–12 and 15–20 use the deep final Hodder routes produced during the source-completion rollout; Chapters 1–4 and 13–14 retain their existing specialised source-fidelity routes. All twenty 9618 chapters are reachable through the shared presentation model, and the 0478 Chapter 7 route remains isolated from 9618 Chapter 7 by course and slide identity.
+Student Study Mode currently mirrors the canonical 9618 Chapters 1–20 source catalog. It does not yet expose the separate 0478 Chapter 7 route, so that student-facing extension must remain an explicit future course-aware change rather than reusing the numeric Chapter 7 URL implicitly.
+
+The 9618 catalog is source-backed across all twenty chapters. Chapters 5–12 and 15–20 use the deep final Hodder routes produced during the source-completion rollout; Chapters 1–4 and 13–14 retain their existing specialised source-fidelity routes. All twenty 9618 chapters are reachable through the shared presentation model, and the 0478 Chapter 7 teacher route remains isolated from 9618 Chapter 7 by course and slide identity.
 
 The completed presentation-quality rollout adds chapter-specific projector visuals while keeping source-backed teaching text visible. Static CI now guards catalog completeness, global slide-ID uniqueness, chapter-scoped presentation beats, source-provenance boundaries and the 9618/0478 Chapter 7 separation. Browser/runtime preview QA is intentionally a separate final pass and is not part of the static-completeness claim in this document.
 
