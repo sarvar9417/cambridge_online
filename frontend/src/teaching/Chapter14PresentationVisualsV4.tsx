@@ -3,6 +3,7 @@ import { Chapter14PresentationHero } from './Chapter14PresentationHeroRegistry';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter13PresentationVisual, hasChapter13PresentationVisual } from './Chapter13PresentationVisuals';
 import { Chapter7PresentationVisual, hasChapter7PresentationVisual } from './Chapter7PresentationVisuals';
+import { Chapter7EthicsVisual, hasChapter7EthicsVisual } from './Chapter7EthicsVisuals';
 import { Chapter6SecurityVisual, hasChapter6SecurityVisual } from './Chapter6SecurityVisuals';
 import { Chapter5OperatingSystemVisual, hasChapter5OperatingSystemVisual } from './Chapter5OperatingSystemVisuals';
 import { Chapter5SystemSoftwareVisual, hasChapter5SystemSoftwareVisual } from './Chapter5SystemSoftwareVisuals';
@@ -25,12 +26,12 @@ import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
-  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter6SecurityVisual(beat)||hasChapter5SystemSoftwareVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
+  return hasChapter14PresentationRuntime(beat)||hasChapter13PresentationVisual(beat)||hasChapter7EthicsVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter6SecurityVisual(beat)||hasChapter5SystemSoftwareVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
 /**
  * Chapter 14, Chapter 1 and Chapter 13 render the beat payload inside their
- * specialised visual surface. The Chapter 2/3/4/5/6 systems are deliberately
+ * specialised visual surface. The Chapter 2/3/4/5/6/7 systems are deliberately
  * diagram-only: their source text/table/steps must therefore remain visible
  * beside the visual instead of being suppressed by the generic presenter.
  */
@@ -56,6 +57,7 @@ export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresenta
   if(hasChapter5SystemSoftwareVisual(beat))return <Chapter5SystemSoftwareVisual beat={beat} reveal={reveal}/>;
   if(hasChapter5OperatingSystemVisual(beat))return <Chapter5OperatingSystemVisual beat={beat} reveal={reveal}/>;
   if(hasChapter6SecurityVisual(beat))return <Chapter6SecurityVisual beat={beat} reveal={reveal}/>;
+  if(hasChapter7EthicsVisual(beat))return <Chapter7EthicsVisual beat={beat} reveal={reveal}/>;
   if(hasChapter7PresentationVisual(beat))return <Chapter7PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter13PresentationVisual(beat))return <Chapter13PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter14PresentationRuntime(beat))return <Chapter14PresentationHero beat={beat} reveal={reveal}/>;
