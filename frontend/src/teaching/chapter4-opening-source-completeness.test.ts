@@ -10,14 +10,17 @@ const fixture = (name: string) => readFileSync(resolve(process.cwd(), 'src', 'te
 const chapterText = JSON.stringify(CHAPTER_4_PROCESSOR_SLIDES);
 
 describe('Hodder 9618 Chapter 4 opening source completeness', () => {
-  it('keeps the verified opening batch in printed-page order', () => {
-    expect(CHAPTER_4_PROCESSOR_SLIDES.map(slide => slide.sourcePages?.[0])).toEqual([107, 109, 109, 110, 111, 112, 113, 114]);
+  it('keeps the verified opening batch in printed-page order without dropping the key-term page', () => {
+    expect(CHAPTER_4_PROCESSOR_SLIDES.map(slide => slide.sourcePages)).toEqual([[107,108],[109],[109],[110],[111],[112],[113],[114]]);
+    const openingPages=[...new Set(CHAPTER_4_PROCESSOR_SLIDES.flatMap(slide=>slide.sourcePages??[]))].sort((a,b)=>a-b);
+    expect(openingPages).toEqual(Array.from({length:8},(_,index)=>107+index));
+    expect(CHAPTER_4_DRAFT.coverage).toContain('opening key terms on pp.107–108');
     expect(CHAPTER_4_DRAFT.coverage).toContain('Source-complete through p.114');
     expect(CHAPTER_4_DRAFT.sourceNote).toContain('pp.115–135 remain explicitly unresolved');
   });
 
   it('preserves the Chapter 4 source figures, table, activity and terminology', () => {
-    for (const token of ['Figure 4.1 Representation of Von Neumann architecture','Table 4.1 Common registers','Extension Activity 4A','Figure 4.2 System buses','Figure 4.3 Two cores, one channel and four cores, six channels','Figure 4.4 USB cable, HDMI cable, VGA cable','immediate access store (IAS)','CIR','IX','MAR','MDR/MBR','PC','SR','Carry flag','Negative flag','Overflow flag','Zero flag','address bus','data bus','control bus','3.5 GHz','overclocking','cache memory','asynchronous serial data transmission']) expect(chapterText).toContain(token);
+    for (const token of ['Figure 4.1 Representation of Von Neumann architecture','Table 4.1 Common registers','Extension Activity 4A','Figure 4.2 System buses','Figure 4.3 Two cores, one channel and four cores, six channels','Figure 4.4 USB cable, HDMI cable, VGA cable','immediate access store (IAS)','CIR','IX','MAR','MDR/MBR','PC','SR','Carry flag','Negative flag','Overflow flag','Zero flag','address bus','data bus','control bus','3.5 GHz','overclocking','cache memory','asynchronous serial data transmission','High-bandwidth digital copy protection (HDCP)','Register Transfer Notation (RTN)','interrupt service routine (ISR) / interrupt handler']) expect(chapterText).toContain(token);
   });
 
   it('locks source numeric examples instead of replacing them with generic examples', () => {
