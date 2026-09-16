@@ -1,10 +1,14 @@
 import type { HodderLessonChapter, HodderLessonSlide } from './lesson-content-hodder-types';
 
-const source = (page: number, elements: string[] = []) => ({
-  sourcePages: [page],
-  sourceLabel: `Hodder Chapter 4 · p.${page}`,
-  sourceElements: [`Hodder p.${page}`, ...elements],
-});
+const source = (page: number | number[], elements: string[] = []) => {
+  const pages=Array.isArray(page)?page:[page];
+  const pageLabel=pages.length===1?`p.${pages[0]}`:`pp.${pages[0]}–${pages.at(-1)}`;
+  return {
+    sourcePages: pages,
+    sourceLabel: `Hodder Chapter 4 · ${pageLabel}`,
+    sourceElements: [...pages.map(item=>`Hodder p.${item}`), ...elements],
+  };
+};
 
 export const CHAPTER_4_PROCESSOR_SLIDES: HodderLessonSlide[] = [
   {
@@ -13,19 +17,33 @@ export const CHAPTER_4_PROCESSOR_SLIDES: HodderLessonSlide[] = [
     eyebrow: 'CHAPTER 4 · PROCESSOR FUNDAMENTALS',
     title: 'Processor fundamentals: architecture, buses, performance and ports',
     lead: 'Hodder opens Chapter 4 with the Von Neumann model, processor registers and components, system buses, performance factors, peripheral ports, the fetch-execute cycle, interrupts, assembly language, addressing modes, shifts and bit manipulation.',
-    richBlocks: [{
-      kind: 'steps',
-      title: 'What you should already know',
-      items: [
-        'Name the main components of a typical computer system.',
-        'Compare desktop/laptop operation with tablet or phone operation.',
-        'Identify input and output ports on computers, laptops and phones.',
-        'Consider how the microprocessor has developed over the last ten years.',
-      ],
-    }],
+    richBlocks: [
+      {
+        kind: 'steps',
+        title: 'What you should already know',
+        items: [
+          'Name the main components of a typical computer system.',
+          'Compare desktop/laptop operation with tablet or phone operation.',
+          'Identify input and output ports on computers, laptops and phones.',
+          'Consider how the microprocessor has developed over the last ten years.',
+        ],
+      },
+      {
+        kind: 'bullets',
+        items: [
+          'Processor vocabulary carried forward from the opening key-term pages: control bus; unidirectional; bidirectional; word; clock cycle; overclocking; BIOS; cache memory; core; dual core; quad core.',
+          'Port vocabulary carried forward: port; Universal Serial Bus (USB); asynchronous serial data transmission; High-definition multimedia interface (HDMI); Video Graphics Array (VGA); High-bandwidth digital copy protection (HDCP).',
+          'Execution and control vocabulary carried forward: fetch-execute cycle; program counter (PC); current instruction register (CIR); Register Transfer Notation (RTN); interrupt; interrupt priority; interrupt service routine (ISR) / interrupt handler.',
+        ],
+      },
+    ],
     visual: 'types',
     accent: 'indigo',
-    ...source(107, ['Chapter 4 learning objectives', 'What you should already know']),
+    ...source([107,108], [
+      'Chapter 4 learning objectives',
+      'What you should already know',
+      'p.108 key terms: control bus, unidirectional, bidirectional, word, clock cycle, overclocking, BIOS, cache memory, core, dual core, quad core, port, USB, asynchronous serial data transmission, HDMI, VGA, HDCP, fetch-execute cycle, PC, CIR, RTN, interrupt, interrupt priority, ISR / interrupt handler',
+    ]),
   },
   {
     id: 'h4-411-von-neumann',
@@ -219,6 +237,6 @@ export const CHAPTER_4_DRAFT: Omit<HodderLessonChapter, 'number'> & { number: 4 
   subtitle: 'CPU architecture · buses · performance · ports · fetch-execute · assembly language',
   subtopics: ['4.1 Central processing unit (CPU) architecture', '4.2 Assembly language'],
   sourceNote: 'Source-grounded from the connected Hodder 9618 Coursebook. This draft covers printed pp.107–114 only; pp.115–135 remain explicitly unresolved in this implementation.',
-  coverage: 'Source-complete through p.114: chapter objectives and prior knowledge, key CPU architecture, Figure 4.1, processor components, Table 4.1 registers, status flags and Extension Activity 4A, Figure 4.2 buses, performance factors and Figure 4.3, and the opening USB content with Figure 4.4.',
+  coverage: 'Source-complete through p.114: chapter objectives and prior knowledge, opening key terms on pp.107–108, key CPU architecture, Figure 4.1, processor components, Table 4.1 registers, status flags and Extension Activity 4A, Figure 4.2 buses, performance factors and Figure 4.3, and the opening USB content with Figure 4.4.',
   slides: CHAPTER_4_PROCESSOR_SLIDES,
 };
