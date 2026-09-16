@@ -22,6 +22,10 @@ import './teaching/chapter14-presentation-v2.css';
 import './teaching/presentation-viewport-safety.css';
 import './teaching/presentation-reveal-fixes.css';
 import './teaching/presentation-density-pass.css';
+// Generic Chapters 1–20 use one projector readability baseline. Specialist
+// chapter renderers loaded below remain free to override it with source-specific
+// diagrams and classroom layouts.
+import './teaching/presentation-coursewide-baseline.css';
 import './teaching/chapter14-presentation-v3.css';
 import './teaching/chapter14-presentation-v3-hardening.css';
 import './teaching/chapter14-presentation-v4-visuals.css';

@@ -58,10 +58,16 @@ export class LiveChallengePeerMarkingService{
       await client.query('begin');
       const challenge=await this.staffRound(client,actor,id,true);
       if(challenge.status==='PEER_MARKING'){
-        const count=await client.query(`select count(*)::int count from live_challenge_peer_assignments where round_id=$1 and status<>'CANCELLED'`,[challenge.round_id]);
-        const assignmentCount=Number(count.rows[0]?.count??0);
+        const count=await client.query(
+          `select
+             (select count(*)::int from live_challenge_peer_assignments where round_id=$1 and status<>'CANCELLED') assignment_count,
+             (select count(*)::int from live_challenge_answers where round_id=$1) answer_count`,
+          [challenge.round_id],
+        );
+        const assignmentCount=Number(count.rows[0]?.assignment_count??0);
+        const answerCount=Number(count.rows[0]?.answer_count??0);
         await client.query('commit');
-        return {id,status:'PEER_MARKING',stateVersion:Number(challenge.state_version),roundId:challenge.round_id,assignmentCount,teacherModerationRequired:assignmentCount===0};
+        return {id,status:'PEER_MARKING',stateVersion:Number(challenge.state_version),roundId:challenge.round_id,assignmentCount,teacherModerationRequired:answerCount>0&&assignmentCount===0,noAnswers:answerCount===0};
       }
       if(challenge.status!=='ANSWERS_LOCKED'||challenge.round_status!=='ANSWERS_LOCKED')throw new DomainError('live_challenge_invalid_transition',409);
       if(expectedStateVersion!==undefined&&Number(challenge.state_version)!==expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
@@ -79,11 +85,8 @@ export class LiveChallengePeerMarkingService{
          order by student_id`,
         [challenge.round_id],
       );
-      if(!answers.rowCount)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
       const settings=challenge.settings_json as Record<string,unknown>|null;
       const peerEnabled=settings?.peer_marking_enabled!==false;
-      const teacherOverrideEnabled=settings?.teacher_override_enabled!==false;
-      if(!peerEnabled&&!teacherOverrideEnabled)throw new DomainError('live_challenge_peer_marking_disabled',409);
 
       let assignments:PeerAssignmentIdentity[]=[];
       if(peerEnabled&&answers.rows.length>=2){
@@ -106,14 +109,15 @@ export class LiveChallengePeerMarkingService{
       if(Number(persisted.rows[0]?.count??0)!==assignments.length)throw new DomainError('live_challenge_peer_assignment_unavailable',409);
       await client.query(`update live_challenge_rounds set status='PEER_MARKING',marking_started_at=coalesce(marking_started_at,now()) where id=$1`,[challenge.round_id]);
       const updated=await client.query(`update live_challenges set status='PEER_MARKING',state_version=state_version+1,updated_at=now() where id=$1 returning state_version`,[id]);
-      const teacherModerationRequired=assignments.length===0;
+      const noAnswers=answers.rows.length===0;
+      const teacherModerationRequired=!noAnswers&&assignments.length===0;
       await client.query(
         `insert into live_challenge_events(challenge_id,actor_id,event_type,payload_json)
-         values($1,$2,'marking.started',jsonb_build_object('roundId',$3::text,'assignmentCount',$4,'teacherModerationRequired',$5))`,
-        [id,actor.id,challenge.round_id,assignments.length,teacherModerationRequired],
+         values($1,$2,'marking.started',jsonb_build_object('roundId',$3::text,'assignmentCount',$4,'teacherModerationRequired',$5,'noAnswers',$6))`,
+        [id,actor.id,challenge.round_id,assignments.length,teacherModerationRequired,noAnswers],
       );
       await client.query('commit');
-      return {id,status:'PEER_MARKING',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,assignmentCount:assignments.length,teacherModerationRequired};
+      return {id,status:'PEER_MARKING',stateVersion:Number(updated.rows[0].state_version),roundId:challenge.round_id,assignmentCount:assignments.length,teacherModerationRequired,noAnswers};
     }catch(error){await client.query('rollback');throw error}finally{client.release()}
   }
 
@@ -256,7 +260,7 @@ export class LiveChallengePeerMarkingService{
       const resolvedCount=Number(counts.rows[0]?.resolved_count??0);
       const peerMarkedCount=Number(counts.rows[0]?.peer_marked_count??0);
       const overrideCount=Number(counts.rows[0]?.override_count??0);
-      if(answerCount===0||resolvedCount!==answerCount)throw new DomainError('live_challenge_peer_marks_incomplete',409);
+      if(resolvedCount!==answerCount)throw new DomainError('live_challenge_peer_marks_incomplete',409);
 
       await client.query(
         `insert into mastery(student_id,subtopic_id,score,attempts,marks_earned,marks_possible,last_activity_at)

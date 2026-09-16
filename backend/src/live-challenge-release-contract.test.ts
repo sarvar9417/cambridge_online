@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync,readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe,expect,it } from 'vitest';
 
@@ -103,6 +103,19 @@ describe('Cambridge Live Challenge release security contract',()=>{
       'live_challenge_events_actor_idx',
     ]){
       expect(migration).toContain(index);
+    }
+  });
+
+  it('maps every Live Challenge domain error to a user-facing message',()=>{
+    const app=source('src/app.ts');
+    const serviceDir=resolve(process.cwd(),'src/services');
+    const codes=new Set<string>();
+    for(const file of readdirSync(serviceDir).filter(name=>name.startsWith('live-challenge-')&&name.endsWith('.ts')&&!name.endsWith('.test.ts'))){
+      for(const match of readFileSync(resolve(serviceDir,file),'utf8').matchAll(/new DomainError\('([^']+)'/g))codes.add(match[1]!);
+    }
+    expect(codes.size).toBeGreaterThan(20);
+    for(const code of codes){
+      expect(app).toContain(`${code}:`);
     }
   });
 });

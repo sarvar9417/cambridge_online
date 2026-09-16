@@ -79,13 +79,13 @@ describe('LiveChallengeModerationService',()=>{
 
   it('lists teacher-visible answers with peer and override effective scores',async()=>{
     const query=vi.fn(async(sql:string)=>{
-      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,round_id:roundId,round_number:1,round_status:'PEER_MARKING',max_marks_snapshot:4,display_ref:'9618/12/M/J/26 Q3'}]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,settings_json:{teacher_override_enabled:false},round_id:roundId,round_number:1,round_status:'PEER_MARKING',max_marks_snapshot:4,display_ref:'9618/12/M/J/26 Q3'}]};
       if(sql.includes('select a.id answer_id'))return{rowCount:1,rows:[{answer_id:answerId,student_id:studentId,full_name:'Student One',answer_text:'CPU decodes the instruction.',submitted_at:new Date(),assignment_status:'SUBMITTED',peer_score:'2',peer_marked_at:new Date(),override_score:'3',override_previous_score:'2',override_reason:'Teacher moderation',override_created_at:new Date()}]};
       throw new Error(`Unexpected SQL: ${sql}`);
     });
     const service=new LiveChallengeModerationService({query} as unknown as Pool);
     const result=await service.list(teacher,challengeId);
-    expect(result).toMatchObject({status:'PEER_MARKING',stateVersion:12,roundNumber:1,maxMarks:4});
+    expect(result).toMatchObject({status:'PEER_MARKING',stateVersion:12,roundNumber:1,maxMarks:4,teacherOverrideEnabled:false});
     expect(result.answers[0]).toMatchObject({answerId,studentId,studentName:'Student One',peerScore:2,overrideScore:3,effectiveScore:3,resolved:true});
   });
 
@@ -103,6 +103,33 @@ describe('LiveChallengeModerationService',()=>{
     const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
     await expect(service.override(teacher,challengeId,{answerId,newScore:3,reason:'Teacher moderation',expectedStateVersion:12})).resolves.toMatchObject({challengeId,roundId,answerId,stateVersion:13,previousScore:2,newScore:3});
     expect(query).toHaveBeenCalledWith('commit');
+  });
+
+  it('allows an initial teacher fallback score when peer-score overrides are disabled',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,settings_json:{teacher_override_enabled:false},round_id:roundId,round_number:1,round_status:'PEER_MARKING',max_marks_snapshot:4,display_ref:'Q3'}]};
+      if(sql.includes('select a.id,a.student_id'))return{rowCount:1,rows:[{id:answerId,student_id:studentId,peer_score:null,override_score:null}]};
+      if(sql.includes('insert into live_challenge_score_overrides'))return{rowCount:1,rows:[{id:'override-1',previous_score:null,new_score:'3',reason:'Fallback marking',created_at:new Date()}]};
+      if(sql.includes("set status='CANCELLED'"))return{rowCount:0,rows:[]};
+      if(sql.includes('set state_version=state_version+1'))return{rowCount:1,rows:[{state_version:13}]};
+      if(sql.includes("'score.overridden'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.override(teacher,challengeId,{answerId,newScore:3,reason:'Fallback marking',expectedStateVersion:12})).resolves.toMatchObject({newScore:3,previousScore:null,stateVersion:13});
+  });
+
+  it('still blocks changing an existing peer score when overrides are disabled',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:12,settings_json:{teacher_override_enabled:false},round_id:roundId,round_number:1,round_status:'PEER_MARKING',max_marks_snapshot:4,display_ref:'Q3'}]};
+      if(sql.includes('select a.id,a.student_id'))return{rowCount:1,rows:[{id:answerId,student_id:studentId,peer_score:'2',override_score:null}]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengeModerationService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.override(teacher,challengeId,{answerId,newScore:3,reason:'Change peer mark',expectedStateVersion:12})).rejects.toMatchObject({code:'live_challenge_teacher_override_disabled',status:409});
+    expect(query.mock.calls.some(([sql])=>String(sql).includes('insert into live_challenge_score_overrides'))).toBe(false);
   });
 
   it('freezes teacher scores after round results are released',async()=>{

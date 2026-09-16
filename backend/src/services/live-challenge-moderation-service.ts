@@ -205,6 +205,7 @@ export class LiveChallengeModerationService{
     return {
       challengeId:id,status:round.status,stateVersion:Number(round.state_version),roundId:round.round_id,
       roundNumber:Number(round.round_number),questionRef:round.display_ref,maxMarks:Number(round.max_marks_snapshot),
+      teacherOverrideEnabled:(round.settings_json as Record<string,unknown>|null)?.teacher_override_enabled!==false,
       answers:answers.rows.map(row=>{
         const peerScore=row.peer_score==null?null:Number(row.peer_score);
         const overrideScore=row.override_score==null?null:Number(row.override_score);
@@ -229,7 +230,6 @@ export class LiveChallengeModerationService{
       const round=await this.latestRound(client,actor,id,true);
       if(round.status!=='PEER_MARKING')throw new DomainError('live_challenge_moderation_unavailable',409);
       if(input.expectedStateVersion!==undefined&&Number(round.state_version)!==input.expectedStateVersion)throw new DomainError('live_challenge_state_conflict',409);
-      if((round.settings_json as Record<string,unknown>|null)?.teacher_override_enabled===false)throw new DomainError('live_challenge_teacher_override_disabled',409);
       const maxMarks=Number(round.max_marks_snapshot);
       if(!Number.isFinite(input.newScore)||input.newScore<0||input.newScore>maxMarks)throw new DomainError('live_challenge_peer_score_invalid',400);
 
@@ -248,6 +248,10 @@ export class LiveChallengeModerationService{
       );
       if(!answer.rowCount)throw new DomainError('live_challenge_answer_not_found',404);
       const row=answer.rows[0];
+      const changingResolvedScore=row.peer_score!=null||row.override_score!=null;
+      if(changingResolvedScore&&(round.settings_json as Record<string,unknown>|null)?.teacher_override_enabled===false){
+        throw new DomainError('live_challenge_teacher_override_disabled',409);
+      }
       const previous=row.override_score==null?(row.peer_score==null?null:Number(row.peer_score)):Number(row.override_score);
       const inserted=await client.query(
         `insert into live_challenge_score_overrides(round_id,answer_id,teacher_id,previous_score,new_score,reason)

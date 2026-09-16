@@ -57,6 +57,36 @@ describe('LiveChallengePeerMarkingService',()=>{
     expect(query).toHaveBeenCalledWith('commit');
   });
 
+  it('keeps teacher fallback available for one answer even when peer-score overrides are disabled',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:4,settings_json:{peer_marking_enabled:true,teacher_override_enabled:false},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED'}]};
+      if(sql.includes('select id,student_id from live_challenge_answers'))return{rowCount:1,rows:[{id:answerA,student_id:'student-1'}]};
+      if(sql.includes("status='ASSIGNED'"))return{rowCount:1,rows:[{count:0}]};
+      if(sql.includes("update live_challenge_rounds set status='PEER_MARKING'"))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenges set status='PEER_MARKING'"))return{rowCount:1,rows:[{state_version:5}]};
+      if(sql.includes("'marking.started'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.start(teacher,challengeId,4)).resolves.toMatchObject({status:'PEER_MARKING',assignmentCount:0,teacherModerationRequired:true});
+  });
+
+  it('opens an empty round so zero submissions cannot trap the challenge',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'ANSWERS_LOCKED',state_version:4,settings_json:{peer_marking_enabled:true,teacher_override_enabled:true},round_id:roundId,round_number:1,round_status:'ANSWERS_LOCKED'}]};
+      if(sql.includes('select id,student_id from live_challenge_answers'))return{rowCount:0,rows:[]};
+      if(sql.includes("status='ASSIGNED'"))return{rowCount:1,rows:[{count:0}]};
+      if(sql.includes("update live_challenge_rounds set status='PEER_MARKING'"))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenges set status='PEER_MARKING'"))return{rowCount:1,rows:[{state_version:5}]};
+      if(sql.includes("'marking.started'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.start(teacher,challengeId,4)).resolves.toMatchObject({status:'PEER_MARKING',stateVersion:5,assignmentCount:0,teacherModerationRequired:false,noAnswers:true});
+  });
+
   it('returns an anonymous peer answer and approved mark-scheme snapshot without owner identity',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('select lc.status::text status'))return{rowCount:1,rows:[{status:'PEER_MARKING',state_version:10,round_id:roundId,round_number:1}]};
@@ -161,6 +191,21 @@ describe('LiveChallengePeerMarkingService',()=>{
     });
     const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
     await expect(service.release(teacher,challengeId,6)).resolves.toMatchObject({status:'ROUND_RESULTS',stateVersion:7,markCount:0,overrideCount:1,resolvedCount:1,masteryApplied:true});
+  });
+
+  it('releases an empty round with zero scores so the teacher can continue',async()=>{
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit')return{rowCount:null,rows:[]};
+      if(sql.includes('select lc.id,lc.status::text status'))return{rowCount:1,rows:[{id:challengeId,status:'PEER_MARKING',state_version:6,round_id:roundId,round_number:1,round_status:'PEER_MARKING'}]};
+      if(sql.includes('answer_count'))return{rowCount:1,rows:[{answer_count:0,resolved_count:0,peer_marked_count:0,override_count:0}]};
+      if(sql.includes('insert into mastery'))return{rowCount:0,rows:[]};
+      if(sql.includes("update live_challenge_rounds set status='ROUND_RESULTS'"))return{rowCount:1,rows:[]};
+      if(sql.includes("update live_challenges set status='ROUND_RESULTS'"))return{rowCount:1,rows:[{state_version:7}]};
+      if(sql.includes("'round.results_released'"))return{rowCount:1,rows:[]};
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const service=new LiveChallengePeerMarkingService({connect:vi.fn().mockResolvedValue(client(query))} as unknown as Pool);
+    await expect(service.release(teacher,challengeId,6)).resolves.toMatchObject({status:'ROUND_RESULTS',stateVersion:7,markCount:0,overrideCount:0,resolvedCount:0,masteryApplied:true});
   });
 
   it('advances ROUND_RESULTS to the next unused canonical question',async()=>{

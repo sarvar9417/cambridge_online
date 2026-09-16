@@ -27,6 +27,7 @@ type ModerationState={
   roundNumber:number;
   questionRef:string;
   maxMarks:number;
+  teacherOverrideEnabled:boolean;
   answers:ModerationAnswer[];
 };
 
@@ -41,7 +42,7 @@ export function LiveChallengeModerationPanel({challengeId,status,stateVersion,on
   const[savingId,setSavingId]=useState<string|null>(null);
   const[error,setError]=useState('');
   const[notice,setNotice]=useState('');
-  const editable=status==='PEER_MARKING';
+  const markingOpen=status==='PEER_MARKING';
 
   const load=async()=>{
     setLoading(true);setError('');
@@ -60,7 +61,7 @@ export function LiveChallengeModerationPanel({challengeId,status,stateVersion,on
   const resolvedCount=useMemo(()=>data?.answers.filter(answer=>answer.resolved).length??0,[data]);
   const save=async(event:FormEvent,answer:ModerationAnswer)=>{
     event.preventDefault();
-    if(!data||!editable)return;
+    if(!data||!markingOpen||(!data.teacherOverrideEnabled&&answer.resolved))return;
     const draft=drafts[answer.answerId]??{score:'',reason:''};
     const score=Number(draft.score);
     if(!Number.isFinite(score)||score<0||score>data.maxMarks){setError(`Ball 0–${data.maxMarks} oralig‘ida bo‘lishi kerak.`);return}
@@ -86,11 +87,12 @@ export function LiveChallengeModerationPanel({challengeId,status,stateVersion,on
     {data&&!data.answers.length?<p className="live-moderation-empty">Bu roundda topshirilgan javob yo‘q.</p>:null}
     {data?.answers.length?<div className="live-moderation-list">{data.answers.map(answer=>{
       const draft=drafts[answer.answerId]??{score:'',reason:''};
+      const editable=markingOpen&&(!answer.resolved||data.teacherOverrideEnabled);
       return <article key={answer.answerId} className={answer.resolved?'is-resolved':'is-unresolved'}>
         <div className="live-moderation-answer-head"><div><strong>{answer.studentName}</strong><small>{answer.resolved?'Score resolved':'Teacher action required'} · {new Date(answer.submittedAt).toLocaleTimeString()}</small></div><div className="live-moderation-score"><b>{answer.effectiveScore??'—'}</b><span>/ {data.maxMarks}</span></div></div>
         <pre>{answer.answerText}</pre>
         <div className="live-moderation-evidence"><span>Peer: <b>{answer.peerScore??'—'}</b></span><span>Teacher override: <b>{answer.overrideScore??'—'}</b></span>{answer.assignmentStatus?<span>Assignment: <b>{answer.assignmentStatus}</b></span>:null}</div>
-        {editable?<form onSubmit={event=>void save(event,answer)}><label>Teacher score<input type="number" min={0} max={data.maxMarks} step="0.5" value={draft.score} onChange={event=>setDrafts(current=>({...current,[answer.answerId]:{...draft,score:event.target.value}}))}/></label><label className="live-moderation-reason">Sabab<input maxLength={1000} value={draft.reason} onChange={event=>setDrafts(current=>({...current,[answer.answerId]:{...draft,reason:event.target.value}}))} placeholder="Masalan: mark point noto‘g‘ri baholangan"/></label><button disabled={savingId===answer.answerId||draft.score===''||draft.reason.trim().length<3}>{savingId===answer.answerId?'Saqlanmoqda…':'Teacher score saqlash'}</button></form>:<p className="live-moderation-readonly">Natija chiqarilgan — score muzlatilgan.</p>}
+        {editable?<form onSubmit={event=>void save(event,answer)}><label>Teacher score<input type="number" min={0} max={data.maxMarks} step="0.5" value={draft.score} onChange={event=>setDrafts(current=>({...current,[answer.answerId]:{...draft,score:event.target.value}}))}/></label><label className="live-moderation-reason">Sabab<input maxLength={1000} value={draft.reason} onChange={event=>setDrafts(current=>({...current,[answer.answerId]:{...draft,reason:event.target.value}}))} placeholder="Masalan: mark point noto‘g‘ri baholangan"/></label><button disabled={savingId===answer.answerId||draft.score===''||draft.reason.trim().length<3}>{savingId===answer.answerId?'Saqlanmoqda…':'Teacher score saqlash'}</button></form>:<p className="live-moderation-readonly">{markingOpen?'Peer score saqlandi — teacher override o‘chirilgan.':'Natija chiqarilgan — score muzlatilgan.'}</p>}
       </article>;
     })}</div>:null}
   </section>;

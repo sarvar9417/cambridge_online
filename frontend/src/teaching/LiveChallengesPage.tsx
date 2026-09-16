@@ -149,9 +149,9 @@ export function LiveChallengesPage(){
   const startPeerMarking=async(state:LiveChallengeState)=>{
     setSaving(true);setError('');setNotice('');
     try{
-      const result=await api<{data:{assignmentCount:number;teacherModerationRequired?:boolean}}>(`/live-challenges/${state.id}/peer-marking/start`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
+      const result=await api<{data:{assignmentCount:number;teacherModerationRequired?:boolean;noAnswers?:boolean}}>(`/live-challenges/${state.id}/peer-marking/start`,{method:'POST',body:JSON.stringify({expectedStateVersion:state.stateVersion})});
       await refreshRuntime(state.id);
-      setNotice(result.data.teacherModerationRequired?'Peer assignment tuzilmadi — teacher moderation orqali score bering.':`Anonymous peer marking ochildi: ${result.data.assignmentCount} ta assignment.`);
+      setNotice(result.data.noAnswers?'Bu roundda javob yo‘q. Natijalarni 0 ball bilan chiqarishingiz mumkin.':result.data.teacherModerationRequired?'Peer assignment tuzilmadi — teacher moderation orqali score bering.':`Anonymous peer marking ochildi: ${result.data.assignmentCount} ta assignment.`);
     }catch(cause){setError(message(cause,'Peer markingni ochib bo‘lmadi.'))}finally{setSaving(false)}
   };
   const releaseResults=async(state:LiveChallengeState)=>{
