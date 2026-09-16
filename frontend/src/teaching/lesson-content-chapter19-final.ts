@@ -204,6 +204,7 @@ export const CHAPTER_19_DEEP_SLIDES: HodderLessonSlide[] = [
   {
     id: 'h19-1915-big-o-time', section: '19.1 Algorithms', subtopicCode: '19.1.5', eyebrow: '19.1.5 · BIG O · TIME COMPLEXITY',
     title: 'Big O describes how worst-case resource growth changes with input size rather than measuring one run time',
+    lead: 'The source compares standard growth orders so learners can reason about scalability as the input size increases.',
     richBlocks: [{ kind: 'table', table: { caption: 'Source time-complexity examples', headers: ['Order', 'Source example'], rows: [
       ['O(1)', 'A task taking constant time, such as testing whether a number is odd/even.'],
       ['O(N)', 'Linear search.'],
@@ -216,6 +217,7 @@ export const CHAPTER_19_DEEP_SLIDES: HodderLessonSlide[] = [
   {
     id: 'h19-1915-big-o-space', section: '19.1 Algorithms', subtopicCode: '19.1.5', eyebrow: 'BIG O · SPACE COMPLEXITY · ACTIVITY 19Q',
     title: 'Space complexity describes how memory requirements grow as input size grows',
+    lead: 'The chapter separates memory growth from execution-time growth and uses fixed versus input-sized storage as the key contrast.',
     bullets: [
       'O(1) space: the algorithm uses a fixed amount of working storage.',
       'O(N) space: storage grows in direct proportion to the number of items, such as an N-element array.',
@@ -245,6 +247,7 @@ export const CHAPTER_19_DEEP_SLIDES: HodderLessonSlide[] = [
   {
     id: 'h19-1921-recursive-examples', section: '19.2 Recursion', subtopicCode: '19.2.1', eyebrow: 'COMPOUND INTEREST · FIBONACCI · BENEFITS/RISKS',
     title: 'The source extends recursion beyond factorial to compound interest and Fibonacci',
+    lead: 'These examples reinforce how a base case stops recursion while the general case reduces the problem and builds a chain of calls.',
     bullets: [
       'Compound interest is expressed with a years=0 base case and a recursive general case.',
       'Activity 19S asks learners to identify Fibonacci base/general cases and trace the fourth term.',
