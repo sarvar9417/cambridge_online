@@ -32,7 +32,13 @@ describe('lesson source provenance contract',()=>{
       for(const slide of slidesFor(chapter)){
         if(slide.examPractice)continue;
         if((slide.sourceElements?.length??0)===0)continue;
-        const hasIdentity=(slide.sourcePages?.length??0)>0||(slide.sourceAtomEvidence?.length??0)>0;
+        // Cambridge Exam Lens and other enrichment layers can be attributable
+        // to a named external source without pretending that source has a
+        // Hodder page number. A non-empty sourceLabel is therefore a valid
+        // source identity alongside page and source-atom provenance.
+        const hasIdentity=(slide.sourcePages?.length??0)>0
+          ||(slide.sourceAtomEvidence?.length??0)>0
+          ||Boolean(slide.sourceLabel?.trim());
         if(!hasIdentity)violations.push(`${chapter.number}:${slide.id}`);
       }
     }
