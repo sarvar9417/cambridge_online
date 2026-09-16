@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Broadcast, PlayCircle } from '@phosphor-icons/react';
 import { api, type LiveExamSummary } from '../lib/api';
 import { navigate } from '../lib/router';
+import './student-live-challenge.css';
 
 const ACTIVE_STATUS = new Set(['lobby','question_open','marking','review']);
 
