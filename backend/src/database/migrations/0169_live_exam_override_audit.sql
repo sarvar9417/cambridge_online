@@ -18,6 +18,8 @@ CREATE TABLE live_exam_score_overrides (
 
 CREATE INDEX live_exam_score_overrides_session_created_idx
   ON live_exam_score_overrides (session_id, created_at DESC);
+CREATE INDEX live_exam_score_overrides_question_idx
+  ON live_exam_score_overrides (session_question_id);
 CREATE INDEX live_exam_score_overrides_answer_created_idx
   ON live_exam_score_overrides (answer_id, created_at DESC);
 CREATE INDEX live_exam_score_overrides_teacher_created_idx
