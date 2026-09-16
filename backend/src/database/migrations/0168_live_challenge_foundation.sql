@@ -89,6 +89,14 @@ CREATE INDEX live_challenges_class_status_idx
   ON live_challenges (class_id, status, created_at DESC);
 CREATE INDEX live_challenges_teacher_status_idx
   ON live_challenges (teacher_id, status, created_at DESC);
+CREATE INDEX live_challenges_syllabus_idx
+  ON live_challenges (syllabus_id);
+CREATE INDEX live_challenges_topic_idx
+  ON live_challenges (topic_id)
+  WHERE topic_id IS NOT NULL;
+CREATE INDEX live_challenges_subtopic_idx
+  ON live_challenges (subtopic_id)
+  WHERE subtopic_id IS NOT NULL;
 
 CREATE TABLE live_challenge_questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -141,6 +149,8 @@ CREATE TABLE live_challenge_rounds (
 );
 CREATE INDEX live_challenge_rounds_status_idx
   ON live_challenge_rounds (challenge_id, status);
+CREATE INDEX live_challenge_rounds_question_challenge_idx
+  ON live_challenge_rounds (challenge_question_id, challenge_id);
 
 CREATE TABLE live_challenge_answers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -159,6 +169,8 @@ CREATE TABLE live_challenge_answers (
 );
 CREATE INDEX live_challenge_answers_round_submitted_idx
   ON live_challenge_answers (round_id, submitted_at);
+CREATE INDEX live_challenge_answers_student_idx
+  ON live_challenge_answers (student_id);
 
 CREATE OR REPLACE FUNCTION public.guard_live_challenge_answer_membership_v1()
 RETURNS trigger
@@ -233,6 +245,10 @@ CREATE TABLE live_challenge_peer_assignments (
 );
 CREATE INDEX live_challenge_peer_assignments_answer_idx
   ON live_challenge_peer_assignments (round_id, answer_id);
+CREATE INDEX live_challenge_peer_assignments_answer_round_student_idx
+  ON live_challenge_peer_assignments (answer_id, round_id, answer_student_id);
+CREATE INDEX live_challenge_peer_assignments_marker_idx
+  ON live_challenge_peer_assignments (marker_student_id);
 
 CREATE OR REPLACE FUNCTION public.guard_live_challenge_peer_marker_membership_v1()
 RETURNS trigger
@@ -284,6 +300,12 @@ CREATE TABLE live_challenge_score_overrides (
 );
 CREATE INDEX live_challenge_score_overrides_answer_idx
   ON live_challenge_score_overrides (answer_id, created_at DESC);
+CREATE INDEX live_challenge_score_overrides_answer_round_idx
+  ON live_challenge_score_overrides (answer_id, round_id);
+CREATE INDEX live_challenge_score_overrides_round_idx
+  ON live_challenge_score_overrides (round_id);
+CREATE INDEX live_challenge_score_overrides_teacher_idx
+  ON live_challenge_score_overrides (teacher_id);
 
 CREATE TABLE live_challenge_events (
   id bigserial PRIMARY KEY,
@@ -296,6 +318,9 @@ CREATE TABLE live_challenge_events (
 );
 CREATE INDEX live_challenge_events_challenge_idx
   ON live_challenge_events (challenge_id, id);
+CREATE INDEX live_challenge_events_actor_idx
+  ON live_challenge_events (actor_id)
+  WHERE actor_id IS NOT NULL;
 
 -- The Express application is the authorization boundary. These tables contain
 -- join codes, student answers, anonymous peer-assignment relationships and

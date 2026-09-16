@@ -86,4 +86,23 @@ describe('Cambridge Live Challenge release security contract',()=>{
     expect(migration).toContain('UNIQUE (round_id, student_id)');
     expect(migration).toContain('state_version bigint NOT NULL');
   });
+
+  it('covers every non-leading Live Challenge foreign key for predictable cascade and join performance',()=>{
+    const migration=source('src/database/migrations/0168_live_challenge_foundation.sql');
+    for(const index of [
+      'live_challenges_syllabus_idx',
+      'live_challenges_topic_idx',
+      'live_challenges_subtopic_idx',
+      'live_challenge_rounds_question_challenge_idx',
+      'live_challenge_answers_student_idx',
+      'live_challenge_peer_assignments_answer_round_student_idx',
+      'live_challenge_peer_assignments_marker_idx',
+      'live_challenge_score_overrides_answer_round_idx',
+      'live_challenge_score_overrides_round_idx',
+      'live_challenge_score_overrides_teacher_idx',
+      'live_challenge_events_actor_idx',
+    ]){
+      expect(migration).toContain(index);
+    }
+  });
 });
