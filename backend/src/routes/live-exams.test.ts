@@ -13,6 +13,9 @@ function appFor(service:Partial<LiveExamService>) {
   app.use('/live-exams',createLiveExamsRouter(service as LiveExamService));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return}
+    if(error&&typeof error==='object'&&'status'in error&&'code'in error){
+      res.status(Number(error.status)).json({error:{code:String(error.code)}});return;
+    }
     res.status(500).json({error:{code:'internal_error'}});
   });
   return app;
@@ -39,5 +42,24 @@ describe('live exam routes', () => {
       .send({matchedPointIds:['not-a-uuid']})
       .expect(400);
     expect(submitReview).not.toHaveBeenCalled();
+  });
+
+  it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
+    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
+      new Error('live_peer_assignment_impossible'),
+      { code:'P0001' },
+    ));
+    const response=await request(appFor({revealMarkScheme}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .expect(409);
+    expect(response.body.error.code).toBe('live_peer_assignment_impossible');
+  });
+
+  it('does not disguise unrelated database errors as peer-integrity conflicts', async () => {
+    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
+    const response=await request(appFor({revealMarkScheme}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .expect(500);
+    expect(response.body.error.code).toBe('internal_error');
   });
 });

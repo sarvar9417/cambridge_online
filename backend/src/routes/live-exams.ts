@@ -17,6 +17,12 @@ const createInput = z.object({
   excludeSeen: z.boolean().default(true),
 }).strict();
 
+function isPeerIntegrityConflict(error: unknown) {
+  return Boolean(error && typeof error === 'object'
+    && 'code' in error && error.code === 'P0001'
+    && 'message' in error && error.message === 'live_peer_assignment_impossible');
+}
+
 export function createLiveExamsRouter(service: LiveExamService) {
   const router = Router();
 
@@ -59,7 +65,15 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/reveal', async (req, res) => {
-    res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+    try {
+      res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+    } catch (error) {
+      if (!isPeerIntegrityConflict(error)) throw error;
+      res.status(409).json({ error: {
+        code: 'live_peer_assignment_impossible',
+        message: 'Anonim o‘zaro baholash uchun kamida ikki xavfsiz ishtirokchi kerak. Baholash ochilmadi.',
+      } });
+    }
   });
 
   router.post('/:id/reviews/:reviewId/submit', async (req, res) => {
