@@ -17,6 +17,10 @@ const extractManifestFor=(chapter:number)=>chapter===1
   : chapter===13
     ? CHAPTER_13_SOURCE_FILE_MANIFEST
     : null;
+const isExplicitNonHodderSource=(sourceLabel:string|undefined)=>{
+  const label=(sourceLabel??'').toLowerCase();
+  return label.includes('cambridge')&&!label.includes('hodder');
+};
 
 describe('course-wide lesson static integrity',()=>{
   it('keeps every active 9618 slide id globally unique and every chapter structurally usable',()=>{
@@ -36,7 +40,7 @@ describe('course-wide lesson static integrity',()=>{
     }
   });
 
-  it('keeps every declared 9618 source page inside its exact source provenance boundary',()=>{
+  it('keeps declared source pages valid and Hodder provenance inside the exact chapter boundary',()=>{
     for(const chapter of LESSON_CHAPTERS){
       const range=rangeFor(chapter.number);
       const extractManifest=extractManifestFor(chapter.number);
@@ -55,14 +59,22 @@ describe('course-wide lesson static integrity',()=>{
       for(const slide of chapter.slides){
         for(const page of slide.sourcePages??[]){
           chapterPages.add(page);
+          expect(Number.isInteger(page),`${slide.id} source page must be an integer`).toBe(true);
+          expect(page,`${slide.id} source page must be positive`).toBeGreaterThan(0);
+
+          // Some enrichment slides intentionally cite a different authoritative
+          // source (for example the current Cambridge Pseudocode Guide). Those
+          // page numbers belong to that named document, not to the Hodder chapter.
+          if(isExplicitNonHodderSource(slide.sourceLabel))continue;
+
           if(extractManifest&&printedPages){
             // PDF-first source-fidelity chapters can contain both the legacy
             // chapter-extract page number (1..N) and exact transcript slides
             // labelled with the corresponding printed coursebook page. Both
-            // forms must resolve inside the same byte-locked extract manifest.
+            // forms resolve inside the same byte-locked extract manifest.
             const isLocalExtractPage=page>=1&&page<=extractManifest.pageCount;
             const isMappedPrintedPage=printedPages.has(page);
-            expect(isLocalExtractPage||isMappedPrintedPage,`${slide.id} source page ${page} is not represented by the Chapter ${chapter.number} extract`).toBe(true);
+            expect(isLocalExtractPage||isMappedPrintedPage,`${slide.id} Hodder source page ${page} is not represented by the Chapter ${chapter.number} extract`).toBe(true);
           }else{
             const [start,end]=range.printedPageRange;
             expect(page,`${slide.id} lower printed bound`).toBeGreaterThanOrEqual(start);
