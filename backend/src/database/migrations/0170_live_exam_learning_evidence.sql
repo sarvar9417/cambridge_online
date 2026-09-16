@@ -1,6 +1,7 @@
--- Persist finished Live Exam scores as idempotent analytics evidence and fold
--- them into the existing mastery aggregate. Cambridge marks remain the unit of
--- evidence; speed and leaderboard position never affect mastery.
+-- Persist finished Live Exam scores as idempotent learning-objective evidence
+-- and fold those marks into the existing subtopic mastery aggregate. Cambridge
+-- marks remain the unit of evidence; speed and leaderboard position never
+-- affect mastery.
 
 CREATE TABLE live_exam_learning_evidence (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -9,16 +10,20 @@ CREATE TABLE live_exam_learning_evidence (
   answer_id uuid NOT NULL REFERENCES live_exam_answers ON DELETE CASCADE,
   student_id uuid NOT NULL REFERENCES users ON DELETE CASCADE,
   question_id uuid NOT NULL REFERENCES questions,
+  learning_objective_id uuid NOT NULL REFERENCES learning_objectives ON DELETE CASCADE,
   subtopic_id uuid NOT NULL REFERENCES subtopics ON DELETE CASCADE,
+  mapping_confidence numeric(3,2),
   marks_earned numeric(8,2) NOT NULL CHECK (marks_earned >= 0),
   marks_possible numeric(8,2) NOT NULL CHECK (marks_possible > 0),
   score_source live_exam_marking_mode NOT NULL,
   teacher_overridden boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (answer_id, subtopic_id),
+  UNIQUE (answer_id, learning_objective_id),
   CHECK (marks_earned <= marks_possible)
 );
 
+CREATE INDEX live_exam_learning_evidence_student_lo_idx
+  ON live_exam_learning_evidence (student_id, learning_objective_id, created_at DESC);
 CREATE INDEX live_exam_learning_evidence_student_subtopic_idx
   ON live_exam_learning_evidence (student_id, subtopic_id, created_at DESC);
 CREATE INDEX live_exam_learning_evidence_session_idx
@@ -35,15 +40,17 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- A finished assessment must be analytically complete. Do not silently
-  -- publish partial mastery when a question has no syllabus mapping or an
-  -- answer somehow reached the terminal transition without a final score.
+  -- A finished assessment must have an explicit syllabus learning-objective
+  -- mapping. Do not silently turn an unmapped question into partial analytics.
   IF EXISTS (
     SELECT 1
     FROM live_exam_questions leq
     WHERE leq.session_id = NEW.id
       AND NOT EXISTS (
-        SELECT 1 FROM question_subtopics qs WHERE qs.question_id = leq.question_id
+        SELECT 1
+        FROM question_learning_objectives qlo
+        JOIN learning_objectives lo ON lo.id = qlo.lo_id
+        WHERE qlo.question_id = leq.question_id
       )
   ) THEN
     RAISE EXCEPTION USING
@@ -51,12 +58,14 @@ BEGIN
       MESSAGE = 'live_exam_analytics_unmapped_question';
   END IF;
 
+  -- Every participant answer must have a final Cambridge score before the
+  -- terminal transition can publish evidence.
   IF EXISTS (
     SELECT 1
     FROM live_exam_answers a
     JOIN live_exam_questions leq ON leq.id = a.session_question_id
     WHERE leq.session_id = NEW.id
-      AND a.final_score IS NULL
+      AND (a.final_score IS NULL OR a.score_source IS NULL)
   ) THEN
     RAISE EXCEPTION USING
       ERRCODE = 'P0001',
@@ -65,7 +74,8 @@ BEGIN
 
   WITH inserted AS (
     INSERT INTO live_exam_learning_evidence(
-      session_id,session_question_id,answer_id,student_id,question_id,subtopic_id,
+      session_id,session_question_id,answer_id,student_id,question_id,
+      learning_objective_id,subtopic_id,mapping_confidence,
       marks_earned,marks_possible,score_source,teacher_overridden,created_at
     )
     SELECT
@@ -74,7 +84,9 @@ BEGIN
       a.id,
       lep.student_id,
       leq.question_id,
-      qs.subtopic_id,
+      qlo.lo_id,
+      lo.subtopic_id,
+      qlo.confidence,
       a.final_score,
       leq.marks,
       a.score_source,
@@ -83,10 +95,18 @@ BEGIN
     FROM live_exam_questions leq
     JOIN live_exam_answers a ON a.session_question_id = leq.id
     JOIN live_exam_participants lep ON lep.id = a.participant_id
-    JOIN question_subtopics qs ON qs.question_id = leq.question_id
+    JOIN question_learning_objectives qlo ON qlo.question_id = leq.question_id
+    JOIN learning_objectives lo ON lo.id = qlo.lo_id
     WHERE leq.session_id = NEW.id
-    ON CONFLICT (answer_id,subtopic_id) DO NOTHING
-    RETURNING student_id,subtopic_id,answer_id,marks_earned,marks_possible
+    ON CONFLICT (answer_id,learning_objective_id) DO NOTHING
+    RETURNING student_id,subtopic_id,learning_objective_id,answer_id,marks_earned,marks_possible
+  ), subtopic_answers AS (
+    -- A question may map to several learning objectives in one subtopic. Keep
+    -- every LO evidence row, but count that question's Cambridge marks only
+    -- once in the existing subtopic-level mastery aggregate.
+    SELECT DISTINCT
+      student_id,subtopic_id,answer_id,marks_earned,marks_possible
+    FROM inserted
   ), aggregated AS (
     SELECT
       student_id,
@@ -94,7 +114,7 @@ BEGIN
       count(DISTINCT answer_id)::int attempts,
       sum(marks_earned)::numeric(8,2) marks_earned,
       sum(marks_possible)::numeric(8,2) marks_possible
-    FROM inserted
+    FROM subtopic_answers
     GROUP BY student_id,subtopic_id
   )
   INSERT INTO mastery(
