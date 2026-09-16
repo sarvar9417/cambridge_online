@@ -39,7 +39,7 @@ describe('Cambridge 9618 Chapter 9 algorithm classroom visuals',()=>{
   it('covers source-specific computational thinking and algorithm terminology',()=>{
     for(const term of [
       'ABSTRACTION','PROGRAM','STRUCTURED ENGLISH','FLOWCHART','PSEUDOCODE','INPUT','OUTPUT',
-      'IF','CASE','FOR','REPEAT–UNTIL','WHILE','INT(Number)','IDENTIFIER TABLE','STEPWISE',
+      'IF','CASE','FOR','REPEAT–UNTIL','WHILE','INT(Number)','IDENTIFIER TABLE','Stepwise refinement',
     ])expect(visualSource).toContain(term);
   });
 
