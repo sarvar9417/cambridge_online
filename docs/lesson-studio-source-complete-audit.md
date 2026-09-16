@@ -1,18 +1,31 @@
-# Lesson Studio source-complete audit — Chapters 1, 13 and 7
+# Lesson Studio source-complete audit — current catalog and exact-source baselines
 
-## Scope
+## Current catalog status
 
-This audit covers the three teacher Lesson Studio routes currently exposed by the product:
+As of 2026-09-16, the canonical lesson catalog exposed by Lesson Studio and student Study Mode contains:
 
-- Cambridge International AS & A Level Computer Science 9618 — Chapter 1
-- Cambridge International AS & A Level Computer Science 9618 — Chapter 13
-- Cambridge IGCSE Computer Science 0478 — Chapter 7
+- Cambridge International AS & A Level Computer Science 9618 — Chapters 1–20;
+- Cambridge IGCSE Computer Science 0478 — Chapter 7 as a separate course-aware route.
 
-The lesson book content remains governed by the exact supplied-PDF fidelity contract. The formal Book Completeness Audit strengthens that contract: page coverage alone is no longer sufficient to label a lesson `Source Complete`.
+The 9618 catalog is source-backed across all twenty chapters. Chapters 5–12 and 15–20 use the deep final Hodder routes produced during the source-completion rollout; Chapters 1–4 and 13–14 retain their existing specialised source-fidelity routes. All twenty 9618 chapters are reachable through the shared presentation model, and the 0478 Chapter 7 route remains isolated from 9618 Chapter 7 by course and slide identity.
+
+The completed presentation-quality rollout adds chapter-specific projector visuals while keeping source-backed teaching text visible. Static CI now guards catalog completeness, global slide-ID uniqueness, chapter-scoped presentation beats, source-provenance boundaries and the 9618/0478 Chapter 7 separation. Browser/runtime preview QA is intentionally a separate final pass and is not part of the static-completeness claim in this document.
+
+## Scope of the formal supplied-file audit
+
+The formal semantic Book Completeness Audit described below predates the full 9618 catalog rollout and remains the stricter independently inventoried baseline for three exact supplied lesson extracts:
+
+- Cambridge International AS & A Level Computer Science 9618 — Chapter 1;
+- Cambridge International AS & A Level Computer Science 9618 — Chapter 13;
+- Cambridge IGCSE Computer Science 0478 — Chapter 7.
+
+This narrower three-file baseline must not be read as the current product route inventory. The lesson catalog is broader, while these three extracts retain an additional semantic-inventory contract beyond ordinary chapter/page provenance checks.
+
+The lesson book content remains governed by exact-source fidelity contracts. The formal Book Completeness Audit strengthens that contract for its inventoried baseline: page coverage alone is not sufficient to label a lesson `Source Complete`.
 
 ## Formal Book Completeness Audit
 
-The three exact supplied PDF extracts were independently inventoried by semantic feature family. The audit baseline is committed in `frontend/src/teaching/book-completeness-baseline.ts`; `book-completeness-audit.ts` resolves each expected feature against source evidence and fails closed when any category is incomplete.
+The three exact baseline PDF extracts were independently inventoried by semantic feature family. The audit baseline is committed in `frontend/src/teaching/book-completeness-baseline.ts`; `book-completeness-audit.ts` resolves each expected feature against source evidence and fails closed when any category is incomplete.
 
 | Supplied lesson source | Pages | Formal key terms | Worked examples | Activities | Extension activities | Figures | Tables | Find out more | Links | Pseudocode/code pages | Chapter review / exam-style questions |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -36,11 +49,11 @@ The runtime/CI audit checks all of the following categories separately:
 
 `semantic_emphasis` is a semantic contract, not a promise to reproduce the book's typography in the student UI. Bold/emphasised textbook concepts are preserved as source evidence and are projected pedagogically; they are not dumped verbatim into a learner activity merely because the original page used bold type.
 
-The teacher toolbar now reports the aggregate formal Book Completeness Audit result. `Source Complete` is only true when every category is complete. A missing key term, worked example, activity, extension, figure/table, sidebar/link, pseudocode evidence item, review item or required checkpoint blocks the complete state instead of being hidden by a `26/26 pages` style badge.
+The teacher toolbar reports the aggregate formal Book Completeness Audit result for chapters covered by that stricter baseline. `Source Complete` is only true when every required category is complete. A missing key term, worked example, activity, extension, figure/table, sidebar/link, pseudocode evidence item, review item or required checkpoint blocks the complete state instead of being hidden by a `26/26 pages` style badge.
 
 ## Supplied source coverage
 
-The exact file-fidelity suite still pins every page of the three supplied extracts by SHA-256 and verifies that every page remains represented in presenter/source data:
+The exact file-fidelity contracts for the three formal baseline extracts pin their source pages and verify that the lesson source evidence remains represented:
 
 | Lesson | Supplied extract | Page contract |
 | --- | --- | ---: |
@@ -48,7 +61,9 @@ The exact file-fidelity suite still pins every page of the three supplied extrac
 | 9618 Chapter 13 | Hodder Chapter 13 | 24 / 24 |
 | 0478 Chapter 7 | Watson/Williams Chapter 7 | 41 / 41 |
 
-Page fidelity is therefore a necessary condition, but no longer the whole completeness claim.
+Page fidelity is therefore a necessary condition, but no longer the whole completeness claim for these three formal baselines. Other active 9618 chapters use their own source manifests, source-completeness tests and exact chapter boundaries.
+
+Source-page numbers are interpreted within their named provenance. Hodder chapter evidence is constrained to the relevant chapter/extract mapping; explicitly labelled enrichment from another authoritative document, such as the current Cambridge Pseudocode Guide, keeps that document's own page numbering rather than being mislabelled as a Hodder page.
 
 ## Past-paper coverage and enrichment contract
 
@@ -87,21 +102,23 @@ The `CAMBRIDGE EXAM LENS` panels are concise teaching guidance derived from the 
 
 ## Teacher workflow
 
-1. Source-complete lessons retain the source evidence and exact supplied-file fingerprints.
+1. Source-complete lessons retain source evidence and exact-source provenance.
 2. Student-facing projection selects and rewrites presentation only; it does not delete source evidence.
 3. Exam checkpoint slides add an exam-focus panel before the live question inventory.
 4. The compact bottom scrubber replaces dozens of tiny slide dots while preserving Previous/Next and keyboard navigation.
-5. The toolbar exposes the formal Book Completeness Audit result for the active chapter.
+5. Where the formal semantic Book Completeness Audit applies, the toolbar exposes its aggregate result for the active chapter.
 6. Opening a past-paper item resolves the exact Cambridge display reference directly.
 7. The exam workspace renders canonical structured QP content, required parent context and source assets.
 8. Mark schemes remain hidden until the teacher chooses to reveal them; status is explicit and review-pending schemes are not promoted.
 
 ## Integrity constraints
 
-- Do not declare `Source Complete` from page count alone.
+- Do not declare `Source Complete` from page count alone where a formal semantic inventory exists.
 - Do not silently omit a formal key term or semantic-emphasis anchor from the source evidence layer.
 - Do not promote `needs_review` mark schemes automatically.
 - Do not flatten a question if canonical structured content exists but a required visual is unavailable.
 - Do not broaden exact-LO checkpoints with unreviewed semantic guesses.
 - Do not replace book content with exam notes; exam guidance is additive.
 - Do not dump the complete source audit into learner-facing activities; source completeness and student presentation remain separate layers.
+- Do not merge 0478 Chapter 7 into the 9618 Chapter 7 route; future 0478 chapters must extend the separate course catalog.
+- Do not treat browser preview QA as interchangeable with static source/presentation integrity checks; both are required before a final UI-quality sign-off.
