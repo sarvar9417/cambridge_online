@@ -22,6 +22,22 @@ function appFor(service:Partial<LiveExamService>) {
 }
 
 describe('live exam routes', () => {
+  it('marks the session list private and non-cacheable', async () => {
+    const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
+    const response=await request(appFor({list})).get('/live-exams').expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(list).toHaveBeenCalledWith(student);
+  });
+
+  it('marks the per-user authoritative snapshot private and non-cacheable', async () => {
+    const snapshot=vi.fn().mockResolvedValue({session:{version:3},ownAnswer:{text:'private'}});
+    const response=await request(appFor({snapshot}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
+  });
+
   it('keeps /join above the UUID session route', async () => {
     const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
     const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
