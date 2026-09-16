@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { DomainError } from '../services/assignments-service.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
 
 const uuid = z.string().uuid();
@@ -16,6 +17,15 @@ const createInput = z.object({
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
 }).strict();
+
+function mapPeerIntegrityError(error: unknown): never {
+  if (error && typeof error === 'object'
+    && 'code' in error && error.code === 'P0001'
+    && 'message' in error && error.message === 'live_peer_assignment_impossible') {
+    throw new DomainError('live_peer_assignment_impossible', 409);
+  }
+  throw error;
+}
 
 export function createLiveExamsRouter(service: LiveExamService) {
   const router = Router();
@@ -59,7 +69,11 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/reveal', async (req, res) => {
-    res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+    try {
+      res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+    } catch (error) {
+      mapPeerIntegrityError(error);
+    }
   });
 
   router.post('/:id/reviews/:reviewId/submit', async (req, res) => {
