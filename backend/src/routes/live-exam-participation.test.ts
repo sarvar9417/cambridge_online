@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import type { Actor } from '../lib/actor.js';
 import { createLiveExamParticipationRouter } from './live-exam-participation.js';
 import type { LiveExamParticipationService } from '../services/live-exam-participation-service.js';
 
@@ -9,7 +10,7 @@ const teacher={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'teacher' as const
 const sessionId='22222222-2222-4222-8222-222222222222';
 const participantId='33333333-3333-4333-8333-333333333333';
 
-function appFor(service:Partial<LiveExamParticipationService>,actor=student){
+function appFor(service:Partial<LiveExamParticipationService>,actor:Actor=student){
  const app=express();app.use(express.json());app.use((req,_res,next)=>{req.actor=actor;next()});
  app.use('/live-exams',createLiveExamParticipationRouter(service as LiveExamParticipationService));
  app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
