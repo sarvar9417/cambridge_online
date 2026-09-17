@@ -4,13 +4,17 @@ import { api, type LiveExamSummary } from '../lib/api';
 import { navigate } from '../lib/router';
 import './student-live-challenge.css';
 
-const ACTIVE_STATUS = new Set(['lobby','question_open','marking','review']);
+const ACTIVE_STATUS = new Set(['lobby','question_open','answers_locked','marking','review','paused']);
 
 const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
+  draft:'Qoralama',
+  published:'Nashr qilingan',
   lobby:'O‘qituvchi boshlashini kutmoqda',
   question_open:'Savol ochiq',
+  answers_locked:'Javoblar yopildi',
   marking:'Baholash davom etmoqda',
   review:'Natijalar ochiq',
+  paused:'Sessiya pauzada',
   finished:'Yakunlangan',
   cancelled:'Bekor qilingan',
 };
