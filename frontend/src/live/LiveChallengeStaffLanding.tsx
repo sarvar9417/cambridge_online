@@ -26,6 +26,7 @@ export function LiveChallengeStaffLanding(){
 
   const open=(session:LiveExamSummary)=>{
     if(session.status==='draft')navigate(`oqitish/live?builder=${session.id}`);
+    else if(session.status==='finished')navigate(`oqitish/live?analytics=${session.id}`);
     else navigate(`oqitish/live?id=${session.id}`);
   };
 
@@ -36,7 +37,7 @@ export function LiveChallengeStaffLanding(){
     </header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     <section className="live-history"><header><h2>Challenge’lar</h2><span>{sessions.length}</span></header>
-      {loading?<p className="live-empty">Yuklanmoqda…</p>:!sessions.length?<div className="live-empty"><p>Hali challenge yo‘q.</p><button type="button" onClick={()=>navigate('oqitish/live?builder=new')}>Birinchi challenge’ni yaratish</button></div>:<div className="live-session-list">{sessions.map((session)=><button type="button" key={session.id} onClick={()=>open(session)}><span className={`live-state live-state--${session.status}`}>{STATUS_LABEL[session.status]}</span><strong>{session.title}</strong><small>{session.className} · {session.questionCount} savol · {session.participantCount} o‘quvchi</small><i>→</i></button>)}</div>}
+      {loading?<p className="live-empty">Yuklanmoqda…</p>:!sessions.length?<div className="live-empty"><p>Hali challenge yo‘q.</p><button type="button" onClick={()=>navigate('oqitish/live?builder=new')}>Birinchi challenge’ni yaratish</button></div>:<div className="live-session-list">{sessions.map((session)=><button type="button" key={session.id} onClick={()=>open(session)}><span className={`live-state live-state--${session.status}`}>{STATUS_LABEL[session.status]}</span><strong>{session.title}</strong><small>{session.className} · {session.questionCount} savol · {session.participantCount} o‘quvchi</small><i>{session.status==='finished'?'Analytics →':'→'}</i></button>)}</div>}
     </section>
   </div>;
 }
