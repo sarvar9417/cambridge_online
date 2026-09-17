@@ -50,6 +50,7 @@ import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
 import { createLiveExamBuilderRouter } from './routes/live-exam-builder.js';
 import { createLiveExamControlRouter } from './routes/live-exam-control.js';
+import { createLiveExamParticipationRouter } from './routes/live-exam-participation.js';
 import { createLiveExamRoundSummaryRouter } from './routes/live-exam-round-summary.js';
 import { createLiveExamRealtimeRouter } from './routes/live-exam-realtime.js';
 import { createLiveExamsRouter } from './routes/live-exams.js';
@@ -67,6 +68,7 @@ import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
 import { LiveExamBuilderService } from './services/live-exam-builder-service.js';
 import { LiveExamControlService } from './services/live-exam-control-service.js';
+import { LiveExamParticipationService } from './services/live-exam-participation-service.js';
 import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-service.js';
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
@@ -159,6 +161,12 @@ export function createApp(
     '/api/v1/live-exams',
     createLiveExamBuilderRouter(new LiveExamBuilderService(pool, questionsRepository)),
   );
+  // Join/leave/remove policy owns participation before the legacy join route.
+  // This is where builder allowLateJoin becomes an enforceable classroom rule.
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',
+    createLiveExamParticipationRouter(new LiveExamParticipationService(pool)),
+  );
   // Version-aware teacher controls shadow matching legacy routes only when the
   // client supplies expectedVersion. This keeps the migration incremental while
   // making the new state machine available before the frontend cutover.
@@ -189,7 +197,7 @@ export function createApp(
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi yoki siz ushbu sinfga biriktirilmagansiz.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_answer_locked:'Javob yopilgan yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.',live_results_not_ready:'Natijalar hali chiqarilmagan. Avval baholash bosqichini yakunlang.',live_builder_invalid_taxonomy:'Tanlangan topic yoki subtopic syllabusga mos emas.',live_state_conflict:'Sessiya boshqa oynada o‘zgardi. Eng yangi holatni yuklab, qayta urinib ko‘ring.',live_peer_assignment_impossible:'Anonim o‘zaro baholash uchun kamida ikki xavfsiz ishtirokchi kerak.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi yoki siz ushbu sinfga biriktirilmagansiz.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_answer_locked:'Javob yopilgan yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.',live_results_not_ready:'Natijalar hali chiqarilmagan. Avval baholash bosqichini yakunlang.',live_builder_invalid_taxonomy:'Tanlangan topic yoki subtopic syllabusga mos emas.',live_state_conflict:'Sessiya boshqa oynada o‘zgardi. Eng yangi holatni yuklab, qayta urinib ko‘ring.',live_peer_assignment_impossible:'Anonim o‘zaro baholash uchun kamida ikki xavfsiz ishtirokchi kerak.',live_join_closed:'Bu Live Challenge hozir yangi ishtirokchilarni qabul qilmayapti.',live_participant_removal_closed:'O‘yin boshlanganidan keyin ishtirokchini xavfsiz olib tashlab bo‘lmaydi.',live_leave_closed:'O‘yin boshlanganidan keyin xonani tark etib bo‘lmaydi.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
