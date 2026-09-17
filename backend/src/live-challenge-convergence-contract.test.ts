@@ -8,6 +8,7 @@ const route=source('src/routes/live-exams.ts');
 const boardProjection=source('src/services/live-exam-board-projection.ts');
 const versionGuard=source('src/services/live-exam-transition-guard.ts');
 const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
+const builderLifecycle=source('src/database/migrations/0171_live_exam_builder_lifecycle.sql');
 
 describe('Cambridge Live Challenge convergence contract',()=>{
   it('keeps live_exam as the only production live-classroom persistence root',()=>{
@@ -17,6 +18,16 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(schema).toContain('live_exam_answers');
     expect(schema).toContain('live_exam_reviews');
     expect(existsSync(resolve(process.cwd(),'src/database/migrations/0168_live_challenge_foundation.sql'))).toBe(false);
+  });
+
+  it('extends the canonical lifecycle for builder and pause semantics',()=>{
+    expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'draft' BEFORE 'lobby'");
+    expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'published' BEFORE 'lobby'");
+    expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'answers_locked' AFTER 'question_open'");
+    expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'paused' AFTER 'review'");
+    expect(builderLifecycle).toContain('published_at timestamptz');
+    expect(builderLifecycle).toContain('paused_from_status live_exam_status');
+    expect(builderLifecycle).not.toContain('CREATE TABLE live_challenge_');
   });
 
   it('owns the shared classroom board through the canonical live-exams API',()=>{
