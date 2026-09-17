@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Broadcast, CheckCircle, Clock, History } from '@phosphor-icons/react';
+import { Broadcast, CheckCircle, Clock } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { navigate } from '../lib/router';
 import './live-exam.css';
@@ -63,7 +63,7 @@ export function LiveChallengeStudentLanding(){
 
     <section className="live-history"><header><h2><Broadcast/> Faol challenge’lar</h2><span>{feed.active.length}</span></header>{loading?<p className="live-empty">Yuklanmoqda…</p>:<ChallengeRows items={feed.active} mode="active"/>}</section>
     <section className="live-history"><header><h2><Clock/> Kutilayotgan / Live</h2><span>{feed.upcoming.length}</span></header><ChallengeRows items={feed.upcoming} mode="upcoming"/></section>
-    <section className="live-history"><header><h2><History/> Tarix</h2><span>{feed.history.length}</span></header><ChallengeRows items={feed.history} mode="history"/></section>
+    <section className="live-history"><header><h2>Tarix</h2><span>{feed.history.length}</span></header><ChallengeRows items={feed.history} mode="history"/></section>
     {feed.history.length?<p className="live-wait-note"><CheckCircle/> Yakunlangan challenge ballari Cambridge marks asosida saqlanadi.</p>:null}
   </div>;
 }
