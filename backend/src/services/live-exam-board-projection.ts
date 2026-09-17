@@ -36,6 +36,31 @@ type PortableQuestion = {
   sourceRef?: unknown;
 };
 
+type BoardMarkSchemePoint = {
+  code?: unknown;
+  text?: unknown;
+  marks?: unknown;
+  accept?: unknown;
+  reject?: unknown;
+  isBod?: unknown;
+};
+
+type BoardMarkSchemeGroup = {
+  label?: unknown;
+  nRequired?: unknown;
+  marksPerPoint?: unknown;
+  maxMarks?: unknown;
+  awardMode?: unknown;
+};
+
+type BoardMarkScheme = {
+  schemeType?: unknown;
+  maxMarks?: unknown;
+  guidanceMd?: unknown;
+  points?: BoardMarkSchemePoint[];
+  groups?: BoardMarkSchemeGroup[];
+};
+
 type BoardSource = {
   session: {
     title?: unknown;
@@ -56,11 +81,12 @@ type BoardSource = {
     marks?: unknown;
     portable?: PortableQuestion;
   } | null;
-  markScheme?: unknown;
+  markScheme?: BoardMarkScheme | null;
 };
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
 const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
+const bool = (value: unknown) => typeof value === 'boolean' ? value : null;
 
 /**
  * Learner-safe projection for the shared classroom board.
@@ -112,6 +138,27 @@ export function projectLiveExamForBoard(source: BoardSource) {
 
   const status = text(session.status);
   const showJoinCode = status === 'lobby';
+  const scheme = source.markScheme;
+  const markScheme = scheme ? {
+    schemeType: text(scheme.schemeType),
+    maxMarks: number(scheme.maxMarks),
+    guidanceMd: text(scheme.guidanceMd),
+    points: (scheme.points ?? []).map((point) => ({
+      code: text(point.code),
+      text: text(point.text),
+      marks: number(point.marks),
+      accept: point.accept ?? null,
+      reject: point.reject ?? null,
+      isBod: bool(point.isBod),
+    })),
+    groups: (scheme.groups ?? []).map((group) => ({
+      label: text(group.label),
+      nRequired: number(group.nRequired),
+      marksPerPoint: number(group.marksPerPoint),
+      maxMarks: number(group.maxMarks),
+      awardMode: text(group.awardMode),
+    })),
+  } : null;
 
   return {
     session: {
@@ -129,8 +176,8 @@ export function projectLiveExamForBoard(source: BoardSource) {
       joinCode: showJoinCode ? text(session.joinCode) : null,
     },
     question,
-    // snapshot() already enforces the reveal boundary. The projector never
-    // reconstructs or fetches a Mark Scheme independently.
-    markScheme: source.markScheme ?? null,
+    // snapshot() enforces the reveal boundary; this second allow-list strips
+    // Mark Scheme row ids/group ids and any future moderation-only metadata.
+    markScheme,
   };
 }
