@@ -11,10 +11,13 @@ ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'answers_locked' AFTER 'ques
 ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'paused' AFTER 'review';
 
 ALTER TABLE live_exam_sessions
+  ALTER COLUMN join_code DROP NOT NULL,
   ADD COLUMN IF NOT EXISTS published_at timestamptz,
   ADD COLUMN IF NOT EXISTS paused_at timestamptz,
   ADD COLUMN IF NOT EXISTS paused_from_status live_exam_status;
 
+COMMENT ON COLUMN live_exam_sessions.join_code IS
+  'Six-digit room code allocated at publish/open-room time; draft challenges keep this null.';
 COMMENT ON COLUMN live_exam_sessions.published_at IS
   'First time the teacher published this Live Challenge to the assigned class.';
 COMMENT ON COLUMN live_exam_sessions.paused_at IS
