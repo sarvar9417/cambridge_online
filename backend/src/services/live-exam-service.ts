@@ -175,7 +175,7 @@ export class LiveExamService {
            'marksPerPoint',msg.marks_per_point,'maxMarks',msg.max_marks,'awardMode',msg.award_mode
          ) order by msg.sort_order,msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
        ) scheme
-       from mark_schemes ms
+       from canonical_mark_schemes ms
        where ms.question_id=$1 and ms.status='approved'`,
       [questionId],
     );
@@ -267,7 +267,7 @@ export class LiveExamService {
        from (
          select distinct q.id
          from questions q
-         join mark_schemes ms on ms.question_id=q.id
+         join canonical_mark_schemes ms on ms.question_id=q.id
          where ${filters.join(' and ')}
        ) candidate
        order by md5(candidate.id::text || $1::text)
@@ -995,14 +995,14 @@ export class LiveExamService {
         await client.query(
           `with forced_reviews as (
              update live_exam_reviews r set status='submitted',awarded_marks=0,
-               feedback_md=coalesce(feedback_md,'O\u2018qituvchi tomonidan baholash yopildi.'),submitted_at=now()
+               feedback_md=coalesce(feedback_md,'O‘qituvchi tomonidan baholash yopildi.'),submitted_at=now()
              from live_exam_questions leq
              where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
                and r.status='assigned'
              returning r.answer_id,r.kind
            )
            update live_exam_answers a set final_score=0,
-             final_feedback_md=coalesce(a.final_feedback_md,'O\u2018qituvchi tomonidan baholash yopildi.'),
+             final_feedback_md=coalesce(a.final_feedback_md,'O‘qituvchi tomonidan baholash yopildi.'),
              score_source=forced_reviews.kind
            from forced_reviews where a.id=forced_reviews.answer_id`,
           [sessionId, session.current_question_index],
