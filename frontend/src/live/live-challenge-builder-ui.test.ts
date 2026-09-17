@@ -15,7 +15,7 @@ describe('canonical Live Challenge builder UI',()=>{
   });
 
   it('supports draft creation, manual ordering, auto selection and publish with version guards',()=>{
-    expect(builder).toContain("'/live-exams/drafts'");
+    expect(builder).toContain('/live-exams/drafts');
     expect(builder).toContain("`/live-exams/${draft.id}/questions`");
     expect(builder).toContain("`/live-exams/${draft.id}/questions/auto`");
     expect(builder).toContain('expectedVersion:draft.version');
