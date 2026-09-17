@@ -36,6 +36,8 @@ ALTER TABLE live_exam_sessions
 CREATE INDEX live_exam_sessions_builder_scope_idx
   ON live_exam_sessions (syllabus_id, topic_id, subtopic_id, created_at DESC);
 
-CREATE INDEX live_exam_sessions_host_draft_idx
-  ON live_exam_sessions (host_id, updated_at DESC)
-  WHERE status IN ('draft', 'published');
+-- Do not reference newly-added enum labels in a partial-index predicate inside
+-- the same migration transaction: PostgreSQL only permits using a new enum
+-- value after the ALTER TYPE transaction commits.
+CREATE INDEX live_exam_sessions_host_builder_idx
+  ON live_exam_sessions (host_id, status, updated_at DESC);
