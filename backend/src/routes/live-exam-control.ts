@@ -40,6 +40,19 @@ export function createLiveExamControlRouter(service: LiveExamControlService) {
     res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
   });
 
+  // Peer/self recovery is never implicit. The teacher must explicitly switch
+  // the locked round to teacher marking and provide a human-readable reason,
+  // which the service records in the versioned audit event.
+  router.post('/:id/marking/switch-to-teacher', async (req, res) => {
+    const body = z.object({
+      expectedVersion,
+      reason:z.string().trim().min(3).max(500),
+    }).strict().parse(req.body ?? {});
+    res.json(await service.switchMarkingToTeacher(
+      req.actor!,id(req.params),body.expectedVersion,body.reason,
+    ));
+  });
+
   // Keep the public route stable for the frontend migration: once a client
   // supplies expectedVersion, /reveal means reveal an already locked round.
   router.post('/:id/reveal', async (req, res, next) => {
