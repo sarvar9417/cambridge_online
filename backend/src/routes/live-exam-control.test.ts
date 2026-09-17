@@ -17,8 +17,8 @@ function appFor(service:Partial<LiveExamControlService>) {
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=teacher;next()});
   app.use('/live-exams',createLiveExamControlRouter(service as LiveExamControlService));
-  // Compatibility-window sentinel: a versionless legacy control must pass
-  // through rather than being half-handled by the new router.
+  // A matching versionless control must never reach a legacy fallback after the
+  // frontend CAS cutover. This sentinel proves the canonical router consumes it.
   app.post('/live-exams/:id/start',(_req,res)=>res.status(209).json({legacy:true}));
   app.post('/live-exams/:id/reveal',(_req,res)=>res.status(209).json({legacy:true}));
   app.post('/live-exams/:id/marking/complete',(_req,res)=>res.status(209).json({legacy:true}));
@@ -41,13 +41,22 @@ describe('live exam version-aware control routes',()=>{
     expect(openRoom).toHaveBeenCalledWith(teacher,sessionId,7);
   });
 
-  it('rejects a missing version on new-only controls',async()=>{
-    const lockAnswers=vi.fn();
-    await request(appFor({lockAnswers}))
-      .post(`/live-exams/${sessionId}/answers/lock`)
-      .send({})
-      .expect(400);
-    expect(lockAnswers).not.toHaveBeenCalled();
+  it('rejects a missing version on every teacher control instead of falling through',async()=>{
+    const service={
+      start:vi.fn(),revealMarkScheme:vi.fn(),completeMarking:vi.fn(),nextQuestion:vi.fn(),cancel:vi.fn(),
+    };
+    for(const path of ['/start','/reveal','/marking/complete','/next','/cancel']){
+      const response=await request(appFor(service))
+        .post(`/live-exams/${sessionId}${path}`)
+        .send({})
+        .expect(400);
+      expect(response.body.legacy).not.toBe(true);
+    }
+    expect(service.start).not.toHaveBeenCalled();
+    expect(service.revealMarkScheme).not.toHaveBeenCalled();
+    expect(service.completeMarking).not.toHaveBeenCalled();
+    expect(service.nextQuestion).not.toHaveBeenCalled();
+    expect(service.cancel).not.toHaveBeenCalled();
   });
 
   it('uses the CAS start transition when expectedVersion is present',async()=>{
@@ -58,16 +67,6 @@ describe('live exam version-aware control routes',()=>{
       .expect(200);
     expect(response.body.version).toBe(11);
     expect(start).toHaveBeenCalledWith(teacher,sessionId,10);
-  });
-
-  it('lets a versionless legacy start request fall through during migration',async()=>{
-    const start=vi.fn();
-    const response=await request(appFor({start}))
-      .post(`/live-exams/${sessionId}/start`)
-      .send({})
-      .expect(209);
-    expect(response.body.legacy).toBe(true);
-    expect(start).not.toHaveBeenCalled();
   });
 
   it('separates answer lock from Mark Scheme reveal',async()=>{
