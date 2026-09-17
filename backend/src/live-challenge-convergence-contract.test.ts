@@ -70,8 +70,9 @@ describe('Cambridge Live Challenge convergence contract',()=>{
   });
 
   it('makes board projection an explicit learner-safe allow-list',()=>{
-    expect(boardProjection).toContain('Learner-safe projection for the shared classroom board');
-    expect(boardProjection).toContain('source-faithful question content');
+    expect(boardProjection).toContain('Learner-safe shared classroom board projection');
+    expect(boardProjection).toContain('structuredBlocks: projectStructuredBlocks');
+    expect(boardProjection).toContain('contentJson: null');
     expect(boardProjection).not.toContain('teacherAnswers');
     expect(boardProjection).not.toContain('ownAnswer');
     expect(boardProjection).not.toContain('participants:');
@@ -79,9 +80,12 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(boardProjection).not.toContain('storagePath:');
   });
 
-  it('keeps Mark Scheme reveal authority in the server snapshot boundary',()=>{
-    expect(boardProjection).toContain('snapshot() already enforces the reveal boundary');
-    expect(boardProjection).toContain('markScheme: source.markScheme ?? null');
+  it('keeps Mark Scheme reveal authority in the server snapshot and projects only learner-safe fields',()=>{
+    expect(boardProjection).toContain('const scheme = source.markScheme');
+    expect(boardProjection).toContain('const markScheme = scheme ?');
+    expect(boardProjection).toContain('code: text(point.code)');
+    expect(boardProjection).toContain('label: text(group.label)');
+    expect(boardProjection).not.toContain('markScheme: source.markScheme ?? null');
     expect(boardProjection).not.toContain('mark_scheme_snapshot');
   });
 
