@@ -52,6 +52,8 @@ import { createLiveExamBuilderRouter } from './routes/live-exam-builder.js';
 import { createLiveExamControlRouter } from './routes/live-exam-control.js';
 import { createLiveExamModerationRouter } from './routes/live-exam-moderation.js';
 import { createLiveExamParticipationRouter } from './routes/live-exam-participation.js';
+import { createLiveExamStudentFeedRouter } from './routes/live-exam-student-feed.js';
+import { createLiveExamAnalyticsRouter } from './routes/live-exam-analytics.js';
 import { createLiveExamRoundSummaryRouter } from './routes/live-exam-round-summary.js';
 import { createLiveExamRealtimeRouter } from './routes/live-exam-realtime.js';
 import { createLiveExamsRouter } from './routes/live-exams.js';
@@ -71,6 +73,8 @@ import { LiveExamBuilderService } from './services/live-exam-builder-service.js'
 import { LiveExamControlService } from './services/live-exam-control-service.js';
 import { LiveExamModerationService } from './services/live-exam-moderation-service.js';
 import { LiveExamParticipationService } from './services/live-exam-participation-service.js';
+import { LiveExamStudentFeedService } from './services/live-exam-student-feed-service.js';
+import { LiveExamAnalyticsService } from './services/live-exam-analytics-service.js';
 import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-service.js';
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
@@ -127,8 +131,6 @@ export function createApp(
     app.use('/api/v1/selections', questionVisualFidelity);
   }
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
-  // Managing classes mounts before reading them: the read router owns '/:id',
-  // which would otherwise swallow paths like '/unassigned-students'.
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
@@ -144,58 +146,43 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
-  // The specific admin paths mount before the general one. Express tries
-  // prefixes in order, so a future '/:id' route inside createAdminRouter would
-  // otherwise swallow /admin/users and /admin/overview.
-  if (auth && authRepository) mountPrivate(
-    '/api/v1/admin/users',
-    createAdminUsersRouter(auth, authRepository, adminUsersService),
-  );
+  if (auth && authRepository) mountPrivate('/api/v1/admin/users',createAdminUsersRouter(auth, authRepository, adminUsersService));
   if (pool) mountPrivate('/api/v1/admin/overview', createOverviewRouter(new OverviewService(pool)));
   if (pool) mountPrivate('/api/v1/admin/corpus', createCorpusRouter(new CorpusService(pool)));
   if (pool) mountPrivate('/api/v1/admin/system', createSystemRouter(new SystemService(pool)));
   if (pool) mountPrivate('/api/v1/admin/quality', createQualityRouter(new QualityService(pool)));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
-  // Builder/discovery routes are named paths, so they must mount before the
-  // generic '/:id' snapshot route can treat "builder-options" as a UUID.
+
+  // Every named/specific Live Challenge route mounts before the generic '/:id'
+  // snapshot router. This keeps one canonical live_exam_* runtime while avoiding
+  // UUID parsing swallowing builder/feed/analytics paths.
   if (pool && questionsRepository) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamBuilderRouter(new LiveExamBuilderService(pool, questionsRepository)),
+    '/api/v1/live-exams',createLiveExamBuilderRouter(new LiveExamBuilderService(pool, questionsRepository)),
   );
-  // Join/leave/remove policy owns participation before the legacy join route.
-  // This is where builder allowLateJoin becomes an enforceable classroom rule.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamParticipationRouter(new LiveExamParticipationService(pool)),
+    '/api/v1/live-exams',createLiveExamStudentFeedRouter(new LiveExamStudentFeedService(pool)),
   );
-  // Canonical CAS controls consume every teacher lifecycle mutation before the
-  // generic runtime router; versionless state changes are no longer accepted.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamControlRouter(new LiveExamControlService(pool)),
+    '/api/v1/live-exams',createLiveExamParticipationRouter(new LiveExamParticipationService(pool)),
   );
-  // Teacher moderation is also versioned and reasoned before the generic legacy
-  // moderation path, preserving append-only override evidence from migration 0172.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamModerationRouter(new LiveExamModerationService(pool)),
+    '/api/v1/live-exams',createLiveExamControlRouter(new LiveExamControlService(pool)),
   );
-  // Specific live-session views mount before the generic '/:id' snapshot route.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamRoundSummaryRouter(new LiveExamRoundSummaryService(pool)),
+    '/api/v1/live-exams',createLiveExamModerationRouter(new LiveExamModerationService(pool)),
   );
-  // Mount the lightweight event cursor before the snapshot router. It carries
-  // no assessment payload; clients use version advances to trigger an
-  // authoritative snapshot refresh after a classroom event.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
+    '/api/v1/live-exams',createLiveExamAnalyticsRouter(new LiveExamAnalyticsService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamRoundSummaryRouter(new LiveExamRoundSummaryService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
   );
   if (pool && questionsRepository) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
+    '/api/v1/live-exams',createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
   );
 
   app.use((_req, res) => {
@@ -212,17 +199,9 @@ export function createApp(
       res.status(400).json({ error: { code: 'validation_error', message: 'Kiritilgan ma\'lumot noto\'g\'ri.', details: error.flatten() } });
       return;
     }
-    // An unreachable database is not a bug in the request. Telling the user the
-    // platform broke sends them to report a fault, when the useful instruction
-    // is to try again shortly.
     if (isDatabaseUnavailable(error)) {
       console.error('Database unavailable', error);
-      res.status(503).json({
-        error: {
-          code: 'database_unavailable',
-          message: 'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.',
-        },
-      });
+      res.status(503).json({error:{code:'database_unavailable',message:'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.'}});
       return;
     }
     console.error(error);
@@ -236,19 +215,8 @@ const authRepository = pool ? new PgAuthRepository(pool) : undefined;
 const auth = authRepository ? new AuthService(authRepository, createMailer(config)) : undefined;
 const classesRepository = pool ? new PgClassesRepository(pool) : undefined;
 const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
-  ? new SupabaseAssetStore({
-      url: config.SUPABASE_URL,
-      secretKey: config.SUPABASE_STORAGE_SECRET_KEY,
-      bucket: config.ASSET_STORAGE_BUCKET,
-    })
+  ? new SupabaseAssetStore({url:config.SUPABASE_URL,secretKey:config.SUPABASE_STORAGE_SECRET_KEY,bucket:config.ASSET_STORAGE_BUCKET})
   : undefined;
 const questionsRepository = pool ? new PgStaffAwareQuestionsRepository(pool, assetSigner) : undefined;
 const adminUsersService = pool ? new AdminUsersService(pool) : undefined;
-export const app = createApp(
-  auth,
-  classesRepository,
-  questionsRepository,
-  authRepository,
-  assetSigner,
-  adminUsersService,
-);
+export const app = createApp(auth,classesRepository,questionsRepository,authRepository,assetSigner,adminUsersService);
