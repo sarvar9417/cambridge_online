@@ -13,7 +13,7 @@ type MarkSchemeSnapshot = {
 const PAUSABLE = new Set(['lobby', 'question_open', 'answers_locked', 'marking', 'review']);
 
 /**
- * Phase 3 state-machine owner for Cambridge Live Challenge.
+ * Phase 3/4 state-machine owner for Cambridge Live Challenge.
  *
  * This service deliberately operates on the existing live_exam_* tables. It is
  * mounted before the legacy LiveExamService routes so version-aware clients can
@@ -253,6 +253,49 @@ export class LiveExamControlService {
         reviewCount:assignments.length,
       });
       return { sessionId, status:'marking' as const, version };
+    });
+  }
+
+  /**
+   * Explicit recovery for a locked peer/self round that cannot safely proceed.
+   * This never silently changes marking policy: the teacher supplies a reason,
+   * the row is CAS-locked, and the policy change is written to live_exam_events
+   * before Mark Scheme reveal can create teacher review assignments.
+   */
+  async switchMarkingToTeacher(
+    actor: Actor,
+    sessionId: string,
+    expectedVersion: number,
+    reason: string,
+  ) {
+    const normalizedReason = reason.trim();
+    if (normalizedReason.length < 3 || normalizedReason.length > 500) {
+      throw new DomainError('live_marking_fallback_reason_required', 400);
+    }
+    return this.transaction(async (client) => {
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      assertExpectedLiveExamVersion(session, expectedVersion);
+      if (session.status !== 'answers_locked') throw new DomainError('live_invalid_state', 409);
+      const fromMode = String(session.marking_mode) as LiveExamMarkingMode;
+      if (fromMode === 'teacher') throw new DomainError('live_invalid_state', 409);
+
+      await client.query(
+        `update live_exam_sessions set marking_mode='teacher' where id=$1`,
+        [sessionId],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'marking.mode_changed', {
+        fromMode,
+        toMode:'teacher',
+        reason:normalizedReason,
+      });
+      return {
+        sessionId,
+        status:'answers_locked' as const,
+        markingMode:'teacher' as const,
+        previousMarkingMode:fromMode,
+        reason:normalizedReason,
+        version,
+      };
     });
   }
 
