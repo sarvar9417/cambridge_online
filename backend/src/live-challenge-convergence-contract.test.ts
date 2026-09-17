@@ -25,6 +25,8 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'published' BEFORE 'lobby'");
     expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'answers_locked' AFTER 'question_open'");
     expect(builderLifecycle).toContain("ADD VALUE IF NOT EXISTS 'paused' AFTER 'review'");
+    expect(builderLifecycle).toContain('ALTER COLUMN join_code DROP NOT NULL');
+    expect(builderLifecycle).toContain('draft challenges keep this null');
     expect(builderLifecycle).toContain('published_at timestamptz');
     expect(builderLifecycle).toContain('paused_from_status live_exam_status');
     expect(builderLifecycle).not.toContain('CREATE TABLE live_challenge_');
