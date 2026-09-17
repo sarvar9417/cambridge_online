@@ -50,8 +50,9 @@ describe('Cambridge Live Challenge Phase 3 control contract',()=>{
     expect(generic).toBeGreaterThan(control);
   });
 
-  it('keeps legacy state routes reachable only during the explicit compatibility window',()=>{
-    expect(route).toContain('if (version === undefined) { next(); return; }');
-    expect(route).toContain('Version-aware teacher controls mount before the legacy live-exams router');
+  it('requires expectedVersion on every teacher lifecycle control after frontend cutover',()=>{
+    expect(route).toContain('const versionBody = z.object({ expectedVersion }).strict()');
+    expect(route).not.toContain('if (version === undefined) { next(); return; }');
+    expect(route).toContain('every teacher-controlled state transition is');
   });
 });
