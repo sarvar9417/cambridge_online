@@ -11,7 +11,6 @@ const answerId='33333333-3333-4333-8333-333333333333';
 function appFor(service:Partial<LiveExamModerationService>){
  const app=express();app.use(express.json());app.use((req,_res,next)=>{req.actor=teacher;next()});
  app.use('/live-exams',createLiveExamModerationRouter(service as LiveExamModerationService));
- app.put('/live-exams/:id/answers/:answerId/moderate',(_req,res)=>res.status(209).json({legacy:true}));
  app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
   if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return;}
   res.status(500).json({error:{code:'internal_error'}});
@@ -19,7 +18,7 @@ function appFor(service:Partial<LiveExamModerationService>){
 }
 
 describe('live exam moderation route',()=>{
- it('uses reasoned CAS moderation when the new UI shape is present',async()=>{
+ it('uses reasoned CAS moderation',async()=>{
   const moderate=vi.fn().mockResolvedValue({answerId,score:2,reason:'Peer score corrected.',version:18});
   await request(appFor({moderate})).put(`/live-exams/${sessionId}/answers/${answerId}/moderate`)
    .send({score:2,feedback:'Adjusted to the MS.',reason:'Peer score corrected.',expectedVersion:17}).expect(200);
@@ -28,11 +27,14 @@ describe('live exam moderation route',()=>{
   });
  });
 
- it('temporarily lets the legacy marker fall through until its reason field lands',async()=>{
+ it('rejects override requests that omit the audit reason or authoritative version',async()=>{
   const moderate=vi.fn();
-  const response=await request(appFor({moderate})).put(`/live-exams/${sessionId}/answers/${answerId}/moderate`)
-   .send({score:2}).expect(209);
-  expect(response.body.legacy).toBe(true);
+  await request(appFor({moderate})).put(`/live-exams/${sessionId}/answers/${answerId}/moderate`)
+   .send({score:2}).expect(400);
+  await request(appFor({moderate})).put(`/live-exams/${sessionId}/answers/${answerId}/moderate`)
+   .send({score:2,reason:'Score adjusted.'}).expect(400);
+  await request(appFor({moderate})).put(`/live-exams/${sessionId}/answers/${answerId}/moderate`)
+   .send({score:2,expectedVersion:17}).expect(400);
   expect(moderate).not.toHaveBeenCalled();
  });
 });
