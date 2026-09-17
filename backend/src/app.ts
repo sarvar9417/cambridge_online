@@ -48,6 +48,7 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
+import { createLiveExamBoardRouter } from './routes/live-exam-board.js';
 import { createLiveExamBuilderRouter } from './routes/live-exam-builder.js';
 import { createLiveExamRoundSummaryRouter } from './routes/live-exam-round-summary.js';
 import { createLiveExamRealtimeRouter } from './routes/live-exam-realtime.js';
@@ -64,6 +65,7 @@ import { opportunisticMaintenance } from './middleware/opportunistic-maintenance
 import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
+import { LiveExamBoardService } from './services/live-exam-board-service.js';
 import { LiveExamBuilderService } from './services/live-exam-builder-service.js';
 import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-service.js';
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
@@ -156,6 +158,14 @@ export function createApp(
   if (pool) mountPrivate(
     '/api/v1/live-exams',
     createLiveExamBuilderRouter(new LiveExamBuilderService(pool)),
+  );
+  // Board mode gets a deliberately reduced projection rather than reusing the
+  // staff snapshot payload in the browser. Mount it before the generic '/:id'.
+  if (pool && questionsRepository) mountPrivate(
+    '/api/v1/live-exams',
+    createLiveExamBoardRouter(new LiveExamBoardService(
+      new LiveExamService(pool, questionsRepository, assetUrlSigner),
+    )),
   );
   // Specific live-session views mount before the generic '/:id' snapshot route.
   if (pool) mountPrivate(
