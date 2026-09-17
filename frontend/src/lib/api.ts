@@ -2,7 +2,7 @@ import type { StructuredQuestionContent } from './structured-question-content';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LIVE_CONTROL_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(start|reveal|marking\/complete|next|cancel|open-room|answers\/lock|mark-scheme\/reveal|pause|resume)$/i;
+const LIVE_CONTROL_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(start|reveal|marking\/complete|marking\/switch-to-teacher|next|cancel|open-room|answers\/lock|mark-scheme\/reveal|pause|resume)$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
 type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
@@ -53,11 +53,8 @@ function send(path: string, init: RequestInit, token: string | null) {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body) headers.set('Content-Type', 'application/json');
   if (path === '/auth/refresh' && init.method?.toUpperCase() === 'POST') {
-    // Refresh cookies are single-use. Share the request across startup effects
-    // (including StrictMode's replay) and automatic access-token refreshes.
     refreshRequest ??= fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' })
       .finally(() => { refreshRequest = null; });
-    // Each caller parses its own body; a Response stream can only be read once.
     return refreshRequest.then((response) => response.clone());
   }
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
@@ -143,8 +140,6 @@ async function liveControlRequest<T>(
   const body=jsonBody(init);
 
   try{
-    // The old teacher button combined answer lock and MS reveal. Preserve that
-    // UX while executing the new server-authoritative two-step state machine.
     if(action==='reveal'){
       let version=cached.version;
       const status=snapshotStatus(cached.body);
@@ -163,8 +158,6 @@ async function liveControlRequest<T>(
     const value=await request(path,{...body,expectedVersion:cached.version});
     return {handled:true,value};
   }finally{
-    // Any attempted state mutation invalidates the local authority. A stale tab
-    // that receives 409 must fetch the authoritative server snapshot next.
     liveSnapshotCache.delete(snapshotKey);
   }
 }
@@ -182,9 +175,7 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
       const cursor=await requestJson<LiveCursor>(`${path}/events?afterVersion=${cached.version}&limit=1`,{},options);
       if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
     }catch{
-      // During a rolling deployment the cursor route may briefly be absent or
-      // unreachable. Fall back to the authoritative snapshot instead of
-      // making Live Exam depend on the notification optimisation.
+      // During a rolling deployment the cursor route may briefly be absent or unreachable.
     }
   }
 
