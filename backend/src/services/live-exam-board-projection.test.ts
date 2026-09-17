@@ -103,7 +103,31 @@ describe('projectLiveExamForBoard', () => {
 
   it('never manufactures a Mark Scheme before the authorised snapshot reveals one', () => {
     expect(projectLiveExamForBoard(base).markScheme).toBeNull();
-    const scheme = { maxMarks: 4, points: [{ code: 'M1', text: 'Valid point' }] };
-    expect(projectLiveExamForBoard({ ...base, markScheme: scheme }).markScheme).toEqual(scheme);
+  });
+
+  it('projects revealed Mark Scheme content without database identifiers or group links', () => {
+    const board = projectLiveExamForBoard({
+      ...base,
+      markScheme: {
+        id:'scheme-secret',schemeType:'points',maxMarks:4,guidanceMd:'Award one mark per valid point.',
+        points:[{
+          id:'point-secret',code:'M1',text:'Valid point',marks:1,
+          accept:['Equivalent wording'],reject:['Wrong claim'],requires:['point-secret-2'],isBod:false,groupId:'group-secret',
+        }],
+        groups:[{
+          id:'group-secret',label:'Any four',nRequired:4,marksPerPoint:1,maxMarks:4,awardMode:'point_marks',
+        }],
+      },
+    });
+    const serialized=JSON.stringify(board.markScheme);
+
+    expect(board.markScheme).toEqual({
+      schemeType:'points',maxMarks:4,guidanceMd:'Award one mark per valid point.',
+      points:[{code:'M1',text:'Valid point',marks:1,accept:['Equivalent wording'],reject:['Wrong claim'],isBod:false}],
+      groups:[{label:'Any four',nRequired:4,marksPerPoint:1,maxMarks:4,awardMode:'point_marks'}],
+    });
+    expect(serialized).not.toContain('scheme-secret');
+    expect(serialized).not.toContain('point-secret');
+    expect(serialized).not.toContain('group-secret');
   });
 });
