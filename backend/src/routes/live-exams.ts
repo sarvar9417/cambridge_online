@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
+import { projectLiveExamForBoard } from '../services/live-exam-board-projection.js';
 
 const uuid = z.string().uuid();
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
@@ -48,6 +49,18 @@ export function createLiveExamsRouter(service: LiveExamService) {
   router.post('/join', async (req, res) => {
     const body = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict().parse(req.body);
     res.status(201).json(await service.join(req.actor!, body.code));
+  });
+
+  router.get('/:id/board', async (req, res) => {
+    // Projector/board mode is a staff-controlled classroom surface. Students
+    // receive their own authorised projection through the normal snapshot.
+    if (req.actor!.role === 'student') {
+      res.status(403).json({ error: { code: 'staff_only', message: 'Bu amal faqat o‘qituvchi yoki administrator uchun mavjud.' } });
+      return;
+    }
+    privateNoStore(res);
+    const snapshot = await service.snapshot(req.actor!, id(req.params));
+    res.json({ data: projectLiveExamForBoard(snapshot) });
   });
 
   router.get('/:id', async (req, res) => {
