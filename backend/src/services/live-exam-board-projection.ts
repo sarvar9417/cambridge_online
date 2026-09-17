@@ -1,5 +1,3 @@
-type RecordLike = Record<string, unknown>;
-
 type PortableAsset = {
   kind?: unknown;
   url?: unknown;
@@ -39,9 +37,26 @@ type PortableQuestion = {
 };
 
 type BoardSource = {
-  session: RecordLike;
-  question?: (RecordLike & { portable?: PortableQuestion }) | null;
-  markScheme?: RecordLike | null;
+  session: {
+    title?: unknown;
+    className?: unknown;
+    status?: unknown;
+    currentQuestionIndex?: unknown;
+    questionCount?: unknown;
+    participantCount?: unknown;
+    submittedCount?: unknown;
+    reviewCount?: unknown;
+    reviewedCount?: unknown;
+    deadline?: unknown;
+    serverNow?: unknown;
+    joinCode?: unknown;
+  };
+  question?: {
+    position?: unknown;
+    marks?: unknown;
+    portable?: PortableQuestion;
+  } | null;
+  markScheme?: unknown;
 };
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
