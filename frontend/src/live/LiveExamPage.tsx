@@ -3,6 +3,7 @@ import { navigate, useRoute } from '../lib/router';
 import { LiveChallengeAnalyticsPanel } from './LiveChallengeAnalyticsPanel';
 import { LiveChallengeBoard } from './LiveChallengeBoard';
 import { LiveChallengeBuilder } from './LiveChallengeBuilder';
+import { LiveChallengeParticipationControls } from './LiveChallengeParticipationControls';
 import { LiveChallengeStaffLanding } from './LiveChallengeStaffLanding';
 import { LiveChallengeStudentLanding } from './LiveChallengeStudentLanding';
 import { LiveExamPage as LiveExamRuntime } from './LiveExamRuntime';
@@ -35,5 +36,10 @@ export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {
 
   if(!sessionId&&user.role==='student')return <LiveChallengeStudentLanding/>;
   if(!sessionId&&user.role!=='student')return <LiveChallengeStaffLanding/>;
-  return <LiveExamRuntime user={user} classes={classes}/>;
+  if(!sessionId)return null;
+
+  return <>
+    <LiveExamRuntime user={user} classes={classes}/>
+    <LiveChallengeParticipationControls user={user} sessionId={sessionId}/>
+  </>;
 }
