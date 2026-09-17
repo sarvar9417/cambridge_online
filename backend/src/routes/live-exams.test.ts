@@ -3,11 +3,12 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createLiveExamsRouter } from './live-exams.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
+import type { Actor } from '../lib/actor.js';
 
-const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
-const teacher = { id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
+const student:Actor = { id:'11111111-1111-4111-8111-111111111111',role:'student',schoolId:'school',fullName:'Student' };
+const teacher:Actor = { id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'teacher',schoolId:'school',fullName:'Teacher' };
 
-function appFor(service:Partial<LiveExamService>, actor=student) {
+function appFor(service:Partial<LiveExamService>, actor:Actor=student) {
   const app=express();
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=actor;next()});
