@@ -30,19 +30,21 @@ describe('Cambridge Live Challenge moderation convergence',()=>{
     expect(moderationService).toContain('moderation_reason=$6');
     expect(moderationService).toContain("'answer.moderated'");
     expect(moderationRoute).toContain('reason:z.string().trim().min(3).max(500)');
+    expect(moderationRoute).toContain('expectedVersion:z.number().int().positive()');
     expect(overrideReasonMigration).toContain('live_exam_score_overrides');
     expect(overrideReasonMigration).toContain('NEW.moderation_reason');
   });
 
-  it('mounts reasoned moderation before the generic legacy runtime route',()=>{
+  it('mounts reasoned moderation before the generic runtime route',()=>{
     const moderation=app.indexOf('createLiveExamModerationRouter(new LiveExamModerationService(pool))');
     const generic=app.indexOf('createLiveExamsRouter(new LiveExamService');
     expect(moderation).toBeGreaterThan(-1);
     expect(generic).toBeGreaterThan(moderation);
   });
 
-  it('keeps only a narrow UI compatibility branch until the reason field lands',()=>{
-    expect(moderationRoute).toContain('probe.expectedVersion===undefined||probe.reason===undefined');
-    expect(moderationRoute).toContain('next();return;');
+  it('has no versionless moderation compatibility fallback left',()=>{
+    expect(moderationRoute).not.toContain('next();return;');
+    expect(moderationRoute).not.toContain('probe.expectedVersion');
+    expect(moderationRoute).not.toContain('optional()');
   });
 });
