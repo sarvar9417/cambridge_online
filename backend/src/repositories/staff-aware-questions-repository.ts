@@ -18,8 +18,11 @@ interface AssetUrlSigner {
  * in the API rather than styling every scheme as "official" in the browser.
  */
 export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
-  constructor(private readonly detailPool: Pool, assetUrlSigner?: AssetUrlSigner) {
-    super(detailPool, assetUrlSigner);
+  constructor(
+    private readonly detailPool: Pool,
+    private readonly detailAssetUrlSigner?: AssetUrlSigner,
+  ) {
+    super(detailPool, detailAssetUrlSigner);
   }
 
   override async findOne(actor: Actor, id: string) {
@@ -87,11 +90,72 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
     const row = result.rows[0];
     if (!row?.content_json) return portable;
     if (Number(row.content_version) !== 1) throw new Error('structured_question_version_unsupported');
+
+    const contentJson = parseStructuredQuestionContent(row.content_json);
+    const referencedAssetIds = [...new Set(contentJson.blocks.flatMap((block) =>
+      block.type === 'asset' ? [block.assetId] : [],
+    ))];
+    const availableAssetIds = new Set(
+      portable.contextBlocks.flatMap((block) => block.assets.map((asset) => asset.id)),
+    );
+    const missingAssetIds = referencedAssetIds.filter((assetId) => !availableAssetIds.has(assetId));
+
+    let contextBlocks = portable.contextBlocks;
+    if (missingAssetIds.length) {
+      // content_json can legitimately reference a source visual stored on a sibling
+      // question row (for example, a shared table or preceding diagram). The frozen
+      // portable unit must therefore carry every explicitly referenced asset, not
+      // merely assets owned by the leaf's ancestry. Keep this source-paper scoped.
+      const assets = await this.detailPool.query(
+        `select qa.id,qa.kind,qa.storage_path,coalesce(qa.svg_markup,qa.content_md) content_md,
+          qa.alt_text,qa.sort_order,qa.source_page,
+          owner.source_paper_id owner_source_paper_id,leaf.source_paper_id leaf_source_paper_id
+         from question_assets qa
+         join questions owner on owner.id=qa.question_id
+         join questions leaf on leaf.id=$2
+         where qa.id=any($1::uuid[])
+         order by qa.sort_order,qa.id`,
+        [missingAssetIds, id],
+      );
+      if (assets.rows.length !== missingAssetIds.length) {
+        throw new Error('structured_question_asset_missing');
+      }
+      if (assets.rows.some((asset) => asset.owner_source_paper_id !== asset.leaf_source_paper_id)) {
+        throw new Error('structured_question_asset_source_mismatch');
+      }
+
+      const referencedAssets = await Promise.all(assets.rows.map(async (asset) => ({
+        id: String(asset.id),
+        kind: String(asset.kind),
+        storagePath: asset.storage_path as string | null,
+        url: asset.storage_path && this.detailAssetUrlSigner
+          ? await this.detailAssetUrlSigner.signStoragePath(String(asset.storage_path), 300)
+          : null,
+        contentMd: asset.content_md as string | null,
+        altText: String(asset.alt_text ?? ''),
+        sortOrder: Number(asset.sort_order),
+        sourcePage: asset.source_page == null ? null : Number(asset.source_page),
+      })));
+
+      contextBlocks = [
+        ...contextBlocks,
+        {
+          id: `${id}:structured-assets`,
+          label: portable.leaf.label,
+          displayRef: portable.leaf.displayRef,
+          depth: portable.chain.at(-1)?.depth ?? 0,
+          context: null,
+          assets: referencedAssets,
+        },
+      ];
+    }
+
     return {
       ...portable,
+      contextBlocks,
       leaf: {
         ...portable.leaf,
-        contentJson: parseStructuredQuestionContent(row.content_json),
+        contentJson,
       },
     };
   }
