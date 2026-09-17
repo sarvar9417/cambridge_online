@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const source = readFileSync(resolve(process.cwd(), 'src', 'live', 'LiveExamPage.tsx'), 'utf8');
+const source = readFileSync(resolve(process.cwd(), 'src', 'live', 'LiveExamRuntime.tsx'), 'utf8');
 
 describe('live exam source fidelity contract', () => {
   it('shows recursive parent context and the leaf question together', () => {
