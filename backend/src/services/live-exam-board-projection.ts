@@ -38,15 +38,19 @@ type PortableQuestion = {
 };
 
 type BoardMarkSchemePoint = {
+  id?: unknown;
   code?: unknown;
   text?: unknown;
   marks?: unknown;
   accept?: unknown;
   reject?: unknown;
+  requires?: unknown;
   isBod?: unknown;
+  groupId?: unknown;
 };
 
 type BoardMarkSchemeGroup = {
+  id?: unknown;
   label?: unknown;
   nRequired?: unknown;
   marksPerPoint?: unknown;
@@ -55,6 +59,7 @@ type BoardMarkSchemeGroup = {
 };
 
 type BoardMarkScheme = {
+  id?: unknown;
   schemeType?: unknown;
   maxMarks?: unknown;
   guidanceMd?: unknown;
@@ -155,15 +160,7 @@ function projectStructuredBlocks(contentJson:unknown, contextBlocks:PortableCont
   return blocks.length?blocks:null;
 }
 
-/**
- * Learner-safe projection for the shared classroom board.
- *
- * The teacher snapshot contains participant identities, answer text, review
- * assignments, moderation state and internal database identifiers. The board
- * contract is an explicit allow-list instead: only classroom-facing state,
- * source-faithful question content and the already-authorised Mark Scheme can
- * cross this boundary.
- */
+/** Learner-safe shared classroom board projection. */
 export function projectLiveExamForBoard(source: BoardSource) {
   const session = source.session;
   const portable = source.question?.portable;
@@ -181,8 +178,6 @@ export function projectLiveExamForBoard(source: BoardSource) {
       stem: text(leaf.stem),
       stemLatex: text(leaf.stemLatex),
       bodyFormat: text(leaf.bodyFormat),
-      // Raw StructuredQuestionContent contains paper UUID/hash and asset UUIDs.
-      // The board receives only the presentation-safe transformed blocks below.
       contentJson: null,
       structuredBlocks: projectStructuredBlocks(leaf.contentJson,contexts),
       commandWord: text(leaf.commandWord),
@@ -247,8 +242,6 @@ export function projectLiveExamForBoard(source: BoardSource) {
       joinCode: showJoinCode ? text(session.joinCode) : null,
     },
     question,
-    // snapshot() enforces the reveal boundary; this second allow-list strips
-    // Mark Scheme row ids/group ids and any future moderation-only metadata.
     markScheme,
   };
 }
