@@ -5,38 +5,36 @@ import type { LiveExamControlService } from '../services/live-exam-control-servi
 const uuid = z.string().uuid();
 const expectedVersion = z.number().int().positive();
 const id = (params: Record<string, unknown>) => uuid.parse(params.id);
-
-function transitionVersion(body: unknown) {
-  const parsed = z.object({ expectedVersion:expectedVersion.optional() }).passthrough().parse(body ?? {});
-  return parsed.expectedVersion;
-}
+const versionBody = z.object({ expectedVersion }).strict();
 
 /**
- * Version-aware teacher controls mount before the legacy live-exams router.
- * Existing clients without expectedVersion deliberately fall through during
- * the migration window; new clients use the locked/CAS state machine here.
+ * Canonical teacher-control surface for Cambridge Live Challenge.
+ *
+ * Frontend cutover is complete: every teacher-controlled state transition is
+ * now versioned and fails closed when the caller does not send the authoritative
+ * snapshot version. The legacy service remains mounted for non-control runtime
+ * operations only; matching control paths are consumed here.
  */
 export function createLiveExamControlRouter(service: LiveExamControlService) {
   const router = Router();
 
   router.post('/:id/open-room', async (req, res) => {
-    const body = z.object({ expectedVersion }).strict().parse(req.body ?? {});
+    const body = versionBody.parse(req.body ?? {});
     res.json(await service.openRoom(req.actor!, id(req.params), body.expectedVersion));
   });
 
-  router.post('/:id/start', async (req, res, next) => {
-    const version = transitionVersion(req.body);
-    if (version === undefined) { next(); return; }
-    res.json(await service.start(req.actor!, id(req.params), version));
+  router.post('/:id/start', async (req, res) => {
+    const body = versionBody.parse(req.body ?? {});
+    res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/answers/lock', async (req, res) => {
-    const body = z.object({ expectedVersion }).strict().parse(req.body ?? {});
+    const body = versionBody.parse(req.body ?? {});
     res.json(await service.lockAnswers(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/mark-scheme/reveal', async (req, res) => {
-    const body = z.object({ expectedVersion }).strict().parse(req.body ?? {});
+    const body = versionBody.parse(req.body ?? {});
     res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
   });
 
@@ -53,45 +51,42 @@ export function createLiveExamControlRouter(service: LiveExamControlService) {
     ));
   });
 
-  // Keep the public route stable for the frontend migration: once a client
-  // supplies expectedVersion, /reveal means reveal an already locked round.
-  router.post('/:id/reveal', async (req, res, next) => {
-    const version = transitionVersion(req.body);
-    if (version === undefined) { next(); return; }
-    res.json(await service.revealMarkScheme(req.actor!, id(req.params), version));
+  // Retain the route name only as a strict compatibility alias for callers that
+  // have already separated locking from reveal. It no longer permits the old
+  // versionless combined transition.
+  router.post('/:id/reveal', async (req, res) => {
+    const body = versionBody.parse(req.body ?? {});
+    res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
   });
 
-  router.post('/:id/marking/complete', async (req, res, next) => {
+  router.post('/:id/marking/complete', async (req, res) => {
     const body = z.object({
-      expectedVersion:expectedVersion.optional(),
+      expectedVersion,
       force:z.boolean().default(false),
     }).strict().parse(req.body ?? {});
-    if (body.expectedVersion === undefined) { next(); return; }
     res.json(await service.completeMarking(
       req.actor!,id(req.params),body.expectedVersion,body.force,
     ));
   });
 
-  router.post('/:id/next', async (req, res, next) => {
-    const version = transitionVersion(req.body);
-    if (version === undefined) { next(); return; }
-    res.json(await service.nextQuestion(req.actor!, id(req.params), version));
+  router.post('/:id/next', async (req, res) => {
+    const body = versionBody.parse(req.body ?? {});
+    res.json(await service.nextQuestion(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/pause', async (req, res) => {
-    const body = z.object({ expectedVersion }).strict().parse(req.body ?? {});
+    const body = versionBody.parse(req.body ?? {});
     res.json(await service.pause(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/resume', async (req, res) => {
-    const body = z.object({ expectedVersion }).strict().parse(req.body ?? {});
+    const body = versionBody.parse(req.body ?? {});
     res.json(await service.resume(req.actor!, id(req.params), body.expectedVersion));
   });
 
-  router.post('/:id/cancel', async (req, res, next) => {
-    const version = transitionVersion(req.body);
-    if (version === undefined) { next(); return; }
-    res.json(await service.cancel(req.actor!, id(req.params), version));
+  router.post('/:id/cancel', async (req, res) => {
+    const body = versionBody.parse(req.body ?? {});
+    res.json(await service.cancel(req.actor!, id(req.params), body.expectedVersion));
   });
 
   return router;
