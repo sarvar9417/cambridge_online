@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const api=readFileSync(resolve(process.cwd(),'src','lib','api.ts'),'utf8');
-const page=readFileSync(resolve(process.cwd(),'src','live','LiveExamPage.tsx'),'utf8');
+const runtime=readFileSync(resolve(process.cwd(),'src','live','LiveExamRuntime.tsx'),'utf8');
 
 describe('Live Challenge frontend state-machine cutover',()=>{
   it('attaches cached authoritative versions to teacher state transitions',()=>{
@@ -21,10 +21,10 @@ describe('Live Challenge frontend state-machine cutover',()=>{
   it('surfaces the converged lifecycle and pause controls in the classroom UI',()=>{
     expect(api).toContain("'answers_locked'");
     expect(api).toContain("'paused'");
-    expect(page).toContain("session.status==='answers_locked'");
-    expect(page).toContain("session.status==='paused'");
-    expect(page).toContain("act('/pause')");
-    expect(page).toContain("act('/resume')");
-    expect(page).toContain("act('/open-room')");
+    expect(runtime).toContain("session.status==='answers_locked'");
+    expect(runtime).toContain("session.status==='paused'");
+    expect(runtime).toContain("act('/pause')");
+    expect(runtime).toContain("act('/resume')");
+    expect(runtime).toContain("act('/open-room')");
   });
 });
