@@ -6,6 +6,7 @@ const read=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 const builder=read('src/routes/live-exam-builder.ts');
 const participation=read('src/routes/live-exam-participation.ts');
 const control=read('src/routes/live-exam-control.ts');
+const controlService=read('src/services/live-exam-control-service.ts');
 const runtime=read('src/routes/live-exams.ts');
 const moderation=read('src/routes/live-exam-moderation.ts');
 const feed=read('src/services/live-exam-student-feed-service.ts');
@@ -43,7 +44,8 @@ describe('Cambridge Live Challenge repository release-flow gate',()=>{
     expect(peerIntegrity).toContain('live_peer_assignment_impossible');
     expect(peerIntegrity).toContain('NEW.reviewer_id = answer_student_id');
     expect(control).toContain('expectedVersion');
-    expect(control).toContain("'answers_locked'");
+    expect(controlService).toContain("set status='answers_locked'");
+    expect(controlService).toContain("session.status !== 'answers_locked'");
     expect(board).not.toContain('teacherAnswers');
     expect(board).not.toContain('ownAnswer');
     expect(feed).not.toContain('joinCode:');
