@@ -1,4 +1,5 @@
 type PortableAsset = {
+  id?: unknown;
   kind?: unknown;
   url?: unknown;
   contentMd?: unknown;
@@ -87,6 +88,72 @@ type BoardSource = {
 const text = (value: unknown) => typeof value === 'string' ? value : null;
 const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
 const bool = (value: unknown) => typeof value === 'boolean' ? value : null;
+const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+function safeSourceLocation(value:unknown) {
+  if(!object(value))return null;
+  const page=number(value.page);
+  const bbox=Array.isArray(value.bbox)&&value.bbox.length===4&&value.bbox.every((item)=>number(item)!==null)
+    ? value.bbox.map((item)=>Number(item))
+    : null;
+  return page===null?null:{page,bbox};
+}
+
+/**
+ * StructuredQuestionContent contains canonical paper/asset UUIDs and source
+ * hashes. The shared board needs the source-faithful blocks, not those internal
+ * identifiers, so transform it into a presentation-only block list.
+ */
+function projectStructuredBlocks(contentJson:unknown, contextBlocks:PortableContextBlock[]) {
+  if(!object(contentJson)||!Array.isArray(contentJson.blocks))return null;
+  const assetsById=new Map<string,PortableAsset>();
+  for(const context of contextBlocks){
+    for(const asset of context.assets??[]){
+      const assetId=text(asset.id);
+      if(assetId)assetsById.set(assetId,asset);
+    }
+  }
+
+  const blocks:Record<string,unknown>[]=[];
+  for(const candidate of contentJson.blocks){
+    if(!object(candidate))continue;
+    const type=text(candidate.type);
+    const source=safeSourceLocation(candidate.source);
+    if(!type)continue;
+
+    if(type==='text'){
+      blocks.push({type,style:text(candidate.style),text:text(candidate.text),source});
+    }else if(type==='math'){
+      blocks.push({type,semantics:text(candidate.semantics),latex:text(candidate.latex),display:bool(candidate.display),source});
+    }else if(type==='code'){
+      blocks.push({type,language:text(candidate.language),text:text(candidate.text),source});
+    }else if(type==='list'){
+      blocks.push({type,items:Array.isArray(candidate.items)?candidate.items.map(text).filter((item):item is string=>item!==null):[],source});
+    }else if(type==='table'){
+      const headers=Array.isArray(candidate.headers)?candidate.headers.map(text).filter((item):item is string=>item!==null):[];
+      const rows=Array.isArray(candidate.rows)?candidate.rows.map((row)=>Array.isArray(row)?row.map((cell)=>cell===null?null:text(cell)):[]):[];
+      blocks.push({type,kind:text(candidate.kind),headers,rows,source});
+    }else if(type==='matching'){
+      const projectSide=(value:unknown,prefix:string)=>Array.isArray(value)?value.flatMap((item,index)=>object(item)&&text(item.text)?[{key:`${prefix}${index+1}`,text:text(item.text)!}]:[]):[];
+      blocks.push({type,left:projectSide(candidate.left,'L'),right:projectSide(candidate.right,'R'),source});
+    }else if(type==='asset'){
+      const internalAssetId=text(candidate.assetId);
+      const asset=internalAssetId?assetsById.get(internalAssetId):undefined;
+      blocks.push({
+        type,
+        kind:text(candidate.kind)??text(asset?.kind),
+        altText:text(candidate.altText)??text(asset?.altText),
+        url:text(asset?.url),
+        contentMd:text(asset?.contentMd),
+        sourcePage:number(asset?.sourcePage),
+        source,
+      });
+    }else if(type==='answer_area'){
+      blocks.push({type,kind:text(candidate.kind),lines:number(candidate.lines),source});
+    }
+  }
+  return blocks.length?blocks:null;
+}
 
 /**
  * Learner-safe projection for the shared classroom board.
@@ -101,6 +168,7 @@ export function projectLiveExamForBoard(source: BoardSource) {
   const session = source.session;
   const portable = source.question?.portable;
   const leaf = portable?.leaf;
+  const contexts=portable?.contextBlocks??[];
 
   const question = source.question && portable && leaf ? {
     position: number(source.question.position),
@@ -113,13 +181,16 @@ export function projectLiveExamForBoard(source: BoardSource) {
       stem: text(leaf.stem),
       stemLatex: text(leaf.stemLatex),
       bodyFormat: text(leaf.bodyFormat),
-      contentJson: leaf.contentJson ?? null,
+      // Raw StructuredQuestionContent contains paper UUID/hash and asset UUIDs.
+      // The board receives only the presentation-safe transformed blocks below.
+      contentJson: null,
+      structuredBlocks: projectStructuredBlocks(leaf.contentJson,contexts),
       commandWord: text(leaf.commandWord),
       marks: number(leaf.marks),
       answerKind: text(leaf.answerKind),
       answerLines: number(leaf.answerLines),
     },
-    contextBlocks: (portable.contextBlocks ?? []).map((block) => ({
+    contextBlocks: contexts.map((block) => ({
       label: text(block.label),
       displayRef: text(block.displayRef),
       depth: number(block.depth),
