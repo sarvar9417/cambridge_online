@@ -15,7 +15,14 @@ describe('Live Challenge frontend state-machine cutover',()=>{
   it('keeps answer lock separate from Mark Scheme reveal even when one teacher button drives both',()=>{
     expect(api).toContain("`${snapshotKey}/answers/lock`");
     expect(api).toContain("`${snapshotKey}/mark-scheme/reveal`");
-    expect(api).toContain("if(status==='question_open')");
+    expect(api).toContain("status==='question_open'");
+  });
+
+  it('requires reasoned CAS teacher override and explicit peer recovery',()=>{
+    expect(api).toContain('LIVE_MODERATION_PATH');
+    expect(api).toContain("'live_override_reason_required'");
+    expect(api).toContain("'live_peer_assignment_impossible'");
+    expect(api).toContain("`${snapshotKey}/marking/switch-to-teacher`");
   });
 
   it('surfaces the converged lifecycle and pause controls in the classroom UI',()=>{
