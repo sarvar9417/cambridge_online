@@ -3,6 +3,7 @@ import type { StructuredQuestionContent } from './structured-question-content';
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LIVE_CONTROL_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(start|reveal|marking\/complete|marking\/switch-to-teacher|next|cancel|open-room|answers\/lock|mark-scheme\/reveal|pause|resume)$/i;
+const LIVE_MODERATION_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/answers\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/moderate$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
 type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
@@ -118,6 +119,37 @@ function jsonBody(init:RequestInit) {
   }catch{return {} as Record<string,unknown>}
 }
 
+function askReason(message:string,defaultValue:string) {
+  if(typeof window==='undefined')return null;
+  const value=window.prompt(message,defaultValue)?.trim()??'';
+  return value.length>=3?value:null;
+}
+
+async function revealWithSafeFallback<T>(
+  snapshotKey:string,
+  version:number,
+  options:{suppressAuthExpired?:boolean},
+) {
+  try {
+    return await requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
+      method:'POST',body:JSON.stringify({expectedVersion:version}),
+    },options);
+  } catch (error) {
+    if(!(error instanceof ApiError)||error.code!=='live_peer_assignment_impossible')throw error;
+    const reason=askReason(
+      'Bu round uchun xavfsiz anonim peer juftlik yetarli emas. Teacher marking’ga o‘tish sababini yozing:',
+      'Anonim peer marking uchun xavfsiz ishtirokchilar yetarli emas.',
+    );
+    if(!reason)throw error;
+    const switched=await requestJson<{version:number}>(`${snapshotKey}/marking/switch-to-teacher`,{
+      method:'POST',body:JSON.stringify({expectedVersion:version,reason}),
+    },options);
+    return requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
+      method:'POST',body:JSON.stringify({expectedVersion:switched.version}),
+    },options);
+  }
+}
+
 async function liveControlRequest<T>(
   path:string,
   init:RequestInit,
@@ -133,25 +165,21 @@ async function liveControlRequest<T>(
   if(!cached)return {handled:false};
 
   const request=(target:string,body:Record<string,unknown>)=>requestJson<T>(target,{
-    ...init,
-    method:'POST',
-    body:JSON.stringify(body),
+    ...init,method:'POST',body:JSON.stringify(body),
   },options);
   const body=jsonBody(init);
 
   try{
-    if(action==='reveal'){
+    if(action==='reveal'||action==='mark-scheme/reveal'){
       let version=cached.version;
       const status=snapshotStatus(cached.body);
-      if(status==='question_open'){
+      if(action==='reveal'&&status==='question_open'){
         const locked=await requestJson<{version:number}>(`${snapshotKey}/answers/lock`,{
           method:'POST',body:JSON.stringify({expectedVersion:version}),
         },options);
         version=locked.version;
       }
-      const value=await requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
-        method:'POST',body:JSON.stringify({expectedVersion:version}),
-      },options);
+      const value=await revealWithSafeFallback<T>(snapshotKey,version,options);
       return {handled:true,value};
     }
 
@@ -162,7 +190,50 @@ async function liveControlRequest<T>(
   }
 }
 
+async function liveModerationRequest<T>(
+  path:string,
+  init:RequestInit,
+  options:{suppressAuthExpired?:boolean},
+):Promise<{handled:false}|{handled:true;value:T}> {
+  if((init.method??'GET').toUpperCase()!=='PUT')return {handled:false};
+  const matched=path.match(LIVE_MODERATION_PATH);
+  if(!matched)return {handled:false};
+  const sessionId=matched[1]!;
+  const snapshotKey=`/live-exams/${sessionId}`;
+  const body=jsonBody(init);
+  let reason=typeof body.reason==='string'?body.reason.trim():'';
+  if(reason.length<3){
+    reason=askReason(
+      'Teacher override sababini yozing. Bu sabab audit tarixida saqlanadi:',
+      'Official Mark Scheme asosida o‘qituvchi bahoni tuzatdi.',
+    )??'';
+  }
+  if(reason.length<3)throw new ApiError('Baho o‘zgartirilsa, o‘qituvchi qisqa sabab yozishi kerak.','live_override_reason_required',undefined,400);
+
+  let expectedVersion=typeof body.expectedVersion==='number'&&Number.isInteger(body.expectedVersion)&&body.expectedVersion>0
+    ? body.expectedVersion
+    : liveSnapshotCache.get(snapshotKey)?.version;
+  if(!expectedVersion){
+    const authoritative=await requestJson<unknown>(snapshotKey,{},options);
+    expectedVersion=snapshotVersion(authoritative)??undefined;
+  }
+  if(!expectedVersion)throw new ApiError('Sessiyaning authoritative versiyasi topilmadi.','live_state_conflict',undefined,409);
+
+  try{
+    const value=await requestJson<T>(path,{
+      ...init,
+      method:'PUT',
+      body:JSON.stringify({...body,reason,expectedVersion}),
+    },options);
+    return {handled:true,value};
+  }finally{
+    liveSnapshotCache.delete(snapshotKey);
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+  const moderation=await liveModerationRequest<T>(path,init,options);
+  if(moderation.handled)return moderation.value;
   const control=await liveControlRequest<T>(path,init,options);
   if(control.handled)return control.value;
 
@@ -175,7 +246,7 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
       const cursor=await requestJson<LiveCursor>(`${path}/events?afterVersion=${cached.version}&limit=1`,{},options);
       if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
     }catch{
-      // During a rolling deployment the cursor route may briefly be absent or unreachable.
+      // Notification cursor is an optimisation; persisted snapshot is authority.
     }
   }
 
