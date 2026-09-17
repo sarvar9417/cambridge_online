@@ -43,7 +43,7 @@ const representativeCases = [
 type SmokeCase = {
   slug: string;
   title: string;
-  refs: string[];
+  refs: readonly string[];
   requireVisual?: boolean;
 };
 

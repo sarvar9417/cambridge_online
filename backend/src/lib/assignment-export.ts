@@ -57,6 +57,8 @@ export function toAssignmentExportQuestion(row: Row): ExportQuestion {
     contextBlocks: blocks.length ? blocks : undefined,
     marks: role === 'context_only' ? 0 : Number(row.marks ?? 0),
     role,
-    points: Array.isArray(row.points) ? row.points as ExportQuestion['points'] : [],
+    schemeStatus: role==='graded'&&typeof row.scheme_status==='string'?row.scheme_status:undefined,
+    schemeGuidance: role==='graded'&&typeof row.scheme_guidance==='string'?row.scheme_guidance:null,
+    points: role==='graded'&&Array.isArray(row.points) ? row.points as ExportQuestion['points'] : [],
   };
 }
