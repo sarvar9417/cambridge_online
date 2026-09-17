@@ -14,7 +14,7 @@ describe('0172 live exam override reason migration',()=>{
   });
 
   it('copies the teacher reason into append-only override evidence',()=>{
-    expect(sql).toContain('OLD.score_source,reason,created_at');
+    expect(sql).toContain('previous_score_source,reason,created_at');
     expect(sql).toContain('OLD.score_source,NEW.moderation_reason');
     expect(sql).toContain('CREATE OR REPLACE FUNCTION audit_live_exam_teacher_override()');
   });
