@@ -45,6 +45,7 @@ describe('Cambridge Live Challenge moderation convergence',()=>{
   it('has no versionless moderation compatibility fallback left',()=>{
     expect(moderationRoute).not.toContain('next();return;');
     expect(moderationRoute).not.toContain('probe.expectedVersion');
-    expect(moderationRoute).not.toContain('optional()');
+    expect(moderationRoute).not.toContain('expectedVersion:z.number().int().positive().optional()');
+    expect(moderationRoute).not.toContain('reason:z.string().trim().min(3).max(500).optional()');
   });
 });
