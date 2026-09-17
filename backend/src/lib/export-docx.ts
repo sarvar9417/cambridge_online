@@ -1,4 +1,4 @@
-import type { ExportMode, ExportQuestion } from './export-html.js';
+import type { ExportMode, ExportQuestion, ExportSchemePoint } from './export-html.js';
 import { assertPortableAssetCoverage } from './export-html.js';
 import { structureQuestionText } from './question-structure.js';
 import type { StructuredQuestionBlock } from './structured-question-content.js';
@@ -112,16 +112,57 @@ function structuredStemXml(question:ExportQuestion,ctx:BuildContext){
     return Array.from({length:Math.max(1,Math.min(12,count))},()=>para('________________________________________________________________________________')).join('');
   }).join('');
 }
-function schemeXml(question:ExportQuestion){const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';return warning+((question.points??[]).map(point=>para(`${point.code}  ${point.text}  [${point.marks}]`)).join('')||para('No atomic mark-scheme points are available for this item.'))}
+
+function valueItems(value:unknown):string[]{
+  if(value===null||value===undefined)return[];
+  if(Array.isArray(value))return value.flatMap(valueItems);
+  if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return[String(value)];
+  if(typeof value==='object')return Object.entries(value as Record<string,unknown>).flatMap(([key,item])=>valueItems(item).map(text=>`${key}: ${text}`));
+  return[];
+}
+function schemeGroupHeader(point:ExportSchemePoint){
+  const parts:string[]=[];
+  if(point.groupLabel)parts.push(point.groupLabel);
+  if(point.groupNRequired)parts.push(`Any ${point.groupNRequired} from`);
+  if(point.groupMaxMarks)parts.push(`max ${point.groupMaxMarks}`);
+  if(point.groupAwardMode)parts.push(point.groupAwardMode.replaceAll('_',' '));
+  return parts.join(' · ');
+}
+function schemeXml(question:ExportQuestion){
+  const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';
+  const guidance=question.schemeGuidance?`${para('Guidance',{bold:true})}${para(question.schemeGuidance)}`:'';
+  let previousGroup='';
+  const points=(question.points??[]).map(point=>{
+    const group=schemeGroupHeader(point),groupXml=group&&group!==previousGroup?para(group,{bold:true}):'';
+    if(group)previousGroup=group;
+    const accept=valueItems(point.accept),reject=valueItems(point.reject),requires=valueItems(point.requires);
+    const notes=[
+      accept.length?para(`Accept: ${accept.join('; ')}`):'',
+      reject.length?para(`Reject: ${reject.join('; ')}`):'',
+      requires.length?para(`Requires: ${requires.join('; ')}`):'',
+    ].join('');
+    return `${groupXml}${para(`${point.code}  ${point.text}  [${point.marks}]`)}${notes}`;
+  }).join('');
+  return `${warning}${guidance}${points||para('No atomic mark-scheme points are available for this item.')}`;
+}
 function answerSpace(question:ExportQuestion){const count=Math.max(0,Math.min(12,question.answerLines??Math.max(2,question.marks*2)));return Array.from({length:count},()=>para('________________________________________________________________________________')).join('')}
+function questionCoreXml(question:ExportQuestion,ctx:BuildContext){
+  return `${para(`${question.displayRef}${question.role==='context_only'?'  Context':`  [${question.marks}]`}`,{bold:true})}${contextXml(question,ctx)}${structuredStemXml(question,ctx)}${question.sourceRef?para(`Source: ${question.sourceRef}`):''}`;
+}
 
 function documentXml(title:string,questions:ExportQuestion[],mode:ExportMode,ctx:BuildContext){
   const total=questions.reduce((sum,q)=>sum+(q.role==='context_only'?0:q.marks),0);
   const header=`${para(title,{style:'Title'})}${para('Cambridge International Computer Science')}${para(`Total: ${total}`,{bold:true})}`;
   const candidate=mode==='mark_scheme'?para('Mark Scheme',{style:'Heading1'}):para('Name: ______________________________    Class: __________________    Date: __________________');
-  const questionSection=mode==='mark_scheme'?'':questions.map(q=>`${para(`${q.displayRef}${q.role==='context_only'?'  Context':`  [${q.marks}]`}`,{bold:true})}${contextXml(q,ctx)}${structuredStemXml(q,ctx)}${q.sourceRef?para(`Source: ${q.sourceRef}`):''}${q.role!=='context_only'?answerSpace(q):''}${mode==='combined'&&q.role!=='context_only'?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:''}`).join('');
-  const schemeSection=mode==='mark_scheme'?questions.filter(q=>q.role!=='context_only').map(q=>`${para(`${q.displayRef}  [${q.marks}]`,{bold:true})}${q.sourceRef?para(`Source: ${q.sourceRef}`):''}${schemeXml(q)}`).join(''):'';
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body>${header}${candidate}${questionSection}${schemeSection}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020"/></w:sectPr></w:body></w:document>`;
+  const showScheme=mode==='combined'||mode==='mark_scheme'||mode==='feedback';
+  const showAnswerSpace=mode==='question_paper'||mode==='combined';
+  const body=(mode==='mark_scheme'?questions.filter(q=>q.role!=='context_only'):questions).map(q=>{
+    const core=questionCoreXml(q,ctx);
+    const answer=q.role!=='context_only'&&showAnswerSpace?answerSpace(q):'';
+    const scheme=q.role!=='context_only'&&showScheme?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:'';
+    return `${core}${answer}${scheme}`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body>${header}${candidate}${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020"/></w:sectPr></w:body></w:document>`;
 }
 
 const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="34"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style></w:styles>`;
