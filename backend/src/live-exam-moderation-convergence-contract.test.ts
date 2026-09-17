@@ -8,7 +8,7 @@ const controlService=source('src/services/live-exam-control-service.ts');
 const moderationRoute=source('src/routes/live-exam-moderation.ts');
 const moderationService=source('src/services/live-exam-moderation-service.ts');
 const app=source('src/app.ts');
-const overrideReasonMigration=source('src/database/migrations/0172_live_exam_override_reason.sql');
+const overrideReasonMigration=source('src/database/migrations/0173_live_exam_override_reason.sql');
 
 describe('Cambridge Live Challenge moderation convergence',()=>{
   it('never silently downgrades an unsafe peer round to self marking',()=>{
