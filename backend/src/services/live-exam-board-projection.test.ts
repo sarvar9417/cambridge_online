@@ -130,4 +130,41 @@ describe('projectLiveExamForBoard', () => {
     expect(serialized).not.toContain('point-secret');
     expect(serialized).not.toContain('group-secret');
   });
+
+  it('keeps structured source blocks but replaces paper, matching and asset identifiers', () => {
+    const structured={
+      version:1,
+      source:{paperId:'paper-secret',sha256:'hash-secret'},
+      blocks:[
+        {type:'text',style:'task',text:'Complete the table.',source:{page:3}},
+        {type:'table',kind:'table',headers:['A','B'],rows:[['1','2']],editableCells:[],source:{page:3}},
+        {type:'matching',left:[{id:'match-left-secret',text:'LAN'}],right:[{id:'match-right-secret',text:'Local area network'}],source:{page:3}},
+        {type:'asset',kind:'diagram',assetId:'asset-secret',altText:'Network diagram',source:{page:3}},
+      ],
+    };
+    const board=projectLiveExamForBoard({
+      ...base,
+      question:{
+        ...base.question,
+        portable:{
+          ...base.question.portable,
+          leaf:{...base.question.portable.leaf,contentJson:structured},
+        },
+      },
+    });
+    const serialized=JSON.stringify(board.question);
+
+    expect(board.question?.leaf.contentJson).toBeNull();
+    expect(board.question?.leaf.structuredBlocks).toEqual([
+      {type:'text',style:'task',text:'Complete the table.',source:{page:3,bbox:null}},
+      {type:'table',kind:'table',headers:['A','B'],rows:[['1','2']],source:{page:3,bbox:null}},
+      {type:'matching',left:[{key:'L1',text:'LAN'}],right:[{key:'R1',text:'Local area network'}],source:{page:3,bbox:null}},
+      {type:'asset',kind:'diagram',altText:'Network diagram',url:'https://signed.example/diagram',contentMd:null,sourcePage:12,source:{page:3,bbox:null}},
+    ]);
+    expect(serialized).not.toContain('paper-secret');
+    expect(serialized).not.toContain('hash-secret');
+    expect(serialized).not.toContain('match-left-secret');
+    expect(serialized).not.toContain('match-right-secret');
+    expect(serialized).not.toContain('asset-secret');
+  });
 });
