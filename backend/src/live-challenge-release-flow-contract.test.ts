@@ -41,7 +41,7 @@ describe('Cambridge Live Challenge repository release-flow gate',()=>{
 
   it('keeps classroom safety invariants fail-closed',()=>{
     expect(peerIntegrity).toContain('live_peer_assignment_impossible');
-    expect(peerIntegrity).toContain('reviewer_id = answer_owner');
+    expect(peerIntegrity).toContain('NEW.reviewer_id = answer_student_id');
     expect(control).toContain('expectedVersion');
     expect(control).toContain("'answers_locked'");
     expect(board).not.toContain('teacherAnswers');
