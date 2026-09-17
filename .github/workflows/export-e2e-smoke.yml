@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      NODE_ENV: production
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_STORAGE_SECRET_KEY: ${{ secrets.SUPABASE_STORAGE_SECRET_KEY }}
@@ -73,6 +72,7 @@ jobs:
         if: steps.smoke-secrets.outputs.ready == 'true'
         working-directory: backend
         env:
+          NODE_ENV: production
           CHROME_EXECUTABLE_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: npx tsx src/jobs/export-e2e-smoke-cli.ts
       - name: Upload rendered evidence
