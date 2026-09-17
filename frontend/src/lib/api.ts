@@ -2,6 +2,7 @@ import type { StructuredQuestionContent } from './structured-question-content';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LIVE_CONTROL_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(start|reveal|marking\/complete|next|cancel|open-room|answers\/lock|mark-scheme\/reveal|pause|resume)$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
 type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
@@ -96,6 +97,14 @@ function snapshotVersion(body:unknown) {
   return typeof version==='number'&&Number.isFinite(version)&&version>=0?version:null;
 }
 
+function snapshotStatus(body:unknown) {
+  if (!body || typeof body !== 'object' || !('session' in body)) return null;
+  const session=(body as {session?:unknown}).session;
+  if (!session || typeof session !== 'object' || !('status' in session)) return null;
+  const status=(session as {status?:unknown}).status;
+  return typeof status==='string'?status:null;
+}
+
 function rememberLiveSnapshot(key:string, body:unknown, version:number) {
   liveSnapshotCache.set(key,{body,version,fetchedAt:Date.now()});
   if(liveSnapshotCache.size>20){
@@ -104,7 +113,66 @@ function rememberLiveSnapshot(key:string, body:unknown, version:number) {
   }
 }
 
+function jsonBody(init:RequestInit) {
+  if(typeof init.body!=='string'||!init.body.trim())return {} as Record<string,unknown>;
+  try{
+    const parsed=JSON.parse(init.body) as unknown;
+    return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{};
+  }catch{return {} as Record<string,unknown>}
+}
+
+async function liveControlRequest<T>(
+  path:string,
+  init:RequestInit,
+  options:{suppressAuthExpired?:boolean},
+):Promise<{handled:false}|{handled:true;value:T}> {
+  if((init.method??'GET').toUpperCase()!=='POST')return {handled:false};
+  const matched=path.match(LIVE_CONTROL_PATH);
+  if(!matched)return {handled:false};
+  const sessionId=matched[1]!;
+  const action=matched[2]!.toLowerCase();
+  const snapshotKey=`/live-exams/${sessionId}`;
+  const cached=liveSnapshotCache.get(snapshotKey);
+  if(!cached)return {handled:false};
+
+  const request=(target:string,body:Record<string,unknown>)=>requestJson<T>(target,{
+    ...init,
+    method:'POST',
+    body:JSON.stringify(body),
+  },options);
+  const body=jsonBody(init);
+
+  try{
+    // The old teacher button combined answer lock and MS reveal. Preserve that
+    // UX while executing the new server-authoritative two-step state machine.
+    if(action==='reveal'){
+      let version=cached.version;
+      const status=snapshotStatus(cached.body);
+      if(status==='question_open'){
+        const locked=await requestJson<{version:number}>(`${snapshotKey}/answers/lock`,{
+          method:'POST',body:JSON.stringify({expectedVersion:version}),
+        },options);
+        version=locked.version;
+      }
+      const value=await requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
+        method:'POST',body:JSON.stringify({expectedVersion:version}),
+      },options);
+      return {handled:true,value};
+    }
+
+    const value=await request(path,{...body,expectedVersion:cached.version});
+    return {handled:true,value};
+  }finally{
+    // Any attempted state mutation invalidates the local authority. A stale tab
+    // that receives 409 must fetch the authoritative server snapshot next.
+    liveSnapshotCache.delete(snapshotKey);
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+  const control=await liveControlRequest<T>(path,init,options);
+  if(control.handled)return control.value;
+
   const cacheKey=liveSnapshotKey(path,init);
   if(!cacheKey)return requestJson<T>(path,init,options);
 
@@ -148,10 +216,10 @@ export interface ContentGames {termMatch:Array<{id:string;term:string;definition
 export interface LessonProgress {chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
 export interface ExportItem {id:string;kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
-export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
+export type LiveExamStatus = 'draft'|'published'|'lobby'|'question_open'|'answers_locked'|'marking'|'review'|'paused'|'finished'|'cancelled';
 export type LiveExamMarkingMode = 'teacher'|'peer'|'self';
 export interface LiveExamSummary {
-  id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
+  id:string;classId:string;className:string;title:string;joinCode:string|null;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
