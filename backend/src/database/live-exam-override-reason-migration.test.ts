@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const sql=readFileSync(
-  new URL('./migrations/0172_live_exam_override_reason.sql',import.meta.url),
+  new URL('./migrations/0173_live_exam_override_reason.sql',import.meta.url),
   'utf8',
 );
 
-describe('0172 live exam override reason migration',()=>{
+describe('0173 live exam override reason migration',()=>{
   it('stores a bounded moderation reason on the effective answer and audit row',()=>{
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS moderation_reason text');
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS reason text');
