@@ -30,7 +30,9 @@ describe('LiveExamBuilderService',()=>{
     }]});
     const service=new LiveExamBuilderService({query} as unknown as Pool);
     await expect(service.eligibleQuestions(teacher,{
-      syllabusId:'22222222-2222-4222-8222-222222222222',limit:25,
+      syllabusId:'22222222-2222-4222-8222-222222222222',
+      topicId:'33333333-3333-4333-8333-333333333333',
+      limit:25,
     })).rejects.toMatchObject({code:'not_found',status:404});
     expect(query).toHaveBeenCalledTimes(1);
   });
