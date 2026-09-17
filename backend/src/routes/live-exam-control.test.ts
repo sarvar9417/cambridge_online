@@ -85,6 +85,25 @@ describe('live exam version-aware control routes',()=>{
     expect(revealMarkScheme).toHaveBeenCalledWith(teacher,sessionId,13);
   });
 
+  it('requires an explicit reason before changing a locked peer round to teacher marking',async()=>{
+    const switchMarkingToTeacher=vi.fn().mockResolvedValue({
+      sessionId,status:'answers_locked',markingMode:'teacher',version:16,
+    });
+    await request(appFor({switchMarkingToTeacher}))
+      .post(`/live-exams/${sessionId}/marking/switch-to-teacher`)
+      .send({expectedVersion:15,reason:'Peer marking is unavailable for this round.'})
+      .expect(200);
+    expect(switchMarkingToTeacher).toHaveBeenCalledWith(
+      teacher,sessionId,15,'Peer marking is unavailable for this round.',
+    );
+
+    await request(appFor({switchMarkingToTeacher}))
+      .post(`/live-exams/${sessionId}/marking/switch-to-teacher`)
+      .send({expectedVersion:15,reason:'  '})
+      .expect(400);
+    expect(switchMarkingToTeacher).toHaveBeenCalledTimes(1);
+  });
+
   it('passes expectedVersion and force into marking completion',async()=>{
     const completeMarking=vi.fn().mockResolvedValue({sessionId,status:'review',version:22});
     await request(appFor({completeMarking}))
