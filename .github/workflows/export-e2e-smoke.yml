@@ -10,9 +10,10 @@ on:
       - backend/src/lib/assignment-export.ts
       - backend/src/lib/export-html.ts
       - backend/src/lib/export-html.fidelity.test.ts
+      - backend/src/lib/export-docx.ts
+      - backend/src/lib/export-docx.test.ts
       - backend/src/lib/question-bank-export-milestone.test.ts
       - backend/src/lib/export-assets.ts
-      - backend/src/lib/export-docx.ts
       - backend/src/repositories/questions-repository.ts
       - backend/src/repositories/staff-aware-questions-repository.ts
       - .github/workflows/export-e2e-smoke.yml
@@ -40,7 +41,7 @@ jobs:
       - name: Typecheck backend export pipeline
         run: npm run typecheck -w backend
       - name: Run export fidelity unit tests
-        run: npm run test -w backend -- --run src/lib/export-html.test.ts src/lib/export-html.fidelity.test.ts src/lib/question-bank-export-milestone.test.ts
+        run: npm run test -w backend -- --run src/lib/export-html.test.ts src/lib/export-html.fidelity.test.ts src/lib/export-docx.test.ts src/lib/question-bank-export-milestone.test.ts
       - name: Detect production smoke credentials
         id: smoke-secrets
         shell: bash
