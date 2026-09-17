@@ -50,7 +50,8 @@ type SmokeCase = {
 type SchemeRow = {
   question_id: string;
   scheme_status: string;
-  points: Array<{ code: string; text: string; marks: number }>;
+  scheme_guidance: string | null;
+  points: ExportQuestion['points'];
 };
 
 function assertClean(value: string, label: string) {
@@ -148,13 +149,26 @@ async function exportQuestions(review: ReturnType<typeof buildSelectionReview>) 
     .filter((item) => item.role === 'graded')
     .map((item) => item.portable.leaf.id);
   const schemes = await pool!.query<SchemeRow>(
-    `select ms.question_id,ms.status::text scheme_status,
-       json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',msp.marks)
-         order by msp.sort_order,msp.id) points
+    `select ms.question_id,ms.status::text scheme_status,ms.guidance_md scheme_guidance,
+       coalesce(json_agg(json_build_object(
+         'code',msp.code,
+         'text',msp.text,
+         'marks',msp.marks,
+         'accept',msp.accept,
+         'reject',msp.reject,
+         'requires',msp.requires,
+         'groupLabel',msg.label,
+         'groupNRequired',msg.n_required,
+         'groupMaxMarks',msg.max_marks,
+         'groupAwardMode',msg.award_mode,
+         'groupSortOrder',msg.sort_order
+       ) order by coalesce(msg.sort_order,2147483647),msp.sort_order,msp.id)
+       filter(where msp.id is not null),'[]'::json) points
      from canonical_mark_schemes ms
-     join mark_scheme_points msp on msp.mark_scheme_id=ms.id
+     left join mark_scheme_points msp on msp.mark_scheme_id=ms.id
+     left join mark_scheme_groups msg on msg.id=msp.group_id
      where ms.question_id=any($1::uuid[]) and ms.status='approved'
-     group by ms.question_id,ms.status`,
+     group by ms.id,ms.question_id,ms.status,ms.guidance_md`,
     [questionIds],
   );
   const byQuestion = new Map(schemes.rows.map((row) => [row.question_id, row] as const));
@@ -173,6 +187,7 @@ async function exportQuestions(review: ReturnType<typeof buildSelectionReview>) 
       answerLines: item.portable.leaf.answerLines,
       role: item.role,
       schemeStatus: scheme?.scheme_status,
+      schemeGuidance: scheme?.scheme_guidance ?? null,
       points: scheme?.points ?? [],
     };
   });
@@ -212,7 +227,7 @@ async function validatePdf(path: string, expectedTotal: number) {
   if (!text.includes(`Total: ${expectedTotal}`)) {
     throw new Error(`pdf_total_missing:${path}:${expectedTotal}`);
   }
-  return pages;
+  return {pages,text};
 }
 
 async function runCase(
@@ -233,12 +248,21 @@ async function runCase(
     if (smokeCase.requireVisual && !html.includes('asset-image') && !html.includes('<table')) {
       throw new Error(`expected_visual_missing:${smokeCase.slug}:${mode}`);
     }
+    if(mode==='mark_scheme'){
+      if(!html.includes('<h2>Mark Scheme</h2>'))throw new Error(`mark_scheme_heading_missing:${smokeCase.slug}`);
+      if(html.includes('<span>Name:</span>'))throw new Error(`mark_scheme_candidate_fields_present:${smokeCase.slug}`);
+      for(const question of questions.filter(item=>item.role!=='context_only')){
+        if(!(question.points?.length))throw new Error(`mark_scheme_points_missing:${question.sourceRef??question.displayRef}`);
+        if(!html.includes(`Source: ${question.sourceRef}`))throw new Error(`mark_scheme_source_ref_missing:${question.sourceRef}`);
+      }
+    }
     const htmlPath = resolve(outputDir, `${smokeCase.slug}-${mode}.html`);
     const pdfPath = resolve(outputDir, `${smokeCase.slug}-${mode}.pdf`);
     await writeFile(htmlPath, html, 'utf8');
     await renderPdf(html, pdfPath);
-    const pages = await validatePdf(pdfPath, review.totalMarks);
-    results.push({ mode, pages, totalMarks: review.totalMarks, questions: review.items.length });
+    const validation = await validatePdf(pdfPath, review.totalMarks);
+    if(mode==='mark_scheme'&&!validation.text.includes('Mark Scheme'))throw new Error(`mark_scheme_pdf_heading_missing:${smokeCase.slug}`);
+    results.push({ mode, pages:validation.pages, totalMarks: review.totalMarks, questions: review.items.length });
   }
 
   if (includeDocx) {
