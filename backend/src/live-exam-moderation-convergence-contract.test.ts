@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 const controlRoute=source('src/routes/live-exam-control.ts');
 const controlService=source('src/services/live-exam-control-service.ts');
+const moderationRoute=source('src/routes/live-exam-moderation.ts');
+const moderationService=source('src/services/live-exam-moderation-service.ts');
+const app=source('src/app.ts');
 const overrideReasonMigration=source('src/database/migrations/0172_live_exam_override_reason.sql');
 
 describe('Cambridge Live Challenge moderation convergence',()=>{
@@ -22,9 +25,24 @@ describe('Cambridge Live Challenge moderation convergence',()=>{
     expect(controlService).toContain('reason:normalizedReason');
   });
 
-  it('makes teacher override reasons durable audit evidence',()=>{
-    expect(overrideReasonMigration).toContain('moderation_reason');
+  it('makes teacher score overrides version-aware and durable',()=>{
+    expect(moderationService).toContain('assertExpectedLiveExamVersion(session,input.expectedVersion)');
+    expect(moderationService).toContain('moderation_reason=$6');
+    expect(moderationService).toContain("'answer.moderated'");
+    expect(moderationRoute).toContain('reason:z.string().trim().min(3).max(500)');
     expect(overrideReasonMigration).toContain('live_exam_score_overrides');
     expect(overrideReasonMigration).toContain('NEW.moderation_reason');
+  });
+
+  it('mounts reasoned moderation before the generic legacy runtime route',()=>{
+    const moderation=app.indexOf('createLiveExamModerationRouter(new LiveExamModerationService(pool))');
+    const generic=app.indexOf('createLiveExamsRouter(new LiveExamService');
+    expect(moderation).toBeGreaterThan(-1);
+    expect(generic).toBeGreaterThan(moderation);
+  });
+
+  it('keeps only a narrow UI compatibility branch until the reason field lands',()=>{
+    expect(moderationRoute).toContain('probe.expectedVersion===undefined||probe.reason===undefined');
+    expect(moderationRoute).toContain('next();return;');
   });
 });
