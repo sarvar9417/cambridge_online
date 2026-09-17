@@ -15,7 +15,7 @@ describe('generated paper fidelity gate',()=>{
   it('renders structured tables and a canonical diagram exactly once',()=>{
     const assetId='22222222-2222-4222-8222-222222222222';
     const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><rect x="5" y="5" width="110" height="50"/></svg>';
-    const q:ExportQuestion={displayRef:'Q2',sourceRef:'9618/13/M/J/26 Q2(a)',stem:'',marks:2,contentJson:{version:1,source,blocks:[{type:'text',style:'paragraph',text:'Complete the table.'},{type:'table',headers:['Input','Output'],rows:[['0',''],['1','']]},{type:'asset',kind:'logic_circuit',assetId,altText:'Logic circuit',source:{page:3}}]},contextBlocks:[{assets:[{id:assetId,kind:'diagram',altText:'Logic circuit',contentMd:svg}]}]};
+    const q:ExportQuestion={displayRef:'Q2',sourceRef:'9618/13/M/J/26 Q2(a)',stem:'',marks:2,contentJson:{version:1,source,blocks:[{type:'text',style:'paragraph',text:'Complete the table.',source:{page:3}},{type:'table',kind:'table',headers:['Input','Output'],rows:[['0',''],['1','']],editableCells:[[0,1],[1,1]],source:{page:3}},{type:'asset',kind:'logic_circuit',assetId,altText:'Logic circuit',source:{page:3}}]},contextBlocks:[{assets:[{id:assetId,kind:'diagram',altText:'Logic circuit',contentMd:svg}]}]};
     const html=renderPaperHtml('Practice',[q],'question_paper');
     expect(html).toContain('<table');
     expect(html).toContain('Input');
