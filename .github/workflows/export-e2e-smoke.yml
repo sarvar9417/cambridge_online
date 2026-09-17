@@ -35,37 +35,41 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Check required secret presence
-        shell: bash
-        run: |
-          set -euo pipefail
-          missing=0
-          for key in DATABASE_URL SUPABASE_URL SUPABASE_STORAGE_SECRET_KEY; do
-            if [ -n "${!key:-}" ]; then
-              echo "$key=present"
-            else
-              echo "$key=missing"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            echo "Export E2E secrets are incomplete."
-            exit 2
-          fi
-      - name: Install PDF inspection tools
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
-      - name: Install Chrome
-        id: chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
       - name: Install dependencies
         run: npm ci
       - name: Typecheck backend export pipeline
         run: npm run typecheck -w backend
       - name: Run export fidelity unit tests
         run: npm run test -w backend -- --run src/lib/export-html.test.ts src/lib/export-html.fidelity.test.ts
+      - name: Detect production smoke credentials
+        id: smoke-secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=true
+          for key in DATABASE_URL SUPABASE_URL SUPABASE_STORAGE_SECRET_KEY; do
+            if [ -n "${!key:-}" ]; then
+              echo "$key=present"
+            else
+              echo "$key=missing"
+              ready=false
+            fi
+          done
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+      - name: Production smoke unavailable
+        if: steps.smoke-secrets.outputs.ready != 'true'
+        run: echo "Production-backed PDF rendering is skipped because repository Actions secrets are not configured. Offline typecheck and fidelity tests still ran."
+      - name: Install PDF inspection tools
+        if: steps.smoke-secrets.outputs.ready == 'true'
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install Chrome
+        if: steps.smoke-secrets.outputs.ready == 'true'
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
       - name: Run production-backed export smoke
+        if: steps.smoke-secrets.outputs.ready == 'true'
         working-directory: backend
         env:
           CHROME_EXECUTABLE_PATH: ${{ steps.chrome.outputs.chrome-path }}
