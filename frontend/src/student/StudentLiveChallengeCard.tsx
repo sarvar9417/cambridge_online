@@ -33,7 +33,7 @@ export function StudentLiveChallengeCard() {
     return()=>{cancelled=true;window.clearInterval(timer)};
   },[]);
 
-  const visibleActive=active&&ACTIVE_STATUS.has(visibleActive.status)?active:null;
+  const visibleActive=active&&ACTIVE_STATUS.has(active.status)?active:null;
   const destination=visibleActive?`oquvchi/live?id=${visibleActive.id}`:'oquvchi/live';
 
   return <section className={`sh-live ${visibleActive?'is-active':''}`} aria-label="Live Challenge">
@@ -41,7 +41,7 @@ export function StudentLiveChallengeCard() {
     <div className="sh-live-copy">
       <span>CAMBRIDGE LIVE CHALLENGE</span>
       <h2>{visibleActive?visibleActive.title:'Sinf bilan bir vaqtda past-paper ishlang'}</h2>
-      <p>{active
+      <p>{visibleActive
         ? `${visibleActive.className} · ${STATUS_TEXT[visibleActive.status]} · ${visibleActive.participantCount} o‘quvchi`
         : 'O‘qituvchi bergan 6 xonali kod bilan live sessiyaga qo‘shiling. Savol, mark scheme va natija bir xil ritmda ochiladi.'}</p>
     </div>
