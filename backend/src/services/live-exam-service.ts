@@ -5,10 +5,11 @@ import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
+import { parseLiveExamSettings } from './live-exam-settings.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
-export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
+export type LiveExamStatus = 'draft' | 'published' | 'lobby' | 'question_open' | 'answers_locked' | 'marking' | 'review' | 'paused' | 'finished' | 'cancelled';
 
 export interface CreateLiveExamInput {
   classId: string;
@@ -342,6 +343,7 @@ export class LiveExamService {
   }
 
   async list(actor: Actor) {
+    this.assertStaff(actor);
     const result = await this.pool.query(
       `select les.id,les.class_id,les.title,les.join_code,les.status::text,les.marking_mode::text,
          les.question_time_limit_s,les.current_question_index,les.version,les.created_at,les.updated_at,
@@ -351,17 +353,14 @@ export class LiveExamService {
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where (
-         ($1='student' and exists(
-           select 1 from live_exam_participants lep where lep.session_id=les.id and lep.student_id=$2
-         ))
-         or ($1='owner' and c.school_id=$3)
-         or ($1='teacher' and (c.owner_id=$2 or exists(
-           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$2
+         ($1='owner' and c.school_id=$2)
+         or ($1='teacher' and (c.owner_id=$3 or exists(
+           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3
          )))
        )
        order by (les.status not in ('finished','cancelled')) desc,les.updated_at desc
        limit 50`,
-      [actor.role, actor.id, actor.schoolId],
+      [actor.role, actor.schoolId, actor.id],
     );
     return result.rows.map((row) => ({
       ...this.mapSession(row),
@@ -369,32 +368,6 @@ export class LiveExamService {
       questionCount: Number(row.question_count),
       participantCount: Number(row.participant_count),
     }));
-  }
-
-  async join(actor: Actor, code: string) {
-    if (actor.role !== 'student') throw new DomainError('students_only', 403);
-    const result = await this.pool.query(
-      `insert into live_exam_participants(session_id,student_id,left_at,last_seen_at)
-       select les.id,$2,null,now()
-       from live_exam_sessions les
-       join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-       where les.join_code=$1 and les.status='lobby'
-       on conflict(session_id,student_id) do update set left_at=null,last_seen_at=now()
-       returning id,session_id,joined_at`,
-      [code, actor.id],
-    );
-    if (!result.rowCount) throw new DomainError('live_code_not_found', 404);
-    const participant = result.rows[0];
-    await this.pool.query(
-      `with changed as (
-         update live_exam_sessions set version=version+1,updated_at=now()
-         where id=$1 returning version
-       )
-       insert into live_exam_events(session_id,actor_id,event_type,session_version,payload)
-       select $1,$2,'participant.joined',version,$3::jsonb from changed`,
-      [participant.session_id, actor.id, JSON.stringify({ participantId: participant.id })],
-    );
-    return { sessionId: participant.session_id, participantId: participant.id };
   }
 
   async heartbeat(actor: Actor, sessionId: string) {
@@ -594,6 +567,7 @@ export class LiveExamService {
     return {
       session: {
         ...this.mapSession(session),
+        joinCode: isStaff ? session.join_code : null,
         className: session.class_name,
         hostName: session.host_name,
         currentQuestionIndex: Number(session.current_question_index),
@@ -607,6 +581,7 @@ export class LiveExamService {
         reviewCount: Number(reviewCounts.rows[0].total),
         reviewedCount: Number(reviewCounts.rows[0].completed),
         questionCount: questionRows.rowCount ?? 0,
+        teacherOverrideEnabled: isStaff ? parseLiveExamSettings(session.settings).teacherOverrideEnabled : false,
       },
       questions: isStaff ? questionRows.rows.map((row) => ({
         id: row.id,
@@ -751,7 +726,7 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`, [sessionId]);
+        `select status::text,current_question_index,settings from live_exam_sessions where id=$1 for update`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open') throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set
@@ -769,9 +744,35 @@ export class LiveExamService {
         [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
-      const version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let answersLocked=false;
+      const settings=parseLiveExamSettings(state.rows[0]?.settings);
+      if(settings.autoCloseWhenAllSubmitted){
+        const counts=await client.query(
+          `select
+             count(*) filter(where lep.left_at is null)::int participant_count,
+             count(*) filter(where lep.left_at is null and a.submitted_at is not null)::int submitted_count
+           from live_exam_participants lep
+           left join live_exam_answers a
+             on a.participant_id=lep.id and a.session_question_id=$2
+           where lep.session_id=$1`,
+          [sessionId,result.rows[0].session_question_id],
+        );
+        const participantCount=Number(counts.rows[0]?.participant_count??0);
+        const submittedCount=Number(counts.rows[0]?.submitted_count??0);
+        if(participantCount>0&&submittedCount>=participantCount){
+          await client.query(
+            `update live_exam_sessions set status='answers_locked',answers_locked_at=coalesce(answers_locked_at,now()) where id=$1 and status='question_open'`,
+            [sessionId],
+          );
+          version=await this.bump(client,sessionId,actor.id,'answers.auto_locked',{
+            position:Number(state.rows[0]?.current_question_index??0),participantCount,submittedCount,
+          });
+          answersLocked=true;
+        }
+      }
       await client.query('commit');
-      return { submittedAt: new Date(), version };
+      return { submittedAt: new Date(), version, answersLocked };
     } catch (error) {
       await client.query('rollback');
       throw error;

@@ -34,15 +34,12 @@ describe('assignPeerReviewers', () => {
   });
 });
 
-describe('LiveExamService role boundary', () => {
-  it('rejects a staff account trying to join before querying the database', async () => {
-    const query = vi.fn();
-    const service = new LiveExamService(
-      { query } as unknown as Pool,
-      {} as PgQuestionsRepository,
-    );
-    await expect(service.join({ id:'t1',role:'teacher',schoolId:'school',fullName:'Teacher' }, '123456'))
-      .rejects.toMatchObject({ code:'students_only',status:403 });
+describe('LiveExamService staff list boundary',()=>{
+  it('rejects learner access before querying classroom session metadata',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    await expect(service.list({id:'s1',role:'student',schoolId:'school',fullName:'Student'}))
+      .rejects.toMatchObject({code:'staff_only',status:403});
     expect(query).not.toHaveBeenCalled();
   });
 });

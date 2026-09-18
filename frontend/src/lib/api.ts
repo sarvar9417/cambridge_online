@@ -2,6 +2,8 @@ import type { StructuredQuestionContent } from './structured-question-content';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LIVE_CONTROL_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(start|reveal|marking\/complete|marking\/switch-to-teacher|next|cancel|open-room|answers\/lock|mark-scheme\/reveal|pause|resume)$/i;
+const LIVE_MODERATION_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/answers\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/moderate$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
 type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
@@ -52,11 +54,8 @@ function send(path: string, init: RequestInit, token: string | null) {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body) headers.set('Content-Type', 'application/json');
   if (path === '/auth/refresh' && init.method?.toUpperCase() === 'POST') {
-    // Refresh cookies are single-use. Share the request across startup effects
-    // (including StrictMode's replay) and automatic access-token refreshes.
     refreshRequest ??= fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' })
       .finally(() => { refreshRequest = null; });
-    // Each caller parses its own body; a Response stream can only be read once.
     return refreshRequest.then((response) => response.clone());
   }
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
@@ -96,6 +95,14 @@ function snapshotVersion(body:unknown) {
   return typeof version==='number'&&Number.isFinite(version)&&version>=0?version:null;
 }
 
+function snapshotStatus(body:unknown) {
+  if (!body || typeof body !== 'object' || !('session' in body)) return null;
+  const session=(body as {session?:unknown}).session;
+  if (!session || typeof session !== 'object' || !('status' in session)) return null;
+  const status=(session as {status?:unknown}).status;
+  return typeof status==='string'?status:null;
+}
+
 function rememberLiveSnapshot(key:string, body:unknown, version:number) {
   liveSnapshotCache.set(key,{body,version,fetchedAt:Date.now()});
   if(liveSnapshotCache.size>20){
@@ -104,7 +111,132 @@ function rememberLiveSnapshot(key:string, body:unknown, version:number) {
   }
 }
 
+function jsonBody(init:RequestInit) {
+  if(typeof init.body!=='string'||!init.body.trim())return {} as Record<string,unknown>;
+  try{
+    const parsed=JSON.parse(init.body) as unknown;
+    return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{};
+  }catch{return {} as Record<string,unknown>}
+}
+
+function askReason(message:string,defaultValue:string) {
+  if(typeof window==='undefined')return null;
+  const value=window.prompt(message,defaultValue)?.trim()??'';
+  return value.length>=3?value:null;
+}
+
+async function revealWithSafeFallback<T>(
+  snapshotKey:string,
+  version:number,
+  options:{suppressAuthExpired?:boolean},
+) {
+  try {
+    return await requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
+      method:'POST',body:JSON.stringify({expectedVersion:version}),
+    },options);
+  } catch (error) {
+    if(!(error instanceof ApiError)||error.code!=='live_peer_assignment_impossible')throw error;
+    const reason=askReason(
+      'Bu round uchun xavfsiz anonim peer juftlik yetarli emas. Teacher marking’ga o‘tish sababini yozing:',
+      'Anonim peer marking uchun xavfsiz ishtirokchilar yetarli emas.',
+    );
+    if(!reason)throw error;
+    const switched=await requestJson<{version:number}>(`${snapshotKey}/marking/switch-to-teacher`,{
+      method:'POST',body:JSON.stringify({expectedVersion:version,reason}),
+    },options);
+    return requestJson<T>(`${snapshotKey}/mark-scheme/reveal`,{
+      method:'POST',body:JSON.stringify({expectedVersion:switched.version}),
+    },options);
+  }
+}
+
+async function liveControlRequest<T>(
+  path:string,
+  init:RequestInit,
+  options:{suppressAuthExpired?:boolean},
+):Promise<{handled:false}|{handled:true;value:T}> {
+  if((init.method??'GET').toUpperCase()!=='POST')return {handled:false};
+  const matched=path.match(LIVE_CONTROL_PATH);
+  if(!matched)return {handled:false};
+  const sessionId=matched[1]!;
+  const action=matched[2]!.toLowerCase();
+  const snapshotKey=`/live-exams/${sessionId}`;
+  const cached=liveSnapshotCache.get(snapshotKey);
+  if(!cached)return {handled:false};
+
+  const request=(target:string,body:Record<string,unknown>)=>requestJson<T>(target,{
+    ...init,method:'POST',body:JSON.stringify(body),
+  },options);
+  const body=jsonBody(init);
+
+  try{
+    if(action==='reveal'||action==='mark-scheme/reveal'){
+      let version=cached.version;
+      const status=snapshotStatus(cached.body);
+      if(action==='reveal'&&status==='question_open'){
+        const locked=await requestJson<{version:number}>(`${snapshotKey}/answers/lock`,{
+          method:'POST',body:JSON.stringify({expectedVersion:version}),
+        },options);
+        version=locked.version;
+      }
+      const value=await revealWithSafeFallback<T>(snapshotKey,version,options);
+      return {handled:true,value};
+    }
+
+    const value=await request(path,{...body,expectedVersion:cached.version});
+    return {handled:true,value};
+  }finally{
+    liveSnapshotCache.delete(snapshotKey);
+  }
+}
+
+async function liveModerationRequest<T>(
+  path:string,
+  init:RequestInit,
+  options:{suppressAuthExpired?:boolean},
+):Promise<{handled:false}|{handled:true;value:T}> {
+  if((init.method??'GET').toUpperCase()!=='PUT')return {handled:false};
+  const matched=path.match(LIVE_MODERATION_PATH);
+  if(!matched)return {handled:false};
+  const sessionId=matched[1]!;
+  const snapshotKey=`/live-exams/${sessionId}`;
+  const body=jsonBody(init);
+  let reason=typeof body.reason==='string'?body.reason.trim():'';
+  if(reason.length<3){
+    reason=askReason(
+      'Teacher override sababini yozing. Bu sabab audit tarixida saqlanadi:',
+      'Official Mark Scheme asosida o‘qituvchi bahoni tuzatdi.',
+    )??'';
+  }
+  if(reason.length<3)throw new ApiError('Baho o‘zgartirilsa, o‘qituvchi qisqa sabab yozishi kerak.','live_override_reason_required',undefined,400);
+
+  let expectedVersion=typeof body.expectedVersion==='number'&&Number.isInteger(body.expectedVersion)&&body.expectedVersion>0
+    ? body.expectedVersion
+    : liveSnapshotCache.get(snapshotKey)?.version;
+  if(!expectedVersion){
+    const authoritative=await requestJson<unknown>(snapshotKey,{},options);
+    expectedVersion=snapshotVersion(authoritative)??undefined;
+  }
+  if(!expectedVersion)throw new ApiError('Sessiyaning authoritative versiyasi topilmadi.','live_state_conflict',undefined,409);
+
+  try{
+    const value=await requestJson<T>(path,{
+      ...init,
+      method:'PUT',
+      body:JSON.stringify({...body,reason,expectedVersion}),
+    },options);
+    return {handled:true,value};
+  }finally{
+    liveSnapshotCache.delete(snapshotKey);
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+  const moderation=await liveModerationRequest<T>(path,init,options);
+  if(moderation.handled)return moderation.value;
+  const control=await liveControlRequest<T>(path,init,options);
+  if(control.handled)return control.value;
+
   const cacheKey=liveSnapshotKey(path,init);
   if(!cacheKey)return requestJson<T>(path,init,options);
 
@@ -114,9 +246,7 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
       const cursor=await requestJson<LiveCursor>(`${path}/events?afterVersion=${cached.version}&limit=1`,{},options);
       if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
     }catch{
-      // During a rolling deployment the cursor route may briefly be absent or
-      // unreachable. Fall back to the authoritative snapshot instead of
-      // making Live Exam depend on the notification optimisation.
+      // Notification cursor is an optimisation; persisted snapshot is authority.
     }
   }
 
@@ -148,10 +278,10 @@ export interface ContentGames {termMatch:Array<{id:string;term:string;definition
 export interface LessonProgress {chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
 export interface ExportItem {id:string;kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
-export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
+export type LiveExamStatus = 'draft'|'published'|'lobby'|'question_open'|'answers_locked'|'marking'|'review'|'paused'|'finished'|'cancelled';
 export type LiveExamMarkingMode = 'teacher'|'peer'|'self';
 export interface LiveExamSummary {
-  id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
+  id:string;classId:string;className:string;title:string;joinCode:string|null;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
@@ -171,7 +301,7 @@ export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;gui
 export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null}
 export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
 export interface LiveExamSnapshot {
-  session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
+  session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number;teacherOverrideEnabled:boolean};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
