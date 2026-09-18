@@ -1,8 +1,8 @@
 # Cambridge Live Challenge — Release Acceptance Matrix
 
-Status: repository convergence implemented; Preview/runtime acceptance remains mandatory before production cutover.
+Status: repository convergence implemented; zero-cost PostgreSQL migration + multi-client service integration is green. Browser Preview/runtime acceptance remains mandatory before production cutover.
 
-This file records what the repository can prove automatically and what must still be proven against an isolated Preview database/browser environment. It does **not** replace the Preview gate in `LIVE-CHALLENGE-CONVERGENCE-PLAN.md`.
+This file records what the repository can prove automatically and what must still be proven against an isolated Preview database/browser environment. A paid Supabase development branch is intentionally not required for repository verification: GitHub Actions runs the Live Challenge migration chain and multi-client service flow against an ephemeral PostgreSQL 17 instance at zero additional service cost. This does **not** replace the browser Preview gate in `LIVE-CHALLENGE-CONVERGENCE-PLAN.md`.
 
 ## Canonical flow coverage
 
@@ -49,6 +49,21 @@ Repository gates explicitly cover or retain existing coverage for:
 - teacher overrides require reason and version and remain append-only evidence;
 - final learning evidence is idempotent and marks-first;
 - board/feed responses do not expose room or assessment-private data outside their allowed state.
+
+## Zero-cost database/runtime evidence
+
+The dedicated `Live Challenge DB smoke` workflow now proves the following against a fresh PostgreSQL 17 service:
+
+- migrations `0166/0167/0168/0169/0170/0172/0173` apply together;
+- the converged enum order and lifecycle columns are present;
+- draft join codes are nullable;
+- database peer-integrity rejects self-review;
+- teacher moderation reasons are copied into append-only override evidence;
+- finish persists LO evidence and marks-first mastery;
+- a real service-level flow runs Teacher + Student A + Student B through published → lobby → question → pause/resume → submit → answer lock → Mark Scheme reveal → anonymous peer review → teacher moderation → finish;
+- stale teacher CAS is rejected and event versions remain monotonic.
+
+The shared board remains covered by the dedicated learner-safe projection tests and frontend route contract. This gives a strong free release gate without touching production data.
 
 ## Preview gate still required
 

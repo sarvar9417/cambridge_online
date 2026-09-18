@@ -8,7 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
-export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
+export type LiveExamStatus = 'draft' | 'published' | 'lobby' | 'question_open' | 'answers_locked' | 'marking' | 'review' | 'paused' | 'finished' | 'cancelled';
 
 export interface CreateLiveExamInput {
   classId: string;

@@ -9,6 +9,7 @@ const builderRoute=source('src/routes/live-exam-builder.ts');
 const builderService=source('src/services/live-exam-builder-service.ts');
 const boardProjection=source('src/services/live-exam-board-projection.ts');
 const versionGuard=source('src/services/live-exam-transition-guard.ts');
+const liveExamService=source('src/services/live-exam-service.ts');
 const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
 const builderLifecycle=source('src/database/migrations/0172_live_exam_builder_lifecycle.sql');
 
@@ -96,5 +97,10 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(versionGuard).toContain('after the session row has been locked');
     expect(versionGuard).toContain("new DomainError('live_state_conflict', 409)");
     expect(versionGuard).toContain('actualVersion !== expectedVersion');
+  });
+  it('keeps backend lifecycle typing aligned with the converged database states',()=>{
+    for(const status of ['draft','published','lobby','question_open','answers_locked','marking','review','paused','finished','cancelled']){
+      expect(liveExamService).toContain(`'${status}'`);
+    }
   });
 });

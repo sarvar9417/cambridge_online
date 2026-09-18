@@ -9,7 +9,7 @@ type SessionRow=Record<string,unknown>;
  * Versioned teacher moderation for Cambridge Live Challenge.
  *
  * The effective answer is updated only while the authoritative session row is
- * locked. Migration 0172's trigger copies the human reason and before/after
+ * locked. Migration 0173's trigger copies the human reason and before/after
  * score evidence into live_exam_score_overrides, so an override can never be a
  * silent replacement of peer/self evidence.
  */
