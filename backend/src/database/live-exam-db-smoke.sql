@@ -26,7 +26,10 @@ CREATE TABLE classes (
   name text NOT NULL,
   syllabus_id uuid NOT NULL,
   school_id text NOT NULL,
-  owner_id uuid NOT NULL REFERENCES users
+  owner_id uuid NOT NULL REFERENCES users,
+  grade int,
+  level text,
+  academic_year int
 );
 
 CREATE TABLE class_teachers (
@@ -263,8 +266,8 @@ INSERT INTO subtopics(id,topic_id,code,title,sort_order) VALUES
   ('33333333-3333-4333-8333-333333333333','22222222-2222-4222-8222-222222222222','1.1','Data representation',1);
 INSERT INTO learning_objectives(id,subtopic_id) VALUES
   ('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333');
-INSERT INTO classes(id,name,syllabus_id,school_id,owner_id) VALUES
-  ('55555555-5555-4555-8555-555555555555','AS Integration','11111111-1111-4111-8111-111111111111','school','66666666-6666-4666-8666-666666666666');
+INSERT INTO classes(id,name,syllabus_id,school_id,owner_id,grade,level,academic_year) VALUES
+  ('55555555-5555-4555-8555-555555555555','AS Integration','11111111-1111-4111-8111-111111111111','school','66666666-6666-4666-8666-666666666666',12,'AS',2026);
 INSERT INTO enrollments(class_id,student_id) VALUES
   ('55555555-5555-4555-8555-555555555555','77777777-7777-4777-8777-777777777777'),
   ('55555555-5555-4555-8555-555555555555','99999999-9999-4999-8999-999999999999');
