@@ -80,12 +80,17 @@ describe('DOCX export',()=>{
     expect((text.match(/<w:drawing>/g)??[])).toHaveLength(1);
   });
 
-  it('supports mark-scheme-only output',()=>{
-    const text=buildDocx('MS',[{displayRef:'Q2',sourceRef:'old Q2',stem:'Question',marks:2,points:[{code:'MP1',text:'First point',marks:1},{code:'MP2',text:'Second point',marks:1}]}],'mark_scheme').toString('utf8');
+  it('supports self-contained mark-scheme-only output',()=>{
+    const text=buildDocx('MS',[{displayRef:'Q2',sourceRef:'old Q2',stem:'Question',context:'Shared source context',marks:2,schemeGuidance:'Award one mark per valid point.',points:[{code:'MP1',text:'First point',marks:1,accept:['equivalent']},{code:'MP2',text:'Second point',marks:1}]}],'mark_scheme').toString('utf8');
     expect(text).toContain('Mark Scheme');
+    expect(text).toContain('Shared source context');
+    expect(text).toContain('Question</w:t>');
+    expect(text).toContain('Source: old Q2');
+    expect(text).toContain('Award one mark per valid point.');
+    expect(text).toContain('Accept: equivalent');
     expect(text).toContain('MP1');
     expect(text).toContain('Second point');
-    expect(text).not.toContain('Question</w:t>');
+    expect(text).not.toContain('Name:');
   });
 
   it('fails closed for a missing storage-only visual',()=>{

@@ -60,6 +60,20 @@ describe('LiveExamService source fidelity', () => {
     excludeSeen:false,
   };
 
+  it('selects only the deterministic canonical mark scheme for the live question pool', async () => {
+    const query = vi.fn(async (sql:string, _params?: unknown[]) => {
+      if (sql.includes('from classes c')) return { rowCount:1,rows:[{ id:input.classId,name:'AS' }] };
+      if (sql.includes('select distinct q.id')) return { rowCount:0,rows:[] };
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service = new LiveExamService({ query } as unknown as Pool, {} as PgQuestionsRepository);
+    await expect(service.create(actor,input)).rejects.toMatchObject({ code:'live_question_pool_small' });
+    const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
+    const selectionSql = selectionCall?.[0];
+    expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+  });
+
   it('excludes diagrams inherited from any parent context when diagrams are disabled', async () => {
     const query = vi.fn(async (sql:string, _params?: unknown[]) => {
       if (sql.includes('from classes c')) return { rowCount:1,rows:[{ id:input.classId,name:'AS' }] };
@@ -83,7 +97,7 @@ describe('LiveExamService source fidelity', () => {
     const query = vi.fn(async (sql:string) => {
       if (sql.includes('from classes c')) return { rowCount:1,rows:[{ id:input.classId,name:'AS' }] };
       if (sql.includes('select distinct q.id')) return { rowCount:1,rows:[{ id:'q1' }] };
-      if (sql.includes("from mark_schemes ms")) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
+      if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
       throw new Error(`unexpected query: ${sql}`);
     });
     const questions = { portable:vi.fn().mockResolvedValue({
@@ -95,5 +109,7 @@ describe('LiveExamService source fidelity', () => {
     }) } as unknown as PgQuestionsRepository;
     const service = new LiveExamService({ query } as unknown as Pool, questions);
     await expect(service.create(actor,{ ...input,includeDiagrams:true })).rejects.toMatchObject({ code:'live_assets_unavailable' });
+    const schemeCall = query.mock.calls.find(([sql])=>String(sql).includes('from canonical_mark_schemes ms'));
+    expect(schemeCall).toBeTruthy();
   });
 });
