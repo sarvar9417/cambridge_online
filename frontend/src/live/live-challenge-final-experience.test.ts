@@ -59,4 +59,9 @@ describe('Live Challenge final frontend experience',()=>{
     expect(analytics).toContain('commonlyMissedMarkPoints');
     expect(analytics).toContain('speed va rank hisobga olinmaydi');
   });
+  it('reflects the teacher-override policy in the runtime instead of relying on an API rejection',()=>{
+    expect(source).toContain('snapshot.session.teacherOverrideEnabled');
+    expect(source).toContain('Teacher override bu challenge uchun o‘chirilgan.');
+    expect(source).toContain("snapshot.session.teacherOverrideEnabled?'Audit bilan bahoni yangilash':'Override o‘chirilgan'");
+  });
 });

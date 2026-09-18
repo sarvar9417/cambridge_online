@@ -608,6 +608,7 @@ export class LiveExamService {
         reviewCount: Number(reviewCounts.rows[0].total),
         reviewedCount: Number(reviewCounts.rows[0].completed),
         questionCount: questionRows.rowCount ?? 0,
+        teacherOverrideEnabled: isStaff ? parseLiveExamSettings(session.settings).teacherOverrideEnabled : false,
       },
       questions: isStaff ? questionRows.rows.map((row) => ({
         id: row.id,

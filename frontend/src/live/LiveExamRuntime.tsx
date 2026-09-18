@@ -341,13 +341,15 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'));setBusy(false)}
   };
   const scheme=snapshot.markScheme;
-  const overrideDisabled=!isInitialTeacherReview&&reason.trim().length<3;
+  const overrideAllowed=isInitialTeacherReview||snapshot.session.teacherOverrideEnabled;
+  const overrideDisabled=!overrideAllowed||(!isInitialTeacherReview&&reason.trim().length<3);
   return <article className="live-teacher-marker"><header><div><span>O‘QUVCHI JAVOBI</span><h2>{answer.studentName}</h2></div><strong>{answer.score??0}/{snapshot.question?.marks}</strong></header><blockquote>{answer.text||'Javob yozilmagan'}</blockquote>
     {scheme?<MarkSchemeView scheme={scheme} interactive={isInitialTeacherReview} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
     {(schemeNeedsManualScore(scheme)||!isInitialTeacherReview)?<label>Ball<input type="number" min={0} max={snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}
     <label>Izoh<textarea value={feedback} onChange={(e)=>setFeedback(e.target.value)} maxLength={5000}/></label>
-    {!isInitialTeacherReview?<label>Override sababi<textarea value={reason} onChange={(e)=>setReason(e.target.value)} minLength={3} maxLength={500} placeholder="Nima uchun final baho o‘zgartirilmoqda? Audit tarixida saqlanadi."/></label>:null}
-    {error?<p className="live-error">{error}</p>:null}<button disabled={busy||overrideDisabled} onClick={submit}>{busy?'Saqlanmoqda…':isInitialTeacherReview?'Bahoni tasdiqlash':'Audit bilan bahoni yangilash'}</button>
+    {!isInitialTeacherReview&&snapshot.session.teacherOverrideEnabled?<label>Override sababi<textarea value={reason} onChange={(e)=>setReason(e.target.value)} minLength={3} maxLength={500} placeholder="Nima uchun final baho o‘zgartirilmoqda? Audit tarixida saqlanadi."/></label>:null}
+    {!isInitialTeacherReview&&!snapshot.session.teacherOverrideEnabled?<p className="live-empty">Teacher override bu challenge uchun o‘chirilgan.</p>:null}
+    {error?<p className="live-error">{error}</p>:null}<button disabled={busy||overrideDisabled} onClick={submit}>{busy?'Saqlanmoqda…':isInitialTeacherReview?'Bahoni tasdiqlash':snapshot.session.teacherOverrideEnabled?'Audit bilan bahoni yangilash':'Override o‘chirilgan'}</button>
   </article>;
 }
 
