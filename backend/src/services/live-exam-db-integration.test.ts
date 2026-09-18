@@ -93,7 +93,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       topicId:TOPIC,
       subtopicId:SUBTOPIC,
       markingMode:'peer',
-      settings:{allowLateJoin:true},
+      settings:{allowLateJoin:true,autoCloseWhenAllSubmitted:false},
     });
     const sessionId=draft.id;
     sessionIds.push(sessionId);
@@ -322,6 +322,35 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       [sessionId],
     );
     expect(evidenceAfterRetry.rows[0].count).toBe(2);
+  });
+
+  it('auto-locks answers only after every active participant submits when enabled',async()=>{
+    const draft=await builder.createDraft(teacher,{
+      classId:CLASS,title:'Auto close policy',topicId:TOPIC,subtopicId:SUBTOPIC,
+      markingMode:'teacher',settings:{allowLateJoin:false,autoCloseWhenAllSubmitted:true},
+    });
+    const sessionId=draft.id;sessionIds.push(sessionId);let version=draft.version;
+    version=(await builder.replaceQuestions(teacher,sessionId,[QUESTION],version)).version;
+    const published=await builder.publish(teacher,sessionId,version);version=published.version;
+    version=(await control.openRoom(teacher,sessionId,version)).version;
+    version=(await participation.join(studentA,published.joinCode)).version!;
+    version=(await participation.join(studentB,published.joinCode)).version!;
+    version=(await control.start(teacher,sessionId,version)).version;
+
+    const first=await runtime.submitAnswer(studentA,sessionId,'A');
+    expect(first.answersLocked).toBe(false);
+    version=first.version;
+    const stillOpen=await pool.query(`select status::text from live_exam_sessions where id=$1`,[sessionId]);
+    expect(stillOpen.rows[0].status).toBe('question_open');
+
+    const second=await runtime.submitAnswer(studentB,sessionId,'B');
+    expect(second.answersLocked).toBe(true);
+    version=second.version;
+    const locked=await pool.query(`select status::text,version from live_exam_sessions where id=$1`,[sessionId]);
+    expect(locked.rows[0].status).toBe('answers_locked');
+    expect(Number(locked.rows[0].version)).toBe(version);
+    const beforeReveal=await runtime.snapshot(studentA,sessionId);
+    expect(beforeReveal.markScheme).toBeNull();
   });
 
   it('fails closed for late-join-off, unsafe peer reveal and cancellation retries',async()=>{

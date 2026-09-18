@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 import { assertExpectedLiveExamVersion } from './live-exam-transition-guard.js';
+import { parseLiveExamSettings } from './live-exam-settings.js';
 
 type SessionRow=Record<string,unknown>;
 
@@ -69,6 +70,7 @@ export class LiveExamModerationService {
       const session=await this.lockControlledSession(client,actor,sessionId);
       assertExpectedLiveExamVersion(session,input.expectedVersion);
       if(!['marking','review'].includes(String(session.status)))throw new DomainError('live_invalid_state',409);
+      if(!parseLiveExamSettings(session.settings).teacherOverrideEnabled)throw new DomainError('live_teacher_override_disabled',409);
 
       const result=await client.query(
         `update live_exam_answers a set

@@ -5,6 +5,7 @@ import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
+import { parseLiveExamSettings } from './live-exam-settings.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -751,7 +752,7 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`, [sessionId]);
+        `select status::text,current_question_index,settings from live_exam_sessions where id=$1 for update`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open') throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set
@@ -769,9 +770,35 @@ export class LiveExamService {
         [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
-      const version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let answersLocked=false;
+      const settings=parseLiveExamSettings(state.rows[0]?.settings);
+      if(settings.autoCloseWhenAllSubmitted){
+        const counts=await client.query(
+          `select
+             count(*) filter(where lep.left_at is null)::int participant_count,
+             count(*) filter(where lep.left_at is null and a.submitted_at is not null)::int submitted_count
+           from live_exam_participants lep
+           left join live_exam_answers a
+             on a.participant_id=lep.id and a.session_question_id=$2
+           where lep.session_id=$1`,
+          [sessionId,result.rows[0].session_question_id],
+        );
+        const participantCount=Number(counts.rows[0]?.participant_count??0);
+        const submittedCount=Number(counts.rows[0]?.submitted_count??0);
+        if(participantCount>0&&submittedCount>=participantCount){
+          await client.query(
+            `update live_exam_sessions set status='answers_locked',answers_locked_at=coalesce(answers_locked_at,now()) where id=$1 and status='question_open'`,
+            [sessionId],
+          );
+          version=await this.bump(client,sessionId,actor.id,'answers.auto_locked',{
+            position:Number(state.rows[0]?.current_question_index??0),participantCount,submittedCount,
+          });
+          answersLocked=true;
+        }
+      }
       await client.query('commit');
-      return { submittedAt: new Date(), version };
+      return { submittedAt: new Date(), version, answersLocked };
     } catch (error) {
       await client.query('rollback');
       throw error;

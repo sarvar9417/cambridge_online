@@ -53,6 +53,20 @@ export function createLiveExamBuilderRouter(service: LiveExamBuilderService) {
     res.json({ data:await service.draft(req.actor!,sessionId(req.params)) });
   });
 
+
+  router.patch('/:id/builder', async (req,res) => {
+    const body = z.object({
+      title:z.string().trim().min(3).max(120).optional(),
+      markingMode:z.enum(['teacher','peer','self']).optional(),
+      settings:settings.optional(),
+      expectedVersion,
+    }).strict().refine(
+      (value)=>value.title!==undefined||value.markingMode!==undefined||value.settings!==undefined,
+      {message:'At least one draft field is required'},
+    ).parse(req.body);
+    res.json({ data:await service.updateDraft(req.actor!,sessionId(req.params),body) });
+  });
+
   // This ordered replacement is deliberately the single mutation primitive for
   // manual selection, removal and reordering. Omitting a question removes it;
   // array order becomes the canonical classroom order.
