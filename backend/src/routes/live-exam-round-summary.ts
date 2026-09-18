@@ -8,8 +8,9 @@ export function createLiveExamRoundSummaryRouter(service:LiveExamRoundSummarySer
   const router=Router();
   router.get('/:id/round-summary',async(req,res)=>{
     const sessionId=uuid.parse(req.params.id);
+    const query=z.object({audience:z.enum(['teacher','board']).default('teacher')}).parse(req.query);
     res.set('Cache-Control','private, no-store');
-    res.json(await service.summary(req.actor!,sessionId));
+    res.json(await service.summary(req.actor!,sessionId,query.audience));
   });
   return router;
 }

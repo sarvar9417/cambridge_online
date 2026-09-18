@@ -5,7 +5,7 @@ import './live-exam-leaderboard.css';
 
 type Standing = {
   rank:number;
-  studentId:string;
+  studentId?:string;
   studentName:string;
   score:number;
   possible:number;
@@ -34,7 +34,7 @@ function scoreText(score:number,possible:number) {
 function StandingList({items,emptyText}:{items:Standing[];emptyText:string}) {
   if(!items.length)return <p className="live-leaderboard-empty">{emptyText}</p>;
   return <ol className="live-leaderboard-list">
-    {items.map((item)=><li key={item.studentId}>
+    {items.map((item,index)=><li key={item.studentId??`${item.rank}-${index}-${item.studentName}`}>
       <span className={`live-leaderboard-rank live-leaderboard-rank--${Math.min(item.rank,4)}`}>{item.rank<=3?<Medal weight="fill"/>:item.rank}</span>
       <strong>{item.studentName}</strong>
       <b>{scoreText(item.score,item.possible)}</b>
@@ -50,7 +50,8 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
     let cancelled=false;
     const load=async()=>{
       try{
-        const result=await api<RoundSummary>(`/live-exams/${sessionId}/round-summary`);
+        const audience=variant==='projector'?'?audience=board':'';
+        const result=await api<RoundSummary>(`/live-exams/${sessionId}/round-summary${audience}`);
         if(!cancelled){setSummary(result);setError('')}
       }catch(cause){
         if(!cancelled)setError(cause instanceof Error?cause.message:'Natijalar yuklanmadi.');

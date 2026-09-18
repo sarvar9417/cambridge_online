@@ -5,6 +5,7 @@ import { describe,expect,it } from 'vitest';
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 const app=source('src/app.ts');
 const board=source('src/services/live-exam-board-projection.ts');
+const leaderboard=source('../frontend/src/live/LiveExamLeaderboard.tsx');
 const feed=source('src/services/live-exam-student-feed-service.ts');
 const analytics=source('src/services/live-exam-analytics-service.ts');
 const evidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
@@ -26,6 +27,8 @@ describe('Cambridge Live Challenge classroom experience contract',()=>{
     expect(board).toContain('markScheme = scheme ?');
     expect(board).not.toContain('markScheme: source.markScheme ?? null');
     expect(board).toContain("key:`${prefix}${index+1}`");
+    expect(leaderboard).toContain("variant==='projector'?'?audience=board':''");
+    expect(leaderboard).toContain('studentId?:string');
   });
 
   it('discovers only enrolled non-draft challenges without exposing join codes',()=>{
