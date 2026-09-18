@@ -32,6 +32,7 @@ describe('Cambridge Live Challenge repository release-flow gate',()=>{
 
   it('covers the student answer/marking surfaces and audited moderation',()=>{
     expect(participation).toContain("router.post('/join'");
+    expect(runtime).not.toContain("router.post('/join'");
     expect(runtime).toContain("router.put('/:id/answer'");
     expect(runtime).toContain("router.post('/:id/answer/submit'");
     expect(runtime).toContain("router.post('/:id/reviews/:reviewId/submit'");

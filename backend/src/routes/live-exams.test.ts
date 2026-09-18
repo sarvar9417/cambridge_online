@@ -82,16 +82,9 @@ describe('live exam routes', () => {
     expect(JSON.stringify(response.body)).not.toContain('private answer');
   });
 
-  it('keeps /join above the UUID session route', async () => {
-    const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
-    const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
-    expect(response.body.sessionId).toBe('session-1');
-    expect(join).toHaveBeenCalledWith(student,'123456');
-  });
-
-  it('rejects malformed room codes before calling the service', async () => {
+  it('does not expose a duplicate join implementation from the generic runtime router', async () => {
     const join=vi.fn();
-    await request(appFor({join})).post('/live-exams/join').send({code:'12A'}).expect(400);
+    await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(404);
     expect(join).not.toHaveBeenCalled();
   });
 

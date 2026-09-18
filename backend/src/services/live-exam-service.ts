@@ -372,32 +372,6 @@ export class LiveExamService {
     }));
   }
 
-  async join(actor: Actor, code: string) {
-    if (actor.role !== 'student') throw new DomainError('students_only', 403);
-    const result = await this.pool.query(
-      `insert into live_exam_participants(session_id,student_id,left_at,last_seen_at)
-       select les.id,$2,null,now()
-       from live_exam_sessions les
-       join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-       where les.join_code=$1 and les.status='lobby'
-       on conflict(session_id,student_id) do update set left_at=null,last_seen_at=now()
-       returning id,session_id,joined_at`,
-      [code, actor.id],
-    );
-    if (!result.rowCount) throw new DomainError('live_code_not_found', 404);
-    const participant = result.rows[0];
-    await this.pool.query(
-      `with changed as (
-         update live_exam_sessions set version=version+1,updated_at=now()
-         where id=$1 returning version
-       )
-       insert into live_exam_events(session_id,actor_id,event_type,session_version,payload)
-       select $1,$2,'participant.joined',version,$3::jsonb from changed`,
-      [participant.session_id, actor.id, JSON.stringify({ participantId: participant.id })],
-    );
-    return { sessionId: participant.session_id, participantId: participant.id };
-  }
-
   async heartbeat(actor: Actor, sessionId: string) {
     if (actor.role === 'student') {
       const result = await this.pool.query(

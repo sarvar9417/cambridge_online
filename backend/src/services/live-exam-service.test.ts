@@ -34,19 +34,6 @@ describe('assignPeerReviewers', () => {
   });
 });
 
-describe('LiveExamService role boundary', () => {
-  it('rejects a staff account trying to join before querying the database', async () => {
-    const query = vi.fn();
-    const service = new LiveExamService(
-      { query } as unknown as Pool,
-      {} as PgQuestionsRepository,
-    );
-    await expect(service.join({ id:'t1',role:'teacher',schoolId:'school',fullName:'Teacher' }, '123456'))
-      .rejects.toMatchObject({ code:'students_only',status:403 });
-    expect(query).not.toHaveBeenCalled();
-  });
-});
-
 describe('LiveExamService source fidelity', () => {
   const actor = { id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
   const input = {

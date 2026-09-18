@@ -21,13 +21,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json({ data: await service.list(req.actor!) });
   });
 
-  // Named routes stay above '/:id' so an ordinary word can never be parsed as
-  // a UUID and turn a valid join request into a validation error.
-  router.post('/join', async (req, res) => {
-    const body = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict().parse(req.body);
-    res.status(201).json(await service.join(req.actor!, body.code));
-  });
-
+  // Board stays above '/:id' so its literal path segment is never parsed as a UUID.
   router.get('/:id/board', async (req, res) => {
     // Projector/board mode is a staff-controlled classroom surface. Students
     // receive their own authorised projection through the normal snapshot.
