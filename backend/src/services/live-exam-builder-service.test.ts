@@ -58,21 +58,10 @@ describe('LiveExamBuilderService',()=>{
     expect(selectionSql).toContain('ms_source.source_url is not null');
     expect(selectionSql).toContain("lower(coalesce(ms_source.sha256,'')) ~ '^[0-9a-f]{64}$'");
     expect(selectionSql).toContain('ms_source.syllabus_id=sp.syllabus_id');
+    expect(selectionSql).toContain('ms_source.year=sp.year');
+    expect(selectionSql).toContain('ms_source.series=sp.series');
     expect(selectionSql).toContain('ms_source.component_id=sp.component_id');
     expect(selectionSql).toContain('ms_source.variant=sp.variant');
-    expect(selectionSql).toContain('ms.max_marks=q.marks');
-  });
-});
-");
-    expect(selectionSql).toContain("msp.kind='MS'");
-    expect(selectionSql).toContain('msp.source_url is not null');
-    expect(selectionSql).toContain("lower(coalesce(msp.sha256,'')) ~ '^[0-9a-f]{64}
-  });
-});
-");
-    expect(selectionSql).toContain('msp.syllabus_id=sp.syllabus_id');
-    expect(selectionSql).toContain('msp.component_id=sp.component_id');
-    expect(selectionSql).toContain('msp.variant=sp.variant');
     expect(selectionSql).toContain('ms.max_marks=q.marks');
   });
 });
