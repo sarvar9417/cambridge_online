@@ -151,7 +151,11 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     version=joinedA.version!;
     const duplicateA=await participation.join(studentA,published.joinCode);
     expect(duplicateA.reused).toBe(true);
-    expect(duplicateA.version).toBe(version);
+    const afterDuplicateJoin=await pool.query(
+      `select version from live_exam_sessions where id=$1`,
+      [sessionId],
+    );
+    expect(Number(afterDuplicateJoin.rows[0].version)).toBe(version);
 
     const started=await control.start(teacher,sessionId,version);
     expect(started.status).toBe('question_open');
@@ -165,8 +169,14 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     ]));
     const joinedB=await participation.join(studentB,published.joinCode);
     expect(joinedB.reused).toBe(false);
-    expect(joinedB.late).toBe(true);
     version=joinedB.version!;
+    const lateJoinEvent=await pool.query(
+      `select payload from live_exam_events
+       where session_id=$1 and event_type='participant.joined' and actor_id=$2
+       order by session_version desc limit 1`,
+      [sessionId,studentB.id],
+    );
+    expect(lateJoinEvent.rows[0]?.payload).toMatchObject({late:true});
 
     const teacherBeforeReveal=await runtime.snapshot(teacher,sessionId);
     const studentBeforeReveal=await runtime.snapshot(studentA,sessionId);
