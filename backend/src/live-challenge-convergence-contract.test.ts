@@ -64,7 +64,14 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(builderService).not.toContain('join mark_schemes ms on ms.question_id=q.id');
     expect(builderService).toContain("sp.kind='QP'");
     expect(builderService).toContain('sp.source_url is not null');
-    expect(builderService).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}
+    expect(builderService).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(builderService).toContain("ms_source.kind='MS'");
+    expect(builderService).toContain('ms_source.source_url is not null');
+    expect(builderService).toContain("lower(coalesce(ms_source.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(builderService).toContain('ms_source.syllabus_id=sp.syllabus_id');
+    expect(builderService).toContain('ms_source.component_id=sp.component_id');
+    expect(builderService).toContain('ms_source.variant=sp.variant');
+    expect(builderService).toContain('ms.max_marks=q.marks');
     expect(builderService).toContain("status='published'");
     expect(builderService).toContain("'challenge.published'");
   });

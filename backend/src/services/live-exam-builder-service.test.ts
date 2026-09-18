@@ -37,7 +37,7 @@ describe('LiveExamBuilderService',()=>{
     expect(query).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the deterministic canonical Mark Scheme source for builder eligibility',async()=>{
+  it('uses deterministic source-backed QP/MS evidence for builder eligibility',async()=>{
     const syllabusId='11111111-1111-4111-8111-111111111111';
     const topicId='33333333-3333-4333-8333-333333333333';
     const query=vi.fn(async (sql:string)=>{
@@ -53,7 +53,14 @@ describe('LiveExamBuilderService',()=>{
     expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).toContain("sp.kind='QP'");
     expect(selectionSql).toContain('sp.source_url is not null');
-    expect(selectionSql).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}
+    expect(selectionSql).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(selectionSql).toContain("ms_source.kind='MS'");
+    expect(selectionSql).toContain('ms_source.source_url is not null');
+    expect(selectionSql).toContain("lower(coalesce(ms_source.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(selectionSql).toContain('ms_source.syllabus_id=sp.syllabus_id');
+    expect(selectionSql).toContain('ms_source.component_id=sp.component_id');
+    expect(selectionSql).toContain('ms_source.variant=sp.variant');
+    expect(selectionSql).toContain('ms.max_marks=q.marks');
   });
 });
 ");
