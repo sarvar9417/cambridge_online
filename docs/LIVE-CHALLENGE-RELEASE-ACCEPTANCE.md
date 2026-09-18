@@ -60,7 +60,8 @@ The dedicated `Live Challenge DB smoke` workflow now proves the following agains
 - database peer-integrity rejects self-review;
 - teacher moderation reasons are copied into append-only override evidence;
 - finish persists LO evidence and marks-first mastery;
-- a real service-level flow runs Teacher + Student A + Student B through published → lobby → question → pause/resume → submit → answer lock → Mark Scheme reveal → anonymous peer review → teacher moderation → finish;
+- a real service-level flow runs Teacher + shared Board + Student A + Student B through published → lobby → question → pause/resume → submit → answer lock → Mark Scheme reveal → anonymous peer review → teacher moderation → finish;
+- the Board projection is checked before and after reveal: no Mark Scheme before reveal, no join code outside lobby, and no session/student/mark-point internal IDs;
 - stale teacher CAS is rejected and event versions remain monotonic.
 
 The shared board remains covered by the dedicated learner-safe projection tests and frontend route contract. This gives a strong free release gate without touching production data.

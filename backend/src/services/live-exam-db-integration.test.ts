@@ -6,6 +6,7 @@ import { LiveExamControlService } from './live-exam-control-service.js';
 import { LiveExamModerationService } from './live-exam-moderation-service.js';
 import { LiveExamParticipationService } from './live-exam-participation-service.js';
 import { LiveExamService } from './live-exam-service.js';
+import { projectLiveExamForBoard } from './live-exam-board-projection.js';
 
 const integrationDescribe = process.env.LIVE_EXAM_DB_INTEGRATION === '1' ? describe : describe.skip;
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
@@ -73,7 +74,27 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
         SESSION_QUESTION,
         SESSION,
         '88888888-8888-4888-8888-888888888888',
-        JSON.stringify({sourceRef:'9618/11/M/J/25 Q1'}),
+        JSON.stringify({
+          sourceRef:'9618/11/M/J/25 Q1',
+          leaf:{
+            id:'15151515-1515-4151-8151-151515151515',
+            rootId:'15151515-1515-4151-8151-151515151515',
+            label:'1',
+            path:'1',
+            displayRef:'9618/11/M/J/25 Q1',
+            stem:'State two valid points.',
+            stemLatex:null,
+            bodyFormat:'markdown',
+            contentJson:null,
+            commandWord:'State',
+            marks:2,
+            answerKind:'text',
+            answerLines:2,
+          },
+          chain:[],
+          dependencies:[],
+          contextBlocks:[],
+        }),
         JSON.stringify(scheme),
       ],
     );
@@ -102,6 +123,19 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     expect(started.status).toBe('question_open');
     version=started.version;
 
+    const teacherBeforeReveal=await runtime.snapshot(teacher,SESSION);
+    const studentBeforeReveal=await runtime.snapshot(studentA,SESSION);
+    expect(teacherBeforeReveal.markScheme).toBeNull();
+    expect(studentBeforeReveal.markScheme).toBeNull();
+    expect(studentBeforeReveal.questions).toEqual([]);
+    expect(studentBeforeReveal.participants).toEqual([]);
+    const boardBeforeReveal=projectLiveExamForBoard(teacherBeforeReveal);
+    expect(boardBeforeReveal.question?.sourceRef).toBe('9618/11/M/J/25 Q1');
+    expect(boardBeforeReveal.markScheme).toBeNull();
+    expect(boardBeforeReveal.session.joinCode).toBeNull();
+    expect(JSON.stringify(boardBeforeReveal)).not.toContain(SESSION);
+    expect(JSON.stringify(boardBeforeReveal)).not.toContain(studentA.fullName);
+
     await expect(control.pause(teacher,SESSION,version-1))
       .rejects.toMatchObject({code:'live_state_conflict',status:409});
 
@@ -126,6 +160,16 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     const revealed=await control.revealMarkScheme(teacher,SESSION,version);
     expect(revealed.status).toBe('marking');
     version=revealed.version;
+
+    const teacherAfterReveal=await runtime.snapshot(teacher,SESSION);
+    const boardAfterReveal=projectLiveExamForBoard(teacherAfterReveal);
+    expect(boardAfterReveal.markScheme?.maxMarks).toBe(2);
+    expect(boardAfterReveal.markScheme?.points).toHaveLength(2);
+    const serializedBoard=JSON.stringify(boardAfterReveal);
+    expect(serializedBoard).not.toContain(POINT_1);
+    expect(serializedBoard).not.toContain(POINT_2);
+    expect(serializedBoard).not.toContain(studentA.fullName);
+    expect(serializedBoard).not.toContain(studentB.fullName);
 
     const reviewRows=await pool.query(
       `select r.id,r.reviewer_id,owner.student_id answer_owner
