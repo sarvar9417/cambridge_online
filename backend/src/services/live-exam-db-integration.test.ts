@@ -31,6 +31,12 @@ const studentB:Actor={
   schoolId:'school',
   fullName:'Student B',
 };
+const outsider:Actor={
+  id:'20202020-2020-4202-8202-202020202020',
+  role:'student',
+  schoolId:'school',
+  fullName:'Outside Student',
+};
 
 const CLASS='55555555-5555-4555-8555-555555555555';
 const SYLLABUS='11111111-1111-4111-8111-111111111111';
@@ -42,7 +48,7 @@ const POINT_2='13131313-1313-4131-8131-131313131313';
 
 integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
   const pool=new Pool({connectionString:DATABASE_URL});
-  let sessionId:string|null=null;
+  const sessionIds:string[]=[];
 
   const questionRepository={
     portable:async(_actor:Actor,id:string)=>id===QUESTION?{
@@ -76,7 +82,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
   const studentFeed=new LiveExamStudentFeedService(pool);
 
   afterAll(async()=>{
-    if(sessionId)await pool.query(`delete from live_exam_sessions where id=$1`,[sessionId]);
+    for(const id of sessionIds)await pool.query(`delete from live_exam_sessions where id=$1`,[id]);
     await pool.end();
   });
 
@@ -89,7 +95,8 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       markingMode:'peer',
       settings:{allowLateJoin:true},
     });
-    sessionId=draft.id;
+    const sessionId=draft.id;
+    sessionIds.push(sessionId);
     let version=draft.version;
     expect(draft.status).toBe('draft');
 
@@ -134,16 +141,32 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       expect.objectContaining({id:sessionId,status:'lobby',joined:false,canJoinWithCode:true}),
     ]));
 
+    await expect(participation.join(studentA,'000000'))
+      .rejects.toMatchObject({code:'live_code_not_found',status:404});
+    await expect(participation.join(outsider,published.joinCode))
+      .rejects.toMatchObject({code:'live_code_not_found',status:404});
+
     const joinedA=await participation.join(studentA,published.joinCode);
     expect(joinedA.reused).toBe(false);
     version=joinedA.version!;
-    const joinedB=await participation.join(studentB,published.joinCode);
-    expect(joinedB.reused).toBe(false);
-    version=joinedB.version!;
+    const duplicateA=await participation.join(studentA,published.joinCode);
+    expect(duplicateA.reused).toBe(true);
+    expect(duplicateA.version).toBe(version);
 
     const started=await control.start(teacher,sessionId,version);
     expect(started.status).toBe('question_open');
     version=started.version;
+    await expect(control.start(teacher,sessionId,version))
+      .rejects.toMatchObject({code:'live_invalid_state',status:409});
+
+    const lateFeed=await studentFeed.feed(studentB);
+    expect(lateFeed.upcoming).toEqual(expect.arrayContaining([
+      expect.objectContaining({id:sessionId,status:'question_open',joined:false,canJoinWithCode:true}),
+    ]));
+    const joinedB=await participation.join(studentB,published.joinCode);
+    expect(joinedB.reused).toBe(false);
+    expect(joinedB.late).toBe(true);
+    version=joinedB.version!;
 
     const teacherBeforeReveal=await runtime.snapshot(teacher,sessionId);
     const studentBeforeReveal=await runtime.snapshot(studentA,sessionId);
@@ -170,6 +193,8 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
 
     const submittedA=await runtime.submitAnswer(studentA,sessionId,'Student A answer');
     version=submittedA.version;
+    await expect(runtime.submitAnswer(studentA,sessionId,'duplicate submit'))
+      .rejects.toMatchObject({code:'live_answer_locked',status:409});
     const submittedB=await runtime.submitAnswer(studentB,sessionId,'Student B answer');
     version=submittedB.version;
 
@@ -279,5 +304,96 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     );
     expect(versions.rows[0].event_count).toBe(versions.rows[0].distinct_versions);
     expect(Number(versions.rows[0].max_version)).toBe(version);
+
+    await expect(control.nextQuestion(teacher,sessionId,version))
+      .rejects.toMatchObject({code:'live_invalid_state',status:409});
+    const evidenceAfterRetry=await pool.query(
+      `select count(*)::int count from live_exam_learning_evidence where session_id=$1`,
+      [sessionId],
+    );
+    expect(evidenceAfterRetry.rows[0].count).toBe(2);
+  });
+
+  it('fails closed for late-join-off, unsafe peer reveal and cancellation retries',async()=>{
+    const draft=await builder.createDraft(teacher,{
+      classId:CLASS,
+      title:'Fail closed edge cases',
+      topicId:TOPIC,
+      subtopicId:SUBTOPIC,
+      markingMode:'peer',
+      settings:{allowLateJoin:false},
+    });
+    const sessionId=draft.id;
+    sessionIds.push(sessionId);
+    let version=draft.version;
+
+    const selected=await builder.replaceQuestions(teacher,sessionId,[QUESTION],version);
+    version=selected.version;
+    const published=await builder.publish(teacher,sessionId,version);
+    version=published.version;
+    const opened=await control.openRoom(teacher,sessionId,version);
+    version=opened.version;
+    const joined=await participation.join(studentA,published.joinCode);
+    version=joined.version!;
+    const started=await control.start(teacher,sessionId,version);
+    version=started.version;
+
+    await expect(participation.join(studentB,published.joinCode))
+      .rejects.toMatchObject({code:'live_join_closed',status:409});
+
+    const locked=await control.lockAnswers(teacher,sessionId,version);
+    version=locked.version;
+    await expect(control.revealMarkScheme(teacher,sessionId,version))
+      .rejects.toMatchObject({code:'live_peer_assignment_impossible',status:409});
+
+    const cancelled=await control.cancel(teacher,sessionId,version);
+    expect(cancelled.status).toBe('cancelled');
+    version=cancelled.version;
+    await expect(control.cancel(teacher,sessionId,version))
+      .rejects.toMatchObject({code:'live_invalid_state',status:409});
+  });
+
+  it('rejects a selected question when its required source asset is unavailable',async()=>{
+    const unavailableQuestions={
+      portable:async(_actor:Actor,id:string)=>id===QUESTION?{
+        sourceRef:'9618/11/M/J/25 Q1',
+        leaf:{
+          id:'15151515-1515-4151-8151-151515151515',
+          rootId:'15151515-1515-4151-8151-151515151515',
+          label:'1',path:'1',displayRef:'9618/11/M/J/25 Q1',
+          stem:'State two valid points.',stemLatex:null,bodyFormat:'markdown',contentJson:null,
+          commandWord:'State',marks:2,answerKind:'text',answerLines:2,
+        },
+        chain:[],dependencies:[],
+        contextBlocks:[{
+          id:'21212121-2121-4212-8212-212121212121',
+          label:'1',displayRef:'9618/11/M/J/25 Q1',depth:0,context:null,
+          assets:[{
+            id:'22222222-aaaa-4222-8222-222222222222',
+            kind:'diagram',storagePath:null,url:null,contentMd:null,
+            altText:'Required diagram',sortOrder:0,sourcePage:1,
+          }],
+        }],
+      }:null,
+    } as unknown as PgQuestionsRepository;
+    const unavailableBuilder=new LiveExamBuilderService(pool,unavailableQuestions);
+    const draft=await unavailableBuilder.createDraft(teacher,{
+      classId:CLASS,
+      title:'Missing asset guard',
+      topicId:TOPIC,
+      subtopicId:SUBTOPIC,
+      markingMode:'teacher',
+    });
+    sessionIds.push(draft.id);
+
+    await expect(unavailableBuilder.replaceQuestions(teacher,draft.id,[QUESTION],draft.version))
+      .rejects.toMatchObject({code:'live_assets_unavailable',status:409});
+    const state=await pool.query(
+      `select version,(select count(*)::int from live_exam_questions where session_id=$1) question_count
+       from live_exam_sessions where id=$1`,
+      [draft.id],
+    );
+    expect(Number(state.rows[0].version)).toBe(draft.version);
+    expect(state.rows[0].question_count).toBe(0);
   });
 });
