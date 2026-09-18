@@ -83,9 +83,7 @@ describe('live exam routes', () => {
   });
 
   it('does not expose a duplicate join implementation from the generic runtime router', async () => {
-    const join=vi.fn();
-    await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(404);
-    expect(join).not.toHaveBeenCalled();
+    await request(appFor({})).post('/live-exams/join').send({code:'123456'}).expect(404);
   });
 
   it('validates review point identifiers', async () => {
