@@ -62,6 +62,102 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(builderService).toContain('from canonical_mark_schemes ms');
     expect(builderService).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(builderService).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(builderService).toContain("sp.kind='QP'");
+    expect(builderService).toContain('sp.source_url is not null');
+    expect(builderService).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}
+    expect(builderService).toContain("status='published'");
+    expect(builderService).toContain("'challenge.published'");
+  });
+
+  it('owns the shared classroom board through the canonical live-exams API',()=>{
+    expect(route).toContain("router.get('/:id/board'");
+    expect(route).toContain('projectLiveExamForBoard(snapshot)');
+    expect(route).toContain("req.actor!.role === 'student'");
+    expect(route).toContain("privateNoStore(res)");
+  });
+
+  it('makes board projection an explicit learner-safe allow-list',()=>{
+    expect(boardProjection).toContain('Learner-safe shared classroom board projection');
+    expect(boardProjection).toContain('structuredBlocks: projectStructuredBlocks');
+    expect(boardProjection).toContain('contentJson: null');
+    expect(boardProjection).not.toContain('teacherAnswers');
+    expect(boardProjection).not.toContain('ownAnswer');
+    expect(boardProjection).not.toContain('participants:');
+    expect(boardProjection).not.toContain('moderatedBy');
+    expect(boardProjection).not.toContain('storagePath:');
+  });
+
+  it('keeps Mark Scheme reveal authority in the server snapshot and projects only learner-safe fields',()=>{
+    expect(boardProjection).toContain('const scheme = source.markScheme');
+    expect(boardProjection).toContain('const markScheme = scheme ?');
+    expect(boardProjection).toContain('code: text(point.code)');
+    expect(boardProjection).toContain('label: text(group.label)');
+    expect(boardProjection).not.toContain('markScheme: source.markScheme ?? null');
+    expect(boardProjection).not.toContain('mark_scheme_snapshot');
+  });
+
+  it('has a fail-closed optimistic concurrency primitive ready for locked teacher transitions',()=>{
+    expect(versionGuard).toContain('after the session row has been locked');
+    expect(versionGuard).toContain("new DomainError('live_state_conflict', 409)");
+    expect(versionGuard).toContain('actualVersion !== expectedVersion');
+  });
+  it('keeps backend lifecycle typing aligned with the converged database states',()=>{
+    for(const status of ['draft','published','lobby','question_open','answers_locked','marking','review','paused','finished','cancelled']){
+      expect(liveExamService).toContain(`'${status}'`);
+    }
+  });
+});
+");
+    expect(builderService).toContain("msp.kind='MS'");
+    expect(builderService).toContain('msp.source_url is not null');
+    expect(builderService).toContain("lower(coalesce(msp.sha256,'')) ~ '^[0-9a-f]{64}
+    expect(builderService).toContain("status='published'");
+    expect(builderService).toContain("'challenge.published'");
+  });
+
+  it('owns the shared classroom board through the canonical live-exams API',()=>{
+    expect(route).toContain("router.get('/:id/board'");
+    expect(route).toContain('projectLiveExamForBoard(snapshot)');
+    expect(route).toContain("req.actor!.role === 'student'");
+    expect(route).toContain("privateNoStore(res)");
+  });
+
+  it('makes board projection an explicit learner-safe allow-list',()=>{
+    expect(boardProjection).toContain('Learner-safe shared classroom board projection');
+    expect(boardProjection).toContain('structuredBlocks: projectStructuredBlocks');
+    expect(boardProjection).toContain('contentJson: null');
+    expect(boardProjection).not.toContain('teacherAnswers');
+    expect(boardProjection).not.toContain('ownAnswer');
+    expect(boardProjection).not.toContain('participants:');
+    expect(boardProjection).not.toContain('moderatedBy');
+    expect(boardProjection).not.toContain('storagePath:');
+  });
+
+  it('keeps Mark Scheme reveal authority in the server snapshot and projects only learner-safe fields',()=>{
+    expect(boardProjection).toContain('const scheme = source.markScheme');
+    expect(boardProjection).toContain('const markScheme = scheme ?');
+    expect(boardProjection).toContain('code: text(point.code)');
+    expect(boardProjection).toContain('label: text(group.label)');
+    expect(boardProjection).not.toContain('markScheme: source.markScheme ?? null');
+    expect(boardProjection).not.toContain('mark_scheme_snapshot');
+  });
+
+  it('has a fail-closed optimistic concurrency primitive ready for locked teacher transitions',()=>{
+    expect(versionGuard).toContain('after the session row has been locked');
+    expect(versionGuard).toContain("new DomainError('live_state_conflict', 409)");
+    expect(versionGuard).toContain('actualVersion !== expectedVersion');
+  });
+  it('keeps backend lifecycle typing aligned with the converged database states',()=>{
+    for(const status of ['draft','published','lobby','question_open','answers_locked','marking','review','paused','finished','cancelled']){
+      expect(liveExamService).toContain(`'${status}'`);
+    }
+  });
+});
+");
+    expect(builderService).toContain('msp.syllabus_id=sp.syllabus_id');
+    expect(builderService).toContain('msp.component_id=sp.component_id');
+    expect(builderService).toContain('msp.variant=sp.variant');
+    expect(builderService).toContain('ms.max_marks=q.marks');
     expect(builderService).toContain("status='published'");
     expect(builderService).toContain("'challenge.published'");
   });

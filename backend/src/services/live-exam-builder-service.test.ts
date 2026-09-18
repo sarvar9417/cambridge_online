@@ -51,5 +51,21 @@ describe('LiveExamBuilderService',()=>{
     const selectionSql=String(query.mock.calls.find(([sql])=>String(sql).includes('select q.id,q.display_ref'))?.[0]??'');
     expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).toContain("sp.kind='QP'");
+    expect(selectionSql).toContain('sp.source_url is not null');
+    expect(selectionSql).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}
+  });
+});
+");
+    expect(selectionSql).toContain("msp.kind='MS'");
+    expect(selectionSql).toContain('msp.source_url is not null');
+    expect(selectionSql).toContain("lower(coalesce(msp.sha256,'')) ~ '^[0-9a-f]{64}
+  });
+});
+");
+    expect(selectionSql).toContain('msp.syllabus_id=sp.syllabus_id');
+    expect(selectionSql).toContain('msp.component_id=sp.component_id');
+    expect(selectionSql).toContain('msp.variant=sp.variant');
+    expect(selectionSql).toContain('ms.max_marks=q.marks');
   });
 });
