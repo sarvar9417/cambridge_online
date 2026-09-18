@@ -8,6 +8,7 @@ const fixture=(name:string)=>readFileSync(resolve(process.cwd(),'src','teaching'
 const visualSource=fixture('Chapter13PresentationVisuals.tsx');
 const hodderSource=fixture('lesson-content-hodder-ch13.ts');
 const hardeningSource=fixture('chapter13-presentation-hardening.css');
+const densitySource=fixture('chapter13-presentation-density-master.css');
 
 describe('Chapter 13 source-grounded projector presentation',()=>{
   it('covers every non-checkpoint Chapter 13 teaching slide with the professional renderer',()=>{
@@ -24,13 +25,28 @@ describe('Chapter 13 source-grounded projector presentation',()=>{
       'TYPE Tmonth',
       'monthPointer^',
       'TbookRecord',
-      '3024 mod 2000',
-      '5024 mod 2000',
+      '3024 MOD 2000',
+      '5024 MOD 2000',
       '0.0011100 × 2⁵',
       '0.1110000 × 2³',
       '12 + 4',
       '8 + 8',
       '4 + 12',
+      '01011010',
+      '00000100',
+      '00101000',
+      '00000011',
+      '11001100',
+      '00001100',
+      '−1664',
+      '01001000',
+      '11111110',
+      '10101101',
+      '5.88',
+      '5.75',
+      '5.875',
+      '+4.75',
+      '−8.375',
     ])expect(visualSource,`missing projector marker: ${marker}`).toContain(marker);
 
     for(const marker of [
@@ -41,7 +57,26 @@ describe('Chapter 13 source-grounded projector presentation',()=>{
       "['13.8','0.0011100 00000101','0.1110000 00000011']",
       '5.88',
       '0.399999',
+      '+4.75',
+      '−8.375',
     ])expect(hodderSource,`missing Hodder source marker: ${marker}`).toContain(marker);
+  });
+
+  it('enforces the Chapter 14 content-density rule: reveal is emphasis, never absence',()=>{
+    expect(visualSource).not.toContain('.slice(0,reveal)');
+    expect(visualSource).toContain("?'is-visible':'is-upcoming'");
+    expect(densitySource).toContain('Reveal is emphasis, never absence');
+    expect(densitySource).toContain('.h13m-master .is-upcoming');
+    expect(densitySource).toContain('visibility:visible!important');
+    expect(densitySource).toContain('@media(prefers-reduced-motion:reduce)');
+  });
+
+  it('shows source location and keeps projector layout scroll-safe at dense viewports',()=>{
+    expect(visualSource).toContain('page+303');
+    expect(visualSource).toContain('h13m-source-ribbon');
+    expect(densitySource).toContain('.lx-present-content:has(> .h13m-master)');
+    expect(densitySource).toContain('overflow:auto');
+    expect(densitySource).toContain('@media(max-height:768px)');
   });
 
   it('prevents duplicate generic projector blocks underneath authoritative Chapter 13 visuals',()=>{
