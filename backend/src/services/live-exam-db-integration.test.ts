@@ -7,6 +7,7 @@ import { LiveExamControlService } from './live-exam-control-service.js';
 import { LiveExamModerationService } from './live-exam-moderation-service.js';
 import { LiveExamParticipationService } from './live-exam-participation-service.js';
 import { LiveExamService } from './live-exam-service.js';
+import { LiveExamStudentFeedService } from './live-exam-student-feed-service.js';
 import { projectLiveExamForBoard } from './live-exam-board-projection.js';
 
 const integrationDescribe = process.env.LIVE_EXAM_DB_INTEGRATION === '1' ? describe : describe.skip;
@@ -72,6 +73,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
   const participation=new LiveExamParticipationService(pool);
   const moderation=new LiveExamModerationService(pool);
   const runtime=new LiveExamService(pool,questionRepository);
+  const studentFeed=new LiveExamStudentFeedService(pool);
 
   afterAll(async()=>{
     if(sessionId)await pool.query(`delete from live_exam_sessions where id=$1`,[sessionId]);
@@ -99,6 +101,10 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     });
     expect(candidates.map(candidate=>candidate.id)).toContain(QUESTION);
 
+    const autoSelected=await builder.autoSelect(teacher,sessionId,1,version);
+    expect(autoSelected.questionIds).toEqual([QUESTION]);
+    version=autoSelected.version;
+
     const selected=await builder.replaceQuestions(teacher,sessionId,[QUESTION],version);
     expect(selected.questionCount).toBe(1);
     version=selected.version;
@@ -107,6 +113,11 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     expect(published.status).toBe('published');
     expect(published.joinCode).toMatch(/^\d{6}$/);
     version=published.version;
+
+    const publishedFeed=await studentFeed.feed(studentA);
+    expect(publishedFeed.upcoming).toEqual(expect.arrayContaining([
+      expect.objectContaining({id:sessionId,status:'published',joined:false,canJoinWithCode:false}),
+    ]));
 
     const questionRow=await pool.query(
       `select id from live_exam_questions where session_id=$1 and question_id=$2`,
@@ -117,6 +128,11 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     const opened=await control.openRoom(teacher,sessionId,version);
     expect(opened.status).toBe('lobby');
     version=opened.version;
+
+    const lobbyFeed=await studentFeed.feed(studentA);
+    expect(lobbyFeed.upcoming).toEqual(expect.arrayContaining([
+      expect.objectContaining({id:sessionId,status:'lobby',joined:false,canJoinWithCode:true}),
+    ]));
 
     const joinedA=await participation.join(studentA,published.joinCode);
     expect(joinedA.reused).toBe(false);
@@ -241,6 +257,11 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     expect(aEvidence?.teacher_overridden).toBe(true);
     expect(Number(bEvidence?.marks_earned)).toBe(2);
     expect(bEvidence?.teacher_overridden).toBe(false);
+
+    const history=await studentFeed.feed(studentA);
+    expect(history.history).toEqual(expect.arrayContaining([
+      expect.objectContaining({id:sessionId,status:'finished',joined:true,earned:1,possible:2}),
+    ]));
 
     const audit=await pool.query(
       `select reason,new_score from live_exam_score_overrides
