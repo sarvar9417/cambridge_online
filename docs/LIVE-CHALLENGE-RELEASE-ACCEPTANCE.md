@@ -10,6 +10,7 @@ This file records what the repository can prove automatically and what must stil
 | --- | --- |
 | Teacher creates draft | builder route/service tests + convergence contract |
 | Select/reorder/auto-select canonical questions | builder tests + source-fidelity guards |
+| Draft runtime policy settings | CAS draft patch + shared settings policy tests; timing/order/auto-lock/override/name mode enforced |
 | Publish | builder lifecycle migration/service tests |
 | Student discovers assigned challenge | student-feed service/route tests |
 | Student joins with class-scoped code | participation service/route tests |
@@ -46,7 +47,9 @@ Repository gates explicitly cover or retain existing coverage for:
 - participant leave/remove restrictions;
 - pause/resume persisted state;
 - event cursor is notification-only and snapshots remain authoritative;
-- teacher overrides require reason and version and remain append-only evidence;
+- teacher overrides require reason and version and remain append-only evidence; disabled override policy fails closed after the initial teacher mark;
+- all-submitted auto-close stops at `answers_locked` and never reveals the Mark Scheme;
+- learner dashboard discovery uses the dedicated safe student feed; the generic session list is staff-only;
 - final learning evidence is idempotent and marks-first;
 - board/feed responses do not expose room or assessment-private data outside their allowed state.
 
@@ -62,7 +65,8 @@ The dedicated `Live Challenge DB smoke` workflow now proves the following agains
 - finish persists LO evidence and marks-first mastery;
 - a real service-level flow runs Teacher + shared Board + Student A + Student B through published → lobby → question → pause/resume → submit → answer lock → Mark Scheme reveal → anonymous peer review → teacher moderation → finish;
 - the Board projection is checked before and after reveal: no Mark Scheme before reveal, no join code outside lobby, and no session/student/mark-point internal IDs;
-- stale teacher CAS is rejected and event versions remain monotonic.
+- stale teacher CAS is rejected and event versions remain monotonic;
+- runtime policy coverage includes manual vs automatic answer locking and disabled teacher overrides.
 
 The shared board remains covered by the dedicated learner-safe projection tests and frontend route contract. This gives a strong free release gate without touching production data.
 

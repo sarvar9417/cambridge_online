@@ -394,6 +394,52 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
   });
 
+  it('blocks post-review moderation when teacher override is disabled',async()=>{
+    const draft=await builder.createDraft(teacher,{
+      classId:CLASS,title:'No override policy',topicId:TOPIC,subtopicId:SUBTOPIC,
+      markingMode:'teacher',settings:{autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:false},
+    });
+    const sessionId=draft.id;sessionIds.push(sessionId);let version=draft.version;
+    version=(await builder.replaceQuestions(teacher,sessionId,[QUESTION],version)).version;
+    const published=await builder.publish(teacher,sessionId,version);version=published.version;
+    version=(await control.openRoom(teacher,sessionId,version)).version;
+    version=(await participation.join(studentA,published.joinCode)).version!;
+    version=(await control.start(teacher,sessionId,version)).version;
+    version=(await runtime.submitAnswer(studentA,sessionId,'Teacher-marked answer')).version;
+    version=(await control.lockAnswers(teacher,sessionId,version)).version;
+    version=(await control.revealMarkScheme(teacher,sessionId,version)).version;
+
+    const reviewRow=await pool.query(
+      `select r.id
+       from live_exam_reviews r
+       join live_exam_answers a on a.id=r.answer_id
+       join live_exam_participants p on p.id=a.participant_id
+       where r.session_question_id=(
+         select id from live_exam_questions where session_id=$1 and position=0
+       ) and p.student_id=$2 and r.reviewer_id=$3`,
+      [sessionId,studentA.id,teacher.id],
+    );
+    const reviewId=String(reviewRow.rows[0].id);
+    version=(await runtime.submitReview(teacher,sessionId,reviewId,{
+      matchedPointIds:[POINT_1,POINT_2],feedback:'Initial teacher mark.',
+    })).version;
+    version=(await control.completeMarking(teacher,sessionId,version)).version;
+
+    const answerRow=await pool.query(
+      `select a.id
+       from live_exam_answers a
+       join live_exam_participants p on p.id=a.participant_id
+       join live_exam_questions q on q.id=a.session_question_id
+       where q.session_id=$1 and p.student_id=$2`,
+      [sessionId,studentA.id],
+    );
+    await expect(moderation.moderate(teacher,sessionId,String(answerRow.rows[0].id),{
+      score:1,feedback:'Blocked override',reason:'Would change the final mark.',expectedVersion:version,
+    })).rejects.toMatchObject({code:'live_teacher_override_disabled',status:409});
+    const unchanged=await pool.query(`select version from live_exam_sessions where id=$1`,[sessionId]);
+    expect(Number(unchanged.rows[0].version)).toBe(version);
+  });
+
   it('rejects a selected question when its required source asset is unavailable',async()=>{
     const unavailableQuestions={
       portable:async(_actor:Actor,id:string)=>id===QUESTION?{
