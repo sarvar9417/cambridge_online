@@ -26,9 +26,9 @@ function appFor(service:Partial<LiveExamService>, actor:Actor=student) {
 describe('live exam routes', () => {
   it('marks the session list private and non-cacheable', async () => {
     const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
-    const response=await request(appFor({list})).get('/live-exams').expect(200);
+    const response=await request(appFor({list},teacher)).get('/live-exams').expect(200);
     expect(response.headers['cache-control']).toBe('private, no-store');
-    expect(list).toHaveBeenCalledWith(student);
+    expect(list).toHaveBeenCalledWith(teacher);
   });
 
   it('marks the per-user authoritative snapshot private and non-cacheable', async () => {

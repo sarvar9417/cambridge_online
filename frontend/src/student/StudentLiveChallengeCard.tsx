@@ -20,32 +20,33 @@ const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
 };
 
 export function StudentLiveChallengeCard() {
-  const [sessions,setSessions]=useState<LiveExamSummary[]>([]);
+  type FeedItem=Pick<LiveExamSummary,'id'|'title'|'className'|'status'|'participantCount'>;
+  const [active,setActive]=useState<FeedItem|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
-    const load=()=>api<{data:LiveExamSummary[]}>('/live-exams')
-      .then((result)=>{if(!cancelled)setSessions(result.data)})
+    const load=()=>api<{data:{active:FeedItem[]}}>('/live-exams/student-feed')
+      .then((result)=>{if(!cancelled)setActive(result.data.active[0]??null)})
       .catch(()=>{});
     void load();
     const timer=window.setInterval(()=>void load(),15_000);
     return()=>{cancelled=true;window.clearInterval(timer)};
   },[]);
 
-  const active=sessions.find((session)=>ACTIVE_STATUS.has(session.status));
-  const destination=active?`oquvchi/live?id=${active.id}`:'oquvchi/live';
+  const visibleActive=active&&ACTIVE_STATUS.has(visibleActive.status)?active:null;
+  const destination=visibleActive?`oquvchi/live?id=${visibleActive.id}`:'oquvchi/live';
 
-  return <section className={`sh-live ${active?'is-active':''}`} aria-label="Live Challenge">
-    <div className="sh-live-icon"><Broadcast size={28} weight={active?'fill':'regular'}/></div>
+  return <section className={`sh-live ${visibleActive?'is-active':''}`} aria-label="Live Challenge">
+    <div className="sh-live-icon"><Broadcast size={28} weight={visibleActive?'fill':'regular'}/></div>
     <div className="sh-live-copy">
       <span>CAMBRIDGE LIVE CHALLENGE</span>
-      <h2>{active?active.title:'Sinf bilan bir vaqtda past-paper ishlang'}</h2>
+      <h2>{visibleActive?visibleActive.title:'Sinf bilan bir vaqtda past-paper ishlang'}</h2>
       <p>{active
-        ? `${active.className} · ${STATUS_TEXT[active.status]} · ${active.participantCount} o‘quvchi`
+        ? `${visibleActive.className} · ${STATUS_TEXT[visibleActive.status]} · ${visibleActive.participantCount} o‘quvchi`
         : 'O‘qituvchi bergan 6 xonali kod bilan live sessiyaga qo‘shiling. Savol, mark scheme va natija bir xil ritmda ochiladi.'}</p>
     </div>
     <button type="button" onClick={()=>navigate(destination)}>
-      <PlayCircle size={20} weight="fill"/>{active?'Sessiyaga kirish':'Kodni kiritish'}
+      <PlayCircle size={20} weight="fill"/>{visibleActive?'Sessiyaga kirish':'Kodni kiritish'}
     </button>
   </section>;
 }

@@ -34,6 +34,16 @@ describe('assignPeerReviewers', () => {
   });
 });
 
+describe('LiveExamService staff list boundary',()=>{
+  it('rejects learner access before querying classroom session metadata',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    await expect(service.list({id:'s1',role:'student',schoolId:'school',fullName:'Student'}))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
 describe('LiveExamService source fidelity', () => {
   const actor = { id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
   const input = {

@@ -343,6 +343,7 @@ export class LiveExamService {
   }
 
   async list(actor: Actor) {
+    this.assertStaff(actor);
     const result = await this.pool.query(
       `select les.id,les.class_id,les.title,les.join_code,les.status::text,les.marking_mode::text,
          les.question_time_limit_s,les.current_question_index,les.version,les.created_at,les.updated_at,
@@ -352,17 +353,14 @@ export class LiveExamService {
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where (
-         ($1='student' and exists(
-           select 1 from live_exam_participants lep where lep.session_id=les.id and lep.student_id=$2
-         ))
-         or ($1='owner' and c.school_id=$3)
-         or ($1='teacher' and (c.owner_id=$2 or exists(
-           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$2
+         ($1='owner' and c.school_id=$2)
+         or ($1='teacher' and (c.owner_id=$3 or exists(
+           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3
          )))
        )
        order by (les.status not in ('finished','cancelled')) desc,les.updated_at desc
        limit 50`,
-      [actor.role, actor.id, actor.schoolId],
+      [actor.role, actor.schoolId, actor.id],
     );
     return result.rows.map((row) => ({
       ...this.mapSession(row),
@@ -569,6 +567,7 @@ export class LiveExamService {
     return {
       session: {
         ...this.mapSession(session),
+        joinCode: isStaff ? session.join_code : null,
         className: session.class_name,
         hostName: session.host_name,
         currentQuestionIndex: Number(session.current_question_index),

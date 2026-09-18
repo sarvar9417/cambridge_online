@@ -7,6 +7,7 @@ const app=source('src/app.ts');
 const board=source('src/services/live-exam-board-projection.ts');
 const leaderboard=source('../frontend/src/live/LiveExamLeaderboard.tsx');
 const feed=source('src/services/live-exam-student-feed-service.ts');
+const studentCard=source('../frontend/src/student/StudentLiveChallengeCard.tsx');
 const analytics=source('src/services/live-exam-analytics-service.ts');
 const evidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
 
@@ -37,6 +38,8 @@ describe('Cambridge Live Challenge classroom experience contract',()=>{
     expect(feed).toContain("les.status in ('published','lobby')");
     expect(feed).not.toContain('select les.join_code');
     expect(feed).not.toContain('joinCode:');
+    expect(studentCard).toContain("'/live-exams/student-feed'");
+    expect(studentCard).not.toContain("api<{data:LiveExamSummary[]}>('/live-exams')");
   });
 
   it('builds final analytics from marks-first learning evidence and excludes speed',()=>{

@@ -182,6 +182,8 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     const studentBeforeReveal=await runtime.snapshot(studentA,sessionId);
     expect(teacherBeforeReveal.markScheme).toBeNull();
     expect(studentBeforeReveal.markScheme).toBeNull();
+    expect(teacherBeforeReveal.session.joinCode).toBe(published.joinCode);
+    expect(studentBeforeReveal.session.joinCode).toBeNull();
     expect(studentBeforeReveal.questions).toEqual([]);
     expect(studentBeforeReveal.participants).toEqual([]);
     const boardBeforeReveal=projectLiveExamForBoard(teacherBeforeReveal);
