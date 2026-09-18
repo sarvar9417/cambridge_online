@@ -58,6 +58,9 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(builderService).toContain('const snapshot=await this.snapshotQuestion');
     expect(builderService).toContain('question_snapshot=$4::jsonb');
     expect(builderService).toContain('mark_scheme_snapshot=$5::jsonb');
+    expect(builderService).toContain('from canonical_mark_schemes ms');
+    expect(builderService).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
+    expect(builderService).not.toContain('join mark_schemes ms on ms.question_id=q.id');
     expect(builderService).toContain("status='published'");
     expect(builderService).toContain("'challenge.published'");
   });

@@ -36,4 +36,20 @@ describe('LiveExamBuilderService',()=>{
     })).rejects.toMatchObject({code:'not_found',status:404});
     expect(query).toHaveBeenCalledTimes(1);
   });
+
+  it('uses the deterministic canonical Mark Scheme source for builder eligibility',async()=>{
+    const syllabusId='11111111-1111-4111-8111-111111111111';
+    const topicId='33333333-3333-4333-8333-333333333333';
+    const query=vi.fn(async (sql:string)=>{
+      if(sql.includes('from classes c join syllabi s'))return {rows:[{id:'class-1',syllabus_id:syllabusId}],rowCount:1};
+      if(sql.includes('select s.code syllabus_code'))return {rows:[{syllabus_code:'9618',topic_number:1,subtopic_code:null}],rowCount:1};
+      if(sql.includes('select q.id,q.display_ref'))return {rows:[],rowCount:0};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    await expect(service.eligibleQuestions(teacher,{syllabusId,topicId,limit:25})).resolves.toEqual([]);
+    const selectionSql=String(query.mock.calls.find(([sql])=>String(sql).includes('select q.id,q.display_ref'))?.[0]??'');
+    expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+  });
 });
