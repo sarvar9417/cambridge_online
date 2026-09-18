@@ -47,6 +47,13 @@ function firstSettingId(settings:Record<string,unknown>,key:string){
   const value=settings[key];
   return Array.isArray(value)&&typeof value[0]==='string'?value[0]:null;
 }
+function booleanSetting(settings:Record<string,unknown>,key:string,fallback:boolean){
+  return typeof settings[key]==='boolean'?Boolean(settings[key]):fallback;
+}
+function stringSetting<T extends string>(settings:Record<string,unknown>,key:string,allowed:readonly T[],fallback:T){
+  const value=settings[key];
+  return typeof value==='string'&&allowed.includes(value as T)?value as T:fallback;
+}
 
 export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) {
   const creating=draftId==='new';
@@ -58,9 +65,13 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
   const [topicId,setTopicId]=useState('');
   const [subtopicId,setSubtopicId]=useState('');
   const [markingMode,setMarkingMode]=useState<LiveExamMarkingMode>('teacher');
+  const [questionOrder,setQuestionOrder]=useState<BuilderSettings['questionOrder']>('fixed');
+  const [timingMode,setTimingMode]=useState<BuilderSettings['timingMode']>('teacher');
   const [timeLimit,setTimeLimit]=useState(300);
   const [allowLateJoin,setAllowLateJoin]=useState(false);
   const [autoClose,setAutoClose]=useState(true);
+  const [teacherOverrideEnabled,setTeacherOverrideEnabled]=useState(true);
+  const [displayNameMode,setDisplayNameMode]=useState<BuilderSettings['displayNameMode']>('first_name');
   const [autoCount,setAutoCount]=useState(5);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
@@ -83,10 +94,23 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
     setEligible(result.data);
   };
 
+  const applyDraftSettings=(value:BuilderDraft)=>{
+    setTitle(value.title);
+    setMarkingMode(value.markingMode);
+    setQuestionOrder(stringSetting(value.settings,'questionOrder',['fixed','shuffled'] as const,'fixed'));
+    setTimingMode(stringSetting(value.settings,'timingMode',['teacher','per_question'] as const,'teacher'));
+    setTimeLimit(typeof value.settings.defaultTimeLimitSeconds==='number'?value.settings.defaultTimeLimitSeconds:300);
+    setAllowLateJoin(booleanSetting(value.settings,'allowLateJoin',false));
+    setAutoClose(booleanSetting(value.settings,'autoCloseWhenAllSubmitted',true));
+    setTeacherOverrideEnabled(booleanSetting(value.settings,'teacherOverrideEnabled',true));
+    setDisplayNameMode(stringSetting(value.settings,'displayNameMode',['first_name','full_name','anonymous'] as const,'first_name'));
+  };
+
   const loadDraft=async()=>{
     if(creating)return null;
     const result=await api<{data:BuilderDraft}>(`/live-exams/${draftId}/builder`);
     setDraft(result.data);
+    applyDraftSettings(result.data);
     await Promise.all([loadOptions(result.data.syllabusId),loadEligible(result.data)]);
     return result.data;
   };
@@ -107,9 +131,13 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
           }
           const firstTopic=loaded.topics[0];
           if(firstTopic)setTopicId(firstTopic.id);
+          setQuestionOrder(loaded.defaultSettings.questionOrder);
+          setTimingMode(loaded.defaultSettings.timingMode);
           setTimeLimit(loaded.defaultSettings.defaultTimeLimitSeconds??300);
           setAllowLateJoin(loaded.defaultSettings.allowLateJoin);
           setAutoClose(loaded.defaultSettings.autoCloseWhenAllSubmitted);
+          setTeacherOverrideEnabled(loaded.defaultSettings.teacherOverrideEnabled);
+          setDisplayNameMode(loaded.defaultSettings.displayNameMode);
         }else await loadDraft();
       }catch(cause){if(!cancelled)setError(errorMessage(cause,'Builder yuklanmadi.'));}
       finally{if(!cancelled)setLoading(false);}
@@ -141,9 +169,9 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
         method:'POST',body:JSON.stringify({
           classId,title:title.trim(),topicId,subtopicId:subtopicId||undefined,markingMode,
           settings:{
-            questionOrder:'fixed',timingMode:'per_question',defaultTimeLimitSeconds:timeLimit,
+            questionOrder,timingMode,defaultTimeLimitSeconds:timingMode==='per_question'?timeLimit:null,
             allowLateJoin,autoCloseWhenAllSubmitted:autoClose,peerMarkingEnabled:markingMode==='peer',
-            teacherOverrideEnabled:true,displayNameMode:'first_name',
+            teacherOverrideEnabled,displayNameMode,
           },
         }),
       });
@@ -186,6 +214,27 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
     finally{setBusy(false);}
   };
 
+  const saveDraftSettings=async()=>{
+    if(!draft||busy||title.trim().length<3)return;
+    setBusy(true);setError('');
+    try{
+      await api(`/live-exams/${draft.id}/builder`,{
+        method:'PATCH',
+        body:JSON.stringify({
+          title:title.trim(),
+          markingMode,
+          settings:{
+            questionOrder,timingMode,defaultTimeLimitSeconds:timingMode==='per_question'?timeLimit:null,
+            allowLateJoin,autoCloseWhenAllSubmitted:autoClose,peerMarkingEnabled:markingMode==='peer',
+            teacherOverrideEnabled,displayNameMode,
+          },
+          expectedVersion:draft.version,
+        }),
+      });
+      await loadDraft();
+    }catch(cause){setError(errorMessage(cause,'Challenge qoidalari saqlanmadi.'));await loadDraft().catch(()=>{});}
+    finally{setBusy(false);}
+  };
   const publish=async()=>{
     if(!draft||!draft.questions.length||busy)return;setBusy(true);setError('');
     try{
@@ -212,9 +261,13 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
         <label>Baholash<select value={markingMode} onChange={(event)=>setMarkingMode(event.target.value as LiveExamMarkingMode)}><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim peer marking</option><option value="self">Self marking</option></select></label>
-        <label>Har savol vaqti<select value={timeLimit} onChange={(event)=>setTimeLimit(Number(event.target.value))}><option value={120}>2 daqiqa</option><option value={180}>3 daqiqa</option><option value={300}>5 daqiqa</option><option value={600}>10 daqiqa</option><option value={900}>15 daqiqa</option></select></label>
+        <label>Savollar tartibi<select value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as BuilderSettings['questionOrder'])}><option value="fixed">Tanlangan tartib</option><option value="shuffled">Publish vaqtida aralashtirish</option></select></label>
+        <label>Vaqt boshqaruvi<select value={timingMode} onChange={(event)=>setTimingMode(event.target.value as BuilderSettings['timingMode'])}><option value="teacher">O‘qituvchi boshqaradi</option><option value="per_question">Har savolga vaqt</option></select></label>
+        <label>Har savol vaqti<select value={timeLimit} disabled={timingMode!=='per_question'} onChange={(event)=>setTimeLimit(Number(event.target.value))}><option value={120}>2 daqiqa</option><option value={180}>3 daqiqa</option><option value={300}>5 daqiqa</option><option value={600}>10 daqiqa</option><option value={900}>15 daqiqa</option></select></label>
+        <label>Board ismlari<select value={displayNameMode} onChange={(event)=>setDisplayNameMode(event.target.value as BuilderSettings['displayNameMode'])}><option value="first_name">Faqat ism</option><option value="full_name">To‘liq ism</option><option value="anonymous">Anonim Learner N</option></select></label>
         <label className="live-check"><input type="checkbox" checked={allowLateJoin} onChange={(event)=>setAllowLateJoin(event.target.checked)}/><span>O‘yin boshlanganidan keyin late join</span></label>
-        <label className="live-check"><input type="checkbox" checked={autoClose} onChange={(event)=>setAutoClose(event.target.checked)}/><span>Barcha javob topshirganda round tayyor deb hisoblash</span></label>
+        <label className="live-check"><input type="checkbox" checked={autoClose} onChange={(event)=>setAutoClose(event.target.checked)}/><span>Barcha javob topshirganda javoblarni avtomatik yopish</span></label>
+        <label className="live-check"><input type="checkbox" checked={teacherOverrideEnabled} onChange={(event)=>setTeacherOverrideEnabled(event.target.checked)}/><span>Teacher override ruxsat etilsin</span></label>
         <button disabled={busy||!classId||!topicId||title.trim().length<3}>{busy?'Yaratilmoqda…':'Qoralama yaratish'}</button>
       </aside>
     </form>
@@ -229,7 +282,7 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
       <section className="live-create-main"><span className="live-step">1</span><div><h2>Tanlangan savollar</h2><p>Bu tartib classroom round tartibi bo‘ladi.</p></div>
         {!draft.questions.length?<p className="live-empty">Hali savol tanlanmagan.</p>:<div className="live-session-list">{draft.questions.map((question,index)=>{
           const details=eligibleMap.get(question.id);
-          return <article key={question.id} className="live-answer-box"><header><span>#{index+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></header><p>{details?.stem??'Canonical savol snapshotga tayyor.'}</p><div className="live-room-actions"><button type="button" className="live-secondary" disabled={busy||index===0} onClick={()=>moveQuestion(index,-1)}><ArrowUp/> Yuqoriga</button><button type="button" className="live-secondary" disabled={busy||index===draft.questions.length-1} onClick={()=>moveQuestion(index,1)}><ArrowDown/> Pastga</button><button type="button" className="live-danger" disabled={busy} onClick={()=>removeQuestion(question.id)}><Trash/> Olib tashlash</button></div></article>;
+          return <article key={question.id} className="live-answer-box"><header><span>#{index+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></header><p>{details?.stem??'Canonical savol snapshotga tayyor.'}</p><div className="live-room-actions"><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||index===0} onClick={()=>moveQuestion(index,-1)}><ArrowUp/> Yuqoriga</button><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||index===draft.questions.length-1} onClick={()=>moveQuestion(index,1)}><ArrowDown/> Pastga</button><button type="button" className="live-danger" disabled={busy} onClick={()=>removeQuestion(question.id)}><Trash/> Olib tashlash</button></div></article>;
         })}</div>}
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>Auto selection</h2><p>Draft ID seed’i bilan deterministic tanlov.</p><label>Savollar soni<input type="number" min={1} max={20} value={autoCount} onChange={(event)=>setAutoCount(Number(event.target.value))}/></label><button type="button" disabled={busy} onClick={()=>void autoSelect()}><Shuffle/> Avtomatik tanlash</button><small>Auto selection mavjud manual tanlovni almashtiradi.</small></aside>

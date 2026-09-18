@@ -20,6 +20,19 @@ describe('canonical Live Challenge builder UI',()=>{
     expect(builder).toContain("`/live-exams/${draft.id}/questions/auto`");
     expect(builder).toContain('expectedVersion:draft.version');
     expect(builder).toContain("`/live-exams/${draft.id}/publish`");
+    expect(builder).toContain("method:'PATCH'");
+    expect(builder).toContain("`/live-exams/${draft.id}/builder`");
+    expect(builder).toContain('questionOrder,timingMode');
+    expect(builder).toContain('autoCloseWhenAllSubmitted:autoClose');
+    expect(builder).toContain('teacherOverrideEnabled,displayNameMode');
+  });
+
+  it('exposes the runtime policy controls instead of hard-coding hidden settings',()=>{
+    expect(builder).toContain('Savollar tartibi');
+    expect(builder).toContain('Vaqt boshqaruvi');
+    expect(builder).toContain('Board ismlari');
+    expect(builder).toContain('Teacher override ruxsat etilsin');
+    expect(builder).toContain("timingMode==='per_question'?timeLimit:null");
   });
 
   it('reopens draft rows in builder mode while published/runtime sessions open the classroom runtime',()=>{

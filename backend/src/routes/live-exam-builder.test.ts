@@ -30,6 +30,18 @@ describe('live exam builder routes',()=>{
  it('uses one ordered replacement contract for manual select remove and reorder',async()=>{const replaceQuestions=vi.fn().mockResolvedValue({id:'session',status:'draft',version:8});const session='33333333-3333-4333-8333-333333333333';const questionIds=['44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555'];await request(appFor({replaceQuestions})).put(`/live-exams/${session}/questions`).send({questionIds,expectedVersion:7}).expect(200);expect(replaceQuestions).toHaveBeenCalledWith(teacher,session,questionIds,7);});
  it('requires expectedVersion for every draft mutation',async()=>{const replaceQuestions=vi.fn();await request(appFor({replaceQuestions})).put('/live-exams/33333333-3333-4333-8333-333333333333/questions').send({questionIds:[]}).expect(400);expect(replaceQuestions).not.toHaveBeenCalled();});
  it('supports deterministic auto selection with optimistic concurrency',async()=>{const autoSelect=vi.fn().mockResolvedValue({questionCount:5,version:9});const session='33333333-3333-4333-8333-333333333333';await request(appFor({autoSelect})).post(`/live-exams/${session}/questions/auto`).send({count:5,expectedVersion:8}).expect(200);expect(autoSelect).toHaveBeenCalledWith(teacher,session,5,8);});
+ it('updates draft runtime settings through an expected-version guarded patch',async()=>{
+  const updateDraft=vi.fn().mockResolvedValue({id:'session',status:'draft',version:10});
+  const session='33333333-3333-4333-8333-333333333333';
+  const body={title:'Updated challenge',markingMode:'peer',settings:{questionOrder:'shuffled',timingMode:'teacher',defaultTimeLimitSeconds:null,allowLateJoin:true,autoCloseWhenAllSubmitted:false,peerMarkingEnabled:true,teacherOverrideEnabled:false,displayNameMode:'anonymous'},expectedVersion:9};
+  await request(appFor({updateDraft})).patch('/live-exams/'+session+'/builder').send(body).expect(200);
+  expect(updateDraft).toHaveBeenCalledWith(teacher,session,body);
+ });
+ it('rejects an empty draft patch even when a version is supplied',async()=>{
+  const updateDraft=vi.fn();
+  await request(appFor({updateDraft})).patch('/live-exams/33333333-3333-4333-8333-333333333333/builder').send({expectedVersion:9}).expect(400);
+  expect(updateDraft).not.toHaveBeenCalled();
+ });
  it('publishes only through an expected-version guarded transition',async()=>{const publish=vi.fn().mockResolvedValue({status:'published',joinCode:'123456',version:10});const session='33333333-3333-4333-8333-333333333333';const response=await request(appFor({publish})).post(`/live-exams/${session}/publish`).send({expectedVersion:9}).expect(200);expect(response.body.data.joinCode).toBe('123456');expect(publish).toHaveBeenCalledWith(teacher,session,9);});
  it('returns draft builder state as private non-cacheable teacher data',async()=>{const draft=vi.fn().mockResolvedValue({id:'draft',questions:[]});const session='33333333-3333-4333-8333-333333333333';const response=await request(appFor({draft})).get(`/live-exams/${session}/builder`).expect(200);expect(response.headers['cache-control']).toBe('private, no-store');expect(draft).toHaveBeenCalledWith(teacher,session);});
 });
