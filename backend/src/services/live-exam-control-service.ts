@@ -16,9 +16,9 @@ const PAUSABLE = new Set(['lobby', 'question_open', 'answers_locked', 'marking',
  * Phase 3/4 state-machine owner for Cambridge Live Challenge.
  *
  * This service deliberately operates on the existing live_exam_* tables. It is
- * mounted before the legacy LiveExamService routes so version-aware clients can
- * opt into locked/CAS transitions while old clients remain functional during
- * the frontend migration window.
+ * mounted before the generic learner runtime routes and is now the sole staff
+ * lifecycle mutation surface. Teacher transitions therefore cannot bypass the
+ * locked/CAS contract through a versionless compatibility route.
  */
 export class LiveExamControlService {
   constructor(private readonly pool: Pool) {}

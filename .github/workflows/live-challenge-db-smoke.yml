@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/services/live-exam-db-integration.test.ts'
       - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
       - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
       - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/services/live-exam-db-integration.test.ts'
       - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
       - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
       - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
@@ -30,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cambridge_live_smoke
@@ -45,7 +47,17 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cambridge_live_smoke
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply Live Challenge migration chain and invariants
         run: psql "$DATABASE_URL" -f backend/src/database/live-exam-db-smoke.sql
+      - name: Install application dependencies
+        run: npm ci
+      - name: Run Live Challenge multi-client service integration
+        env:
+          LIVE_EXAM_DB_INTEGRATION: '1'
+        run: npm run test -w backend -- --run src/services/live-exam-db-integration.test.ts
