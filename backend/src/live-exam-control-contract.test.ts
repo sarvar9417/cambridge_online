@@ -6,6 +6,7 @@ const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 const service=source('src/services/live-exam-control-service.ts');
 const route=source('src/routes/live-exam-control.ts');
 const app=source('src/app.ts');
+const generic=source('src/routes/live-exams.ts');
 
 describe('Cambridge Live Challenge Phase 3 control contract',()=>{
   it('locks the authoritative session before every CAS lifecycle mutation',()=>{
@@ -54,5 +55,16 @@ describe('Cambridge Live Challenge Phase 3 control contract',()=>{
     expect(route).toContain('const versionBody = z.object({ expectedVersion }).strict()');
     expect(route).not.toContain('if (version === undefined) { next(); return; }');
     expect(route).toContain('every teacher-controlled state transition is');
+  });
+  it('removes versionless teacher mutation fallbacks from the generic runtime router',()=>{
+    expect(generic).not.toContain("router.post('/', async");
+    expect(generic).not.toContain("router.post('/:id/start'");
+    expect(generic).not.toContain("router.post('/:id/reveal'");
+    expect(generic).not.toContain("router.put('/:id/answers/:answerId/moderate'");
+    expect(generic).not.toContain("router.post('/:id/marking/complete'");
+    expect(generic).not.toContain("router.post('/:id/next'");
+    expect(generic).not.toContain("router.post('/:id/cancel'");
+    expect(generic).toContain("router.put('/:id/answer'");
+    expect(generic).toContain("router.post('/:id/reviews/:reviewId/submit'");
   });
 });

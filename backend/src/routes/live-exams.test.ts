@@ -104,22 +104,36 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
-  it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
-    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
-      new Error('live_peer_assignment_impossible'),
-      { code:'P0001' },
-    ));
-    const response=await request(appFor({revealMarkScheme}))
-      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
-      .expect(409);
-    expect(response.body.error.code).toBe('live_peer_assignment_impossible');
-  });
+  it('does not expose retired versionless staff creation or control fallbacks', async () => {
+    const create=vi.fn();
+    const start=vi.fn();
+    const revealMarkScheme=vi.fn();
+    const moderateAnswer=vi.fn();
+    const completeMarking=vi.fn();
+    const nextQuestion=vi.fn();
+    const cancel=vi.fn();
+    const service={create,start,revealMarkScheme,moderateAnswer,completeMarking,nextQuestion,cancel};
 
-  it('does not disguise unrelated database errors as peer-integrity conflicts', async () => {
-    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
-    const response=await request(appFor({revealMarkScheme}))
-      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
-      .expect(500);
-    expect(response.body.error.code).toBe('internal_error');
+    await request(appFor(service,teacher)).post('/live-exams').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/start').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .put('/live-exams/22222222-2222-4222-8222-222222222222/answers/33333333-3333-4333-8333-333333333333/moderate').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/marking/complete').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/next').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/cancel').send({}).expect(404);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+    expect(revealMarkScheme).not.toHaveBeenCalled();
+    expect(moderateAnswer).not.toHaveBeenCalled();
+    expect(completeMarking).not.toHaveBeenCalled();
+    expect(nextQuestion).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
   });
 });
