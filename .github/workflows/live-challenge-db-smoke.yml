@@ -1,0 +1,51 @@
+name: Live Challenge DB smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
+      - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
+      - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
+      - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
+      - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
+      - 'backend/src/database/migrations/0172_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0173_live_exam_override_reason.sql'
+      - '.github/workflows/live-challenge-db-smoke.yml'
+  pull_request:
+    paths:
+      - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
+      - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
+      - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
+      - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
+      - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
+      - 'backend/src/database/migrations/0172_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0173_live_exam_override_reason.sql'
+      - '.github/workflows/live-challenge-db-smoke.yml'
+
+jobs:
+  postgres-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cambridge_live_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cambridge_live_smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cambridge_live_smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply Live Challenge migration chain and invariants
+        run: psql "$DATABASE_URL" -f backend/src/database/live-exam-db-smoke.sql
