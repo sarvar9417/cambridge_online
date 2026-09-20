@@ -86,11 +86,14 @@ describe('LiveExamService source fidelity', () => {
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('with recursive ancestry');
     expect(selectionSql).toContain('join question_assets qa on qa.question_id=ancestry.id');
+    expect(selectionSql).toContain('from question_learning_objectives qlo');
+    expect(selectionSql).toContain("compat.relation in ('equivalent','subtopic_compatible')");
+    expect(selectionSql).toContain('target_t.syllabus_id=live_class.syllabus_id');
     expect(selectionSql).toContain('select candidate.id');
     expect(selectionSql).toContain(') candidate');
     expect(selectionSql).toContain('order by md5(candidate.id::text || $1::text)');
-    expect(selectionSql).toContain('selected_topic.id=any($2::uuid[])');
-    expect(selectionCall?.[1]).toEqual([expect.any(String), input.topicIds, input.questionCount]);
+    expect(selectionSql).toContain('selected_topic.id=any($3::uuid[])');
+    expect(selectionCall?.[1]).toEqual([expect.any(String), input.classId, input.topicIds, input.questionCount]);
   });
 
   it('refuses a visual question whose private source asset cannot be rendered', async () => {

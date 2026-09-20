@@ -78,4 +78,29 @@ describe('live exam routes', () => {
       .expect(500);
     expect(response.body.error.code).toBe('internal_error');
   });
+
+  it('passes optimistic state versions to pause and resume controls', async () => {
+    const pause=vi.fn().mockResolvedValue({paused:true,version:8});
+    const resume=vi.fn().mockResolvedValue({paused:false,version:9});
+    const app=appFor({pause,resume});
+    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/pause')
+      .send({expectedVersion:7}).expect(200);
+    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/resume')
+      .send({expectedVersion:8}).expect(200);
+    expect(pause).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',7);
+    expect(resume).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',8);
+  });
+
+  it('routes lobby removal and voluntary leave separately', async () => {
+    const removeParticipant=vi.fn().mockResolvedValue({version:3});
+    const leave=vi.fn().mockResolvedValue({version:4});
+    const app=appFor({removeParticipant,leave});
+    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/participants/33333333-3333-4333-8333-333333333333/remove')
+      .send({expectedVersion:2}).expect(200);
+    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/leave').expect(200);
+    expect(removeParticipant).toHaveBeenCalledWith(
+      student,'22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',2,
+    );
+    expect(leave).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
+  });
 });

@@ -20,6 +20,12 @@ export interface CreateLiveExamInput {
   markingMode: LiveExamMarkingMode;
   includeDiagrams: boolean;
   excludeSeen: boolean;
+  questionIds?: string[];
+  questionOrder?: 'fixed' | 'shuffled';
+  allowLateJoin?: boolean;
+  autoCloseWhenAllSubmitted?: boolean;
+  teacherOverrideEnabled?: boolean;
+  leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
 }
 
 type MarkSchemePointSnapshot = {
@@ -138,6 +144,12 @@ export class LiveExamService {
     return result.rows[0] as Record<string, unknown>;
   }
 
+  private assertExpectedVersion(session: Record<string, unknown>, expectedVersion?: number) {
+    if (expectedVersion !== undefined && Number(session.version) !== expectedVersion) {
+      throw new DomainError('live_state_conflict', 409);
+    }
+  }
+
   private async bump(
     client: PoolClient,
     sessionId: string,
@@ -183,12 +195,12 @@ export class LiveExamService {
     return result.rows[0].scheme as MarkSchemeSnapshot;
   }
 
-  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput) {
-    // Keep the random ordering seed as the first parameter. The class ID is
-    // only needed when "exclude seen" is enabled; binding it unconditionally
-    // leaves an unreferenced $1 parameter when that option is off, which
-    // PostgreSQL correctly rejects because its type cannot be inferred.
-    const values: unknown[] = [randomUUID()];
+  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
+    // Keep the random ordering seed first and bind the class ID for both
+    // syllabus-safe LO resolution and optional seen-question filtering.
+    // Every value is referenced in the SQL so PostgreSQL can infer its type.
+    const values: unknown[] = [randomUUID(), input.classId];
+    const classParameter = '$2';
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
@@ -198,6 +210,38 @@ export class LiveExamService {
       // dependency bundle will be added separately; never strip a reference
       // from a question and pretend its meaning survived.
       `not exists(select 1 from question_dependencies qd where qd.question_id=q.id)`,
+      // Finished sessions publish mastery into the class's current syllabus.
+      // Admit a historical question only when it has a direct current LO or a
+      // reviewed compatibility edge into that syllabus. This mirrors the
+      // terminal learning-evidence trigger and prevents a late finish failure.
+      `exists(
+        select 1
+        from classes live_class
+        where live_class.id=${classParameter}
+          and (
+            exists(
+              select 1
+              from question_learning_objectives qlo
+              join learning_objectives direct_lo on direct_lo.id=qlo.lo_id
+              join subtopics direct_st on direct_st.id=direct_lo.subtopic_id
+              join topics direct_t on direct_t.id=direct_st.topic_id
+              where qlo.question_id=q.id
+                and direct_t.syllabus_id=live_class.syllabus_id
+            )
+            or exists(
+              select 1
+              from question_learning_objectives qlo
+              join learning_objective_compatibility compat
+                on compat.source_lo_id=qlo.lo_id
+               and compat.relation in ('equivalent','subtopic_compatible')
+              join learning_objectives target_lo on target_lo.id=compat.target_lo_id
+              join subtopics target_st on target_st.id=target_lo.subtopic_id
+              join topics target_t on target_t.id=target_st.topic_id
+              where qlo.question_id=q.id
+                and target_t.syllabus_id=live_class.syllabus_id
+            )
+          )
+      )`,
     ];
     if (input.topicIds.length) {
       values.push(input.topicIds);
@@ -247,9 +291,11 @@ export class LiveExamService {
         where qa.kind in ('diagram','image')
       )`);
     }
+    if (input.questionIds?.length) {
+      values.push(input.questionIds);
+      filters.push(`q.id=any($${values.length}::uuid[])`);
+    }
     if (input.excludeSeen) {
-      values.push(input.classId);
-      const classParameter = `$${values.length}`;
       filters.push(`not exists(
         select 1 from assignment_questions aq
         join assignments a on a.id=aq.assignment_id
@@ -274,13 +320,49 @@ export class LiveExamService {
        limit $${values.length}`,
       values,
     );
-    if ((result.rowCount ?? 0) < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    return result.rows.map((row) => String(row.id));
+    if (requireExact && (result.rowCount ?? 0) < input.questionCount) throw new DomainError('live_question_pool_small', 409);
+    const selected = result.rows.map((row) => String(row.id));
+    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
+      const available = new Set(selected);
+      return input.questionIds.filter((id) => available.has(id));
+    }
+    return selected;
+  }
+
+  async eligibleQuestions(
+    actor: Actor,
+    input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { limit: number },
+  ) {
+    await this.requireClassControl(this.pool, actor, input.classId);
+    if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
+    const ids = await this.chooseQuestionIds(actor, {
+      ...input,
+      title: 'Question preview',
+      markingMode: 'teacher',
+      questionCount: input.limit,
+      questionIds: undefined,
+    }, false);
+    const rows = await Promise.all(ids.map(async (questionId) => {
+      const portable = await this.questions.portable(actor, questionId);
+      if (!portable) return null;
+      return {
+        id: questionId,
+        displayRef: portable.sourceRef,
+        marks: portable.leaf.marks,
+        commandWord: portable.leaf.commandWord,
+        stem: portable.leaf.stem,
+        hasAssets: portable.contextBlocks.some((block) => block.assets.length > 0),
+      };
+    }));
+    return rows.filter((row): row is NonNullable<typeof row> => row !== null);
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
     await this.requireClassControl(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
+    if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
+      throw new DomainError('live_question_selection_mismatch', 400);
+    }
 
     const questionIds = await this.chooseQuestionIds(actor, input);
     const snapshots = await Promise.all(questionIds.map(async (questionId) => {
@@ -312,6 +394,11 @@ export class LiveExamService {
             subtopicIds: input.subtopicIds,
             includeDiagrams: input.includeDiagrams,
             excludeSeen: input.excludeSeen,
+            questionOrder: input.questionOrder ?? 'shuffled',
+            allowLateJoin: input.allowLateJoin ?? false,
+            autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
+            teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
+            leaderboardMode: input.leaderboardMode ?? 'marks',
           })],
       );
       for (const [position, snapshot] of snapshots.entries()) {
@@ -345,6 +432,7 @@ export class LiveExamService {
     const result = await this.pool.query(
       `select les.id,les.class_id,les.title,les.join_code,les.status::text,les.marking_mode::text,
          les.question_time_limit_s,les.current_question_index,les.version,les.created_at,les.updated_at,
+         les.paused_at,les.pause_remaining_s,les.settings,
          c.name class_name,
          (select count(*) from live_exam_questions leq where leq.session_id=les.id)::int question_count,
          (select count(*) from live_exam_participants lep where lep.session_id=les.id and lep.left_at is null)::int participant_count
@@ -373,28 +461,49 @@ export class LiveExamService {
 
   async join(actor: Actor, code: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
-    const result = await this.pool.query(
-      `insert into live_exam_participants(session_id,student_id,left_at,last_seen_at)
-       select les.id,$2,null,now()
-       from live_exam_sessions les
-       join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-       where les.join_code=$1 and les.status='lobby'
-       on conflict(session_id,student_id) do update set left_at=null,last_seen_at=now()
-       returning id,session_id,joined_at`,
-      [code, actor.id],
-    );
-    if (!result.rowCount) throw new DomainError('live_code_not_found', 404);
-    const participant = result.rows[0];
-    await this.pool.query(
-      `with changed as (
-         update live_exam_sessions set version=version+1,updated_at=now()
-         where id=$1 returning version
-       )
-       insert into live_exam_events(session_id,actor_id,event_type,session_version,payload)
-       select $1,$2,'participant.joined',version,$3::jsonb from changed`,
-      [participant.session_id, actor.id, JSON.stringify({ participantId: participant.id })],
-    );
-    return { sessionId: participant.session_id, participantId: participant.id };
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const room = await client.query(
+        `select les.*
+         from live_exam_sessions les
+         join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
+         where les.join_code=$1 and (
+           les.status='lobby'
+           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+         )
+         for update of les`,
+        [code, actor.id],
+      );
+      if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
+      const session = room.rows[0];
+      const result = await client.query(
+        `insert into live_exam_participants(session_id,student_id,left_at,last_seen_at)
+         values($1,$2,null,now())
+         on conflict(session_id,student_id) do update set left_at=null,last_seen_at=now()
+         returning id,session_id,joined_at`,
+        [session.id, actor.id],
+      );
+      const participant = result.rows[0];
+      if (session.status === 'question_open') {
+        await client.query(
+          `insert into live_exam_answers(session_question_id,participant_id)
+           select leq.id,$2 from live_exam_questions leq
+           where leq.session_id=$1 and leq.position=$3
+           on conflict(session_question_id,participant_id) do nothing`,
+          [session.id, participant.id, session.current_question_index],
+        );
+      }
+      await this.bump(client, String(session.id), actor.id, 'participant.joined', {
+        participantId: participant.id,
+        late: session.status !== 'lobby',
+      });
+      await client.query('commit');
+      return { sessionId: participant.session_id, participantId: participant.id };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
   }
 
   async heartbeat(actor: Actor, sessionId: string) {
@@ -587,7 +696,9 @@ export class LiveExamService {
       `select count(*)::int total,count(*) filter(where status in('submitted','moderated'))::int completed
        from live_exam_reviews where session_question_id=$1`, [currentRow.id],
     ) : { rows: [{ total: 0, completed: 0 }] };
-    const deadline = session.question_started_at && session.question_time_limit_s
+    const deadline = session.paused_at
+      ? null
+      : session.question_started_at && session.question_time_limit_s
       ? new Date(new Date(session.question_started_at).getTime() + Number(session.question_time_limit_s) * 1000)
       : null;
 
@@ -600,6 +711,8 @@ export class LiveExamService {
         startedAt: session.started_at,
         finishedAt: session.finished_at,
         questionStartedAt: session.question_started_at,
+        pausedAt: session.paused_at,
+        pauseRemainingS: session.pause_remaining_s === null ? null : Number(session.pause_remaining_s),
         deadline,
         serverNow: new Date(),
         participantCount,
@@ -722,12 +835,12 @@ export class LiveExamService {
       // until every in-flight save has committed. No answer can cross the
       // question_open -> marking boundary.
       const state = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for share`, [sessionId]);
-      if (state.rows[0]?.status !== 'question_open') throw new DomainError('live_answer_locked', 409);
+        `select status::text,paused_at from live_exam_sessions where id=$1 for share`, [sessionId]);
+      if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set answer_text=$3,word_count=$4,updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
-         where les.id=$1 and les.status='question_open'
+         where les.id=$1 and les.status='question_open' and les.paused_at is null
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
@@ -751,15 +864,15 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`, [sessionId]);
-      if (state.rows[0]?.status !== 'question_open') throw new DomainError('live_answer_locked', 409);
+        `select * from live_exam_sessions where id=$1 for update`, [sessionId]);
+      if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set
            answer_text=coalesce($3,a.answer_text),
            word_count=case when $3::text is null then a.word_count else $4 end,
            submitted_at=now(),updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
-         where les.id=$1 and les.status='question_open'
+         where les.id=$1 and les.status='question_open' and les.paused_at is null
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
@@ -769,13 +882,90 @@ export class LiveExamService {
         [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
-      const version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      const settings = this.settings(state.rows[0].settings);
+      if (settings.autoCloseWhenAllSubmitted) {
+        const pending = await client.query(
+          `select count(*)::int count
+           from live_exam_participants lep
+           join live_exam_questions leq on leq.session_id=lep.session_id
+             and leq.position=$2
+           left join live_exam_answers a on a.session_question_id=leq.id and a.participant_id=lep.id
+           where lep.session_id=$1 and lep.left_at is null and a.submitted_at is null`,
+          [sessionId, state.rows[0].current_question_index],
+        );
+        if (Number(pending.rows[0].count) === 0) {
+          const revealed = await this.revealWithinTransaction(client, state.rows[0], actor.id);
+          version = revealed.version;
+        }
+      }
       await client.query('commit');
-      return { submittedAt: new Date(), version };
+      return { submittedAt: new Date(), version, autoRevealed: state.rows[0].status === 'marking' };
     } catch (error) {
       await client.query('rollback');
       throw error;
     } finally { client.release(); }
+  }
+
+  private async revealWithinTransaction(client: PoolClient, session: Record<string, unknown>, actorId: string) {
+    const sessionId = String(session.id);
+    const question = await client.query(
+      `select id,mark_scheme_snapshot from live_exam_questions
+       where session_id=$1 and position=$2`,
+      [sessionId, session.current_question_index],
+    );
+    if (!question.rowCount) throw new DomainError('live_no_questions', 409);
+    const sessionQuestionId = String(question.rows[0].id);
+    await client.query(
+      `insert into live_exam_answers(session_question_id,participant_id,submitted_at)
+       select $2,lep.id,now() from live_exam_participants lep
+       where lep.session_id=$1 and lep.left_at is null
+       on conflict(session_question_id,participant_id) do update set
+         submitted_at=coalesce(live_exam_answers.submitted_at,now()),updated_at=now()`,
+      [sessionId, sessionQuestionId],
+    );
+    const answers = await client.query(
+      `select a.id answer_id,lep.student_id
+       from live_exam_answers a
+       join live_exam_participants lep on lep.id=a.participant_id
+       where a.session_question_id=$1 and lep.left_at is null order by lep.student_id`,
+      [sessionQuestionId],
+    );
+    const mode = String(session.marking_mode) as LiveExamMarkingMode;
+    const assignments = mode === 'teacher'
+      ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
+      : mode === 'self'
+        ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(row.student_id), kind: 'self' as const }))
+        : assignPeerReviewers(answers.rows.map((row) => ({
+            answerId: String(row.answer_id), studentId: String(row.student_id),
+          })), `${sessionId}:${sessionQuestionId}`);
+    const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
+    for (const assignment of assignments) {
+      const review = await client.query(
+        `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
+         values($1,$2,$3,$4)
+         on conflict(session_question_id,answer_id,kind) do update set reviewer_id=excluded.reviewer_id
+         returning id`,
+        [sessionQuestionId, assignment.answerId, assignment.reviewerId, assignment.kind],
+      );
+      for (const point of scheme.points) {
+        await client.query(
+          `insert into live_exam_review_points(review_id,mark_scheme_point_id)
+           values($1,$2) on conflict do nothing`,
+          [review.rows[0].id, point.id],
+        );
+      }
+    }
+    await client.query(
+      `update live_exam_sessions set status='marking',answers_locked_at=now(),mark_scheme_revealed_at=now()
+       where id=$1`, [sessionId],
+    );
+    session.status = 'marking';
+    const version = await this.bump(client, sessionId, actorId, 'mark_scheme.revealed', {
+      markingMode: mode,
+      reviewCount: assignments.length,
+    });
+    return { sessionId, status: 'marking' as const, version };
   }
 
   async revealMarkScheme(actor: Actor, sessionId: string) {
@@ -783,64 +973,10 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if (session.status !== 'question_open') throw new DomainError('live_invalid_state', 409);
-      const question = await client.query(
-        `select id,mark_scheme_snapshot from live_exam_questions
-         where session_id=$1 and position=$2`,
-        [sessionId, session.current_question_index],
-      );
-      if (!question.rowCount) throw new DomainError('live_no_questions', 409);
-      const sessionQuestionId = String(question.rows[0].id);
-      await client.query(
-        `insert into live_exam_answers(session_question_id,participant_id,submitted_at)
-         select $2,lep.id,now() from live_exam_participants lep
-         where lep.session_id=$1 and lep.left_at is null
-         on conflict(session_question_id,participant_id) do update set
-           submitted_at=coalesce(live_exam_answers.submitted_at,now()),updated_at=now()`,
-        [sessionId, sessionQuestionId],
-      );
-      const answers = await client.query(
-        `select a.id answer_id,lep.student_id
-         from live_exam_answers a
-         join live_exam_participants lep on lep.id=a.participant_id
-         where a.session_question_id=$1 order by lep.student_id`,
-        [sessionQuestionId],
-      );
-      const mode = String(session.marking_mode) as LiveExamMarkingMode;
-      const assignments = mode === 'teacher'
-        ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
-        : mode === 'self'
-          ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(row.student_id), kind: 'self' as const }))
-          : assignPeerReviewers(answers.rows.map((row) => ({
-              answerId: String(row.answer_id), studentId: String(row.student_id),
-            })), `${sessionId}:${sessionQuestionId}`);
-      const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
-      for (const assignment of assignments) {
-        const review = await client.query(
-          `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
-           values($1,$2,$3,$4)
-           on conflict(session_question_id,answer_id,kind) do update set reviewer_id=excluded.reviewer_id
-           returning id`,
-          [sessionQuestionId, assignment.answerId, assignment.reviewerId, assignment.kind],
-        );
-        for (const point of scheme.points) {
-          await client.query(
-            `insert into live_exam_review_points(review_id,mark_scheme_point_id)
-             values($1,$2) on conflict do nothing`,
-            [review.rows[0].id, point.id],
-          );
-        }
-      }
-      await client.query(
-        `update live_exam_sessions set status='marking',answers_locked_at=now(),mark_scheme_revealed_at=now()
-         where id=$1`, [sessionId],
-      );
-      const version = await this.bump(client, sessionId, actor.id, 'mark_scheme.revealed', {
-        markingMode: mode,
-        reviewCount: assignments.length,
-      });
+      if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      const result = await this.revealWithinTransaction(client, session, actor.id);
       await client.query('commit');
-      return { sessionId, status: 'marking' as const, version };
+      return result;
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -857,8 +993,8 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`, [sessionId]);
-      if (state.rows[0]?.status !== 'marking') throw new DomainError('live_invalid_state', 409);
+        `select status::text,paused_at from live_exam_sessions where id=$1 for update`, [sessionId]);
+      if (state.rows[0]?.status !== 'marking' || state.rows[0]?.paused_at) throw new DomainError('live_invalid_state', 409);
       const target = await client.query(
         `select r.id,r.answer_id,r.reviewer_id,r.kind::text,r.status::text,leq.marks,leq.mark_scheme_snapshot,
            (select count(*) from live_exam_review_points where review_id=r.id)::int point_count
@@ -955,7 +1091,11 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if (!['marking', 'review'].includes(String(session.status))) throw new DomainError('live_invalid_state', 409);
+      if (!['marking', 'review'].includes(String(session.status)) || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      const settings = this.settings(session.settings);
+      if (session.marking_mode !== 'teacher' && !settings.teacherOverrideEnabled) {
+        throw new DomainError('live_teacher_override_disabled', 409);
+      }
       const result = await client.query(
         `update live_exam_answers a set final_score=$3,final_feedback_md=$4,score_source='teacher',
            moderated_by=$5,moderated_at=now()
@@ -983,7 +1123,7 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if (session.status !== 'marking') throw new DomainError('live_invalid_state', 409);
+      if (session.status !== 'marking' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const pending = await client.query(
         `select count(*)::int count
          from live_exam_reviews r join live_exam_questions leq on leq.id=r.session_question_id
@@ -1026,7 +1166,7 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if (session.status !== 'review') throw new DomainError('live_invalid_state', 409);
+      if (session.status !== 'review' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const nextPosition = Number(session.current_question_index) + 1;
       const next = await client.query(
         `select id from live_exam_questions where session_id=$1 and position=$2`,
@@ -1060,6 +1200,106 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
+  async pause(actor: Actor, sessionId: string, expectedVersion?: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (!['question_open', 'marking', 'review'].includes(String(session.status)) || session.paused_at) {
+        throw new DomainError('live_invalid_state', 409);
+      }
+      const paused = await client.query(
+        `update live_exam_sessions set paused_at=now(),pause_remaining_s=case
+           when status='question_open' and question_started_at is not null and question_time_limit_s is not null
+             then greatest(0,ceil(extract(epoch from (
+               question_started_at+question_time_limit_s*interval '1 second'-now()
+             )))::int)
+           else null
+         end where id=$1 returning pause_remaining_s`,
+        [sessionId],
+      );
+      const remaining = paused.rows[0].pause_remaining_s === null ? null : Number(paused.rows[0].pause_remaining_s);
+      const version = await this.bump(client, sessionId, actor.id, 'session.paused', { remainingSeconds: remaining });
+      await client.query('commit');
+      return { sessionId, status: session.status as LiveExamStatus, paused: true, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async resume(actor: Actor, sessionId: string, expectedVersion?: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (!session.paused_at || !['question_open', 'marking', 'review'].includes(String(session.status))) {
+        throw new DomainError('live_invalid_state', 409);
+      }
+      await client.query(
+        `update live_exam_sessions set
+           question_started_at=case
+             when status='question_open' and question_time_limit_s is not null and pause_remaining_s is not null
+               then now()-(question_time_limit_s-pause_remaining_s)*interval '1 second'
+             else question_started_at
+           end,
+           paused_at=null,pause_remaining_s=null
+         where id=$1`,
+        [sessionId],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'session.resumed');
+      await client.query('commit');
+      return { sessionId, status: session.status as LiveExamStatus, paused: false, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async removeParticipant(actor: Actor, sessionId: string, studentId: string, expectedVersion?: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (session.status !== 'lobby') throw new DomainError('live_invalid_state', 409);
+      const removed = await client.query(
+        `update live_exam_participants set left_at=now(),last_seen_at=now()
+         where session_id=$1 and student_id=$2 and left_at is null returning id`,
+        [sessionId, studentId],
+      );
+      if (!removed.rowCount) throw new DomainError('not_found', 404);
+      const version = await this.bump(client, sessionId, actor.id, 'participant.removed', { studentId });
+      await client.query('commit');
+      return { sessionId, studentId, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async leave(actor: Actor, sessionId: string) {
+    if (actor.role !== 'student') throw new DomainError('students_only', 403);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const result = await client.query(
+        `update live_exam_participants set left_at=now(),last_seen_at=now()
+         where session_id=$1 and student_id=$2 and left_at is null returning id`,
+        [sessionId, actor.id],
+      );
+      if (!result.rowCount) throw new DomainError('not_found', 404);
+      const version = await this.bump(client, sessionId, actor.id, 'participant.left');
+      await client.query('commit');
+      return { sessionId, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
   async cancel(actor: Actor, sessionId: string) {
     const client = await this.pool.connect();
     try {
@@ -1077,7 +1317,20 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
+  private settings(value: unknown) {
+    const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    return {
+      allowLateJoin: raw.allowLateJoin === true,
+      autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
+      teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
+      leaderboardMode: raw.leaderboardMode === 'marks_speed_tiebreak'
+        ? 'marks_speed_tiebreak' as const
+        : 'marks' as const,
+    };
+  }
+
   private mapSession(row: Record<string, unknown>) {
+    const settings = this.settings(row.settings);
     return {
       id: row.id,
       classId: row.class_id,
@@ -1086,6 +1339,11 @@ export class LiveExamService {
       status: row.status as LiveExamStatus,
       markingMode: row.marking_mode as LiveExamMarkingMode,
       questionTimeLimitS: row.question_time_limit_s === null ? null : Number(row.question_time_limit_s),
+      pausedAt: row.paused_at ?? null,
+      pauseRemainingS: row.pause_remaining_s === null || row.pause_remaining_s === undefined
+        ? null
+        : Number(row.pause_remaining_s),
+      settings,
       version: Number(row.version),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
