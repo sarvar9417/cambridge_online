@@ -15,6 +15,7 @@ type RoundSummary = {
   sessionId:string;
   questionPosition:number;
   marksFirst:true;
+  leaderboardMode:'marks'|'marks_speed_tiebreak';
   round:{
     possible:number;
     average:number;
@@ -71,7 +72,7 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
   return <section className={`live-leaderboard live-leaderboard--${variant}`}>
     <header>
       <div><span>MARKS-FIRST</span><h2><Trophy weight="fill"/> Live Challenge reytingi</h2></div>
-      <p>Tezlik emas, Cambridge ballari tartibni belgilaydi.</p>
+      <p>{summary.leaderboardMode==='marks_speed_tiebreak'?'Cambridge ballari asosiy; faqat teng ballarda topshirish vaqti ishlatiladi.':'Tezlik emas, Cambridge ballari tartibni belgilaydi.'}</p>
     </header>
     <div className="live-leaderboard-grid">
       <article>

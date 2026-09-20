@@ -18,9 +18,9 @@ export interface LiveExamScoreBucket {
 /**
  * Teacher-facing marks-first standings for a Live Exam.
  *
- * Speed is intentionally absent. The approved product plan makes Cambridge
- * marks authoritative and allows a speed bonus only as an explicit later
- * option. Ties therefore share the same rank.
+ * Cambridge marks always remain authoritative. A room may explicitly use
+ * submission time only to break equal-mark ties; it never adds marks or
+ * changes mastery evidence.
  */
 export class LiveExamRoundSummaryService {
   constructor(private readonly pool: Pool) {}
@@ -32,7 +32,7 @@ export class LiveExamRoundSummaryService {
   private async controlledSession(actor: Actor, sessionId: string) {
     this.assertStaff(actor);
     const result = await this.pool.query(
-      `select les.id,les.status::text,les.current_question_index
+      `select les.id,les.status::text,les.current_question_index,les.settings
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where les.id=$1 and (
@@ -47,7 +47,7 @@ export class LiveExamRoundSummaryService {
       [sessionId, actor.role, actor.schoolId, actor.id],
     );
     if (!result.rowCount) throw new DomainError('not_found', 404);
-    return result.rows[0] as { id:string; status:string; current_question_index:number };
+    return result.rows[0] as { id:string; status:string; current_question_index:number; settings:Record<string,unknown> };
   }
 
   async summary(actor: Actor, sessionId: string) {
@@ -57,10 +57,12 @@ export class LiveExamRoundSummaryService {
     }
 
     const currentPosition = Number(session.current_question_index);
+    const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
     const [roundResult, overallResult, possibleResult] = await Promise.all([
       this.pool.query(
         `select lep.student_id,u.full_name,coalesce(a.final_score,0)::float8 score,leq.marks,
-           rank() over(order by coalesce(a.final_score,0) desc)::int rank
+           rank() over(order by coalesce(a.final_score,0) desc,
+             case when $3::boolean then a.submitted_at end asc nulls last)::int rank
          from live_exam_questions leq
          join live_exam_sessions les on les.id=leq.session_id
          join live_exam_participants lep on lep.session_id=les.id
@@ -69,13 +71,15 @@ export class LiveExamRoundSummaryService {
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where leq.session_id=$1 and leq.position=$2
          order by score desc,u.full_name,lep.student_id`,
-        [sessionId, currentPosition],
+        [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
         `select lep.student_id,u.full_name,
            coalesce(sum(coalesce(a.final_score,0)),0)::float8 score,
-           rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc)::int rank
+           rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc,
+             case when $3::boolean then sum(extract(epoch from (a.submitted_at-les.started_at))) end asc nulls last)::int rank
          from live_exam_participants lep
+         join live_exam_sessions les on les.id=lep.session_id
          join users u on u.id=lep.student_id
          join live_exam_questions leq
            on leq.session_id=lep.session_id and leq.position<=$2
@@ -84,7 +88,7 @@ export class LiveExamRoundSummaryService {
          where lep.session_id=$1
          group by lep.student_id,u.full_name
          order by score desc,u.full_name,lep.student_id`,
-        [sessionId, currentPosition],
+        [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
         `select coalesce(sum(marks),0)::int possible
@@ -124,6 +128,7 @@ export class LiveExamRoundSummaryService {
       sessionId,
       questionPosition: currentPosition,
       marksFirst: true,
+      leaderboardMode: speedTieBreak ? 'marks_speed_tiebreak' : 'marks',
       round: {
         possible: roundPossible,
         average,

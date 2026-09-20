@@ -9,7 +9,7 @@ describe('live exam leaderboard presentation rules',()=>{
     expect(competitionRank([4,4,3,1])).toEqual([1,1,3,4]);
   });
 
-  it('does not introduce speed into the presentation ranking contract',()=>{
+  it('keeps Cambridge marks authoritative in the presentation contract',()=>{
     const source='Tezlik emas, Cambridge ballari tartibni belgilaydi.';
     expect(source).toContain('Cambridge ballari');
   });

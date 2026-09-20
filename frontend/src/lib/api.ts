@@ -153,6 +153,8 @@ export type LiveExamMarkingMode = 'teacher'|'peer'|'self';
 export interface LiveExamSummary {
   id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
+  pausedAt:string|null;pauseRemainingS:number|null;
+  settings:{allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak'};
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
 export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}

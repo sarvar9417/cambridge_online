@@ -11,6 +11,7 @@ const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
 const peerIntegrity=source('src/database/migrations/0168_live_exam_peer_integrity.sql');
 const overrideAudit=source('src/database/migrations/0169_live_exam_override_audit.sql');
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
+const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -30,7 +31,9 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and les.status='lobby'");
+    expect(service).toContain("where les.join_code=$1 and (");
+    expect(service).toContain("les.status='lobby'");
+    expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
   });
 
@@ -43,11 +46,11 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
-    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for share");
-    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for update");
+    expect(service).toContain("select status::text,paused_at from live_exam_sessions where id=$1 for share");
+    expect(service).toContain("select * from live_exam_sessions where id=$1 for update");
     expect(service).toContain('for update of les');
     expect(service).toContain('and a.submitted_at is null');
-    expect(service).toContain("if (session.status !== 'question_open') throw new DomainError('live_invalid_state', 409)");
+    expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
   });
 
   it('keeps peer mode structurally incapable of self marking',()=>{
@@ -88,5 +91,15 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
+  });
+
+  it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
+    expect(unifiedControls).toContain('ALTER TABLE live_exam_sessions');
+    expect(unifiedControls).not.toContain('CREATE TABLE live_challenge');
+    expect(service).toContain("'session.paused'");
+    expect(service).toContain("'session.resumed'");
+    expect(service).toContain("'participant.removed'");
+    expect(service).toContain("les.settings->>'allowLateJoin'");
+    expect(service).toContain('live_state_conflict');
   });
 });

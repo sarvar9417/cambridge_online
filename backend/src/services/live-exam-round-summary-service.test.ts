@@ -41,6 +41,7 @@ describe('LiveExamRoundSummaryService', () => {
 
     const result=await serviceFor(query).summary(teacher,'session-1');
     expect(result.marksFirst).toBe(true);
+    expect(result.leaderboardMode).toBe('marks');
     expect(result.questionPosition).toBe(1);
     expect(result.round.possible).toBe(5);
     expect(result.round.average).toBeCloseTo(10/3);
@@ -50,7 +51,7 @@ describe('LiveExamRoundSummaryService', () => {
     expect(result.overall.standings[0]).toMatchObject({studentId:'s2',score:8,rank:1,possible:10});
   });
 
-  it('never introduces a speed tie-breaker in the standings query', async () => {
+  it('keeps speed disabled unless the room explicitly enables a tie-break', async () => {
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'finished',current_question_index:0}]})
       .mockResolvedValueOnce({rowCount:0,rows:[]})
@@ -58,7 +59,19 @@ describe('LiveExamRoundSummaryService', () => {
       .mockResolvedValueOnce({rowCount:1,rows:[{possible:0}]});
     await serviceFor(query).summary(teacher,'session-1');
     const rankingSql=String(query.mock.calls[1]?.[0]??'');
-    expect(rankingSql).toContain('rank() over(order by coalesce(a.final_score,0) desc)');
-    expect(rankingSql).not.toContain('submitted_at');
+    expect(rankingSql).toContain('rank() over(order by coalesce(a.final_score,0) desc');
+    expect(query.mock.calls[1]?.[1]).toEqual(['session-1',0,false]);
+  });
+
+  it('uses submission time only as an equal-mark tie-break when enabled', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:0,settings:{leaderboardMode:'marks_speed_tiebreak'}}]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:0}]});
+    const result=await serviceFor(query).summary(teacher,'session-1');
+    expect(result.leaderboardMode).toBe('marks_speed_tiebreak');
+    expect(String(query.mock.calls[1]?.[0])).toContain('case when $3::boolean then a.submitted_at');
+    expect(query.mock.calls[1]?.[1]).toEqual(['session-1',0,true]);
   });
 });

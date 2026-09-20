@@ -33,12 +33,12 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
   ] });
   if (role !== 'student') groups.push({ label: 'O‘qitish', items: [
     { path: 'oqitish/darslar', label: 'Darslar' }, { path: 'oqitish/savol-banki', label: 'Savol banki' },
-    { path: 'oqitish/live', label: 'Live imtihon' },
+    { path: 'oqitish/live', label: 'Live Challenge' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
     { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/darslar', label: 'Darslar' },
-    { path: 'oquvchi/live', label: 'Live imtihon' },
+    { path: 'oquvchi/live', label: 'Live Challenge' },
     { path: 'oquvchi/vazifalar', label: 'Vazifalar' }, { path: 'oquvchi/natijalar', label: 'Natijalar' },
     { path: 'oquvchi/organish', label: 'Mashq va takrorlash' },
   ] });

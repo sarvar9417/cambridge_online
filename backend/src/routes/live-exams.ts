@@ -15,6 +15,16 @@ const createInput = z.object({
   markingMode: z.enum(['teacher', 'peer', 'self']),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
+  questionIds: z.array(uuid).min(1).max(20).optional(),
+  questionOrder: z.enum(['fixed', 'shuffled']).default('shuffled'),
+  allowLateJoin: z.boolean().default(false),
+  autoCloseWhenAllSubmitted: z.boolean().default(false),
+  teacherOverrideEnabled: z.boolean().default(true),
+  leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
+}).strict();
+
+const versionInput = z.object({
+  expectedVersion: z.number().int().positive().optional(),
 }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
@@ -43,6 +53,37 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.status(201).json(await service.create(req.actor!, body));
   });
 
+  router.get('/eligible-questions', async (req, res) => {
+    privateNoStore(res);
+    const csvUuids = z.string().default('').transform((value,ctx) => {
+      const values=value ? value.split(',').filter(Boolean) : [];
+      const parsed=z.array(uuid).max(100).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid UUID list'});return z.NEVER}
+      return parsed.data;
+    });
+    const query=z.object({
+      classId:uuid,
+      topicIds:csvUuids,
+      subtopicIds:csvUuids,
+      includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
+      excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
+      limit:z.coerce.number().int().min(1).max(50).default(30),
+    }).parse(req.query);
+    res.json({data:await service.eligibleQuestions(req.actor!,{
+      classId:query.classId,
+      topicIds:query.topicIds ?? [],
+      subtopicIds:query.subtopicIds ?? [],
+      includeDiagrams:query.includeDiagrams ?? true,
+      excludeSeen:query.excludeSeen ?? true,
+      limit:query.limit,
+      allowLateJoin:false,
+      autoCloseWhenAllSubmitted:false,
+      teacherOverrideEnabled:true,
+      leaderboardMode:'marks',
+      questionOrder:'fixed',
+    })});
+  });
+
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
   // a UUID and turn a valid join request into a validation error.
   router.post('/join', async (req, res) => {
@@ -63,6 +104,30 @@ export function createLiveExamsRouter(service: LiveExamService) {
 
   router.post('/:id/start', async (req, res) => {
     res.json(await service.start(req.actor!, id(req.params)));
+  });
+
+  router.post('/:id/pause', async (req, res) => {
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.pause(req.actor!, id(req.params), body.expectedVersion));
+  });
+
+  router.post('/:id/resume', async (req, res) => {
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.resume(req.actor!, id(req.params), body.expectedVersion));
+  });
+
+  router.post('/:id/leave', async (req, res) => {
+    res.json(await service.leave(req.actor!, id(req.params)));
+  });
+
+  router.post('/:id/participants/:studentId/remove', async (req, res) => {
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.removeParticipant(
+      req.actor!,
+      id(req.params),
+      id(req.params, 'studentId'),
+      body.expectedVersion,
+    ));
   });
 
   router.put('/:id/answer', async (req, res) => {
