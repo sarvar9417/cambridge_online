@@ -200,7 +200,7 @@ function FirstNormalForm({reveal}:{reveal:number}){
 
 function SecondNormalForm({reveal}:{reveal:number}){
   return <div className="h8db h8db-nf-step" aria-label="Second normal form partial dependency removal visual">
-    <section className={'h8db-nf-before '+state(reveal,1)}><b>STUDENTSUBJECT</b><span>PK: StudentID + SubjectName</span><span>SubjectTeacher</span><strong>SubjectTeacher depends only on SubjectName</strong></section>
+    <section className={'h8db-nf-before '+state(reveal,1)}><b>STUDENTSUBJECT</b><span>PK: StudentID + SubjectName</span><span>SubjectTeacher</span><strong>PARTIAL DEPENDENCY · SubjectTeacher depends only on SubjectName</strong></section>
     <i>→</i>
     <section className={state(reveal,2)}><b>STUDENTSUBJECT</b><span>StudentID · SubjectName</span></section>
     <section className={state(reveal,3)}><b>SUBJECT</b><span>SubjectName · SubjectTeacher</span><small>partial dependency removed</small></section>
