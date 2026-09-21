@@ -69,7 +69,7 @@ export class LiveExamRoundSummaryService {
          join users u on u.id=lep.student_id
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
-         where leq.session_id=$1 and leq.position=$2
+         where leq.session_id=$1 and leq.position=$2 and lep.left_at is null
          order by score desc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
@@ -88,7 +88,7 @@ export class LiveExamRoundSummaryService {
            on leq.session_id=lep.session_id and leq.position<=$2
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
-         where lep.session_id=$1
+         where lep.session_id=$1 and lep.left_at is null
          group by lep.student_id,u.full_name
          order by score desc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
