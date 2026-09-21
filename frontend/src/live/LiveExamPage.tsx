@@ -95,7 +95,12 @@ function useLiveSnapshot(sessionId:string) {
       // complete server snapshot on every poll instead of only state changes.
       setSnapshot(next);
       setError('');
-    }catch(cause){if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));}
+    }catch(cause){
+      if(cause instanceof ApiError&&cause.status===404){
+        setSnapshot(null);
+        setError('Bu Live Challenge sessiyasiga kirish huquqi qolmagan yoki sessiya mavjud emas.');
+      }else if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));
+    }
     finally{request.current=false;setLoading(false)}
   },[sessionId]);
   useEffect(()=>{
