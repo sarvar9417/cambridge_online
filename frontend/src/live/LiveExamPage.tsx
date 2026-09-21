@@ -4,6 +4,7 @@ import {
   api,
   type ClassItem,
   type LiveExamAnswer,
+  type LiveExamBoardSnapshot,
   type LiveExamMarkingMode,
   type LiveExamPortableQuestion,
   type LiveExamQuestion,
@@ -104,6 +105,31 @@ function useLiveSnapshot(sessionId:string) {
     beat();const timer=window.setInterval(beat,15000);return()=>window.clearInterval(timer);
   },[sessionId]);
   return{snapshot,error,loading,refresh};
+}
+
+function useLiveBoard(sessionId:string) {
+  const [snapshot,setSnapshot]=useState<LiveExamBoardSnapshot|null>(null);
+  const [error,setError]=useState('');
+  const [loading,setLoading]=useState(true);
+  const request=useRef(false);
+  const refresh=useCallback(async(silent=false)=>{
+    if(request.current)return;
+    request.current=true;
+    try{
+      const result=await api<{data:LiveExamBoardSnapshot}>(`/live-exams/${sessionId}/board`);
+      setSnapshot(result.data);
+      setError('');
+    }catch(cause){if(!silent)setError(message(cause,'Proyektor holati yuklanmadi.'))}
+    finally{request.current=false;setLoading(false)}
+  },[sessionId]);
+  useEffect(()=>{
+    void refresh();
+    const timer=window.setInterval(()=>void refresh(true),1500);
+    const visible=()=>{if(document.visibilityState==='visible')void refresh(true)};
+    document.addEventListener('visibilitychange',visible);
+    return()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',visible)};
+  },[refresh]);
+  return{snapshot,error,loading};
 }
 
 function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][number]['assets'][number]}) {
@@ -290,7 +316,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   </div>;
 }
 
-function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
+function ProjectorView({snapshot}:{snapshot:LiveExamBoardSnapshot}) {
   const {session}=snapshot;
   const remaining=useCountdown(session.deadline,session.serverNow);
   return <div className="live-projector-overlay">
@@ -307,7 +333,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
     </main>
-    {session.status!=='lobby'?<SessionProgress snapshot={snapshot}/>:null}
+    {session.status!=='lobby'?<div className="live-progress" aria-label={`Savol ${session.currentQuestionIndex+1}, jami ${session.questionCount}`}>{Array.from({length:session.questionCount},(_,index)=><i key={index} className={index<session.currentQuestionIndex?'is-done':index===session.currentQuestionIndex?'is-current':''}/>)}</div>:null}
   </div>;
 }
 
@@ -431,13 +457,25 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   </div>;
 }
 
-function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;projector:boolean}) {
+function ProjectorRoom({sessionId}:{sessionId:string}) {
+  const {snapshot,error,loading}=useLiveBoard(sessionId);
+  if(loading&&!snapshot)return <p className="live-loading">Proyektor yuklanmoqda…</p>;
+  if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p></div>;
+  return snapshot?<ProjectorView snapshot={snapshot}/>:null;
+}
+
+function InteractiveLiveRoom({user,sessionId}:{user:User;sessionId:string}) {
   const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId);
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
-  if(projector&&user.role!=='student')return <ProjectorView snapshot={snapshot}/>;
   return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
+}
+
+function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;projector:boolean}) {
+  return projector&&user.role!=='student'
+    ? <ProjectorRoom sessionId={sessionId}/>
+    : <InteractiveLiveRoom user={user} sessionId={sessionId}/>;
 }
 
 export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {
