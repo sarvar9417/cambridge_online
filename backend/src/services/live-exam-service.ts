@@ -847,13 +847,27 @@ export class LiveExamService {
          les.question_time_limit_s,les.current_question_index,les.version,les.created_at,les.updated_at,
          les.paused_at,les.pause_remaining_s,les.settings,
          c.name class_name,
+         exists(
+           select 1 from live_exam_participants joined_lep
+           where joined_lep.session_id=les.id and joined_lep.student_id=$2 and joined_lep.left_at is null
+         ) joined,
          (select count(*) from live_exam_questions leq where leq.session_id=les.id)::int question_count,
          (select count(*) from live_exam_participants lep where lep.session_id=les.id and lep.left_at is null)::int participant_count
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where (
-         ($1='student' and exists(
-           select 1 from live_exam_participants lep where lep.session_id=les.id and lep.student_id=$2
+         ($1='student' and (
+           exists(
+             select 1 from live_exam_participants lep
+             where lep.session_id=les.id and lep.student_id=$2
+           )
+           or (
+             les.status in ('published','lobby','question_open','answers_locked','marking','review')
+             and exists(
+               select 1 from enrollments e
+               where e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
+             )
+           )
          ))
          or ($1='owner' and c.school_id=$3)
          or ($1='teacher' and (c.owner_id=$2 or exists(
@@ -867,6 +881,8 @@ export class LiveExamService {
     return result.rows.map((row) => ({
       ...this.mapSession(row),
       className: row.class_name,
+      joinCode: actor.role === 'student' ? null : row.join_code,
+      joined: Boolean(row.joined),
       questionCount: Number(row.question_count),
       participantCount: Number(row.participant_count),
     }));
