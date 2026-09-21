@@ -947,6 +947,16 @@ export class LiveExamService {
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
       const session = room.rows[0];
+      const removedByTeacher = await client.query(
+        `select 1
+         from live_exam_events
+         where session_id=$1
+           and event_type='participant.removed'
+           and payload->>'studentId'=$2
+         limit 1`,
+        [session.id, actor.id],
+      );
+      if (removedByTeacher.rowCount) throw new DomainError('live_participant_removed', 403);
       const existing = await client.query(
         `select id,session_id from live_exam_participants
          where session_id=$1 and student_id=$2 and left_at is null
