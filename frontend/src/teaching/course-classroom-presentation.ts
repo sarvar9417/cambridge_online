@@ -733,7 +733,7 @@ const TOPIC_FRAMES: readonly CourseTopicFrame[] = [
         recap:['Explain dry run.','Explain walkthrough.','State one testing level.','Explain one reason for program maintenance.'],
       },
     ],
-  },,
+  },
   {
     chapter:15, topicCode:'15.1', label:'CHAPTER 15.1 PROCESSORS AND PARALLEL PROCESSING',
     lessons:[
