@@ -8,6 +8,9 @@ import {
   CHAPTER_4_PROJECT_PPTX_URL,
   CHAPTER_4_REAL_PPTX_DRIVE_URL,
   CHAPTER_4_REAL_SLIDE_COUNT,
+  CHAPTER_5_PROJECT_PPTX_URL,
+  CHAPTER_5_REAL_PPTX_DRIVE_URL,
+  CHAPTER_5_REAL_SLIDE_COUNT,
   realSlideDeckFor,
 } from './real-slide-decks';
 
@@ -50,7 +53,18 @@ describe('real PowerPoint lesson presentation routes',()=>{
     expect(bits.slides[27]?.sourceLabel).toContain('Cambridge 2026');
     expect(CHAPTER_4_REAL_PPTX_DRIVE_URL).toContain('19BNaVlBMDda967NYqRUIyAjAEkF6elYI');
     expect(CHAPTER_4_PROJECT_PPTX_URL).toContain('Chapter_04_Processor_Fundamentals_Project_Mirror.pptx');
-    expect(realSlideDeckFor('9618',5,'5.1')).toBeNull();
+  });
+
+  it('registers Chapter 5 as a 24-slide real System Software deck',()=>{
+    expect(CHAPTER_5_REAL_SLIDE_COUNT).toBe(24);
+    const os=expectProjectDeck('9618',5,'5.1',24);
+    const translators=expectProjectDeck('9618',5,'5.2',24);
+    expect(os.title).toBe('Operating Systems');
+    expect(translators.title).toBe('Language Translators');
+    expect(translators.slides[22]?.sourceLabel).toContain('Cambridge 2026');
+    expect(CHAPTER_5_REAL_PPTX_DRIVE_URL).toContain('1rfHQbyArf0CnPfMrAJ0hezWflWY__i5k');
+    expect(CHAPTER_5_PROJECT_PPTX_URL).toContain('Chapter_05_System_Software_Project_Mirror.pptx');
+    expect(realSlideDeckFor('9618',6,'6.1')).toBeNull();
   });
 
   it('renders configured decks with project-hosted slide images rather than an iframe',()=>{
@@ -66,8 +80,8 @@ describe('real PowerPoint lesson presentation routes',()=>{
     expect(viewer).toContain('pptxDriveUrl');
   });
 
-  it('records Drive source and project storage for both migrated chapters',()=>{
-    for(const chapter of ['03','04']){
+  it('records Drive source and project storage for migrated chapters',()=>{
+    for(const chapter of ['03','04','05']){
       const manifest=JSON.parse(source(`public/9618/presentations/chapter-${chapter}/manifest.json`));
       expect(manifest.delivery).toBe('project-slide-images');
       expect(manifest.sourcePptx.shared).toBe(true);
