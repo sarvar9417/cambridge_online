@@ -1,10 +1,10 @@
 -- Cambridge Live Challenge moderation hardening.
 --
 -- Teacher score overrides are already append-only through
--- live_exam_score_overrides. Phase 4 makes the human reason part of the same
+-- live_exam_score_overrides. The converged moderation flow makes the human reason part of the same
 -- durable evidence so moderation is explainable rather than just attributable.
--- The reason stays nullable during the compatibility window because legacy
--- clients are still being migrated; the new override API/UI will require it.
+-- The column remains nullable at the schema boundary so historical rows stay valid;
+-- the converged moderation API requires a reason for every post-review override.
 
 ALTER TABLE live_exam_answers
   ADD COLUMN IF NOT EXISTS moderation_reason text
@@ -59,3 +59,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+ALTER FUNCTION public.audit_live_exam_teacher_override()
+  SET search_path = public, pg_temp;

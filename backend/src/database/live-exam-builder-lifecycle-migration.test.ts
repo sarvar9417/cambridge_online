@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const sql=readFileSync(
-  new URL('./migrations/0172_live_exam_builder_lifecycle.sql',import.meta.url),
+  new URL('./migrations/0191_live_exam_builder_lifecycle.sql',import.meta.url),
   'utf8',
 );
 
-describe('0172 live exam builder lifecycle migration',()=>{
+describe('0191 live exam builder lifecycle migration',()=>{
   it('extends the existing live_exam enum instead of creating a second runtime schema',()=>{
     expect(sql).toContain("ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'draft'");
     expect(sql).toContain("ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'published'");

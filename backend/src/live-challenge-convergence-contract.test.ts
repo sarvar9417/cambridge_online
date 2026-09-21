@@ -11,7 +11,7 @@ const boardProjection=source('src/services/live-exam-board-projection.ts');
 const versionGuard=source('src/services/live-exam-transition-guard.ts');
 const liveExamService=source('src/services/live-exam-service.ts');
 const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
-const builderLifecycle=source('src/database/migrations/0172_live_exam_builder_lifecycle.sql');
+const builderLifecycle=source('src/database/migrations/0191_live_exam_builder_lifecycle.sql');
 
 describe('Cambridge Live Challenge convergence contract',()=>{
   it('keeps live_exam as the only production live-classroom persistence root',()=>{

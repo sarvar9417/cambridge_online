@@ -95,8 +95,8 @@ CREATE TABLE mastery (
 \ir migrations/0168_live_exam_peer_integrity.sql
 \ir migrations/0169_live_exam_override_audit.sql
 \ir migrations/0170_live_exam_learning_evidence.sql
-\ir migrations/0172_live_exam_builder_lifecycle.sql
-\ir migrations/0173_live_exam_override_reason.sql
+\ir migrations/0191_live_exam_builder_lifecycle.sql
+\ir migrations/0192_live_exam_override_reason.sql
 
 
 -- Additional canonical source metadata used by the service-level builder test.

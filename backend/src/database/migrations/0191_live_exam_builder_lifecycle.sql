@@ -2,7 +2,7 @@
 -- required by the builder without creating a parallel live_challenge schema.
 --
 -- Existing sessions stay in their current states. The current create flow keeps
--- using the historical lobby default until the Phase 2 API is switched to
+-- using the historical lobby default until the converged API is switched to
 -- explicit draft -> published -> lobby transitions.
 
 ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'draft' BEFORE 'lobby';

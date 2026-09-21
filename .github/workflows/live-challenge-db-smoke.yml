@@ -21,8 +21,8 @@ on:
       - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
       - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
       - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
-      - 'backend/src/database/migrations/0172_live_exam_builder_lifecycle.sql'
-      - 'backend/src/database/migrations/0173_live_exam_override_reason.sql'
+      - 'backend/src/database/migrations/0191_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0192_live_exam_override_reason.sql'
       - '.github/workflows/live-challenge-db-smoke.yml'
   pull_request:
     paths:
@@ -43,8 +43,8 @@ on:
       - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
       - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
       - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
-      - 'backend/src/database/migrations/0172_live_exam_builder_lifecycle.sql'
-      - 'backend/src/database/migrations/0173_live_exam_override_reason.sql'
+      - 'backend/src/database/migrations/0191_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0192_live_exam_override_reason.sql'
       - '.github/workflows/live-challenge-db-smoke.yml'
 
 jobs:
