@@ -88,6 +88,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(board).not.toContain('report:');
   });
 
+  it('keeps peer-round recovery teacher-controlled and versioned',()=>{
+    expect(service).toContain('async switchLockedMarkingMode');
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("'marking.mode_changed'");
+    expect(service).toContain("reason: 'locked_round_recovery'");
+  });
+
   it('fails closed before persistence when a peer round has fewer than two answers',()=>{
     expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
   });
