@@ -23,9 +23,6 @@ const createInput = z.object({
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
 }).strict();
 
-const versionInput = z.object({
-  expectedVersion: z.number().int().positive().optional(),
-}).strict();
 const requiredVersion = z.number().int().positive();
 const draftInput = createInput.omit({ questionCount:true, questionIds:true }).strict();
 
