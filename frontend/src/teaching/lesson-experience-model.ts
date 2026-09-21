@@ -421,6 +421,7 @@ function teachingRouteForTopic(topic:LessonTopic){
 function presentationBeatsForSingleTopic(topic:LessonTopic){
   const teaching=teachingRouteForTopic(topic);
   const chapter=chapterNumberForTopic(topic,teaching.map(item=>item.slide));
+  const deckChapter=deckChapterNumberForTopic(topic,teaching.map(item=>item.slide));
   if(chapter===14){
     const storyboard=chapter14PresentationStoryboard(topic.code);
     if(storyboard)return storyboard;
@@ -436,11 +437,11 @@ function presentationBeatsForSingleTopic(topic:LessonTopic){
     const framed=frameChapter2InternetPresentation(lesson,[]);
     return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
   }
-  if(chapter===3&&topic.code==='3.1'){
+  if(deckChapter===3&&topic.code==='3.1'){
     const framed=frameChapter3ComponentsPresentation(lesson);
     return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
   }
-  if(chapter===3&&topic.code==='3.2'){
+  if(deckChapter===3&&topic.code==='3.2'){
     const framed=frameChapter3LogicPresentation(lesson);
     return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
   }
