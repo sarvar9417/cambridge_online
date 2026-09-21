@@ -1,0 +1,156 @@
+{
+  "id": "9618-chapter-05-system-software",
+  "course": "9618",
+  "chapter": 5,
+  "title": "System Software",
+  "delivery": "project-slide-images",
+  "sourcePptx": {
+    "fileName": "9618_Chapter_05_System_Software_Real_Deck.pptx",
+    "driveFileId": "1rfHQbyArf0CnPfMrAJ0hezWflWY__i5k",
+    "driveUrl": "https://docs.google.com/presentation/d/1rfHQbyArf0CnPfMrAJ0hezWflWY__i5k/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true",
+    "shared": true
+  },
+  "projectMirror": {
+    "pptx": "/9618/presentations/chapter-05/9618_Chapter_05_System_Software_Project_Mirror.pptx",
+    "compressed": false,
+    "note": "Drive-approved image-based PPTX copied into the project because the source deck is already compact."
+  },
+  "slideCount": 24,
+  "slideFormat": "jpg",
+  "slideBasePath": "/9618/presentations/chapter-05/slides",
+  "slides": [
+    {
+      "number": 1,
+      "title": "5 System Software",
+      "image": "/9618/presentations/chapter-05/slides/slide-01.jpg"
+    },
+    {
+      "number": 2,
+      "title": "Operating system: the essential bridge",
+      "image": "/9618/presentations/chapter-05/slides/slide-02.jpg"
+    },
+    {
+      "number": 3,
+      "title": "Start-up: from BIOS to OS in RAM",
+      "image": "/9618/presentations/chapter-05/slides/slide-03.jpg"
+    },
+    {
+      "number": 4,
+      "title": "GUI, CLI and post-WIMP interfaces",
+      "image": "/9618/presentations/chapter-05/slides/slide-04.jpg"
+    },
+    {
+      "number": 5,
+      "title": "Memory management",
+      "image": "/9618/presentations/chapter-05/slides/slide-05.jpg"
+    },
+    {
+      "number": 6,
+      "title": "Security management",
+      "image": "/9618/presentations/chapter-05/slides/slide-06.jpg"
+    },
+    {
+      "number": 7,
+      "title": "Process, hardware and file management",
+      "image": "/9618/presentations/chapter-05/slides/slide-07.jpg"
+    },
+    {
+      "number": 8,
+      "title": "Printer management scenario",
+      "image": "/9618/presentations/chapter-05/slides/slide-08.jpg"
+    },
+    {
+      "number": 9,
+      "title": "Utility software overview",
+      "image": "/9618/presentations/chapter-05/slides/slide-09.jpg"
+    },
+    {
+      "number": 10,
+      "title": "Disk formatter and bad sectors",
+      "image": "/9618/presentations/chapter-05/slides/slide-10.jpg"
+    },
+    {
+      "number": 11,
+      "title": "Antivirus workflow",
+      "image": "/9618/presentations/chapter-05/slides/slide-11.jpg"
+    },
+    {
+      "number": 12,
+      "title": "Defragmentation: before and after",
+      "image": "/9618/presentations/chapter-05/slides/slide-12.jpg"
+    },
+    {
+      "number": 13,
+      "title": "Disk analysis, compression and backup",
+      "image": "/9618/presentations/chapter-05/slides/slide-13.jpg"
+    },
+    {
+      "number": 14,
+      "title": "Program libraries",
+      "image": "/9618/presentations/chapter-05/slides/slide-14.jpg"
+    },
+    {
+      "number": 15,
+      "title": "Static libraries and DLL files",
+      "image": "/9618/presentations/chapter-05/slides/slide-15.jpg"
+    },
+    {
+      "number": 16,
+      "title": "Language translators: precise meanings",
+      "image": "/9618/presentations/chapter-05/slides/slide-16.jpg"
+    },
+    {
+      "number": 17,
+      "title": "Assembler and loader",
+      "image": "/9618/presentations/chapter-05/slides/slide-17.jpg"
+    },
+    {
+      "number": 18,
+      "title": "Compiler vs interpreter",
+      "image": "/9618/presentations/chapter-05/slides/slide-18.jpg"
+    },
+    {
+      "number": 19,
+      "title": "Partial compilation and bytecode",
+      "image": "/9618/presentations/chapter-05/slides/slide-19.jpg"
+    },
+    {
+      "number": 20,
+      "title": "IDE overview",
+      "image": "/9618/presentations/chapter-05/slides/slide-20.jpg"
+    },
+    {
+      "number": 21,
+      "title": "Source-code editor features",
+      "image": "/9618/presentations/chapter-05/slides/slide-21.jpg"
+    },
+    {
+      "number": 22,
+      "title": "Debugger workflow",
+      "image": "/9618/presentations/chapter-05/slides/slide-22.jpg"
+    },
+    {
+      "number": 23,
+      "title": "2026 exam focus: system software",
+      "image": "/9618/presentations/chapter-05/slides/slide-23.jpg"
+    },
+    {
+      "number": 24,
+      "title": "Chapter 5 complete review",
+      "image": "/9618/presentations/chapter-05/slides/slide-24.jpg"
+    }
+  ],
+  "sourceRange": "Hodder 9618 Chapter 5, printed pp.136\u2013158",
+  "topics": [
+    "5.1 Operating systems",
+    "5.2 Language translators"
+  ],
+  "examEvidence": [
+    "Cambridge 2026 system-software mark-scheme habits: exact role, example, trade-off and scenario matching"
+  ],
+  "runtime": {
+    "htmlCssReconstruction": false,
+    "sourceOfTruth": "Drive PPTX",
+    "projectDelivery": "static slide images + PPTX mirror"
+  }
+}
