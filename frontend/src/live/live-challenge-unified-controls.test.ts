@@ -3,8 +3,16 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const page=readFileSync(resolve(process.cwd(),'src/live/LiveExamPage.tsx'),'utf8');
+const studentCard=readFileSync(resolve(process.cwd(),'src/student/StudentLiveChallengeCard.tsx'),'utf8');
 
 describe('unified Live Challenge classroom controls',()=>{
+  it('shows published class challenges on the student dashboard without bypassing code join',()=>{
+    expect(studentCard).toContain("const UPCOMING_STATUS = new Set(['published','lobby'])");
+    expect(studentCard).toContain("session.joined===true");
+    expect(studentCard).toContain("session.joined!==true");
+    expect(studentCard).toContain("'Kodni kiritish'");
+  });
+
   it('exposes the classroom settings on the canonical Live Exam creator',()=>{
     expect(page).toContain('name="allowLateJoin"');
     expect(page).toContain('name="autoCloseWhenAllSubmitted"');
