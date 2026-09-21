@@ -22,7 +22,7 @@ This is the execution checklist for the approved Workspace plan. It reconciles t
 | Analytics | DONE | LO evidence/history, round summaries, strongest/weakest LO and supported missed-mark-point analysis. |
 | Multi-client PostgreSQL E2E | DONE | Free PostgreSQL 17 harness covers Teacher + Board + Student A/B, dependency closure and negative paths. DB smoke #62/#63 are green on the audited head. |
 | Reconnect / missed realtime recovery | DONE | PostgreSQL integration now proves cursor-gap detection, metadata-only realtime events and exact authoritative snapshot recovery while Mark Scheme secrecy is preserved. |
-| Browser multi-client E2E | MISSING | Teacher + Board + Student A + Student B browser flow still required. It must use a no-cost environment. |
+| Browser multi-client E2E | PARTIAL | No-cost Teacher + Board + Student A + Student B execution protocol is prepared in `LIVE-CHALLENGE-BROWSER-E2E-NO-COST.md`; real browser execution is still required. |
 | Preview | BLOCKED BY RELEASE GATE | Free Vercel Preview may be used, but no paid Supabase branch. Browser/runtime acceptance must not use production DB as a destructive test substitute. |
 | Production | BLOCKED | Requires repository gates + browser acceptance + explicit product-owner approval. |
 
