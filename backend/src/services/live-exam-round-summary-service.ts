@@ -78,6 +78,7 @@ export class LiveExamRoundSummaryService {
       this.pool.query(
         `select lep.student_id,u.full_name,
            coalesce(sum(coalesce(a.final_score,0)),0)::float8 score,
+           coalesce(sum(leq.marks),0)::int possible,
            rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc,
              case
                when $3::boolean and count(a.submitted_at)=count(*)
@@ -86,10 +87,11 @@ export class LiveExamRoundSummaryService {
          from live_exam_participants lep
          join live_exam_sessions les on les.id=lep.session_id
          join users u on u.id=lep.student_id
+         join live_exam_answers a on a.participant_id=lep.id
          join live_exam_questions leq
-           on leq.session_id=lep.session_id and leq.position<=$2
-         left join live_exam_answers a
-           on a.session_question_id=leq.id and a.participant_id=lep.id
+           on leq.id=a.session_question_id
+          and leq.session_id=lep.session_id
+          and leq.position<=$2
          where lep.session_id=$1 and lep.left_at is null
          group by lep.student_id,u.full_name
          order by score desc,
@@ -122,7 +124,7 @@ export class LiveExamRoundSummaryService {
       studentId: String(row.student_id),
       studentName: String(row.full_name),
       score: Number(row.score),
-      possible: overallPossible,
+      possible: Number(row.possible ?? overallPossible),
     }));
 
     const buckets = new Map<number, number>();
