@@ -13,6 +13,7 @@ const overrideAudit=source('src/database/migrations/0169_live_exam_override_audi
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
 const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
+const builderLifecycle=source('src/database/migrations/0191_live_challenge_builder_lifecycle.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -99,11 +100,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
   });
 
-  it('keeps peer mode structurally incapable of self marking',()=>{
+  it('keeps peer mode structurally incapable of self marking after all later migrations',()=>{
     expect(peerIntegrity).toContain("session_marking_mode = 'peer'");
-    expect(peerIntegrity).toContain("NEW.kind <> 'peer'");
-    expect(peerIntegrity).toContain('NEW.reviewer_id = answer_student_id');
-    expect(peerIntegrity).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).toContain("session_marking_mode = 'peer'");
+    expect(builderLifecycle).toContain("NEW.kind <> 'peer'");
+    expect(builderLifecycle).toContain('NEW.reviewer_id = answer_student_id');
+    expect(builderLifecycle).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).not.toContain("NEW.kind = 'self'");
   });
 
   it('preserves every teacher score override as append-only audit evidence',()=>{
