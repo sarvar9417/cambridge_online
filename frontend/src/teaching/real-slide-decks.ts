@@ -1,7 +1,6 @@
 export type RealSlideDeckSlide={
   number:number;
   title:string;
-  image:string;
   sourcePages?:number[];
 };
 
@@ -14,40 +13,42 @@ export type RealSlideDeck={
   subtitle:string;
   pptxDriveUrl:string;
   pptxFileName:string;
+  embedUrl:string;
   slides:RealSlideDeckSlide[];
 };
 
 const CHAPTER_3_SLIDES:readonly RealSlideDeckSlide[]=[
-  {number:1,title:'3 Hardware',image:'/9618/presentations/chapter-03/slides/slide-01.webp',sourcePages:[68]},
-  {number:2,title:'3.1.1 Types of memory and storage',image:'/9618/presentations/chapter-03/slides/slide-02.webp',sourcePages:[69,70]},
-  {number:3,title:'Primary memory: RAM, ROM, DRAM and SRAM',image:'/9618/presentations/chapter-03/slides/slide-03.webp',sourcePages:[70,71,72]},
-  {number:4,title:'PROM, EPROM and embedded systems',image:'/9618/presentations/chapter-03/slides/slide-04.webp',sourcePages:[72,73]},
-  {number:5,title:'Secondary storage devices',image:'/9618/presentations/chapter-03/slides/slide-05.webp',sourcePages:[73,74,75,76]},
-  {number:6,title:'Flash memory and optical storage',image:'/9618/presentations/chapter-03/slides/slide-06.webp',sourcePages:[74,75,76,77]},
-  {number:7,title:'Printers and 3D printing',image:'/9618/presentations/chapter-03/slides/slide-07.webp',sourcePages:[77,78,79,80]},
-  {number:8,title:'Sound, screens and touch technology',image:'/9618/presentations/chapter-03/slides/slide-08.webp',sourcePages:[81,82,83,84]},
-  {number:9,title:'Sensors, monitoring and control',image:'/9618/presentations/chapter-03/slides/slide-09.webp',sourcePages:[84,85,86,87,88,89]},
-  {number:10,title:'EEPROM, flash memory and SSD internals',image:'/9618/presentations/chapter-03/slides/slide-10.webp',sourcePages:[72,74,75]},
-  {number:11,title:'HDD operation: tracks, sectors and latency',image:'/9618/presentations/chapter-03/slides/slide-11.webp',sourcePages:[73,74]},
-  {number:12,title:'Optical storage in detail',image:'/9618/presentations/chapter-03/slides/slide-12.webp',sourcePages:[75,76,77]},
-  {number:13,title:'Laser printer: full printing sequence',image:'/9618/presentations/chapter-03/slides/slide-13.webp',sourcePages:[77,78]},
-  {number:14,title:'Inkjet printer: droplets, nozzles and page movement',image:'/9618/presentations/chapter-03/slides/slide-14.webp',sourcePages:[79,80]},
-  {number:15,title:'3D printing methods and manufacturing ideas',image:'/9618/presentations/chapter-03/slides/slide-15.webp',sourcePages:[80,81]},
-  {number:16,title:'Sound hardware: DAC, ADC and sampling',image:'/9618/presentations/chapter-03/slides/slide-16.webp',sourcePages:[81,82]},
-  {number:17,title:'Screens, OLED and touch-screen technologies',image:'/9618/presentations/chapter-03/slides/slide-17.webp',sourcePages:[82,83,84]},
-  {number:18,title:'Virtual reality headsets',image:'/9618/presentations/chapter-03/slides/slide-18.webp',sourcePages:[84]},
-  {number:19,title:'Sensor systems: analogue data, ADC, DAC and feedback',image:'/9618/presentations/chapter-03/slides/slide-19.webp',sourcePages:[84,85,86,87,88,89]},
-  {number:20,title:'Six logic gates: function and truth tables',image:'/9618/presentations/chapter-03/slides/slide-20.webp',sourcePages:[90,91,92,93,94]},
-  {number:21,title:'Building logic circuits from statements',image:'/9618/presentations/chapter-03/slides/slide-21.webp',sourcePages:[95,96,97,98,99,100,101,102,103]},
-  {number:22,title:'Chapter 3 complete review and exam practice',image:'/9618/presentations/chapter-03/slides/slide-22.webp',sourcePages:[104,105,106]},
+  {number:1,title:'3 Hardware',sourcePages:[68]},
+  {number:2,title:'3.1.1 Types of memory and storage',sourcePages:[69,70]},
+  {number:3,title:'Primary memory: RAM, ROM, DRAM and SRAM',sourcePages:[70,71,72]},
+  {number:4,title:'PROM, EPROM and embedded systems',sourcePages:[72,73]},
+  {number:5,title:'Secondary storage devices',sourcePages:[73,74,75,76]},
+  {number:6,title:'Flash memory and optical storage',sourcePages:[74,75,76,77]},
+  {number:7,title:'Printers and 3D printing',sourcePages:[77,78,79,80]},
+  {number:8,title:'Sound, screens and touch technology',sourcePages:[81,82,83,84]},
+  {number:9,title:'Sensors, monitoring and control',sourcePages:[84,85,86,87,88,89]},
+  {number:10,title:'EEPROM, flash memory and SSD internals',sourcePages:[72,74,75]},
+  {number:11,title:'HDD operation: tracks, sectors and latency',sourcePages:[73,74]},
+  {number:12,title:'Optical storage in detail',sourcePages:[75,76,77]},
+  {number:13,title:'Laser printer: full printing sequence',sourcePages:[77,78]},
+  {number:14,title:'Inkjet printer: droplets, nozzles and page movement',sourcePages:[79,80]},
+  {number:15,title:'3D printing methods and manufacturing ideas',sourcePages:[80,81]},
+  {number:16,title:'Sound hardware: DAC, ADC and sampling',sourcePages:[81,82]},
+  {number:17,title:'Screens, OLED and touch-screen technologies',sourcePages:[82,83,84]},
+  {number:18,title:'Virtual reality headsets',sourcePages:[84]},
+  {number:19,title:'Sensor systems: analogue data, ADC, DAC and feedback',sourcePages:[84,85,86,87,88,89]},
+  {number:20,title:'Six logic gates: function and truth tables',sourcePages:[90,91,92,93,94]},
+  {number:21,title:'Building logic circuits from statements',sourcePages:[95,96,97,98,99,100,101,102,103]},
+  {number:22,title:'Chapter 3 complete review and exam practice',sourcePages:[104,105,106]},
 ] as const;
 
 const DRIVE_PPTX='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
+const DRIVE_EMBED='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/embed?start=false&loop=false&delayms=60000&rm=minimal';
 
 export function realSlideDeckFor(course:string,chapter:number,topicCode:string):RealSlideDeck|null{
   if(course!=='9618'||chapter!==3)return null;
   const logic=topicCode==='3.2'||topicCode.startsWith('3.2.');
-  const slides=logic?CHAPTER_3_SLIDES.slice(19):CHAPTER_3_SLIDES.slice(0,19);
+  const slides=CHAPTER_3_SLIDES;
   return {
     id:logic?'9618-ch3-logic-real':'9618-ch3-hardware-real',
     course:'9618',
@@ -57,6 +58,7 @@ export function realSlideDeckFor(course:string,chapter:number,topicCode:string):
     subtitle:'Chapter 3 Hardware · real slide deck',
     pptxDriveUrl:DRIVE_PPTX,
     pptxFileName:'9618_Chapter_03_Hardware_Real_Deck.pptx',
+    embedUrl:DRIVE_EMBED,
     slides:[...slides],
   };
 }
