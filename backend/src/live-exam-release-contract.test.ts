@@ -72,11 +72,29 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
-    expect(service).toContain("select status::text,paused_at from live_exam_sessions where id=$1 for share");
-    expect(service).toContain("select * from live_exam_sessions where id=$1 for update");
+    expect(service).toContain('for share of les');
+    expect(service).toContain('for update of les');
+    expect(service).toContain('current_session_question_id');
     expect(service).toContain('for update of les');
     expect(service).toContain('and a.submitted_at is null');
     expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
+  });
+
+  it('binds every student answer write to the exact rendered session question',()=>{
+    expect(service).toContain('sessionQuestionId: string');
+    expect(service).toContain("current_session_question_id ?? '') !== sessionQuestionId");
+    expect(service).toContain('leq.position=les.current_question_index and leq.id=$3');
+  });
+
+  it('rejects stale teacher moderation aimed at an earlier question',()=>{
+    expect(service).toContain('and leq.position=$6');
+    expect(service).toContain('session.current_question_index');
+  });
+
+  it('keeps teacher-removed learners out of the same room on code retry',()=>{
+    expect(service).toContain("event_type='participant.removed'");
+    expect(service).toContain("payload->>'studentId'=$2");
+    expect(service).toContain("if (removedByTeacher.rowCount) throw new DomainError('live_code_not_found', 404)");
   });
 
   it('treats a duplicate identical answer submission as an idempotent retry',()=>{
