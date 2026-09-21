@@ -682,9 +682,12 @@ export class LiveExamService {
     const rootQuestionIds = stringList(settings.selectedQuestionIds);
     if (!rootQuestionIds.length) throw new DomainError('live_no_questions', 409);
 
+    // Draft review is the final teacher-visible order. Auto selection may
+    // shuffle before it reaches the draft, but publish must never silently
+    // reorder a sequence the teacher has already reviewed/reordered.
     const input = {
       ...this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds),
-      questionOrder: settings.questionOrder === 'shuffled' ? 'shuffled' as const : 'fixed' as const,
+      questionOrder: 'fixed' as const,
     };
     const validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId, sessionId);
     const { expandedQuestionIds, snapshots } = await this.snapshotSelection(actor, input, validatedRoots);
