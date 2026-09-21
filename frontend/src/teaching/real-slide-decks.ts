@@ -22,11 +22,15 @@ export type RealSlideDeck={
 
 type SlideMeta=Omit<RealSlideDeckSlide,'imageUrl'>;
 
+export const REAL_SLIDE_IMAGE_WIDTH=2560;
+export const REAL_SLIDE_IMAGE_HEIGHT=1440;
+export const REAL_SLIDE_IMAGE_FORMAT='webp' as const;
+
 function slidesFor(chapter:number,meta:readonly SlideMeta[]):RealSlideDeckSlide[]{
   return meta.map(slide=>({
     ...slide,
     sourcePages:slide.sourcePages?[...slide.sourcePages]:undefined,
-    imageUrl:`/9618/presentations/chapter-${String(chapter).padStart(2,'0')}/slides/slide-${String(slide.number).padStart(2,'0')}.jpg`,
+    imageUrl:`/9618/presentations/chapter-${String(chapter).padStart(2,'0')}/slides/slide-${String(slide.number).padStart(2,'0')}.${REAL_SLIDE_IMAGE_FORMAT}`,
   }));
 }
 
