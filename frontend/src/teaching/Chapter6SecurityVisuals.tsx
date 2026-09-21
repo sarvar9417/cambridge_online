@@ -2,13 +2,19 @@ import type { LessonPresentationBeat } from './lesson-experience-model';
 import './chapter6-security-visuals.css';
 
 export const CHAPTER_6_SECURITY_VISUAL_IDS = [
+  'h6-611-privacy',
   'h6-612-accounts-passwords',
   'h6-612-signatures-firewall',
   'h6-612-antimalware-encryption-biometrics',
+  'h6-613-biometric-hacking-malware',
+  'h6-613-malware-phishing',
   'h6-613-pharming',
   'h6-614-recovery',
+  'h6-62-integrity-overview',
   'h6-621-validation',
+  'h6-622-entry-verification',
   'h6-622-modulo11-checksum',
+  'h6-622-parity',
   'h6-622-parity-block',
   'h6-622-arq',
 ] as const;
@@ -122,15 +128,87 @@ function Arq({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function Privacy({reveal}:{reveal:number}){
+  const principles=[
+    ['LAWFUL + PURPOSE','process lawfully for a stated purpose'],
+    ['RELEVANT + ACCURATE','collect only needed data and keep it correct'],
+    ['TIME-LIMITED','do not keep longer than necessary'],
+    ['DATA SUBJECT RIGHTS','handle data according to subject rights'],
+    ['SECURE','protect against unauthorised access'],
+    ['TRANSFER PROTECTION','do not transfer where adequate protection is absent'],
+  ] as const;
+  return <div className="h6sec h6sec-privacy" aria-label="Data privacy and protection principles visual">
+    <div className={'h6sec-privacy-core '+state(reveal,1)}><b>DATA PRIVACY</b><span>keep sensitive data from unauthorised parties</span></div>
+    <div className="h6sec-privacy-grid">{principles.map(([title,note],index)=><section className={state(reveal,index<2?1:index<4?2:3)} key={title}><b>{title}</b><span>{note}</span></section>)}</div>
+    <footer className={state(reveal,3)}>legislation can deter misuse, but law alone cannot guarantee privacy</footer>
+  </div>;
+}
+
+function BiometricHackingMalware({reveal}:{reveal:number}){
+  return <div className="h6sec h6sec-biometric-threats" aria-label="Biometrics ethical hacking malicious hacking and virus visual">
+    <section className={state(reveal,1)}><b>FINGERPRINT</b><span>ridge + valley pattern</span></section>
+    <section className={state(reveal,1)}><b>RETINA</b><span>blood-vessel pattern</span></section>
+    <div className={'h6sec-threat-split '+state(reveal,2)}><span><b>ETHICAL HACKING</b> authorised testing to find weaknesses</span><span><b>MALICIOUS HACKING</b> unauthorised access to steal, alter, corrupt or delete data</span></div>
+    <footer className={state(reveal,3)}><b>VIRUS</b><span>malicious code that can replicate/copy itself and damage files, programs or system operation</span></footer>
+  </div>;
+}
+
+function MalwarePhishing({reveal}:{reveal:number}){
+  const threats=[['WORM','stand-alone · replicates · spreads'],['LOGIC BOMB','activates when trigger condition is met'],['TROJAN','malware disguised as legitimate software'],['BOT','automated software; can be abused for attacks'],['SPYWARE','secretly gathers information / key logging'],['PHISHING','deceptive message or link requires victim action']] as const;
+  return <div className="h6sec h6sec-malware" aria-label="Malware family and phishing comparison visual">
+    <div className="h6sec-malware-grid">{threats.map(([name,note],index)=><section className={state(reveal,index<2?1:index<4?2:3)} key={name}><b>{name}</b><span>{note}</span></section>)}</div>
+    <footer className={state(reveal,3)}>awareness training · avoid untrusted links/attachments · update browser/security tools · monitor accounts · use firewall</footer>
+  </div>;
+}
+
+function IntegrityOverview({reveal}:{reveal:number}){
+  return <div className="h6sec h6sec-integrity" aria-label="Data integrity validation verification checksum and parity map">
+    <div className={'h6sec-integrity-core '+state(reveal,1)}><b>DATA INTEGRITY</b><span>accuracy · completeness · consistency</span></div>
+    <div className="h6sec-integrity-paths">
+      <section className={state(reveal,1)}><b>VALIDATION</b><span>reasonable + meets input criteria</span></section>
+      <section className={state(reveal,2)}><b>VERIFICATION</b><span>entered / transferred correctly</span></section>
+      <section className={state(reveal,2)}><b>CHECK DIGIT</b><span>extra digit for input-error detection</span></section>
+      <section className={state(reveal,3)}><b>CHECKSUM</b><span>recalculate after transmission</span></section>
+      <section className={state(reveal,3)}><b>PARITY</b><span>agreed even/odd number of 1-bits</span></section>
+    </div>
+  </div>;
+}
+
+function EntryVerification({reveal}:{reveal:number}){
+  return <div className="h6sec h6sec-entry-verification" aria-label="Double entry visual check and check digit verification visual">
+    <section className={state(reveal,1)}><b>DOUBLE ENTRY</b><span>enter twice independently</span><i>COMPARE</i></section>
+    <section className={state(reveal,2)}><b>VISUAL CHECK</b><span>screen value ↔ original source</span><i>COMPARE</i></section>
+    <section className={state(reveal,3)}><b>CHECK DIGIT</b><span>barcode · ISBN · VIN</span><i>CALCULATE + COMPARE</i></section>
+    <footer className={state(reveal,3)}>can detect incorrect digits, transpositions, omitted/added digits and some phonetic-number errors</footer>
+  </div>;
+}
+
+function Parity({reveal}:{reveal:number}){
+  const even=['1','0','1','0','1','0','1','0'];
+  const odd=['1','0','1','0','1','0','1','1'];
+  return <div className="h6sec h6sec-parity-basic" aria-label="Even and odd parity byte visual">
+    <section className={state(reveal,1)}><header>EVEN PARITY</header><div>{even.map((bit,index)=><span key={index}>{bit}</span>)}</div><small>even number of 1-bits</small></section>
+    <section className={state(reveal,2)}><header>ODD PARITY</header><div>{odd.map((bit,index)=><span key={index}>{bit}</span>)}</div><small>odd number of 1-bits</small></section>
+    <footer className={state(reveal,3)}><b>RECEIVER RECALCULATES</b><span>parity mismatch → transmission error detected; simple parity does not identify the changed bit</span></footer>
+  </div>;
+}
+
 export function Chapter6SecurityVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
+    case 'h6-611-privacy': return <Privacy reveal={reveal}/>;
     case 'h6-612-accounts-passwords': return <AccountsAccess reveal={reveal}/>;
     case 'h6-612-signatures-firewall': return <Firewall reveal={reveal}/>;
     case 'h6-612-antimalware-encryption-biometrics': return <LayeredProtection reveal={reveal}/>;
+    case 'h6-613-biometric-hacking-malware': return <BiometricHackingMalware reveal={reveal}/>;
+    case 'h6-613-malware-phishing': return <MalwarePhishing reveal={reveal}/>;
     case 'h6-613-pharming': return <Pharming reveal={reveal}/>;
     case 'h6-614-recovery': return <Recovery reveal={reveal}/>;
+    case 'h6-62-integrity-overview': return <IntegrityOverview reveal={reveal}/>;
     case 'h6-621-validation': return <Validation reveal={reveal}/>;
+    case 'h6-622-entry-verification': return <EntryVerification reveal={reveal}/>;
     case 'h6-622-modulo11-checksum': return <ModuloChecksum reveal={reveal}/>;
+    case 'h6-622-parity': return <Parity reveal={reveal}/>;
     case 'h6-622-parity-block': return <ParityBlock reveal={reveal}/>;
     case 'h6-622-arq': return <Arq reveal={reveal}/>;
     default: return null;
