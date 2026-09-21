@@ -18,7 +18,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({id:`${slideId}-concept-1`,
 describe('Cambridge 9618 Chapter 11 programming classroom visuals',()=>{
   it('targets only real source-backed slides in the final Chapter 11 route',()=>{
     const slideIds=new Set(CHAPTER_11_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_11_PROGRAMMING_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_11_PROGRAMMING_VISUAL_IDS.length).toBeGreaterThanOrEqual(16);
     for(const id of CHAPTER_11_PROGRAMMING_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -34,6 +34,7 @@ describe('Cambridge 9618 Chapter 11 programming classroom visuals',()=>{
       'VARIABLES','CONSTANT','INPUT','VALIDATE','LENGTH','LEFT','RIGHT','MID','STANDARD LIBRARY',
       'OTHERWISE','FOR … NEXT','REPEAT … UNTIL','WHILE … DO','PROCEDURE','parameter','argument',
       'BY VALUE','BY REFERENCE','BYREF','FUNCTION','RETURNS REAL','RETURN',
+      'PYTHON','VB.NET','JAVA','ACTIVITY 11A','DIV(10,3)','MOD(10,3)','SELECT CASE','switch','default',
     ])expect(visualSource).toContain(term);
   });
 
@@ -49,6 +50,10 @@ describe('Cambridge 9618 Chapter 11 programming classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h11pg-language-io');
+    expect(css).toContain('.h11pg-output-programs');
+    expect(css).toContain('.h11pg-java-builtins');
+    expect(css).toContain('.h11pg-case-languages');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });
