@@ -43,7 +43,7 @@ const CHAPTER_3_SLIDES:readonly RealSlideDeckSlide[]=[
 ] as const;
 
 const DRIVE_PPTX='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
-const DRIVE_EMBED='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/embed?start=false&loop=false&delayms=60000&rm=minimal';
+const DRIVE_EMBED='https://drive.google.com/file/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/preview';
 
 export function realSlideDeckFor(course:string,chapter:number,topicCode:string):RealSlideDeck|null{
   if(course!=='9618'||chapter!==3)return null;
