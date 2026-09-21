@@ -34,7 +34,9 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('discovers published class challenges for students without leaking room codes',()=>{
-    expect(service).toContain("les.status in ('published','lobby','question_open','answers_locked','marking','review')");
+    expect(service).toContain("les.status in ('published','lobby')");
+    expect(service).toContain("les.status='question_open'");
+    expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain('select 1 from enrollments e');
     expect(service).toContain("joinCode: actor.role === 'student' ? null : row.join_code");
     expect(service).toContain('joined: Boolean(row.joined)');
@@ -42,9 +44,11 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and (");
-    expect(service).toContain("les.status='lobby'");
-    expect(service).toContain("les.settings->>'allowLateJoin'");
+    expect(service).toContain('where les.join_code=$1');
+    expect(service).toContain('select id,session_id from live_exam_participants');
+    expect(service).toContain('idempotent: true');
+    expect(service).toContain("const joinable = session.status === 'lobby'");
+    expect(service).toContain('this.settings(session.settings).allowLateJoin');
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
   });
 
@@ -52,6 +56,11 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>");
     expect(service).toContain('dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency)');
     expect(service).toContain('dependencyWork: dependencyWork.rows.map');
+  });
+
+  it('withholds the current question from a student before the round starts',()=>{
+    expect(service).toContain("const studentQuestionVisible = !['draft','published','lobby'].includes(String(session.status));");
+    expect(service).toContain('const currentRow = isStaff || studentQuestionVisible ? currentRowCandidate : undefined;');
   });
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
@@ -80,6 +89,11 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("['submitted','moderated'].includes(String(row.status))");
     expect(service).toContain('reviewId,');
     expect(service).toContain('idempotent: true');
+  });
+
+  it('freezes the configured fixed or shuffled root order at publish',()=>{
+    expect(service).toContain("questionOrder: settings.questionOrder === 'shuffled' ? 'shuffled' as const : 'fixed' as const");
+    expect(service).toContain('chooseQuestionIds(actor, input, true, sessionId, sessionId)');
   });
 
   it('separates answer locking from Mark Scheme reveal',()=>{
