@@ -4,12 +4,21 @@ import './chapter5-system-software-visuals.css';
 export const CHAPTER_5_SYSTEM_SOFTWARE_VISUAL_IDS = [
   'h5-512-process-hardware-file',
   'h5-512-printer-management',
+  'h5-513-formatter',
+  'h5-513-antivirus',
   'h5-513-defragmentation',
+  'h5-513-analysis-compression',
+  'h5-513-backup',
+  'h5-514-library-model',
   'h5-514-static-dynamic',
+  'h5-521-assembler',
   'h5-521-compiler-interpreter',
+  'h5-522-compiler-interpreter-tradeoffs',
   'h5-523-bytecode',
   'h5-524-ide-overview',
+  'h5-524-editor',
   'h5-524-debugger',
+  'h5-524-documentation-review',
 ] as const;
 
 export function hasChapter5SystemSoftwareVisual(beat: LessonPresentationBeat) {
@@ -121,16 +130,106 @@ function Debugger({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function Formatter({reveal}:{reveal:number}){
+  const sectors=['OK','OK','BAD','OK','OK','BAD','OK','OK'];
+  return <div className="h5sys h5sys-formatter" aria-label="Disk formatter partition and bad-sector checking visual">
+    <section className={revealClass(reveal,1)}><b>PARTITION</b><span>contiguous storage block</span><div className="h5sys-partition"><i/><i/><i/></div></section>
+    <section className={revealClass(reveal,2)}><b>FULL FORMAT</b><span>write + read sectors to test storage</span><div className="h5sys-sector-grid">{sectors.map((state,index)=><i data-state={state} key={index}>{state}</i>)}</div></section>
+    <aside className={revealClass(reveal,3)}><b>BAD SECTOR</b><span>mark unusable and store future data elsewhere</span><small>hard = physical fault · soft = corrupted data</small></aside>
+  </div>;
+}
+
+function Antivirus({reveal}:{reveal:number}){
+  const stages=[['FILE / PROGRAM','before load or execution'],['SIGNATURE DB','known malware'],['HEURISTIC','suspicious behaviour'],['QUARANTINE','isolate for review'],['UPDATE + SCAN','keep protection current']] as const;
+  return <div className="h5sys h5sys-antivirus" aria-label="Antivirus signature heuristic quarantine workflow">
+    {stages.map(([title,note],index)=><section className={revealClass(reveal,index<2?1:index<4?2:3)} key={title}><b>{title}</b><span>{note}</span>{index<stages.length-1?<i>→</i>:null}</section>)}
+    <footer className={revealClass(reveal,3)}><b>FALSE POSITIVE</b><span>legitimate file incorrectly identified as infected</span></footer>
+  </div>;
+}
+
+function AnalysisCompression({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-analysis" aria-label="Disk content analysis and compression comparison visual">
+    <section className={revealClass(reveal,1)}><b>DISK CONTENT ANALYSIS</b><span>inspect files · folders · free space</span><strong>identify waste / unneeded files</strong></section>
+    <section className={revealClass(reveal,2)}><b>FILE COMPRESSION</b><span>selected files become smaller</span><strong>store / transfer less data</strong></section>
+    <section className={revealClass(reveal,3)}><b>DISK COMPRESSION</b><span>transparent as data is stored / retrieved</span><strong>compatible decompression required</strong></section>
+  </div>;
+}
+
+function Backup({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-backup" aria-label="Backup local remote version history and restore point visual">
+    <section className={revealClass(reveal,1)}><b>WORKING COPY</b><span>internal storage</span></section><i>→</i>
+    <section className={revealClass(reveal,2)}><b>LOCAL BACKUP</b><span>separate device</span></section><i>+</i>
+    <section className={revealClass(reveal,2)}><b>REMOTE BACKUP</b><span>different location / cloud</span></section>
+    <footer className={revealClass(reveal,3)}><span><b>SCHEDULE</b> changed files copied automatically</span><span><b>VERSION HISTORY</b> restore an earlier copy</span><span><b>RESTORE POINT</b> return system/data to an earlier state</span></footer>
+  </div>;
+}
+
+function LibraryModel({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-library" aria-label="Program library reusable routine model">
+    <div className={'h5sys-library-core '+revealClass(reveal,1)}><b>PROGRAM LIBRARY</b><span>tested reusable routines</span></div>
+    <div className="h5sys-library-routines">
+      {['INPUT / VALIDATION','SORT / SEARCH','FILE / OUTPUT'].map((name,index)=><section className={revealClass(reveal,index<2?2:3)} key={name}><b>{name}</b><span>library routine</span></section>)}
+    </div>
+    <div className={'h5sys-library-apps '+revealClass(reveal,3)}><span>APP A</span><span>APP B</span><span>APP C</span></div>
+    <footer className={revealClass(reveal,3)}>reuse reduces development time, cost and new testing · supports modular development and consistency</footer>
+  </div>;
+}
+
+function Assembler({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-assembler" aria-label="Assembly language assembler loader machine code visual">
+    <section className={revealClass(reveal,1)}><b>ASSEMBLY SOURCE</b><span>processor-family specific</span></section><i>→</i>
+    <section className={revealClass(reveal,1)}><b>ASSEMBLER</b><span>translate</span></section><i>→</i>
+    <section className={revealClass(reveal,2)}><b>MACHINE / OBJECT CODE</b><span>store for later use</span></section><i>→</i>
+    <section className={revealClass(reveal,3)}><b>LOADER</b><span>place code in main memory</span></section><i>→</i>
+    <section className={revealClass(reveal,3)}><b>EXECUTION</b><span>run repeatedly without retranslating source</span></section>
+  </div>;
+}
+
+function TranslatorTradeoffs({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-tradeoffs" aria-label="Compiler and interpreter tradeoff comparison visual">
+    <section className={revealClass(reveal,1)}><header>COMPILER</header><b>TRANSLATE BEFORE RUN</b><span>faster repeated execution</span><span>distribute object code</span><span>possible optimisation</span><small>one earlier fault can create several dependent errors</small></section>
+    <section className={revealClass(reveal,2)}><header>INTERPRETER</header><b>TRANSLATE + EXECUTE</b><span>statement-by-statement feedback</span><span>easy intermediate inspection</span><span>quick development cycle</span><small>slower repeated execution · run time/interpreter required</small></section>
+    <footer className={revealClass(reveal,3)}>choice depends on development convenience, execution speed, portability/run-time availability and source-code distribution</footer>
+  </div>;
+}
+
+function Editor({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-editor" aria-label="IDE source-code editor pretty printing prompts syntax checking and code folding visual">
+    <section className={'h5sys-editor-code '+revealClass(reveal,1)}><header>SOURCE-CODE EDITOR</header><code><span>01 <b>IF</b> score &gt;= 50 <b>THEN</b></span><span>02   grade ← "PASS"</span><span className="error">03 ELSEIF score &gt;= 0</span><span>04   grade ← "REVIEW"</span><span>05 <b>ENDIF</b></span></code></section>
+    <aside className={revealClass(reveal,2)}><b>PRETTY PRINTING</b><span>format + syntax colouring</span><b>CONTEXT PROMPT</b><span>suggest identifiers / reserved words</span></aside>
+    <aside className={revealClass(reveal,3)}><b>DYNAMIC SYNTAX CHECK</b><span>flag possible syntax errors while typing</span><b>COLLAPSE BLOCKS</b><span>focus on the current section</span></aside>
+    <footer className={revealClass(reveal,3)}>logic errors normally appear when the program is executed and its behaviour is tested</footer>
+  </div>;
+}
+
+function DocumentationReview({reveal}:{reveal:number}){
+  return <div className="h5sys h5sys-documentation" aria-label="Auto-documenter Activity 5B and Chapter 5 review visual">
+    <section className={revealClass(reveal,1)}><b>AUTO-DOCUMENTER</b><span>quick documentation for code / library features</span></section>
+    <i>→</i><section className={revealClass(reveal,2)}><b>ACTIVITY 5B</b><span>assembler vs compiler · compiler vs interpreter · IDE features</span></section>
+    <i>→</i><section className={revealClass(reveal,3)}><b>CHAPTER REVIEW</b><span>DLLs · OS management · backup · defragmentation · translators · IDE</span></section>
+  </div>;
+}
+
 export function Chapter5SystemSoftwareVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h5-512-process-hardware-file': return <ResourceManagement reveal={reveal}/>;
     case 'h5-512-printer-management': return <PrinterManagement reveal={reveal}/>;
+    case 'h5-513-formatter': return <Formatter reveal={reveal}/>;
+    case 'h5-513-antivirus': return <Antivirus reveal={reveal}/>;
     case 'h5-513-defragmentation': return <Defragmentation reveal={reveal}/>;
+    case 'h5-513-analysis-compression': return <AnalysisCompression reveal={reveal}/>;
+    case 'h5-513-backup': return <Backup reveal={reveal}/>;
+    case 'h5-514-library-model': return <LibraryModel reveal={reveal}/>;
     case 'h5-514-static-dynamic': return <StaticDynamic reveal={reveal}/>;
+    case 'h5-521-assembler': return <Assembler reveal={reveal}/>;
     case 'h5-521-compiler-interpreter': return <Translators reveal={reveal}/>;
+    case 'h5-522-compiler-interpreter-tradeoffs': return <TranslatorTradeoffs reveal={reveal}/>;
     case 'h5-523-bytecode': return <Bytecode reveal={reveal}/>;
     case 'h5-524-ide-overview': return <IdeOverview reveal={reveal}/>;
+    case 'h5-524-editor': return <Editor reveal={reveal}/>;
     case 'h5-524-debugger': return <Debugger reveal={reveal}/>;
+    case 'h5-524-documentation-review': return <DocumentationReview reveal={reveal}/>;
     default: return null;
   }
 }
