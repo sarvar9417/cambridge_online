@@ -367,6 +367,7 @@ export class LiveExamService {
         select 1 from assignment_questions aq
         join assignments a on a.id=aq.assignment_id
         where aq.question_id=q.id and a.class_id=${classParameter}
+          and a.published_at is not null and a.archived_at is null
       )`);
       if (excludeSessionId) {
         values.push(excludeSessionId);
