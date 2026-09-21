@@ -1187,6 +1187,34 @@ export class LiveExamService {
     };
   }
 
+  async board(actor: Actor, sessionId: string) {
+    this.assertStaff(actor);
+    const snapshot = await this.snapshot(actor, sessionId);
+    const { session } = snapshot;
+    return {
+      session: {
+        id: session.id,
+        title: session.title,
+        className: session.className,
+        status: session.status,
+        version: session.version,
+        joinCode: session.status === 'lobby' ? session.joinCode : null,
+        currentQuestionIndex: session.currentQuestionIndex,
+        questionCount: session.questionCount,
+        participantCount: session.participantCount,
+        submittedCount: session.submittedCount,
+        reviewCount: session.reviewCount,
+        reviewedCount: session.reviewedCount,
+        deadline: session.deadline,
+        serverNow: session.serverNow,
+        pausedAt: session.pausedAt,
+        pauseRemainingS: session.pauseRemainingS,
+      },
+      question: session.status === 'question_open' ? snapshot.question : null,
+      markScheme: session.status === 'marking' ? snapshot.markScheme : null,
+    };
+  }
+
   private async reviewFor(actor: Actor, sessionId: string, sessionQuestionId: string) {
     const result = await this.pool.query(
       `select r.id,r.answer_id,r.kind::text,r.status::text,r.awarded_marks,r.feedback_md,r.submitted_at,
