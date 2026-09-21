@@ -1576,10 +1576,10 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text,paused_at from live_exam_sessions where id=$1 for update`, [sessionId]);
+        `select status::text,paused_at,version from live_exam_sessions where id=$1 for update`, [sessionId]);
       if (state.rows[0]?.status !== 'marking' || state.rows[0]?.paused_at) throw new DomainError('live_invalid_state', 409);
       const target = await client.query(
-        `select r.id,r.answer_id,r.reviewer_id,r.kind::text,r.status::text,leq.marks,leq.mark_scheme_snapshot,
+        `select r.id,r.answer_id,r.reviewer_id,r.kind::text,r.status::text,r.awarded_marks,leq.marks,leq.mark_scheme_snapshot,
            (select count(*) from live_exam_review_points where review_id=r.id)::int point_count
          from live_exam_reviews r
          join live_exam_questions leq on leq.id=r.session_question_id
@@ -1597,7 +1597,18 @@ export class LiveExamService {
       );
       if (!target.rowCount) throw new DomainError('not_found', 404);
       const row = target.rows[0];
-      if (row.status !== 'assigned') throw new DomainError('live_review_submitted', 409);
+      if (row.status !== 'assigned') {
+        if (['submitted','moderated'].includes(String(row.status))) {
+          await client.query('commit');
+          return {
+            reviewId,
+            score: row.awarded_marks === null ? null : Number(row.awarded_marks),
+            version: Number(state.rows[0].version),
+            idempotent: true,
+          };
+        }
+        throw new DomainError('live_review_submitted', 409);
+      }
       if (input.matchedPointIds.length) {
         const allowed = await client.query(
           `select mark_scheme_point_id from live_exam_review_points
