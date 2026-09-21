@@ -35,7 +35,8 @@ type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:st
 const EMPTY_OPTIONS:FilterOptions = { topics:[] };
 
 const STATUS_LABEL:Record<LiveExamStatus,string> = {
-  lobby:'Kutilmoqda',question_open:'Savol ochiq',marking:'Baholash',review:'Natijani ko‘rish',
+  draft:'Draft',published:'Nashr qilingan',lobby:'Kutilmoqda',question_open:'Savol ochiq',
+  answers_locked:'Javoblar yopildi',marking:'Baholash',review:'Natijani ko‘rish',
   finished:'Yakunlangan',cancelled:'Bekor qilingan',
 };
 const MODE_LABEL:Record<LiveExamMarkingMode,string> = {
@@ -221,16 +222,29 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     event.preventDefault();setBusy(true);setError('');
     const data=new FormData(event.currentTarget);
     try{
-      const created=await api<{id:string}>('/live-exams',{method:'POST',body:JSON.stringify({
+      const draft=await api<{id:string;version:number}>('/live-exams/drafts',{method:'POST',body:JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds,subtopicIds,
-        questionCount:selectionMode==='manual'?selectedQuestionIds.length:Number(data.get('questionCount')),questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
+        questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:data.get('markingMode'),includeDiagrams:data.get('includeDiagrams')==='on',excludeSeen:data.get('excludeSeen')==='on',
-        questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder:data.get('questionOrder'),
-        allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
+        questionOrder:data.get('questionOrder'),allowLateJoin:data.get('allowLateJoin')==='on',
+        autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
       })});
-      navigate(`oqitish/live?id=${created.id}`);
-    }catch(cause){setError(message(cause,'Live Challenge yaratilmadi.'));setBusy(false)}
+      const selection=selectionMode==='manual'
+        ? await api<{version:number}>(`/live-exams/${draft.id}/questions`,{method:'PUT',body:JSON.stringify({
+            questionIds:selectedQuestionIds,expectedVersion:draft.version,
+          })})
+        : await api<{version:number}>(`/live-exams/${draft.id}/questions/auto`,{method:'POST',body:JSON.stringify({
+            count:Number(data.get('questionCount')),expectedVersion:draft.version,
+          })});
+      const published=await api<{version:number}>(`/live-exams/${draft.id}/publish`,{method:'POST',body:JSON.stringify({
+        expectedVersion:selection.version,
+      })});
+      await api(`/live-exams/${draft.id}/open`,{method:'POST',body:JSON.stringify({
+        expectedVersion:published.version,
+      })});
+      navigate(`oqitish/live?id=${draft.id}`);
+    }catch(cause){setError(message(cause,'Live Challenge tayyorlanmadi. Draft sessiyalar ro‘yxatida saqlangan bo‘lishi mumkin.'));setBusy(false)}
   };
 
   const join=async(event:FormEvent)=>{
@@ -394,13 +408,15 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     if(!window.confirm(`${fullName} xonadan chiqarilsinmi?`))return;
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});
   };
-  const copyCode=()=>void navigator.clipboard?.writeText(session.joinCode);
+  const copyCode=()=>{if(session.joinCode)void navigator.clipboard?.writeText(session.joinCode)};
   const openProjector=()=>window.open(`${window.location.href.split('#')[0]}#oqitish/live?id=${session.id}&projector=1`,'campath-projector','noopener,noreferrer');
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
+    {session.status==='draft'?<section className="live-finished"><span className="live-eyebrow">DRAFT</span><h1>Challenge hali ochilmagan</h1><p>{session.questionCount>0?`${session.questionCount} ta savol saqlangan. Nashr qilishdan oldin source va Mark Scheme qayta tekshiriladi.`:'Savollar tanlovi yakunlanmagan. Builderdan qayta yarating yoki draftni bekor qiling.'}</p>{session.questionCount>0?<button disabled={busy} onClick={()=>void act('/publish',{expectedVersion:session.version})}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</section>:null}
+    {session.status==='published'?<section className="live-finished"><span className="live-eyebrow">PUBLISHED</span><h1>Challenge tayyor</h1><p>Immutable savol va Mark Scheme snapshotlari yaratildi. Lobby ochilgach xona kodi o‘quvchilarga ko‘rsatiladi.</p><button disabled={busy} onClick={()=>void act('/open',{expectedVersion:session.version})}>Lobby’ni ochish</button></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
-    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
+    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode??'------'}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
     {session.status==='question_open'&&snapshot.question?<><SessionProgress snapshot={snapshot}/><div className="live-teacher-question"><div><LiveQuestionView question={snapshot.question}/></div><aside><div className="live-timer-card"><span>QOLGAN VAQT</span><strong className={remaining!==null&&remaining<30?'is-urgent':''}>{session.pausedAt?formatClock(session.pauseRemainingS):formatClock(remaining)}</strong></div><div className="live-submit-stat"><strong>{session.submittedCount}</strong><span>/ {session.participantCount} topshirdi</span><progress max={Math.max(1,session.participantCount)} value={session.submittedCount}/></div><ul className="live-submit-list">{snapshot.participants.map((person)=><li key={person.id}><span>{person.fullName}</span><b className={person.submitted?'is-done':''}>{person.submitted?'Topshirdi':'Yozmoqda'}</b></li>)}</ul><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/reveal')}>Javoblarni yopish va MSni ochish</button><small>Topshirmagan javoblar bo‘sh holatda avtomatik yopiladi.</small></aside></div></>:null}
     {session.status==='marking'?<><SessionProgress snapshot={snapshot}/><div className="live-marking-head"><div><span className="live-eyebrow">BAHOLASH</span><h2>{session.reviewedCount}/{session.reviewCount} ta tugadi</h2></div><div className="live-marking-actions"><button disabled={busy||Boolean(session.pausedAt)||session.reviewedCount<session.reviewCount} onClick={()=>void act('/marking/complete')}>Natijalarni ochish</button>{session.reviewedCount<session.reviewCount?<button className="live-secondary" disabled={busy||Boolean(session.pausedAt)} onClick={()=>{if(window.confirm('Tugallanmagan baholashlar 0 ball bilan yopilsinmi?'))void act('/marking/complete',{force:true})}}>Kutilayotganlarsiz davom etish</button>:null}</div></div>
       {session.markingMode==='teacher'&&activeAnswer?<div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.reviewStatus==='assigned'?'Kutilmoqda':`${answer.score??0}/${snapshot.question?.marks}`}</i></button>)}</nav><TeacherAnswerMarker key={`${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>{setActiveAnswerId('');void refresh()}}/></div>:null}
