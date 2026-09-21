@@ -77,7 +77,7 @@ export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
     const right = createHash('sha256').update(`${seed}:${b.studentId}`).digest('hex');
     return left.localeCompare(right);
   });
-  if (ordered.length < 2) return ordered.map((answer) => ({ ...answer, reviewerId: answer.studentId, kind: 'self' as const }));
+  if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409);
   return ordered.map((answer, index) => ({
     ...answer,
     reviewerId: ordered[(index + 1) % ordered.length]!.studentId,
