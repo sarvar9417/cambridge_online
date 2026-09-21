@@ -114,6 +114,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(board).toContain("joinCode: session.status === 'lobby' ? session.joinCode : null");
     expect(board).toContain("if (session.status === 'question_open' && snapshot.question)");
     expect(board).toContain("if (session.status === 'marking' && snapshot.markScheme)");
+    expect(board).toContain('id: boardUuid(0)');
     expect(board).toContain('storagePath: null');
     expect(board).toContain("sha256: '0'.repeat(64)");
     expect(board).toContain('sourcePage: null');
