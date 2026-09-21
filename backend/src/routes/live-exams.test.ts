@@ -22,6 +22,13 @@ function appFor(service:Partial<LiveExamService>) {
 }
 
 describe('live exam routes', () => {
+  it('closes the legacy direct-lobby creation route', async () => {
+    const create=vi.fn();
+    const response=await request(appFor({create})).post('/live-exams').send({}).expect(410);
+    expect(response.body.error.code).toBe('live_builder_required');
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('creates a private draft without a room code', async () => {
     const createDraft=vi.fn().mockResolvedValue({id:'draft-1',status:'draft',joinCode:null,version:1});
     const body={
