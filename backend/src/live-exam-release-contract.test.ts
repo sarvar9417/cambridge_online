@@ -11,6 +11,7 @@ const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
 const peerIntegrity=source('src/database/migrations/0168_live_exam_peer_integrity.sql');
 const overrideAudit=source('src/database/migrations/0169_live_exam_override_audit.sql');
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
+const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
@@ -20,7 +21,9 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('mark_scheme_snapshot jsonb NOT NULL');
     expect(service).toContain("`q.status='approved'`");
     expect(service).toContain("`ms.status='approved'`");
-    expect(service).toContain('not exists(select 1 from question_dependencies qd where qd.question_id=q.id)');
+    expect(service).toContain('with recursive closure(question_id)');
+    expect(service).toContain("qd.strength::text='required'");
+    expect(service).not.toContain('q.parent_id is not null');
   });
 
   it('never returns the Mark Scheme to a student during an open question',()=>{
@@ -35,6 +38,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("les.status='lobby'");
     expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
+  });
+
+  it('keeps internal dependency evidence out of learner snapshots',()=>{
+    expect(service).toContain("Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>");
+    expect(service).toContain('dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency)');
+    expect(service).toContain('dependencyWork: dependencyWork.rows.map');
   });
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
@@ -74,7 +83,11 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(learningEvidence).toContain('learning_objective_compatibility compat');
     expect(learningEvidence).toContain("compat.relation IN ('equivalent','subtopic_compatible')");
     expect(learningEvidence).toContain('target_t.syllabus_id = target_syllabus_id');
-    expect(learningEvidence).toContain('live_exam_analytics_unmapped_question');
+    expect(subtopicEvidence).toContain('live_exam_analytics_unmapped_question');
+    expect(subtopicEvidence).toContain('NULL::uuid learning_objective_id');
+    expect(subtopicEvidence).toContain("'stable_subtopic'::text mapping_basis");
+    expect(subtopicEvidence).toContain('target_t.number = source_t.number');
+    expect(subtopicEvidence).toContain('target_st.code = source_st.code');
     expect(learningEvidence).toContain('marks remain the unit of evidence; speed and leaderboard position never');
   });
 
