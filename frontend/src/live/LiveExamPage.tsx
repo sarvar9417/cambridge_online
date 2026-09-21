@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { ArrowLeft, ArrowsClockwise, Broadcast, CheckCircle, Copy, Monitor, UsersThree } from '@phosphor-icons/react';
 import {
   api,
+  ApiError,
   type ClassItem,
   type LiveExamAnswer,
   type LiveExamBoardSnapshot,
@@ -157,7 +158,7 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
       <header><strong>Oldingi ish kerak</strong><span>{question.dependencyWork.length} ta bog‘lanish</span></header>
       {question.dependencyWork.map((dependency)=><article key={dependency.questionId}>
         <div><b>{dependency.displayRef}</b><small>{dependency.kind==='answer_ref'?'Oldingi javobingizdan foydalaning':'Oldingi qismdagi ma’lumotdan foydalaning'}</small></div>
-        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
+        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Oldingi javob mavjud emas — siz bu qism bajarilgandan keyin qo‘shilgan bo‘lishingiz mumkin.'}</p>}
       </article>)}
     </section>:null}
     {structured?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
@@ -331,7 +332,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamBoardSnapshot}) {
       {session.status==='answers_locked'?<section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Javoblar yopildi</h1><p>Official Mark Scheme ochilishi kutilmoqda.</p></section>:null}
       {session.status==='marking'&&snapshot.markScheme?<><MarkSchemeView scheme={snapshot.markScheme}/><div className="live-projector-count"><CheckCircle size={32}/><strong>{session.reviewedCount}/{session.reviewCount}</strong><span>baholash tugadi</span></div></>:null}
       {session.status==='review'?<LiveExamLeaderboard sessionId={session.id} version={session.version} variant="projector"/>:null}
-      {session.status==='finished'?<section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Sessiya yakunlandi</h1><p>{session.questionCount} ta Cambridge savoli bajarildi.</p></section>:null}
+      {session.status==='finished'?<><section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Sessiya yakunlandi</h1><p>{session.questionCount} ta Cambridge savoli bajarildi.</p></section><LiveExamLeaderboard sessionId={session.id} version={session.version} variant="projector"/></>:null}
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
     </main>
@@ -378,6 +379,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
 
   const submitAnswer=async()=>{
+    window.clearTimeout(saveTimer.current);
     setBusy(true);setError('');
     try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});setDirty(false);await refresh()}
     catch(cause){setError(message(cause,'Javob topshirilmadi.'))}finally{setBusy(false)}
@@ -486,7 +488,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const [activeAnswerId,setActiveAnswerId]=useState('');
   const remaining=useCountdown(session.deadline,session.serverNow);
   const activeAnswer=snapshot.teacherAnswers.find((item)=>item.id===activeAnswerId)??snapshot.teacherAnswers.find((item)=>item.reviewStatus==='assigned')??snapshot.teacherAnswers[0];
-  const act=async(path:string,body?:unknown)=>{setBusy(true);setError('');try{await api(`/live-exams/${session.id}${path}`,{method:'POST',body:body===undefined?undefined:JSON.stringify(body)});await refresh()}catch(cause){setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}};
+  const act=async(path:string,body?:unknown)=>{setBusy(true);setError('');try{await api(`/live-exams/${session.id}${path}`,{method:'POST',body:body===undefined?undefined:JSON.stringify(body)});await refresh()}catch(cause){if(cause instanceof ApiError&&cause.code==='live_state_conflict'){await refresh();setError('Sessiya boshqa oynada yangilandi. Eng so‘nggi holat yuklandi.')}else setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}};
   const removeParticipant=async(studentId:string,fullName:string)=>{
     if(!window.confirm(`${fullName} xonadan chiqarilsinmi?`))return;
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});
