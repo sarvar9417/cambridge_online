@@ -84,6 +84,21 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('remaining===0');
     expect(page).toContain("remaining===0?'Vaqt tugadi'");
   });
+  it('pins student autosave and submit to the rendered session question',()=>{
+    expect(page).toContain('questionId:snapshot.question.id');
+    expect(page).toContain("setError('')},[snapshot.question?.id,session.status]");
+  });
+
+  it('keeps selected subtopics aligned with the active topic filters',()=>{
+    expect(page).toContain('const nextTopics=topicIds.includes(topic.topic_id)');
+    expect(page).toContain('nextTopics.includes(row.topic_id)');
+  });
+
+  it('does not expose a blank projector action before the lobby is ready',()=>{
+    expect(page).toContain("!['draft','published','cancelled'].includes(session.status)");
+    expect(page).toContain('session.currentQuestionIndex>=0');
+  });
+
   it('cancels a pending autosave before explicit submit',()=>{
     expect(page).toContain('window.clearTimeout(saveTimer.current);');
     expect(page).toContain('busy||saving');
