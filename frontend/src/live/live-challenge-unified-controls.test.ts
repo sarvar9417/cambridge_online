@@ -43,6 +43,12 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('expectedVersion:snapshot.session.version');
   });
 
+  it('offers a teacher-marking recovery path when peer marking cannot safely start',()=>{
+    expect(page).toContain("act('/marking-mode',{mode:'teacher',expectedVersion:session.version})");
+    expect(page).toContain('O‘qituvchi baholashiga o‘tish');
+    expect(page).toContain('Peer marking uchun kamida 2 ta faol o‘quvchi kerak');
+  });
+
   it('separates answer lock from Mark Scheme reveal in the classroom UI',()=>{
     expect(page).toContain("act('/lock',{expectedVersion:session.version})");
     expect(page).toContain("session.status==='answers_locked'");
