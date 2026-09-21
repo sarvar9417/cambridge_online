@@ -69,7 +69,7 @@ type PeerAnswer = { answerId: string; studentId: string };
  *
  * Sorting before rotating makes reconnects and retries produce exactly the same
  * assignments. With two students reciprocal marking is unavoidable; with one
- * student the caller falls back to genuine self-assessment.
+ * student peer mode fails closed so the teacher can choose an explicit recovery.
  */
 export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
   const ordered = [...answers].sort((a, b) => {
