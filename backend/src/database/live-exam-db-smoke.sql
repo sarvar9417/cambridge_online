@@ -95,8 +95,7 @@ CREATE TABLE mastery (
 \ir migrations/0168_live_exam_peer_integrity.sql
 \ir migrations/0169_live_exam_override_audit.sql
 \ir migrations/0170_live_exam_learning_evidence.sql
-\ir migrations/0191_live_exam_builder_lifecycle.sql
-\ir migrations/0192_live_exam_override_reason.sql
+\ir migrations/0172_unified_live_challenge_controls.sql
 
 
 -- Additional canonical source metadata used by the service-level builder test.
@@ -151,6 +150,7 @@ CREATE TABLE question_subtopics (
   question_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
   subtopic_id uuid NOT NULL REFERENCES subtopics ON DELETE CASCADE,
   is_primary boolean NOT NULL DEFAULT false,
+  confidence numeric(3,2),
   PRIMARY KEY(question_id,subtopic_id)
 );
 
@@ -194,6 +194,10 @@ CREATE TABLE mark_scheme_groups (
   award_mode text,
   sort_order int NOT NULL DEFAULT 0
 );
+
+\ir migrations/0190_live_challenge_subtopic_evidence_fallback.sql
+\ir migrations/0191_live_exam_builder_lifecycle.sql
+\ir migrations/0192_live_exam_override_reason.sql
 
 DO $$
 DECLARE
@@ -280,8 +284,8 @@ INSERT INTO questions(
   '16161616-1616-4161-8161-161616161616',
   '9618/11/M/J/25 Q1','State two valid points.','State','text','AO1'
 );
-INSERT INTO question_subtopics(question_id,subtopic_id,is_primary) VALUES
-  ('88888888-8888-4888-8888-888888888888','33333333-3333-4333-8333-333333333333',true);
+INSERT INTO question_subtopics(question_id,subtopic_id,is_primary,confidence) VALUES
+  ('88888888-8888-4888-8888-888888888888','33333333-3333-4333-8333-333333333333',true,1.00);
 INSERT INTO question_learning_objectives(question_id,lo_id,confidence) VALUES
   ('88888888-8888-4888-8888-888888888888','44444444-4444-4444-8444-444444444444',1.00);
 INSERT INTO canonical_mark_schemes(id,question_id,source_paper_id,status,scheme_type,max_marks,guidance_md) VALUES
