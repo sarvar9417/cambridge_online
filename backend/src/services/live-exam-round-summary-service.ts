@@ -77,7 +77,10 @@ export class LiveExamRoundSummaryService {
         `select lep.student_id,u.full_name,
            coalesce(sum(coalesce(a.final_score,0)),0)::float8 score,
            rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc,
-             case when $3::boolean then sum(extract(epoch from (a.submitted_at-les.started_at))) end asc nulls last)::int rank
+             case
+               when $3::boolean and count(a.submitted_at)=count(*)
+                 then sum(extract(epoch from (a.submitted_at-les.started_at)))
+             end asc nulls last)::int rank
          from live_exam_participants lep
          join live_exam_sessions les on les.id=lep.session_id
          join users u on u.id=lep.student_id
