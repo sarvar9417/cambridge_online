@@ -129,6 +129,11 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.status(201).json(await service.join(req.actor!, body.code));
   });
 
+  router.get('/:id/board', async (req, res) => {
+    privateNoStore(res);
+    res.json({ data: await service.board(req.actor!, id(req.params)) });
+  });
+
   router.get('/:id', async (req, res) => {
     // A snapshot can contain the learner's draft/submitted answer and, after
     // reveal, Mark Scheme or review data. Treat it as sensitive per-user state.
