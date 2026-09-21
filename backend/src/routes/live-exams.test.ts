@@ -173,6 +173,24 @@ describe('live exam routes', () => {
     expect(resume).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',8);
   });
 
+  it('requires versions on teacher classroom state transitions', async () => {
+    const start=vi.fn().mockResolvedValue({version:3});
+    const completeMarking=vi.fn().mockResolvedValue({version:4});
+    const nextQuestion=vi.fn().mockResolvedValue({version:5});
+    const cancel=vi.fn().mockResolvedValue({version:6});
+    const session='22222222-2222-4222-8222-222222222222';
+    const app=appFor({start,completeMarking,nextQuestion,cancel});
+    await request(app).post(`/live-exams/${session}/start`).send({}).expect(400);
+    await request(app).post(`/live-exams/${session}/start`).send({expectedVersion:2}).expect(200);
+    await request(app).post(`/live-exams/${session}/marking/complete`).send({force:true,expectedVersion:3}).expect(200);
+    await request(app).post(`/live-exams/${session}/next`).send({expectedVersion:4}).expect(200);
+    await request(app).post(`/live-exams/${session}/cancel`).send({expectedVersion:5}).expect(200);
+    expect(start).toHaveBeenCalledWith(student,session,2);
+    expect(completeMarking).toHaveBeenCalledWith(student,session,true,3);
+    expect(nextQuestion).toHaveBeenCalledWith(student,session,4);
+    expect(cancel).toHaveBeenCalledWith(student,session,5);
+  });
+
   it('routes lobby removal and voluntary leave separately', async () => {
     const removeParticipant=vi.fn().mockResolvedValue({version:3});
     const leave=vi.fn().mockResolvedValue({version:4});
