@@ -7,8 +7,11 @@ import './student-live-challenge.css';
 const ACTIVE_STATUS = new Set(['lobby','question_open','marking','review']);
 
 const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
+  draft:'Draft',
+  published:'Nashr qilingan',
   lobby:'O‘qituvchi boshlashini kutmoqda',
   question_open:'Savol ochiq',
+  answers_locked:'Javoblar yopildi',
   marking:'Baholash davom etmoqda',
   review:'Natijalar ochiq',
   finished:'Yakunlangan',
