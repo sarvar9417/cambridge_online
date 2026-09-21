@@ -18,6 +18,213 @@ export type CourseTopicFrame = {
 
 const TOPIC_FRAMES: readonly CourseTopicFrame[] = [
   {
+    chapter:1, topicCode:'1.1', label:'CHAPTER 1.1 DATA REPRESENTATION',
+    lessons:[
+      {
+        title:'How do number systems represent values?', pages:[2,3],
+        objectives:[
+          'Explain positional number systems and binary/denary conversion.',
+          'Convert values between binary and denary.',
+          'Explain why computers use binary states.',
+          'Use the source methods accurately in worked conversion examples.',
+        ],
+        starter:'The same value can be written as 53, 00110101 or 35. What makes each representation meaningful?',
+        recap:['Explain positional value.','Convert binary to denary.','Convert denary to binary.','Explain why binary maps naturally to digital hardware.'],
+      },
+      {
+        boundary:'h1-112-signed', title:'How are signed values and binary arithmetic handled?', pages:[3,4,5,6],
+        objectives:[
+          'Explain signed representations at the source level.',
+          'Create and interpret two’s-complement values.',
+          'Perform binary addition/subtraction.',
+          'Recognise overflow and fixed-width limits.',
+        ],
+        starter:'An 8-bit pattern begins with 1. Does that always mean the value is negative? What interpretation rule is needed?',
+        recap:['Create one negative two’s-complement value.','Interpret one signed value.','Perform one binary addition.','Explain overflow.'],
+      },
+      {
+        boundary:'h1-memory-units', title:'How do storage units and hexadecimal make binary easier to use?', pages:[6,7,8,9,10],
+        objectives:[
+          'Distinguish decimal and binary storage prefixes.',
+          'Convert between binary and hexadecimal.',
+          'Explain the direct nibble-to-hex relationship.',
+          'Explain practical uses of hexadecimal around computer systems.',
+        ],
+        starter:'Why do humans often inspect a long binary address as hexadecimal instead of writing every bit?',
+        recap:['Distinguish kB and KiB.','Convert binary to hex.','Convert hex to binary.','Give two uses of hexadecimal.'],
+      },
+      {
+        boundary:'h1-114-bcd', title:'How are decimal digits and characters encoded?', pages:[10,11,12,13,14,15],
+        objectives:[
+          'Explain BCD and its digit-by-digit representation.',
+          'Explain BCD use/correction at the source level.',
+          'Explain ASCII and its ordered code ranges.',
+          'Explain why Unicode is needed beyond ASCII.',
+        ],
+        starter:'Why is the BCD encoding of 3165 different from the ordinary binary representation of the number 3165?',
+        recap:['Encode one BCD value.','Explain one BCD use.','Explain ASCII.','Explain why Unicode is needed.'],
+      },
+    ],
+  },
+  {
+    chapter:1, topicCode:'1.2', label:'CHAPTER 1.2 MULTIMEDIA',
+    lessons:[
+      {
+        title:'How are bitmap and vector images represented?', pages:[15,16,17,18,19],
+        objectives:[
+          'Explain bitmap pixels, resolution and colour depth.',
+          'Calculate raw bitmap size.',
+          'Explain vector objects and attributes.',
+          'Choose bitmap or vector representation for a scenario.',
+        ],
+        starter:'A logo must scale from a phone icon to a billboard without visible pixels. Which representation is more suitable?',
+        recap:['Explain pixel/resolution/colour depth.','Calculate a bitmap size.','Explain vector storage.','Choose bitmap vs vector.'],
+      },
+      {
+        boundary:'h1-123-sound-wave', title:'How are sound and video represented?', pages:[19,20,21],
+        objectives:[
+          'Explain sampling of analogue sound.',
+          'Explain sampling rate/resolution trade-offs.',
+          'Explain common digital sound editing operations.',
+          'Explain video as timed frames with associated audio/data.',
+        ],
+        starter:'If a sound is sampled more often and with more bits per sample, what happens to fidelity and file size?',
+        recap:['Explain sampling.','Compare rate and resolution.','State one editing operation.','Explain digital video representation.'],
+      },
+    ],
+  },
+  {
+    chapter:1, topicCode:'1.3', label:'CHAPTER 1.3 FILE COMPRESSION',
+    lessons:[
+      {
+        title:'Why and when is lossy compression acceptable?', pages:[21,22],
+        objectives:[
+          'Explain why files are compressed.',
+          'Distinguish lossy and lossless compression.',
+          'Explain MP3/JPEG examples at the source level.',
+          'Choose a suitable compression approach for a purpose.',
+        ],
+        starter:'Would you accept losing detail from source code, a web photograph and a music stream in the same way?',
+        recap:['Explain need for compression.','Compare lossy/lossless.','Explain MP3 or JPEG.','Choose a method for a scenario.'],
+      },
+      {
+        boundary:'h1-rle-text', title:'How does run-length encoding and source reduction reduce size?', pages:[22,23,24],
+        objectives:[
+          'Explain RLE for repeated text/data.',
+          'Explain RLE for simple bitmap runs.',
+          'Recognise when RLE can expand rather than shrink data.',
+          'Explain general source-quality reductions for image, audio and video.',
+        ],
+        starter:'Which data compresses better with RLE: AAAAAAAABBBB or ABCDEFGH, and why?',
+        recap:['Encode a simple RLE run.','Explain image RLE.','State one RLE limitation.','Explain one media-size reduction method.'],
+      },
+    ],
+  },
+  {
+    chapter:13, topicCode:'13.1', label:'CHAPTER 13.1 USER-DEFINED DATA TYPES',
+    lessons:[
+      {
+        title:'Why create user-defined data types?', pages:[1,2,3,4],
+        objectives:[
+          'Explain why a program may need a user-defined type.',
+          'Explain enumerated types and pointers.',
+          'Explain records as composite types.',
+          'Use source examples to constrain data to meaningful structures.',
+        ],
+        starter:'A variable should contain only MONDAY…SUNDAY, not any arbitrary string. How can a type enforce that rule?',
+        recap:['Explain need for UDTs.','Define enumeration.','Explain pointer.','Explain record.'],
+      },
+      {
+        boundary:'h13-sets-classes', title:'How do sets and classes extend type modelling?', pages:[4],
+        objectives:[
+          'Explain sets/classes at the coursebook level.',
+          'Relate allowed operations to type design.',
+          'Apply the source Activity 13C ideas.',
+          'Choose a suitable UDT for a scenario.',
+        ],
+        starter:'When does a collection of values need behaviour and structure beyond a simple primitive type?',
+        recap:['Explain one set concept.','Explain one class/type concept.','Choose a UDT.','Apply one Activity 13C idea.'],
+      },
+    ],
+  },
+  {
+    chapter:13, topicCode:'13.2', label:'CHAPTER 13.2 FILE ORGANISATION AND ACCESS',
+    lessons:[
+      {
+        title:'How are records organised and accessed in files?', pages:[5,6,7,8],
+        objectives:[
+          'Explain serial, sequential and random/direct organisation.',
+          'Explain sequential and direct access.',
+          'Choose organisation/access methods for a scenario.',
+          'Use the source terminology consistently.',
+        ],
+        starter:'A payroll system often processes every employee, while a booking system may need one record immediately. Should both files be accessed the same way?',
+        recap:['Explain serial.','Explain sequential.','Explain random/direct.','Choose an access method.'],
+      },
+      {
+        boundary:'h13-hash-address', title:'How does hashing locate a record?', pages:[7,8],
+        objectives:[
+          'Explain a hash function as an address-calculation method.',
+          'Explain collisions.',
+          'Explain collision-handling ideas from the source.',
+          'Evaluate why a good hash distributes records effectively.',
+        ],
+        starter:'Two different keys produce the same storage address. What problem has occurred and what must the system do?',
+        recap:['Explain hashing.','Define collision.','State a collision response.','Explain desirable hash distribution.'],
+      },
+    ],
+  },
+  {
+    chapter:13, topicCode:'13.3', label:'CHAPTER 13.3 FLOATING-POINT REPRESENTATION',
+    lessons:[
+      {
+        title:'How is a floating-point number stored and interpreted?', pages:[9,10,11,12,13,14],
+        objectives:[
+          'Explain mantissa/significand and exponent fields at source depth.',
+          'Interpret the source floating-point format.',
+          'Convert floating-point binary to denary.',
+          'Trace worked examples accurately.',
+        ],
+        starter:'How can a fixed number of bits represent both very small and very large values without storing every digit explicitly?',
+        recap:['Identify mantissa/exponent.','Interpret signs.','Convert one float to denary.','Explain field roles.'],
+      },
+      {
+        boundary:'h13-denary-to-float', title:'How is a denary value encoded as floating point?', pages:[14,15,16,17],
+        objectives:[
+          'Convert denary values to the source floating-point representation.',
+          'Choose exponent shifts correctly.',
+          'Represent positive and negative values.',
+          'Check the represented value by converting back.',
+        ],
+        starter:'What binary-point movement and exponent are needed to encode a value efficiently?',
+        recap:['Convert denary to float.','Choose exponent.','Encode a negative value.','Verify by reverse conversion.'],
+      },
+      {
+        boundary:'h13-approximation', title:'Why are floating-point values approximate and normalised?', pages:[17,18,19,20],
+        objectives:[
+          'Explain approximation caused by limited bits.',
+          'Explain normalisation.',
+          'Normalise source examples.',
+          'Relate normalisation to precision and valid representation.',
+        ],
+        starter:'Why can two mathematically equivalent bit patterns be poor choices if one wastes leading mantissa capacity?',
+        recap:['Explain approximation.','Define normalisation.','Normalise one value.','Explain why normalisation matters.'],
+      },
+      {
+        boundary:'h13-precision-range', title:'How do precision, range, rounding, overflow and underflow interact?', pages:[20,21,22],
+        objectives:[
+          'Distinguish precision from range.',
+          'Explain how field widths affect both.',
+          'Explain rounding at the source level.',
+          'Explain overflow, underflow and zero representation.',
+        ],
+        starter:'If you give more bits to the exponent but keep total word length fixed, what happens to range and mantissa precision?',
+        recap:['Define precision.','Define range.','Explain rounding.','Explain overflow vs underflow.'],
+      },
+    ],
+  },
+
+  {
     chapter:5, topicCode:'5.1', label:'CHAPTER 5.1 OPERATING SYSTEMS',
     lessons:[
       {
