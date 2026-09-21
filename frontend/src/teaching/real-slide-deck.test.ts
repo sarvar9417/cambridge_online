@@ -16,7 +16,7 @@ describe('Chapter 3 real PPTX presentation route',()=>{
     const logic=realSlideDeckFor('9618',3,'3.2');
     expect(components?.slides).toHaveLength(22);
     expect(logic?.slides).toHaveLength(22);
-    expect(components?.embedUrl).toContain('/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/embed');
+    expect(components?.embedUrl).toContain('/file/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/preview');
     expect(CHAPTER_3_REAL_PPTX_DRIVE_URL).toContain('1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM');
     expect(realSlideDeckFor('9618',4,'4.1')).toBeNull();
   });
