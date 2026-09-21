@@ -43,14 +43,15 @@ export function RealSlideDeckPresentation({deck,onExit,onFullscreen}:Props){
   },[deck.slides,index]);
 
   const sourceLabel=useMemo(()=>{
+    if(slide.sourceLabel)return slide.sourceLabel;
     const pages=slide.sourcePages;
-    if(!pages?.length)return '';
+    if(!pages?.length)return `Real Chapter ${deck.chapter} slide`;
     return pages.length===1?`Hodder p.${pages[0]}`:`Hodder pp.${pages[0]}–${pages.at(-1)}`;
-  },[slide.sourcePages]);
+  },[deck.chapter,slide.sourceLabel,slide.sourcePages]);
 
   return <section className="real-deck" aria-label={deck.title}>
     <header className="real-deck-bar">
-      <div><span>9618 · CHAPTER {deck.chapter} · REAL DECK</span><strong>{deck.title}</strong></div>
+      <div><span>9618 · CHAPTER {deck.chapter} · HIGH-RES REAL DECK</span><strong>{deck.title}</strong></div>
       <span>{index+1} / {total}</span>
       <a href={deck.pptxDriveUrl} target="_blank" rel="noreferrer" title="Open the editable full-quality PPTX in Google Drive"><FileArrowDown size={21}/><span>Drive PPTX</span></a>
       <a href={deck.projectPptxUrl} download={deck.projectPptxFileName} title="Download the project mirror PPTX"><HardDrives size={21}/><span>Project PPTX</span></a>
@@ -59,12 +60,12 @@ export function RealSlideDeckPresentation({deck,onExit,onFullscreen}:Props){
     </header>
     <main className="real-deck-stage">
       <figure className="real-deck-slide">
-        <img src={slide.imageUrl} alt={`Slide ${slide.number}: ${slide.title}`} draggable={false}/>
+        <img src={slide.imageUrl} width={2560} height={1440} decoding="async" fetchPriority={index===0?'high':'auto'} alt={`Slide ${slide.number}: ${slide.title}`} draggable={false}/>
       </figure>
     </main>
     <footer className="real-deck-nav">
       <button type="button" disabled={index===0} onClick={previous}><ArrowLeft size={23}/><span>Previous</span></button>
-      <p><strong>{slide.title}</strong><span>{sourceLabel} · ← / → or Space</span></p>
+      <p><strong>{slide.title}</strong><span>{sourceLabel} · 2560×1440 WebP · ← / → or Space</span></p>
       <button type="button" disabled={index===total-1} onClick={next}><span>Next</span><ArrowRight size={23}/></button>
     </footer>
   </section>;

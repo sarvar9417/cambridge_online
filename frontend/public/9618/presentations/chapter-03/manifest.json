@@ -15,96 +15,140 @@
     "compressed": true
   },
   "slideCount": 22,
-  "slideFormat": "jpg",
+  "slideFormat": "webp",
   "slideBasePath": "/9618/presentations/chapter-03/slides",
   "slides": [
     {
       "number": 1,
-      "image": "/9618/presentations/chapter-03/slides/slide-01.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-01.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 2,
-      "image": "/9618/presentations/chapter-03/slides/slide-02.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-02.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 3,
-      "image": "/9618/presentations/chapter-03/slides/slide-03.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-03.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 4,
-      "image": "/9618/presentations/chapter-03/slides/slide-04.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-04.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 5,
-      "image": "/9618/presentations/chapter-03/slides/slide-05.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-05.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 6,
-      "image": "/9618/presentations/chapter-03/slides/slide-06.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-06.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 7,
-      "image": "/9618/presentations/chapter-03/slides/slide-07.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-07.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 8,
-      "image": "/9618/presentations/chapter-03/slides/slide-08.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-08.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 9,
-      "image": "/9618/presentations/chapter-03/slides/slide-09.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-09.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 10,
-      "image": "/9618/presentations/chapter-03/slides/slide-10.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-10.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 11,
-      "image": "/9618/presentations/chapter-03/slides/slide-11.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-11.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 12,
-      "image": "/9618/presentations/chapter-03/slides/slide-12.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-12.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 13,
-      "image": "/9618/presentations/chapter-03/slides/slide-13.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-13.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 14,
-      "image": "/9618/presentations/chapter-03/slides/slide-14.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-14.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 15,
-      "image": "/9618/presentations/chapter-03/slides/slide-15.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-15.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 16,
-      "image": "/9618/presentations/chapter-03/slides/slide-16.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-16.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 17,
-      "image": "/9618/presentations/chapter-03/slides/slide-17.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-17.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 18,
-      "image": "/9618/presentations/chapter-03/slides/slide-18.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-18.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 19,
-      "image": "/9618/presentations/chapter-03/slides/slide-19.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-19.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 20,
-      "image": "/9618/presentations/chapter-03/slides/slide-20.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-20.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 21,
-      "image": "/9618/presentations/chapter-03/slides/slide-21.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-21.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 22,
-      "image": "/9618/presentations/chapter-03/slides/slide-22.jpg"
+      "image": "/9618/presentations/chapter-03/slides/slide-22.webp",
+      "width": 2560,
+      "height": 1440
     }
   ],
   "sourceRange": "Hodder 9618 Chapter 3, printed pp.68\u2013106",
@@ -115,6 +159,10 @@
   "runtime": {
     "htmlCssReconstruction": false,
     "sourceOfTruth": "Drive PPTX",
-    "projectDelivery": "static slide images + compressed PPTX mirror"
-  }
+    "projectDelivery": "high-resolution static slide images + PPTX mirror",
+    "largeDisplayQuality": "2560x1440 WebP slides preserve clarity on projectors and large screens"
+  },
+  "imageWidth": 2560,
+  "imageHeight": 1440,
+  "quality": "high-resolution 2560x1440 WebP quality 95"
 }
