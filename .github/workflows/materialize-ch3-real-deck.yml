@@ -1,0 +1,118 @@
+name: Materialize Chapter 3 real deck assets
+
+on:
+  push:
+    branches:
+      - feature/ch3-real-pptx-project-mirror-20260921
+    paths:
+      - .github/workflows/materialize-ch3-real-deck.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/ch3-real-pptx-project-mirror-20260921
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow python-pptx
+      - name: Download original Drive PPTX
+        env:
+          SOURCE_URL: 'https://sdmntprdenmarkeast.oaiusercontent.com/files/00000000-f0e0-8210-80ec-4c81a8b659b8/raw?se=2026-09-21T05%3A32%3A23Z&sp=r&sv=2026-02-06&sr=b&scid=d064eb56-34bf-50bf-b726-511e2033900d&skoid=40ce4b34-a373-4a62-b0bf-44befe221915&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-21T03%3A25%3A50Z&ske=2026-09-22T03%3A25%3A50Z&sks=b&skv=2026-02-06&sig=4BtB6jGULOOoqz3gHig06Qi1RmLhHNp%2B3HxQF6ooNFU%3D'
+        run: |
+          mkdir -p /tmp/ch3
+          curl --fail --location --retry 3 --output /tmp/ch3/source.pptx "$SOURCE_URL"
+          test "$(stat -c%s /tmp/ch3/source.pptx)" -gt 30000000
+      - name: Build project slide assets and compressed PPTX mirror
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import xml.etree.ElementTree as ET
+          from PIL import Image
+          from pptx import Presentation
+          from pptx.util import Inches
+          import io, json, shutil
+
+          source=Path('/tmp/ch3/source.pptx')
+          root=Path('frontend/public/9618/presentations/chapter-03')
+          slides=root/'slides'
+          slides.mkdir(parents=True,exist_ok=True)
+
+          NS={'r':'http://schemas.openxmlformats.org/package/2006/relationships'}
+          rendered=[]
+          with ZipFile(source) as z:
+              for n in range(1,23):
+                  rel_path=f'ppt/slides/_rels/slide{n}.xml.rels'
+                  rel=ET.fromstring(z.read(rel_path))
+                  image_target=None
+                  for node in rel.findall('r:Relationship',NS):
+                      typ=node.attrib.get('Type','')
+                      if typ.endswith('/image'):
+                          image_target=node.attrib['Target']
+                          break
+                  if not image_target:
+                      raise RuntimeError(f'No image relationship on slide {n}')
+                  media='ppt/'+image_target.replace('../','')
+                  data=z.read(media)
+                  im=Image.open(io.BytesIO(data)).convert('RGB')
+                  im=im.resize((1024,576),Image.Resampling.LANCZOS)
+                  out=slides/f'slide-{n:02d}.jpg'
+                  im.save(out,'JPEG',quality=60,optimize=True,progressive=True)
+                  rendered.append(out)
+
+          prs=Presentation()
+          prs.slide_width=Inches(13.333333)
+          prs.slide_height=Inches(7.5)
+          blank=prs.slide_layouts[6]
+          for img in rendered:
+              slide=prs.slides.add_slide(blank)
+              slide.shapes.add_picture(str(img),0,0,width=prs.slide_width,height=prs.slide_height)
+          mirror=root/'9618_Chapter_03_Hardware_Project_Mirror.pptx'
+          prs.save(mirror)
+
+          manifest={
+            'id':'9618-chapter-03-hardware',
+            'course':'9618',
+            'chapter':3,
+            'title':'Hardware',
+            'delivery':'project-slide-images',
+            'sourcePptx':{
+              'fileName':'9618_Chapter_03_Hardware_Real_Deck.pptx',
+              'driveFileId':'1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM',
+              'driveUrl':'https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true',
+              'shared':True
+            },
+            'projectMirror':{
+              'pptx':'/9618/presentations/chapter-03/9618_Chapter_03_Hardware_Project_Mirror.pptx',
+              'compressed':True
+            },
+            'slideCount':22,
+            'slideFormat':'jpg',
+            'slideBasePath':'/9618/presentations/chapter-03/slides',
+            'slides':[{'number':n,'image':f'/9618/presentations/chapter-03/slides/slide-{n:02d}.jpg'} for n in range(1,23)],
+            'sourceRange':'Hodder 9618 Chapter 3, printed pp.68–106',
+            'topics':['3.1 Computers and their components','3.2 Logic gates and logic circuits'],
+            'runtime':{
+              'htmlCssReconstruction':False,
+              'sourceOfTruth':'Drive PPTX',
+              'projectDelivery':'static slide images + compressed PPTX mirror'
+            }
+          }
+          (root/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+          print('slides',len(rendered),'mirror bytes',mirror.stat().st_size)
+          PY
+      - name: Commit generated assets and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/9618/presentations/chapter-03
+          git rm .github/workflows/materialize-ch3-real-deck.yml
+          git commit -m "Store Chapter 3 real deck mirror and slide assets in project"
+          git push origin HEAD:feature/ch3-real-pptx-project-mirror-20260921
