@@ -76,6 +76,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("String(existing.rows[0].answer_text ?? '') !== text");
   });
 
+  it('treats duplicate submitted peer marks as idempotent retries',()=>{
+    expect(service).toContain("['submitted','moderated'].includes(String(row.status))");
+    expect(service).toContain('reviewId,');
+    expect(service).toContain('idempotent: true');
+  });
+
   it('separates answer locking from Mark Scheme reveal',()=>{
     expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
     expect(service).toContain("'answers.locked'");
