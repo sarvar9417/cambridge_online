@@ -5,7 +5,7 @@ import { navigate } from '../lib/router';
 import './student-live-challenge.css';
 
 const ACTIVE_STATUS = new Set(['lobby','question_open','answers_locked','marking','review']);
-const UPCOMING_STATUS = new Set(['published','lobby']);
+const UPCOMING_STATUS = new Set(['published','lobby','question_open']);
 
 const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
   draft:'Draft',
