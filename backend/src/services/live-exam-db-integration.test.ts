@@ -7,6 +7,7 @@ import { LiveExamControlService } from './live-exam-control-service.js';
 import { LiveExamModerationService } from './live-exam-moderation-service.js';
 import { LiveExamParticipationService } from './live-exam-participation-service.js';
 import { LiveExamService } from './live-exam-service.js';
+import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
 import { LiveExamStudentFeedService } from './live-exam-student-feed-service.js';
 import { projectLiveExamForBoard } from './live-exam-board-projection.js';
 
@@ -80,6 +81,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
   const participation=new LiveExamParticipationService(pool);
   const moderation=new LiveExamModerationService(pool);
   const runtime=new LiveExamService(pool,questionRepository);
+  const realtime=new LiveExamRealtimeService(pool);
   const studentFeed=new LiveExamStudentFeedService(pool);
 
   afterAll(async()=>{
@@ -162,6 +164,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     const started=await control.start(teacher,sessionId,version);
     expect(started.status).toBe('question_open');
     version=started.version;
+    const reconnectCursorVersion=version;
     await expect(control.start(teacher,sessionId,version))
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
 
@@ -217,6 +220,19 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     version=locked.version;
     await expect(runtime.submitAnswer(studentA,sessionId,'late mutation'))
       .rejects.toMatchObject({code:'live_answer_locked',status:409});
+
+    const missedEvents=await realtime.events(studentA,sessionId,reconnectCursorVersion,50);
+    expect(missedEvents.changed).toBe(true);
+    expect(missedEvents.currentVersion).toBe(version);
+    expect(missedEvents.events.length).toBeGreaterThan(0);
+    expect(JSON.stringify(missedEvents.events)).not.toContain('answer_text');
+    expect(JSON.stringify(missedEvents.events)).not.toContain('mark_scheme');
+    const recoveredAfterMiss=await runtime.snapshot(studentA,sessionId);
+    expect(recoveredAfterMiss.session.status).toBe('answers_locked');
+    expect(recoveredAfterMiss.session.version).toBe(version);
+    expect(recoveredAfterMiss.markScheme).toBeNull();
+    const caughtUp=await realtime.events(studentA,sessionId,version,50);
+    expect(caughtUp).toMatchObject({currentVersion:version,changed:false,events:[]});
 
     const revealed=await control.revealMarkScheme(teacher,sessionId,version);
     expect(revealed.status).toBe('marking');
