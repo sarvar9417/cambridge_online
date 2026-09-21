@@ -113,6 +113,10 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('idempotent: true');
   });
 
+  it('counts only actually started live sessions as seen-question history',()=>{
+    expect(service).toContain('previous.started_at is not null');
+  });
+
   it('freezes the teacher-reviewed draft order at publish',()=>{
     expect(service).toContain("questionOrder: 'fixed' as const");
     expect(service).toContain('publish must never silently');
