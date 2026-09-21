@@ -3,15 +3,19 @@ import './chapter7-ethics-visuals.css';
 
 export const CHAPTER_7_ETHICS_VISUAL_IDS = [
   'h7-71-foundations',
+  'h7-711-computer-ethics',
   'h7-712-bcs-ieee',
   'h7-712-software-code',
   'h7-712-mikhail',
   'h7-713-public-impact',
+  'h7-71-internet-debate',
+  'h7-72-copyright-terms',
   'h7-721-software-copyright',
   'h7-722-drm',
   'h7-723-commercial-free-open',
   'h7-723-freeware-shareware',
   'h7-731-ai-definition',
+  'h7-732-ai-impact',
   'h7-733-jobs-economy',
   'h7-733-environment',
   'h7-733-transport-justice',
@@ -164,18 +168,76 @@ function AdvertisingData({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function ComputerEthics({reveal}:{reveal:number}){
+  return <div className="h7eth h7eth-computer-ethics" aria-label="Computer ethics intellectual property privacy and social impact visual">
+    <div className={'h7eth-core '+state(reveal,1)}><b>COMPUTER ETHICS</b><span>principles regulating computer use</span></div>
+    <div className="h7eth-ethics-grid">
+      <section className={state(reveal,1)}><b>INTELLECTUAL PROPERTY</b><span>copying software without permission</span></section>
+      <section className={state(reveal,2)}><b>PRIVACY</b><span>unauthorised access to personal information</span></section>
+      <section className={state(reveal,2)}><b>SOCIAL IMPACT</b><span>job loss and wider social change</span></section>
+      <section className={state(reveal,3)}><b>PLAGIARISM</b><span>acknowledge borrowed ideas and quotations</span></section>
+    </div>
+    <footer className={state(reveal,3)}>plagiarism-detection software can compare submitted text with material published online</footer>
+  </div>;
+}
+
+function InternetDebate({reveal}:{reveal:number}){
+  return <div className="h7eth h7eth-debate" aria-label="Internet policing protection versus freedom debate visual">
+    <section className={state(reveal,1)}><header>STRONGER POLICING</header><span>reduce illegal / harmful material</span><span>protect children and vulnerable users</span><span>hold platforms accountable</span></section>
+    <div className={'h7eth-debate-core '+state(reveal,2)}><b>POLICY TENSION</b><span>protection ↔ freedom</span></div>
+    <section className={state(reveal,2)}><header>FREEDOM CONCERNS</header><span>restrict information / expression</span><span>material may remain elsewhere</span><span>who decides what is unacceptable?</span></section>
+    <footer className={state(reveal,3)}>build a reasoned conclusion using both sides of the source activity</footer>
+  </div>;
+}
+
+function CopyrightTerms({reveal}:{reveal:number}){
+  const items=[
+    ['PIRACY','illegal copies / use'],
+    ['PRODUCT KEY','restrict unauthorised installation'],
+    ['DRM','control access and permitted use'],
+    ['FREE SOFTWARE FOUNDATION','run · copy · study · change · adapt'],
+    ['OPEN SOURCE INITIATIVE','open collaborative development'],
+    ['FREEWARE','no charge · copyright remains'],
+    ['SHAREWARE','trial first · payment for continued/full use'],
+  ] as const;
+  return <div className="h7eth h7eth-copyright-terms" aria-label="Copyright software licensing terminology map">
+    <div className={'h7eth-lock '+state(reveal,1)}><b>COPYRIGHT</b><span>law + licence + technical controls</span></div>
+    <div className="h7eth-copyright-term-grid">{items.map(([term,note],index)=><section className={state(reveal,index<3?1:index<5?2:3)} key={term}><b>{term}</b><span>{note}</span></section>)}</div>
+  </div>;
+}
+
+function AiImpact({reveal}:{reveal:number}){
+  const examples=[
+    ['AUTONOMOUS VEHICLES','navigation and driving decisions'],
+    ['ARTIFICIAL LIMBS','advanced control supports movement'],
+    ['DRONES','dangerous / unpleasant tasks'],
+    ['CLIMATE PREDICTION','analyse patterns and forecast change'],
+    ['MEDICAL PROCEDURES','support high-precision tasks'],
+  ] as const;
+  return <div className="h7eth h7eth-ai-impact" aria-label="Artificial intelligence impact examples visual">
+    <div className={'h7eth-ai-core '+state(reveal,1)}><b>AI IMPACT</b><span>beyond fictional robots</span></div>
+    <div className="h7eth-ai-impact-grid">{examples.map(([title,note],index)=><section className={state(reveal,index<2?1:index<4?2:3)} key={title}><b>{title}</b><span>{note}</span></section>)}</div>
+    <footer className={state(reveal,3)}>Asimov’s three laws are used by the source as a discussion device for safety, obedience and self-protection.</footer>
+  </div>;
+}
+
 export function Chapter7EthicsVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h7-71-foundations': return <FourLenses reveal={reveal}/>;
+    case 'h7-711-computer-ethics': return <ComputerEthics reveal={reveal}/>;
     case 'h7-712-bcs-ieee': return <ProfessionalBodies reveal={reveal}/>;
     case 'h7-712-software-code': return <EightPrinciples reveal={reveal}/>;
     case 'h7-712-mikhail': return <MikhailCase reveal={reveal}/>;
     case 'h7-713-public-impact': return <PublicImpact reveal={reveal}/>;
+    case 'h7-71-internet-debate': return <InternetDebate reveal={reveal}/>;
+    case 'h7-72-copyright-terms': return <CopyrightTerms reveal={reveal}/>;
     case 'h7-721-software-copyright': return <CopyrightControls reveal={reveal}/>;
     case 'h7-722-drm': return <Drm reveal={reveal}/>;
     case 'h7-723-commercial-free-open': return <LicenceModels reveal={reveal}/>;
     case 'h7-723-freeware-shareware': return <FreewareShareware reveal={reveal}/>;
     case 'h7-731-ai-definition': return <AiDefinition reveal={reveal}/>;
+    case 'h7-732-ai-impact': return <AiImpact reveal={reveal}/>;
     case 'h7-733-jobs-economy': return <JobsEconomy reveal={reveal}/>;
     case 'h7-733-environment': return <Environment reveal={reveal}/>;
     case 'h7-733-transport-justice': return <TransportJustice reveal={reveal}/>;
