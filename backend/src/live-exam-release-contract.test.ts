@@ -132,7 +132,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("reason: 'locked_round_recovery'");
   });
 
-  it('fails closed before persistence when a peer round has fewer than two answers',()=>{
+  it('uses only recently active participants as the peer reviewer pool',()=>{
+    expect(service).toContain("last_seen_at >= now()-interval '90 seconds'");
+    expect(service).toContain('activeReviewers.rows.map');
+    expect(service).toContain('reviewerStudentIds: string[]');
+  });
+
+  it('fails closed when no safe peer reviewer can be assigned',()=>{
     expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
   });
 
@@ -180,6 +186,11 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
+  });
+
+  it('serializes voluntary leave against the lobby-to-start transition',()=>{
+    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for update");
+    expect(service).toContain("if (session.rows[0].status !== 'lobby')");
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
