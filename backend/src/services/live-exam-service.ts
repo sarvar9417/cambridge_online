@@ -1909,9 +1909,10 @@ export class LiveExamService {
            moderated_by=$5,moderated_at=now()
          from live_exam_questions leq
          where a.id=$1 and leq.id=a.session_question_id and leq.session_id=$2
+           and leq.position=$6
            and $3 between 0 and leq.marks
          returning a.id`,
-        [answerId, sessionId, input.score, input.feedback ?? null, actor.id],
+        [answerId, sessionId, input.score, input.feedback ?? null, actor.id, session.current_question_index],
       );
       if (!result.rowCount) throw new DomainError('invalid_score', 400);
       await client.query(
