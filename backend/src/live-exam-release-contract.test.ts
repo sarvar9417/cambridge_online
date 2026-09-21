@@ -13,6 +13,7 @@ const overrideAudit=source('src/database/migrations/0169_live_exam_override_audi
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
 const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
+const builderLifecycle=source('src/database/migrations/0191_live_challenge_builder_lifecycle.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -32,11 +33,22 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));');
   });
 
+  it('discovers published class challenges for students without leaking room codes',()=>{
+    expect(service).toContain("les.status in ('published','lobby')");
+    expect(service).toContain("les.status='question_open'");
+    expect(service).toContain("les.settings->>'allowLateJoin'");
+    expect(service).toContain('select 1 from enrollments e');
+    expect(service).toContain("joinCode: actor.role === 'student' ? null : row.join_code");
+    expect(service).toContain('joined: Boolean(row.joined)');
+  });
+
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and (");
-    expect(service).toContain("les.status='lobby'");
-    expect(service).toContain("les.settings->>'allowLateJoin'");
+    expect(service).toContain('where les.join_code=$1');
+    expect(service).toContain('select id,session_id from live_exam_participants');
+    expect(service).toContain('idempotent: true');
+    expect(service).toContain("const joinable = session.status === 'lobby'");
+    expect(service).toContain('this.settings(session.settings).allowLateJoin');
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
   });
 
@@ -44,6 +56,20 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>");
     expect(service).toContain('dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency)');
     expect(service).toContain('dependencyWork: dependencyWork.rows.map');
+  });
+
+  it('withholds the current question from a student before the round starts',()=>{
+    expect(service).toContain("const studentQuestionVisible = !['draft','published','lobby'].includes(String(session.status));");
+    expect(service).toContain('const currentRow = isStaff || studentQuestionVisible ? currentRowCandidate : undefined;');
+  });
+
+  it('strips internal source provenance from student question projections',()=>{
+    expect(service).toContain('function learnerSafePortable');
+    expect(service).toContain('storagePath: null');
+    expect(service).toContain('sourcePage: null');
+    expect(service).toContain("sha256: '0'.repeat(64)");
+    expect(service).toContain('portable: isStaff ? hydratedPortable : learnerSafePortable(hydratedPortable)');
+    expect(service).toContain('sourceQuestionId: isStaff ? currentRow.question_id : projectedUuid');
   });
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
@@ -55,18 +81,116 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
-    expect(service).toContain("select status::text,paused_at from live_exam_sessions where id=$1 for share");
-    expect(service).toContain("select * from live_exam_sessions where id=$1 for update");
+    expect(service).toContain('for share of les');
+    expect(service).toContain('for update of les');
+    expect(service).toContain('current_session_question_id');
     expect(service).toContain('for update of les');
     expect(service).toContain('and a.submitted_at is null');
     expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
   });
 
-  it('keeps peer mode structurally incapable of self marking',()=>{
+  it('binds every student answer write to the exact rendered session question',()=>{
+    expect(service).toContain('sessionQuestionId: string');
+    expect(service).toContain("current_session_question_id ?? '') !== sessionQuestionId");
+    expect(service).toContain('leq.position=les.current_question_index and leq.id=$3');
+  });
+
+  it('rejects stale teacher moderation aimed at an earlier question',()=>{
+    expect(service).toContain('and leq.position=$6');
+    expect(service).toContain('session.current_question_index');
+  });
+
+  it('keeps teacher-removed learners out of the same room on code retry',()=>{
+    expect(service).toContain("event_type='participant.removed'");
+    expect(service).toContain("payload->>'studentId'=$2");
+    expect(service).toContain("if (removedByTeacher.rowCount) throw new DomainError('live_code_not_found', 404)");
+  });
+
+  it('treats a duplicate identical answer submission as an idempotent retry',()=>{
+    expect(service).toContain('if (existing.rows[0]?.submitted_at)');
+    expect(service).toContain('idempotent: true');
+    expect(service).toContain("String(existing.rows[0].answer_text ?? '') !== text");
+  });
+
+  it('rejects review submissions from a non-current live question',()=>{
+    expect(service).toContain('and leq.position=les.current_question_index');
+  });
+
+  it('treats duplicate submitted peer marks as idempotent retries',()=>{
+    expect(service).toContain("['submitted','moderated'].includes(String(row.status))");
+    expect(service).toContain('reviewId,');
+    expect(service).toContain('idempotent: true');
+  });
+
+  it('counts only learner-visible work as seen-question history',()=>{
+    expect(service).toContain('previous.started_at is not null');
+    expect(service).toContain('a.published_at is not null and a.archived_at is null');
+  });
+
+  it('freezes the teacher-reviewed draft order at publish',()=>{
+    expect(service).toContain("questionOrder: 'fixed' as const");
+    expect(service).toContain('publish must never silently');
+    expect(service).toContain('chooseQuestionIds(actor, input, true, sessionId, sessionId)');
+  });
+
+  it('excludes missing submissions from peer/self review assignments while preserving a zero result',()=>{
+    expect(service).toContain("final_feedback_md=coalesce(final_feedback_md,'Javob topshirilmagan.')");
+    expect(service).toContain('and submitted_at is null');
+    expect(service).toContain('and a.submitted_at is not null');
+    expect(service).toContain('score_source=$2');
+  });
+  it('separates answer locking from Mark Scheme reveal',()=>{
+    expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
+    expect(service).toContain("'answers.locked'");
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("set status='marking',mark_scheme_revealed_at=now()");
+  });
+
+  it('projects projector state through an explicit learner-safe allow-list',()=>{
+    const board=service.slice(service.indexOf('async board('),service.indexOf('private async reviewFor'));
+    expect(board).toContain("joinCode: session.status === 'lobby' ? session.joinCode : null");
+    expect(board).toContain("if (session.status === 'question_open' && snapshot.question)");
+    expect(board).toContain("if (session.status === 'marking' && snapshot.markScheme)");
+    expect(board).toContain('id: boardUuid(0)');
+    expect(board).toContain('storagePath: null');
+    expect(board).toContain("sha256: '0'.repeat(64)");
+    expect(board).toContain('sourcePage: null');
+    expect(board).toContain('dependencies: []');
+    expect(board).not.toContain('participants:');
+    expect(board).not.toContain('teacherAnswers');
+    expect(board).not.toContain('ownAnswer');
+    expect(board).not.toContain('review:');
+    expect(board).not.toContain('report:');
+  });
+
+  it('keeps peer-round recovery teacher-controlled and versioned',()=>{
+    expect(service).toContain('async switchLockedMarkingMode');
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("'marking.mode_changed'");
+    expect(service).toContain("reason: 'locked_round_recovery'");
+  });
+
+  it("prioritizes each marker's next assigned review over already submitted reviews",()=>{
+    expect(service).toContain("order by case when r.status='assigned' then 0 else 1 end,r.created_at");
+  });
+
+  it('uses only recently active participants as the peer reviewer pool',()=>{
+    expect(service).toContain("last_seen_at >= now()-interval '90 seconds'");
+    expect(service).toContain('activeReviewers.rows.map');
+    expect(service).toContain('reviewerStudentIds: string[]');
+  });
+
+  it('fails closed when no safe peer reviewer can be assigned',()=>{
+    expect(service).toContain("if (!reviewerId) throw new DomainError('live_peer_assignment_impossible', 409)");
+  });
+
+  it('keeps peer mode structurally incapable of self marking after all later migrations',()=>{
     expect(peerIntegrity).toContain("session_marking_mode = 'peer'");
-    expect(peerIntegrity).toContain("NEW.kind <> 'peer'");
-    expect(peerIntegrity).toContain('NEW.reviewer_id = answer_student_id');
-    expect(peerIntegrity).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).toContain("session_marking_mode = 'peer'");
+    expect(builderLifecycle).toContain("NEW.kind <> 'peer'");
+    expect(builderLifecycle).toContain('NEW.reviewer_id = answer_student_id');
+    expect(builderLifecycle).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).not.toContain("NEW.kind = 'self'");
   });
 
   it('preserves every teacher score override as append-only audit evidence',()=>{
@@ -104,6 +228,11 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
+  });
+
+  it('serializes voluntary leave against the lobby-to-start transition',()=>{
+    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for update");
+    expect(service).toContain("if (session.rows[0].status !== 'lobby')");
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{

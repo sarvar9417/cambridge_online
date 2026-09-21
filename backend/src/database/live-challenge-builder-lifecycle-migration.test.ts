@@ -1,0 +1,44 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const sql=readFileSync(
+  resolve(process.cwd(),'src/database/migrations/0191_live_challenge_builder_lifecycle.sql'),
+  'utf8',
+);
+
+describe('Live Challenge builder lifecycle migration',()=>{
+  it('extends the canonical live_exam state machine without creating a parallel schema',()=>{
+    expect(sql).toContain("ADD VALUE IF NOT EXISTS 'draft' BEFORE 'lobby'");
+    expect(sql).toContain("ADD VALUE IF NOT EXISTS 'published' BEFORE 'lobby'");
+    expect(sql).toContain("ADD VALUE IF NOT EXISTS 'answers_locked' AFTER 'question_open'");
+    expect(sql).not.toContain('CREATE TABLE live_challenge');
+  });
+
+  it('keeps draft rooms private until publish',()=>{
+    expect(sql).toContain('ALTER COLUMN join_code DROP NOT NULL');
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS published_at timestamptz');
+  });
+
+  it('is safe to replay during release verification',()=>{
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS published_at timestamptz');
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS live_exam_sessions_published_idx');
+  });
+
+  it('restores strict no-self-marking integrity for peer rounds',()=>{
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION enforce_live_exam_peer_review_integrity()');
+    expect(sql).toContain('SET search_path = public, pg_temp');
+    expect(sql).toContain('AS $live_challenge$');
+    expect(sql).toContain('$live_challenge$;');
+    expect(sql).toContain("session_marking_mode = 'peer'");
+    expect(sql).toContain("NEW.kind <> 'peer'");
+    expect(sql).toContain('NEW.reviewer_id = answer_student_id');
+    expect(sql).not.toContain("NEW.kind = 'self'");
+  });
+
+  it('does not duplicate the orthogonal pause representation already on current main',()=>{
+    expect(sql).not.toContain("ADD VALUE IF NOT EXISTS 'paused'");
+    expect(sql).not.toContain('ADD COLUMN paused_at');
+    expect(sql).not.toContain('ADD COLUMN pause_remaining_s');
+  });
+});

@@ -63,6 +63,31 @@ describe('LiveExamRoundSummaryService', () => {
     expect(query.mock.calls[1]?.[1]).toEqual(['session-1',0,false]);
   });
 
+  it('excludes participants removed from the lobby from round and overall standings', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:0,settings:{}}]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:0}]});
+    await serviceFor(query).summary(teacher,'session-1');
+    expect(String(query.mock.calls[1]?.[0])).toContain('lep.left_at is null');
+    expect(String(query.mock.calls[2]?.[0])).toContain('lep.left_at is null');
+  });
+
+  it('derives each learner overall possible marks from answer rows so late joiners are not charged for earlier rounds', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:2,settings:{}}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{student_id:'s1',full_name:'Late',score:3,marks:5,rank:1}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{student_id:'s1',full_name:'Late',score:3,possible:5,rank:1}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:15}]});
+    const result=await serviceFor(query).summary(teacher,'session-1');
+    const overallSql=String(query.mock.calls[2]?.[0]??'');
+    expect(overallSql).toContain('join live_exam_answers a on a.participant_id=lep.id');
+    expect(overallSql).toContain('coalesce(sum(leq.marks),0)::int possible');
+    expect(result.overall.possible).toBe(15);
+    expect(result.overall.standings[0]?.possible).toBe(5);
+  });
+
   it('uses submission time only as an equal-mark tie-break when enabled', async () => {
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:0,settings:{leaderboardMode:'marks_speed_tiebreak'}}]})
@@ -72,6 +97,10 @@ describe('LiveExamRoundSummaryService', () => {
     const result=await serviceFor(query).summary(teacher,'session-1');
     expect(result.leaderboardMode).toBe('marks_speed_tiebreak');
     expect(String(query.mock.calls[1]?.[0])).toContain('case when $3::boolean then a.submitted_at');
+    expect(String(query.mock.calls[1]?.[0])).toContain('order by score desc');
+    expect(String(query.mock.calls[2]?.[0])).toContain('count(a.submitted_at)=count(*)');
+    expect(String(query.mock.calls[2]?.[0])).toContain('order by score desc');
+    expect(String(query.mock.calls[2]?.[0])).toContain('nulls last');
     expect(query.mock.calls[1]?.[1]).toEqual(['session-1',0,true]);
   });
 });
