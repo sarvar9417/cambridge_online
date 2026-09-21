@@ -32,6 +32,7 @@ import {
 import { LessonPresentationScreen, LessonStudySlide, revealCountForBeat } from './LessonContent';
 import { LessonPastPaper } from './LessonPastPaper';
 import './lesson-experience.css';
+import './presentation-hodder-benchmark.css';
 
 type LessonExperienceProps = {audience:LessonAudience};
 type LessonCourseCode = '9618' | '0478';
@@ -219,9 +220,9 @@ export function LessonExperience({audience}:LessonExperienceProps){
   if(!activeTopic)return <section className="lx-empty"><strong>No lesson is available for this chapter.</strong><button type="button" onClick={()=>navigate(`${audience==='student'?'oquvchi':'oqitish'}/darslar`)}>Back to lessons</button></section>;
 
   if(mode==='present'){
-    if(!activeBeat)return <section ref={rootRef} className="lesson-experience lx-present"><div className="lx-empty"><strong>No presentation screens are available for this topic.</strong><button type="button" onClick={exitPresentation}>Return to Study mode</button></div></section>;
+    if(!activeBeat)return <section ref={rootRef} className="lesson-experience lx-present" data-course={courseCode(chapter)} data-chapter={chapter.number}><div className="lx-empty"><strong>No presentation screens are available for this topic.</strong><button type="button" onClick={exitPresentation}>Return to Study mode</button></div></section>;
     const totalReveal=revealCountForBeat(activeBeat);
-    return <section ref={rootRef} className="lesson-experience lx-present">
+    return <section ref={rootRef} className="lesson-experience lx-present" data-course={courseCode(chapter)} data-chapter={chapter.number}>
       <header className="lx-present-bar"><button type="button" onClick={()=>setOutlineOpen(open=>!open)} aria-expanded={outlineOpen}><List size={22}/><span>Contents</span></button><div><span>{courseCode(chapter)} · Chapter {chapter.number} · {topicLabel(activeTopic)}</span><strong>{activeTopic.title}</strong></div><span>{beatIndex+1} / {beats.length}</span><button type="button" onClick={exitPresentation}><X size={22}/><span>Exit</span></button></header>
       {outlineOpen?<aside className="lx-present-outline"><header><div><span>{topicLabel(activeTopic)}</span><strong>{activeTopic.title}</strong></div><button type="button" aria-label="Close contents" onClick={()=>setOutlineOpen(false)}><X size={22}/></button></header><nav>{beats.map((beat,index)=><button type="button" className={index===beatIndex?'is-active':''} aria-current={index===beatIndex?'step':undefined} onClick={()=>{openBeat(index);setOutlineOpen(false)}} key={beat.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{beat.title}</strong><small>{beat.kind}</small></button>)}</nav></aside>:null}
       <main className="lx-present-stage"><LessonPresentationScreen beat={activeBeat} reveal={totalReveal?reveal:totalReveal}/></main>
