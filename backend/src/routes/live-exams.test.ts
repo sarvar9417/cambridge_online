@@ -118,6 +118,19 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
+  it('requires and passes optimistic versions for answer lock and reveal', async () => {
+    const lockAnswers=vi.fn().mockResolvedValue({status:'answers_locked',version:8});
+    const revealMarkScheme=vi.fn().mockResolvedValue({status:'marking',version:9});
+    const app=appFor({lockAnswers,revealMarkScheme});
+    const session='22222222-2222-4222-8222-222222222222';
+    await request(app).post(`/live-exams/${session}/lock`).send({}).expect(400);
+    await request(app).post(`/live-exams/${session}/reveal`).send({}).expect(400);
+    await request(app).post(`/live-exams/${session}/lock`).send({expectedVersion:7}).expect(200);
+    await request(app).post(`/live-exams/${session}/reveal`).send({expectedVersion:8}).expect(200);
+    expect(lockAnswers).toHaveBeenCalledWith(student,session,7);
+    expect(revealMarkScheme).toHaveBeenCalledWith(student,session,8);
+  });
+
   it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
       new Error('live_peer_assignment_impossible'),
@@ -125,6 +138,7 @@ describe('live exam routes', () => {
     ));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:7})
       .expect(409);
     expect(response.body.error.code).toBe('live_peer_assignment_impossible');
   });
@@ -133,6 +147,7 @@ describe('live exam routes', () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:7})
       .expect(500);
     expect(response.body.error.code).toBe('internal_error');
   });
