@@ -1317,7 +1317,7 @@ export class LiveExamService {
 
     let markScheme = null;
     if (session.status === 'marking' && snapshot.markScheme) {
-      const source = snapshot.markScheme;
+      const source = snapshot.markScheme as MarkSchemeSnapshot;
       const groups = new Map(source.groups.map((group, index) => [
         group.id,
         boardUuid(700 + index),
