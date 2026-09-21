@@ -27,6 +27,15 @@ describe('assignPeerReviewers', () => {
     expect(assignPeerReviewers(answers, 'first-session')).not.toEqual(assignPeerReviewers(answers, 'second-session'));
   });
 
+  it('uses another active classmate to mark a single submitted answer', () => {
+    const assigned = assignPeerReviewers([answers[0]!], 'seed', ['s1','s2']);
+    expect(assigned).toEqual([{ ...answers[0]!, reviewerId:'s2', kind:'peer' }]);
+  });
+
+  it('needs no peer assignment when nobody submitted an answer', () => {
+    expect(assignPeerReviewers([], 'seed', ['s1','s2'])).toEqual([]);
+  });
+
   it('fails closed instead of self-marking when only one peer answer exists', () => {
     expect(() => assignPeerReviewers([answers[0]!], 'seed'))
       .toThrowError(expect.objectContaining({ code:'live_peer_assignment_impossible' }));
