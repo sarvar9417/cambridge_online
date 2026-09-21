@@ -1477,7 +1477,7 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async saveAnswer(actor: Actor, sessionId: string, text: string) {
+  async saveAnswer(actor: Actor, sessionId: string, sessionQuestionId: string, text: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     const client = await this.pool.connect();
     try {
@@ -1486,19 +1486,24 @@ export class LiveExamService {
       // until every in-flight save has committed. No answer can cross the
       // question_open -> answers_locked boundary.
       const state = await client.query(
-        `select status::text,paused_at from live_exam_sessions where id=$1 for share`, [sessionId]);
+        `select les.status::text,les.paused_at,leq.id current_session_question_id
+         from live_exam_sessions les
+         left join live_exam_questions leq
+           on leq.session_id=les.id and leq.position=les.current_question_index
+         where les.id=$1 for share of les`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
+      if (String(state.rows[0].current_session_question_id ?? '') !== sessionQuestionId) throw new DomainError('live_state_conflict', 409);
       const result = await client.query(
-        `update live_exam_answers a set answer_text=$3,word_count=$4,updated_at=now()
+        `update live_exam_answers a set answer_text=$4,word_count=$5,updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
-           and leq.session_id=les.id and leq.position=les.current_question_index
+           and leq.session_id=les.id and leq.position=les.current_question_index and leq.id=$3
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
            and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + interval '10 seconds')
          returning a.id,a.updated_at`,
-        [sessionId, actor.id, text, words(text)],
+        [sessionId, actor.id, sessionQuestionId, text, words(text)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       await client.query('commit');
@@ -1509,23 +1514,28 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async submitAnswer(actor: Actor, sessionId: string, text?: string) {
+  async submitAnswer(actor: Actor, sessionId: string, sessionQuestionId: string, text?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const state = await client.query(
-        `select * from live_exam_sessions where id=$1 for update`, [sessionId]);
+        `select les.*,leq.id current_session_question_id
+         from live_exam_sessions les
+         left join live_exam_questions leq
+           on leq.session_id=les.id and leq.position=les.current_question_index
+         where les.id=$1 for update of les`, [sessionId]);
       if (!state.rows[0]) throw new DomainError('not_found', 404);
+      if (String(state.rows[0].current_session_question_id ?? '') !== sessionQuestionId) throw new DomainError('live_state_conflict', 409);
       const existing = await client.query(
         `select a.id,a.answer_text,a.submitted_at
          from live_exam_answers a
          join live_exam_participants lep on lep.id=a.participant_id
          join live_exam_questions leq on leq.id=a.session_question_id
-         where leq.session_id=$1 and leq.position=$3
+         where leq.session_id=$1 and leq.id=$3
            and lep.session_id=$1 and lep.student_id=$2 and lep.left_at is null
          limit 1`,
-        [sessionId, actor.id, state.rows[0].current_question_index],
+        [sessionId, actor.id, sessionQuestionId],
       );
       if (existing.rows[0]?.submitted_at) {
         if (text !== undefined && String(existing.rows[0].answer_text ?? '') !== text) {
@@ -1542,18 +1552,18 @@ export class LiveExamService {
       if (state.rows[0].status !== 'question_open' || state.rows[0].paused_at) throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set
-           answer_text=coalesce($3,a.answer_text),
-           word_count=case when $3::text is null then a.word_count else $4 end,
+           answer_text=coalesce($4,a.answer_text),
+           word_count=case when $4::text is null then a.word_count else $5 end,
            submitted_at=now(),updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
-           and leq.session_id=les.id and leq.position=les.current_question_index
+           and leq.session_id=les.id and leq.position=les.current_question_index and leq.id=$3
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
            and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + interval '10 seconds')
          returning a.id,leq.id session_question_id`,
-        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text)],
+        [sessionId, actor.id, sessionQuestionId, text ?? null, text === undefined ? 0 : words(text)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
