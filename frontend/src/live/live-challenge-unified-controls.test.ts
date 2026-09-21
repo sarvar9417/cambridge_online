@@ -34,6 +34,13 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('Official Mark Scheme hali hech kimga ko‘rsatilmagan.');
   });
 
+  it('loads projector mode only from the board-safe projection',()=>{
+    expect(page).toContain('/board');
+    expect(page).toContain('function ProjectorRoom');
+    expect(page).toContain('<ProjectorRoom sessionId={sessionId}/>');
+    expect(page).toContain('type LiveExamBoardSnapshot');
+  });
+
   it('blocks student work and projector disclosure while paused',()=>{
     expect(page).toContain("if(session.pausedAt)return");
     expect(page).toContain("!session.pausedAt?<>");
