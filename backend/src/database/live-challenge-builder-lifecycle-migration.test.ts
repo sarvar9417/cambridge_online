@@ -22,6 +22,7 @@ describe('Live Challenge builder lifecycle migration',()=>{
 
   it('restores strict no-self-marking integrity for peer rounds',()=>{
     expect(sql).toContain('CREATE OR REPLACE FUNCTION enforce_live_exam_peer_review_integrity()');
+    expect(sql).toContain('SET search_path = public, pg_temp');
     expect(sql).toContain("session_marking_mode = 'peer'");
     expect(sql).toContain("NEW.kind <> 'peer'");
     expect(sql).toContain('NEW.reviewer_id = answer_student_id');
