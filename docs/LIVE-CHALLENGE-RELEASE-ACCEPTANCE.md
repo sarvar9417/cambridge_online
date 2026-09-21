@@ -9,7 +9,7 @@ This file records what the repository can prove automatically and what must stil
 | Flow | Repository gate |
 | --- | --- |
 | Teacher creates draft | builder route/service tests + convergence contract |
-| Select/reorder/auto-select canonical questions | builder tests + source-fidelity guards |
+| Select/reorder/auto-select canonical questions | builder tests + source-fidelity guards + required-dependency closure |
 | Draft runtime policy settings | CAS draft patch + shared settings policy tests; timing/order/auto-lock/override/name mode enforced |
 | Publish | builder lifecycle migration/service tests |
 | Student discovers assigned challenge | student-feed service/route tests |
@@ -57,7 +57,7 @@ Repository gates explicitly cover or retain existing coverage for:
 
 The dedicated `Live Challenge DB smoke` workflow now proves the following against a fresh PostgreSQL 17 service:
 
-- migrations `0166/0167/0168/0169/0170/0172/0173` apply together;
+- migrations `0166/0167/0168/0169/0170/0172/0173/0190/0191/0192` apply together;
 - the converged enum order and lifecycle columns are present;
 - draft join codes are nullable;
 - database peer-integrity rejects self-review;

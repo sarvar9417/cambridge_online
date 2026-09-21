@@ -49,6 +49,7 @@ const POINT_2='13131313-1313-4131-8131-131313131313';
 integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
   const pool=new Pool({connectionString:DATABASE_URL});
   const sessionIds:string[]=[];
+  const extraQuestionIds:string[]=[];
 
   const questionRepository={
     portable:async(_actor:Actor,id:string)=>id===QUESTION?{
@@ -83,6 +84,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
 
   afterAll(async()=>{
     for(const id of sessionIds)await pool.query(`delete from live_exam_sessions where id=$1`,[id]);
+    if(extraQuestionIds.length)await pool.query(`delete from questions where id=any($1::uuid[])`,[extraQuestionIds]);
     await pool.end();
   });
 
@@ -324,6 +326,98 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       [sessionId],
     );
     expect(evidenceAfterRetry.rows[0].count).toBe(2);
+  });
+
+
+  it('expands required Cambridge prerequisites before the selected scoring leaf and preserves them through draft edits',async()=>{
+    const dependency='24242424-2424-4242-8242-242424242424';
+    const selected='25252525-2525-4252-8252-252525252525';
+    const dependencyScheme='26262626-2626-4262-8262-262626262626';
+    const selectedScheme='27272727-2727-4272-8272-272727272727';
+    extraQuestionIds.push(dependency,selected);
+
+    await pool.query(
+      `insert into questions(id,status,marks,parent_id,source_paper_id,component_id,display_ref,stem_md,command_word,answer_kind,ao)
+       values
+       ($1,'approved',1,null,'17171717-1717-4171-8171-171717171717','16161616-1616-4161-8161-161616161616','9618/11/M/J/25 Q2(a)','State the prerequisite.','State','text','AO1'),
+       ($2,'approved',1,null,'17171717-1717-4171-8171-171717171717','16161616-1616-4161-8161-161616161616','9618/11/M/J/25 Q2(b)','Use your previous answer.','State','text','AO1')`,
+      [dependency,selected],
+    );
+    await pool.query(
+      `insert into question_subtopics(question_id,subtopic_id,is_primary,confidence) values
+       ($1,$3,true,1.00),($2,$3,true,1.00)`,
+      [dependency,selected,SUBTOPIC],
+    );
+    await pool.query(
+      `insert into question_learning_objectives(question_id,lo_id,confidence) values
+       ($1,'44444444-4444-4444-8444-444444444444',1.00),
+       ($2,'44444444-4444-4444-8444-444444444444',1.00)`,
+      [dependency,selected],
+    );
+    await pool.query(
+      `insert into canonical_mark_schemes(id,question_id,source_paper_id,status,scheme_type,max_marks,guidance_md) values
+       ($1,$3,'18181818-1818-4181-8181-181818181818','approved','all_required',1,null),
+       ($2,$4,'18181818-1818-4181-8181-181818181818','approved','all_required',1,null)`,
+      [dependencyScheme,selectedScheme,dependency,selected],
+    );
+    await pool.query(
+      `insert into question_dependencies(question_id,depends_on_id,kind,strength)
+       values($1,$2,'answer_ref','required')`,
+      [selected,dependency],
+    );
+
+    const dependencyQuestions={
+      portable:async(_actor:Actor,id:string)=>{
+        if(id!==dependency&&id!==selected)return null;
+        const isSelected=id===selected;
+        return {
+          sourceRef:isSelected?'9618/11/M/J/25 Q2(b)':'9618/11/M/J/25 Q2(a)',
+          leaf:{
+            id,rootId:id,label:isSelected?'2(b)':'2(a)',path:isSelected?'2.b':'2.a',
+            displayRef:isSelected?'9618/11/M/J/25 Q2(b)':'9618/11/M/J/25 Q2(a)',
+            stem:isSelected?'Use your previous answer.':'State the prerequisite.',
+            stemLatex:null,bodyFormat:'markdown',contentJson:null,commandWord:'State',
+            marks:1,answerKind:'text',answerLines:1,
+          },
+          chain:[],
+          dependencies:isSelected?[{
+            id:'28282828-2828-4282-8282-282828282828',
+            questionId:selected,dependsOnId:dependency,
+            displayRef:'9618/11/M/J/25 Q2(a)',stem:'State the prerequisite.',
+            kind:'answer_ref',strength:'required',evidence:'internal-audit-only',confidence:1,
+          }]:[],
+          contextBlocks:[],
+        };
+      },
+    } as unknown as PgQuestionsRepository;
+    const dependencyBuilder=new LiveExamBuilderService(pool,dependencyQuestions);
+    const draft=await dependencyBuilder.createDraft(teacher,{
+      classId:CLASS,title:'Dependency closure',topicId:TOPIC,subtopicId:SUBTOPIC,markingMode:'teacher',
+    });
+    sessionIds.push(draft.id);
+
+    const replaced=await dependencyBuilder.replaceQuestions(teacher,draft.id,[selected],draft.version);
+    expect(replaced).toMatchObject({questionCount:2,requestedQuestionCount:1,dependencyQuestionCount:1});
+    const ordered=await pool.query(
+      `select question_id,position,question_snapshot from live_exam_questions where session_id=$1 order by position`,
+      [draft.id],
+    );
+    expect(ordered.rows.map(row=>String(row.question_id))).toEqual([dependency,selected]);
+    const selectedSnapshot=ordered.rows.find(row=>String(row.question_id)===selected)?.question_snapshot as {dependencies?:Array<Record<string,unknown>>};
+    expect(selectedSnapshot.dependencies?.[0]).toMatchObject({dependsOnId:dependency,kind:'answer_ref',strength:'required'});
+    expect(selectedSnapshot.dependencies?.[0]).not.toHaveProperty('evidence');
+    expect(selectedSnapshot.dependencies?.[0]).not.toHaveProperty('confidence');
+
+    const edited=await dependencyBuilder.updateDraft(teacher,draft.id,{
+      title:'Dependency closure updated',expectedVersion:replaced.version,
+    });
+    const published=await dependencyBuilder.publish(teacher,draft.id,edited.version);
+    expect(published).toMatchObject({status:'published',questionCount:2,requestedQuestionCount:1,dependencyQuestionCount:1});
+    const afterPublish=await pool.query(
+      `select question_id,position from live_exam_questions where session_id=$1 order by position`,
+      [draft.id],
+    );
+    expect(afterPublish.rows.map(row=>String(row.question_id))).toEqual([dependency,selected]);
   });
 
   it('auto-locks answers only after every active participant submits when enabled',async()=>{
