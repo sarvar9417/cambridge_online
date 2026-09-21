@@ -324,7 +324,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   </div>;
 }
 
-function ProjectorView({snapshot}:{snapshot:LiveExamBoardSnapshot}) {
+function ProjectorView({snapshot,sessionId}:{snapshot:LiveExamBoardSnapshot;sessionId:string}) {
   const {session}=snapshot;
   const remaining=useCountdown(session.deadline,session.serverNow);
   return <div className="live-projector-overlay">
@@ -336,8 +336,8 @@ function ProjectorView({snapshot}:{snapshot:LiveExamBoardSnapshot}) {
       {session.status==='question_open'&&snapshot.question?<><LiveQuestionView question={snapshot.question}/><div className="live-projector-count"><UsersThree size={32}/><strong>{session.submittedCount}/{session.participantCount}</strong><span>javob topshirdi</span></div></>:null}
       {session.status==='answers_locked'?<section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Javoblar yopildi</h1><p>Official Mark Scheme ochilishi kutilmoqda.</p></section>:null}
       {session.status==='marking'&&snapshot.markScheme?<><MarkSchemeView scheme={snapshot.markScheme}/><div className="live-projector-count"><CheckCircle size={32}/><strong>{session.reviewedCount}/{session.reviewCount}</strong><span>baholash tugadi</span></div></>:null}
-      {session.status==='review'?<LiveExamLeaderboard sessionId={session.id} version={session.version} variant="projector"/>:null}
-      {session.status==='finished'?<><section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Sessiya yakunlandi</h1><p>{session.questionCount} ta Cambridge savoli bajarildi.</p></section><LiveExamLeaderboard sessionId={session.id} version={session.version} variant="projector"/></>:null}
+      {session.status==='review'?<LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/>:null}
+      {session.status==='finished'?<><section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Sessiya yakunlandi</h1><p>{session.questionCount} ta Cambridge savoli bajarildi.</p></section><LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/></>:null}
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
     </main>
@@ -523,7 +523,7 @@ function ProjectorRoom({sessionId}:{sessionId:string}) {
   const {snapshot,error,loading}=useLiveBoard(sessionId);
   if(loading&&!snapshot)return <p className="live-loading">Proyektor yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p></div>;
-  return snapshot?<ProjectorView snapshot={snapshot}/>:null;
+  return snapshot?<ProjectorView snapshot={snapshot} sessionId={sessionId}/>:null;
 }
 
 function InteractiveLiveRoom({user,sessionId}:{user:User;sessionId:string}) {
