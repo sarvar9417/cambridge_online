@@ -1809,7 +1809,8 @@ export class LiveExamService {
          join live_exam_questions leq on leq.id=r.session_question_id
          join live_exam_sessions les on les.id=leq.session_id
          join classes c on c.id=les.class_id
-         where r.id=$1 and les.id=$2 and les.status='marking' and (
+         where r.id=$1 and les.id=$2 and les.status='marking'
+           and leq.position=les.current_question_index and (
            ($3='student' and r.reviewer_id=$4)
            or ($3='owner' and c.school_id=$5)
            or ($3='teacher' and (c.owner_id=$4 or exists(
