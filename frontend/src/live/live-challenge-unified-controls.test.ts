@@ -76,6 +76,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('/board');
     expect(page).toContain('function ProjectorRoom');
     expect(page).toContain('<ProjectorRoom sessionId={sessionId}/>');
+    expect(page).toContain('<ProjectorView snapshot={snapshot} sessionId={sessionId}/>');
     expect(page).toContain('type LiveExamBoardSnapshot');
   });
 
