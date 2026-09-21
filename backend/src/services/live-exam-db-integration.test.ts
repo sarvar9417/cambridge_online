@@ -393,6 +393,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
     const dependencyBuilder=new LiveExamBuilderService(pool,dependencyQuestions);
     const draft=await dependencyBuilder.createDraft(teacher,{
       classId:CLASS,title:'Dependency closure',topicId:TOPIC,subtopicId:SUBTOPIC,markingMode:'teacher',
+      settings:{autoCloseWhenAllSubmitted:false},
     });
     sessionIds.push(draft.id);
 
