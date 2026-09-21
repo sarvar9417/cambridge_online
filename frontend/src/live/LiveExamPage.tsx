@@ -263,14 +263,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         : await api<{version:number}>(`/live-exams/${draft.id}/questions/auto`,{method:'POST',body:JSON.stringify({
             count:Number(data.get('questionCount')),expectedVersion:draft.version,
           })});
-      const published=await api<{version:number}>(`/live-exams/${draft.id}/publish`,{method:'POST',body:JSON.stringify({
-        expectedVersion:selection.version,
-      })});
-      await api(`/live-exams/${draft.id}/open`,{method:'POST',body:JSON.stringify({
-        expectedVersion:published.version,
-      })});
+      void selection;
       navigate(`oqitish/live?id=${draft.id}`);
-    }catch(cause){setError(message(cause,'Live Challenge tayyorlanmadi. Draft sessiyalar ro‘yxatida saqlangan bo‘lishi mumkin.'));setBusy(false)}
+    }catch(cause){setError(message(cause,'Live Challenge drafti tayyorlanmadi. Yarim saqlangan draft sessiyalar ro‘yxatida ko‘rinishi mumkin.'));setBusy(false)}
   };
 
   const join=async(event:FormEvent)=>{
@@ -306,7 +301,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
-        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)}>{busy?'Saqlanmoqda…':'Draft yaratish'}</button>
         {!classes.length?<small className="live-warning">Avval kamida bitta sinf yarating.</small>:null}
       </aside>
     </form>}
@@ -441,7 +436,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel',{expectedVersion:session.version})}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
-    {session.status==='draft'?<section className="live-finished"><span className="live-eyebrow">DRAFT</span><h1>Challenge hali ochilmagan</h1><p>{session.questionCount>0?`${session.questionCount} ta savol saqlangan. Nashr qilishdan oldin source va Mark Scheme qayta tekshiriladi.`:'Savollar tanlovi yakunlanmagan. Builderdan qayta yarating yoki draftni bekor qiling.'}</p>{session.questionCount>0?<button disabled={busy} onClick={()=>void act('/publish',{expectedVersion:session.version})}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</section>:null}
+    {session.status==='draft'?<section className="live-finished"><span className="live-eyebrow">DRAFT</span><h1>Challenge hali ochilmagan</h1><p>{session.questionCount>0?`${session.questionCount} ta savol saqlandi. Nashr qilishda source va official Mark Scheme snapshotlari yana tekshiriladi.`:'Savollar tanlovi yakunlanmagan. Builderga qayting yoki draftni bekor qiling.'}</p>{snapshot.questions.length?<div className="live-report-list">{snapshot.questions.map((question)=><article key={question.id}><span>Savol {question.position+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></article>)}</div>:null}{session.questionCount>0?<button disabled={busy} onClick={()=>void act('/publish',{expectedVersion:session.version})}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</section>:null}
     {session.status==='published'?<section className="live-finished"><span className="live-eyebrow">PUBLISHED</span><h1>Challenge tayyor</h1><p>Immutable savol va Mark Scheme snapshotlari yaratildi. Lobby ochilgach xona kodi o‘quvchilarga ko‘rsatiladi.</p><button disabled={busy} onClick={()=>void act('/open',{expectedVersion:session.version})}>Lobby’ni ochish</button></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
     {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode??'------'}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start',{expectedVersion:session.version})}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
