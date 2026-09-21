@@ -186,6 +186,19 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json(await service.lockAnswers(req.actor!, id(req.params), body.expectedVersion));
   });
 
+  router.post('/:id/marking-mode', async (req, res) => {
+    const body = z.object({
+      mode: z.literal('teacher'),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.switchLockedMarkingMode(
+      req.actor!,
+      id(req.params),
+      body.mode,
+      body.expectedVersion,
+    ));
+  });
+
   router.post('/:id/reveal', async (req, res) => {
     const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     try {
