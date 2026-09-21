@@ -1,0 +1,89 @@
+name: Live Challenge DB smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/services/live-exam-db-integration.test.ts'
+      - 'backend/src/services/live-exam-builder-service.ts'
+      - 'backend/src/services/live-exam-control-service.ts'
+      - 'backend/src/services/live-exam-participation-service.ts'
+      - 'backend/src/services/live-exam-moderation-service.ts'
+      - 'backend/src/services/live-exam-service.ts'
+      - 'backend/src/services/live-exam-board-projection.ts'
+      - 'backend/src/services/live-exam-analytics-service.ts'
+      - 'backend/src/services/live-exam-student-feed-service.ts'
+      - 'backend/src/services/live-exam-round-summary-service.ts'
+      - 'backend/src/services/live-exam-settings.ts'
+      - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
+      - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
+      - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
+      - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
+      - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
+      - 'backend/src/database/migrations/0172_unified_live_challenge_controls.sql'
+      - 'backend/src/database/migrations/0173_live_challenge_database_hardening.sql'
+      - 'backend/src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql'
+      - 'backend/src/database/migrations/0191_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0192_live_exam_override_reason.sql'
+      - '.github/workflows/live-challenge-db-smoke.yml'
+  pull_request:
+    paths:
+      - 'backend/src/database/live-exam-db-smoke.sql'
+      - 'backend/src/services/live-exam-db-integration.test.ts'
+      - 'backend/src/services/live-exam-builder-service.ts'
+      - 'backend/src/services/live-exam-control-service.ts'
+      - 'backend/src/services/live-exam-participation-service.ts'
+      - 'backend/src/services/live-exam-moderation-service.ts'
+      - 'backend/src/services/live-exam-service.ts'
+      - 'backend/src/services/live-exam-board-projection.ts'
+      - 'backend/src/services/live-exam-analytics-service.ts'
+      - 'backend/src/services/live-exam-student-feed-service.ts'
+      - 'backend/src/services/live-exam-round-summary-service.ts'
+      - 'backend/src/services/live-exam-settings.ts'
+      - 'backend/src/database/migrations/0166_live_exam_sessions.sql'
+      - 'backend/src/database/migrations/0167_live_exam_fk_indexes.sql'
+      - 'backend/src/database/migrations/0168_live_exam_peer_integrity.sql'
+      - 'backend/src/database/migrations/0169_live_exam_override_audit.sql'
+      - 'backend/src/database/migrations/0170_live_exam_learning_evidence.sql'
+      - 'backend/src/database/migrations/0172_unified_live_challenge_controls.sql'
+      - 'backend/src/database/migrations/0173_live_challenge_database_hardening.sql'
+      - 'backend/src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql'
+      - 'backend/src/database/migrations/0191_live_exam_builder_lifecycle.sql'
+      - 'backend/src/database/migrations/0192_live_exam_override_reason.sql'
+      - '.github/workflows/live-challenge-db-smoke.yml'
+
+jobs:
+  postgres-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cambridge_live_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cambridge_live_smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cambridge_live_smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply Live Challenge migration chain and invariants
+        run: psql "$DATABASE_URL" -f backend/src/database/live-exam-db-smoke.sql
+      - name: Install application dependencies
+        run: npm ci
+      - name: Run Live Challenge multi-client service integration
+        env:
+          LIVE_EXAM_DB_INTEGRATION: '1'
+        run: npm run test -w backend -- --run src/services/live-exam-db-integration.test.ts

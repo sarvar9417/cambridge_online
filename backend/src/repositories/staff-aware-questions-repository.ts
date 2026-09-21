@@ -143,7 +143,7 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
           id: `${id}:structured-assets`,
           label: portable.leaf.label,
           displayRef: portable.leaf.displayRef,
-          depth: portable.chain.at(-1)?.depth ?? 0,
+          depth: portable.chain[portable.chain.length - 1]?.depth ?? 0,
           context: null,
           assets: referencedAssets,
         },

@@ -48,6 +48,12 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createAdminRouter } from './routes/admin.js';
 import { AdminService } from './services/admin-service.js';
 import { createPrivacyRouter } from './routes/privacy.js';
+import { createLiveExamBuilderRouter } from './routes/live-exam-builder.js';
+import { createLiveExamControlRouter } from './routes/live-exam-control.js';
+import { createLiveExamModerationRouter } from './routes/live-exam-moderation.js';
+import { createLiveExamParticipationRouter } from './routes/live-exam-participation.js';
+import { createLiveExamStudentFeedRouter } from './routes/live-exam-student-feed.js';
+import { createLiveExamAnalyticsRouter } from './routes/live-exam-analytics.js';
 import { createLiveExamRoundSummaryRouter } from './routes/live-exam-round-summary.js';
 import { createLiveExamRealtimeRouter } from './routes/live-exam-realtime.js';
 import { createLiveExamsRouter } from './routes/live-exams.js';
@@ -63,6 +69,12 @@ import { opportunisticMaintenance } from './middleware/opportunistic-maintenance
 import { createQuestionVisualFidelityMiddleware } from './middleware/question-visual-fidelity.js';
 import { isDatabaseUnavailable } from './lib/database-unavailable.js';
 import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
+import { LiveExamBuilderService } from './services/live-exam-builder-service.js';
+import { LiveExamControlService } from './services/live-exam-control-service.js';
+import { LiveExamModerationService } from './services/live-exam-moderation-service.js';
+import { LiveExamParticipationService } from './services/live-exam-participation-service.js';
+import { LiveExamStudentFeedService } from './services/live-exam-student-feed-service.js';
+import { LiveExamAnalyticsService } from './services/live-exam-analytics-service.js';
 import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-service.js';
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
@@ -119,8 +131,6 @@ export function createApp(
     app.use('/api/v1/selections', questionVisualFidelity);
   }
   if(auth) mountPrivate('/api/v1/auth/me', createMeRouter(auth));
-  // Managing classes mounts before reading them: the read router owns '/:id',
-  // which would otherwise swallow paths like '/unassigned-students'.
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
@@ -136,34 +146,43 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
-  // The specific admin paths mount before the general one. Express tries
-  // prefixes in order, so a future '/:id' route inside createAdminRouter would
-  // otherwise swallow /admin/users and /admin/overview.
-  if (auth && authRepository) mountPrivate(
-    '/api/v1/admin/users',
-    createAdminUsersRouter(auth, authRepository, adminUsersService),
-  );
+  if (auth && authRepository) mountPrivate('/api/v1/admin/users',createAdminUsersRouter(auth, authRepository, adminUsersService));
   if (pool) mountPrivate('/api/v1/admin/overview', createOverviewRouter(new OverviewService(pool)));
   if (pool) mountPrivate('/api/v1/admin/corpus', createCorpusRouter(new CorpusService(pool)));
   if (pool) mountPrivate('/api/v1/admin/system', createSystemRouter(new SystemService(pool)));
   if (pool) mountPrivate('/api/v1/admin/quality', createQualityRouter(new QualityService(pool)));
   if (pool) mountPrivate('/api/v1/admin', createAdminRouter(new AdminService(pool)));
   if (pool) mountPrivate('/api/v1/privacy', createPrivacyRouter(new PrivacyService(pool)));
-  // Specific live-session views mount before the generic '/:id' snapshot route.
-  if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamRoundSummaryRouter(new LiveExamRoundSummaryService(pool)),
+
+  // Every named/specific Live Challenge route mounts before the generic '/:id'
+  // snapshot router. This keeps one canonical live_exam_* runtime while avoiding
+  // UUID parsing swallowing builder/feed/analytics paths.
+  if (pool && questionsRepository) mountPrivate(
+    '/api/v1/live-exams',createLiveExamBuilderRouter(new LiveExamBuilderService(pool, questionsRepository)),
   );
-  // Mount the lightweight event cursor before the snapshot router. It carries
-  // no assessment payload; clients use version advances to trigger an
-  // authoritative snapshot refresh after a classroom event.
   if (pool) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
+    '/api/v1/live-exams',createLiveExamStudentFeedRouter(new LiveExamStudentFeedService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamParticipationRouter(new LiveExamParticipationService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamControlRouter(new LiveExamControlService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamModerationRouter(new LiveExamModerationService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamAnalyticsRouter(new LiveExamAnalyticsService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamRoundSummaryRouter(new LiveExamRoundSummaryService(pool)),
+  );
+  if (pool) mountPrivate(
+    '/api/v1/live-exams',createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
   );
   if (pool && questionsRepository) mountPrivate(
-    '/api/v1/live-exams',
-    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
+    '/api/v1/live-exams',createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
   );
 
   app.use((_req, res) => {
@@ -172,7 +191,7 @@ export function createApp(
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
-      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_selection_mismatch:'Qo‘lda tanlangan savollar soni sessiya savollari soniga mos emas.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_dependency_cycle:'Savol bog‘liqliklarida sikl topildi. Live Challenge yaratilmadi.',live_dependency_target_missing:'Savol uchun kerakli oldingi qism topilmadi. Live Challenge yaratilmadi.',live_dependency_bundle_too_large:'Tanlangan savollar majburiy oldingi qismlar bilan birga juda katta to‘plam hosil qildi. Savollar sonini kamaytiring.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi yoki siz ushbu sinfga biriktirilmagansiz.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_state_conflict:'Sessiya boshqa ekranda o‘zgargan. Holat yangilanib, amalni qayta bajaring.',live_teacher_override_disabled:'Bu challenge’da teacher override o‘chirilgan.',live_answer_locked:'Javob yopilgan, challenge pauzada yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.',live_results_not_ready:'Natijalar hali chiqarilmagan. Avval baholash bosqichini yakunlang.'};
+      const messages:Record<string,string>={daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_selection_mismatch:'Qo‘lda tanlangan savollar soni sessiya savollari soniga mos emas.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_dependency_cycle:'Savol bog‘liqliklarida sikl topildi. Live Challenge yaratilmadi.',live_dependency_target_missing:'Savol uchun kerakli oldingi qism topilmadi. Live Challenge yaratilmadi.',live_dependency_bundle_too_large:'Tanlangan savollar majburiy oldingi qismlar bilan birga juda katta to‘plam hosil qildi. Savollar sonini kamaytiring.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi yoki siz ushbu sinfga biriktirilmagansiz.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_answer_locked:'Javob yopilgan yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.',live_results_not_ready:'Natijalar hali chiqarilmagan. Avval baholash bosqichini yakunlang.',live_builder_invalid_taxonomy:'Tanlangan topic yoki subtopic syllabusga mos emas.',live_state_conflict:'Sessiya boshqa oynada o‘zgardi. Eng yangi holatni yuklab, qayta urinib ko‘ring.',live_teacher_override_disabled:'Bu challenge’da teacher override o‘chirilgan.',live_peer_assignment_impossible:'Anonim o‘zaro baholash uchun kamida ikki xavfsiz ishtirokchi kerak.',live_join_closed:'Bu Live Challenge hozir yangi ishtirokchilarni qabul qilmayapti.',live_participant_removal_closed:'O‘yin boshlanganidan keyin ishtirokchini xavfsiz olib tashlab bo‘lmaydi.',live_leave_closed:'O‘yin boshlanganidan keyin xonani tark etib bo‘lmaydi.',live_override_reason_required:'Baho o‘zgartirilsa, o‘qituvchi qisqa sabab yozishi kerak.'};
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message } });
       return;
     }
@@ -180,17 +199,9 @@ export function createApp(
       res.status(400).json({ error: { code: 'validation_error', message: 'Kiritilgan ma\'lumot noto\'g\'ri.', details: error.flatten() } });
       return;
     }
-    // An unreachable database is not a bug in the request. Telling the user the
-    // platform broke sends them to report a fault, when the useful instruction
-    // is to try again shortly.
     if (isDatabaseUnavailable(error)) {
       console.error('Database unavailable', error);
-      res.status(503).json({
-        error: {
-          code: 'database_unavailable',
-          message: 'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.',
-        },
-      });
+      res.status(503).json({error:{code:'database_unavailable',message:'Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir necha daqiqadan so‘ng qayta urinib ko‘ring.'}});
       return;
     }
     console.error(error);
@@ -204,19 +215,8 @@ const authRepository = pool ? new PgAuthRepository(pool) : undefined;
 const auth = authRepository ? new AuthService(authRepository, createMailer(config)) : undefined;
 const classesRepository = pool ? new PgClassesRepository(pool) : undefined;
 const assetSigner = config.SUPABASE_URL && config.SUPABASE_STORAGE_SECRET_KEY
-  ? new SupabaseAssetStore({
-      url: config.SUPABASE_URL,
-      secretKey: config.SUPABASE_STORAGE_SECRET_KEY,
-      bucket: config.ASSET_STORAGE_BUCKET,
-    })
+  ? new SupabaseAssetStore({url:config.SUPABASE_URL,secretKey:config.SUPABASE_STORAGE_SECRET_KEY,bucket:config.ASSET_STORAGE_BUCKET})
   : undefined;
 const questionsRepository = pool ? new PgStaffAwareQuestionsRepository(pool, assetSigner) : undefined;
 const adminUsersService = pool ? new AdminUsersService(pool) : undefined;
-export const app = createApp(
-  auth,
-  classesRepository,
-  questionsRepository,
-  authRepository,
-  assetSigner,
-  adminUsersService,
-);
+export const app = createApp(auth,classesRepository,questionsRepository,authRepository,assetSigner,adminUsersService);

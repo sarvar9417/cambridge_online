@@ -3,13 +3,15 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createLiveExamsRouter } from './live-exams.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
+import type { Actor } from '../lib/actor.js';
 
-const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
+const student:Actor = { id:'11111111-1111-4111-8111-111111111111',role:'student',schoolId:'school',fullName:'Student' };
+const teacher:Actor = { id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'teacher',schoolId:'school',fullName:'Teacher' };
 
-function appFor(service:Partial<LiveExamService>) {
+function appFor(service:Partial<LiveExamService>, actor:Actor=student) {
   const app=express();
   app.use(express.json());
-  app.use((req,_res,next)=>{req.actor=student;next()});
+  app.use((req,_res,next)=>{req.actor=actor;next()});
   app.use('/live-exams',createLiveExamsRouter(service as LiveExamService));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return}
@@ -24,9 +26,9 @@ function appFor(service:Partial<LiveExamService>) {
 describe('live exam routes', () => {
   it('marks the session list private and non-cacheable', async () => {
     const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
-    const response=await request(appFor({list})).get('/live-exams').expect(200);
+    const response=await request(appFor({list},teacher)).get('/live-exams').expect(200);
     expect(response.headers['cache-control']).toBe('private, no-store');
-    expect(list).toHaveBeenCalledWith(student);
+    expect(list).toHaveBeenCalledWith(teacher);
   });
 
   it('marks the per-user authoritative snapshot private and non-cacheable', async () => {
@@ -38,17 +40,50 @@ describe('live exam routes', () => {
     expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
   });
 
-  it('keeps /join above the UUID session route', async () => {
-    const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
-    const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
-    expect(response.body.sessionId).toBe('session-1');
-    expect(join).toHaveBeenCalledWith(student,'123456');
+  it('keeps the board route staff-only and does not fetch a student snapshot for it', async () => {
+    const snapshot=vi.fn();
+    const response=await request(appFor({snapshot}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/board')
+      .expect(403);
+    expect(response.body.error.code).toBe('staff_only');
+    expect(snapshot).not.toHaveBeenCalled();
   });
 
-  it('rejects malformed room codes before calling the service', async () => {
-    const join=vi.fn();
-    await request(appFor({join})).post('/live-exams/join').send({code:'12A'}).expect(400);
-    expect(join).not.toHaveBeenCalled();
+  it('returns a private learner-safe board projection to staff', async () => {
+    const snapshot=vi.fn().mockResolvedValue({
+      session:{
+        id:'private-session-id',title:'Live Challenge',className:'AS',status:'question_open',
+        currentQuestionIndex:0,questionCount:2,participantCount:5,submittedCount:2,
+        reviewCount:0,reviewedCount:0,joinCode:'123456',deadline:null,serverNow:'now',
+      },
+      question:{
+        id:'private-session-question',sourceQuestionId:'private-source-id',position:0,marks:2,
+        portable:{
+          sourceRef:'9618/12/M/J/25 Q1',
+          leaf:{id:'private-leaf',stem:'Explain.',marks:2,commandWord:'Explain'},
+          contextBlocks:[],
+        },
+      },
+      markScheme:null,
+      participants:[{fullName:'Private Learner'}],
+      teacherAnswers:[{answerText:'private answer'}],
+    });
+    const response=await request(appFor({snapshot},teacher))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/board')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(snapshot).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222');
+    expect(response.body.data.session.title).toBe('Live Challenge');
+    expect(response.body.data.question.sourceRef).toBe('9618/12/M/J/25 Q1');
+    expect(JSON.stringify(response.body)).not.toContain('private-session-id');
+    expect(JSON.stringify(response.body)).not.toContain('private-source-id');
+    expect(JSON.stringify(response.body)).not.toContain('private-leaf');
+    expect(JSON.stringify(response.body)).not.toContain('Private Learner');
+    expect(JSON.stringify(response.body)).not.toContain('private answer');
+  });
+
+  it('does not expose a duplicate join implementation from the generic runtime router', async () => {
+    await request(appFor({})).post('/live-exams/join').send({code:'123456'}).expect(404);
   });
 
   it('validates review point identifiers', async () => {
@@ -60,47 +95,36 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
-  it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
-    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
-      new Error('live_peer_assignment_impossible'),
-      { code:'P0001' },
-    ));
-    const response=await request(appFor({revealMarkScheme}))
-      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
-      .expect(409);
-    expect(response.body.error.code).toBe('live_peer_assignment_impossible');
-  });
+  it('does not expose retired versionless staff creation or control fallbacks', async () => {
+    const create=vi.fn();
+    const start=vi.fn();
+    const revealMarkScheme=vi.fn();
+    const moderateAnswer=vi.fn();
+    const completeMarking=vi.fn();
+    const nextQuestion=vi.fn();
+    const cancel=vi.fn();
+    const service={create,start,revealMarkScheme,moderateAnswer,completeMarking,nextQuestion,cancel};
 
-  it('does not disguise unrelated database errors as peer-integrity conflicts', async () => {
-    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
-    const response=await request(appFor({revealMarkScheme}))
-      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
-      .expect(500);
-    expect(response.body.error.code).toBe('internal_error');
-  });
+    await request(appFor(service,teacher)).post('/live-exams').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/start').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .put('/live-exams/22222222-2222-4222-8222-222222222222/answers/33333333-3333-4333-8333-333333333333/moderate').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/marking/complete').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/next').send({}).expect(404);
+    await request(appFor(service,teacher))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/cancel').send({}).expect(404);
 
-  it('passes optimistic state versions to pause and resume controls', async () => {
-    const pause=vi.fn().mockResolvedValue({paused:true,version:8});
-    const resume=vi.fn().mockResolvedValue({paused:false,version:9});
-    const app=appFor({pause,resume});
-    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/pause')
-      .send({expectedVersion:7}).expect(200);
-    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/resume')
-      .send({expectedVersion:8}).expect(200);
-    expect(pause).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',7);
-    expect(resume).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',8);
-  });
-
-  it('routes lobby removal and voluntary leave separately', async () => {
-    const removeParticipant=vi.fn().mockResolvedValue({version:3});
-    const leave=vi.fn().mockResolvedValue({version:4});
-    const app=appFor({removeParticipant,leave});
-    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/participants/33333333-3333-4333-8333-333333333333/remove')
-      .send({expectedVersion:2}).expect(200);
-    await request(app).post('/live-exams/22222222-2222-4222-8222-222222222222/leave').expect(200);
-    expect(removeParticipant).toHaveBeenCalledWith(
-      student,'22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',2,
-    );
-    expect(leave).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
+    expect(create).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+    expect(revealMarkScheme).not.toHaveBeenCalled();
+    expect(moderateAnswer).not.toHaveBeenCalled();
+    expect(completeMarking).not.toHaveBeenCalled();
+    expect(nextQuestion).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
   });
 });

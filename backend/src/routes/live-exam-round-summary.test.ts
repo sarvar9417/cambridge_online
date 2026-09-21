@@ -25,7 +25,15 @@ describe('live exam round summary route',()=>{
       .expect(200);
     expect(response.body.marksFirst).toBe(true);
     expect(response.headers['cache-control']).toBe('private, no-store');
-    expect(summary).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222');
+    expect(summary).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222','teacher');
+  });
+
+  it('requests the learner-safe board audience explicitly',async()=>{
+    const summary=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',audience:'board',marksFirst:true,round:{standings:[]}});
+    await request(appFor({summary}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/round-summary?audience=board')
+      .expect(200);
+    expect(summary).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222','board');
   });
 
   it('rejects a malformed session id before querying the service',async()=>{

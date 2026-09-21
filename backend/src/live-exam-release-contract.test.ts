@@ -5,14 +5,13 @@ import { describe, expect, it } from 'vitest';
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 
 const service=source('src/services/live-exam-service.ts');
+const participation=source('src/services/live-exam-participation-service.ts');
 const realtimeService=source('src/services/live-exam-realtime-service.ts');
 const realtimeRoute=source('src/routes/live-exam-realtime.ts');
 const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
 const peerIntegrity=source('src/database/migrations/0168_live_exam_peer_integrity.sql');
 const overrideAudit=source('src/database/migrations/0169_live_exam_override_audit.sql');
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
-const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
-const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -21,9 +20,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('mark_scheme_snapshot jsonb NOT NULL');
     expect(service).toContain("`q.status='approved'`");
     expect(service).toContain("`ms.status='approved'`");
-    expect(service).toContain('with recursive closure(question_id)');
-    expect(service).toContain("qd.strength::text='required'");
-    expect(service).not.toContain('q.parent_id is not null');
+    expect(service).toContain('not exists(select 1 from question_dependencies qd where qd.question_id=q.id)');
   });
 
   it('never returns the Mark Scheme to a student during an open question',()=>{
@@ -33,17 +30,10 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('keeps class membership and live participation at the join boundary',()=>{
-    expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and (");
-    expect(service).toContain("les.status='lobby'");
-    expect(service).toContain("les.settings->>'allowLateJoin'");
-    expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
-  });
-
-  it('keeps internal dependency evidence out of learner snapshots',()=>{
-    expect(service).toContain("Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>");
-    expect(service).toContain('dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency)');
-    expect(service).toContain('dependencyWork: dependencyWork.rows.map');
+    expect(participation).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
+    expect(participation).toContain('where les.join_code=$1');
+    expect(participation).toContain("status!=='lobby'");
+    expect(participation).toContain("if(actor.role!=='student')throw new DomainError('students_only',403)");
   });
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
@@ -55,11 +45,11 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
-    expect(service).toContain("select status::text,paused_at from live_exam_sessions where id=$1 for share");
-    expect(service).toContain("select * from live_exam_sessions where id=$1 for update");
+    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for share");
+    expect(service).toContain("select status::text from live_exam_sessions where id=$1 for update");
     expect(service).toContain('for update of les');
     expect(service).toContain('and a.submitted_at is null');
-    expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
+    expect(service).toContain("if (session.status !== 'question_open') throw new DomainError('live_invalid_state', 409)");
   });
 
   it('keeps peer mode structurally incapable of self marking',()=>{
@@ -83,11 +73,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(learningEvidence).toContain('learning_objective_compatibility compat');
     expect(learningEvidence).toContain("compat.relation IN ('equivalent','subtopic_compatible')");
     expect(learningEvidence).toContain('target_t.syllabus_id = target_syllabus_id');
-    expect(subtopicEvidence).toContain('live_exam_analytics_unmapped_question');
-    expect(subtopicEvidence).toContain('NULL::uuid learning_objective_id');
-    expect(subtopicEvidence).toContain("'stable_subtopic'::text mapping_basis");
-    expect(subtopicEvidence).toContain('target_t.number = source_t.number');
-    expect(subtopicEvidence).toContain('target_st.code = source_st.code');
+    expect(learningEvidence).toContain('live_exam_analytics_unmapped_question');
     expect(learningEvidence).toContain('marks remain the unit of evidence; speed and leaderboard position never');
   });
 
@@ -104,15 +90,5 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
-  });
-
-  it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
-    expect(unifiedControls).toContain('ALTER TABLE live_exam_sessions');
-    expect(unifiedControls).not.toContain('CREATE TABLE live_challenge');
-    expect(service).toContain("'session.paused'");
-    expect(service).toContain("'session.resumed'");
-    expect(service).toContain("'participant.removed'");
-    expect(service).toContain("les.settings->>'allowLateJoin'");
-    expect(service).toContain('live_state_conflict');
   });
 });

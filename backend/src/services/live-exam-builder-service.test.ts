@@ -1,0 +1,94 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { LiveExamBuilderService } from './live-exam-builder-service.js';
+
+const student={id:'student',role:'student' as const,schoolId:'school',fullName:'Student'};
+const teacher={id:'teacher',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
+
+describe('LiveExamBuilderService',()=>{
+  it('rejects students before querying builder metadata',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    await expect(service.builderOptions(student)).rejects.toMatchObject({code:'staff_only',status:403});
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when a teacher asks for a syllabus outside controlled classes',async()=>{
+    const query=vi.fn().mockResolvedValueOnce({rows:[{
+      id:'class-1',name:'10A',grade:10,level:'AS',academic_year:2026,
+      syllabus_id:'11111111-1111-4111-8111-111111111111',syllabus_code:'9618',subject:'Computer Science',
+    }]});
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    await expect(service.builderOptions(teacher,'22222222-2222-4222-8222-222222222222'))
+      .rejects.toMatchObject({code:'not_found',status:404});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires eligible-question discovery to stay inside a controlled syllabus',async()=>{
+    const query=vi.fn().mockResolvedValueOnce({rows:[{
+      id:'class-1',syllabus_id:'11111111-1111-4111-8111-111111111111',
+    }]});
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    await expect(service.eligibleQuestions(teacher,{
+      syllabusId:'22222222-2222-4222-8222-222222222222',
+      topicId:'33333333-3333-4333-8333-333333333333',
+      limit:25,
+    })).rejects.toMatchObject({code:'not_found',status:404});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses deterministic source-backed QP/MS evidence for builder eligibility',async()=>{
+    const syllabusId='11111111-1111-4111-8111-111111111111';
+    const topicId='33333333-3333-4333-8333-333333333333';
+    const query=vi.fn(async (sql:string)=>{
+      if(sql.includes('from classes c join syllabi s'))return {rows:[{id:'class-1',syllabus_id:syllabusId}],rowCount:1};
+      if(sql.includes('select s.code syllabus_code'))return {rows:[{syllabus_code:'9618',topic_number:1,subtopic_code:null}],rowCount:1};
+      if(sql.includes('select q.id,q.display_ref'))return {rows:[],rowCount:0};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    await expect(service.eligibleQuestions(teacher,{syllabusId,topicId,limit:25})).resolves.toEqual([]);
+    const selectionSql=String(query.mock.calls.find(([sql])=>String(sql).includes('select q.id,q.display_ref'))?.[0]??'');
+    expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).toContain("sp.kind='QP'");
+    expect(selectionSql).toContain('sp.source_url is not null');
+    expect(selectionSql).toContain("lower(coalesce(sp.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(selectionSql).toContain("ms_source.kind='MS'");
+    expect(selectionSql).toContain('ms_source.source_url is not null');
+    expect(selectionSql).toContain("lower(coalesce(ms_source.sha256,'')) ~ '^[0-9a-f]{64}$'");
+    expect(selectionSql).toContain('ms_source.syllabus_id=sp.syllabus_id');
+    expect(selectionSql).toContain('ms_source.year=sp.year');
+    expect(selectionSql).toContain('ms_source.series=sp.series');
+    expect(selectionSql).toContain('ms_source.component_id=sp.component_id');
+    expect(selectionSql).toContain('ms_source.variant=sp.variant');
+    expect(selectionSql).toContain('ms.max_marks=q.marks');
+    expect(selectionSql).not.toContain("q.parent_id is not null");
+    expect(selectionSql).not.toContain('not exists(select 1 from question_dependencies');
+    expect(selectionSql).toContain('qst.is_primary');
+    expect(selectionSql).toContain('coalesce(qst.confidence,0)>=0.95');
+    expect(selectionSql).toContain('dependency_count');
+  });
+  it('expands required dependencies in topological order and fails closed on cycles',async()=>{
+    const query=vi.fn(async (sql:string)=>{
+      if(sql.includes('with recursive closure'))return {rows:[
+        {question_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']},
+        {question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[]},
+      ],rowCount:2};
+      throw new Error('unexpected query');
+    });
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    const expanded=await (service as unknown as {expandRequiredDependencies:(executor:Pick<Pool,'query'>,ids:string[])=>Promise<string[]>})
+      .expandRequiredDependencies({query} as unknown as Pick<Pool,'query'>,['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+    expect(expanded).toEqual(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+
+    query.mockReset();
+    query.mockResolvedValueOnce({rows:[
+      {question_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']},
+      {question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']},
+    ],rowCount:2});
+    await expect((service as unknown as {expandRequiredDependencies:(executor:Pick<Pool,'query'>,ids:string[])=>Promise<string[]>})
+      .expandRequiredDependencies({query} as unknown as Pick<Pool,'query'>,['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']))
+      .rejects.toMatchObject({code:'live_dependency_cycle',status:409});
+  });
+});
