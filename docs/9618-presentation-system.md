@@ -21,6 +21,35 @@ The visual quality benchmark is the supplied Chapter 3 Hardware presentation. Th
 
 Do not silently replace a Hodder detail with general knowledge. If source wording and modern terminology differ, preserve the source-backed teaching point and add an explicit accuracy note rather than rewriting the source history.
 
+## Canonical Hodder source map
+
+The connected Hodder coursebook contents define the canonical chapter order and printed-page boundaries used for presentation audits.
+
+| Chapter | Level | Hodder title | Printed source range | Major sections |
+| ---: | --- | --- | --- | --- |
+| 1 | AS | Information representation and multimedia | pp.1–26 | 1.1 Data representation · 1.2 Multimedia · 1.3 File compression |
+| 2 | AS | Communication | pp.27–67 | 2.1 Networking · 2.2 The internet |
+| 3 | AS | Hardware | pp.68–106 | 3.1 Computers and their components · 3.2 Logic gates and logic circuits |
+| 4 | AS | Processor fundamentals | pp.107–135 | 4.1 CPU architecture · 4.2 Assembly language · 4.3 Bit manipulation |
+| 5 | AS | System software | pp.136–158 | 5.1 Operating systems · 5.2 Language translators |
+| 6 | AS | Security, privacy and data integrity | pp.159–177 | 6.1 Data security · 6.2 Data integrity |
+| 7 | AS | Ethics and ownership | pp.178–195 | 7.1 Legal/moral/ethical/cultural implications · 7.2 Copyright · 7.3 AI |
+| 8 | AS | Databases | pp.196–216 | 8.1 Database concepts · 8.2 DBMS · 8.3 DDL/DML |
+| 9 | AS | Algorithm design and problem solving | pp.217–237 | 9.1 Computational thinking skills · 9.2 Algorithms |
+| 10 | AS | Data types and structures | pp.238–263 | 10.1 Data types/records · 10.2 Arrays · 10.3 Files · 10.4 ADTs |
+| 11 | AS | Programming | pp.264–282 | 11.1 Programming basics · 11.2 Constructs · 11.3 Structured programming |
+| 12 | AS | Software development | pp.283–303 | 12.1 Program development lifecycle · 12.2 Program design · 12.3 Testing/maintenance |
+| 13 | A Level | Data representation | pp.304–327 | 13.1 User-defined data types · 13.2 File organisation/access · 13.3 Floating point |
+| 14 | A Level | Communication and internet technologies | pp.328–345 | 14.1 Protocols · 14.2 Circuit/packet switching |
+| 15 | A Level | Hardware | pp.346–371 | 15.1 Processors/parallel processing · 15.2 Boolean algebra/logic circuits |
+| 16 | A Level | System software and virtual machines | pp.372–409 | 16.1 OS purposes · 16.2 VMs · 16.3 Translation software |
+| 17 | A Level | Security | pp.410–424 | 17.1 Encryption · 17.2 Quantum cryptography · 17.3 Protocols · 17.4 Signatures/certificates |
+| 18 | A Level | Artificial intelligence (AI) | pp.425–449 | 18.1 Shortest path algorithms · 18.2 AI/ML/deep learning |
+| 19 | A Level | Computational thinking and problem solving | pp.450–497 | 19.1 Algorithms · 19.2 Recursion |
+| 20 | A Level | Further programming | pp.498–540 | 20.1 Programming paradigms · 20.2 File processing/exception handling |
+
+Page-end values are derived from the next chapter's start page; Chapter 20 ends before the Glossary on p.541.
+
 ## Storage decision
 
 | Artifact | Canonical location |
@@ -62,9 +91,9 @@ Legend:
 | Chapter | Route | Visual | Lesson framing | Benchmark audit | Rollout note |
 | ---: | :---: | :---: | :---: | :---: | --- |
 | 1 | ✓ | ✓ | Pending audit | Pending | Source-backed presentation route exists. |
-| 2 | ✓ | ✓ | **2.1: 4 lessons · 2.2: 4 lessons** | **Pilot in progress** | Hodder pp.27–64; custom networking/internet/addressing/DNS/device visuals already exist. |
-| 3 | ✓ | ✓ | Existing | **Visual benchmark** | User-supplied Hardware deck defines the target clarity/design standard. |
-| 4 | ✓ | ✓ | Pending audit | Pending | Dedicated processor/instruction/assembly visuals exist. |
+| 2 | ✓ | ✓ | **2.1: 4 lessons · 2.2: 4 lessons** | **Pilot implemented** | Source-backed framing, Chapter 2 custom visuals and regression tests are on the rollout branch. |
+| 3 | ✓ | ✓ | **3.1: 4 lessons · 3.2: 3 lessons** | **Benchmark implementation** | Source-complete pp.68–106; custom storage/device/sensor/logic visuals plus benchmark classroom framing. |
+| 4 | ✓ | ✓ | **4.1: 3 lessons · 4.2: 2 lessons · 4.3: 1 lesson** | **Rollout implementation** | Source-complete pp.107–135; processor/assembly/bit-manipulation visuals and classroom framing implemented. |
 | 5 | ✓ | ✓ | Pending audit | Pending | Dedicated system-software/OS visuals exist. |
 | 6 | ✓ | ✓ | Pending audit | Pending | Dedicated security visuals exist. |
 | 7 | ✓ | ✓ | Pending audit | Pending | 9618 Ethics and ownership route is separate from legacy 0478 Chapter 7. |
@@ -115,16 +144,36 @@ The current Chapter 2 checkpoint layer maps:
 
 Hodder end-of-chapter practice remains separately identified from live Cambridge past-paper questions.
 
+## Chapter 3 benchmark implementation
+
+The web route keeps the source-complete Hodder pp.68–106 sequence and applies classroom framing without replacing source beats:
+
+- **3.1 Computers and their components:** 4 lessons — memory/embedded systems; secondary storage; hardware I/O; sensors/control.
+- **3.2 Logic gates and logic circuits:** 3 lessons — gates/truth tables; circuit construction/verification; simplification/NAND/multi-input gates.
+- Hodder end-of-chapter Questions 1–6 remain a chapter review route rather than being silently absorbed into 3.2.
+- The supplied 22-slide Chapter 3 deck is used as the visual benchmark, not as an image-only runtime dependency.
+- A scoped 9618 presentation skin carries the benchmark's white canvas, navy frame, cyan hierarchy and pastel teaching-card language while preserving the shared presenter's responsive/scroll-safe behaviour.
+
+## Chapter 4 rollout implementation
+
+Chapter 4 is named `CHAPTER_4_CURRENT_DRAFT` in one legacy export, but its repository source note and final source-completeness tests lock the full Hodder pp.107–135 range. The presentation rollout therefore treats the source as complete while leaving the legacy symbol name unchanged.
+
+Classroom framing:
+
+- **4.1 CPU architecture:** 3 lessons — CPU/registers; buses/performance/ports; fetch-execute/interrupts.
+- **4.2 Assembly language:** 2 lessons — assembly/assembler/instruction families; addressing modes/worked traces.
+- **4.3 Bit manipulation:** 1 lesson — shifts, masks, monitoring/control flags.
+- End-of-chapter Questions 1–5 remain chapter review material.
+
 ## Rollout order
 
-1. Finish Chapter 2 pilot acceptance and CI.
-2. Audit Chapter 3 web route against the supplied Chapter 3 visual benchmark; preserve the benchmark rather than recreating it blindly.
-3. Use Chapter 14 authored storyboard patterns where they improve classroom pacing.
-4. Audit AS Level chapters in course order.
-5. Audit A Level chapters in course order.
-6. For every chapter: source coverage → presentation pacing → custom visuals → past-paper checkpoint validation → regression tests.
-7. Run full `npm run verify` before merge.
-8. Keep deployment/preview verification as a separate release gate.
+1. Keep Chapters 2–4 as the reference implementation for source-backed classroom framing.
+2. Use Chapter 14 authored storyboard patterns where they improve classroom pacing.
+3. Audit the remaining AS Level chapters (1, 5–12) in course order.
+4. Audit A Level chapters (13–20) in course order.
+5. For every chapter: source coverage → presentation pacing → custom visuals → past-paper checkpoint validation → regression tests.
+6. Run full `npm run verify` before merge.
+7. Keep deployment/preview verification as a separate release gate.
 
 ## Non-negotiable quality rule
 
