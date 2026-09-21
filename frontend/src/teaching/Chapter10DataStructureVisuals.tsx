@@ -7,13 +7,20 @@ export const CHAPTER_10_DATA_STRUCTURE_VISUAL_IDS = [
   'h10-1021-1d-arrays',
   'h10-1022-2d-arrays',
   'h10-1023-linear-search-core',
+  'h10-1023-linear-search-table',
   'h10-1024-bubble-algorithm',
+  'h10-1024-bubble-passes-1-2',
+  'h10-1024-bubble-passes-3-5',
+  'h10-1024-bubble-finish',
   'h10-103-files',
   'h10-104-pointers',
   'h10-1041-stack',
   'h10-1042-queue-circular',
+  'h10-1042-queue-pseudocode',
   'h10-1043-linked-list-start',
   'h10-1043-add-first-two',
+  'h10-1043-add-third-setup',
+  'h10-1043-identifiers-activity',
 ] as const;
 
 export function hasChapter10DataStructureVisual(beat:LessonPresentationBeat){
@@ -133,6 +140,55 @@ function LinkedInsert({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function LinearSearchTable({reveal}:{reveal:number}){
+  const rows=[['item','value being searched for'],['myList','array being searched'],['lowerBound / upperBound','array limits'],['index','current element pointer'],['found','Boolean match flag']] as const;
+  return <div className="h10ds h10ds-search-table" aria-label="Linear search identifier table and trace">
+    <section className={state(reveal,1)}><header>IDENTIFIER TABLE</header>{rows.map(([name,note])=><span key={name}><b>{name}</b><small>{note}</small></span>)}</section>
+    <section className={state(reveal,2)}><b>TRACE</b><span>index advances through myList</span><span>found ← FALSE until match</span><span>stop when found or bounds exhausted</span></section>
+    <footer className={state(reveal,3)}><b>ACTIVITY 10G</b><span>output the index; search sample data for 89 and 77</span></footer>
+  </div>;
+}
+
+function BubblePasses({reveal,stage}:{reveal:number;stage:'early'|'middle'|'finish'}){
+  const data=stage==='early'
+    ? [['PASS 1','9 active · 5 swaps'],['PASS 2','8 active · 3 swaps']]
+    : stage==='middle'
+      ? [['PASS 3','7 active'],['PASS 4','6 active'],['PASS 5','5 active']]
+      : [['PASS 6','shrinking range'],['PASS 7','last movement'],['PASS 8','no swap → stop']];
+  return <div className="h10ds h10ds-bubble-passes" data-stage={stage} aria-label="Bubble sort pass trace">
+    <div className="h10ds-bubble-pass-grid">{data.map(([name,note],index)=><section className={state(reveal,index<1?1:index<2?2:3)} key={name}><b>{name}</b><span>{note}</span><small>largest remaining value settles toward the right</small></section>)}</div>
+    <div className={'h10ds-bubble-top '+state(reveal,2)}><b>top pointer</b><span>active range shrinks after each completed pass</span></div>
+    {stage==='finish'?<footer className={state(reveal,3)}><b>SORTED</b><code>16, 16, 19, 21, 27, 36, 42, 55, 89</code></footer>:<footer className={state(reveal,3)}>adjacent compare → swap if out of order → continue through active range</footer>}
+  </div>;
+}
+
+function QueuePseudocode({reveal}:{reveal:number}){
+  return <div className="h10ds h10ds-queue-code" aria-label="Circular queue enqueue and dequeue decisions">
+    <section className={state(reveal,1)}><header>ENQUEUE</header><span>queueLength &lt; capacity?</span><span>advance rearPointer or wrap to 1</span><span>store item</span><span>queueLength ← queueLength + 1</span></section>
+    <section className={state(reveal,2)}><header>DEQUEUE</header><span>queueLength ≠ 0?</span><span>read item at frontPointer</span><span>advance frontPointer or wrap</span><span>queueLength ← queueLength - 1</span></section>
+    <footer className={state(reveal,3)}>frontPointer + rearPointer + queueLength together preserve FIFO and circular reuse.</footer>
+  </div>;
+}
+
+function LinkedThirdSetup({reveal}:{reveal:number}){
+  return <div className="h10ds h10ds-linked-setup" aria-label="Linked list third insertion and free list setup">
+    <section className={state(reveal,1)}><b>EMPTY LIST</b><span>startPointer ← -1</span><span>heapStartPointer ← 0</span></section>
+    <section className={state(reveal,2)}><b>FREE-LIST INITIALISE</b><span>pointer[index] ← index + 1</span><span>last pointer ← -1</span></section>
+    <section className={state(reveal,3)}><b>INSERT 12</b><span>take next free node</span><span>update used-list links</span><span>advance heapStartPointer</span></section>
+    <footer className={state(reveal,3)}>the same pointer array represents links for used nodes and the free-list heap.</footer>
+  </div>;
+}
+
+function LinkedIdentifiers({reveal}:{reveal:number}){
+  const rows=[['myLinkedList','stored data'],['myLinkedListPointers','next-node links'],['startPointer','first used node'],['heapStartPointer','first free node'],['index','current trace/setup position']] as const;
+  return <div className="h10ds h10ds-linked-identifiers" aria-label="Linked list identifier table and trace activity">
+    <section className={state(reveal,1)}>{rows.map(([name,note])=><span key={name}><b>{name}</b><small>{note}</small></span>)}</section>
+    <aside className={state(reveal,2)}><b>ACTIVITY 10L</b><span>remove 37</span><span>add 18</span><span>add 75</span></aside>
+    <footer className={state(reveal,3)}>show final list + startPointer + heapStartPointer after every pointer change.</footer>
+  </div>;
+}
+
 export function Chapter10DataStructureVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h10-1011-basic-types': return <BasicTypes reveal={reveal}/>;
@@ -140,13 +196,20 @@ export function Chapter10DataStructureVisual({beat,reveal}:{beat:LessonPresentat
     case 'h10-1021-1d-arrays': return <OneDimensional reveal={reveal}/>;
     case 'h10-1022-2d-arrays': return <TwoDimensional reveal={reveal}/>;
     case 'h10-1023-linear-search-core': return <LinearSearch reveal={reveal}/>;
+    case 'h10-1023-linear-search-table': return <LinearSearchTable reveal={reveal}/>;
     case 'h10-1024-bubble-algorithm': return <BubbleSort reveal={reveal}/>;
+    case 'h10-1024-bubble-passes-1-2': return <BubblePasses reveal={reveal} stage="early"/>;
+    case 'h10-1024-bubble-passes-3-5': return <BubblePasses reveal={reveal} stage="middle"/>;
+    case 'h10-1024-bubble-finish': return <BubblePasses reveal={reveal} stage="finish"/>;
     case 'h10-103-files': return <Files reveal={reveal}/>;
     case 'h10-104-pointers': return <Pointers reveal={reveal}/>;
     case 'h10-1041-stack': return <Stack reveal={reveal}/>;
     case 'h10-1042-queue-circular': return <CircularQueue reveal={reveal}/>;
+    case 'h10-1042-queue-pseudocode': return <QueuePseudocode reveal={reveal}/>;
     case 'h10-1043-linked-list-start': return <LinkedListStart reveal={reveal}/>;
     case 'h10-1043-add-first-two': return <LinkedInsert reveal={reveal}/>;
+    case 'h10-1043-add-third-setup': return <LinkedThirdSetup reveal={reveal}/>;
+    case 'h10-1043-identifiers-activity': return <LinkedIdentifiers reveal={reveal}/>;
     default: return null;
   }
 }
