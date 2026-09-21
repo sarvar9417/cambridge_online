@@ -56,13 +56,17 @@ Page-end values are derived from the next chapter's start page; Chapter 20 ends 
 | --- | --- |
 | Hodder/Cambridge original source documents | Google Drive / guarded source storage |
 | Past papers and mark schemes | Existing source corpus + database |
-| Presentation structure and content model | Repository |
-| HTML/CSS/React presentation renderer | Repository |
-| SVG/CSS diagrams and animations | Repository |
+| Editable real presentation deck (.pptx) | Google Drive presentation folder |
+| Real-deck manifest and site integration | Repository |
+| Real PPTX runtime render for migrated chapters | Shared Drive presentation embed |
+| Legacy HTML/CSS/React presentation renderer | Repository fallback until each chapter is migrated |
+| SVG/CSS diagrams and animations | Repository study/fallback assets |
 | Question-to-learning-objective mapping | Existing backend/database model |
 | Source page evidence | Lesson source metadata |
 
-Runtime presentations must not depend on a public Drive iframe.
+For chapters migrated to the real-deck system, the editable PPTX is the source of truth and the lesson Presentation tab renders that real deck. Chapter 3 is the first implementation. The repository stores the manifest/viewer integration; the large editable PPTX remains in the shared presentation folder to avoid duplicating tens of megabytes per chapter in Git history.
+
+If future deployment requirements make Drive embedding unsuitable for students, export the same approved PPTX to project-hosted slide assets as a fallback without redesigning or re-typesetting the slides.
 
 ## Presentation acceptance contract
 

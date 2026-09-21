@@ -1,0 +1,25 @@
+{
+  "id": "9618-chapter-03-hardware",
+  "course": "9618",
+  "chapter": 3,
+  "title": "Hardware",
+  "delivery": "drive-embedded-pptx",
+  "sourcePptx": {
+    "fileName": "9618_Chapter_03_Hardware_Real_Deck.pptx",
+    "driveFileId": "1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM",
+    "driveUrl": "https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true",
+    "embedUrl": "https://drive.google.com/file/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/preview",
+    "shared": true
+  },
+  "slideCount": 22,
+  "sourceRange": "Hodder 9618 Chapter 3, printed pp.68–106",
+  "topics": [
+    "3.1 Computers and their components",
+    "3.2 Logic gates and logic circuits"
+  ],
+  "runtime": {
+    "htmlCssReconstruction": false,
+    "sourceOfTruth": "Drive PPTX",
+    "projectIntegration": "LessonExperience real PPTX viewer"
+  }
+}

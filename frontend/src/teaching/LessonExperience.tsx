@@ -31,6 +31,8 @@ import {
 } from './lesson-course-catalog';
 import { LessonPresentationScreen, LessonStudySlide, revealCountForBeat } from './LessonContent';
 import { LessonPastPaper } from './LessonPastPaper';
+import { RealSlideDeckPresentation } from './RealSlideDeckPresentation';
+import { realSlideDeckFor } from './real-slide-decks';
 import './lesson-experience.css';
 import './presentation-hodder-benchmark.css';
 
@@ -146,9 +148,11 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const [progress,setProgress]=useState<LessonProgress[]>([]);
   const [saving,setSaving]=useState(false);
   const beats=useMemo(()=>chapter&&activeTopic?presentationBeatsForCatalogTopic(chapter,activeTopic):[],[chapter,activeTopic]);
+  const realDeck=useMemo(()=>chapter&&activeTopic?realSlideDeckFor(courseCode(chapter),chapter.number,activeTopic.code):null,[chapter,activeTopic]);
   const requestedBeat=Math.max(0,Number(route.params.get('beat')??1)-1);
-  const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,beats.length-1));
-  const activeBeat=beats[beatIndex]??null;
+  const presentationLength=realDeck?1:beats.length;
+  const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,presentationLength-1));
+  const activeBeat=realDeck?null:beats[beatIndex]??null;
   const [reveal,setReveal]=useState(0);
 
   const navigateTo=useCallback((targetTopic:LessonTopic,targetPage:TopicPage,targetMode:LessonMode=mode,targetBeat=0)=>{
@@ -198,28 +202,41 @@ export function LessonExperience({audience}:LessonExperienceProps){
   },[chapter,activeTopic,activePage,topics,navigateTo]);
 
   const openBeat=useCallback((index:number)=>{
-    if(!chapter||!activeTopic||!activePage||index<0||index>=beats.length)return;
+    if(!chapter||!activeTopic||!activePage||index<0||index>=presentationLength)return;
     navigateTo(activeTopic,activePage,'present',index);
-  },[chapter,activeTopic,activePage,beats.length,navigateTo]);
+  },[chapter,activeTopic,activePage,presentationLength,navigateTo]);
 
   useEffect(()=>{
-    if(mode!=='present'||!activeBeat)return;
+    if(mode!=='present'||(!activeBeat&&!realDeck))return;
     const onKey=(event:KeyboardEvent)=>{
       const target=event.target as HTMLElement|null;
       if(target?.closest('button,input,textarea,select,[contenteditable="true"]'))return;
       if(event.key==='Escape'){event.preventDefault();exitPresentation();return;}
-      if(event.key==='ArrowRight'||event.key==='PageDown'){event.preventDefault();openBeat(Math.min(beats.length-1,beatIndex+1));return;}
+      if(realDeck)return;
+      if(event.key==='ArrowRight'||event.key==='PageDown'){event.preventDefault();openBeat(Math.min(presentationLength-1,beatIndex+1));return;}
       if(event.key==='ArrowLeft'||event.key==='PageUp'){event.preventDefault();openBeat(Math.max(0,beatIndex-1));return;}
-      if(event.key===' '){event.preventDefault();const total=revealCountForBeat(activeBeat);if(reveal<total)setReveal(value=>value+1);else openBeat(Math.min(beats.length-1,beatIndex+1));}
+      if(event.key==='Home'){event.preventDefault();openBeat(0);return;}
+      if(event.key==='End'){event.preventDefault();openBeat(Math.max(0,presentationLength-1));return;}
+      if(event.key===' '){
+        event.preventDefault();
+        if(activeBeat){const total=revealCountForBeat(activeBeat);if(reveal<total)setReveal(value=>value+1);else openBeat(Math.min(presentationLength-1,beatIndex+1));}
+      }
     };
     window.addEventListener('keydown',onKey);
     return()=>window.removeEventListener('keydown',onKey);
-  },[mode,activeBeat,beatIndex,beats.length,reveal,exitPresentation,openBeat]);
+  },[mode,activeBeat,realDeck,beatIndex,presentationLength,reveal,exitPresentation,openBeat]);
 
   if(!chapter)return <LessonLibrary audience={audience} progress={progress}/>;
   if(!activeTopic)return <section className="lx-empty"><strong>No lesson is available for this chapter.</strong><button type="button" onClick={()=>navigate(`${audience==='student'?'oquvchi':'oqitish'}/darslar`)}>Back to lessons</button></section>;
 
   if(mode==='present'){
+    if(realDeck)return <section ref={rootRef} className="lesson-experience lx-present real-deck-host" data-course={courseCode(chapter)} data-chapter={chapter.number}>
+      <RealSlideDeckPresentation
+        deck={realDeck}
+        onExit={exitPresentation}
+        onFullscreen={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}
+      />
+    </section>;
     if(!activeBeat)return <section ref={rootRef} className="lesson-experience lx-present" data-course={courseCode(chapter)} data-chapter={chapter.number}><div className="lx-empty"><strong>No presentation screens are available for this topic.</strong><button type="button" onClick={exitPresentation}>Return to Study mode</button></div></section>;
     const totalReveal=revealCountForBeat(activeBeat);
     return <section ref={rootRef} className="lesson-experience lx-present" data-course={courseCode(chapter)} data-chapter={chapter.number}>
