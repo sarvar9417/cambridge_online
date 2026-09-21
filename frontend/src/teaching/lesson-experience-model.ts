@@ -10,6 +10,7 @@ import { rawPdfEmphasisForChapter } from './raw-pdf-emphasis-baseline';
 import { CHAPTER_2_KEY_TERMS_2_1, CHAPTER_2_KEY_TERMS_2_2 } from './chapter2-source-emphasis';
 import { chapter14PresentationStoryboard } from './chapter14-presentation-storyboard';
 import { frameChapter2InternetPresentation, frameChapter2NetworkingPresentation } from './chapter2-networking-presentation';
+import { frameChapter3ComponentsPresentation, frameChapter3LogicPresentation } from './chapter3-hardware-presentation';
 import { curateChapterPresentation } from './chapter-presentation-curation';
 import type { HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
 import type { LessonVisual } from './lesson-content-full';
@@ -433,6 +434,14 @@ function presentationBeatsForSingleTopic(topic:LessonTopic){
   }
   if(chapter===2&&topic.code==='2.2'){
     const framed=frameChapter2InternetPresentation(lesson,[]);
+    return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
+  }
+  if(chapter===3&&topic.code==='3.1'){
+    const framed=frameChapter3ComponentsPresentation(lesson);
+    return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
+  }
+  if(chapter===3&&topic.code==='3.2'){
+    const framed=frameChapter3LogicPresentation(lesson);
     return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
   }
   return curateChapterPresentation([...lesson,...sourceDetails,...emphasis],topic.code);
