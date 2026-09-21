@@ -146,16 +146,17 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/start', async (req, res) => {
-    res.json(await service.start(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/pause', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.pause(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/resume', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.resume(req.actor!, id(req.params), body.expectedVersion));
   });
 
@@ -164,7 +165,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/participants/:studentId/remove', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.removeParticipant(
       req.actor!,
       id(req.params),
@@ -219,16 +220,21 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
-    const body = z.object({ force: z.boolean().default(false) }).strict().parse(req.body ?? {});
-    res.json(await service.completeMarking(req.actor!, id(req.params), body.force));
+    const body = z.object({
+      force: z.boolean().default(false),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
   });
 
   router.post('/:id/next', async (req, res) => {
-    res.json(await service.nextQuestion(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.nextQuestion(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/cancel', async (req, res) => {
-    res.json(await service.cancel(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.cancel(req.actor!, id(req.params), body.expectedVersion));
   });
 
   return router;
