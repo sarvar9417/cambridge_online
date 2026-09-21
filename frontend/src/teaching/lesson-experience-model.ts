@@ -12,6 +12,7 @@ import { chapter14PresentationStoryboard } from './chapter14-presentation-storyb
 import { frameChapter2InternetPresentation, frameChapter2NetworkingPresentation } from './chapter2-networking-presentation';
 import { frameChapter3ComponentsPresentation, frameChapter3LogicPresentation } from './chapter3-hardware-presentation';
 import { frameChapter4AssemblyPresentation, frameChapter4BitPresentation, frameChapter4CpuPresentation } from './chapter4-processor-presentation';
+import { frameConfiguredCoursePresentation } from './course-classroom-presentation';
 import { curateChapterPresentation } from './chapter-presentation-curation';
 import type { HodderLessonSlide, LessonRichBlock } from './lesson-content-hodder-types';
 import type { LessonVisual } from './lesson-content-full';
@@ -457,6 +458,10 @@ function presentationBeatsForSingleTopic(topic:LessonTopic){
   if(deckChapter===4&&topic.code==='4.3'){
     const framed=frameChapter4BitPresentation(lesson);
     return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
+  }
+  if(deckChapter){
+    const framed=frameConfiguredCoursePresentation(deckChapter,topic.code,lesson);
+    if(framed)return curateChapterPresentation([...framed,...sourceDetails,...emphasis],topic.code);
   }
   return curateChapterPresentation([...lesson,...sourceDetails,...emphasis],topic.code);
 }
