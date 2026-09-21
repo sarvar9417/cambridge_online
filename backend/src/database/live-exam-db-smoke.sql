@@ -136,7 +136,8 @@ ALTER TABLE questions
   ADD COLUMN stem_md text,
   ADD COLUMN command_word text,
   ADD COLUMN answer_kind text,
-  ADD COLUMN ao text;
+  ADD COLUMN ao text,
+  ADD COLUMN sort_order int NOT NULL DEFAULT 0;
 ALTER TABLE topics
   ADD COLUMN number int,
   ADD COLUMN title text,
