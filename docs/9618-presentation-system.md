@@ -76,8 +76,11 @@ The project mirror must preserve the approved slide appearance; it is a delivery
 | --- | --- | --- | --- |
 | 3 Hardware | `9618_Chapter_03_Hardware_Real_Deck.pptx` | 22 real slide images + project PPTX mirror | Active |
 | 4 Processor Fundamentals | `9618_Chapter_04_Processor_Fundamentals_Real_Deck.pptx` | 29 real slide images + project PPTX mirror | Active |
+| 5 System Software | `9618_Chapter_05_System_Software_Real_Deck.pptx` | 24 real slide images + project PPTX mirror | Active |
 
 Chapter 4 is grounded in Hodder printed pp.107–135. Its exam-focus screen is separately grounded in Cambridge 2026 Paper 11 Q3 and Paper 13 Q7 mark-scheme evidence; that exam layer is not presented as Hodder source content.
+
+Chapter 5 is grounded in Hodder printed pp.136–158. Its exam-focus screen is separately grounded in Cambridge 2026 system-software mark-scheme habits; that exam layer is not presented as Hodder source content.
 
 ## Presentation acceptance contract
 
@@ -109,7 +112,7 @@ Legend:
 | 2 | ✓ | ✓ | **2.1: 4 lessons · 2.2: 4 lessons** | **Pilot implemented** | Source-backed framing, Chapter 2 custom visuals and regression tests are on the rollout branch. |
 | 3 | ✓ | ✓ | **3.1: 4 lessons · 3.2: 3 lessons** | **Benchmark implementation** | Source-complete pp.68–106; custom storage/device/sensor/logic visuals plus benchmark classroom framing. |
 | 4 | ✓ | ✓ | **4.1: 3 lessons · 4.2: 2 lessons · 4.3: 1 lesson** | **Rollout implementation** | Source-complete pp.107–135; processor/assembly/bit-manipulation visuals and classroom framing implemented. |
-| 5 | ✓ | ✓ | Pending audit | Pending | Dedicated system-software/OS visuals exist. |
+| 5 | ✓ | ✓ | **5.1: OS/utilities/libraries · 5.2: translators/IDE** | **Rollout implementation** | Source-complete pp.136–158; system-software real deck implemented. |
 | 6 | ✓ | ✓ | Pending audit | Pending | Dedicated security visuals exist. |
 | 7 | ✓ | ✓ | Pending audit | Pending | 9618 Ethics and ownership route is separate from legacy 0478 Chapter 7. |
 | 8 | ✓ | ✓ | Pending audit | Pending | Dedicated database visuals exist. |
@@ -180,11 +183,21 @@ Classroom framing:
 - **4.3 Bit manipulation:** 1 lesson — shifts, masks, monitoring/control flags.
 - End-of-chapter Questions 1–5 remain chapter review material.
 
+## Chapter 5 rollout implementation
+
+Chapter 5 is implemented as a 24-slide real deck covering Hodder pp.136–158.
+
+Classroom framing:
+
+- **5.1 Operating systems:** OS role, start-up, interfaces, memory/security/process/hardware/file management, printer management, utilities and program libraries.
+- **5.2 Language translators:** assembler/loader, compiler/interpreter trade-offs, partial compilation/bytecode, IDE facilities and debugging.
+- End-of-chapter review remains a chapter synthesis route rather than replacing the source sequence.
+
 ## Rollout order
 
-1. Keep Chapters 2–4 as the reference implementation for source-backed classroom framing.
+1. Keep Chapters 2–5 as the reference implementation for source-backed classroom framing.
 2. Use Chapter 14 authored storyboard patterns where they improve classroom pacing.
-3. Audit the remaining AS Level chapters (1, 5–12) in course order.
+3. Audit the remaining AS Level chapters (1, 6–12) in course order.
 4. Audit A Level chapters (13–20) in course order.
 5. For every chapter: source coverage → presentation pacing → custom visuals → past-paper checkpoint validation → regression tests.
 6. Run full `npm run verify` before merge.
