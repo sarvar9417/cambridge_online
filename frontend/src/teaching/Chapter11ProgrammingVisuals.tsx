@@ -4,9 +4,13 @@ import './chapter11-programming-visuals.css';
 export const CHAPTER_11_PROGRAMMING_VISUAL_IDS = [
   'h11-111-constants-variables',
   'h11-111-sphere-algorithm',
+  'h11-111-language-io-processing',
+  'h11-111-output-programs',
+  'h11-111-java-builtins',
   'h11-111-password-functions',
   'h11-112-library-routines',
   'h11-1121-case-model',
+  'h11-1121-case-languages',
   'h11-1122-loops',
   'h11-113-procedure-basics',
   'h11-1131-calls-parameters',
@@ -124,13 +128,58 @@ function ProcedureFunctionCompare({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function LanguageIoProcessing({reveal}:{reveal:number}){
+  const rows=[
+    ['INPUT RADIUS','Python prompt+conversion','VB.NET prompt/input','Java scanner/input'],
+    ['VALIDATE > 0','repeat until valid','loop until valid','loop until valid'],
+    ['PROCESS','same formula intent','same formula intent','same formula intent'],
+  ] as const;
+  return <div className="h11pg h11pg-language-io" aria-label="Python VB.NET Java input validation and processing comparison">
+    <div className="h11pg-language-head"><span>ALGORITHM</span><span>PYTHON</span><span>VB.NET</span><span>JAVA</span></div>
+    {rows.map((row,index)=><section className={state(reveal,index<1?1:index<2?2:3)} key={row[0]}>{row.map(cell=><span key={cell}>{cell}</span>)}</section>)}
+    <footer className={state(reveal,3)}>syntax differs; input → validation → calculation stays the same.</footer>
+  </div>;
+}
+
+function OutputPrograms({reveal}:{reveal:number}){
+  return <div className="h11pg h11pg-output-programs" aria-label="Output syntax and complete sphere program structure">
+    <section className={state(reveal,1)}><b>PYTHON OUTPUT</b><span>text + values via print arguments</span></section>
+    <section className={state(reveal,2)}><b>VB.NET OUTPUT</b><span>text + values via concatenation</span></section>
+    <section className={state(reveal,2)}><b>JAVA OUTPUT</b><span>System.out.println + concatenation</span></section>
+    <div className={'h11pg-output-flow '+state(reveal,3)}><span>INPUT</span><i>→</i><span>VALIDATE</span><i>→</i><span>PROCESS</span><i>→</i><span>OUTPUT</span></div>
+    <footer className={state(reveal,3)}>complete programs change scaffolding, not the algorithmic sequence.</footer>
+  </div>;
+}
+
+function JavaBuiltins({reveal}:{reveal:number}){
+  return <div className="h11pg h11pg-java-builtins" aria-label="Java sphere activity and DIV MOD built in operations">
+    <section className={state(reveal,1)}><b>ACTIVITY 11A</b><span>repeat sphere calculations</span><span>stop when input = -1</span></section>
+    <section className={state(reveal,2)}><b>DIV(10,3)</b><strong>3</strong><span>integer part of division</span></section>
+    <section className={state(reveal,2)}><b>MOD(10,3)</b><strong>1</strong><span>remainder</span></section>
+    <footer className={state(reveal,3)}>test values from the source include 4.7, 34, -11, 0 and -1.</footer>
+  </div>;
+}
+
+function CaseLanguages({reveal}:{reveal:number}){
+  return <div className="h11pg h11pg-case-languages" aria-label="VB.NET Select Case and Java switch comparison">
+    <section className={state(reveal,1)}><header>VB.NET</header><b>SELECT CASE</b><span>Case value</span><span>Case Else</span></section>
+    <section className={state(reveal,2)}><header>JAVA</header><b>switch</b><span>case value:</span><span>break</span><span>default</span></section>
+    <footer className={state(reveal,3)}>same multi-choice control idea, different language keywords and block syntax.</footer>
+  </div>;
+}
+
 export function Chapter11ProgrammingVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h11-111-constants-variables': return <ConstantsVariables reveal={reveal}/>;
     case 'h11-111-sphere-algorithm': return <SpherePipeline reveal={reveal}/>;
+    case 'h11-111-language-io-processing': return <LanguageIoProcessing reveal={reveal}/>;
+    case 'h11-111-output-programs': return <OutputPrograms reveal={reveal}/>;
+    case 'h11-111-java-builtins': return <JavaBuiltins reveal={reveal}/>;
     case 'h11-111-password-functions': return <StringFunctions reveal={reveal}/>;
     case 'h11-112-library-routines': return <LibraryRoutines reveal={reveal}/>;
     case 'h11-1121-case-model': return <CaseModel reveal={reveal}/>;
+    case 'h11-1121-case-languages': return <CaseLanguages reveal={reveal}/>;
     case 'h11-1122-loops': return <Loops reveal={reveal}/>;
     case 'h11-113-procedure-basics': return <ProcedureBasics reveal={reveal}/>;
     case 'h11-1131-calls-parameters': return <CallsParameters reveal={reveal}/>;
