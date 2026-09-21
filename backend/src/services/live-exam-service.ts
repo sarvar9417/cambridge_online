@@ -1239,6 +1239,105 @@ export class LiveExamService {
     this.assertStaff(actor);
     const snapshot = await this.snapshot(actor, sessionId);
     const { session } = snapshot;
+    const boardUuid = (value: number) =>
+      `00000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
+
+    let question = null;
+    if (session.status === 'question_open' && snapshot.question) {
+      const source = snapshot.question;
+      const assetIds = new Map<string, string>();
+      let assetSequence = 1000;
+      const assetId = (original: string) => {
+        const existing = assetIds.get(original);
+        if (existing) return existing;
+        const projected = boardUuid(assetSequence);
+        assetSequence += 1;
+        assetIds.set(original, projected);
+        return projected;
+      };
+      for (const block of source.portable.contextBlocks) {
+        for (const asset of block.assets) assetId(asset.id);
+      }
+      const contentJson = source.portable.leaf.contentJson
+        ? {
+            ...source.portable.leaf.contentJson,
+            source: { paperId: boardUuid(900), sha256: '0'.repeat(64) },
+            blocks: source.portable.leaf.contentJson.blocks.map((block) => ({
+              ...block,
+              ...(block.type === 'asset' ? { assetId: assetId(block.assetId) } : {}),
+              source: { page: 1 },
+            })),
+          }
+        : source.portable.leaf.contentJson;
+
+      question = {
+        id: boardUuid(1),
+        sourceQuestionId: boardUuid(2),
+        position: source.position,
+        marks: source.marks,
+        portable: {
+          leaf: {
+            ...source.portable.leaf,
+            id: boardUuid(3),
+            rootId: boardUuid(4),
+            contentJson,
+          },
+          chain: source.portable.chain.map((node, index) => ({
+            id: boardUuid(100 + index),
+            label: node.label,
+            depth: node.depth,
+          })),
+          contextBlocks: source.portable.contextBlocks.map((block, blockIndex) => ({
+            id: boardUuid(200 + blockIndex),
+            label: block.label,
+            displayRef: block.displayRef,
+            depth: block.depth,
+            context: block.context,
+            contextLatex: block.contextLatex,
+            assets: block.assets.map((asset) => ({
+              id: assetId(asset.id),
+              kind: asset.kind,
+              storagePath: null,
+              url: asset.url,
+              contentMd: asset.contentMd,
+              altText: asset.altText,
+              sortOrder: asset.sortOrder,
+              sourcePage: null,
+            })),
+          })),
+          dependencies: [],
+          sourceRef: source.portable.sourceRef,
+        },
+        dependencyWork: source.dependencyWork.map((dependency, index) => ({
+          ...dependency,
+          questionId: boardUuid(500 + index),
+        })),
+      };
+    }
+
+    let markScheme = null;
+    if (session.status === 'marking' && snapshot.markScheme) {
+      const source = snapshot.markScheme;
+      const groups = new Map(source.groups.map((group, index) => [
+        group.id,
+        boardUuid(700 + index),
+      ]));
+      markScheme = {
+        ...source,
+        id: boardUuid(600),
+        groups: source.groups.map((group, index) => ({
+          ...group,
+          id: boardUuid(700 + index),
+        })),
+        points: source.points.map((point, index) => ({
+          ...point,
+          id: boardUuid(800 + index),
+          groupId: point.groupId ? groups.get(point.groupId) ?? null : null,
+          requires: [],
+        })),
+      };
+    }
+
     return {
       session: {
         id: session.id,
@@ -1258,8 +1357,8 @@ export class LiveExamService {
         pausedAt: session.pausedAt,
         pauseRemainingS: session.pauseRemainingS,
       },
-      question: session.status === 'question_open' ? snapshot.question : null,
-      markScheme: session.status === 'marking' ? snapshot.markScheme : null,
+      question,
+      markScheme,
     };
   }
 
