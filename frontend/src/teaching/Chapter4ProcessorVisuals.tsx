@@ -11,8 +11,17 @@ export const CHAPTER_4_PROCESSOR_VISUAL_IDS = [
   'h4-415-ports-usb',
 ] as const;
 
+const CHAPTER_4_FRAME_IDS=[
+  'h4c-l1-cover','h4c-l1-objectives','h4c-l1-starter','h4c-l1-recap',
+  'h4c-l2-cover','h4c-l2-objectives','h4c-l2-starter','h4c-l2-recap',
+  'h4c-l3-cover','h4c-l3-objectives','h4c-l3-starter','h4c-l3-recap',
+  'h4a-l1-cover','h4a-l1-objectives','h4a-l1-starter','h4a-l1-recap',
+  'h4a-l2-cover','h4a-l2-objectives','h4a-l2-starter','h4a-l2-recap',
+  'h4b-l1-cover','h4b-l1-objectives','h4b-l1-starter','h4b-l1-recap',
+] as const;
+
 export function hasChapter4ProcessorVisual(beat: LessonPresentationBeat) {
-  return CHAPTER_4_PROCESSOR_VISUAL_IDS.includes(beat.slideId as never);
+  return CHAPTER_4_FRAME_IDS.includes(beat.id as never) || CHAPTER_4_PROCESSOR_VISUAL_IDS.includes(beat.slideId as never);
 }
 
 const revealStyle = (reveal: number, step: number) => ({
@@ -106,7 +115,31 @@ function PortsUsb({ reveal }: { reveal: number }) {
   </div>;
 }
 
+const cpuLessonNames=['CPU core and registers','Buses, performance and ports','Fetch-execute and interrupts'];
+const assemblyLessonNames=['Assembly and the assembler','Addressing modes and traces'];
+const bitLessonNames=['Shifts, masks and control flags'];
+
+function Chapter4LessonFrame({beat}:{beat:LessonPresentationBeat}){
+  const match=beat.id.match(/^h4([cab])-l(\d)-/);
+  const track=match?.[1]??'c';
+  const active=match?Number(match[2]):0;
+  const stage=beat.id.split('-').at(-1);
+  const names=track==='a'?assemblyLessonNames:track==='b'?bitLessonNames:cpuLessonNames;
+  return <div className={`h4pv h4pv-session h4pv-session--${stage}`} data-track={track}>
+    <div className="h4pv-session-map">{names.map((name,index)=><section className={active===index+1?'active':''} key={name}><span>{index+1}</span><div><small>LESSON {index+1}</small><strong>{name}</strong></div></section>)}</div>
+    <div className="h4pv-session-flow" aria-hidden="true">
+      {track==='a'
+        ? <><span>MNEMONIC</span><i>→</i><b>ASSEMBLER</b><i>→</i><span>MACHINE CODE</span><i>→</i><b>CPU</b></>
+        : track==='b'
+          ? <><span>REGISTER</span><i>→</i><b>SHIFT / MASK</b><i>→</i><span>FLAG</span><i>→</i><b>CONTROL</b></>
+          : <><span>MEMORY</span><i>↔</i><b>BUSES</b><i>↔</i><span>CPU</span><i>→</i><b>EXECUTE</b></>}
+    </div>
+    <footer>Hodder Chapter 4 · source-backed projector sequence</footer>
+  </div>;
+}
+
 export function Chapter4ProcessorVisual({ beat, reveal }: { beat: LessonPresentationBeat; reveal: number }) {
+  if(CHAPTER_4_FRAME_IDS.includes(beat.id as never)) return <Chapter4LessonFrame beat={beat}/>;
   switch (beat.slideId) {
     case 'h4-411-von-neumann': return <VonNeumann reveal={reveal}/>;
     case 'h4-412-cpu-components': return <CpuComponents reveal={reveal}/>;
