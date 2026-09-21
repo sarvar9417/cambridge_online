@@ -23,14 +23,15 @@ const createInput = z.object({
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
 }).strict();
 
-const versionInput = z.object({
-  expectedVersion: z.number().int().positive().optional(),
-}).strict();
+const requiredVersion = z.number().int().positive();
+const draftInput = createInput.omit({ questionCount:true, questionIds:true }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
-  return Boolean(error && typeof error === 'object'
-    && 'code' in error && error.code === 'P0001'
-    && 'message' in error && error.message === 'live_peer_assignment_impossible');
+  if (!error || typeof error !== 'object' || !('code' in error)) return false;
+  if (error.code === 'live_peer_assignment_impossible') return true;
+  return error.code === 'P0001'
+    && 'message' in error
+    && error.message === 'live_peer_assignment_impossible';
 }
 
 function privateNoStore(res: Response) {
@@ -51,6 +52,42 @@ export function createLiveExamsRouter(service: LiveExamService) {
   router.post('/', async (req, res) => {
     const body = createInput.parse(req.body);
     res.status(201).json(await service.create(req.actor!, body));
+  });
+
+  router.post('/drafts', async (req, res) => {
+    const body = draftInput.parse(req.body);
+    res.status(201).json(await service.createDraft(req.actor!, body));
+  });
+
+  router.get('/:id/builder', async (req, res) => {
+    privateNoStore(res);
+    res.json({ data: await service.draft(req.actor!, id(req.params)) });
+  });
+
+  router.put('/:id/questions', async (req, res) => {
+    const body = z.object({
+      questionIds: z.array(uuid).max(20),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.replaceDraftQuestions(req.actor!, id(req.params), body.questionIds, body.expectedVersion));
+  });
+
+  router.post('/:id/questions/auto', async (req, res) => {
+    const body = z.object({
+      count: z.number().int().min(1).max(20),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.autoSelectDraft(req.actor!, id(req.params), body.count, body.expectedVersion));
+  });
+
+  router.post('/:id/publish', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.publishDraft(req.actor!, id(req.params), body.expectedVersion));
+  });
+
+  router.post('/:id/open', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.openPublished(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.get('/eligible-questions', async (req, res) => {
@@ -91,6 +128,11 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.status(201).json(await service.join(req.actor!, body.code));
   });
 
+  router.get('/:id/board', async (req, res) => {
+    privateNoStore(res);
+    res.json({ data: await service.board(req.actor!, id(req.params)) });
+  });
+
   router.get('/:id', async (req, res) => {
     // A snapshot can contain the learner's draft/submitted answer and, after
     // reveal, Mark Scheme or review data. Treat it as sensitive per-user state.
@@ -103,16 +145,17 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/start', async (req, res) => {
-    res.json(await service.start(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/pause', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.pause(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/resume', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.resume(req.actor!, id(req.params), body.expectedVersion));
   });
 
@@ -121,7 +164,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/participants/:studentId/remove', async (req, res) => {
-    const body = versionInput.parse(req.body ?? {});
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     res.json(await service.removeParticipant(
       req.actor!,
       id(req.params),
@@ -140,9 +183,28 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json(await service.submitAnswer(req.actor!, id(req.params), body.text));
   });
 
+  router.post('/:id/lock', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.lockAnswers(req.actor!, id(req.params), body.expectedVersion));
+  });
+
+  router.post('/:id/marking-mode', async (req, res) => {
+    const body = z.object({
+      mode: z.literal('teacher'),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.switchLockedMarkingMode(
+      req.actor!,
+      id(req.params),
+      body.mode,
+      body.expectedVersion,
+    ));
+  });
+
   router.post('/:id/reveal', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     try {
-      res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+      res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
     } catch (error) {
       if (!isPeerIntegrityConflict(error)) throw error;
       res.status(409).json({ error: {
@@ -170,16 +232,21 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
-    const body = z.object({ force: z.boolean().default(false) }).strict().parse(req.body ?? {});
-    res.json(await service.completeMarking(req.actor!, id(req.params), body.force));
+    const body = z.object({
+      force: z.boolean().default(false),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
   });
 
   router.post('/:id/next', async (req, res) => {
-    res.json(await service.nextQuestion(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.nextQuestion(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/cancel', async (req, res) => {
-    res.json(await service.cancel(req.actor!, id(req.params)));
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.cancel(req.actor!, id(req.params), body.expectedVersion));
   });
 
   return router;

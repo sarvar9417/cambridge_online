@@ -13,6 +13,7 @@ const overrideAudit=source('src/database/migrations/0169_live_exam_override_audi
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
 const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
+const builderLifecycle=source('src/database/migrations/0191_live_challenge_builder_lifecycle.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -30,6 +31,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("const reveal = ['marking', 'review', 'finished'].includes(String(session.status));");
     expect(service).toContain('markScheme: reveal && currentRow ? currentRow.mark_scheme_snapshot : null');
     expect(service).toContain('if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));');
+  });
+
+  it('discovers published class challenges for students without leaking room codes',()=>{
+    expect(service).toContain("les.status in ('published','lobby','question_open','answers_locked','marking','review')");
+    expect(service).toContain('select 1 from enrollments e');
+    expect(service).toContain("joinCode: actor.role === 'student' ? null : row.join_code");
+    expect(service).toContain('joined: Boolean(row.joined)');
   });
 
   it('keeps class membership and live participation at the join boundary',()=>{
@@ -62,11 +70,55 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
   });
 
-  it('keeps peer mode structurally incapable of self marking',()=>{
+  it('treats a duplicate identical answer submission as an idempotent retry',()=>{
+    expect(service).toContain('if (existing.rows[0]?.submitted_at)');
+    expect(service).toContain('idempotent: true');
+    expect(service).toContain("String(existing.rows[0].answer_text ?? '') !== text");
+  });
+
+  it('treats duplicate submitted peer marks as idempotent retries',()=>{
+    expect(service).toContain("['submitted','moderated'].includes(String(row.status))");
+    expect(service).toContain('reviewId,');
+    expect(service).toContain('idempotent: true');
+  });
+
+  it('separates answer locking from Mark Scheme reveal',()=>{
+    expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
+    expect(service).toContain("'answers.locked'");
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("set status='marking',mark_scheme_revealed_at=now()");
+  });
+
+  it('projects projector state through an explicit learner-safe allow-list',()=>{
+    const board=service.slice(service.indexOf('async board('),service.indexOf('private async reviewFor'));
+    expect(board).toContain("joinCode: session.status === 'lobby' ? session.joinCode : null");
+    expect(board).toContain("question: session.status === 'question_open' ? snapshot.question : null");
+    expect(board).toContain("markScheme: session.status === 'marking' ? snapshot.markScheme : null");
+    expect(board).not.toContain('participants:');
+    expect(board).not.toContain('teacherAnswers');
+    expect(board).not.toContain('ownAnswer');
+    expect(board).not.toContain('review:');
+    expect(board).not.toContain('report:');
+  });
+
+  it('keeps peer-round recovery teacher-controlled and versioned',()=>{
+    expect(service).toContain('async switchLockedMarkingMode');
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("'marking.mode_changed'");
+    expect(service).toContain("reason: 'locked_round_recovery'");
+  });
+
+  it('fails closed before persistence when a peer round has fewer than two answers',()=>{
+    expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
+  });
+
+  it('keeps peer mode structurally incapable of self marking after all later migrations',()=>{
     expect(peerIntegrity).toContain("session_marking_mode = 'peer'");
-    expect(peerIntegrity).toContain("NEW.kind <> 'peer'");
-    expect(peerIntegrity).toContain('NEW.reviewer_id = answer_student_id');
-    expect(peerIntegrity).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).toContain("session_marking_mode = 'peer'");
+    expect(builderLifecycle).toContain("NEW.kind <> 'peer'");
+    expect(builderLifecycle).toContain('NEW.reviewer_id = answer_student_id');
+    expect(builderLifecycle).toContain("MESSAGE = 'live_peer_assignment_impossible'");
+    expect(builderLifecycle).not.toContain("NEW.kind = 'self'");
   });
 
   it('preserves every teacher score override as append-only audit evidence',()=>{
