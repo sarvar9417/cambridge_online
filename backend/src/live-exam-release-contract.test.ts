@@ -103,6 +103,10 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("String(existing.rows[0].answer_text ?? '') !== text");
   });
 
+  it('rejects review submissions from a non-current live question',()=>{
+    expect(service).toContain('and leq.position=les.current_question_index');
+  });
+
   it('treats duplicate submitted peer marks as idempotent retries',()=>{
     expect(service).toContain("['submitted','moderated'].includes(String(row.status))");
     expect(service).toContain('reviewId,');
