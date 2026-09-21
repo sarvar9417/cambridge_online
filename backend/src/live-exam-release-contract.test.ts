@@ -96,6 +96,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('chooseQuestionIds(actor, input, true, sessionId, sessionId)');
   });
 
+  it('excludes missing submissions from peer/self review assignments while preserving a zero result',()=>{
+    expect(service).toContain("final_feedback_md=coalesce(final_feedback_md,'Javob topshirilmagan.')");
+    expect(service).toContain('and submitted_at is null');
+    expect(service).toContain('and a.submitted_at is not null');
+    expect(service).toContain('score_source=$2');
+  });
   it('separates answer locking from Mark Scheme reveal',()=>{
     expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
     expect(service).toContain("'answers.locked'");
