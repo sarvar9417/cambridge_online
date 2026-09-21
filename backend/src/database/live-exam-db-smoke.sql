@@ -157,6 +157,8 @@ CREATE TABLE question_subtopics (
 CREATE TABLE question_dependencies (
   question_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
   depends_on_id uuid NOT NULL,
+  kind text NOT NULL DEFAULT 'answer_ref',
+  strength text NOT NULL DEFAULT 'required',
   PRIMARY KEY(question_id,depends_on_id)
 );
 
