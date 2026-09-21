@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION enforce_live_exam_peer_review_integrity()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public, pg_temp
-AS $
+AS $live_challenge$
 DECLARE
   answer_student_id uuid;
   session_marking_mode live_exam_marking_mode;
@@ -58,4 +58,4 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$live_challenge$;
