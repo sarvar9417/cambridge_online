@@ -63,3 +63,10 @@ The older branch remains a donor for already-reviewed builder/board/CAS ideas. N
 ## Release boundary
 
 No production migration, production deploy, or merge is authorised by this audit. Paid Supabase development branches are not required; repository verification should continue with free CI/ephemeral PostgreSQL wherever possible.
+
+
+## Release-candidate verification
+
+- Clean release-candidate branch was cut from current main on 2026-09-21.
+- Production migration 0191 was applied and schema-verified before application release.
+- Final application merge/deploy remains gated on CI and multi-client Preview smoke testing.
