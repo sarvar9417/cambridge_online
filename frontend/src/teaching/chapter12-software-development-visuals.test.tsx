@@ -18,7 +18,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({id:`${slideId}-concept-1`,
 describe('Cambridge 9618 Chapter 12 software-development classroom visuals',()=>{
   it('targets only real source-backed slides in the final Chapter 12 route',()=>{
     const slideIds=new Set(CHAPTER_12_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_12_SOFTWARE_DEVELOPMENT_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_12_SOFTWARE_DEVELOPMENT_VISUAL_IDS.length).toBeGreaterThanOrEqual(16);
     for(const id of CHAPTER_12_SOFTWARE_DEVELOPMENT_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -35,6 +35,8 @@ describe('Cambridge 9618 Chapter 12 software-development classroom visuals',()=>
       'CONVERT TEMPERATURE','SPHERE CALCULATOR','radius ≠ 0?','S0','OPEN','SYNTAX ERROR','LOGIC ERROR','RUN-TIME ERROR',
       'TRACE TABLE','NORMAL','ABNORMAL','EXTREME','BOUNDARY','WHITE-BOX','BLACK-BOX','INTEGRATION','ALPHA','BETA','ACCEPTANCE',
       'CORRECTIVE','PERFECTIVE','ADAPTIVE',
+      'SPHERE CALCULATOR','inputRadius','calculateVolume(radius)','calculateSurfaceArea(radius)','outputAnswer',
+      'ACTIVITY 12E · TELEVISION','TESTING','PATCH','TEST STRATEGY','TEST PLAN',
     ])expect(visualSource).toContain(term);
   });
 
@@ -50,6 +52,10 @@ describe('Cambridge 9618 Chapter 12 software-development classroom visuals',()=>
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h12sd-sphere-modules');
+    expect(css).toContain('.h12sd-door-tv');
+    expect(css).toContain('.h12sd-testing-map');
+    expect(css).toContain('.h12sd-runtime-strategy');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });
