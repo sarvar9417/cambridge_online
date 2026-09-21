@@ -63,6 +63,15 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('const currentRow = isStaff || studentQuestionVisible ? currentRowCandidate : undefined;');
   });
 
+  it('strips internal source provenance from student question projections',()=>{
+    expect(service).toContain('function learnerSafePortable');
+    expect(service).toContain('storagePath: null');
+    expect(service).toContain('sourcePage: null');
+    expect(service).toContain("sha256: '0'.repeat(64)");
+    expect(service).toContain('portable: isStaff ? hydratedPortable : learnerSafePortable(hydratedPortable)');
+    expect(service).toContain('sourceQuestionId: isStaff ? currentRow.question_id : projectedUuid');
+  });
+
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
     expect(service).toContain("($2='student' and lep.id is not null)");
     expect(service).toContain('questions: isStaff ? questionRows.rows.map');
