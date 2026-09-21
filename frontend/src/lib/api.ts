@@ -148,10 +148,10 @@ export interface ContentGames {termMatch:Array<{id:string;term:string;definition
 export interface LessonProgress {chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
 export interface ExportItem {id:string;kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
-export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
+export type LiveExamStatus = 'draft'|'published'|'lobby'|'question_open'|'answers_locked'|'marking'|'review'|'finished'|'cancelled';
 export type LiveExamMarkingMode = 'teacher'|'peer'|'self';
 export interface LiveExamSummary {
-  id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
+  id:string;classId:string;className:string;title:string;joinCode:string|null;status:LiveExamStatus;joined?:boolean;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   pausedAt:string|null;pauseRemainingS:number|null;
   settings:{allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak'};
@@ -180,4 +180,14 @@ export interface LiveExamSnapshot {
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
+}
+export interface LiveExamBoardSnapshot {
+  session:{
+    id:string;title:string;className:string;status:LiveExamStatus;version:number;joinCode:string|null;
+    currentQuestionIndex:number;questionCount:number;participantCount:number;submittedCount:number;
+    reviewCount:number;reviewedCount:number;deadline:string|null;serverNow:string;
+    pausedAt:string|null;pauseRemainingS:number|null;
+  };
+  question:LiveExamQuestion|null;
+  markScheme:LiveMarkScheme|null;
 }
