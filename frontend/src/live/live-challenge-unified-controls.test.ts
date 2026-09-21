@@ -52,6 +52,8 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('Olib tashlash');
     expect(page).toContain("method:'PUT'");
     expect(page).toContain('expectedVersion:snapshot.session.version');
+    expect(page).toContain('Final play order');
+    expect(page).toContain('Majburiy oldingi qism');
   });
 
   it('exposes teacher moderation after peer or self results when overrides are enabled',()=>{
