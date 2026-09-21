@@ -1682,6 +1682,17 @@ export class LiveExamService {
         `update live_exam_sessions set marking_mode=$2,updated_at=now() where id=$1`,
         [sessionId, mode],
       );
+      await client.query(
+        `update live_exam_answers a
+         set score_source=$2
+         from live_exam_questions leq
+         where leq.id=a.session_question_id
+           and leq.session_id=$1
+           and leq.position=$3
+           and a.submitted_at is null
+           and a.final_score=0`,
+        [sessionId, mode, session.current_question_index],
+      );
       const version = await this.bump(client, sessionId, actor.id, 'marking.mode_changed', {
         from: String(session.marking_mode),
         to: mode,
@@ -2024,6 +2035,12 @@ export class LiveExamService {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
+      const session = await client.query(
+        `select status::text from live_exam_sessions where id=$1 for update`,
+        [sessionId],
+      );
+      if (!session.rowCount) throw new DomainError('not_found', 404);
+      if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);
       const result = await client.query(
         `update live_exam_participants set left_at=now(),last_seen_at=now()
          where session_id=$1 and student_id=$2 and left_at is null returning id`,
