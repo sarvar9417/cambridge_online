@@ -377,7 +377,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     window.clearTimeout(saveTimer.current);
     saveTimer.current=window.setTimeout(async()=>{
       setSaving(true);
-      try{await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:answer})});setDirty(false)}
+      try{if(!snapshot.question)return;await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({questionId:snapshot.question.id,text:answer})});setDirty(false)}
       catch(cause){setError(message(cause,'Javob saqlanmadi.'))}finally{setSaving(false)}
     },700);
     return()=>window.clearTimeout(saveTimer.current);
@@ -386,7 +386,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const submitAnswer=async()=>{
     window.clearTimeout(saveTimer.current);
     setBusy(true);setError('');
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});setDirty(false);await refresh()}
+    try{if(!snapshot.question)throw new Error('live_question_missing');await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({questionId:snapshot.question.id,text:answer})});setDirty(false);await refresh()}
     catch(cause){setError(message(cause,'Javob topshirilmadi.'))}finally{setBusy(false)}
   };
   const submitReview=async()=>{
