@@ -16,128 +16,176 @@
     "note": "Drive-approved image-based PPTX copied into the project because the source deck is already compact."
   },
   "slideCount": 24,
-  "slideFormat": "jpg",
+  "slideFormat": "webp",
   "slideBasePath": "/9618/presentations/chapter-05/slides",
   "slides": [
     {
       "number": 1,
       "title": "5 System Software",
-      "image": "/9618/presentations/chapter-05/slides/slide-01.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-01.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 2,
       "title": "Operating system: the essential bridge",
-      "image": "/9618/presentations/chapter-05/slides/slide-02.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-02.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 3,
       "title": "Start-up: from BIOS to OS in RAM",
-      "image": "/9618/presentations/chapter-05/slides/slide-03.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-03.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 4,
       "title": "GUI, CLI and post-WIMP interfaces",
-      "image": "/9618/presentations/chapter-05/slides/slide-04.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-04.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 5,
       "title": "Memory management",
-      "image": "/9618/presentations/chapter-05/slides/slide-05.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-05.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 6,
       "title": "Security management",
-      "image": "/9618/presentations/chapter-05/slides/slide-06.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-06.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 7,
       "title": "Process, hardware and file management",
-      "image": "/9618/presentations/chapter-05/slides/slide-07.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-07.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 8,
       "title": "Printer management scenario",
-      "image": "/9618/presentations/chapter-05/slides/slide-08.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-08.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 9,
       "title": "Utility software overview",
-      "image": "/9618/presentations/chapter-05/slides/slide-09.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-09.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 10,
       "title": "Disk formatter and bad sectors",
-      "image": "/9618/presentations/chapter-05/slides/slide-10.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-10.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 11,
       "title": "Antivirus workflow",
-      "image": "/9618/presentations/chapter-05/slides/slide-11.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-11.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 12,
       "title": "Defragmentation: before and after",
-      "image": "/9618/presentations/chapter-05/slides/slide-12.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-12.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 13,
       "title": "Disk analysis, compression and backup",
-      "image": "/9618/presentations/chapter-05/slides/slide-13.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-13.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 14,
       "title": "Program libraries",
-      "image": "/9618/presentations/chapter-05/slides/slide-14.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-14.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 15,
       "title": "Static libraries and DLL files",
-      "image": "/9618/presentations/chapter-05/slides/slide-15.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-15.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 16,
       "title": "Language translators: precise meanings",
-      "image": "/9618/presentations/chapter-05/slides/slide-16.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-16.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 17,
       "title": "Assembler and loader",
-      "image": "/9618/presentations/chapter-05/slides/slide-17.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-17.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 18,
       "title": "Compiler vs interpreter",
-      "image": "/9618/presentations/chapter-05/slides/slide-18.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-18.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 19,
       "title": "Partial compilation and bytecode",
-      "image": "/9618/presentations/chapter-05/slides/slide-19.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-19.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 20,
       "title": "IDE overview",
-      "image": "/9618/presentations/chapter-05/slides/slide-20.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-20.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 21,
       "title": "Source-code editor features",
-      "image": "/9618/presentations/chapter-05/slides/slide-21.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-21.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 22,
       "title": "Debugger workflow",
-      "image": "/9618/presentations/chapter-05/slides/slide-22.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-22.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 23,
       "title": "2026 exam focus: system software",
-      "image": "/9618/presentations/chapter-05/slides/slide-23.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-23.webp",
+      "width": 2560,
+      "height": 1440
     },
     {
       "number": 24,
       "title": "Chapter 5 complete review",
-      "image": "/9618/presentations/chapter-05/slides/slide-24.jpg"
+      "image": "/9618/presentations/chapter-05/slides/slide-24.webp",
+      "width": 2560,
+      "height": 1440
     }
   ],
   "sourceRange": "Hodder 9618 Chapter 5, printed pp.136\u2013158",
@@ -151,6 +199,10 @@
   "runtime": {
     "htmlCssReconstruction": false,
     "sourceOfTruth": "Drive PPTX",
-    "projectDelivery": "static slide images + PPTX mirror"
-  }
+    "projectDelivery": "high-resolution static slide images + PPTX mirror",
+    "largeDisplayQuality": "2560x1440 WebP slides preserve clarity on projectors and large screens"
+  },
+  "imageWidth": 2560,
+  "imageHeight": 1440,
+  "quality": "high-resolution 2560x1440 WebP quality 95"
 }
