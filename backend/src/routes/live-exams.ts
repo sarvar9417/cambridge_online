@@ -26,6 +26,8 @@ const createInput = z.object({
 const versionInput = z.object({
   expectedVersion: z.number().int().positive().optional(),
 }).strict();
+const requiredVersion = z.number().int().positive();
+const draftInput = createInput.omit({ questionCount:true, questionIds:true }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
   return Boolean(error && typeof error === 'object'
@@ -51,6 +53,42 @@ export function createLiveExamsRouter(service: LiveExamService) {
   router.post('/', async (req, res) => {
     const body = createInput.parse(req.body);
     res.status(201).json(await service.create(req.actor!, body));
+  });
+
+  router.post('/drafts', async (req, res) => {
+    const body = draftInput.parse(req.body);
+    res.status(201).json(await service.createDraft(req.actor!, body));
+  });
+
+  router.get('/:id/builder', async (req, res) => {
+    privateNoStore(res);
+    res.json({ data: await service.draft(req.actor!, id(req.params)) });
+  });
+
+  router.put('/:id/questions', async (req, res) => {
+    const body = z.object({
+      questionIds: z.array(uuid).max(20),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.replaceDraftQuestions(req.actor!, id(req.params), body.questionIds, body.expectedVersion));
+  });
+
+  router.post('/:id/questions/auto', async (req, res) => {
+    const body = z.object({
+      count: z.number().int().min(1).max(20),
+      expectedVersion: requiredVersion,
+    }).strict().parse(req.body);
+    res.json(await service.autoSelectDraft(req.actor!, id(req.params), body.count, body.expectedVersion));
+  });
+
+  router.post('/:id/publish', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.publishDraft(req.actor!, id(req.params), body.expectedVersion));
+  });
+
+  router.post('/:id/open', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.openPublished(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.get('/eligible-questions', async (req, res) => {

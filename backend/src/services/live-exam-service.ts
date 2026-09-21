@@ -8,7 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
-export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
+export type LiveExamStatus = 'draft' | 'published' | 'lobby' | 'question_open' | 'answers_locked' | 'marking' | 'review' | 'finished' | 'cancelled';
 
 export interface CreateLiveExamInput {
   classId: string;
@@ -27,6 +27,8 @@ export interface CreateLiveExamInput {
   teacherOverrideEnabled?: boolean;
   leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
 }
+
+export type CreateLiveExamDraftInput = Omit<CreateLiveExamInput, 'questionCount' | 'questionIds'>;
 
 type MarkSchemePointSnapshot = {
   id: string;
@@ -85,6 +87,14 @@ export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
 
 function words(value: string) {
   return value.trim() ? value.trim().split(/\s+/).length : 0;
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringList(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
 function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
@@ -198,11 +208,11 @@ export class LiveExamService {
     return result.rows[0].scheme as MarkSchemeSnapshot;
   }
 
-  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
-    // Keep the random ordering seed first and bind the class ID for both
+  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true, seed = randomUUID()) {
+    // Keep the ordering seed first and bind the class ID for both
     // syllabus-safe LO resolution and optional seen-question filtering.
     // Every value is referenced in the SQL so PostgreSQL can infer its type.
-    const values: unknown[] = [randomUUID(), input.classId];
+    const values: unknown[] = [seed, input.classId];
     const classParameter = '$2';
     const filters = [
       `q.status='approved'`,
@@ -405,6 +415,306 @@ export class LiveExamService {
     for (const questionId of questionIds) visit(questionId);
     if (ordered.length > 60) throw new DomainError('live_dependency_bundle_too_large', 409);
     return ordered;
+  }
+
+  private async controlledSession(actor: Actor, sessionId: string) {
+    this.assertStaff(actor);
+    const result = await this.pool.query(
+      `select les.*
+       from live_exam_sessions les
+       join classes c on c.id=les.class_id
+       where les.id=$1 and (
+         ($2='owner' and c.school_id=$3)
+         or ($2='teacher' and (c.owner_id=$4 or exists(
+           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
+         )))
+       )`,
+      [sessionId, actor.role, actor.schoolId, actor.id],
+    );
+    if (!result.rowCount) throw new DomainError('not_found', 404);
+    return result.rows[0] as Record<string, unknown>;
+  }
+
+  private draftSelectionInput(
+    row: Record<string, unknown>,
+    questionCount: number,
+    questionIds?: string[],
+  ): CreateLiveExamInput {
+    const settings = objectValue(row.settings);
+    return {
+      classId: String(row.class_id),
+      title: String(row.title),
+      topicIds: stringList(settings.topicIds),
+      subtopicIds: stringList(settings.subtopicIds),
+      questionCount,
+      questionTimeLimitS: row.question_time_limit_s == null ? undefined : Number(row.question_time_limit_s),
+      markingMode: String(row.marking_mode) as LiveExamMarkingMode,
+      includeDiagrams: settings.includeDiagrams !== false,
+      excludeSeen: settings.excludeSeen !== false,
+      questionIds,
+      questionOrder: questionIds ? 'fixed' : (settings.questionOrder === 'fixed' ? 'fixed' : 'shuffled'),
+      allowLateJoin: settings.allowLateJoin === true,
+      autoCloseWhenAllSubmitted: settings.autoCloseWhenAllSubmitted === true,
+      teacherOverrideEnabled: settings.teacherOverrideEnabled !== false,
+      leaderboardMode: settings.leaderboardMode === 'marks_speed_tiebreak' ? 'marks_speed_tiebreak' : 'marks',
+    };
+  }
+
+  private async snapshotSelection(actor: Actor, input: CreateLiveExamInput, rootQuestionIds: string[]) {
+    const expandedQuestionIds = await this.expandRequiredDependencies(rootQuestionIds);
+    const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
+      const [portable, markScheme] = await Promise.all([
+        this.questions.portable(actor, questionId),
+        this.markScheme(questionId),
+      ]);
+      if (!portable) throw new DomainError('live_question_not_ready', 409);
+      if (input.includeDiagrams && portable.contextBlocks.some(
+        (block) => block.assets.some((asset) => asset.storagePath && !asset.contentMd && !asset.url),
+      )) throw new DomainError('live_assets_unavailable', 409);
+      return { questionId, portable: storedPortable(portable), markScheme };
+    }));
+    return { expandedQuestionIds, snapshots };
+  }
+
+  async createDraft(actor: Actor, input: CreateLiveExamDraftInput) {
+    await this.requireClassControl(this.pool, actor, input.classId);
+    if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      await this.requireClassControl(client, actor, input.classId);
+      const settings = {
+        topicIds: input.topicIds,
+        subtopicIds: input.subtopicIds,
+        includeDiagrams: input.includeDiagrams,
+        excludeSeen: input.excludeSeen,
+        questionOrder: input.questionOrder ?? 'shuffled',
+        allowLateJoin: input.allowLateJoin ?? false,
+        autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
+        teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
+        leaderboardMode: input.leaderboardMode ?? 'marks',
+        selectedQuestionIds: [],
+        requestedQuestionCount: 0,
+        dependencyQuestionCount: 0,
+      };
+      const result = await client.query(
+        `insert into live_exam_sessions(
+           class_id,host_id,title,join_code,status,marking_mode,question_time_limit_s,settings
+         ) values($1,$2,$3,null,'draft',$4,$5,$6::jsonb)
+         returning *`,
+        [input.classId, actor.id, input.title, input.markingMode, input.questionTimeLimitS ?? null, JSON.stringify(settings)],
+      );
+      await client.query(
+        `insert into live_exam_events(session_id,actor_id,event_type,session_version,payload)
+         values($1,$2,'draft.created',1,'{}'::jsonb)`,
+        [result.rows[0].id, actor.id],
+      );
+      await client.query('commit');
+      return { ...this.mapSession(result.rows[0]), questionCount: 0 };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async draft(actor: Actor, sessionId: string) {
+    const session = await this.controlledSession(actor, sessionId);
+    if (session.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+    const settings = objectValue(session.settings);
+    const questions = await this.pool.query(
+      `select id,question_id,position,marks,
+         coalesce(question_snapshot->>'sourceRef',question_snapshot->'leaf'->>'displayRef','') display_ref
+       from live_exam_questions where session_id=$1 order by position`,
+      [sessionId],
+    );
+    return {
+      ...this.mapSession(session),
+      topicIds: stringList(settings.topicIds),
+      subtopicIds: stringList(settings.subtopicIds),
+      selectedQuestionIds: stringList(settings.selectedQuestionIds),
+      questions: questions.rows.map((row) => ({
+        id: String(row.id),
+        questionId: String(row.question_id),
+        position: Number(row.position),
+        marks: Number(row.marks),
+        displayRef: String(row.display_ref),
+      })),
+    };
+  }
+
+  private async replaceDraftSelection(
+    actor: Actor,
+    sessionId: string,
+    rootQuestionIds: string[],
+    expectedVersion: number,
+    selectionMode: 'manual' | 'auto',
+  ) {
+    if (rootQuestionIds.length > 20) throw new DomainError('live_question_selection_mismatch', 400);
+    if (new Set(rootQuestionIds).size !== rootQuestionIds.length) {
+      throw new DomainError('live_question_selection_mismatch', 400);
+    }
+    const draft = await this.controlledSession(actor, sessionId);
+    if (draft.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+    this.assertExpectedVersion(draft, expectedVersion);
+
+    let input = this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds);
+    let validatedRoots: string[] = [];
+    let expandedQuestionIds: string[] = [];
+    let snapshots: Awaited<ReturnType<LiveExamService['snapshotSelection']>>['snapshots'] = [];
+    if (rootQuestionIds.length) {
+      validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId);
+      const snapshotResult = await this.snapshotSelection(actor, input, validatedRoots);
+      expandedQuestionIds = snapshotResult.expandedQuestionIds;
+      snapshots = snapshotResult.snapshots;
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const locked = await this.lockControlledSession(client, actor, sessionId);
+      if (locked.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+      this.assertExpectedVersion(locked, expectedVersion);
+      await client.query('delete from live_exam_questions where session_id=$1', [sessionId]);
+      for (const [position, snapshot] of snapshots.entries()) {
+        await client.query(
+          `insert into live_exam_questions(
+             session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot
+           ) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)`,
+          [sessionId, snapshot.questionId, position, snapshot.portable.leaf.marks,
+            JSON.stringify(snapshot.portable), JSON.stringify(snapshot.markScheme)],
+        );
+      }
+      const settings = objectValue(locked.settings);
+      await client.query(
+        `update live_exam_sessions
+         set settings=$2::jsonb,updated_at=now()
+         where id=$1`,
+        [sessionId, JSON.stringify({
+          ...settings,
+          selectedQuestionIds: validatedRoots,
+          requestedQuestionCount: validatedRoots.length,
+          dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - validatedRoots.length),
+        })],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'draft.questions_replaced', {
+        selectionMode,
+        requestedQuestionCount: validatedRoots.length,
+        questionCount: expandedQuestionIds.length,
+      });
+      await client.query('commit');
+      return { sessionId, questionIds: validatedRoots, questionCount: expandedQuestionIds.length, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async replaceDraftQuestions(actor: Actor, sessionId: string, questionIds: string[], expectedVersion: number) {
+    return this.replaceDraftSelection(actor, sessionId, questionIds, expectedVersion, 'manual');
+  }
+
+  async autoSelectDraft(actor: Actor, sessionId: string, count: number, expectedVersion: number) {
+    const draft = await this.controlledSession(actor, sessionId);
+    if (draft.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+    this.assertExpectedVersion(draft, expectedVersion);
+    const input = this.draftSelectionInput(draft, count);
+    const questionIds = await this.chooseQuestionIds(actor, input, true, sessionId);
+    return this.replaceDraftSelection(actor, sessionId, questionIds, expectedVersion, 'auto');
+  }
+
+  async publishDraft(actor: Actor, sessionId: string, expectedVersion: number) {
+    const draft = await this.controlledSession(actor, sessionId);
+    if (draft.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+    this.assertExpectedVersion(draft, expectedVersion);
+    const settings = objectValue(draft.settings);
+    const rootQuestionIds = stringList(settings.selectedQuestionIds);
+    if (!rootQuestionIds.length) throw new DomainError('live_no_questions', 409);
+
+    const input = this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds);
+    const validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId);
+    const { expandedQuestionIds, snapshots } = await this.snapshotSelection(actor, input, validatedRoots);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const locked = await this.lockControlledSession(client, actor, sessionId);
+      if (locked.status !== 'draft') throw new DomainError('live_invalid_state', 409);
+      this.assertExpectedVersion(locked, expectedVersion);
+
+      await client.query('delete from live_exam_questions where session_id=$1', [sessionId]);
+      for (const [position, snapshot] of snapshots.entries()) {
+        await client.query(
+          `insert into live_exam_questions(
+             session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot
+           ) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)`,
+          [sessionId, snapshot.questionId, position, snapshot.portable.leaf.marks,
+            JSON.stringify(snapshot.portable), JSON.stringify(snapshot.markScheme)],
+        );
+      }
+
+      let joinCode: string | null = null;
+      for (let attempt = 0; attempt < 8 && !joinCode; attempt += 1) {
+        const candidate = String(randomInt(100000, 1000000));
+        await client.query('savepoint live_join_code');
+        try {
+          await client.query('update live_exam_sessions set join_code=$2 where id=$1', [sessionId, candidate]);
+          await client.query('release savepoint live_join_code');
+          joinCode = candidate;
+        } catch (error) {
+          await client.query('rollback to savepoint live_join_code');
+          if (!(typeof error === 'object' && error && 'code' in error && error.code === '23505')) throw error;
+        }
+      }
+      if (!joinCode) throw new DomainError('live_join_code_conflict', 409);
+
+      await client.query(
+        `update live_exam_sessions
+         set status='published',published_at=coalesce(published_at,now()),updated_at=now(),
+             settings=$2::jsonb
+         where id=$1`,
+        [sessionId, JSON.stringify({
+          ...objectValue(locked.settings),
+          selectedQuestionIds: validatedRoots,
+          requestedQuestionCount: validatedRoots.length,
+          dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - validatedRoots.length),
+        })],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'challenge.published', {
+        requestedQuestionCount: validatedRoots.length,
+        questionCount: expandedQuestionIds.length,
+      });
+      await client.query('commit');
+      return { sessionId, status: 'published' as const, joinCode, questionCount: expandedQuestionIds.length, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async openPublished(actor: Actor, sessionId: string, expectedVersion: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      if (session.status !== 'published') throw new DomainError('live_invalid_state', 409);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (!session.join_code) throw new DomainError('live_join_code_conflict', 409);
+      const count = await client.query(
+        'select count(*)::int count from live_exam_questions where session_id=$1',
+        [sessionId],
+      );
+      if (Number(count.rows[0].count) < 1) throw new DomainError('live_no_questions', 409);
+      await client.query(
+        `update live_exam_sessions set status='lobby',updated_at=now() where id=$1`,
+        [sessionId],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'challenge.opened');
+      await client.query('commit');
+      return { sessionId, status: 'lobby' as const, joinCode: String(session.join_code), version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
   }
 
   async eligibleQuestions(

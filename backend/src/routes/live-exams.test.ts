@@ -22,6 +22,64 @@ function appFor(service:Partial<LiveExamService>) {
 }
 
 describe('live exam routes', () => {
+  it('creates a private draft without a room code', async () => {
+    const createDraft=vi.fn().mockResolvedValue({id:'draft-1',status:'draft',joinCode:null,version:1});
+    const body={
+      classId:'22222222-2222-4222-8222-222222222222',
+      title:'Chapter 2 practice',
+      topicIds:['33333333-3333-4333-8333-333333333333'],
+      subtopicIds:[],
+      markingMode:'teacher',
+      includeDiagrams:true,
+      excludeSeen:true,
+      questionOrder:'fixed',
+      allowLateJoin:false,
+      autoCloseWhenAllSubmitted:false,
+      teacherOverrideEnabled:true,
+      leaderboardMode:'marks',
+    };
+    const response=await request(appFor({createDraft})).post('/live-exams/drafts').send(body).expect(201);
+    expect(response.body.status).toBe('draft');
+    expect(createDraft).toHaveBeenCalledWith(student,body);
+  });
+
+  it('requires optimistic versions for builder mutations', async () => {
+    const replaceDraftQuestions=vi.fn();
+    const publishDraft=vi.fn();
+    const session='22222222-2222-4222-8222-222222222222';
+    const app=appFor({replaceDraftQuestions,publishDraft});
+    await request(app).put(`/live-exams/${session}/questions`).send({questionIds:[]}).expect(400);
+    await request(app).post(`/live-exams/${session}/publish`).send({}).expect(400);
+    expect(replaceDraftQuestions).not.toHaveBeenCalled();
+    expect(publishDraft).not.toHaveBeenCalled();
+  });
+
+  it('routes manual, automatic, publish and open builder actions with expectedVersion', async () => {
+    const replaceDraftQuestions=vi.fn().mockResolvedValue({version:3});
+    const autoSelectDraft=vi.fn().mockResolvedValue({version:4});
+    const publishDraft=vi.fn().mockResolvedValue({version:5,status:'published'});
+    const openPublished=vi.fn().mockResolvedValue({version:6,status:'lobby'});
+    const session='22222222-2222-4222-8222-222222222222';
+    const question='33333333-3333-4333-8333-333333333333';
+    const app=appFor({replaceDraftQuestions,autoSelectDraft,publishDraft,openPublished});
+    await request(app).put(`/live-exams/${session}/questions`).send({questionIds:[question],expectedVersion:2}).expect(200);
+    await request(app).post(`/live-exams/${session}/questions/auto`).send({count:5,expectedVersion:3}).expect(200);
+    await request(app).post(`/live-exams/${session}/publish`).send({expectedVersion:4}).expect(200);
+    await request(app).post(`/live-exams/${session}/open`).send({expectedVersion:5}).expect(200);
+    expect(replaceDraftQuestions).toHaveBeenCalledWith(student,session,[question],2);
+    expect(autoSelectDraft).toHaveBeenCalledWith(student,session,5,3);
+    expect(publishDraft).toHaveBeenCalledWith(student,session,4);
+    expect(openPublished).toHaveBeenCalledWith(student,session,5);
+  });
+
+  it('marks builder reads private and non-cacheable', async () => {
+    const draft=vi.fn().mockResolvedValue({id:'draft-1',status:'draft'});
+    const response=await request(appFor({draft}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/builder')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+  });
+
   it('marks the session list private and non-cacheable', async () => {
     const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
     const response=await request(appFor({list})).get('/live-exams').expect(200);
