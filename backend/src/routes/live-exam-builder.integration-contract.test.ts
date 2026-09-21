@@ -8,7 +8,8 @@ const route=readFileSync(resolve(process.cwd(),'src/routes/live-exam-builder.ts'
 describe('Live Challenge builder transaction contract',()=>{
   it('creates drafts without a join code and publishes only after explicit selection',()=>{
     expect(service).toContain("values($1,$2,$3,null,'draft'");
-    expect(service).toContain("if(!selected.rowCount)throw new DomainError('live_builder_questions_required',409)");
+    expect(service).toContain("if(!draft.requestedQuestionIds.length)throw new DomainError('live_builder_questions_required',409)");
+    expect(service).toContain('requestedQuestionIds');
     expect(service).toContain("set status='published',join_code=$2");
   });
 
@@ -21,8 +22,9 @@ describe('Live Challenge builder transaction contract',()=>{
   it('rechecks source eligibility and immutable assessment snapshots at publish',()=>{
     expect(service).toContain('const eligible=await this.eligibleRows');
     expect(service).toContain('const snapshot=await this.snapshotQuestion');
-    expect(service).toContain('question_snapshot=$4::jsonb');
-    expect(service).toContain('mark_scheme_snapshot=$5::jsonb');
+    expect(service).toContain('question_snapshot=$5::jsonb');
+    expect(service).toContain('mark_scheme_snapshot=$6::jsonb');
+    expect(service).toContain('const expanded=await this.expandRequiredDependencies');
   });
 
   it('serializes teacher draft changes behind a locked version check',()=>{

@@ -433,7 +433,7 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       ) and reviewer_id=$2`,[draft.id,teacher.id],
     );
     version=(await runtime.submitReview(teacher,draft.id,String(teacherReview.rows[0].id),{
-      matchedPointIds:[],feedback:'Prerequisite reviewed.',
+      matchedPointIds:[],score:1,feedback:'Prerequisite reviewed.',
     })).version;
     version=(await control.completeMarking(teacher,draft.id,version)).version;
     version=(await control.nextQuestion(teacher,draft.id,version)).version;
