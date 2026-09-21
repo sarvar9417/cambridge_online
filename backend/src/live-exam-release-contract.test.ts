@@ -132,6 +132,10 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("reason: 'locked_round_recovery'");
   });
 
+  it('prioritizes each marker's next assigned review over already submitted reviews',()=>{
+    expect(service).toContain("order by case when r.status='assigned' then 0 else 1 end,r.created_at");
+  });
+
   it('uses only recently active participants as the peer reviewer pool',()=>{
     expect(service).toContain("last_seen_at >= now()-interval '90 seconds'");
     expect(service).toContain('activeReviewers.rows.map');
