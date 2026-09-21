@@ -1375,7 +1375,7 @@ export class LiveExamService {
 
     return {
       session: {
-        id: session.id,
+        id: boardUuid(0),
         title: session.title,
         className: session.className,
         status: session.status,
