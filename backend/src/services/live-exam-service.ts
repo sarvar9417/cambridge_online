@@ -51,7 +51,7 @@ type MarkSchemeSnapshot = {
   }>;
 };
 
-type StoredQuestionSnapshot = PortableQuestion;
+type StoredQuestionSnapshot = Omit<PortableQuestion,'dependencies'> & { dependencies:Array<Omit<PortableQuestion['dependencies'][number],'evidence'|'confidence'>> };
 
 type PeerAnswer = { answerId: string; studentId: string };
 
@@ -83,6 +83,7 @@ function words(value: string) {
 function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
   return {
     ...portable,
+    dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency),
     contextBlocks: portable.contextBlocks.map((block) => ({
       ...block,
       assets: block.assets.map((asset) => ({ ...asset, url: null })),
@@ -472,12 +473,34 @@ export class LiveExamService {
     ]);
     const currentRow = questionRows.rows.find((row) => Number(row.position) === Number(session.current_question_index));
     const reveal = ['marking', 'review', 'finished'].includes(String(session.status));
+    const dependencyWork = currentRow ? await this.pool.query(
+      `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
+         target.display_ref,leq.position,
+         case when $4::uuid is null then null else a.answer_text end own_answer,
+         a.submitted_at
+       from question_dependencies qd
+       join questions target on target.id=qd.depends_on_id
+       left join live_exam_questions leq
+         on leq.session_id=$1
+        and leq.question_id=qd.depends_on_id
+        and leq.position<$2
+       left join live_exam_answers a
+         on a.session_question_id=leq.id
+        and a.participant_id=$4::uuid
+       where qd.question_id=$3 and qd.strength::text='required'
+       order by leq.position nulls last,target.sort_order,target.id`,
+      [sessionId, Number(session.current_question_index), currentRow.question_id, participantId],
+    ) : { rows: [] };
     const question = currentRow ? {
       id: currentRow.id,
       sourceQuestionId: currentRow.question_id,
       position: Number(currentRow.position),
       marks: Number(currentRow.marks),
       portable: await this.hydratePortable(currentRow.question_snapshot as StoredQuestionSnapshot),
+      dependencyWork: dependencyWork.rows.map((row) => ({
+        questionId:String(row.question_id),displayRef:String(row.display_ref),kind:String(row.kind),strength:String(row.strength),
+        position:row.position == null ? null : Number(row.position),ownAnswer:row.own_answer == null ? null : String(row.own_answer),submittedAt:row.submitted_at ?? null,
+      })),
     } : null;
 
     let ownAnswer: Record<string, unknown> | null = null;

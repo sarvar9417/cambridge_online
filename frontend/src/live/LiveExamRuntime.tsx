@@ -120,6 +120,13 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
+    {question.dependencyWork.length?<section className="live-dependency-work">
+      <header><strong>Oldingi ish kerak</strong><span>{question.dependencyWork.length} ta bog‘lanish</span></header>
+      {question.dependencyWork.map((dependency)=><article key={dependency.questionId}>
+        <div><b>{dependency.displayRef}</b><small>{dependency.kind==='answer_ref'?'Oldingi javobingizdan foydalaning':'Oldingi qismdagi ma’lumotdan foydalaning'}</small></div>
+        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
+      </article>)}
+    </section>:null}
     {structured?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
       {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
         {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}

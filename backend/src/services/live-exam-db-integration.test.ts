@@ -418,6 +418,38 @@ integrationDescribe('Live Challenge multi-client PostgreSQL integration',()=>{
       [draft.id],
     );
     expect(afterPublish.rows.map(row=>String(row.question_id))).toEqual([dependency,selected]);
+
+    let version=published.version;
+    version=(await control.openRoom(teacher,draft.id,version)).version;
+    version=(await participation.join(studentA,published.joinCode)).version!;
+    version=(await control.start(teacher,draft.id,version)).version;
+    version=(await runtime.submitAnswer(studentA,draft.id,'My prerequisite answer')).version;
+    version=(await control.lockAnswers(teacher,draft.id,version)).version;
+    version=(await control.revealMarkScheme(teacher,draft.id,version)).version;
+    const teacherReview=await pool.query(
+      `select id from live_exam_reviews where session_question_id=(
+        select id from live_exam_questions where session_id=$1 and position=0
+      ) and reviewer_id=$2`,[draft.id,teacher.id],
+    );
+    version=(await runtime.submitReview(teacher,draft.id,String(teacherReview.rows[0].id),{
+      matchedPointIds:[],feedback:'Prerequisite reviewed.',
+    })).version;
+    version=(await control.completeMarking(teacher,draft.id,version)).version;
+    version=(await control.nextQuestion(teacher,draft.id,version)).version;
+
+    const dependentSnapshot=await runtime.snapshot(studentA,draft.id);
+    expect(dependentSnapshot.question?.sourceQuestionId).toBe(selected);
+    expect(dependentSnapshot.question?.dependencyWork).toEqual([
+      expect.objectContaining({
+        questionId:dependency,
+        displayRef:'9618/11/M/J/25 Q2(a)',
+        kind:'answer_ref',
+        strength:'required',
+        position:0,
+        ownAnswer:'My prerequisite answer',
+      }),
+    ]);
+    expect(JSON.stringify(dependentSnapshot.question?.portable.dependencies)).not.toContain('internal-audit-only');
   });
 
   it('auto-locks answers only after every active participant submits when enabled',async()=>{

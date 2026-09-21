@@ -36,6 +36,8 @@ describe('Cambridge Live Challenge repository release-flow gate',()=>{
     expect(runtime).toContain("router.put('/:id/answer'");
     expect(runtime).toContain("router.post('/:id/answer/submit'");
     expect(runtime).toContain("router.post('/:id/reviews/:reviewId/submit'");
+    expect(read('src/services/live-exam-service.ts')).toContain('dependencyWork');
+    expect(read('../frontend/src/live/LiveExamRuntime.tsx')).toContain('Oldingi ish kerak');
     expect(moderation).toContain("router.put('/:id/answers/:answerId/moderate'");
     expect(moderation).toContain('expectedVersion');
     expect(moderation).toContain('reason:');
