@@ -14,8 +14,21 @@ export const CHAPTER_3_VISUAL_IDS = [
   'h3-312-laser-printer',
 ] as const;
 
+const CHAPTER_3_COMPONENT_FRAME_IDS = [
+  'h3c-l1-cover','h3c-l1-objectives','h3c-l1-starter','h3c-l1-recap',
+  'h3c-l2-cover','h3c-l2-objectives','h3c-l2-starter','h3c-l2-recap',
+  'h3c-l3-cover','h3c-l3-objectives','h3c-l3-starter','h3c-l3-recap',
+  'h3c-l4-cover','h3c-l4-objectives','h3c-l4-starter','h3c-l4-recap',
+] as const;
+const CHAPTER_3_LOGIC_FRAME_IDS = [
+  'h3l-l1-cover','h3l-l1-objectives','h3l-l1-starter','h3l-l1-recap',
+  'h3l-l2-cover','h3l-l2-objectives','h3l-l2-starter','h3l-l2-recap',
+  'h3l-l3-cover','h3l-l3-objectives','h3l-l3-starter','h3l-l3-recap',
+] as const;
+const CHAPTER_3_FRAME_IDS=[...CHAPTER_3_COMPONENT_FRAME_IDS,...CHAPTER_3_LOGIC_FRAME_IDS] as const;
+
 export function hasChapter3PresentationVisual(beat: LessonPresentationBeat) {
-  return CHAPTER_3_VISUAL_IDS.includes(beat.slideId as never);
+  return CHAPTER_3_FRAME_IDS.includes(beat.id as never) || CHAPTER_3_VISUAL_IDS.includes(beat.slideId as never);
 }
 
 const revealStyle=(reveal:number,step:number)=>({
@@ -151,7 +164,32 @@ function LaserPrinter({reveal}:{reveal:number}) {
   </div>;
 }
 
+const componentLessonNames=['Memory and embedded systems','Secondary storage','Hardware I/O devices','Sensors and control'];
+const logicLessonNames=['Gates and truth tables','Build and verify circuits','Simplify and implement'];
+
+function Chapter3LessonFrame({beat}:{beat:LessonPresentationBeat}){
+  const match=beat.id.match(/^h3([cl])-l(\d)-/);
+  const track=match?.[1]??'c';
+  const active=match?Number(match[2]):0;
+  const stage=beat.id.split('-').at(-1);
+  const lessonNames=track==='l'?logicLessonNames:componentLessonNames;
+  return <div className={`h3v h3v-session h3v-session--${stage}`} data-track={track==='l'?'logic':'components'}>
+    <div className="h3v-session-map">
+      {lessonNames.map((name,index)=><section className={active===index+1?'active':''} key={name}>
+        <span>{index+1}</span><div><small>LESSON {index+1}</small><strong>{name}</strong></div>
+      </section>)}
+    </div>
+    <div className="h3v-session-flow" aria-hidden="true">
+      {track==='l'
+        ? <><span>INPUTS</span><i>→</i><b>LOGIC GATES</b><i>→</i><span>TRUTH TABLE</span><i>→</i><b>OUTPUT</b></>
+        : <><span>DATA</span><i>→</i><b>MEMORY / STORAGE</b><i>→</i><span>DEVICE</span><i>→</i><b>SENSOR / OUTPUT</b></>}
+    </div>
+    <footer>Source-backed classroom sequence · explanation · visual model · retrieval</footer>
+  </div>;
+}
+
 export function Chapter3PresentationVisual({ beat, reveal }: { beat: LessonPresentationBeat; reveal: number }) {
+  if(CHAPTER_3_FRAME_IDS.includes(beat.id as never)) return <Chapter3LessonFrame beat={beat}/>;
   switch (beat.slideId) {
     case 'h3-311-memory-map': return <MemoryMap />;
     case 'h3-311-primary-tree': return <PrimaryTree />;
