@@ -1,0 +1,183 @@
+{
+  "id": "9618-chapter-04-processor-fundamentals",
+  "course": "9618",
+  "chapter": 4,
+  "title": "Processor Fundamentals",
+  "delivery": "project-slide-images",
+  "sourcePptx": {
+    "fileName": "9618_Chapter_04_Processor_Fundamentals_Real_Deck.pptx",
+    "driveFileId": "19BNaVlBMDda967NYqRUIyAjAEkF6elYI",
+    "driveUrl": "https://docs.google.com/presentation/d/19BNaVlBMDda967NYqRUIyAjAEkF6elYI/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true",
+    "shared": true
+  },
+  "projectMirror": {
+    "pptx": "/9618/presentations/chapter-04/9618_Chapter_04_Processor_Fundamentals_Project_Mirror.pptx",
+    "compressed": false,
+    "note": "Drive-approved image-based PPTX copied into the project because the source deck is already compact."
+  },
+  "slideCount": 29,
+  "slideFormat": "jpg",
+  "slideBasePath": "/9618/presentations/chapter-04/slides",
+  "slides": [
+    {
+      "number": 1,
+      "title": "4 Processor Fundamentals",
+      "image": "/9618/presentations/chapter-04/slides/slide-01.jpg"
+    },
+    {
+      "number": 2,
+      "title": "Von Neumann architecture and the stored program concept",
+      "image": "/9618/presentations/chapter-04/slides/slide-02.jpg"
+    },
+    {
+      "number": 3,
+      "title": "CPU components: ALU, CU, clock and IAS",
+      "image": "/9618/presentations/chapter-04/slides/slide-03.jpg"
+    },
+    {
+      "number": 4,
+      "title": "Registers: PC, MAR, MDR, CIR, ACC, IX and status register",
+      "image": "/9618/presentations/chapter-04/slides/slide-04.jpg"
+    },
+    {
+      "number": 5,
+      "title": "Status register flags: C, N, V and Z",
+      "image": "/9618/presentations/chapter-04/slides/slide-05.jpg"
+    },
+    {
+      "number": 6,
+      "title": "System buses: address, data and control",
+      "image": "/9618/presentations/chapter-04/slides/slide-06.jpg"
+    },
+    {
+      "number": 7,
+      "title": "Processor performance factors",
+      "image": "/9618/presentations/chapter-04/slides/slide-07.jpg"
+    },
+    {
+      "number": 8,
+      "title": "Cache memory and multi-core processors",
+      "image": "/9618/presentations/chapter-04/slides/slide-08.jpg"
+    },
+    {
+      "number": 9,
+      "title": "Ports: USB, HDMI and VGA",
+      "image": "/9618/presentations/chapter-04/slides/slide-09.jpg"
+    },
+    {
+      "number": 10,
+      "title": "USB: serial transfer and plug-and-play",
+      "image": "/9618/presentations/chapter-04/slides/slide-10.jpg"
+    },
+    {
+      "number": 11,
+      "title": "HDMI compared with VGA",
+      "image": "/9618/presentations/chapter-04/slides/slide-11.jpg"
+    },
+    {
+      "number": 12,
+      "title": "Fetch-execute cycle overview",
+      "image": "/9618/presentations/chapter-04/slides/slide-12.jpg"
+    },
+    {
+      "number": 13,
+      "title": "Fetch stage in Register Transfer Notation",
+      "image": "/9618/presentations/chapter-04/slides/slide-13.jpg"
+    },
+    {
+      "number": 14,
+      "title": "Decode and execute stages",
+      "image": "/9618/presentations/chapter-04/slides/slide-14.jpg"
+    },
+    {
+      "number": 15,
+      "title": "Interrupt handling and the ISR",
+      "image": "/9618/presentations/chapter-04/slides/slide-15.jpg"
+    },
+    {
+      "number": 16,
+      "title": "4.2 Assembly Language",
+      "image": "/9618/presentations/chapter-04/slides/slide-16.jpg"
+    },
+    {
+      "number": 17,
+      "title": "Assembly language and machine code",
+      "image": "/9618/presentations/chapter-04/slides/slide-17.jpg"
+    },
+    {
+      "number": 18,
+      "title": "Two-pass assembler",
+      "image": "/9618/presentations/chapter-04/slides/slide-18.jpg"
+    },
+    {
+      "number": 19,
+      "title": "Assembly instruction groups",
+      "image": "/9618/presentations/chapter-04/slides/slide-19.jpg"
+    },
+    {
+      "number": 20,
+      "title": "Addressing modes",
+      "image": "/9618/presentations/chapter-04/slides/slide-20.jpg"
+    },
+    {
+      "number": 21,
+      "title": "Worked assembly trace",
+      "image": "/9618/presentations/chapter-04/slides/slide-21.jpg"
+    },
+    {
+      "number": 22,
+      "title": "Indexed addressing and loops",
+      "image": "/9618/presentations/chapter-04/slides/slide-22.jpg"
+    },
+    {
+      "number": 23,
+      "title": "4.3 Bit Manipulation",
+      "image": "/9618/presentations/chapter-04/slides/slide-23.jpg"
+    },
+    {
+      "number": 24,
+      "title": "Logical, arithmetic and cyclic shifts",
+      "image": "/9618/presentations/chapter-04/slides/slide-24.jpg"
+    },
+    {
+      "number": 25,
+      "title": "Logical shift instructions: LSL and LSR",
+      "image": "/9618/presentations/chapter-04/slides/slide-25.jpg"
+    },
+    {
+      "number": 26,
+      "title": "Bit masks with AND, OR and XOR",
+      "image": "/9618/presentations/chapter-04/slides/slide-26.jpg"
+    },
+    {
+      "number": 27,
+      "title": "Monitoring and control with a sensor bit",
+      "image": "/9618/presentations/chapter-04/slides/slide-27.jpg"
+    },
+    {
+      "number": 28,
+      "title": "2026 exam focus and mark-scheme habits",
+      "image": "/9618/presentations/chapter-04/slides/slide-28.jpg"
+    },
+    {
+      "number": 29,
+      "title": "Chapter 4 complete review and exam practice",
+      "image": "/9618/presentations/chapter-04/slides/slide-29.jpg"
+    }
+  ],
+  "sourceRange": "Hodder 9618 Chapter 4, printed pp.107\u2013135",
+  "topics": [
+    "4.1 Central Processing Unit (CPU) Architecture",
+    "4.2 Assembly Language",
+    "4.3 Bit Manipulation"
+  ],
+  "examEvidence": [
+    "9618/11/M/J/26 Q3(a\u2013c)",
+    "9618/13/M/J/26 Q7(a\u2013c)"
+  ],
+  "runtime": {
+    "htmlCssReconstruction": false,
+    "sourceOfTruth": "Drive PPTX",
+    "projectDelivery": "static slide images + PPTX mirror"
+  }
+}
