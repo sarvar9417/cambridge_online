@@ -11,9 +11,9 @@ ALTER TYPE live_exam_status ADD VALUE IF NOT EXISTS 'answers_locked' AFTER 'ques
 
 ALTER TABLE live_exam_sessions
   ALTER COLUMN join_code DROP NOT NULL,
-  ADD COLUMN published_at timestamptz;
+  ADD COLUMN IF NOT EXISTS published_at timestamptz;
 
-CREATE INDEX live_exam_sessions_published_idx
+CREATE INDEX IF NOT EXISTS live_exam_sessions_published_idx
   ON live_exam_sessions (published_at DESC)
   WHERE published_at IS NOT NULL;
 
