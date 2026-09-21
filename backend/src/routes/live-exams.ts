@@ -178,9 +178,15 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json(await service.submitAnswer(req.actor!, id(req.params), body.text));
   });
 
+  router.post('/:id/lock', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
+    res.json(await service.lockAnswers(req.actor!, id(req.params), body.expectedVersion));
+  });
+
   router.post('/:id/reveal', async (req, res) => {
+    const body = z.object({ expectedVersion: requiredVersion }).strict().parse(req.body);
     try {
-      res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+      res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
     } catch (error) {
       if (!isPeerIntegrityConflict(error)) throw error;
       res.status(409).json({ error: {
