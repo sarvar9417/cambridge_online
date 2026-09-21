@@ -50,7 +50,7 @@ export function RealSlideDeckPresentation({deck,onExit,onFullscreen}:Props){
 
   return <section className="real-deck" aria-label={deck.title}>
     <header className="real-deck-bar">
-      <div><span>9618 · CHAPTER 3 · REAL DECK</span><strong>{deck.title}</strong></div>
+      <div><span>9618 · CHAPTER {deck.chapter} · REAL DECK</span><strong>{deck.title}</strong></div>
       <span>{index+1} / {total}</span>
       <a href={deck.pptxDriveUrl} target="_blank" rel="noreferrer" title="Open the editable full-quality PPTX in Google Drive"><FileArrowDown size={21}/><span>Drive PPTX</span></a>
       <a href={deck.projectPptxUrl} download={deck.projectPptxFileName} title="Download the project mirror PPTX"><HardDrives size={21}/><span>Project PPTX</span></a>
@@ -64,7 +64,7 @@ export function RealSlideDeckPresentation({deck,onExit,onFullscreen}:Props){
     </main>
     <footer className="real-deck-nav">
       <button type="button" disabled={index===0} onClick={previous}><ArrowLeft size={23}/><span>Previous</span></button>
-      <p><strong>{slide.title}</strong><span>{sourceLabel||'Real Chapter 3 slide'} · ← / → or Space</span></p>
+      <p><strong>{slide.title}</strong><span>{sourceLabel} · ← / → or Space</span></p>
       <button type="button" disabled={index===total-1} onClick={next}><span>Next</span><ArrowRight size={23}/></button>
     </footer>
   </section>;

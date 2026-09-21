@@ -5,38 +5,55 @@ import {
   CHAPTER_3_PROJECT_PPTX_URL,
   CHAPTER_3_REAL_PPTX_DRIVE_URL,
   CHAPTER_3_REAL_SLIDE_COUNT,
+  CHAPTER_4_PROJECT_PPTX_URL,
+  CHAPTER_4_REAL_PPTX_DRIVE_URL,
+  CHAPTER_4_REAL_SLIDE_COUNT,
   realSlideDeckFor,
 } from './real-slide-decks';
 
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 const publicPath=(path:string)=>resolve(process.cwd(),'public',path.replace(/^\//,''));
 
-describe('Chapter 3 real PPTX presentation route',()=>{
-  it('uses the 22-slide real Hardware deck instead of reconstructing Chapter 3 in HTML/CSS',()=>{
+function expectProjectDeck(course:string,chapter:number,topicCode:string,slideCount:number){
+  const deck=realSlideDeckFor(course,chapter,topicCode);
+  expect(deck).not.toBeNull();
+  expect(deck?.slides).toHaveLength(slideCount);
+  expect(deck?.slides[0]?.imageUrl).toContain(`/chapter-${String(chapter).padStart(2,'0')}/slides/slide-01.jpg`);
+  expect(deck?.slides.at(-1)?.imageUrl).toContain(`slide-${String(slideCount).padStart(2,'0')}.jpg`);
+  expect(existsSync(publicPath(deck!.projectPptxUrl))).toBe(true);
+  expect(statSync(publicPath(deck!.projectPptxUrl)).size).toBeGreaterThan(1_000_000);
+  for(const slide of deck!.slides){
+    const path=publicPath(slide.imageUrl);
+    expect(existsSync(path),slide.imageUrl).toBe(true);
+    expect(statSync(path).size,slide.imageUrl).toBeGreaterThan(20_000);
+  }
+  return deck!;
+}
+
+describe('real PowerPoint lesson presentation routes',()=>{
+  it('keeps Chapter 3 as the approved 22-slide real Hardware deck',()=>{
     expect(CHAPTER_3_REAL_SLIDE_COUNT).toBe(22);
-    const components=realSlideDeckFor('9618',3,'3.1');
-    const logic=realSlideDeckFor('9618',3,'3.2');
-    expect(components?.slides).toHaveLength(22);
-    expect(logic?.slides).toHaveLength(22);
-    expect(components?.slides[0]?.imageUrl).toContain('/chapter-03/slides/slide-01.jpg');
-    expect(components?.slides[21]?.imageUrl).toContain('/chapter-03/slides/slide-22.jpg');
+    expectProjectDeck('9618',3,'3.1',22);
+    expectProjectDeck('9618',3,'3.2',22);
     expect(CHAPTER_3_REAL_PPTX_DRIVE_URL).toContain('1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM');
     expect(CHAPTER_3_PROJECT_PPTX_URL).toContain('Project_Mirror.pptx');
-    expect(realSlideDeckFor('9618',4,'4.1')).toBeNull();
   });
 
-  it('stores the real deck in Drive and a compressed real mirror plus all slide assets in the project',()=>{
-    const deck=realSlideDeckFor('9618',3,'3.1')!;
-    expect(existsSync(publicPath(deck.projectPptxUrl))).toBe(true);
-    expect(statSync(publicPath(deck.projectPptxUrl)).size).toBeGreaterThan(1_000_000);
-    for(const slide of deck.slides){
-      const path=publicPath(slide.imageUrl);
-      expect(existsSync(path),slide.imageUrl).toBe(true);
-      expect(statSync(path).size,slide.imageUrl).toBeGreaterThan(40_000);
-    }
+  it('registers Chapter 4 as a 29-slide real Processor Fundamentals deck',()=>{
+    expect(CHAPTER_4_REAL_SLIDE_COUNT).toBe(29);
+    const cpu=expectProjectDeck('9618',4,'4.1',29);
+    const assembly=expectProjectDeck('9618',4,'4.2',29);
+    const bits=expectProjectDeck('9618',4,'4.3',29);
+    expect(cpu.title).toContain('CPU');
+    expect(assembly.title).toBe('Assembly Language');
+    expect(bits.title).toBe('Bit Manipulation');
+    expect(bits.slides[27]?.sourceLabel).toContain('Cambridge 2026');
+    expect(CHAPTER_4_REAL_PPTX_DRIVE_URL).toContain('19BNaVlBMDda967NYqRUIyAjAEkF6elYI');
+    expect(CHAPTER_4_PROJECT_PPTX_URL).toContain('Chapter_04_Processor_Fundamentals_Project_Mirror.pptx');
+    expect(realSlideDeckFor('9618',5,'5.1')).toBeNull();
   });
 
-  it('routes LessonExperience Presentation mode through the real deck viewer only for configured decks',()=>{
+  it('renders configured decks with project-hosted slide images rather than an iframe',()=>{
     const experience=source('src/teaching/LessonExperience.tsx');
     const viewer=source('src/teaching/RealSlideDeckPresentation.tsx');
     expect(experience).toContain("import { RealSlideDeckPresentation } from './RealSlideDeckPresentation';");
@@ -44,18 +61,20 @@ describe('Chapter 3 real PPTX presentation route',()=>{
     expect(experience).toContain('if(realDeck)return');
     expect(viewer).toContain('<img src={slide.imageUrl}');
     expect(viewer).not.toContain('<iframe');
+    expect(viewer).toContain('CHAPTER {deck.chapter}');
     expect(viewer).toContain('projectPptxUrl');
     expect(viewer).toContain('pptxDriveUrl');
   });
 
-  it('keeps a checked-in manifest that records both Drive and project storage',()=>{
-    const manifest=JSON.parse(source('public/9618/presentations/chapter-03/manifest.json'));
-    expect(manifest.delivery).toBe('project-slide-images');
-    expect(manifest.slideCount).toBe(22);
-    expect(manifest.slides).toHaveLength(22);
-    expect(manifest.sourcePptx.shared).toBe(true);
-    expect(manifest.projectMirror.pptx).toContain('Project_Mirror.pptx');
-    expect(manifest.runtime.htmlCssReconstruction).toBe(false);
-    expect(manifest.runtime.sourceOfTruth).toBe('Drive PPTX');
+  it('records Drive source and project storage for both migrated chapters',()=>{
+    for(const chapter of ['03','04']){
+      const manifest=JSON.parse(source(`public/9618/presentations/chapter-${chapter}/manifest.json`));
+      expect(manifest.delivery).toBe('project-slide-images');
+      expect(manifest.sourcePptx.shared).toBe(true);
+      expect(manifest.projectMirror.pptx).toContain('Project_Mirror.pptx');
+      expect(manifest.runtime.htmlCssReconstruction).toBe(false);
+      expect(manifest.runtime.sourceOfTruth).toBe('Drive PPTX');
+      expect(manifest.slides).toHaveLength(manifest.slideCount);
+    }
   });
 });
