@@ -113,8 +113,9 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('idempotent: true');
   });
 
-  it('freezes the configured fixed or shuffled root order at publish',()=>{
-    expect(service).toContain("questionOrder: settings.questionOrder === 'shuffled' ? 'shuffled' as const : 'fixed' as const");
+  it('freezes the teacher-reviewed draft order at publish',()=>{
+    expect(service).toContain("questionOrder: 'fixed' as const");
+    expect(service).toContain('publish must never silently');
     expect(service).toContain('chooseQuestionIds(actor, input, true, sessionId, sessionId)');
   });
 
