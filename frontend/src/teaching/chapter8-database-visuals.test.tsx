@@ -25,7 +25,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({
 describe('Cambridge 9618 Chapter 8 database classroom visuals',()=>{
   it('targets only real source-backed slides in the final Chapter 8 route',()=>{
     const slideIds=new Set(CHAPTER_8_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_8_DATABASE_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_8_DATABASE_VISUAL_IDS.length).toBeGreaterThanOrEqual(19);
     for(const id of CHAPTER_8_DATABASE_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -39,7 +39,8 @@ describe('Cambridge 9618 Chapter 8 database classroom visuals',()=>{
   it('covers the source-specific relational, normalisation, DBMS and SQL vocabulary',()=>{
     for(const term of [
       'REDUNDANCY','INCONSISTENCY','DEPENDENCY','CANDIDATE KEY','PRIMARY KEY','FOREIGN KEY',
-      'REFERENTIAL INTEGRITY','CARDINALITY','1NF','2NF','3NF','DATA DICTIONARY','LOGICAL SCHEMA',
+      'ENTITY','ATTRIBUTE','TUPLE','TABLE','REFERENTIAL INTEGRITY','CARDINALITY','1NF','2NF','3NF',
+      'REPEATING GROUP','PARTIAL DEPENDENCY','NON-KEY DEPENDENCIES','DATA DICTIONARY','LOGICAL SCHEMA',
       'DDL INTERPRETER','DML COMPILER','QUERY EVALUATION ENGINE','CREATE DATABASE','CREATE TABLE',
       'ALTER TABLE','INNER JOIN','GROUP BY','INSERT INTO','DELETE FROM','UPDATE','SUM · AVG · COUNT',
     ])expect(visualSource).toContain(term);
@@ -57,6 +58,9 @@ describe('Cambridge 9618 Chapter 8 database classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h8db-relational-terms');
+    expect(css).toContain('.h8db-nf-step');
+    expect(css).toContain('.h8db-dbms-limitations');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });
