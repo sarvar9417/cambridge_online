@@ -71,18 +71,53 @@ type PeerAnswer = { answerId: string; studentId: string };
  * assignments. With two students reciprocal marking is unavoidable; with one
  * student peer mode fails closed so the teacher can choose an explicit recovery.
  */
-export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
+export function assignPeerReviewers(
+  answers: PeerAnswer[],
+  seed: string,
+  reviewerStudentIds: string[] = answers.map((answer) => answer.studentId),
+) {
   const ordered = [...answers].sort((a, b) => {
-    const left = createHash('sha256').update(`${seed}:${a.studentId}`).digest('hex');
-    const right = createHash('sha256').update(`${seed}:${b.studentId}`).digest('hex');
+    const left = createHash('sha256').update(`${seed}:answer:${a.studentId}:${a.answerId}`).digest('hex');
+    const right = createHash('sha256').update(`${seed}:answer:${b.studentId}:${b.answerId}`).digest('hex');
     return left.localeCompare(right);
   });
-  if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409);
-  return ordered.map((answer, index) => ({
-    ...answer,
-    reviewerId: ordered[(index + 1) % ordered.length]!.studentId,
-    kind: 'peer' as const,
-  }));
+  if (!ordered.length) return [];
+
+  const reviewers = [...new Set(reviewerStudentIds)].sort((left, right) => {
+    const leftHash = createHash('sha256').update(`${seed}:reviewer:${left}`).digest('hex');
+    const rightHash = createHash('sha256').update(`${seed}:reviewer:${right}`).digest('hex');
+    return leftHash.localeCompare(rightHash);
+  });
+  if (!reviewers.length) throw new DomainError('live_peer_assignment_impossible', 409);
+
+  const answerOwners = new Set(ordered.map((answer) => answer.studentId));
+  const samePool = reviewers.length === answerOwners.size
+    && reviewers.every((reviewerId) => answerOwners.has(reviewerId));
+  if (samePool) {
+    if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409);
+    return ordered.map((answer, index) => ({
+      ...answer,
+      reviewerId: ordered[(index + 1) % ordered.length]!.studentId,
+      kind: 'peer' as const,
+    }));
+  }
+
+  const loads = new Map(reviewers.map((reviewerId) => [reviewerId, 0]));
+  return ordered.map((answer) => {
+    const candidates = reviewers
+      .filter((reviewerId) => reviewerId !== answer.studentId)
+      .sort((left, right) => {
+        const loadDifference = (loads.get(left) ?? 0) - (loads.get(right) ?? 0);
+        if (loadDifference) return loadDifference;
+        const leftHash = createHash('sha256').update(`${seed}:${answer.answerId}:${left}`).digest('hex');
+        const rightHash = createHash('sha256').update(`${seed}:${answer.answerId}:${right}`).digest('hex');
+        return leftHash.localeCompare(rightHash);
+      });
+    const reviewerId = candidates[0];
+    if (!reviewerId) throw new DomainError('live_peer_assignment_impossible', 409);
+    loads.set(reviewerId, (loads.get(reviewerId) ?? 0) + 1);
+    return { ...answer, reviewerId, kind: 'peer' as const };
+  });
 }
 
 function words(value: string) {
@@ -1626,13 +1661,28 @@ export class LiveExamService {
       [sessionQuestionId],
     );
     const mode = String(session.marking_mode) as LiveExamMarkingMode;
+    const activeReviewers = mode === 'peer'
+      ? await client.query(
+          `select student_id
+           from live_exam_participants
+           where session_id=$1 and left_at is null
+             and last_seen_at >= now()-interval '90 seconds'
+           order by student_id`,
+          [sessionId],
+        )
+      : { rows: [] as Array<{ student_id: string }> };
     const assignments = mode === 'teacher'
       ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
       : mode === 'self'
         ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(row.student_id), kind: 'self' as const }))
-        : assignPeerReviewers(answers.rows.map((row) => ({
-            answerId: String(row.answer_id), studentId: String(row.student_id),
-          })), `${sessionId}:${sessionQuestionId}`);
+        : assignPeerReviewers(
+            answers.rows.map((row) => ({
+              answerId: String(row.answer_id),
+              studentId: String(row.student_id),
+            })),
+            `${sessionId}:${sessionQuestionId}`,
+            activeReviewers.rows.map((row) => String(row.student_id)),
+          );
     const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
     for (const assignment of assignments) {
       const review = await client.query(
