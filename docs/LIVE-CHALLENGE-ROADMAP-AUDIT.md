@@ -20,18 +20,18 @@ This is the execution checklist for the approved Workspace plan. It reconciles t
 | Marking / Moderation | DONE | Teacher/peer/self marking, DB no-self peer integrity, fail-closed unsafe peer mode, reasoned audited overrides and override policy. |
 | Student / Board UX | DONE | Safe student feed, canonical runtime, dedicated board projection and board-safe marks-first standings. |
 | Analytics | DONE | LO evidence/history, round summaries, strongest/weakest LO and supported missed-mark-point analysis. |
-| Multi-client PostgreSQL E2E | RETEST | Free PostgreSQL 17 harness covers Teacher + Board + Student A/B and negative paths. Dependency-aware builder changes required the current contract/fixture alignment; this must return green. |
-| Reconnect / missed realtime recovery | IN PROGRESS | Realtime is notification-only and snapshots are authoritative. A real cursor-gap → authoritative snapshot recovery assertion is being added to the PostgreSQL gate. |
+| Multi-client PostgreSQL E2E | DONE | Free PostgreSQL 17 harness covers Teacher + Board + Student A/B, dependency closure and negative paths. DB smoke #62/#63 are green on the audited head. |
+| Reconnect / missed realtime recovery | DONE | PostgreSQL integration now proves cursor-gap detection, metadata-only realtime events and exact authoritative snapshot recovery while Mark Scheme secrecy is preserved. |
 | Browser multi-client E2E | MISSING | Teacher + Board + Student A + Student B browser flow still required. It must use a no-cost environment. |
 | Preview | BLOCKED BY RELEASE GATE | Free Vercel Preview may be used, but no paid Supabase branch. Browser/runtime acceptance must not use production DB as a destructive test substitute. |
 | Production | BLOCKED | Requires repository gates + browser acceptance + explicit product-owner approval. |
 
 ## Immediate execution order
 
-1. Restore CI + Live Challenge DB smoke to green after the dependency-aware builder convergence.
-2. Prove missed realtime event / reconnect recovery with the real PostgreSQL integration harness.
-3. Re-run all free repository gates and fix any regression.
-4. Prepare the no-cost browser E2E gate and recorded Teacher/Board/Student A/Student B flow.
+1. Keep CI + Live Challenge DB smoke green while adding the remaining release gate.
+2. Prepare the no-cost browser E2E gate and recorded Teacher/Board/Student A/Student B flow.
+3. Exercise refresh/reconnect, stale second teacher tab, board safety and source assets in that browser gate.
+4. Re-run all repository gates after browser-harness changes.
 5. Stop at the production boundary and request explicit release approval.
 
 ## Non-negotiable invariants

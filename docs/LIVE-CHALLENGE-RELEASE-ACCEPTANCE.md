@@ -66,7 +66,10 @@ The dedicated `Live Challenge DB smoke` workflow now proves the following agains
 - a real service-level flow runs Teacher + shared Board + Student A + Student B through published → lobby → question → pause/resume → submit → answer lock → Mark Scheme reveal → anonymous peer review → teacher moderation → finish;
 - the Board projection is checked before and after reveal: no Mark Scheme before reveal, no join code outside lobby, and no session/student/mark-point internal IDs;
 - stale teacher CAS is rejected and event versions remain monotonic;
-- runtime policy coverage includes manual vs automatic answer locking and disabled teacher overrides.
+- runtime policy coverage includes manual vs automatic answer locking and disabled teacher overrides;
+- a client starting from an older event cursor detects missed versions, receives only event metadata, and recovers exact persisted state from the authoritative snapshot without leaking the Mark Scheme before reveal.
+
+Current zero-cost evidence on the audited head: `Live Challenge DB smoke` #62/#63 green; pull-request CI #5499 green.
 
 The shared board remains covered by the dedicated learner-safe projection tests and frontend route contract. This gives a strong free release gate without touching production data.
 
