@@ -49,9 +49,13 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json({ data: await service.list(req.actor!) });
   });
 
-  router.post('/', async (req, res) => {
-    const body = createInput.parse(req.body);
-    res.status(201).json(await service.create(req.actor!, body));
+  router.post('/', (_req, res) => {
+    res.status(410).json({
+      error: {
+        code: 'live_builder_required',
+        message: 'Live Challenge sessiyasi draft → publish → lobby lifecycle orqali yaratilishi kerak.',
+      },
+    });
   });
 
   router.post('/drafts', async (req, res) => {
