@@ -3,115 +3,23 @@
   "course": "9618",
   "chapter": 3,
   "title": "Hardware",
+  "delivery": "drive-embedded-pptx",
   "sourcePptx": {
     "fileName": "9618_Chapter_03_Hardware_Real_Deck.pptx",
     "driveFileId": "1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM",
-    "driveUrl": "https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true"
+    "driveUrl": "https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true",
+    "embedUrl": "https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/embed?start=false&loop=false&delayms=60000&rm=minimal",
+    "shared": true
   },
-  "render": {
-    "format": "webp",
-    "width": 1601,
-    "height": 900,
-    "slideCount": 22
-  },
-  "topicRanges": {
-    "3.1": [
-      1,
-      19
-    ],
-    "3.2": [
-      20,
-      22
-    ]
-  },
-  "slides": [
-    {
-      "number": 1,
-      "image": "slides/slide-01.webp"
-    },
-    {
-      "number": 2,
-      "image": "slides/slide-02.webp"
-    },
-    {
-      "number": 3,
-      "image": "slides/slide-03.webp"
-    },
-    {
-      "number": 4,
-      "image": "slides/slide-04.webp"
-    },
-    {
-      "number": 5,
-      "image": "slides/slide-05.webp"
-    },
-    {
-      "number": 6,
-      "image": "slides/slide-06.webp"
-    },
-    {
-      "number": 7,
-      "image": "slides/slide-07.webp"
-    },
-    {
-      "number": 8,
-      "image": "slides/slide-08.webp"
-    },
-    {
-      "number": 9,
-      "image": "slides/slide-09.webp"
-    },
-    {
-      "number": 10,
-      "image": "slides/slide-10.webp"
-    },
-    {
-      "number": 11,
-      "image": "slides/slide-11.webp"
-    },
-    {
-      "number": 12,
-      "image": "slides/slide-12.webp"
-    },
-    {
-      "number": 13,
-      "image": "slides/slide-13.webp"
-    },
-    {
-      "number": 14,
-      "image": "slides/slide-14.webp"
-    },
-    {
-      "number": 15,
-      "image": "slides/slide-15.webp"
-    },
-    {
-      "number": 16,
-      "image": "slides/slide-16.webp"
-    },
-    {
-      "number": 17,
-      "image": "slides/slide-17.webp"
-    },
-    {
-      "number": 18,
-      "image": "slides/slide-18.webp"
-    },
-    {
-      "number": 19,
-      "image": "slides/slide-19.webp"
-    },
-    {
-      "number": 20,
-      "image": "slides/slide-20.webp"
-    },
-    {
-      "number": 21,
-      "image": "slides/slide-21.webp"
-    },
-    {
-      "number": 22,
-      "image": "slides/slide-22.webp"
-    }
-  ]
+  "slideCount": 22,
+  "sourceRange": "Hodder 9618 Chapter 3, printed pp.68–106",
+  "topics": [
+    "3.1 Computers and their components",
+    "3.2 Logic gates and logic circuits"
+  ],
+  "runtime": {
+    "htmlCssReconstruction": false,
+    "sourceOfTruth": "Drive PPTX",
+    "projectIntegration": "LessonExperience real PPTX viewer"
+  }
 }
