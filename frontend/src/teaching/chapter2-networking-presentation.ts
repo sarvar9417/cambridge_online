@@ -187,7 +187,7 @@ function frame(
     eyebrow: `LESSON ${lesson.number} OF 4 · ${topicLabel}`,
     sourcePages: lesson.pages,
     showSource: false,
-    visual: (prefix === 'h2n' ? 'networking' : 'internet') as const,
+    visual: prefix === 'h2n' ? ('networking' as const) : ('internet' as const),
   };
   if (suffix === 'cover') return {
     ...common,
