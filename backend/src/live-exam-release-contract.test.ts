@@ -70,6 +70,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
   });
 
+  it('treats a duplicate identical answer submission as an idempotent retry',()=>{
+    expect(service).toContain('if (existing.rows[0]?.submitted_at)');
+    expect(service).toContain('idempotent: true');
+    expect(service).toContain("String(existing.rows[0].answer_text ?? '') !== text");
+  });
+
   it('separates answer locking from Mark Scheme reveal',()=>{
     expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
     expect(service).toContain("'answers.locked'");
