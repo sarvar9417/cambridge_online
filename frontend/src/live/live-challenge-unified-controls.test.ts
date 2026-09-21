@@ -12,6 +12,15 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('name="leaderboardMode"');
   });
 
+  it('runs new challenges through draft, selection, publish and lobby open',()=>{
+    expect(page).toContain("'/live-exams/drafts'");
+    expect(page).toContain('/questions/auto');
+    expect(page).toContain('/publish');
+    expect(page).toContain('/open');
+    expect(page).toContain("draft:'Draft'");
+    expect(page).toContain("published:'Nashr qilingan'");
+  });
+
   it('gives the teacher pause/resume and lobby removal controls',()=>{
     expect(page).toContain("session.pausedAt?'/resume':'/pause'");
     expect(page).toContain('expectedVersion:session.version');
