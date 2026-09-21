@@ -5,11 +5,16 @@ export const CHAPTER_8_DATABASE_VISUAL_IDS = [
   'h8-811-file-structure',
   'h8-811-limitations',
   'h8-812-database-approach',
+  'h8-813-entity-attribute-tuple',
   'h8-813-keys',
   'h8-813-relationships',
   'h8-814-er-cardinality',
   'h8-815-normalisation-rules',
+  'h8-815-1nf',
+  'h8-815-2nf',
+  'h8-815-3nf',
   'h8-815-final-design',
+  'h8-821-dbms-limitations',
   'h8-821-dictionary-security',
   'h8-822-query-processor',
   'h8-831-ddl-dml',
@@ -167,16 +172,76 @@ function Maintenance({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function EntityAttributeTuple({reveal}:{reveal:number}){
+  return <div className="h8db h8db-relational-terms" aria-label="Entity attribute tuple and table relational model visual">
+    <div className={'h8db-table-model '+state(reveal,1)}>
+      <header><b>STUDENT TABLE</b></header>
+      <div className="h8db-columns"><span>StudentID</span><span>FirstName</span><span>DateOfBirth</span></div>
+      <div className="h8db-tuple"><span>1024</span><span>Amina</span><span>2009-03-14</span></div>
+      <div className="h8db-tuple"><span>1025</span><span>Bek</span><span>2009-07-02</span></div>
+    </div>
+    <section className={state(reveal,2)}><b>ENTITY</b><span>person / place / event / object about which data is stored</span></section>
+    <section className={state(reveal,2)}><b>ATTRIBUTE</b><span>one data item stored about the entity</span></section>
+    <section className={state(reveal,3)}><b>TUPLE</b><span>one entity instance represented by a row</span></section>
+    <section className={state(reveal,3)}><b>TABLE</b><span>rows of instances × columns of attributes</span></section>
+  </div>;
+}
+
+function FirstNormalForm({reveal}:{reveal:number}){
+  return <div className="h8db h8db-nf-step" aria-label="First normal form repeating group removal visual">
+    <section className={'h8db-nf-before '+state(reveal,1)}><b>UN-NORMALISED STUDENT</b><span>StudentID</span><span>FirstName</span><span>SubjectName₁ / SubjectTeacher₁</span><span>SubjectName₂ / SubjectTeacher₂</span><strong>REPEATING GROUP</strong></section>
+    <i>→</i>
+    <section className={state(reveal,2)}><b>STUDENT</b><span>StudentID · FirstName · DateOfBirth · …</span></section>
+    <section className={state(reveal,3)}><b>STUDENTSUBJECT</b><span>StudentID · SubjectName · SubjectTeacher</span><small>PK = StudentID + SubjectName · StudentID is FK</small></section>
+    <footer className={state(reveal,3)}>1NF removes repeating subject attributes into a separate linked table.</footer>
+  </div>;
+}
+
+function SecondNormalForm({reveal}:{reveal:number}){
+  return <div className="h8db h8db-nf-step" aria-label="Second normal form partial dependency removal visual">
+    <section className={'h8db-nf-before '+state(reveal,1)}><b>STUDENTSUBJECT</b><span>PK: StudentID + SubjectName</span><span>SubjectTeacher</span><strong>PARTIAL DEPENDENCY · SubjectTeacher depends only on SubjectName</strong></section>
+    <i>→</i>
+    <section className={state(reveal,2)}><b>STUDENTSUBJECT</b><span>StudentID · SubjectName</span></section>
+    <section className={state(reveal,3)}><b>SUBJECT</b><span>SubjectName · SubjectTeacher</span><small>partial dependency removed</small></section>
+    <footer className={state(reveal,3)}>2NF removes attributes that depend on only part of a composite primary key.</footer>
+  </div>;
+}
+
+function ThirdNormalForm({reveal}:{reveal:number}){
+  return <div className="h8db h8db-nf-step h8db-3nf" aria-label="Third normal form non key dependency removal visual">
+    <section className={'h8db-nf-before '+state(reveal,1)}><b>STUDENT</b><span>StudentID</span><span>ClassID → Location / ClassTeacher</span><span>LicenceNumber → TeacherName / Address / DOB</span><strong>NON-KEY DEPENDENCIES</strong></section>
+    <i>→</i>
+    <section className={state(reveal,2)}><b>CLASS</b><span>ClassID · Location · LicenceNumber</span></section>
+    <section className={state(reveal,2)}><b>TEACHER</b><span>LicenceNumber · TeacherName · Address · DOB</span></section>
+    <section className={state(reveal,3)}><b>STUDENT</b><span>StudentID · … · ClassID</span></section>
+    <footer className={state(reveal,3)}>3NF removes dependencies between non-key attributes; LicenceNumber is preferred because teacher names may not be unique.</footer>
+  </div>;
+}
+
+function DbmsLimitations({reveal}:{reveal:number}){
+  return <div className="h8db h8db-dbms-limitations" aria-label="DBMS response to file based redundancy inconsistency and dependency">
+    <section className={state(reveal,1)}><b>REDUNDANCY</b><span>duplicate full records</span><i>→</i><strong>store most data once + use controlled foreign-key links</strong></section>
+    <section className={state(reveal,2)}><b>INCONSISTENCY</b><span>copies disagree after update</span><i>→</i><strong>shared stored item updated once for all applications</strong></section>
+    <section className={state(reveal,3)}><b>DEPENDENCY</b><span>program tied to exact record layout</span><i>→</i><strong>DBMS manages structure; apps request only required fields/tables</strong></section>
+  </div>;
+}
+
 export function Chapter8DatabaseVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h8-811-file-structure': return <FileStructure reveal={reveal}/>;
     case 'h8-811-limitations': return <Limitations reveal={reveal}/>;
     case 'h8-812-database-approach': return <DatabaseApproach reveal={reveal}/>;
+    case 'h8-813-entity-attribute-tuple': return <EntityAttributeTuple reveal={reveal}/>;
     case 'h8-813-keys': return <Keys reveal={reveal}/>;
     case 'h8-813-relationships': return <Relationships reveal={reveal}/>;
     case 'h8-814-er-cardinality': return <ErCardinality reveal={reveal}/>;
     case 'h8-815-normalisation-rules': return <Normalisation reveal={reveal}/>;
+    case 'h8-815-1nf': return <FirstNormalForm reveal={reveal}/>;
+    case 'h8-815-2nf': return <SecondNormalForm reveal={reveal}/>;
+    case 'h8-815-3nf': return <ThirdNormalForm reveal={reveal}/>;
     case 'h8-815-final-design': return <FinalDesign reveal={reveal}/>;
+    case 'h8-821-dbms-limitations': return <DbmsLimitations reveal={reveal}/>;
     case 'h8-821-dictionary-security': return <DictionarySecurity reveal={reveal}/>;
     case 'h8-822-query-processor': return <QueryProcessor reveal={reveal}/>;
     case 'h8-831-ddl-dml': return <DdlDml reveal={reveal}/>;

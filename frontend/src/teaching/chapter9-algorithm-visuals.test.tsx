@@ -25,7 +25,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({
 describe('Cambridge 9618 Chapter 9 algorithm classroom visuals',()=>{
   it('targets real source-backed slides in the final Chapter 9 route',()=>{
     const slideIds=new Set(CHAPTER_9_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_9_ALGORITHM_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_9_ALGORITHM_VISUAL_IDS.length).toBeGreaterThanOrEqual(17);
     for(const id of CHAPTER_9_ALGORITHM_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -40,6 +40,7 @@ describe('Cambridge 9618 Chapter 9 algorithm classroom visuals',()=>{
     for(const term of [
       'ABSTRACTION','PROGRAM','STRUCTURED ENGLISH','FLOWCHART','PSEUDOCODE','INPUT','OUTPUT',
       'IF','CASE','FOR','REPEAT–UNTIL','WHILE','INT(Number)','IDENTIFIER TABLE','Stepwise refinement',
+      'PYTHON','VB.NET','JAVA','AND','OR','NOT','STRUCTURED ENGLISH','ACTIVITY 9F','ACTIVITY 9G','ACTIVITY 9H',
     ])expect(visualSource).toContain(term);
   });
 
@@ -55,6 +56,11 @@ describe('Cambridge 9618 Chapter 9 algorithm classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h9alg-language-compare');
+    expect(css).toContain('.h9alg-loop-logic');
+    expect(css).toContain('.h9alg-structured-english');
+    expect(css).toContain('.h9alg-marathon-process');
+    expect(css).toContain('.h9alg-repeat-grade');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });

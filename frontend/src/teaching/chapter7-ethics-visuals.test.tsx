@@ -25,7 +25,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({
 describe('Cambridge 9618 Chapter 7 ethics classroom visuals',()=>{
   it('targets only real source-backed slides in the final 9618 Chapter 7 route',()=>{
     const slideIds=new Set(CHAPTER_7_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_7_ETHICS_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_7_ETHICS_VISUAL_IDS.length).toBeGreaterThanOrEqual(18);
     for(const id of CHAPTER_7_ETHICS_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -37,6 +37,11 @@ describe('Cambridge 9618 Chapter 7 ethics classroom visuals',()=>{
   });
 
   it('covers the three Chapter 7 source strands with source terminology',()=>{
+    expect(visualSource).toContain('COMPUTER ETHICS');
+    expect(visualSource).toContain('INTELLECTUAL PROPERTY');
+    expect(visualSource).toContain('POLICY TENSION');
+    expect(visualSource).toContain('FREE SOFTWARE FOUNDATION');
+    expect(visualSource).toContain('OPEN SOURCE INITIATIVE');
     expect(visualSource).toContain('BCS');
     expect(visualSource).toContain('IEEE + ACM');
     expect(visualSource).toContain('COPYRIGHTED SOFTWARE');
@@ -48,6 +53,9 @@ describe('Cambridge 9618 Chapter 7 ethics classroom visuals',()=>{
     expect(visualSource).toContain('FREEWARE');
     expect(visualSource).toContain('SHAREWARE');
     expect(visualSource).toContain('ARTIFICIAL INTELLIGENCE');
+    expect(visualSource).toContain('AI IMPACT');
+    expect(visualSource).toContain('ARTIFICIAL LIMBS');
+    expect(visualSource).toContain('DRONES');
     expect(visualSource).toContain('AUTONOMOUS');
     expect(visualSource).toContain('MACHINE-LEARNING ANALYSIS');
   });
@@ -63,6 +71,10 @@ describe('Cambridge 9618 Chapter 7 ethics classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h7eth-computer-ethics');
+    expect(css).toContain('.h7eth-debate');
+    expect(css).toContain('.h7eth-copyright-terms');
+    expect(css).toContain('.h7eth-ai-impact');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });

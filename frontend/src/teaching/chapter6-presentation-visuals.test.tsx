@@ -31,13 +31,19 @@ const beat=(slideId:string,overrides:Partial<LessonPresentationBeat>={}):LessonP
 describe('Chapter 6 classroom presentation visuals',()=>{
   it('registers source-backed visual targets that exist in the final chapter',()=>{
     expect(CHAPTER_6_SECURITY_VISUAL_IDS).toEqual([
+      'h6-611-privacy',
       'h6-612-accounts-passwords',
       'h6-612-signatures-firewall',
       'h6-612-antimalware-encryption-biometrics',
+      'h6-613-biometric-hacking-malware',
+      'h6-613-malware-phishing',
       'h6-613-pharming',
       'h6-614-recovery',
+      'h6-62-integrity-overview',
       'h6-621-validation',
+      'h6-622-entry-verification',
       'h6-622-modulo11-checksum',
+      'h6-622-parity',
       'h6-622-parity-block',
       'h6-622-arq',
     ]);
@@ -75,9 +81,11 @@ describe('Chapter 6 classroom presentation visuals',()=>{
 
   it('uses Chapter 6 source terminology for security and integrity mechanisms',()=>{
     for(const term of [
-      'USERNAME + PASSWORD','ACCESS LEVEL','FIREWALL','ANTIVIRUS','ANTI-SPYWARE','ENCRYPTION','BIOMETRICS',
-      'DNS / LOCAL NAME DATA','ACCIDENTAL LOSS','VALID ≠ FACTUALLY CORRECT','CHECK DIGIT · MODULO-11',
-      'CHECKSUM','PARITY BYTE / COLUMNS','POSITIVE ACKNOWLEDGEMENT','NO ACK BEFORE TIMEOUT',
+      'DATA PRIVACY','LAWFUL + PURPOSE','USERNAME + PASSWORD','ACCESS LEVEL','FIREWALL','ANTIVIRUS','ANTI-SPYWARE','ENCRYPTION','BIOMETRICS',
+      'FINGERPRINT','RETINA','ETHICAL HACKING','MALICIOUS HACKING','WORM','LOGIC BOMB','TROJAN','SPYWARE','PHISHING',
+      'DNS / LOCAL NAME DATA','ACCIDENTAL LOSS','DATA INTEGRITY','VALIDATION','VERIFICATION','VALID ≠ FACTUALLY CORRECT',
+      'DOUBLE ENTRY','VISUAL CHECK','CHECK DIGIT','CHECK DIGIT · MODULO-11','CHECKSUM','EVEN PARITY','ODD PARITY',
+      'PARITY BYTE / COLUMNS','POSITIVE ACKNOWLEDGEMENT','NO ACK BEFORE TIMEOUT',
     ])expect(visualSource,term).toContain(term);
   });
 
@@ -85,6 +93,10 @@ describe('Chapter 6 classroom presentation visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('max-height:430px');
+    expect(css).toContain('.h6sec-privacy');
+    expect(css).toContain('.h6sec-malware');
+    expect(css).toContain('.h6sec-integrity');
+    expect(css).toContain('.h6sec-parity-basic');
     expect(css).toContain('.is-upcoming{opacity:.2');
     expect(css).not.toContain('visibility:hidden');
     expect(css).not.toContain('display:none!important');

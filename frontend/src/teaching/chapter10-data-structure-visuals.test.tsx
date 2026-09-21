@@ -20,7 +20,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({
 describe('Cambridge 9618 Chapter 10 data-structure classroom visuals',()=>{
   it('targets only real source-backed slides in the final Chapter 10 route',()=>{
     const slideIds=new Set(CHAPTER_10_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_10_DATA_STRUCTURE_VISUAL_IDS.length).toBeGreaterThanOrEqual(12);
+    expect(CHAPTER_10_DATA_STRUCTURE_VISUAL_IDS.length).toBeGreaterThanOrEqual(19);
     for(const id of CHAPTER_10_DATA_STRUCTURE_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -35,7 +35,8 @@ describe('Cambridge 9618 Chapter 10 data-structure classroom visuals',()=>{
     for(const term of [
       'BOOLEAN','CHAR','INTEGER','REAL','STRING','TbookRecord','ARRAY[0:8] OF INTEGER',
       'found ← FALSE','SWAP','OPEN file FOR WRITE','READFILE','WRITEFILE','EOF(file)',
-      'topPointer','frontPointer','rearPointer','startPointer','heapPointer','LIFO','FIFO',
+      'topPointer','frontPointer','rearPointer','startPointer','heapPointer','heapStartPointer','LIFO','FIFO',
+      'IDENTIFIER TABLE','PASS 1','PASS 8','ACTIVITY 10G','ACTIVITY 10L','ENQUEUE','DEQUEUE',
     ])expect(visualSource).toContain(term);
   });
 
@@ -51,6 +52,11 @@ describe('Cambridge 9618 Chapter 10 data-structure classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h10ds-search-table');
+    expect(css).toContain('.h10ds-bubble-passes');
+    expect(css).toContain('.h10ds-queue-code');
+    expect(css).toContain('.h10ds-linked-setup');
+    expect(css).toContain('.h10ds-linked-identifiers');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });

@@ -8,11 +8,16 @@ export const CHAPTER_9_ALGORITHM_VISUAL_IDS = [
   'h9-921-average-flowchart',
   'h9-922-identifiers-io-assignment',
   'h9-922-selection',
+  'h9-922-selection-languages',
   'h9-922-iteration',
+  'h9-922-loop-languages-logic',
   'h9-922-validation-average',
+  'h9-923-password-and-structured-english',
   'h9-923-marathon-identifiers',
+  'h9-923-marathon-process',
   'h9-924-flowchart-symbols',
   'h9-924-nested-selection-refinement',
+  'h9-925-repeat-grade-activity',
   'h9-925-detailed-refinement',
 ] as const;
 
@@ -137,6 +142,58 @@ function DetailedRefinement({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function SelectionLanguages({reveal}:{reveal:number}){
+  return <div className="h9alg h9alg-language-compare" aria-label="Same IF logic across pseudocode Python VB.NET and Java">
+    <div className={'h9alg-language-core '+state(reveal,1)}><b>MyValue &gt; YourValue</b><span>same logical condition</span></div>
+    <section className={state(reveal,1)}><b>PSEUDOCODE</b><span>IF … THEN … ENDIF</span></section>
+    <section className={state(reveal,2)}><b>PYTHON</b><span>colon + indentation</span></section>
+    <section className={state(reveal,2)}><b>VB.NET</b><span>THEN + END IF</span></section>
+    <section className={state(reveal,3)}><b>JAVA</b><span>parentheses + braces</span></section>
+    <footer className={state(reveal,3)}>syntax changes; algorithmic meaning does not</footer>
+  </div>;
+}
+
+function LoopLanguagesLogic({reveal}:{reveal:number}){
+  return <div className="h9alg h9alg-loop-logic" aria-label="Loop syntax and Boolean logic across languages">
+    <div className="h9alg-loop-language-grid">
+      <section className={state(reveal,1)}><b>PYTHON FOR</b><span>range-based iteration</span></section>
+      <section className={state(reveal,1)}><b>VB.NET FOR</b><span>FOR … TO … STEP … NEXT</span></section>
+      <section className={state(reveal,2)}><b>JAVA FOR</b><span>initialise ; test ; update</span></section>
+    </div>
+    <div className={'h9alg-logic-bar '+state(reveal,3)}><span><b>AND</b> both conditions true</span><span><b>OR</b> at least one true</span><span><b>NOT</b> invert truth value</span></div>
+    <footer className={state(reveal,3)}>WHILE, REPEAT and IF conditions ultimately evaluate comparisons to TRUE or FALSE.</footer>
+  </div>;
+}
+
+function StructuredEnglish({reveal}:{reveal:number}){
+  const clues=[['ENTER / READ','INPUT'],['PRINT / WRITE','OUTPUT'],['IF / THEN / CHOOSE','SELECTION'],['LOOP / REPEAT','ITERATION'],['SET / CALCULATE','PROCESSING']] as const;
+  return <div className="h9alg h9alg-structured-english" aria-label="Structured English clues mapped to pseudocode constructs">
+    <section className={state(reveal,1)}><b>STRUCTURED ENGLISH</b><span>unambiguous problem steps</span></section>
+    <i>→</i>
+    <div className="h9alg-clue-grid">{clues.map(([words,kind],index)=><span className={state(reveal,index<2?1:index<4?2:3)} key={words}><b>{words}</b><small>{kind}</small></span>)}</div>
+    <aside className={state(reveal,3)}><b>ACTIVITY 9F</b><span>set password twice → allow three attempts → complete identifier table</span></aside>
+  </div>;
+}
+
+function MarathonProcess({reveal}:{reveal:number}){
+  return <div className="h9alg h9alg-marathon-process" aria-label="Marathon time process and personal best extension visual">
+    <section className={state(reveal,1)}><b>INPUT</b><span>MarathonHours · MarathonMinutes · MarathonSeconds</span></section><i>→</i>
+    <section className={state(reveal,2)}><b>PROCESS</b><span>TotalMarathonTimeSeconds ← (Hours × 3600 + Minutes) × 60 + Seconds</span></section><i>→</i>
+    <section className={state(reveal,2)}><b>OUTPUT</b><span>Time for marathon in seconds</span></section>
+    <footer className={state(reveal,3)}><b>ACTIVITY 9G</b><span>input PersonalBest → compare → replace when new time is shorter → output result</span></footer>
+  </div>;
+}
+
+function RepeatGrade({reveal}:{reveal:number}){
+  const steps=['INPUT mark','CLASSIFY grade','OUTPUT grade','ASK another?','INPUT Reply'] as const;
+  return <div className="h9alg h9alg-repeat-grade" aria-label="Repeated grade processing control flow visual">
+    <div className="h9alg-repeat-route">{steps.map((step,index)=><span className={state(reveal,index<2?1:index<4?2:3)} key={step}>{step}</span>)}</div>
+    <div className={'h9alg-repeat-decision '+state(reveal,3)}><b>Reply = "Y" ?</b><span>YES → return to mark input</span><span>NO → END</span></div>
+    <footer className={state(reveal,3)}>ACTIVITY 9H extends a one-mark solution into repeated processing.</footer>
+  </div>;
+}
+
 export function Chapter9AlgorithmVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h9-911-abstraction': return <Abstraction reveal={reveal}/>;
@@ -145,11 +202,16 @@ export function Chapter9AlgorithmVisual({beat,reveal}:{beat:LessonPresentationBe
     case 'h9-921-average-flowchart': return <AverageFlow reveal={reveal}/>;
     case 'h9-922-identifiers-io-assignment': return <Identifiers reveal={reveal}/>;
     case 'h9-922-selection': return <Selection reveal={reveal}/>;
+    case 'h9-922-selection-languages': return <SelectionLanguages reveal={reveal}/>;
     case 'h9-922-iteration': return <Iteration reveal={reveal}/>;
+    case 'h9-922-loop-languages-logic': return <LoopLanguagesLogic reveal={reveal}/>;
     case 'h9-922-validation-average': return <Validation reveal={reveal}/>;
+    case 'h9-923-password-and-structured-english': return <StructuredEnglish reveal={reveal}/>;
     case 'h9-923-marathon-identifiers': return <Marathon reveal={reveal}/>;
+    case 'h9-923-marathon-process': return <MarathonProcess reveal={reveal}/>;
     case 'h9-924-flowchart-symbols': return <FlowSymbols reveal={reveal}/>;
     case 'h9-924-nested-selection-refinement': return <NestedRefinement reveal={reveal}/>;
+    case 'h9-925-repeat-grade-activity': return <RepeatGrade reveal={reveal}/>;
     case 'h9-925-detailed-refinement': return <DetailedRefinement reveal={reveal}/>;
     default: return null;
   }

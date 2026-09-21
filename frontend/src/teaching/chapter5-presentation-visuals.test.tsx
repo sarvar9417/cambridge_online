@@ -29,16 +29,25 @@ const beat=(slideId:string,overrides:Partial<LessonPresentationBeat>={}):LessonP
 });
 
 describe('Chapter 5 classroom presentation visuals',()=>{
-  it('registers eight source-backed visual targets that exist in the final chapter',()=>{
+  it('registers expanded source-backed visual targets that exist in the final chapter',()=>{
     expect(CHAPTER_5_SYSTEM_SOFTWARE_VISUAL_IDS).toEqual([
       'h5-512-process-hardware-file',
       'h5-512-printer-management',
+      'h5-513-formatter',
+      'h5-513-antivirus',
       'h5-513-defragmentation',
+      'h5-513-analysis-compression',
+      'h5-513-backup',
+      'h5-514-library-model',
       'h5-514-static-dynamic',
+      'h5-521-assembler',
       'h5-521-compiler-interpreter',
+      'h5-522-compiler-interpreter-tradeoffs',
       'h5-523-bytecode',
       'h5-524-ide-overview',
+      'h5-524-editor',
       'h5-524-debugger',
+      'h5-524-documentation-review',
     ]);
     const finalIds=new Set(CHAPTER_5_FINAL.slides.map(slide=>slide.id));
     for(const id of CHAPTER_5_SYSTEM_SOFTWARE_VISUAL_IDS)expect(finalIds.has(id),id).toBe(true);
@@ -74,9 +83,11 @@ describe('Chapter 5 classroom presentation visuals',()=>{
   it('preserves the source terminology in the visual models',()=>{
     for(const term of [
       'PROCESS','HARDWARE','FILES','DRIVER','BUFFER','QUEUE','INTERRUPT',
-      'STATIC LIBRARY','DYNAMIC LINK LIBRARY','ASSEMBLER','COMPILER','INTERPRETER',
-      'BYTECODE','VIRTUAL MACHINE / RUN TIME','EDITOR','AUTO-DOCUMENTER',
-      'SINGLE STEP','BREAKPOINT','REPORT WINDOW',
+      'PARTITION','FULL FORMAT','BAD SECTOR','SIGNATURE DB','HEURISTIC','QUARANTINE','FALSE POSITIVE',
+      'DISK CONTENT ANALYSIS','FILE COMPRESSION','DISK COMPRESSION','WORKING COPY','LOCAL BACKUP','REMOTE BACKUP',
+      'PROGRAM LIBRARY','STATIC LIBRARY','DYNAMIC LINK LIBRARY','ASSEMBLY SOURCE','ASSEMBLER','LOADER',
+      'COMPILER','INTERPRETER','BYTECODE','VIRTUAL MACHINE / RUN TIME','EDITOR','PRETTY PRINTING','DYNAMIC SYNTAX CHECK',
+      'AUTO-DOCUMENTER','SINGLE STEP','BREAKPOINT','REPORT WINDOW',
     ])expect(visualSource,term).toContain(term);
   });
 
@@ -85,6 +96,10 @@ describe('Chapter 5 classroom presentation visuals',()=>{
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:959px)');
     expect(css).toContain('max-height:430px');
+    expect(css).toContain('.h5sys-formatter');
+    expect(css).toContain('.h5sys-antivirus');
+    expect(css).toContain('.h5sys-backup');
+    expect(css).toContain('.h5sys-editor');
     expect(css).not.toContain('visibility:hidden');
     expect(css).not.toContain('display:none!important');
   });
