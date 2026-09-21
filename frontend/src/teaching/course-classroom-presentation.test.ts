@@ -46,7 +46,7 @@ describe('configured course classroom presentation framing',()=>{
   });
 
   it('does not classify chapter review beats as classroom frame visuals',()=>{
-    for(const chapterNo of [5,6,7,8,9,10,11,12]){
+    for(const chapterNo of [5,6,7,8,9,10,11,12,15,16,17,18,19,20]){
       const chapter=LESSON_EXPERIENCE_CHAPTERS.find(item=>item.number===chapterNo)!;
       for(const topic of buildTopicPlan(chapter.slides,chapter.subtopics)){
         for(const beat of presentationBeatsForTopic(topic).filter(beat=>/review/i.test(beat.slideId))){
