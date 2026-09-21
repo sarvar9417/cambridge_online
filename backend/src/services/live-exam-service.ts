@@ -1496,6 +1496,38 @@ export class LiveExamService {
     return { sessionId, status: 'marking' as const, version };
   }
 
+  async switchLockedMarkingMode(
+    actor: Actor,
+    sessionId: string,
+    mode: 'teacher',
+    expectedVersion?: number,
+  ) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (session.status !== 'answers_locked' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      if (session.marking_mode === mode) {
+        await client.query('commit');
+        return { sessionId, markingMode: mode, version: Number(session.version) };
+      }
+      await client.query(
+        `update live_exam_sessions set marking_mode=$2,updated_at=now() where id=$1`,
+        [sessionId, mode],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'marking.mode_changed', {
+        from: String(session.marking_mode),
+        to: mode,
+        reason: 'locked_round_recovery',
+      });
+      await client.query('commit');
+      return { sessionId, markingMode: mode, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
   async revealMarkScheme(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
