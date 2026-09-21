@@ -143,6 +143,74 @@ function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
   };
 }
 
+function projectedUuid(value: number) {
+  return `00000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
+}
+
+function learnerSafePortable(portable: StoredQuestionSnapshot): StoredQuestionSnapshot {
+  const ids = new Map<string, string>();
+  let sequence = 10_000;
+  const safeId = (original: string) => {
+    const existing = ids.get(original);
+    if (existing) return existing;
+    const projected = projectedUuid(sequence);
+    sequence += 1;
+    ids.set(original, projected);
+    return projected;
+  };
+  for (const block of portable.contextBlocks) {
+    safeId(block.id);
+    for (const asset of block.assets) safeId(asset.id);
+  }
+  safeId(portable.leaf.id);
+  safeId(portable.leaf.rootId);
+  for (const node of portable.chain) safeId(node.id);
+  for (const dependency of portable.dependencies) {
+    safeId(dependency.id);
+    safeId(dependency.questionId);
+    safeId(dependency.dependsOnId);
+  }
+
+  const contentJson = portable.leaf.contentJson
+    ? {
+        ...portable.leaf.contentJson,
+        source: { paperId: projectedUuid(9_000), sha256: '0'.repeat(64) },
+        blocks: portable.leaf.contentJson.blocks.map((block) => ({
+          ...block,
+          ...(block.type === 'asset' ? { assetId: safeId(block.assetId) } : {}),
+          source: { page: 1 },
+        })),
+      }
+    : portable.leaf.contentJson;
+
+  return {
+    ...portable,
+    leaf: {
+      ...portable.leaf,
+      id: safeId(portable.leaf.id),
+      rootId: safeId(portable.leaf.rootId),
+      contentJson,
+    },
+    chain: portable.chain.map((node) => ({ ...node, id: safeId(node.id) })),
+    contextBlocks: portable.contextBlocks.map((block) => ({
+      ...block,
+      id: safeId(block.id),
+      assets: block.assets.map((asset) => ({
+        ...asset,
+        id: safeId(asset.id),
+        storagePath: null,
+        sourcePage: null,
+      })),
+    })),
+    dependencies: portable.dependencies.map((dependency) => ({
+      ...dependency,
+      id: safeId(dependency.id),
+      questionId: safeId(dependency.questionId),
+      dependsOnId: safeId(dependency.dependsOnId),
+    })),
+  };
+}
+
 export class LiveExamService {
   private readonly signedAssetCache = new Map<string, { value: Promise<string | null>; expiresAt: number }>();
 
@@ -1143,14 +1211,17 @@ export class LiveExamService {
        order by leq.position nulls last,target.sort_order,target.id`,
       [sessionId, Number(session.current_question_index), currentRow.question_id, participantId],
     ) : { rows: [] };
-    const question = currentRow ? {
+    const hydratedPortable = currentRow
+      ? await this.hydratePortable(currentRow.question_snapshot as StoredQuestionSnapshot)
+      : null;
+    const question = currentRow && hydratedPortable ? {
       id: currentRow.id,
-      sourceQuestionId: currentRow.question_id,
+      sourceQuestionId: isStaff ? currentRow.question_id : projectedUuid(9_001),
       position: Number(currentRow.position),
       marks: Number(currentRow.marks),
-      portable: await this.hydratePortable(currentRow.question_snapshot as StoredQuestionSnapshot),
-      dependencyWork: dependencyWork.rows.map((row) => ({
-        questionId: String(row.question_id),
+      portable: isStaff ? hydratedPortable : learnerSafePortable(hydratedPortable),
+      dependencyWork: dependencyWork.rows.map((row, index) => ({
+        questionId: isStaff ? String(row.question_id) : projectedUuid(20_000 + index),
         displayRef: String(row.display_ref),
         kind: String(row.kind),
         strength: String(row.strength),
