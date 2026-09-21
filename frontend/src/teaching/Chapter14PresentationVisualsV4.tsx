@@ -1,4 +1,5 @@
 import type { LessonPresentationBeat } from './lesson-experience-model';
+import { CourseClassroomPresentationVisual, hasCourseClassroomPresentationVisual } from './CourseClassroomPresentationVisual';
 import { Chapter14PresentationHero } from './Chapter14PresentationHeroRegistry';
 import { hasChapter14PresentationRuntime } from './chapter14-presentation-runtime';
 import { Chapter20FurtherProgrammingVisual, hasChapter20FurtherProgrammingVisual } from './Chapter20FurtherProgrammingVisuals';
@@ -37,7 +38,7 @@ import './chapter13-presentation-hardening.css';
 
 /** Stable presentation facade shared by source-grounded chapter scenes. */
 export function hasChapter14PresentationVisualV4(beat:LessonPresentationBeat){
-  return hasChapter14PresentationRuntime(beat)||hasChapter20FurtherProgrammingVisual(beat)||hasChapter19AlgorithmVisual(beat)||hasChapter18AIVisual(beat)||hasChapter17SecurityVisual(beat)||hasChapter16SystemSoftwareVisual(beat)||hasChapter15HardwareVisual(beat)||hasChapter13PresentationVisual(beat)||hasChapter12SoftwareDevelopmentVisual(beat)||hasChapter11ProgrammingVisual(beat)||hasChapter10DataStructureVisual(beat)||hasChapter9AlgorithmVisual(beat)||hasChapter8DatabaseVisual(beat)||hasChapter7EthicsVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter6SecurityVisual(beat)||hasChapter5SystemSoftwareVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
+  return hasCourseClassroomPresentationVisual(beat)||hasChapter14PresentationRuntime(beat)||hasChapter20FurtherProgrammingVisual(beat)||hasChapter19AlgorithmVisual(beat)||hasChapter18AIVisual(beat)||hasChapter17SecurityVisual(beat)||hasChapter16SystemSoftwareVisual(beat)||hasChapter15HardwareVisual(beat)||hasChapter13PresentationVisual(beat)||hasChapter12SoftwareDevelopmentVisual(beat)||hasChapter11ProgrammingVisual(beat)||hasChapter10DataStructureVisual(beat)||hasChapter9AlgorithmVisual(beat)||hasChapter8DatabaseVisual(beat)||hasChapter7EthicsVisual(beat)||hasChapter7PresentationVisual(beat)||hasChapter6SecurityVisual(beat)||hasChapter5SystemSoftwareVisual(beat)||hasChapter5OperatingSystemVisual(beat)||hasChapter4InstructionsBitVisual(beat)||hasChapter4FetchAssemblyVisual(beat)||hasChapter4ProcessorVisual(beat)||hasChapter3LogicVisual(beat)||hasChapter3SensorVisual(beat)||hasChapter3DeviceVisual(beat)||hasChapter3PresentationVisual(beat)||hasChapter2DnsVisual(beat)||hasChapter2AddressingVisual(beat)||hasChapter2ActivityVisual(beat)||hasChapter2InternetVisual(beat)||hasChapter2DeviceVisual(beat)||hasChapter2PresentationVisual(beat)||hasChapter1PresentationVisual(beat);
 }
 
 /**
@@ -51,6 +52,7 @@ export function presentationVisualOwnsBeatContent(beat:LessonPresentationBeat){
 }
 
 export function Chapter14PresentationVisualV4({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
+  if(hasCourseClassroomPresentationVisual(beat))return <CourseClassroomPresentationVisual beat={beat}/>;
   if(hasChapter1PresentationVisual(beat))return <Chapter1PresentationVisual beat={beat} reveal={reveal}/>;
   if(hasChapter2DnsVisual(beat))return <Chapter2DnsVisual beat={beat} reveal={reveal}/>;
   if(hasChapter2AddressingVisual(beat))return <Chapter2AddressingVisual beat={beat} reveal={reveal}/>;
