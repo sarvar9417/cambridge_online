@@ -1,0 +1,233 @@
+/*
+ * Hodder/Cambridge 9618 projector skin.
+ *
+ * Visual benchmark: the user-supplied Chapter 3 Hardware deck. The skin keeps
+ * the application-native HTML/CSS/React renderer and its scroll-safe behaviour,
+ * while carrying the deck's recognisable white canvas, navy frame, cyan
+ * hierarchy and pastel teaching-card language across the 9618 course.
+ *
+ * Do not use this file to hide source content or force a fixed 16:9 height.
+ * Dense source-backed scenes must remain scrollable on shorter projectors.
+ */
+
+.lesson-experience.lx-present[data-course="9618"]{
+  --hodder-navy:#063b69;
+  --hodder-navy-2:#0a4f83;
+  --hodder-cyan:#08a9d6;
+  --hodder-blue:#1478c9;
+  --hodder-line:#bfd8eb;
+  --hodder-sky:#e9f7fd;
+  --hodder-mint:#eaf8ef;
+  --hodder-lilac:#f1edfb;
+  --hodder-amber:#fff4d9;
+  --hodder-rose:#fdecef;
+  background:#eaf0f5;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-stage{
+  background:
+    linear-gradient(180deg,#edf3f8 0,#f5f8fb 45%,#e9f0f6 100%);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen{
+  position:relative;
+  width:min(1420px,100%);
+  padding:clamp(.9rem,1.7vw,1.45rem) clamp(1rem,2vw,1.8rem) clamp(.75rem,1.5vw,1.15rem);
+  border:1px solid #b9cfe1;
+  border-top:9px solid var(--hodder-navy);
+  border-bottom:9px solid var(--hodder-navy);
+  border-radius:3px;
+  background:#fff;
+  box-shadow:0 18px 50px rgb(20 55 84 / 15%);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen>header{
+  max-width:none;
+  padding-bottom:.62rem;
+  border-bottom:3px solid var(--hodder-cyan);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen>header>span{
+  border:1px solid #a9d9ef;
+  border-radius:3px;
+  background:var(--hodder-sky);
+  color:var(--hodder-navy-2);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen>header>small{
+  color:#52718a;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen>header h1{
+  color:var(--hodder-navy);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-lead{
+  color:#153a58;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-points li>span{
+  border:1px solid #b8ddeb;
+  border-radius:4px;
+  background:var(--hodder-sky);
+  color:var(--hodder-navy-2);
+}
+
+.lesson-experience.lx-present[data-course="9618"] :is(
+  .lx-present-terms section,
+  .lx-comparison section,
+  .lx-table-wrap,
+  .lx-figure,
+  .lx-present-example,
+  .lx-present-activity,
+  .lx-callout,
+  .lx-accuracy,
+  .lx-formula--present
+){
+  box-shadow:0 4px 14px rgb(15 65 101 / 7%);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms{
+  gap:.75rem;
+  border:0;
+  background:transparent;
+  overflow:visible;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms section{
+  border-color:#c7dfec;
+  border-radius:5px;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms section:nth-child(4n+1){
+  background:var(--hodder-sky);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms section:nth-child(4n+2){
+  background:var(--hodder-mint);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms section:nth-child(4n+3){
+  background:var(--hodder-lilac);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-terms section:nth-child(4n){
+  background:var(--hodder-amber);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-comparison{
+  gap:.75rem;
+  border:0;
+  background:transparent;
+  overflow:visible;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-comparison section{
+  border:1px solid #c6dce9;
+  border-radius:5px;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-comparison section:first-child{
+  background:var(--hodder-sky);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-comparison section:last-child{
+  background:var(--hodder-mint);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-table-wrap{
+  border-color:#bcd5e6;
+  border-radius:5px;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-table-wrap caption{
+  background:var(--hodder-navy);
+  color:#fff;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-table-wrap th{
+  background:#dff1fa;
+  color:var(--hodder-navy);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-table-wrap tbody tr:nth-child(even){
+  background:#f7fbfd;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-example{
+  border-left-color:#f29a1f;
+  border-radius:4px;
+  background:var(--hodder-amber);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-activity{
+  border-left-color:#8164c6;
+  border-radius:4px;
+  background:var(--hodder-lilac);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-question{
+  border-left-color:var(--hodder-cyan);
+  background:var(--hodder-sky);
+  color:var(--hodder-navy);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-callout--warning{
+  background:var(--hodder-rose);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-callout--activity{
+  background:var(--hodder-amber);
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-callout--extension{
+  background:var(--hodder-lilac);
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-screen>footer{
+  min-height:22px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding-top:.35rem;
+  border-top:1px solid #c6dceb;
+  color:#52718a;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-bar{
+  border-bottom-color:#0a3153;
+  background:var(--hodder-navy);
+  color:#fff;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-bar button{
+  border-color:rgb(255 255 255 / 24%);
+  background:rgb(255 255 255 / 8%);
+  color:#fff;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-bar>div span,
+.lesson-experience.lx-present[data-course="9618"] .lx-present-bar>span{
+  color:#bcd8ed;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-bar>div strong{
+  color:#fff;
+}
+
+.lesson-experience.lx-present[data-course="9618"] .lx-present-nav{
+  border-top-color:#0a3153;
+  background:var(--hodder-navy);
+  color:#fff;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-nav button{
+  color:#fff;
+}
+.lesson-experience.lx-present[data-course="9618"] .lx-present-nav p{
+  color:#c5dced;
+}
+
+@media (max-height:768px) and (min-width:960px){
+  .lesson-experience.lx-present[data-course="9618"] .lx-present-screen{
+    padding:.65rem .95rem .55rem;
+    border-top-width:6px;
+    border-bottom-width:6px;
+  }
+  .lesson-experience.lx-present[data-course="9618"] .lx-present-screen>header{
+    padding-bottom:.4rem;
+    border-bottom-width:2px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .lesson-experience.lx-present[data-course="9618"] .lx-present-screen *,
+  .lesson-experience.lx-present[data-course="9618"] .lx-present-screen *::before,
+  .lesson-experience.lx-present[data-course="9618"] .lx-present-screen *::after{
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+  }
+}
