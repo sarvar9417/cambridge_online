@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
 
 const service=source('src/services/live-exam-service.ts');
+const participation=source('src/services/live-exam-participation-service.ts');
 const realtimeService=source('src/services/live-exam-realtime-service.ts');
 const realtimeRoute=source('src/routes/live-exam-realtime.ts');
 const schema=source('src/database/migrations/0166_live_exam_sessions.sql');
@@ -29,9 +30,10 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('keeps class membership and live participation at the join boundary',()=>{
-    expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and les.status='lobby'");
-    expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
+    expect(participation).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
+    expect(participation).toContain('where les.join_code=$1');
+    expect(participation).toContain("status!=='lobby'");
+    expect(participation).toContain("if(actor.role!=='student')throw new DomainError('students_only',403)");
   });
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
