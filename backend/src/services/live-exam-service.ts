@@ -208,7 +208,13 @@ export class LiveExamService {
     return result.rows[0].scheme as MarkSchemeSnapshot;
   }
 
-  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true, seed = randomUUID()) {
+  private async chooseQuestionIds(
+    actor: Actor,
+    input: CreateLiveExamInput,
+    requireExact = true,
+    seed = randomUUID(),
+    excludeSessionId?: string,
+  ) {
     // Keep the ordering seed first and bind the class ID for both
     // syllabus-safe LO resolution and optional seen-question filtering.
     // Every value is referenced in the SQL so PostgreSQL can infer its type.
@@ -327,11 +333,22 @@ export class LiveExamService {
         join assignments a on a.id=aq.assignment_id
         where aq.question_id=q.id and a.class_id=${classParameter}
       )`);
-      filters.push(`not exists(
-        select 1 from live_exam_questions leq
-        join live_exam_sessions previous on previous.id=leq.session_id
-        where leq.question_id=q.id and previous.class_id=${classParameter}
-      )`);
+      if (excludeSessionId) {
+        values.push(excludeSessionId);
+        const sessionParameter = `${values.length}`;
+        filters.push(`not exists(
+          select 1 from live_exam_questions leq
+          join live_exam_sessions previous on previous.id=leq.session_id
+          where leq.question_id=q.id and previous.class_id=${classParameter}
+            and previous.id<>${sessionParameter}::uuid
+        )`);
+      } else {
+        filters.push(`not exists(
+          select 1 from live_exam_questions leq
+          join live_exam_sessions previous on previous.id=leq.session_id
+          where leq.question_id=q.id and previous.class_id=${classParameter}
+        )`);
+      }
     }
     values.push(input.questionCount);
     const result = await this.pool.query(
@@ -562,7 +579,7 @@ export class LiveExamService {
     let expandedQuestionIds: string[] = [];
     let snapshots: Awaited<ReturnType<LiveExamService['snapshotSelection']>>['snapshots'] = [];
     if (rootQuestionIds.length) {
-      validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId);
+      validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId, sessionId);
       const snapshotResult = await this.snapshotSelection(actor, input, validatedRoots);
       expandedQuestionIds = snapshotResult.expandedQuestionIds;
       snapshots = snapshotResult.snapshots;
@@ -618,7 +635,7 @@ export class LiveExamService {
     if (draft.status !== 'draft') throw new DomainError('live_invalid_state', 409);
     this.assertExpectedVersion(draft, expectedVersion);
     const input = this.draftSelectionInput(draft, count);
-    const questionIds = await this.chooseQuestionIds(actor, input, true, sessionId);
+    const questionIds = await this.chooseQuestionIds(actor, input, true, sessionId, sessionId);
     return this.replaceDraftSelection(actor, sessionId, questionIds, expectedVersion, 'auto');
   }
 
@@ -631,7 +648,7 @@ export class LiveExamService {
     if (!rootQuestionIds.length) throw new DomainError('live_no_questions', 409);
 
     const input = this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds);
-    const validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId);
+    const validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId, sessionId);
     const { expandedQuestionIds, snapshots } = await this.snapshotSelection(actor, input, validatedRoots);
 
     const client = await this.pool.connect();
