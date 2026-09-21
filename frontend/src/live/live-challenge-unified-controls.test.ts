@@ -27,6 +27,13 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('/participants/${studentId}/remove');
   });
 
+  it('lets teachers review, reorder and remove draft questions before publish',()=>{
+    expect(page).toContain('function DraftQuestionControls');
+    expect(page).toContain('Olib tashlash');
+    expect(page).toContain("method:'PUT'");
+    expect(page).toContain('expectedVersion:snapshot.session.version');
+  });
+
   it('separates answer lock from Mark Scheme reveal in the classroom UI',()=>{
     expect(page).toContain("act('/lock',{expectedVersion:session.version})");
     expect(page).toContain("session.status==='answers_locked'");
