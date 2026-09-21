@@ -70,7 +70,9 @@ export class LiveExamRoundSummaryService {
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where leq.session_id=$1 and leq.position=$2 and lep.left_at is null
-         order by score desc,u.full_name,lep.student_id`,
+         order by score desc,
+           case when $3::boolean then a.submitted_at end asc nulls last,
+           u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
@@ -90,7 +92,12 @@ export class LiveExamRoundSummaryService {
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where lep.session_id=$1 and lep.left_at is null
          group by lep.student_id,u.full_name
-         order by score desc,u.full_name,lep.student_id`,
+         order by score desc,
+           case
+             when $3::boolean and count(a.submitted_at)=count(*)
+               then sum(extract(epoch from (a.submitted_at-les.started_at)))
+           end asc nulls last,
+           u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
