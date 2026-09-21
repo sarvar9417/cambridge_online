@@ -11,7 +11,7 @@ type LessonFrame = {
   recap: string[];
 };
 
-const LESSONS: readonly LessonFrame[] = [
+const NETWORKING_LESSONS: readonly LessonFrame[] = [
   {
     number: 1,
     title: 'Why build a network?',
@@ -93,17 +93,101 @@ const LESSONS: readonly LessonFrame[] = [
   },
 ] as const;
 
+const INTERNET_LESSONS: readonly LessonFrame[] = [
+  {
+    number: 1,
+    title: 'Internet, web and long-distance communication',
+    question: 'How do devices reach internet services and how does internet communication differ from traditional telephony?',
+    pages: [54,55,56],
+    objectives: [
+      'Distinguish the internet from the World Wide Web.',
+      'Trace the hardware path from a user device through an ISP to a destination server.',
+      'Compare PSTN circuit switching with VoIP packet switching.',
+      'Compare GEO, MEO and LEO satellites by orbit, period and use.',
+    ],
+    starter: 'You open a web page and then start a voice call over the internet. Which parts of the communication path are shared, and which are different?',
+    recap: [
+      'Explain the difference between the internet and the World Wide Web.',
+      'Trace a request from a home device to a remote website server.',
+      'Compare PSTN and VoIP in terms of switching, connection use and transmitted data.',
+      'Select GEO, MEO or LEO for a stated communication purpose and justify the choice.',
+    ],
+  },
+  {
+    number: 2,
+    boundary: 'h2-223-ipv4',
+    title: 'How are internet hosts addressed?',
+    question: 'How do IPv4, CIDR and IPv6 identify hosts while coping with a growing internet?',
+    pages: [56,57,58],
+    objectives: [
+      'Explain the 32-bit structure of IPv4 and the purpose of netID and hostID.',
+      'Interpret the coursebook IPv4 class examples and binary address form.',
+      'Explain why CIDR changes the netID/hostID boundary.',
+      'Explain the 128-bit hexadecimal structure of IPv6 and apply zero compression correctly.',
+    ],
+    starter: 'Why can a 32-bit address space become a problem even when many individual organisations use only a small fraction of their allocated addresses?',
+    recap: [
+      'Explain why IPv4 uses four 8-bit groups.',
+      'Identify netID and hostID information in the coursebook class examples.',
+      'Explain what the /18 means in 192.30.250.00/18.',
+      'State why :: can be used only once in a compressed IPv6 address.',
+    ],
+  },
+  {
+    number: 3,
+    boundary: 'h2-223-subnetting',
+    title: 'How can one network be divided safely and efficiently?',
+    question: 'How do subnetting, masks, private addresses and public addresses organise network communication?',
+    pages: [58,59,60],
+    objectives: [
+      'Explain why subnetting can reduce traffic and hide overall network complexity.',
+      'Use the Hodder university example to relate subnet bits, host bits and department netIDs.',
+      'Explain how an AND mask is used to obtain the netID from an IPv4 address.',
+      'Distinguish private and public IP addresses and explain the role of NAT.',
+    ],
+    starter: 'A university has eight departments on one network. What problems might appear if every device remains in one undivided address space?',
+    recap: [
+      'Explain how three subnet bits can create eight department subnets.',
+      'Describe the purpose of an AND mask in subnetting.',
+      'State the three private IPv4 ranges shown in the coursebook.',
+      'Explain why a private-IP device is not directly reachable from the public internet.',
+    ],
+  },
+  {
+    number: 4,
+    boundary: 'h2-224-urls',
+    title: 'How does a browser find and run a web resource?',
+    question: 'How do URLs, DNS, HTML and client/server-side scripting work together when a user requests a web page?',
+    pages: [60,61,62,63,64],
+    objectives: [
+      'Break a URL into protocol, website address, path and resource.',
+      'Explain the complete five-step DNS process, including caching and the later website-server connection.',
+      'Explain how HTML tags structure a web page and how a browser interprets downloaded HTML.',
+      'Distinguish client-side JavaScript from server-side PHP using the Hodder examples.',
+    ],
+    starter: 'A browser can display a site when you type a domain name, even though network communication ultimately uses an IP address. What service closes that gap?',
+    recap: [
+      'Label the protocol, website address and path in a URL.',
+      'Reconstruct all five steps of the Hodder DNS example in the correct order.',
+      'Explain the role of HTML in a downloaded web page.',
+      'Compare where JavaScript and PHP execute and what is sent back to the requesting computer.',
+    ],
+  },
+] as const;
+
 function frame(
   lesson: LessonFrame,
+  prefix: 'h2n' | 'h2i',
+  topicLabel: string,
   suffix: 'cover' | 'objectives' | 'starter' | 'recap',
 ): LessonPresentationBeat {
   const common = {
-    id: `h2n-l${lesson.number}-${suffix}`,
-    slideId: `h2n-l${lesson.number}-${suffix}`,
-    eyebrow: `LESSON ${lesson.number} OF 4 · CHAPTER 2.1 NETWORKING`,
+    id: `${prefix}-l${lesson.number}-${suffix}`,
+    slideId: `${prefix}-l${lesson.number}-${suffix}`,
+    eyebrow: `LESSON ${lesson.number} OF 4 · ${topicLabel}`,
     sourcePages: lesson.pages,
     showSource: false,
-    visual: 'networking' as const,
+    visual: (prefix === 'h2n' ? 'networking' : 'internet') as const,
   };
   if (suffix === 'cover') return {
     ...common,
@@ -135,8 +219,49 @@ function frame(
   };
 }
 
-function opening(lesson: LessonFrame) {
-  return [frame(lesson,'cover'),frame(lesson,'objectives'),frame(lesson,'starter')];
+function opening(lesson: LessonFrame, prefix:'h2n'|'h2i', topicLabel:string) {
+  return [
+    frame(lesson,prefix,topicLabel,'cover'),
+    frame(lesson,prefix,topicLabel,'objectives'),
+    frame(lesson,prefix,topicLabel,'starter'),
+  ];
+}
+
+function frameLessonSequence(
+  teaching: LessonPresentationBeat[],
+  appendix: LessonPresentationBeat[],
+  lessons: readonly LessonFrame[],
+  prefix:'h2n'|'h2i',
+  topicLabel:string,
+) {
+  const result: LessonPresentationBeat[] = [...opening(lessons[0]!,prefix,topicLabel)];
+  let active = 0;
+  const inserted = new Set<number>([0]);
+
+  for (const beat of teaching) {
+    const nextIndex = lessons.findIndex((lesson,index)=>index>0&&lesson.boundary===beat.slideId);
+    if (nextIndex > active && !inserted.has(nextIndex)) {
+      result.push(frame(lessons[active]!,prefix,topicLabel,'recap'),...opening(lessons[nextIndex]!,prefix,topicLabel));
+      inserted.add(nextIndex);
+      active = nextIndex;
+    }
+    result.push(beat);
+  }
+
+  result.push(frame(lessons[active]!,prefix,topicLabel,'recap'));
+  if (appendix.length) result.push({
+    id: `${prefix}-reference-appendix`,
+    slideId: `${prefix}-reference-appendix`,
+    kind: 'source',
+    sceneRole: 'recap',
+    eyebrow: `${topicLabel} · OPTIONAL REFERENCE`,
+    title: 'Coursebook vocabulary and source-detail appendix',
+    lead: 'Use the following screens for targeted revision, vocabulary checks or additional explanation. The four main lessons end before this appendix.',
+    sourcePages: [...new Set(lessons.flatMap(lesson=>lesson.pages))],
+    showSource: false,
+    visual: prefix === 'h2n' ? 'networking' : 'internet',
+  },...appendix);
+  return result;
 }
 
 /**
@@ -147,34 +272,33 @@ export function frameChapter2NetworkingPresentation(
   teaching: LessonPresentationBeat[],
   appendix: LessonPresentationBeat[],
 ) {
-  const result: LessonPresentationBeat[] = [...opening(LESSONS[0])];
-  let active = 0;
-  const inserted = new Set<number>([0]);
-
-  for (const beat of teaching) {
-    const nextIndex = LESSONS.findIndex((lesson,index)=>index>0&&lesson.boundary===beat.slideId);
-    if (nextIndex > active && !inserted.has(nextIndex)) {
-      result.push(frame(LESSONS[active]!,'recap'),...opening(LESSONS[nextIndex]!));
-      inserted.add(nextIndex);
-      active = nextIndex;
-    }
-    result.push(beat);
-  }
-
-  result.push(frame(LESSONS[active]!,'recap'));
-  if (appendix.length) result.push({
-    id: 'h2n-reference-appendix',
-    slideId: 'h2n-reference-appendix',
-    kind: 'source',
-    sceneRole: 'recap',
-    eyebrow: 'CHAPTER 2.1 · OPTIONAL REFERENCE',
-    title: 'Coursebook vocabulary and source-detail appendix',
-    lead: 'Use the following screens for targeted revision, vocabulary checks or additional explanation. The four main lessons end before this appendix.',
-    sourcePages: [27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53],
-    showSource: false,
-    visual: 'networking',
-  },...appendix);
-  return result;
+  return frameLessonSequence(
+    teaching,
+    appendix,
+    NETWORKING_LESSONS,
+    'h2n',
+    'CHAPTER 2.1 NETWORKING',
+  );
 }
 
-export const CHAPTER_2_NETWORKING_LESSON_COUNT = LESSONS.length;
+/**
+ * Turns Hodder 2.2 (pp.54–64) into four classroom-ready decks. The source
+ * sequence remains authoritative: framing only inserts lesson covers,
+ * objectives, retrieval starters and recaps around the existing source-backed
+ * beats.
+ */
+export function frameChapter2InternetPresentation(
+  teaching: LessonPresentationBeat[],
+  appendix: LessonPresentationBeat[],
+) {
+  return frameLessonSequence(
+    teaching,
+    appendix,
+    INTERNET_LESSONS,
+    'h2i',
+    'CHAPTER 2.2 THE INTERNET',
+  );
+}
+
+export const CHAPTER_2_NETWORKING_LESSON_COUNT = NETWORKING_LESSONS.length;
+export const CHAPTER_2_INTERNET_LESSON_COUNT = INTERNET_LESSONS.length;
