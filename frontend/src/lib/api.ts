@@ -164,10 +164,11 @@ export interface LiveExamPortableQuestion {
   leaf:{id:string;rootId:string;label:string;path:string;displayRef:string;stem:string;stemLatex?:string|null;bodyFormat?:'markdown'|'latex';contentJson?:StructuredQuestionContent|null;commandWord:string|null;marks:number;answerKind:string;answerLines:number|null};
   chain:Array<{id:string;label:string;depth:number}>;
   contextBlocks:Array<{id:string;label:string;displayRef:string;depth:number;context:string|null;contextLatex?:string|null;assets:LiveExamAsset[]}>;
-  dependencies:Array<{id:string;questionId:string;dependsOnId:string;displayRef:string;stem:string|null;kind:string;strength:string;evidence:string|null;confidence:number|null}>;
+  dependencies:Array<{id:string;questionId:string;dependsOnId:string;displayRef:string;stem:string|null;kind:string;strength:string;evidence?:string|null;confidence?:number|null}>;
   sourceRef:string;
 }
-export interface LiveExamQuestion {id:string;sourceQuestionId:string;position:number;marks:number;portable:LiveExamPortableQuestion}
+export interface LiveExamDependencyWork {questionId:string;displayRef:string;kind:string;strength:string;position:number|null;ownAnswer:string|null;submittedAt:string|null}
+export interface LiveExamQuestion {id:string;sourceQuestionId:string;position:number;marks:number;portable:LiveExamPortableQuestion;dependencyWork:LiveExamDependencyWork[]}
 export interface LiveMarkSchemePoint {id:string;code:string;text:string;marks:number;accept?:unknown;reject?:unknown;requires?:unknown;isBod?:boolean;groupId?:string|null;matched?:boolean}
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
 export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null}

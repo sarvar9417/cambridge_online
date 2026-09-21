@@ -89,6 +89,12 @@ describe('LiveExamService source fidelity', () => {
     expect(selectionSql).toContain('from question_learning_objectives qlo');
     expect(selectionSql).toContain("compat.relation in ('equivalent','subtopic_compatible')");
     expect(selectionSql).toContain('target_t.syllabus_id=live_class.syllabus_id');
+    expect(selectionSql).toContain('qst.is_primary');
+    expect(selectionSql).toContain('coalesce(qst.confidence,0)>=0.95');
+    expect(selectionSql).toContain('target_t.number=source_t.number');
+    expect(selectionSql).toContain('target_st.code=source_st.code');
+    expect(selectionSql).not.toContain('q.parent_id is not null');
+    expect(selectionSql).not.toContain('not exists(select 1 from question_dependencies qd where qd.question_id=q.id)');
     expect(selectionSql).toContain('select candidate.id');
     expect(selectionSql).toContain(') candidate');
     expect(selectionSql).toContain('order by md5(candidate.id::text || $1::text)');
@@ -100,6 +106,9 @@ describe('LiveExamService source fidelity', () => {
     const query = vi.fn(async (sql:string) => {
       if (sql.includes('from classes c')) return { rowCount:1,rows:[{ id:input.classId,name:'AS' }] };
       if (sql.includes('select distinct q.id')) return { rowCount:1,rows:[{ id:'q1' }] };
+      if (sql.includes('with recursive closure(question_id)')) return { rowCount:1,rows:[{
+        question_id:'q1',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[],
+      }] };
       if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
       throw new Error(`unexpected query: ${sql}`);
     });
@@ -114,5 +123,53 @@ describe('LiveExamService source fidelity', () => {
     await expect(service.create(actor,{ ...input,includeDiagrams:true })).rejects.toMatchObject({ code:'live_assets_unavailable' });
     const schemeCall = query.mock.calls.find(([sql])=>String(sql).includes('from canonical_mark_schemes ms'));
     expect(schemeCall).toBeTruthy();
+  });
+});
+
+
+describe('LiveExamService dependency closure', () => {
+  it('orders every required prerequisite before the selected dependent question', async () => {
+    const query = vi.fn(async (sql:string) => {
+      if (sql.includes('with recursive closure(question_id)')) {
+        return {
+          rowCount:2,
+          rows:[
+            { question_id:'q-dependent',status:'approved',marks:2,mark_scheme_ready:true,dependencies:['q-prerequisite'] },
+            { question_id:'q-prerequisite',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[] },
+          ],
+        };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service = new LiveExamService(
+      { query } as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+    const expanded = await (service as unknown as {
+      expandRequiredDependencies(ids:string[]):Promise<string[]>
+    }).expandRequiredDependencies(['q-dependent']);
+    expect(expanded).toEqual(['q-prerequisite','q-dependent']);
+  });
+
+  it('fails closed when a required dependency cycle exists', async () => {
+    const query = vi.fn(async (sql:string) => {
+      if (sql.includes('with recursive closure(question_id)')) {
+        return {
+          rowCount:2,
+          rows:[
+            { question_id:'q-a',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['q-b'] },
+            { question_id:'q-b',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['q-a'] },
+          ],
+        };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service = new LiveExamService(
+      { query } as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+    await expect((service as unknown as {
+      expandRequiredDependencies(ids:string[]):Promise<string[]>
+    }).expandRequiredDependencies(['q-a'])).rejects.toMatchObject({ code:'live_dependency_cycle',status:409 });
   });
 });

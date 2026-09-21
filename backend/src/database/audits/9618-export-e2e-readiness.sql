@@ -23,7 +23,7 @@ WITH RECURSIVE leaves AS (
   CROSS JOIN LATERAL jsonb_array_elements(coalesce(l.content_json->'blocks','[]'::jsonb)) b(block)
   WHERE b.block->>'type'='asset' AND b.block ? 'assetId'
 ), asset_health AS (
-  SELECT r.leaf_id,r.asset_id,qa.question_id owner_question_id,
+  SELECT r.leaf_id,r.asset_id,r.leaf_source_paper_id,qa.question_id owner_question_id,
          owner.source_paper_id owner_source_paper_id,
          EXISTS(
            SELECT 1 FROM chain c
@@ -63,8 +63,34 @@ SELECT
   (SELECT count(*) FROM asset_health WHERE owner_question_id IS NULL) missing_asset_rows,
   (SELECT count(*) FROM asset_health WHERE owner_question_id IS NOT NULL AND owner_source_paper_id IS DISTINCT FROM (SELECT l.source_paper_id FROM leaves l WHERE l.id=asset_health.leaf_id)) cross_source_asset_refs,
   (SELECT count(*) FROM asset_health WHERE NOT renderable) unrenderable_asset_refs,
-  (SELECT count(*) FROM asset_health WHERE owner_question_id IS NOT NULL AND NOT owner_in_ancestry) referenced_assets_requiring_portable_closure,
-  (SELECT count(DISTINCT leaf_id) FROM asset_health WHERE owner_question_id IS NOT NULL AND NOT owner_in_ancestry) leaves_requiring_portable_closure,
+  -- Same-source explicit structured references owned by sibling question rows
+  -- are portable: PgStaffAwareQuestionsRepository.portable() resolves those
+  -- exact asset IDs and freezes them into the selection snapshot. Keep them
+  -- visible as informational counts, not false release blockers.
+  (SELECT count(*) FROM asset_health
+     WHERE owner_question_id IS NOT NULL
+       AND NOT owner_in_ancestry
+       AND owner_source_paper_id=leaf_source_paper_id
+       AND renderable) same_source_cross_ancestry_asset_refs_resolved,
+  (SELECT count(DISTINCT leaf_id) FROM asset_health
+     WHERE owner_question_id IS NOT NULL
+       AND NOT owner_in_ancestry
+       AND owner_source_paper_id=leaf_source_paper_id
+       AND renderable) leaves_with_same_source_cross_ancestry_assets_resolved,
+  (SELECT count(*) FROM asset_health
+     WHERE NOT owner_in_ancestry
+       AND NOT (
+         owner_question_id IS NOT NULL
+         AND owner_source_paper_id=leaf_source_paper_id
+         AND renderable
+       )) referenced_assets_requiring_portable_closure,
+  (SELECT count(DISTINCT leaf_id) FROM asset_health
+     WHERE NOT owner_in_ancestry
+       AND NOT (
+         owner_question_id IS NOT NULL
+         AND owner_source_paper_id=leaf_source_paper_id
+         AND renderable
+       )) leaves_requiring_portable_closure,
   (SELECT count(*) FROM ms_health WHERE mark_scheme_id IS NULL) missing_canonical_mark_scheme,
   (SELECT count(*) FROM ms_health WHERE scheme_status IS DISTINCT FROM 'approved') nonapproved_canonical_mark_scheme,
   (SELECT count(*) FROM ms_health WHERE max_marks IS DISTINCT FROM question_marks) mark_total_mismatch,

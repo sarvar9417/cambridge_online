@@ -30,7 +30,7 @@ type FilterOptions = {
     subtopic_id:string;code:string;subtopic_title:string;component:number|null;
   }>;
 };
-type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean};
+type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[] };
 
@@ -122,6 +122,13 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
+    {question.dependencyWork.length?<section className="live-dependency-work">
+      <header><strong>Oldingi ish kerak</strong><span>{question.dependencyWork.length} ta bog‘lanish</span></header>
+      {question.dependencyWork.map((dependency)=><article key={dependency.questionId}>
+        <div><b>{dependency.displayRef}</b><small>{dependency.kind==='answer_ref'?'Oldingi javobingizdan foydalaning':'Oldingi qismdagi ma’lumotdan foydalaning'}</small></div>
+        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
+      </article>)}
+    </section>:null}
     {structured?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
       {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
         {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
@@ -245,7 +252,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <div className="live-topic-grid"><fieldset><legend>Topic</legend>{topics.map((topic)=><label key={topic.topic_id}><input type="checkbox" checked={topicIds.includes(topic.topic_id)} onChange={()=>{toggle(topic.topic_id,topicIds,setTopicIds);setSubtopicIds((current)=>current.filter((id)=>syllabusTopics.some((row)=>row.subtopic_id===id&&row.topic_id!==topic.topic_id)))}}/><span>{topic.topic_number}. {topic.topic_title}</span></label>)}</fieldset>
           <fieldset><legend>Subtopic</legend>{visibleSubtopics.map((subtopic)=><label key={subtopic.subtopic_id}><input type="checkbox" checked={subtopicIds.includes(subtopic.subtopic_id)} onChange={()=>toggle(subtopic.subtopic_id,subtopicIds,setSubtopicIds)}/><span>{subtopic.code} {subtopic.subtopic_title}</span></label>)}</fieldset></div>
         <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>setSelectionMode(event.target.value as 'auto'|'manual')}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
-          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p><div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggle(question.id,selectedQuestionIds,setSelectedQuestionIds)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
+          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p><div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggle(question.id,selectedQuestionIds,setSelectedQuestionIds)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
         </section>
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
