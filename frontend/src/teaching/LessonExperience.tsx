@@ -150,7 +150,7 @@ export function LessonExperience({audience}:LessonExperienceProps){
   const beats=useMemo(()=>chapter&&activeTopic?presentationBeatsForCatalogTopic(chapter,activeTopic):[],[chapter,activeTopic]);
   const realDeck=useMemo(()=>chapter&&activeTopic?realSlideDeckFor(courseCode(chapter),chapter.number,activeTopic.code):null,[chapter,activeTopic]);
   const requestedBeat=Math.max(0,Number(route.params.get('beat')??1)-1);
-  const presentationLength=realDeck?.slides.length??beats.length;
+  const presentationLength=realDeck?1:beats.length;
   const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,presentationLength-1));
   const activeBeat=realDeck?null:beats[beatIndex]??null;
   const [reveal,setReveal]=useState(0);
@@ -212,13 +212,13 @@ export function LessonExperience({audience}:LessonExperienceProps){
       const target=event.target as HTMLElement|null;
       if(target?.closest('button,input,textarea,select,[contenteditable="true"]'))return;
       if(event.key==='Escape'){event.preventDefault();exitPresentation();return;}
+      if(realDeck)return;
       if(event.key==='ArrowRight'||event.key==='PageDown'){event.preventDefault();openBeat(Math.min(presentationLength-1,beatIndex+1));return;}
       if(event.key==='ArrowLeft'||event.key==='PageUp'){event.preventDefault();openBeat(Math.max(0,beatIndex-1));return;}
       if(event.key==='Home'){event.preventDefault();openBeat(0);return;}
       if(event.key==='End'){event.preventDefault();openBeat(Math.max(0,presentationLength-1));return;}
       if(event.key===' '){
         event.preventDefault();
-        if(realDeck){openBeat(Math.min(presentationLength-1,beatIndex+1));return;}
         if(activeBeat){const total=revealCountForBeat(activeBeat);if(reveal<total)setReveal(value=>value+1);else openBeat(Math.min(presentationLength-1,beatIndex+1));}
       }
     };
@@ -233,10 +233,6 @@ export function LessonExperience({audience}:LessonExperienceProps){
     if(realDeck)return <section ref={rootRef} className="lesson-experience lx-present real-deck-host" data-course={courseCode(chapter)} data-chapter={chapter.number}>
       <RealSlideDeckPresentation
         deck={realDeck}
-        index={beatIndex}
-        outlineOpen={outlineOpen}
-        onOutlineChange={setOutlineOpen}
-        onOpen={openBeat}
         onExit={exitPresentation}
         onFullscreen={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}
       />
