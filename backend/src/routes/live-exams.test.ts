@@ -125,6 +125,20 @@ describe('live exam routes', () => {
     expect(join).not.toHaveBeenCalled();
   });
 
+  it('binds answer save and submit requests to the exact rendered question', async () => {
+    const saveAnswer=vi.fn().mockResolvedValue({savedAt:'now'});
+    const submitAnswer=vi.fn().mockResolvedValue({submittedAt:'now'});
+    const session='22222222-2222-4222-8222-222222222222';
+    const question='33333333-3333-4333-8333-333333333333';
+    const app=appFor({saveAnswer,submitAnswer});
+    await request(app).put(`/live-exams/${session}/answer`).send({text:'A'}).expect(400);
+    await request(app).post(`/live-exams/${session}/answer/submit`).send({text:'A'}).expect(400);
+    await request(app).put(`/live-exams/${session}/answer`).send({questionId:question,text:'A'}).expect(200);
+    await request(app).post(`/live-exams/${session}/answer/submit`).send({questionId:question,text:'A'}).expect(200);
+    expect(saveAnswer).toHaveBeenCalledWith(student,session,question,'A');
+    expect(submitAnswer).toHaveBeenCalledWith(student,session,question,'A');
+  });
+
   it('validates review point identifiers', async () => {
     const submitReview=vi.fn();
     await request(appFor({submitReview}))
