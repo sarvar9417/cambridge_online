@@ -112,8 +112,12 @@ describe('Live Exam release security and recovery contract',()=>{
   it('projects projector state through an explicit learner-safe allow-list',()=>{
     const board=service.slice(service.indexOf('async board('),service.indexOf('private async reviewFor'));
     expect(board).toContain("joinCode: session.status === 'lobby' ? session.joinCode : null");
-    expect(board).toContain("question: session.status === 'question_open' ? snapshot.question : null");
-    expect(board).toContain("markScheme: session.status === 'marking' ? snapshot.markScheme : null");
+    expect(board).toContain("if (session.status === 'question_open' && snapshot.question)");
+    expect(board).toContain("if (session.status === 'marking' && snapshot.markScheme)");
+    expect(board).toContain('storagePath: null');
+    expect(board).toContain("sha256: '0'.repeat(64)");
+    expect(board).toContain('sourcePage: null');
+    expect(board).toContain('dependencies: []');
     expect(board).not.toContain('participants:');
     expect(board).not.toContain('teacherAnswers');
     expect(board).not.toContain('ownAnswer');
