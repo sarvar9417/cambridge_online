@@ -32,6 +32,10 @@ type FilterOptions = {
   }>;
 };
 type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
+type DraftBuilder = {
+  selectedQuestionIds:string[];
+  questions:Array<{id:string;questionId:string;position:number;marks:number;displayRef:string}>;
+};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[] };
 
@@ -397,6 +401,59 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
+function DraftQuestionControls({snapshot,onChanged,onPublish}:{snapshot:LiveExamSnapshot;onChanged:()=>Promise<void>;onPublish:()=>void}) {
+  const [builder,setBuilder]=useState<DraftBuilder|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const load=useCallback(async()=>{
+    try{
+      const result=await api<{data:DraftBuilder}>(`/live-exams/${snapshot.session.id}/builder`);
+      setBuilder(result.data);setError('');
+    }catch(cause){setError(message(cause,'Draft savollari yuklanmadi.'))}
+  },[snapshot.session.id]);
+  useEffect(()=>{void load()},[load,snapshot.session.version]);
+
+  const replace=async(questionIds:string[])=>{
+    setBusy(true);setError('');
+    try{
+      await api(`/live-exams/${snapshot.session.id}/questions`,{
+        method:'PUT',
+        body:JSON.stringify({questionIds,expectedVersion:snapshot.session.version}),
+      });
+      await onChanged();
+      await load();
+    }catch(cause){setError(message(cause,'Draft savollari yangilanmadi.'))}
+    finally{setBusy(false)}
+  };
+  const roots=(builder?.selectedQuestionIds??[]).map((questionId)=>({
+    questionId,
+    question:builder?.questions.find((item)=>item.questionId===questionId)??null,
+  }));
+  const move=(index:number,delta:number)=>{
+    if(!builder)return;
+    const target=index+delta;
+    if(target<0||target>=builder.selectedQuestionIds.length)return;
+    const next=[...builder.selectedQuestionIds];
+    [next[index],next[target]]=[next[target]!,next[index]!];
+    void replace(next);
+  };
+  const remove=(questionId:string)=>{
+    if(!builder)return;
+    void replace(builder.selectedQuestionIds.filter((id)=>id!==questionId));
+  };
+
+  return <section className="live-finished">
+    <span className="live-eyebrow">DRAFT</span><h1>Challenge hali ochilmagan</h1>
+    <p>{roots.length?`${roots.length} ta asosiy Cambridge savoli tanlangan. Majburiy oldingi qismlar publish paytida avtomatik qo‘shiladi.`:'Asosiy savollar qolmadi. Builderga qaytib yangi draft yarating yoki bu draftni bekor qiling.'}</p>
+    {error?<p className="live-error" role="alert">{error}</p>:null}
+    {builder===null?<p>Draft yuklanmoqda…</p>:roots.length?<div className="live-report-list">{roots.map((row,index)=><article key={row.questionId}>
+      <span>Savol {index+1}</span><strong>{row.question?.displayRef??row.questionId}</strong><b>{row.question?.marks??'—'} ball</b>
+      <div><button className="live-secondary" disabled={busy||index===0} onClick={()=>move(index,-1)}>↑</button><button className="live-secondary" disabled={busy||index===roots.length-1} onClick={()=>move(index,1)}>↓</button><button className="live-danger" disabled={busy} onClick={()=>remove(row.questionId)}>Olib tashlash</button></div>
+    </article>)}</div>:null}
+    <div className="live-room-actions">{roots.length?<button disabled={busy} onClick={onPublish}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</div>
+  </section>;
+}
+
 function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null};onDone:()=>void}) {
   const [selected,setSelected]=useState<Set<string>>(new Set());
   const [score,setScore]=useState(answer.score??0);
@@ -436,7 +493,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel',{expectedVersion:session.version})}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
-    {session.status==='draft'?<section className="live-finished"><span className="live-eyebrow">DRAFT</span><h1>Challenge hali ochilmagan</h1><p>{session.questionCount>0?`${session.questionCount} ta savol saqlandi. Nashr qilishda source va official Mark Scheme snapshotlari yana tekshiriladi.`:'Savollar tanlovi yakunlanmagan. Builderga qayting yoki draftni bekor qiling.'}</p>{snapshot.questions.length?<div className="live-report-list">{snapshot.questions.map((question)=><article key={question.id}><span>Savol {question.position+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></article>)}</div>:null}{session.questionCount>0?<button disabled={busy} onClick={()=>void act('/publish',{expectedVersion:session.version})}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</section>:null}
+    {session.status==='draft'?<DraftQuestionControls snapshot={snapshot} onChanged={()=>refresh()} onPublish={()=>void act('/publish',{expectedVersion:session.version})}/>:null}
     {session.status==='published'?<section className="live-finished"><span className="live-eyebrow">PUBLISHED</span><h1>Challenge tayyor</h1><p>Immutable savol va Mark Scheme snapshotlari yaratildi. Lobby ochilgach xona kodi o‘quvchilarga ko‘rsatiladi.</p><button disabled={busy} onClick={()=>void act('/open',{expectedVersion:session.version})}>Lobby’ni ochish</button></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
     {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode??'------'}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start',{expectedVersion:session.version})}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
