@@ -1421,7 +1421,7 @@ export class LiveExamService {
            )))
          ))
        )
-       order by r.created_at
+       order by case when r.status='assigned' then 0 else 1 end,r.created_at
        limit 1`,
       [sessionQuestionId, actor.role, actor.id, sessionId, actor.schoolId],
     );
