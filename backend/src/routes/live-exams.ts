@@ -27,9 +27,11 @@ const requiredVersion = z.number().int().positive();
 const draftInput = createInput.omit({ questionCount:true, questionIds:true }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
-  return Boolean(error && typeof error === 'object'
-    && 'code' in error && error.code === 'P0001'
-    && 'message' in error && error.message === 'live_peer_assignment_impossible');
+  if (!error || typeof error !== 'object' || !('code' in error)) return false;
+  if (error.code === 'live_peer_assignment_impossible') return true;
+  return error.code === 'P0001'
+    && 'message' in error
+    && error.message === 'live_peer_assignment_impossible';
 }
 
 function privateNoStore(res: Response) {
