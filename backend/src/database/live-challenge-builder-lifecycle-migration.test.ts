@@ -23,20 +23,7 @@ describe('Live Challenge builder lifecycle migration',()=>{
   it('restores strict no-self-marking integrity for peer rounds',()=>{
     expect(sql).toContain('CREATE OR REPLACE FUNCTION enforce_live_exam_peer_review_integrity()');
     expect(sql).toContain('SET search_path = public, pg_temp');
-    expect(sql).toContain('AS $live_challenge
-    expect(sql).toContain("session_marking_mode = 'peer'");
-    expect(sql).toContain("NEW.kind <> 'peer'");
-    expect(sql).toContain('NEW.reviewer_id = answer_student_id');
-    expect(sql).not.toContain("NEW.kind = 'self'");
-  });
-
-  it('does not duplicate the orthogonal pause representation already on current main',()=>{
-    expect(sql).not.toContain("ADD VALUE IF NOT EXISTS 'paused'");
-    expect(sql).not.toContain('ADD COLUMN paused_at');
-    expect(sql).not.toContain('ADD COLUMN pause_remaining_s');
-  });
-});
-);
+    expect(sql).toContain('AS $live_challenge$');
     expect(sql).toContain('$live_challenge$;');
     expect(sql).toContain("session_marking_mode = 'peer'");
     expect(sql).toContain("NEW.kind <> 'peer'");
