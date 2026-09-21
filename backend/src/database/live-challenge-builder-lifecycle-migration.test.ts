@@ -17,7 +17,12 @@ describe('Live Challenge builder lifecycle migration',()=>{
 
   it('keeps draft rooms private until publish',()=>{
     expect(sql).toContain('ALTER COLUMN join_code DROP NOT NULL');
-    expect(sql).toContain('ADD COLUMN published_at timestamptz');
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS published_at timestamptz');
+  });
+
+  it('is safe to replay during release verification',()=>{
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS published_at timestamptz');
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS live_exam_sessions_published_idx');
   });
 
   it('restores strict no-self-marking integrity for peer rounds',()=>{
