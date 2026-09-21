@@ -20,7 +20,7 @@ describe('0192 live exam override reason migration',()=>{
   });
 
   it('keeps the historical-row compatibility nullable while the converged API requires override reasons',()=>{
-    expect(sql).toContain('The reason stays nullable during the compatibility window');
+    expect(sql).toContain('The column remains nullable at the schema boundary so historical rows stay valid;');
     expect(sql).not.toContain('reason text NOT NULL');
   });
 });
