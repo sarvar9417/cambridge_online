@@ -56,7 +56,9 @@ type MarkSchemeSnapshot = {
   }>;
 };
 
-type StoredQuestionSnapshot = PortableQuestion;
+type StoredQuestionSnapshot = Omit<PortableQuestion, 'dependencies'> & {
+  dependencies: Array<Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>>;
+};
 
 type PeerAnswer = { answerId: string; studentId: string };
 
@@ -88,6 +90,7 @@ function words(value: string) {
 function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
   return {
     ...portable,
+    dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency),
     contextBlocks: portable.contextBlocks.map((block) => ({
       ...block,
       assets: block.assets.map((asset) => ({ ...asset, url: null })),
@@ -204,16 +207,14 @@ export class LiveExamService {
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
-      `q.parent_id is not null`,
       `ms.status='approved'`,
-      // A live room presents one independently answerable unit at a time. A
-      // dependency bundle will be added separately; never strip a reference
-      // from a question and pretend its meaning survived.
-      `not exists(select 1 from question_dependencies qd where qd.question_id=q.id)`,
-      // Finished sessions publish mastery into the class's current syllabus.
-      // Admit a historical question only when it has a direct current LO or a
-      // reviewed compatibility edge into that syllabus. This mirrors the
-      // terminal learning-evidence trigger and prevents a late finish failure.
+      // Finished sessions publish mastery into the class syllabus. Prefer direct
+      // or explicitly reviewed LO compatibility, but do not discard a valid
+      // Cambridge question solely because an older syllabus split its LOs
+      // differently. A high-confidence primary subtopic may fall back to the
+      // same stable topic-number + subtopic-code in the class syllabus; the
+      // learning-evidence trigger records that fallback as subtopic evidence,
+      // never as an invented learning-objective match.
       `exists(
         select 1
         from classes live_class
@@ -239,6 +240,21 @@ export class LiveExamService {
               join topics target_t on target_t.id=target_st.topic_id
               where qlo.question_id=q.id
                 and target_t.syllabus_id=live_class.syllabus_id
+            )
+            or exists(
+              select 1
+              from question_subtopics qst
+              join subtopics source_st on source_st.id=qst.subtopic_id
+              join topics source_t on source_t.id=source_st.topic_id
+              join topics target_t
+                on target_t.syllabus_id=live_class.syllabus_id
+               and target_t.number=source_t.number
+              join subtopics target_st
+                on target_st.topic_id=target_t.id
+               and target_st.code=source_st.code
+              where qst.question_id=q.id
+                and qst.is_primary
+                and coalesce(qst.confidence,0)>=0.95
             )
           )
       )`,
@@ -329,6 +345,68 @@ export class LiveExamService {
     return selected;
   }
 
+  private async expandRequiredDependencies(questionIds: string[]) {
+    if (!questionIds.length) return [];
+    const result = await this.pool.query(
+      `with recursive closure(question_id) as (
+         select unnest($1::uuid[])
+         union
+         select qd.depends_on_id
+         from closure c
+         join question_dependencies qd on qd.question_id=c.question_id
+         where qd.strength::text='required'
+       )
+       select c.question_id,q.status::text status,q.marks,
+         exists(
+           select 1 from canonical_mark_schemes ms
+           where ms.question_id=c.question_id and ms.status='approved'
+         ) mark_scheme_ready,
+         coalesce(
+           array_agg(qd.depends_on_id order by target.sort_order,target.id)
+             filter(where qd.depends_on_id is not null),
+           '{}'::uuid[]
+         ) dependencies
+       from closure c
+       join questions q on q.id=c.question_id
+       left join question_dependencies qd
+         on qd.question_id=c.question_id and qd.strength::text='required'
+       left join questions target on target.id=qd.depends_on_id
+       group by c.question_id,q.status,q.marks`,
+      [questionIds],
+    );
+
+    const nodes = new Map<string, { status:string; marks:number|null; markSchemeReady:boolean; dependencies:string[] }>();
+    for (const row of result.rows) {
+      nodes.set(String(row.question_id), {
+        status: String(row.status),
+        marks: row.marks == null ? null : Number(row.marks),
+        markSchemeReady: Boolean(row.mark_scheme_ready),
+        dependencies: (row.dependencies ?? []).map(String),
+      });
+    }
+
+    const ordered: string[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+    const visit = (questionId: string) => {
+      if (visited.has(questionId)) return;
+      if (visiting.has(questionId)) throw new DomainError('live_dependency_cycle', 409);
+      const node = nodes.get(questionId);
+      if (!node) throw new DomainError('live_dependency_target_missing', 409);
+      if (node.status !== 'approved' || !node.marks || !node.markSchemeReady) {
+        throw new DomainError('live_question_not_ready', 409);
+      }
+      visiting.add(questionId);
+      for (const dependencyId of node.dependencies) visit(dependencyId);
+      visiting.delete(questionId);
+      visited.add(questionId);
+      ordered.push(questionId);
+    };
+    for (const questionId of questionIds) visit(questionId);
+    if (ordered.length > 60) throw new DomainError('live_dependency_bundle_too_large', 409);
+    return ordered;
+  }
+
   async eligibleQuestions(
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { limit: number },
@@ -352,6 +430,7 @@ export class LiveExamService {
         commandWord: portable.leaf.commandWord,
         stem: portable.leaf.stem,
         hasAssets: portable.contextBlocks.some((block) => block.assets.length > 0),
+        dependencyCount: portable.dependencies.filter((dependency) => dependency.strength === 'required').length,
       };
     }));
     return rows.filter((row): row is NonNullable<typeof row> => row !== null);
@@ -365,7 +444,8 @@ export class LiveExamService {
     }
 
     const questionIds = await this.chooseQuestionIds(actor, input);
-    const snapshots = await Promise.all(questionIds.map(async (questionId) => {
+    const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
       const [portable, markScheme] = await Promise.all([
         this.questions.portable(actor, questionId),
         this.markScheme(questionId),
@@ -399,6 +479,8 @@ export class LiveExamService {
             autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
             teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
             leaderboardMode: input.leaderboardMode ?? 'marks',
+            requestedQuestionCount: questionIds.length,
+            dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
           })],
       );
       for (const [position, snapshot] of snapshots.entries()) {
@@ -413,7 +495,11 @@ export class LiveExamService {
       await client.query(
         `insert into live_exam_events(session_id,actor_id,event_type,session_version,payload)
          values($1,$2,'session.created',1,$3::jsonb)`,
-        [session.rows[0].id, actor.id, JSON.stringify({ questionCount: snapshots.length })],
+        [session.rows[0].id, actor.id, JSON.stringify({
+          questionCount: snapshots.length,
+          requestedQuestionCount: questionIds.length,
+          dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
+        })],
       );
       await client.query('commit');
       return { ...this.mapSession(session.rows[0]), questionCount: snapshots.length };
@@ -608,12 +694,39 @@ export class LiveExamService {
     ]);
     const currentRow = questionRows.rows.find((row) => Number(row.position) === Number(session.current_question_index));
     const reveal = ['marking', 'review', 'finished'].includes(String(session.status));
+    const dependencyWork = currentRow ? await this.pool.query(
+      `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
+         target.display_ref,leq.position,
+         case when $4::uuid is null then null else a.answer_text end own_answer,
+         a.submitted_at
+       from question_dependencies qd
+       join questions target on target.id=qd.depends_on_id
+       left join live_exam_questions leq
+         on leq.session_id=$1
+        and leq.question_id=qd.depends_on_id
+        and leq.position<$2
+       left join live_exam_answers a
+         on a.session_question_id=leq.id
+        and a.participant_id=$4::uuid
+       where qd.question_id=$3 and qd.strength::text='required'
+       order by leq.position nulls last,target.sort_order,target.id`,
+      [sessionId, Number(session.current_question_index), currentRow.question_id, participantId],
+    ) : { rows: [] };
     const question = currentRow ? {
       id: currentRow.id,
       sourceQuestionId: currentRow.question_id,
       position: Number(currentRow.position),
       marks: Number(currentRow.marks),
       portable: await this.hydratePortable(currentRow.question_snapshot as StoredQuestionSnapshot),
+      dependencyWork: dependencyWork.rows.map((row) => ({
+        questionId: String(row.question_id),
+        displayRef: String(row.display_ref),
+        kind: String(row.kind),
+        strength: String(row.strength),
+        position: row.position == null ? null : Number(row.position),
+        ownAnswer: row.own_answer == null ? null : String(row.own_answer),
+        submittedAt: row.submitted_at ?? null,
+      })),
     } : null;
 
     let ownAnswer: Record<string, unknown> | null = null;
