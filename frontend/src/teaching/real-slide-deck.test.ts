@@ -11,6 +11,9 @@ import {
   CHAPTER_5_PROJECT_PPTX_URL,
   CHAPTER_5_REAL_PPTX_DRIVE_URL,
   CHAPTER_5_REAL_SLIDE_COUNT,
+  REAL_SLIDE_IMAGE_FORMAT,
+  REAL_SLIDE_IMAGE_HEIGHT,
+  REAL_SLIDE_IMAGE_WIDTH,
   realSlideDeckFor,
 } from './real-slide-decks';
 
@@ -21,19 +24,25 @@ function expectProjectDeck(course:string,chapter:number,topicCode:string,slideCo
   const deck=realSlideDeckFor(course,chapter,topicCode);
   expect(deck).not.toBeNull();
   expect(deck?.slides).toHaveLength(slideCount);
-  expect(deck?.slides[0]?.imageUrl).toContain(`/chapter-${String(chapter).padStart(2,'0')}/slides/slide-01.jpg`);
-  expect(deck?.slides.at(-1)?.imageUrl).toContain(`slide-${String(slideCount).padStart(2,'0')}.jpg`);
+  expect(deck?.slides[0]?.imageUrl).toContain(`/chapter-${String(chapter).padStart(2,'0')}/slides/slide-01.webp`);
+  expect(deck?.slides.at(-1)?.imageUrl).toContain(`slide-${String(slideCount).padStart(2,'0')}.webp`);
   expect(existsSync(publicPath(deck!.projectPptxUrl))).toBe(true);
   expect(statSync(publicPath(deck!.projectPptxUrl)).size).toBeGreaterThan(1_000_000);
   for(const slide of deck!.slides){
     const path=publicPath(slide.imageUrl);
     expect(existsSync(path),slide.imageUrl).toBe(true);
-    expect(statSync(path).size,slide.imageUrl).toBeGreaterThan(20_000);
+    expect(statSync(path).size,slide.imageUrl).toBeGreaterThan(40_000);
   }
   return deck!;
 }
 
 describe('real PowerPoint lesson presentation routes',()=>{
+  it('uses high-resolution WebP slide assets for large displays',()=>{
+    expect(REAL_SLIDE_IMAGE_WIDTH).toBe(2560);
+    expect(REAL_SLIDE_IMAGE_HEIGHT).toBe(1440);
+    expect(REAL_SLIDE_IMAGE_FORMAT).toBe('webp');
+  });
+
   it('keeps Chapter 3 as the approved 22-slide real Hardware deck',()=>{
     expect(CHAPTER_3_REAL_SLIDE_COUNT).toBe(22);
     expectProjectDeck('9618',3,'3.1',22);
@@ -67,28 +76,37 @@ describe('real PowerPoint lesson presentation routes',()=>{
     expect(realSlideDeckFor('9618',6,'6.1')).toBeNull();
   });
 
-  it('renders configured decks with project-hosted slide images rather than an iframe',()=>{
+  it('renders configured decks with project-hosted high-resolution slide images rather than an iframe',()=>{
     const experience=source('src/teaching/LessonExperience.tsx');
     const viewer=source('src/teaching/RealSlideDeckPresentation.tsx');
+    const css=source('src/teaching/real-slide-deck.css');
     expect(experience).toContain("import { RealSlideDeckPresentation } from './RealSlideDeckPresentation';");
     expect(experience).toContain('realSlideDeckFor(courseCode(chapter),chapter.number,activeTopic.code)');
     expect(experience).toContain('if(realDeck)return');
     expect(viewer).toContain('<img src={slide.imageUrl}');
+    expect(viewer).toContain('width={2560}');
+    expect(viewer).toContain('height={1440}');
     expect(viewer).not.toContain('<iframe');
-    expect(viewer).toContain('CHAPTER {deck.chapter}');
+    expect(viewer).toContain('HIGH-RES REAL DECK');
     expect(viewer).toContain('projectPptxUrl');
     expect(viewer).toContain('pptxDriveUrl');
+    expect(css).toContain('image-rendering:auto');
   });
 
-  it('records Drive source and project storage for migrated chapters',()=>{
+  it('records high-resolution Drive source and project storage for migrated chapters',()=>{
     for(const chapter of ['03','04','05']){
       const manifest=JSON.parse(source(`public/9618/presentations/chapter-${chapter}/manifest.json`));
       expect(manifest.delivery).toBe('project-slide-images');
+      expect(manifest.slideFormat).toBe('webp');
+      expect(manifest.imageWidth).toBe(2560);
+      expect(manifest.imageHeight).toBe(1440);
       expect(manifest.sourcePptx.shared).toBe(true);
       expect(manifest.projectMirror.pptx).toContain('Project_Mirror.pptx');
       expect(manifest.runtime.htmlCssReconstruction).toBe(false);
       expect(manifest.runtime.sourceOfTruth).toBe('Drive PPTX');
+      expect(manifest.runtime.projectDelivery).toContain('high-resolution');
       expect(manifest.slides).toHaveLength(manifest.slideCount);
+      for(const slide of manifest.slides)expect(slide.image).toMatch(/\.webp$/);
     }
   });
 });
