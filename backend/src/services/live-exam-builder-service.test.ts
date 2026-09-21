@@ -63,5 +63,32 @@ describe('LiveExamBuilderService',()=>{
     expect(selectionSql).toContain('ms_source.component_id=sp.component_id');
     expect(selectionSql).toContain('ms_source.variant=sp.variant');
     expect(selectionSql).toContain('ms.max_marks=q.marks');
+    expect(selectionSql).not.toContain("q.parent_id is not null");
+    expect(selectionSql).not.toContain('not exists(select 1 from question_dependencies');
+    expect(selectionSql).toContain('qst.is_primary');
+    expect(selectionSql).toContain('coalesce(qst.confidence,0)>=0.95');
+    expect(selectionSql).toContain('dependency_count');
+  });
+  it('expands required dependencies in topological order and fails closed on cycles',async()=>{
+    const query=vi.fn(async (sql:string)=>{
+      if(sql.includes('with recursive closure'))return {rows:[
+        {question_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']},
+        {question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[]},
+      ],rowCount:2};
+      throw new Error('unexpected query');
+    });
+    const service=new LiveExamBuilderService({query} as unknown as Pool);
+    const expanded=await (service as unknown as {expandRequiredDependencies:(executor:Pick<Pool,'query'>,ids:string[])=>Promise<string[]>})
+      .expandRequiredDependencies({query} as unknown as Pick<Pool,'query'>,['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+    expect(expanded).toEqual(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+
+    query.mockReset();
+    query.mockResolvedValueOnce({rows:[
+      {question_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']},
+      {question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'approved',marks:1,mark_scheme_ready:true,dependencies:['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']},
+    ],rowCount:2});
+    await expect((service as unknown as {expandRequiredDependencies:(executor:Pick<Pool,'query'>,ids:string[])=>Promise<string[]>})
+      .expandRequiredDependencies({query} as unknown as Pick<Pool,'query'>,['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']))
+      .rejects.toMatchObject({code:'live_dependency_cycle',status:409});
   });
 });

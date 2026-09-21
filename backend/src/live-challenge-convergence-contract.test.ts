@@ -72,6 +72,15 @@ describe('Cambridge Live Challenge convergence contract',()=>{
     expect(builderService).toContain('ms_source.component_id=sp.component_id');
     expect(builderService).toContain('ms_source.variant=sp.variant');
     expect(builderService).toContain('ms.max_marks=q.marks');
+    expect(builderService).not.toContain("q.parent_id is not null");
+    expect(builderService).not.toContain('not exists(select 1 from question_dependencies qd where qd.question_id=q.id)');
+    expect(builderService).toContain('expandRequiredDependencies');
+    expect(builderService).toContain("qd.strength::text='required'");
+    expect(builderService).toContain("new DomainError('live_dependency_cycle',409)");
+    expect(builderService).toContain("new DomainError('live_dependency_target_missing',409)");
+    expect(builderService).toContain("new DomainError('live_dependency_bundle_too_large',409)");
+    expect(builderService).toContain('requestedQuestionIds');
+    expect(builderService).toContain('dependencyQuestionCount');
     expect(builderService).toContain("status='published'");
     expect(builderService).toContain("'challenge.published'");
   });

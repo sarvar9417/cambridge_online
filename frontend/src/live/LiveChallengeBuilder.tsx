@@ -39,7 +39,7 @@ type BuilderDraft = {
 
 type EligibleQuestion = {
   id:string;displayRef:string;stem:string;commandWord:string|null;marks:number;answerKind:string;
-  ao:string|null;year:number;series:string;variant:number;component:number;
+  ao:string|null;year:number;series:string;variant:number;component:number;dependencyCount:number;
 };
 
 function errorMessage(error:unknown,fallback:string){return error instanceof Error?error.message:fallback;}
@@ -290,7 +290,7 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
     <section className="live-history"><header><h2>Eligible Cambridge questions</h2><span>{eligible.length}</span></header>
       {!eligible.length?<p className="live-empty">Bu scope uchun eligible savol topilmadi.</p>:<div className="live-session-list">{eligible.map((question)=>{
         const selected=selectedIds.includes(question.id);
-        return <button type="button" disabled={busy||selected||selectedIds.length>=20} key={question.id} onClick={()=>addQuestion(question.id)}><span className="live-state">{question.year} {question.series}</span><strong>{question.displayRef}</strong><small>{question.commandWord??question.answerKind} · {question.marks} ball · Component {question.component}</small><i>{selected?'✓':<Plus/>}</i></button>;
+        return <button type="button" disabled={busy||selected||selectedIds.length>=20} key={question.id} onClick={()=>addQuestion(question.id)}><span className="live-state">{question.year} {question.series}</span><strong>{question.displayRef}</strong><small>{question.commandWord??question.answerKind} · {question.marks} ball · Component {question.component}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><i>{selected?'✓':<Plus/>}</i></button>;
       })}</div>}
     </section>
   </div>;
