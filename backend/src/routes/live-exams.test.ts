@@ -87,6 +87,15 @@ describe('live exam routes', () => {
     expect(list).toHaveBeenCalledWith(student);
   });
 
+  it('marks the board-safe projector projection private and non-cacheable', async () => {
+    const board=vi.fn().mockResolvedValue({session:{id:'session-1'},question:null,markScheme:null});
+    const session='22222222-2222-4222-8222-222222222222';
+    const response=await request(appFor({board})).get(`/live-exams/${session}/board`).expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body.data.session.id).toBe('session-1');
+    expect(board).toHaveBeenCalledWith(student,session);
+  });
+
   it('marks the per-user authoritative snapshot private and non-cacheable', async () => {
     const snapshot=vi.fn().mockResolvedValue({session:{version:3},ownAnswer:{text:'private'}});
     const response=await request(appFor({snapshot}))
