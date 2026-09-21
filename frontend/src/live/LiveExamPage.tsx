@@ -469,9 +469,10 @@ function DraftQuestionControls({snapshot,onChanged,onPublish}:{snapshot:LiveExam
     <p>{roots.length?`${roots.length} ta asosiy Cambridge savoli tanlangan. Majburiy oldingi qismlar publish paytida avtomatik qo‘shiladi.`:'Asosiy savollar qolmadi. Builderga qaytib yangi draft yarating yoki bu draftni bekor qiling.'}</p>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     {builder===null?<p>Draft yuklanmoqda…</p>:roots.length?<div className="live-report-list">{roots.map((row,index)=><article key={row.questionId}>
-      <span>Savol {index+1}</span><strong>{row.question?.displayRef??row.questionId}</strong><b>{row.question?.marks??'—'} ball</b>
+      <span>Asosiy {index+1}</span><strong>{row.question?.displayRef??row.questionId}</strong><b>{row.question?.marks??'—'} ball</b>
       <div><button className="live-secondary" disabled={busy||index===0} onClick={()=>move(index,-1)}>↑</button><button className="live-secondary" disabled={busy||index===roots.length-1} onClick={()=>move(index,1)}>↓</button><button className="live-danger" disabled={busy} onClick={()=>remove(row.questionId)}>Olib tashlash</button></div>
     </article>)}</div>:null}
+    {builder?.questions.length?<div><h3>Final play order · {builder.questions.length} ta savol · {builder.questions.reduce((sum,item)=>sum+item.marks,0)} ball</h3><div className="live-report-list">{builder.questions.map((question,index)=>{const isRoot=builder.selectedQuestionIds.includes(question.questionId);return <article key={question.id}><span>{index+1}. {isRoot?'Asosiy savol':'Majburiy oldingi qism'}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></article>})}</div></div>:null}
     <div className="live-room-actions">{roots.length?<button disabled={busy} onClick={onPublish}>Challenge’ni nashr qilish</button>:<button onClick={()=>navigate('oqitish/live')}>Builderga qaytish</button>}</div>
   </section>;
 }
