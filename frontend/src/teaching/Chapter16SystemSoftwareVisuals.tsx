@@ -4,17 +4,26 @@ import './chapter16-system-software-visuals.css';
 export const CHAPTER_16_SYSTEM_SOFTWARE_VISUAL_IDS = [
   'h16-1611-resource-management',
   'h16-1611-dma-kernel',
+  'h16-1612-multitasking',
+  'h16-1612-low-level-scheduling',
   'h16-1613-process-states',
+  'h16-1613-context-fcfs',
   'h16-1613-sjf-srtf',
   'h16-1613-round-robin',
   'h16-1613-interrupt-kernel',
   'h16-1614-paging',
   'h16-1614-segmentation',
+  'h16-1614-paging-vs-segmentation',
   'h16-1615-virtual-memory',
+  'h16-1615-thrashing-translation',
   'h16-1616-page-replacement',
   'h16-1621-vm-features',
+  'h16-1622-vm-benefits-limitations',
+  'h16-1631-interpreter-compiler',
   'h16-1632-lexical-analysis',
   'h16-1632-syntax-codegen',
+  'h16-1632-optimisation',
+  'h16-1633-syntax-diagrams',
   'h16-1633-bnf',
   'h16-1634-rpn-stack',
 ] as const;
@@ -169,21 +178,114 @@ function Rpn({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function Multitasking({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-multitask" aria-label="Preemptive and non-preemptive multitasking comparison">
+    <div className={'h16ss-multitask-core '+state(reveal,1)}><b>MULTITASKING</b><span>kernel shares hardware resources between processes</span></div>
+    <section className={state(reveal,2)}><b>PREEMPTIVE</b><span>running process can be interrupted after limited CPU allocation</span><small>flexible response · context switching needed</small></section>
+    <section className={state(reveal,2)}><b>NON-PREEMPTIVE</b><span>process keeps resources until burst completes or waits for an event</span><small>simpler · starvation/response trade-offs</small></section>
+    <footer className={state(reveal,3)}>PROCESS = a program that has started execution · scheduling creates the appearance of simultaneous work.</footer>
+  </div>;
+}
+
+function LowLevelScheduling({reveal}:{reveal:number}){
+  const priorities=['workload category','CPU-bound / I/O-bound','resource needs','deadline','CPU time','wait time','memory'];
+  return <div className="h16ss h16ss-low-schedule" aria-label="Low level scheduling priorities and process control block">
+    <section className={state(reveal,1)}><b>SCHEDULER GOALS</b><span>maximise throughput</span><span>acceptable response time</span><span>stable competition for resources</span></section>
+    <div className={'h16ss-priority-grid '+state(reveal,2)}>{priorities.map(x=><span key={x}>{x}</span>)}</div>
+    <section className={state(reveal,3)}><b>PROCESS CONTROL BLOCK</b><span>state · privileges · registers · priority · schedule data · required CPU time · process ID</span></section>
+    <footer className={state(reveal,3)}>source states: RUNNING · READY · BLOCKED</footer>
+  </div>;
+}
+
+function ContextFcfs({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-context-fcfs" aria-label="Context switching and FCFS scheduling baseline">
+    <section className={state(reveal,1)}><b>TIME QUANTUM ENDS</b><span>save register contents to PCB</span></section><i>→</i>
+    <section className={state(reveal,2)}><b>CONTEXT SWITCH</b><span>restore saved state when process returns to CPU</span></section>
+    <div className={'h16ss-fcfs-queue '+state(reveal,3)}><b>FCFS · FIFO · NON-PREEMPTIVE</b><span>P1 23 ms</span><span>P2 4 ms</span><span>P3 9 ms</span><span>P4 3 ms</span><strong>source average wait = 21.5 ms</strong></div>
+  </div>;
+}
+
+function PagingVsSegmentation({reveal}:{reveal:number}){
+  const rows=[
+    ['BLOCK SIZE','fixed pages','variable logical segments'],
+    ['FRAGMENTATION','internal possible','external possible'],
+    ['VISIBILITY','largely invisible to programmer','logical structure visible'],
+    ['MAPPING','PAGE TABLE','SEGMENT MAP TABLE'],
+    ['TYPICAL SIZE','pages usually smaller','segments usually larger'],
+  ] as const;
+  return <div className="h16ss h16ss-page-seg" aria-label="Paging versus segmentation source comparison">
+    <header className={state(reveal,1)}><span>FEATURE</span><b>PAGING</b><b>SEGMENTATION</b></header>
+    {rows.map((r,index)=><section className={state(reveal,index<2?1:index<4?2:3)} key={r[0]}><span>{r[0]}</span><span>{r[1]}</span><span>{r[2]}</span></section>)}
+  </div>;
+}
+
+function ThrashingTranslation({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-thrash" aria-label="Disk thrashing and virtual to physical address translation">
+    <section className={state(reveal,1)}><b>VIRTUAL ADDRESS</b><span>translate using memory map</span></section><i>→</i>
+    <section className={state(reveal,2)}><b>PAGE PRESENT?</b><span>yes → physical address</span><span>no → load from disk + update map</span></section><i>→</i>
+    <section className={state(reveal,2)}><b>PHYSICAL ADDRESS</b><span>RAM location used by CPU</span></section>
+    <footer className={state(reveal,3)}><b>DISK THRASHING</b><span>page movement dominates useful processing near the thrash point · source remedies: more RAM, fewer simultaneous programs, smaller swap file</span></footer>
+  </div>;
+}
+
+function VmBenefits({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-vm-benefits" aria-label="Virtual machine benefits and limitations">
+    <section className={state(reveal,1)}><header>BENEFITS</header><span>guest failure need not crash host</span><span>run incompatible/legacy software</span><span>safe OS/application testing</span><span>preserve older environments on newer hardware</span></section>
+    <section className={state(reveal,2)}><header>LIMITATIONS</header><span>guest slower than native/original system</span><span>large VM estates are costly</span><span>management and maintenance complexity</span></section>
+    <footer className={state(reveal,3)}>isolation and compatibility are gained at the cost of performance and administration overhead.</footer>
+  </div>;
+}
+
+function InterpreterCompiler({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-interpreter-compiler" aria-label="Interpreter and compiler translation flow comparison">
+    <section className={state(reveal,1)}><header>COMPILER</header><span>SOURCE PROGRAM</span><i>→</i><b>COMPILER</b><i>→</i><span>OBJECT CODE / ERRORS</span><small>object program can execute later without recompilation</small></section>
+    <section className={state(reveal,2)}><header>INTERPRETER</header><span>SOURCE STATEMENT</span><i>→</i><b>CHECK + EXECUTE</b><i>→</i><span>OUTPUT / ERROR</span><small>no complete object program; returns for next statement</small></section>
+    <footer className={state(reveal,3)}>both approaches construct a SYMBOL TABLE.</footer>
+  </div>;
+}
+
+function Optimisation({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-optimisation" aria-label="Compiler optimisation source example">
+    <section className={state(reveal,1)}><b>BEFORE</b><code>w ← x + y</code><code>z ← x + y + 5</code><span>x + y calculated twice</span></section>
+    <i>→</i>
+    <section className={state(reveal,2)}><b>AFTER OPTIMISATION</b><code>w ← x + y</code><code>z ← w + 5</code><span>reuse existing result</span></section>
+    <footer className={state(reveal,3)}>goal: reduce execution time / storage / memory / CPU use without changing required result · not every compiler optimises every pattern.</footer>
+  </div>;
+}
+
+function SyntaxDiagrams({reveal}:{reveal:number}){
+  return <div className="h16ss h16ss-syntax-diagrams" aria-label="Syntax diagram sequence alternatives and repetition">
+    <section className={state(reveal,1)}><b>SEQUENCE</b><div className="h16ss-rail"><span>START</span><i>→</i><span>LETTER</span><i>→</i><span>DIGIT</span><i>→</i><span>END</span></div></section>
+    <section className={state(reveal,2)}><b>ALTERNATIVE</b><span>branch chooses one valid path</span><b>REPETITION</b><span>loop permits repeated legal elements</span></section>
+    <footer className={state(reveal,3)}>a string is valid only when one complete path exists from start to finish · Activities 16C–16D apply the rule to variables and assignment statements.</footer>
+  </div>;
+}
+
 export function Chapter16SystemSoftwareVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h16-1611-resource-management': return <ResourceManagement reveal={reveal}/>;
     case 'h16-1611-dma-kernel': return <DmaKernel reveal={reveal}/>;
+    case 'h16-1612-multitasking': return <Multitasking reveal={reveal}/>;
+    case 'h16-1612-low-level-scheduling': return <LowLevelScheduling reveal={reveal}/>;
     case 'h16-1613-process-states': return <ProcessStates reveal={reveal}/>;
+    case 'h16-1613-context-fcfs': return <ContextFcfs reveal={reveal}/>;
     case 'h16-1613-sjf-srtf': return <Scheduling reveal={reveal}/>;
     case 'h16-1613-round-robin': return <RoundRobin reveal={reveal}/>;
     case 'h16-1613-interrupt-kernel': return <Interrupts reveal={reveal}/>;
     case 'h16-1614-paging': return <Paging reveal={reveal}/>;
     case 'h16-1614-segmentation': return <Segmentation reveal={reveal}/>;
+    case 'h16-1614-paging-vs-segmentation': return <PagingVsSegmentation reveal={reveal}/>;
     case 'h16-1615-virtual-memory': return <VirtualMemory reveal={reveal}/>;
+    case 'h16-1615-thrashing-translation': return <ThrashingTranslation reveal={reveal}/>;
     case 'h16-1616-page-replacement': return <Replacement reveal={reveal}/>;
     case 'h16-1621-vm-features': return <VmFeatures reveal={reveal}/>;
+    case 'h16-1622-vm-benefits-limitations': return <VmBenefits reveal={reveal}/>;
+    case 'h16-1631-interpreter-compiler': return <InterpreterCompiler reveal={reveal}/>;
     case 'h16-1632-lexical-analysis': return <Lexical reveal={reveal}/>;
     case 'h16-1632-syntax-codegen': return <SyntaxCodegen reveal={reveal}/>;
+    case 'h16-1632-optimisation': return <Optimisation reveal={reveal}/>;
+    case 'h16-1633-syntax-diagrams': return <SyntaxDiagrams reveal={reveal}/>;
     case 'h16-1633-bnf': return <Bnf reveal={reveal}/>;
     case 'h16-1634-rpn-stack': return <Rpn reveal={reveal}/>;
     default: return null;
