@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 const uuid = z.string().uuid();
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
@@ -127,7 +128,11 @@ export function createLiveExamsRouter(service: LiveExamService) {
 
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
   // a UUID and turn a valid join request into a validation error.
-  router.post('/join', async (req, res) => {
+  router.post('/join', rateLimit({
+    windowMs: 60_000,
+    max: 20,
+    key: (req) => req.actor?.id ?? req.ip ?? 'unknown',
+  }), async (req, res) => {
     const body = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict().parse(req.body);
     res.status(201).json(await service.join(req.actor!, body.code));
   });
