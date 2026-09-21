@@ -894,7 +894,12 @@ export class LiveExamService {
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where (
-         ($1='student' and (
+         ($1='student' and not exists(
+           select 1 from live_exam_events removed_event
+           where removed_event.session_id=les.id
+             and removed_event.event_type='participant.removed'
+             and removed_event.payload->>'studentId'=$2
+         ) and (
            exists(
              select 1 from live_exam_participants lep
              where lep.session_id=les.id and lep.student_id=$2
