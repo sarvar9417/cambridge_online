@@ -133,7 +133,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("reason: 'locked_round_recovery'");
   });
 
-  it('prioritizes each marker's next assigned review over already submitted reviews',()=>{
+  it("prioritizes each marker's next assigned review over already submitted reviews",()=>{
     expect(service).toContain("order by case when r.status='assigned' then 0 else 1 end,r.created_at");
   });
 
@@ -144,7 +144,7 @@ describe('Live Exam release security and recovery contract',()=>{
   });
 
   it('fails closed when no safe peer reviewer can be assigned',()=>{
-    expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
+    expect(service).toContain("if (!reviewerId) throw new DomainError('live_peer_assignment_impossible', 409)");
   });
 
   it('keeps peer mode structurally incapable of self marking after all later migrations',()=>{
