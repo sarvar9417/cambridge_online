@@ -70,6 +70,15 @@ For chapters migrated to the real-deck system, the editable full-quality PPTX in
 
 The project mirror must preserve the approved slide appearance; it is a delivery/backup copy, not a redesigned presentation. Drive remains the editable full-quality source.
 
+### Migrated real decks
+
+| Chapter | Drive source | Project delivery | Status |
+| --- | --- | --- | --- |
+| 3 Hardware | `9618_Chapter_03_Hardware_Real_Deck.pptx` | 22 real slide images + project PPTX mirror | Active |
+| 4 Processor Fundamentals | `9618_Chapter_04_Processor_Fundamentals_Real_Deck.pptx` | 29 real slide images + project PPTX mirror | Active |
+
+Chapter 4 is grounded in Hodder printed pp.107–135. Its exam-focus screen is separately grounded in Cambridge 2026 Paper 11 Q3 and Paper 13 Q7 mark-scheme evidence; that exam layer is not presented as Hodder source content.
+
 ## Presentation acceptance contract
 
 A chapter is **benchmark-complete** only when all of the following are true:
