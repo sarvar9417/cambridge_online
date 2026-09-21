@@ -83,6 +83,29 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('remaining===0');
     expect(page).toContain("remaining===0?'Vaqt tugadi'");
   });
+  it('cancels a pending autosave before explicit submit',()=>{
+    expect(page).toContain('window.clearTimeout(saveTimer.current);');
+    expect(page).toContain('busy||saving');
+  });
+
+  it('recovers teacher commands from optimistic-concurrency conflicts',()=>{
+    expect(page).toContain("cause instanceof ApiError&&cause.code==='live_state_conflict'");
+    expect(page).toContain('Eng so‘nggi holat yuklandi.');
+  });
+
+  it('explains late-join dependency gaps without inventing prior student work',()=>{
+    expect(page).toContain('Oldingi javob mavjud emas');
+  });
+
+  it('keeps final standings visible on the projector',()=>{
+    expect(page).toContain("session.status==='finished'?<>");
+    expect(page).toContain('variant="projector"');
+  });
+
+  it('shows an explicit zero result for an unsubmitted answer during marking',()=>{
+    expect(page).toContain('Javob topshirilmagan');
+    expect(page).toContain("!answer.submittedAt?'Topshirmadi'");
+  });
   it('blocks student work and projector disclosure while paused',()=>{
     expect(page).toContain("if(session.pausedAt)return");
     expect(page).toContain("!session.pausedAt?<>");
