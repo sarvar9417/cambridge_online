@@ -127,6 +127,16 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
+  it('allows an authorised teacher-mode recovery only through a versioned locked-round command', async () => {
+    const switchLockedMarkingMode=vi.fn().mockResolvedValue({markingMode:'teacher',version:9});
+    const session='22222222-2222-4222-8222-222222222222';
+    const app=appFor({switchLockedMarkingMode});
+    await request(app).post(`/live-exams/${session}/marking-mode`).send({mode:'teacher'}).expect(400);
+    await request(app).post(`/live-exams/${session}/marking-mode`)
+      .send({mode:'teacher',expectedVersion:8}).expect(200);
+    expect(switchLockedMarkingMode).toHaveBeenCalledWith(student,session,'teacher',8);
+  });
+
   it('requires and passes optimistic versions for answer lock and reveal', async () => {
     const lockAnswers=vi.fn().mockResolvedValue({status:'answers_locked',version:8});
     const revealMarkScheme=vi.fn().mockResolvedValue({status:'marking',version:9});
