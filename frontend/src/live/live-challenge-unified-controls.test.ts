@@ -12,7 +12,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('name="leaderboardMode"');
   });
 
-  it('runs new challenges through draft, selection, publish and lobby open',()=>{
+  it('exposes explicit draft, selection, publish and lobby-open lifecycle controls',()=>{
     expect(page).toContain("'/live-exams/drafts'");
     expect(page).toContain('/questions/auto');
     expect(page).toContain('/publish');
