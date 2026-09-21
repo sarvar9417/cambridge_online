@@ -1335,22 +1335,27 @@ export class LiveExamService {
           [sessionId, state.rows[0].current_question_index],
         );
         if (Number(pending.rows[0].count) === 0) {
-          const revealed = await this.revealWithinTransaction(client, state.rows[0], actor.id);
-          version = revealed.version;
+          const locked = await this.lockAnswersWithinTransaction(client, state.rows[0], actor.id);
+          version = locked.version;
         }
       }
       await client.query('commit');
-      return { submittedAt: new Date(), version, autoRevealed: state.rows[0].status === 'marking' };
+      return { submittedAt: new Date(), version, autoLocked: state.rows[0].status === 'answers_locked' };
     } catch (error) {
       await client.query('rollback');
       throw error;
     } finally { client.release(); }
   }
 
-  private async revealWithinTransaction(client: PoolClient, session: Record<string, unknown>, actorId: string) {
+  private async lockAnswersWithinTransaction(
+    client: PoolClient,
+    session: Record<string, unknown>,
+    actorId: string,
+  ) {
     const sessionId = String(session.id);
+    if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
     const question = await client.query(
-      `select id,mark_scheme_snapshot from live_exam_questions
+      `select id from live_exam_questions
        where session_id=$1 and position=$2`,
       [sessionId, session.current_question_index],
     );
@@ -1364,6 +1369,44 @@ export class LiveExamService {
          submitted_at=coalesce(live_exam_answers.submitted_at,now()),updated_at=now()`,
       [sessionId, sessionQuestionId],
     );
+    await client.query(
+      `update live_exam_sessions
+       set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null
+       where id=$1`,
+      [sessionId],
+    );
+    session.status = 'answers_locked';
+    const version = await this.bump(client, sessionId, actorId, 'answers.locked', {
+      position: Number(session.current_question_index),
+    });
+    return { sessionId, status: 'answers_locked' as const, version };
+  }
+
+  async lockAnswers(actor: Actor, sessionId: string, expectedVersion?: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      const result = await this.lockAnswersWithinTransaction(client, session, actor.id);
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  private async revealWithinTransaction(client: PoolClient, session: Record<string, unknown>, actorId: string) {
+    const sessionId = String(session.id);
+    if (session.status !== 'answers_locked' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+    const question = await client.query(
+      `select id,mark_scheme_snapshot from live_exam_questions
+       where session_id=$1 and position=$2`,
+      [sessionId, session.current_question_index],
+    );
+    if (!question.rowCount) throw new DomainError('live_no_questions', 409);
+    const sessionQuestionId = String(question.rows[0].id);
     const answers = await client.query(
       `select a.id answer_id,lep.student_id
        from live_exam_answers a
@@ -1397,7 +1440,7 @@ export class LiveExamService {
       }
     }
     await client.query(
-      `update live_exam_sessions set status='marking',answers_locked_at=now(),mark_scheme_revealed_at=now()
+      `update live_exam_sessions set status='marking',mark_scheme_revealed_at=now()
        where id=$1`, [sessionId],
     );
     session.status = 'marking';
@@ -1408,12 +1451,12 @@ export class LiveExamService {
     return { sessionId, status: 'marking' as const, version };
   }
 
-  async revealMarkScheme(actor: Actor, sessionId: string) {
+  async revealMarkScheme(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      this.assertExpectedVersion(session, expectedVersion);
       const result = await this.revealWithinTransaction(client, session, actor.id);
       await client.query('commit');
       return result;
