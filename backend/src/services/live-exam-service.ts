@@ -1350,7 +1350,30 @@ export class LiveExamService {
       await client.query('begin');
       const state = await client.query(
         `select * from live_exam_sessions where id=$1 for update`, [sessionId]);
-      if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
+      if (!state.rows[0]) throw new DomainError('not_found', 404);
+      const existing = await client.query(
+        `select a.id,a.answer_text,a.submitted_at
+         from live_exam_answers a
+         join live_exam_participants lep on lep.id=a.participant_id
+         join live_exam_questions leq on leq.id=a.session_question_id
+         where leq.session_id=$1 and leq.position=$3
+           and lep.session_id=$1 and lep.student_id=$2 and lep.left_at is null
+         limit 1`,
+        [sessionId, actor.id, state.rows[0].current_question_index],
+      );
+      if (existing.rows[0]?.submitted_at) {
+        if (text !== undefined && String(existing.rows[0].answer_text ?? '') !== text) {
+          throw new DomainError('live_answer_locked', 409);
+        }
+        await client.query('commit');
+        return {
+          submittedAt: existing.rows[0].submitted_at,
+          version: Number(state.rows[0].version),
+          idempotent: true,
+          autoLocked: state.rows[0].status === 'answers_locked',
+        };
+      }
+      if (state.rows[0].status !== 'question_open' || state.rows[0].paused_at) throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
         `update live_exam_answers a set
            answer_text=coalesce($3,a.answer_text),
