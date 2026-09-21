@@ -19,6 +19,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('/open');
     expect(page).toContain("draft:'Draft'");
     expect(page).toContain("published:'Nashr qilingan'");
+    expect(page).toContain("'Draft yaratish'");
   });
 
   it('gives the teacher pause/resume and lobby removal controls',()=>{
