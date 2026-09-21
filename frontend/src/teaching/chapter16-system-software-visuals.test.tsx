@@ -17,7 +17,7 @@ const beat=(slideId:string):LessonPresentationBeat=>({id:`${slideId}-concept-1`,
 describe('Cambridge 9618 Chapter 16 system-software classroom visuals',()=>{
   it('targets real source-backed slides in the final Chapter 16 route',()=>{
     const slideIds=new Set(CHAPTER_16_FINAL.slides.map(slide=>slide.id));
-    expect(CHAPTER_16_SYSTEM_SOFTWARE_VISUAL_IDS.length).toBeGreaterThanOrEqual(15);
+    expect(CHAPTER_16_SYSTEM_SOFTWARE_VISUAL_IDS.length).toBeGreaterThanOrEqual(24);
     for(const id of CHAPTER_16_SYSTEM_SOFTWARE_VISUAL_IDS)expect(slideIds.has(id)).toBe(true);
   });
 
@@ -34,6 +34,9 @@ describe('Cambridge 9618 Chapter 16 system-software classroom visuals',()=>{
       'TIME QUANTUM','IDT + IPL','PAGE TABLE','TLB','SEGMENT MAP TABLE','PAGE FAULT','DISK THRASHING',
       'FIFO','BELADY','LRU','CLOCK / SECOND-CHANCE','GUEST OS','HYPERVISOR','LEXICAL ANALYSIS',
       'TOKENISATION','SYMBOL TABLE','SYNTAX ANALYSIS','CODE GENERATION','OPTIMISATION','BACKUS–NAUR FORM','RPN','STACK',
+      'MULTITASKING','PREEMPTIVE','NON-PREEMPTIVE','PROCESS CONTROL BLOCK','CONTEXT SWITCH','21.5 ms',
+      'PAGING','SEGMENTATION','INTERNAL','EXTERNAL','DISK THRASHING','VIRTUAL ADDRESS','PHYSICAL ADDRESS',
+      'BENEFITS','LIMITATIONS','COMPILER','INTERPRETER','BEFORE','AFTER OPTIMISATION','SEQUENCE','ALTERNATIVE','REPETITION',
     ])expect(visualSource).toContain(term);
   });
 
@@ -49,6 +52,15 @@ describe('Cambridge 9618 Chapter 16 system-software classroom visuals',()=>{
     expect(css).toContain('@media(max-width:1366px)');
     expect(css).toContain('@media(max-height:768px) and (min-width:960px)');
     expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.h16ss-multitask');
+    expect(css).toContain('.h16ss-low-schedule');
+    expect(css).toContain('.h16ss-context-fcfs');
+    expect(css).toContain('.h16ss-page-seg');
+    expect(css).toContain('.h16ss-thrash');
+    expect(css).toContain('.h16ss-vm-benefits');
+    expect(css).toContain('.h16ss-interpreter-compiler');
+    expect(css).toContain('.h16ss-optimisation');
+    expect(css).toContain('.h16ss-syntax-diagrams');
     expect(css).toContain('@media(prefers-reduced-motion:reduce)');
     expect(css).not.toMatch(/display\s*:\s*none/);
   });
