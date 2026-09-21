@@ -56,17 +56,19 @@ Page-end values are derived from the next chapter's start page; Chapter 20 ends 
 | --- | --- |
 | Hodder/Cambridge original source documents | Google Drive / guarded source storage |
 | Past papers and mark schemes | Existing source corpus + database |
-| Editable real presentation deck (.pptx) | Google Drive presentation folder |
+| Editable full-quality real presentation deck (.pptx) | Google Drive presentation folder |
+| Compressed real PPTX mirror | Repository `frontend/public/9618/presentations/<chapter>/` |
+| Exported real slide images | Repository `frontend/public/9618/presentations/<chapter>/slides/` |
 | Real-deck manifest and site integration | Repository |
-| Real PPTX runtime render for migrated chapters | Shared Drive presentation embed |
+| Runtime presentation for migrated chapters | Project-hosted real slide images |
 | Legacy HTML/CSS/React presentation renderer | Repository fallback until each chapter is migrated |
 | SVG/CSS diagrams and animations | Repository study/fallback assets |
 | Question-to-learning-objective mapping | Existing backend/database model |
 | Source page evidence | Lesson source metadata |
 
-For chapters migrated to the real-deck system, the editable PPTX is the source of truth and the lesson Presentation tab renders that real deck. Chapter 3 is the first implementation. The repository stores the manifest/viewer integration; the large editable PPTX remains in the shared presentation folder to avoid duplicating tens of megabytes per chapter in Git history.
+For chapters migrated to the real-deck system, the editable full-quality PPTX in Drive is the source of truth. The repository also stores a compressed image-based PPTX mirror plus exported slide images. The lesson Presentation tab renders the project-hosted slide images, so classroom delivery does not depend on Drive embedding. Chapter 3 is the first implementation.
 
-If future deployment requirements make Drive embedding unsuitable for students, export the same approved PPTX to project-hosted slide assets as a fallback without redesigning or re-typesetting the slides.
+The project mirror must preserve the approved slide appearance; it is a delivery/backup copy, not a redesigned presentation. Drive remains the editable full-quality source.
 
 ## Presentation acceptance contract
 

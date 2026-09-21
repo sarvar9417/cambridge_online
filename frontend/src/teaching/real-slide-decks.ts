@@ -2,6 +2,7 @@ export type RealSlideDeckSlide={
   number:number;
   title:string;
   sourcePages?:number[];
+  imageUrl:string;
 };
 
 export type RealSlideDeck={
@@ -13,11 +14,12 @@ export type RealSlideDeck={
   subtitle:string;
   pptxDriveUrl:string;
   pptxFileName:string;
-  embedUrl:string;
+  projectPptxUrl:string;
+  projectPptxFileName:string;
   slides:RealSlideDeckSlide[];
 };
 
-const CHAPTER_3_SLIDES:readonly RealSlideDeckSlide[]=[
+const CHAPTER_3_SLIDE_META=[
   {number:1,title:'3 Hardware',sourcePages:[68]},
   {number:2,title:'3.1.1 Types of memory and storage',sourcePages:[69,70]},
   {number:3,title:'Primary memory: RAM, ROM, DRAM and SRAM',sourcePages:[70,71,72]},
@@ -42,13 +44,18 @@ const CHAPTER_3_SLIDES:readonly RealSlideDeckSlide[]=[
   {number:22,title:'Chapter 3 complete review and exam practice',sourcePages:[104,105,106]},
 ] as const;
 
+const CHAPTER_3_SLIDES:RealSlideDeckSlide[]=CHAPTER_3_SLIDE_META.map(slide=>({
+  ...slide,
+  sourcePages:[...slide.sourcePages],
+  imageUrl:`/9618/presentations/chapter-03/slides/slide-${String(slide.number).padStart(2,'0')}.jpg`,
+}));
+
 const DRIVE_PPTX='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
-const DRIVE_EMBED='https://drive.google.com/file/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/preview';
+const PROJECT_PPTX='/9618/presentations/chapter-03/9618_Chapter_03_Hardware_Project_Mirror.pptx';
 
 export function realSlideDeckFor(course:string,chapter:number,topicCode:string):RealSlideDeck|null{
   if(course!=='9618'||chapter!==3)return null;
   const logic=topicCode==='3.2'||topicCode.startsWith('3.2.');
-  const slides=CHAPTER_3_SLIDES;
   return {
     id:logic?'9618-ch3-logic-real':'9618-ch3-hardware-real',
     course:'9618',
@@ -58,10 +65,12 @@ export function realSlideDeckFor(course:string,chapter:number,topicCode:string):
     subtitle:'Chapter 3 Hardware · real slide deck',
     pptxDriveUrl:DRIVE_PPTX,
     pptxFileName:'9618_Chapter_03_Hardware_Real_Deck.pptx',
-    embedUrl:DRIVE_EMBED,
-    slides:[...slides],
+    projectPptxUrl:PROJECT_PPTX,
+    projectPptxFileName:'9618_Chapter_03_Hardware_Project_Mirror.pptx',
+    slides:CHAPTER_3_SLIDES.map(slide=>({...slide,sourcePages:slide.sourcePages?[...slide.sourcePages]:undefined})),
   };
 }
 
 export const CHAPTER_3_REAL_SLIDE_COUNT=CHAPTER_3_SLIDES.length;
 export const CHAPTER_3_REAL_PPTX_DRIVE_URL=DRIVE_PPTX;
+export const CHAPTER_3_PROJECT_PPTX_URL=PROJECT_PPTX;
