@@ -526,7 +526,362 @@ const TOPIC_FRAMES: readonly CourseTopicFrame[] = [
         recap:['Explain dry run.','Explain walkthrough.','State one testing level.','Explain one reason for program maintenance.'],
       },
     ],
+  },,
+  {
+    chapter:15, topicCode:'15.1', label:'CHAPTER 15.1 PROCESSORS AND PARALLEL PROCESSING',
+    lessons:[
+      {
+        title:'How do RISC, CISC and pipelining change instruction execution?', pages:[347,348,349],
+        objectives:[
+          'Compare RISC and CISC processor design.',
+          'Explain instruction pipelining and its performance benefit.',
+          'Explain why branching and interrupts can disrupt a pipeline.',
+          'Evaluate processor-design trade-offs rather than treating one architecture as universally better.',
+        ],
+        starter:'If one processor uses a small simple instruction set and another uses fewer but more complex instructions, what changes inside the CPU and compiler?',
+        recap:['Compare RISC and CISC.','Explain a pipeline.','State one pipeline hazard/disruption.','Explain one design trade-off.'],
+      },
+      {
+        boundary:'h15-1512-sisd-simd', title:'How can processors work in parallel?', pages:[350,351,352,353],
+        objectives:[
+          'Distinguish SISD, SIMD, MISD and MIMD.',
+          'Relate each architecture to suitable processing tasks.',
+          'Explain clusters and massively parallel systems.',
+          'Evaluate communication/coordination overhead in parallel processing.',
+        ],
+        starter:'Processing millions of image pixels can repeat the same operation on many values. Which parallel model matches that pattern?',
+        recap:['Expand SISD/SIMD/MISD/MIMD.','Choose one architecture for a scenario.','Explain a cluster.','State one limitation of parallel processing.'],
+      },
+    ],
   },
+  {
+    chapter:15, topicCode:'15.2', label:'CHAPTER 15.2 BOOLEAN ALGEBRA AND LOGIC CIRCUITS',
+    lessons:[
+      {
+        title:'How do Boolean laws and adders turn logic into arithmetic?', pages:[354,355,356,357,358],
+        objectives:[
+          'Use Boolean algebra notation and core laws.',
+          'Simplify Boolean expressions using the source laws.',
+          'Explain a half adder.',
+          'Build and verify a full adder from component logic.',
+        ],
+        starter:'A circuit must add two input bits and a carry-in. Why is a half adder alone not enough?',
+        recap:['State core Boolean laws.','Simplify one expression.','Explain half-adder outputs.','Explain how a full adder handles carry-in.'],
+      },
+      {
+        boundary:'h15-1523-sr', title:'How do flip-flops store state?', pages:[359,360,361],
+        objectives:[
+          'Explain SR flip-flop behaviour.',
+          'Explain JK flip-flop behaviour.',
+          'Interpret flip-flop truth/state tables.',
+          'Relate flip-flops to memory/state applications.',
+        ],
+        starter:'Combinational logic has no memory of the previous output. What circuit property is needed to store one bit of state?',
+        recap:['Explain SR.','Explain JK.','Interpret one state transition.','Give one flip-flop use.'],
+      },
+      {
+        boundary:'h15-1524-circuit-expression', title:'How are circuits and Boolean expressions translated?', pages:[362],
+        objectives:[
+          'Derive a Boolean expression from a logic circuit.',
+          'Construct a circuit from a Boolean expression.',
+          'Use intermediate terms to control complexity.',
+          'Verify equivalence with a truth table.',
+        ],
+        starter:'If two differently drawn circuits have the same truth table, what does that tell you about their Boolean behaviour?',
+        recap:['Write an expression from a circuit.','Draw a circuit from an expression.','Use an intermediate term.','Verify equivalence.'],
+      },
+      {
+        boundary:'h15-1525-kmap-intro', title:'How do Karnaugh maps simplify Boolean logic?', pages:[363,364,365,366,367],
+        objectives:[
+          'Place truth-table outputs correctly in a Karnaugh map.',
+          'Apply adjacency and grouping rules.',
+          'Simplify three- and four-variable expressions.',
+          'Use wrap-around adjacency and select efficient groups.',
+        ],
+        starter:'Why are Karnaugh-map cells ordered so adjacent cells differ by only one input bit?',
+        recap:['State K-map grouping rules.','Simplify a 3-variable map.','Explain wrap-around adjacency.','Choose efficient groups in a 4-variable map.'],
+      },
+    ],
+  },
+  {
+    chapter:16, topicCode:'16.1', label:'CHAPTER 16.1 PURPOSES OF AN OPERATING SYSTEM',
+    lessons:[
+      {
+        title:'How does an OS allocate hardware resources?', pages:[374,375,376,377],
+        objectives:[
+          'Explain resource management and the kernel.',
+          'Explain DMA at the source level.',
+          'Explain multitasking.',
+          'Explain low-level scheduling responsibilities.',
+        ],
+        starter:'Several processes need CPU, memory and I/O at the same time. Which OS layer decides who gets what and when?',
+        recap:['Explain resource management.','Define kernel.','Explain DMA.','Explain multitasking/scheduling.'],
+      },
+      {
+        boundary:'h16-1613-process-states', title:'How are processes scheduled?', pages:[378,379,380,381,382],
+        objectives:[
+          'Explain common process states and transitions.',
+          'Explain context switching.',
+          'Compare FCFS, SJF/SRTF and round-robin scheduling.',
+          'Explain how interrupts interact with kernel scheduling.',
+        ],
+        starter:'A short urgent task arrives while a long task is running. How would different scheduling algorithms respond?',
+        recap:['Name process states.','Explain context switch.','Compare two scheduling algorithms.','Explain round-robin time slices.'],
+      },
+      {
+        boundary:'h16-1614-paging', title:'How does the OS manage memory?', pages:[383,384,385,386,387],
+        objectives:[
+          'Explain paging and segmentation.',
+          'Compare paging and segmentation.',
+          'Explain virtual memory and address translation.',
+          'Explain thrashing and why excessive paging harms performance.',
+        ],
+        starter:'A process needs more memory than the available RAM. How can it continue, and what performance cost may follow?',
+        recap:['Explain paging.','Explain segmentation.','Compare them.','Explain virtual memory and thrashing.'],
+      },
+      {
+        boundary:'h16-1616-page-replacement', title:'How are memory pages selected and managed?', pages:[388,389,390,391],
+        objectives:[
+          'Explain the need for page replacement.',
+          'Apply/compare page-replacement ideas from the source.',
+          'Connect memory management to wider OS responsibilities.',
+          'Review how scheduling, memory and resource management interact.',
+        ],
+        starter:'RAM is full and a required page is on disk. What decision must the OS make before loading it?',
+        recap:['Explain page replacement.','State one replacement consideration.','Connect paging to virtual memory.','Summarise three OS management responsibilities.'],
+      },
+    ],
+  },
+  {
+    chapter:16, topicCode:'16.2', label:'CHAPTER 16.2 VIRTUAL MACHINES',
+    lessons:[
+      {
+        title:'Why run a virtual machine?', pages:[392,393],
+        objectives:['Explain VM features.','Explain host/guest separation.','Evaluate VM benefits.','Evaluate VM limitations/overheads.'],
+        starter:'Why might one physical computer run several isolated operating systems at the same time?',
+        recap:['Define VM.','Explain host and guest.','Give two benefits.','Give one limitation.'],
+      },
+    ],
+  },
+  {
+    chapter:16, topicCode:'16.3', label:'CHAPTER 16.3 TRANSLATION SOFTWARE',
+    lessons:[
+      {
+        title:'What happens inside a compiler?', pages:[394,395,396,397,398],
+        objectives:[
+          'Compare interpreter and compiler at A Level depth.',
+          'Explain lexical analysis.',
+          'Explain syntax analysis and code generation.',
+          'Explain optimisation and its place in translation.',
+        ],
+        starter:'Before a compiler can generate machine code, how does it turn a character stream into meaningful tokens and check grammar?',
+        recap:['Compare compiler/interpreter.','Explain lexical analysis.','Explain syntax analysis.','Explain optimisation.'],
+      },
+      {
+        boundary:'h16-1633-syntax-diagrams', title:'How are programming-language grammars described?', pages:[398,399,400],
+        objectives:[
+          'Interpret syntax diagrams.',
+          'Explain Backus–Naur Form (BNF).',
+          'Translate between grammar descriptions and valid strings.',
+          'Use grammar rules to reject invalid structures.',
+        ],
+        starter:'How can a language specification precisely describe every legal form of an expression without listing them all?',
+        recap:['Interpret a syntax diagram.','Define BNF.','Generate a valid string.','Identify an invalid grammar use.'],
+      },
+      {
+        boundary:'h16-1634-rpn-stack', title:'How does Reverse Polish Notation use a stack?', pages:[400,401],
+        objectives:[
+          'Explain infix versus RPN notation.',
+          'Evaluate an RPN expression using a stack.',
+          'Explain why operator precedence brackets are unnecessary in RPN.',
+          'Trace push/pop operations during evaluation.',
+        ],
+        starter:'Why can the expression “3 4 + 5 ×” be evaluated without brackets or precedence rules?',
+        recap:['Convert/explain one RPN expression.','Trace the stack.','State one RPN advantage.','Explain operator application order.'],
+      },
+    ],
+  },
+  {
+    chapter:17, topicCode:'17.1', label:'CHAPTER 17.1 ENCRYPTION',
+    lessons:[
+      {
+        title:'How does encryption protect confidentiality?', pages:[410,411,412,413],
+        objectives:[
+          'Explain plaintext, ciphertext and keys.',
+          'Explain symmetric encryption and its key-distribution problem.',
+          'Explain asymmetric encryption with public/private keys.',
+          'Compare symmetric and asymmetric approaches for a scenario.',
+        ],
+        starter:'If two people share one secret key securely, encryption is straightforward. What changes when they have never met?',
+        recap:['Define plaintext/ciphertext.','Explain symmetric encryption.','Explain asymmetric encryption.','Compare key distribution.'],
+      },
+    ],
+  },
+  {
+    chapter:17, topicCode:'17.2', label:'CHAPTER 17.2 QUANTUM CRYPTOGRAPHY',
+    lessons:[
+      {
+        title:'How can quantum behaviour reveal interception?', pages:[414,415],
+        objectives:['Explain the source quantum-cryptography principles.','Explain QKD stages.','Explain why measurement can reveal eavesdropping.','State practical purpose/limitations at syllabus depth.'],
+        starter:'What if observing a transmitted key necessarily changes the evidence received by the legitimate parties?',
+        recap:['Explain QKD purpose.','State the key quantum principle.','Explain eavesdrop detection.','State one limitation.'],
+      },
+    ],
+  },
+  {
+    chapter:17, topicCode:'17.3', label:'CHAPTER 17.3 PROTOCOLS',
+    lessons:[
+      {
+        title:'How do SSL/TLS establish a protected connection?', pages:[416,417,418],
+        objectives:['Explain SSL/TLS purpose.','Describe the handshake at source depth.','Explain certificates/PKI in authentication.','Relate session protection to encryption keys.'],
+        starter:'Before sending confidential web data, how can a browser gain confidence that it is talking to the intended server?',
+        recap:['Explain TLS purpose.','Outline handshake stages.','Explain PKI.','State the role of a certificate.'],
+      },
+    ],
+  },
+  {
+    chapter:17, topicCode:'17.4', label:'CHAPTER 17.4 DIGITAL SIGNATURES AND CERTIFICATES',
+    lessons:[
+      {
+        title:'How are authenticity and integrity proven?', pages:[418,419,420,421],
+        objectives:['Explain hashes/message digests in signatures.','Explain digital signatures.','Explain digital certificates.','Explain the risk/meaning of self-signed certificates.'],
+        starter:'Encryption can hide a message, but how can a recipient detect modification and verify who signed it?',
+        recap:['Explain digest.','Explain digital signature.','Explain certificate.','Explain self-signed trust issue.'],
+      },
+    ],
+  },
+  {
+    chapter:18, topicCode:'18.1', label:'CHAPTER 18.1 SHORTEST PATH ALGORITHMS',
+    lessons:[
+      {
+        title:'How does Dijkstra’s algorithm find a shortest path?', pages:[425,426,427,428],
+        objectives:['Explain tentative distances.','Select the next unvisited node correctly.','Update neighbouring distances.','Trace the complete Dijkstra worked route.'],
+        starter:'If every road has a non-negative cost, how can we grow a set of nodes whose shortest distance is already known?',
+        recap:['State Dijkstra steps.','Update one neighbour.','Choose the next node.','Reconstruct a route.'],
+      },
+      {
+        boundary:'h18-1812-astar-heuristic', title:'How does A* use a heuristic to search more directly?', pages:[429,430,431,432,433,434],
+        objectives:['Explain g, h and f values.','Explain the role of a heuristic.','Trace the source A* route.','Compare A* with Dijkstra conceptually.'],
+        starter:'How can an estimate of remaining distance guide a search toward the destination without ignoring cost already paid?',
+        recap:['Define g/h/f.','Explain heuristic.','Trace one A* choice.','Compare with Dijkstra.'],
+      },
+    ],
+  },
+  {
+    chapter:18, topicCode:'18.2', label:'CHAPTER 18.2 AI, MACHINE LEARNING AND DEEP LEARNING',
+    lessons:[
+      {
+        title:'How are AI and machine-learning approaches organised?', pages:[435,436,437,438,439],
+        objectives:['Explain the AI/ML/deep-learning hierarchy.','Explain labelled data.','Distinguish supervised and unsupervised learning.','Explain reinforcement/active-learning ideas from the source.'],
+        starter:'If a model is given thousands of labelled examples, which learning approach is that most consistent with?',
+        recap:['Explain AI→ML→DL relationship.','Define labelled data.','Compare supervised/unsupervised.','Explain reinforcement learning.'],
+      },
+      {
+        boundary:'h18-1823-neural-networks', title:'How do neural networks learn representations?', pages:[439,440,441,442,443],
+        objectives:['Explain a neural-network model at syllabus depth.','Explain deep-learning workflow.','Relate networks to applications.','Compare approaches and discuss future implications from the source.'],
+        starter:'Why can adding hidden layers allow a model to learn progressively more complex features?',
+        recap:['Explain neuron/layer idea.','Define deep learning.','Give two applications.','State one comparison/limitation.'],
+      },
+      {
+        boundary:'h18-1826-backprop', title:'How are network parameters adjusted?', pages:[444,445],
+        objectives:['Explain backpropagation at syllabus depth.','Explain error-driven weight adjustment.','Explain the regression example in the source.','Connect training data, loss/error and updated parameters.'],
+        starter:'A network prediction is too high. What information must flow backward before its weights can be adjusted?',
+        recap:['Explain backpropagation.','Explain weight update purpose.','Explain regression example.','Connect error to learning.'],
+      },
+    ],
+  },
+  {
+    chapter:19, topicCode:'19.1', label:'CHAPTER 19.1 ALGORITHMS',
+    lessons:[
+      {
+        title:'How do linear and binary search differ?', pages:[451,452,453,454,455,456,457],
+        objectives:['Trace linear search.','Trace binary search.','Explain binary-search ordering requirement.','Compare search efficiency qualitatively.'],
+        starter:'Why can binary search discard half the remaining values only when the data is ordered?',
+        recap:['Trace linear search.','Trace binary search.','State binary-search precondition.','Compare search behaviour.'],
+      },
+      {
+        boundary:'h19-1912-bubble-sort', title:'How do bubble and insertion sort build order?', pages:[458,459,460,461,462,463],
+        objectives:['Trace bubble sort.','Trace insertion sort.','Explain compare/swap versus insertion.','Compare their operation on a small list.'],
+        starter:'One sort repeatedly swaps neighbours; another grows a sorted prefix. Which is which?',
+        recap:['Trace bubble pass.','Trace insertion step.','Compare algorithms.','State one stopping condition.'],
+      },
+      {
+        boundary:'h19-1913-stack', title:'How are stacks, queues and linked lists implemented?', pages:[464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480],
+        objectives:['Implement/trace stack operations.','Implement/trace queue operations.','Trace linked-list find/insert/delete.','Explain pointer/link updates that preserve structure.'],
+        starter:'Why does deleting a linked-list node require pointer changes even when no array cells are shifted?',
+        recap:['Trace stack.','Trace queue.','Trace linked-list insertion.','Explain deletion pointer update.'],
+      },
+      {
+        boundary:'h19-1913-binary-tree-model', title:'How do trees and graphs represent relationships?', pages:[481,482,483,484,485,486,487],
+        objectives:['Explain binary-tree node relationships.','Trace binary-tree find and insert.','Explain graph representation at source depth.','Choose an appropriate structure for a scenario.'],
+        starter:'What structural rule lets a binary search tree decide whether to move left or right?',
+        recap:['Define root/child/leaf.','Trace tree search.','Trace insertion.','Explain one graph use.'],
+      },
+      {
+        boundary:'h19-1914-adt-from-adt', title:'How are ADTs composed and how is efficiency described?', pages:[488,489,490],
+        objectives:['Explain building one ADT from another.','Explain a dictionary/map ADT.','Explain Big-O time complexity.','Explain Big-O space complexity.'],
+        starter:'Two algorithms return the same result. What notation helps describe how their resource use grows as input size increases?',
+        recap:['Give one composed-ADT example.','Explain dictionary.','Define time complexity.','Define space complexity.'],
+      },
+    ],
+  },
+  {
+    chapter:19, topicCode:'19.2', label:'CHAPTER 19.2 RECURSION',
+    lessons:[
+      {
+        title:'How does recursion solve a problem using smaller versions of itself?', pages:[490,491,492,493,494],
+        objectives:['Explain recursive calls and base cases.','Trace factorial recursion.','Trace additional recursive examples.','Explain the compiler/runtime call stack used by recursion.'],
+        starter:'What prevents a recursive function from calling itself forever?',
+        recap:['Define recursion.','Define base case.','Trace factorial.','Explain call stack.'],
+      },
+    ],
+  },
+  {
+    chapter:20, topicCode:'20.1', label:'CHAPTER 20.1 PROGRAMMING PARADIGMS',
+    lessons:[
+      {
+        title:'How do low-level and imperative paradigms express computation?', pages:[499,500],
+        objectives:['Explain low-level programming characteristics.','Explain imperative programming.','Relate statements/state changes to algorithm execution.','Compare abstraction levels.'],
+        starter:'What changes when a programmer writes instructions close to hardware versus describing operations with high-level statements?',
+        recap:['Explain low-level.','Explain imperative.','Compare abstraction.','Give one suitable use.'],
+      },
+      {
+        boundary:'h20-2013-oop-foundations', title:'How do classes, objects, hiding and inheritance model software?', pages:[501,502,503,504,505,506,507,508,509],
+        objectives:['Explain class/object foundations.','Implement/interpret class structures in source languages.','Explain data hiding/encapsulation.','Explain inheritance.'],
+        starter:'Several object types share common data and behaviour. How can inheritance reduce duplication while preserving specialised features?',
+        recap:['Define class/object.','Explain encapsulation.','Explain inheritance.','Identify one class relationship.'],
+      },
+      {
+        boundary:'h20-2013-polymorphism-overloading', title:'How do advanced OOP relationships change behaviour?', pages:[510,511,512,513,514,515,516,517,518,519,520],
+        objectives:['Explain polymorphism/overloading at source depth.','Explain containment/composition.','Explain accessors and object lifecycle ideas.','Apply OOP to the binary-tree example.'],
+        starter:'How can different object types respond to the same operation while keeping type-specific behaviour?',
+        recap:['Explain polymorphism.','Explain containment.','Explain accessor purpose.','Relate classes to binary-tree nodes.'],
+      },
+      {
+        boundary:'h20-2014-declarative', title:'How does declarative programming differ from imperative code?', pages:[521,522,523,524],
+        objectives:['Explain declarative programming.','Interpret Prolog facts and queries.','Interpret/write simple Prolog rules.','Compare declarative and imperative approaches.'],
+        starter:'What if a program describes facts and relationships, then asks the system to find values that satisfy them?',
+        recap:['Define declarative.','Write/read a fact.','Write/read a rule.','Compare with imperative.'],
+      },
+    ],
+  },
+  {
+    chapter:20, topicCode:'20.2', label:'CHAPTER 20.2 FILE PROCESSING AND EXCEPTION HANDLING',
+    lessons:[
+      {
+        title:'How are structured records stored, read and updated in files?', pages:[525,526,527,528,529,530,531,532,533,534,535],
+        objectives:['Explain record-file processing.','Use put/get record operations from the source.','Explain sequential update.','Explain random-access read/write.'],
+        starter:'A large file stores fixed records and one record must be updated without rewriting every earlier record. Which access approach helps?',
+        recap:['Explain record file.','Explain put/get.','Explain sequential update.','Explain random access.'],
+      },
+      {
+        boundary:'h20-2022-exception-concept', title:'How should programs handle exceptional conditions?', pages:[536,537,538,539,540],
+        objectives:['Explain exceptions.','Interpret language exception handlers.','Handle file-related exceptions safely.','Explain why controlled error handling is preferable to an uncontrolled crash.'],
+        starter:'A program tries to open a missing file. How can it recover or report the problem without terminating unexpectedly?',
+        recap:['Define exception.','Explain handler.','Give one file exception.','Explain safe recovery.'],
+      },
+    ],
+  }
 ];
 
 const key=(chapter:number,topicCode:string)=>`${chapter}:${topicCode}`;
