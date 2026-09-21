@@ -212,7 +212,7 @@ export class LiveExamService {
     actor: Actor,
     input: CreateLiveExamInput,
     requireExact = true,
-    seed = randomUUID(),
+    seed: string = randomUUID(),
     excludeSessionId?: string,
   ) {
     // Keep the ordering seed first and bind the class ID for both
