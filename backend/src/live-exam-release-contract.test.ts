@@ -32,6 +32,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));');
   });
 
+  it('discovers published class challenges for students without leaking room codes',()=>{
+    expect(service).toContain("les.status in ('published','lobby','question_open','answers_locked','marking','review')");
+    expect(service).toContain('select 1 from enrollments e');
+    expect(service).toContain("joinCode: actor.role === 'student' ? null : row.join_code");
+    expect(service).toContain('joined: Boolean(row.joined)');
+  });
+
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
     expect(service).toContain("where les.join_code=$1 and (");
@@ -79,6 +86,10 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(board).not.toContain('ownAnswer');
     expect(board).not.toContain('review:');
     expect(board).not.toContain('report:');
+  });
+
+  it('fails closed before persistence when a peer round has fewer than two answers',()=>{
+    expect(service).toContain("if (ordered.length < 2) throw new DomainError('live_peer_assignment_impossible', 409)");
   });
 
   it('keeps peer mode structurally incapable of self marking',()=>{
