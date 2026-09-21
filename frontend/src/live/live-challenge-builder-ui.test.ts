@@ -25,6 +25,9 @@ describe('canonical Live Challenge builder UI',()=>{
     expect(builder).toContain('questionOrder,timingMode');
     expect(builder).toContain('autoCloseWhenAllSubmitted:autoClose');
     expect(builder).toContain('teacherOverrideEnabled,displayNameMode');
+    expect(builder).toContain('requestedQuestionIds:string[]');
+    expect(builder).toContain("const selectedIds=draft?.requestedQuestionIds??[]");
+    expect(builder).toContain('Majburiy dependency');
   });
 
   it('exposes the runtime policy controls instead of hard-coding hidden settings',()=>{

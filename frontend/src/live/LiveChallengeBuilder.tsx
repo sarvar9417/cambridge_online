@@ -34,7 +34,8 @@ type BuilderDraft = {
   markingMode:LiveExamMarkingMode;
   version:number;
   settings:Record<string,unknown>;
-  questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
+  requestedQuestionIds:string[];
+  questions:Array<{id:string;position:number;marks:number;displayRef:string;isRequested:boolean}>;
 };
 
 type EligibleQuestion = {
@@ -147,7 +148,7 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
 
   const selectedClass=options?.classes.find((item)=>item.id===classId)??null;
   const selectedTopic=options?.topics.find((item)=>item.id===topicId)??null;
-  const selectedIds=draft?.questions.map((item)=>item.id)??[];
+  const selectedIds=draft?.requestedQuestionIds??[];
   const eligibleMap=useMemo(()=>new Map(eligible.map((item)=>[item.id,item])),[eligible]);
 
   const changeClass=async(next:string)=>{
@@ -197,7 +198,8 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
     void replaceQuestions([...selectedIds,questionId]);
   };
   const removeQuestion=(questionId:string)=>void replaceQuestions(selectedIds.filter((id)=>id!==questionId));
-  const moveQuestion=(index:number,direction:-1|1)=>{
+  const moveQuestion=(questionId:string,direction:-1|1)=>{
+    const index=selectedIds.indexOf(questionId);if(index<0)return;
     const target=index+direction;if(target<0||target>=selectedIds.length)return;
     const next=[...selectedIds];[next[index],next[target]]=[next[target]!,next[index]!];
     void replaceQuestions(next);
@@ -236,7 +238,7 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
     finally{setBusy(false);}
   };
   const publish=async()=>{
-    if(!draft||!draft.questions.length||busy)return;setBusy(true);setError('');
+    if(!draft||!selectedIds.length||busy)return;setBusy(true);setError('');
     try{
       await api(`/live-exams/${draft.id}/publish`,{
         method:'POST',body:JSON.stringify({expectedVersion:draft.version}),
@@ -276,13 +278,15 @@ export function LiveChallengeBuilder({draftId,user}:{draftId:string;user:User}) 
   if(!draft)return <div className="live-page"><p className="live-error">{error||'Qoralama topilmadi.'}</p><button onClick={()=>navigate('oqitish/live')}>Ortga</button></div>;
 
   return <div className="live-page live-landing">
-    <header className="live-page-head"><div><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Ortga"><ArrowLeft/></button><span className="live-eyebrow">DRAFT · v{draft.version}</span><h1>{draft.title}</h1><p>{draft.className} · {draft.syllabusCode} · savollarni canonical tartibda tayyorlang.</p></div><button className="live-start" disabled={busy||!draft.questions.length} onClick={()=>void publish()}><CheckCircle/> Publish</button></header>
+    <header className="live-page-head"><div><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Ortga"><ArrowLeft/></button><span className="live-eyebrow">DRAFT · v{draft.version}</span><h1>{draft.title}</h1><p>{draft.className} · {draft.syllabusCode} · majburiy oldingi qismlar canonical tartibda avtomatik qo‘shiladi.</p></div><button className="live-start" disabled={busy||!selectedIds.length} onClick={()=>void publish()}><CheckCircle/> Publish</button></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     <div className="live-create">
       <section className="live-create-main"><span className="live-step">1</span><div><h2>Tanlangan savollar</h2><p>Bu tartib classroom round tartibi bo‘ladi.</p></div>
         {!draft.questions.length?<p className="live-empty">Hali savol tanlanmagan.</p>:<div className="live-session-list">{draft.questions.map((question,index)=>{
           const details=eligibleMap.get(question.id);
-          return <article key={question.id} className="live-answer-box"><header><span>#{index+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></header><p>{details?.stem??'Canonical savol snapshotga tayyor.'}</p><div className="live-room-actions"><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||index===0} onClick={()=>moveQuestion(index,-1)}><ArrowUp/> Yuqoriga</button><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||index===draft.questions.length-1} onClick={()=>moveQuestion(index,1)}><ArrowDown/> Pastga</button><button type="button" className="live-danger" disabled={busy} onClick={()=>removeQuestion(question.id)}><Trash/> Olib tashlash</button></div></article>;
+          const requestedIndex=selectedIds.indexOf(question.id);
+          const requested=requestedIndex>=0;
+          return <article key={question.id} className="live-answer-box"><header><span>#{index+1}</span><strong>{question.displayRef}</strong><b>{question.marks} ball</b></header><p>{requested?(details?.stem??'Canonical savol snapshotga tayyor.'):'Majburiy oldingi qism — tanlangan Cambridge savoli to‘liq ma’noda bajarilishi uchun avtomatik qo‘shildi.'}</p><div className="live-room-actions">{requested?<><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||requestedIndex===0} onClick={()=>moveQuestion(question.id,-1)}><ArrowUp/> Yuqoriga</button><button type="button" className="live-secondary" disabled={busy||questionOrder==='shuffled'||requestedIndex===selectedIds.length-1} onClick={()=>moveQuestion(question.id,1)}><ArrowDown/> Pastga</button><button type="button" className="live-danger" disabled={busy} onClick={()=>removeQuestion(question.id)}><Trash/> Olib tashlash</button></>:<span className="live-state">Majburiy dependency</span>}</div></article>;
         })}</div>}
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>Auto selection</h2><p>Draft ID seed’i bilan deterministic tanlov.</p><label>Savollar soni<input type="number" min={1} max={20} value={autoCount} onChange={(event)=>setAutoCount(Number(event.target.value))}/></label><button type="button" disabled={busy} onClick={()=>void autoSelect()}><Shuffle/> Avtomatik tanlash</button><small>Auto selection mavjud manual tanlovni almashtiradi.</small></aside>
