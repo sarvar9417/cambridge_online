@@ -7,12 +7,23 @@ const studentCard=readFileSync(resolve(process.cwd(),'src/student/StudentLiveCha
 
 describe('unified Live Challenge classroom controls',()=>{
   it('shows published class challenges on the student dashboard without bypassing code join',()=>{
-    expect(studentCard).toContain("const UPCOMING_STATUS = new Set(['published','lobby'])");
+    expect(studentCard).toContain("const UPCOMING_STATUS = new Set(['published','lobby','question_open'])");
     expect(studentCard).toContain("session.joined===true");
     expect(studentCard).toContain("session.joined!==true");
     expect(studentCard).toContain("'Kodni kiritish'");
   });
 
+  it('keeps unjoined students on the code-join flow and caps manual roots at twenty',()=>{
+    expect(page).toContain("session.joined===true");
+    expect(page).toContain("'oquvchi/live'");
+    expect(page).toContain('selectedQuestionIds.length>=20');
+  });
+
+  it('uses the same diagram and seen-question filters for manual eligibility and draft creation',()=>{
+    expect(page).toContain('includeDiagrams:String(includeDiagrams)');
+    expect(page).toContain('excludeSeen:String(excludeSeen)');
+    expect(page).toContain("markingMode:data.get('markingMode'),includeDiagrams,excludeSeen");
+  });
   it('exposes the classroom settings on the canonical Live Exam creator',()=>{
     expect(page).toContain('name="allowLateJoin"');
     expect(page).toContain('name="autoCloseWhenAllSubmitted"');
@@ -43,6 +54,11 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('expectedVersion:snapshot.session.version');
   });
 
+  it('exposes teacher moderation after peer or self results when overrides are enabled',()=>{
+    expect(page).toContain("session.markingMode==='teacher'||session.settings.teacherOverrideEnabled");
+    expect(page).toContain("'Bahoni yangilash'");
+    expect(page).toContain('TeacherAnswerMarker');
+  });
   it('offers a teacher-marking recovery path when peer marking cannot safely start',()=>{
     expect(page).toContain("act('/marking-mode',{mode:'teacher',expectedVersion:session.version})");
     expect(page).toContain('O‘qituvchi baholashiga o‘tish');
@@ -63,6 +79,10 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('type LiveExamBoardSnapshot');
   });
 
+  it('blocks answer submission in the browser when the visible timer reaches zero',()=>{
+    expect(page).toContain('remaining===0');
+    expect(page).toContain("remaining===0?'Vaqt tugadi'");
+  });
   it('blocks student work and projector disclosure while paused',()=>{
     expect(page).toContain("if(session.pausedAt)return");
     expect(page).toContain("!session.pausedAt?<>");
