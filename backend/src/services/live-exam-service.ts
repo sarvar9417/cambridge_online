@@ -647,7 +647,10 @@ export class LiveExamService {
     const rootQuestionIds = stringList(settings.selectedQuestionIds);
     if (!rootQuestionIds.length) throw new DomainError('live_no_questions', 409);
 
-    const input = this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds);
+    const input = {
+      ...this.draftSelectionInput(draft, rootQuestionIds.length, rootQuestionIds),
+      questionOrder: settings.questionOrder === 'shuffled' ? 'shuffled' as const : 'fixed' as const,
+    };
     const validatedRoots = await this.chooseQuestionIds(actor, input, true, sessionId, sessionId);
     const { expandedQuestionIds, snapshots } = await this.snapshotSelection(actor, input, validatedRoots);
 
@@ -862,7 +865,13 @@ export class LiveExamService {
              where lep.session_id=les.id and lep.student_id=$2
            )
            or (
-             les.status in ('published','lobby','question_open','answers_locked','marking','review')
+             (
+               les.status in ('published','lobby')
+               or (
+                 les.status='question_open'
+                 and coalesce((les.settings->>'allowLateJoin')::boolean,false)
+               )
+             )
              and exists(
                select 1 from enrollments e
                where e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
@@ -897,15 +906,34 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-         where les.join_code=$1 and (
-           les.status='lobby'
-           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
-         )
+         where les.join_code=$1
          for update of les`,
         [code, actor.id],
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
       const session = room.rows[0];
+      const existing = await client.query(
+        `select id,session_id from live_exam_participants
+         where session_id=$1 and student_id=$2 and left_at is null
+         for update`,
+        [session.id, actor.id],
+      );
+      if (existing.rowCount) {
+        await client.query(
+          'update live_exam_participants set last_seen_at=now() where id=$1',
+          [existing.rows[0].id],
+        );
+        await client.query('commit');
+        return {
+          sessionId: existing.rows[0].session_id,
+          participantId: existing.rows[0].id,
+          idempotent: true,
+        };
+      }
+      const joinable = session.status === 'lobby'
+        || (session.status === 'question_open'
+          && this.settings(session.settings).allowLateJoin);
+      if (!joinable) throw new DomainError('live_code_not_found', 404);
       const result = await client.query(
         `insert into live_exam_participants(session_id,student_id,left_at,last_seen_at)
          values($1,$2,null,now())
@@ -1035,7 +1063,11 @@ export class LiveExamService {
           [sessionId, Number(session.current_question_index)],
         ),
     ]);
-    const currentRow = questionRows.rows.find((row) => Number(row.position) === Number(session.current_question_index));
+    const currentRowCandidate = questionRows.rows.find(
+      (row) => Number(row.position) === Number(session.current_question_index),
+    );
+    const studentQuestionVisible = !['draft','published','lobby'].includes(String(session.status));
+    const currentRow = isStaff || studentQuestionVisible ? currentRowCandidate : undefined;
     const reveal = ['marking', 'review', 'finished'].includes(String(session.status));
     const dependencyWork = currentRow ? await this.pool.query(
       `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
