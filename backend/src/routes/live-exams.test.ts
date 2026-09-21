@@ -150,6 +150,19 @@ describe('live exam routes', () => {
     expect(revealMarkScheme).toHaveBeenCalledWith(student,session,8);
   });
 
+  it('turns a service peer-integrity rejection into the same recoverable conflict', async () => {
+    const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
+      new Error('live_peer_assignment_impossible'),
+      { code:'live_peer_assignment_impossible',status:409 },
+    ));
+    const response=await request(appFor({revealMarkScheme}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:7})
+      .expect(409);
+    expect(response.body.error.code).toBe('live_peer_assignment_impossible');
+    expect(response.body.error.message).toContain('kamida ikki');
+  });
+
   it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
       new Error('live_peer_assignment_impossible'),
