@@ -62,6 +62,25 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409)");
   });
 
+  it('separates answer locking from Mark Scheme reveal',()=>{
+    expect(service).toContain("set status='answers_locked',answers_locked_at=now(),mark_scheme_revealed_at=null");
+    expect(service).toContain("'answers.locked'");
+    expect(service).toContain("if (session.status !== 'answers_locked' || session.paused_at)");
+    expect(service).toContain("set status='marking',mark_scheme_revealed_at=now()");
+  });
+
+  it('projects projector state through an explicit learner-safe allow-list',()=>{
+    const board=service.slice(service.indexOf('async board('),service.indexOf('private async reviewFor'));
+    expect(board).toContain("joinCode: session.status === 'lobby' ? session.joinCode : null");
+    expect(board).toContain("question: session.status === 'question_open' ? snapshot.question : null");
+    expect(board).toContain("markScheme: session.status === 'marking' ? snapshot.markScheme : null");
+    expect(board).not.toContain('participants:');
+    expect(board).not.toContain('teacherAnswers');
+    expect(board).not.toContain('ownAnswer');
+    expect(board).not.toContain('review:');
+    expect(board).not.toContain('report:');
+  });
+
   it('keeps peer mode structurally incapable of self marking',()=>{
     expect(peerIntegrity).toContain("session_marking_mode = 'peer'");
     expect(peerIntegrity).toContain("NEW.kind <> 'peer'");
