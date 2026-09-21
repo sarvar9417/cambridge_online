@@ -190,7 +190,7 @@ function RepeatGrade({reveal}:{reveal:number}){
   return <div className="h9alg h9alg-repeat-grade" aria-label="Repeated grade processing control flow visual">
     <div className="h9alg-repeat-route">{steps.map((step,index)=><span className={state(reveal,index<2?1:index<4?2:3)} key={step}>{step}</span>)}</div>
     <div className={'h9alg-repeat-decision '+state(reveal,3)}><b>Reply = "Y" ?</b><span>YES → return to mark input</span><span>NO → END</span></div>
-    <footer className={state(reveal,3)}>Activity 9H extends a one-mark solution into repeated processing.</footer>
+    <footer className={state(reveal,3)}>ACTIVITY 9H extends a one-mark solution into repeated processing.</footer>
   </div>;
 }
 
