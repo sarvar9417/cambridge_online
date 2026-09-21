@@ -10,11 +10,21 @@ ALTER TABLE live_exam_learning_evidence
   ALTER COLUMN learning_objective_id DROP NOT NULL;
 
 ALTER TABLE live_exam_learning_evidence
-  ADD COLUMN mapping_basis text NOT NULL DEFAULT 'legacy_lo';
+  ADD COLUMN IF NOT EXISTS mapping_basis text NOT NULL DEFAULT 'legacy_lo';
 
-ALTER TABLE live_exam_learning_evidence
-  ADD CONSTRAINT live_exam_learning_evidence_mapping_basis_check
-  CHECK (mapping_basis IN ('legacy_lo','direct_lo','reviewed_compatibility','stable_subtopic'));
+DO $migration$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='live_exam_learning_evidence_mapping_basis_check'
+      AND conrelid='live_exam_learning_evidence'::regclass
+  ) THEN
+    ALTER TABLE live_exam_learning_evidence
+      ADD CONSTRAINT live_exam_learning_evidence_mapping_basis_check
+      CHECK (mapping_basis IN ('legacy_lo','direct_lo','reviewed_compatibility','stable_subtopic'));
+  END IF;
+END
+$migration$;
 
 ALTER TABLE live_exam_learning_evidence
   DROP CONSTRAINT IF EXISTS live_exam_learning_evidence_answer_id_learning_objective_id_key;
