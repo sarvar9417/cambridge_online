@@ -181,3 +181,13 @@ export interface LiveExamSnapshot {
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
+export interface LiveExamBoardSnapshot {
+  session:{
+    id:string;title:string;className:string;status:LiveExamStatus;version:number;joinCode:string|null;
+    currentQuestionIndex:number;questionCount:number;participantCount:number;submittedCount:number;
+    reviewCount:number;reviewedCount:number;deadline:string|null;serverNow:string;
+    pausedAt:string|null;pauseRemainingS:number|null;
+  };
+  question:LiveExamQuestion|null;
+  markScheme:LiveMarkScheme|null;
+}
