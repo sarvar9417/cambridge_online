@@ -372,6 +372,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setDirty(false);
   },[snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.question?.id]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setFeedback('')},[snapshot.review?.id]);
+  useEffect(()=>{setError('')},[snapshot.question?.id,session.status]);
   useEffect(()=>{
     if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
     window.clearTimeout(saveTimer.current);
