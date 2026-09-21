@@ -27,6 +27,13 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('/participants/${studentId}/remove');
   });
 
+  it('separates answer lock from Mark Scheme reveal in the classroom UI',()=>{
+    expect(page).toContain("act('/lock',{expectedVersion:session.version})");
+    expect(page).toContain("session.status==='answers_locked'");
+    expect(page).toContain("act('/reveal',{expectedVersion:session.version})");
+    expect(page).toContain('Official Mark Scheme hali hech kimga ko‘rsatilmagan.');
+  });
+
   it('blocks student work and projector disclosure while paused',()=>{
     expect(page).toContain("if(session.pausedAt)return");
     expect(page).toContain("!session.pausedAt?<>");
