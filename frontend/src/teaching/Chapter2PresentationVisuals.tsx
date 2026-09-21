@@ -2,7 +2,9 @@ import type { LessonPresentationBeat } from './lesson-experience-model';
 import './chapter2-presentation-visuals.css';
 
 const VISUAL_IDS=['h2-overview','h2-21-infra','h2-21-benefits','h2-21-drawbacks','h2-212-client-server','h2-212-p2p','h2-212-comparison','h2-213-topologies','h2-214-sizes','h2-215-cloud','h2-215-cloud-storage','h2-216-wired','h2-216-attenuation','h2-216-fibre-modes','h2-216-wireless','h2-216-spread-spectrum','h2-216-wnic','h2-217-devices'] as const;
-const FRAME_IDS=['h2n-l1-cover','h2n-l1-objectives','h2n-l1-starter','h2n-l1-recap','h2n-l2-cover','h2n-l2-objectives','h2n-l2-starter','h2n-l2-recap','h2n-l3-cover','h2n-l3-objectives','h2n-l3-starter','h2n-l3-recap','h2n-l4-cover','h2n-l4-objectives','h2n-l4-starter','h2n-l4-recap','h2n-reference-appendix'] as const;
+const NETWORKING_FRAME_IDS=['h2n-l1-cover','h2n-l1-objectives','h2n-l1-starter','h2n-l1-recap','h2n-l2-cover','h2n-l2-objectives','h2n-l2-starter','h2n-l2-recap','h2n-l3-cover','h2n-l3-objectives','h2n-l3-starter','h2n-l3-recap','h2n-l4-cover','h2n-l4-objectives','h2n-l4-starter','h2n-l4-recap','h2n-reference-appendix'] as const;
+const INTERNET_FRAME_IDS=['h2i-l1-cover','h2i-l1-objectives','h2i-l1-starter','h2i-l1-recap','h2i-l2-cover','h2i-l2-objectives','h2i-l2-starter','h2i-l2-recap','h2i-l3-cover','h2i-l3-objectives','h2i-l3-starter','h2i-l3-recap','h2i-l4-cover','h2i-l4-objectives','h2i-l4-starter','h2i-l4-recap','h2i-reference-appendix'] as const;
+const FRAME_IDS=[...NETWORKING_FRAME_IDS,...INTERNET_FRAME_IDS] as const;
 export const CHAPTER_2_SOURCE_VISUAL_SLIDES=[...VISUAL_IDS];
 export function hasChapter2PresentationVisual(beat:LessonPresentationBeat){return FRAME_IDS.includes(beat.id as never)||CHAPTER_2_SOURCE_VISUAL_SLIDES.includes(beat.slideId as never);}
 const Panel=({title,children}:{title:string;children:React.ReactNode})=><section className="h2pv-panel"><b>{title}</b>{children}</section>;
@@ -22,13 +24,18 @@ function Wireless(){return <div className="h2pv-wireless"><div className="wap"><
 function FrequencyHop(){return <div className="h2pv-hop"><header>spread spectrum frequency hopping</header>{['f₁','f₂','f₃','f₄','f₅'].map((f,i)=><div key={f}><b>{f}</b><span style={{width:`${20+i*14}%`}}/></div>)}<footer>rapid channel changes → reduced interference between nearby Bluetooth pairs</footer></div>}
 function Wnic(){return <div className="h2pv-mode"><Panel title="INFRASTRUCTURE MODE"><div className="mode-map"><span>DEVICE</span><i>→</i><strong>WAP</strong><i>→</i><span>HUB / SWITCH</span></div><small>same security + authentication · WAP required</small></Panel><Panel title="AD-HOC MODE"><div className="mode-map"><span>DEVICE</span><i>↔</i><span>DEVICE</span></div><small>direct communication · no WAP</small></Panel></div>}
 function Devices(){return <div className="h2pv-devices">{[['HUB','broadcasts to every port'],['SWITCH','forwards using destination'],['ROUTER','connects networks / chooses route'],['BRIDGE','connects LAN segments'],['GATEWAY','connects unlike systems'],['NIC / WNIC','device network interface']].map(([a,b])=><Panel key={a} title={a}><p>{b}</p></Panel>)}</div>}
-const lessonNames=['Network foundations','Cloud, media and wireless','Network hardware','Ethernet and streaming'];
+const networkingLessonNames=['Network foundations','Cloud, media and wireless','Network hardware','Ethernet and streaming'];
+const internetLessonNames=['Internet and communication','IPv4, CIDR and IPv6','Subnetting and address scope','URL, DNS and web scripting'];
 function LessonFrame({beat}:{beat:LessonPresentationBeat}){
-  const match=beat.id.match(/^h2n-l(\d)-/);const active=match?Number(match[1]):0;const stage=beat.id.split('-').at(-1);
-  return <div className={`h2pv-session h2pv-session--${stage}`}>
+  const match=beat.id.match(/^h2([ni])-l(\d)-/);
+  const track=match?.[1]??'n';
+  const active=match?Number(match[2]):0;
+  const stage=beat.id.split('-').at(-1);
+  const lessonNames=track==='i'?internetLessonNames:networkingLessonNames;
+  return <div className={`h2pv-session h2pv-session--${stage}`} data-track={track==='i'?'internet':'networking'}>
     <div className="h2pv-session-map">{lessonNames.map((name,index)=><section className={active===index+1?'active':''} key={name}><span>{index+1}</span><div><small>LESSON {index+1}</small><strong>{name}</strong></div></section>)}</div>
-    <div className="h2pv-session-network" aria-hidden="true"><span className="computer">CLIENT</span><i/><span className="switch">SWITCH</span><i/><span className="router">ROUTER</span><i/><span className="cloud">NETWORK</span><b className="packet">DATA</b></div>
-    <footer>{beat.id==='h2n-reference-appendix'?'Optional source-completeness reference':'45–55 minutes · explanation · guided practice · retrieval'}</footer>
+    <div className="h2pv-session-network" aria-hidden="true"><span className="computer">{track==='i'?'BROWSER':'CLIENT'}</span><i/><span className="switch">{track==='i'?'DNS':'SWITCH'}</span><i/><span className="router">ROUTER</span><i/><span className="cloud">{track==='i'?'INTERNET':'NETWORK'}</span><b className="packet">DATA</b></div>
+    <footer>{beat.id.endsWith('reference-appendix')?'Optional source-completeness reference':'45–55 minutes · explanation · guided practice · retrieval'}</footer>
   </div>;
 }
 export function Chapter2PresentationVisual({beat}:{beat:LessonPresentationBeat;reveal:number}){if(FRAME_IDS.includes(beat.id as never))return <LessonFrame beat={beat}/>;switch(beat.slideId){case'h2-overview':return <Overview/>;case'h2-21-infra':return <Infrastructure/>;case'h2-21-benefits':return <Pros/>;case'h2-21-drawbacks':return <Pros negative/>;case'h2-212-client-server':return <ClientServer/>;case'h2-212-p2p':return <Peer/>;case'h2-212-comparison':return <div className="h2pv-compare"><ClientServer/><Peer/></div>;case'h2-213-topologies':return <Topologies/>;case'h2-214-sizes':return <NetworkScale/>;case'h2-215-cloud':return <Cloud/>;case'h2-215-cloud-storage':return <CloudStorage/>;case'h2-216-wired':return <Wired/>;case'h2-216-attenuation':return <Attenuation/>;case'h2-216-fibre-modes':return <FibreModes/>;case'h2-216-wireless':return <Wireless/>;case'h2-216-spread-spectrum':return <FrequencyHop/>;case'h2-216-wnic':return <Wnic/>;case'h2-217-devices':return <Devices/>;default:return <NetworkScale/>;}}
