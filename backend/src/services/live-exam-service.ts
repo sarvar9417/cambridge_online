@@ -1350,7 +1350,7 @@ export class LiveExamService {
       await client.query('begin');
       // SHARE permits classmates to autosave together, but makes reveal wait
       // until every in-flight save has committed. No answer can cross the
-      // question_open -> marking boundary.
+      // question_open -> answers_locked boundary.
       const state = await client.query(
         `select status::text,paused_at from live_exam_sessions where id=$1 for share`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
@@ -1462,12 +1462,21 @@ export class LiveExamService {
     if (!question.rowCount) throw new DomainError('live_no_questions', 409);
     const sessionQuestionId = String(question.rows[0].id);
     await client.query(
-      `insert into live_exam_answers(session_question_id,participant_id,submitted_at)
-       select $2,lep.id,now() from live_exam_participants lep
+      `insert into live_exam_answers(session_question_id,participant_id)
+       select $2,lep.id from live_exam_participants lep
        where lep.session_id=$1 and lep.left_at is null
-       on conflict(session_question_id,participant_id) do update set
-         submitted_at=coalesce(live_exam_answers.submitted_at,now()),updated_at=now()`,
+       on conflict(session_question_id,participant_id) do nothing`,
       [sessionId, sessionQuestionId],
+    );
+    await client.query(
+      `update live_exam_answers
+       set final_score=0,
+           final_feedback_md=coalesce(final_feedback_md,'Javob topshirilmagan.'),
+           score_source=$2
+       where session_question_id=$1
+         and submitted_at is null
+         and final_score is null`,
+      [sessionQuestionId, session.marking_mode],
     );
     await client.query(
       `update live_exam_sessions
@@ -1511,7 +1520,10 @@ export class LiveExamService {
       `select a.id answer_id,lep.student_id
        from live_exam_answers a
        join live_exam_participants lep on lep.id=a.participant_id
-       where a.session_question_id=$1 and lep.left_at is null order by lep.student_id`,
+       where a.session_question_id=$1
+         and a.submitted_at is not null
+         and lep.left_at is null
+       order by lep.student_id`,
       [sessionQuestionId],
     );
     const mode = String(session.marking_mode) as LiveExamMarkingMode;
