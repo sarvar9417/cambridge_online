@@ -174,6 +174,32 @@ type ExportItem = {
   file_format?: 'pdf' | 'docx';
 };
 
+type GeneratorMeta = {
+  seed: number;
+  targetMarks: number;
+  candidateCount: number;
+  baseMarks: number;
+  totalMarks: number;
+  baseQuestionCount: number;
+  gradedCount: number;
+  contextCount: number;
+  warnings: string[];
+};
+
+type GeneratorResponse = {
+  selection: SelectionSummary;
+  review: SelectionReview;
+  generator: GeneratorMeta;
+};
+
+type GeneratorDraft = {
+  name: string;
+  targetMarks: number;
+  classId: string;
+  excludeSeen: boolean;
+  seed: string;
+};
+
 const COMMAND_WORDS = [
   'State', 'Give', 'Name', 'Identify', 'Define', 'Describe', 'Explain', 'Compare',
   'Calculate', 'Complete', 'Draw', 'Write', 'Evaluate', 'Justify', 'Suggest', 'Show', 'Other',
@@ -229,6 +255,10 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [reviewing, setReviewing] = useState(false);
   const [preview, setPreview] = useState<PortableQuestion | null>(null);
   const [dependencyDialog, setDependencyDialog] = useState<Dependency[] | null>(null);
+  const [generatorDialog, setGeneratorDialog] = useState<GeneratorDraft | null>(null);
+  const [generatorSaving, setGeneratorSaving] = useState(false);
+  const [generatorError, setGeneratorError] = useState('');
+  const [generatedMeta, setGeneratedMeta] = useState<GeneratorMeta | null>(null);
   const [focused, setFocused] = useState(0);
 
   const [query, setQuery] = useState('');
