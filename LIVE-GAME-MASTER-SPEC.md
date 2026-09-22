@@ -39,7 +39,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0191_live_challenge_integrity_and_deadline_hardening.sql",
+    "latest_migration": "0192_live_challenge_join_code_lifecycle.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
@@ -63,7 +63,8 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "marks_first_leaderboard": true,
     "teacher_override_audit": true,
     "learning_evidence_and_mastery": true,
-    "safe_event_cursor_and_snapshot_recovery": true
+    "safe_event_cursor_and_snapshot_recovery": true,
+    "offline_draft_resilience": true
   },
   "gaps": {
     "p0": [
@@ -78,7 +79,6 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       { "id": "LG-P1-01", "title": "Join-code retry, expiry and rotation" },
       { "id": "LG-P1-02", "title": "Live endpoint rate limits and abuse controls" },
       { "id": "LG-P1-03", "title": "Idempotency and version checks on every teacher transition" },
-      { "id": "LG-P1-04", "title": "Offline draft queue and deterministic autosave retry" },
       { "id": "LG-P1-05", "title": "Classroom-scale realtime and load evidence" },
       { "id": "LG-P1-06", "title": "Projector privacy and display-name policy" },
       { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
