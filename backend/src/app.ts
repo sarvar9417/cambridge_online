@@ -32,6 +32,7 @@ import { createSelectionsRouter } from './routes/selections.js';
 import { createAssignmentsRouter } from './routes/assignments.js';
 import { AssignmentsService } from './services/assignments-service.js';
 import { SelectionAssignmentService } from './services/selection-assignment-service.js';
+import { SelectionGeneratorService } from './services/selection-generator-service.js';
 import { createGradingRouter } from './routes/grading.js';
 import { GradingService } from './services/grading-service.js';
 import { createResultsRouter } from './routes/results.js';
@@ -125,7 +126,7 @@ export function createApp(
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool) mountPrivate('/api/v1/lesson-checkpoints', createLessonCheckpointsRouter(new LessonCheckpointService(pool,assetUrlSigner)));
-  if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool));
+  if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool,new SelectionGeneratorService(pool,selectionsRepository)));
   if (assignmentsService) mountPrivate('/api/v1/assignments', createAssignmentsRouter(assignmentsService,pool!));
   if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
   if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
