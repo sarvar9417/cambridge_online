@@ -13,6 +13,7 @@ const overrideAudit=source('src/database/migrations/0169_live_exam_override_audi
 const learningEvidence=source('src/database/migrations/0170_live_exam_learning_evidence.sql');
 const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
+const integrityHardening=source('src/database/migrations/0191_live_challenge_integrity_and_deadline_hardening.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -30,6 +31,14 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("const reveal = ['marking', 'review', 'finished'].includes(String(session.status));");
     expect(service).toContain('markScheme: reveal && currentRow ? currentRow.mark_scheme_snapshot : null');
     expect(service).toContain('if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));');
+  });
+
+  it('freezes official response levels and validates the authoritative deadline grace',()=>{
+    expect(service).toContain("'levels',coalesce((select jsonb_agg(jsonb_build_object(");
+    expect(service).toContain("'levelNumber',msl.level_number");
+    expect(service).toContain('const QUESTION_DEADLINE_GRACE_S = 10;');
+    expect(service).toContain('closeExpiredQuestion(sessionId)');
+    expect(service).toContain("new DomainError('score_outside_level', 400)");
   });
 
   it('keeps class membership and live participation at the join boundary',()=>{
@@ -114,5 +123,27 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("'participant.removed'");
     expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain('live_state_conflict');
+  });
+
+  it('snapshots official response levels and fails closed when they are absent',()=>{
+    expect(service).toContain("'levels',coalesce((select jsonb_agg");
+    expect(service).toContain("'levelNumber',msl.level_number");
+    expect(service).toContain("ms.scheme_type <> 'levels_of_response'::scheme_type");
+    expect(source('../frontend/src/lib/api.ts')).toContain('LiveMarkSchemeLevel');
+    expect(source('../frontend/src/live/LiveExamPage.tsx')).toContain('scheme.levels.map');
+  });
+
+  it('protects cross-session rows, score caps and trigger search paths at the database boundary',()=>{
+    expect(integrityHardening).toContain('live_answer_session_mismatch');
+    expect(integrityHardening).toContain('live_review_session_mismatch');
+    expect(integrityHardening).toContain('live_answer_score_exceeds_marks');
+    expect(integrityHardening).toContain('live_review_point_score_exceeds_marks');
+    expect(integrityHardening).toContain('live_exam_events_session_version_unique');
+    expect(integrityHardening.match(/SET search_path = public, pg_temp;/g)).toHaveLength(4);
+    expect(integrityHardening).toContain('ALTER FUNCTION public.persist_live_exam_learning_evidence()');
+  });
+
+  it('makes voluntary leave a lobby-only action',()=>{
+    expect(service).toContain("if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);");
   });
 });

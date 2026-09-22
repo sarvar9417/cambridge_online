@@ -39,7 +39,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0190_live_challenge_subtopic_evidence_fallback.sql",
+    "latest_migration": "0191_live_challenge_integrity_and_deadline_hardening.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
@@ -196,6 +196,7 @@ Bu transport “realtime-like polling”. Event payload studentga answer, mark s
 | `0172_unified_live_challenge_controls.sql` | Pause/resume va one-learner peer→self fallback |
 | `0173_live_challenge_database_hardening.sql` | Missing indexes va trigger function search paths |
 | `0190_live_challenge_subtopic_evidence_fallback.sql` | Current-LO mapping bo‘lmasa stable subtopic evidence fallback |
+| `0191_live_challenge_integrity_and_deadline_hardening.sql` | Cross-session row integrity, score caps, event-version uniqueness va trigger repin |
 
 ## 6. Haqiqiy state-machine
 
@@ -652,7 +653,7 @@ Majburiy E2E matrix:
 
 ### Phase 1 — Integrity migration va lifecycle
 
-1. `0191_live_challenge_integrity_and_deadline_hardening.sql` yarating.
+1. `0191_live_challenge_integrity_and_deadline_hardening.sql`ni qo‘llang.
 2. Answer session-integrity, score cap, event version, function search-path guards.
 3. `leave()`ni lobby-only qiling.
 4. API error messages va tests.

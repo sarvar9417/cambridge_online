@@ -156,6 +156,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
     const body = z.object({
       matchedPointIds: z.array(uuid).max(100).default([]),
       score: z.number().min(0).max(100).optional(),
+      levelNumber: z.number().int().positive().optional(),
       feedback: z.string().trim().max(5000).optional(),
     }).strict().parse(req.body);
     res.json(await service.submitReview(req.actor!, id(req.params), id(req.params, 'reviewId'), body));
