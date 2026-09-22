@@ -644,12 +644,83 @@ export function QuestionBankPage({ user }: { user: User }) {
     setStatus('approved');
   };
 
+  const openGenerator = () => {
+    setGeneratorError('');
+    setGeneratorDialog({
+      name: `Cambridge ${syllabusCode || '9618'} · practice`,
+      targetMarks: 25,
+      classId: forClass,
+      excludeSeen: Boolean(forClass),
+      seed: '',
+    });
+  };
+
+  const generatePaperSelection = async () => {
+    if (!generatorDialog || generatorSaving) return;
+    if (syllabusCode !== '9618') {
+      setGeneratorError('Auto generator hozir source-closed Cambridge 9618 corpus uchun ishlaydi.');
+      return;
+    }
+    if (!generatorDialog.name.trim()) {
+      setGeneratorError('To‘plam nomini kiriting.');
+      return;
+    }
+    if (generatorDialog.excludeSeen && !generatorDialog.classId) {
+      setGeneratorError('Ko‘rilgan savollarni chiqarish uchun sinfni tanlang.');
+      return;
+    }
+
+    setGeneratorSaving(true);
+    setGeneratorError('');
+    try {
+      const generated = await api<GeneratorResponse>('/selections/generate', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          name: generatorDialog.name.trim(),
+          syllabusCode: '9618',
+          targetMarks: Number(generatorDialog.targetMarks),
+          q: query.trim() || undefined,
+          component: component ? Number(component) : undefined,
+          marksMin: marksMin ? Number(marksMin) : undefined,
+          marksMax: marksMax ? Number(marksMax) : undefined,
+          yearFrom: yearFrom ? Number(yearFrom) : undefined,
+          yearTo: yearTo ? Number(yearTo) : undefined,
+          series: series.length ? series : undefined,
+          aos: aos.length ? aos : undefined,
+          topicIds: topicIds.length ? topicIds : undefined,
+          subtopicIds: subtopicIds.length ? subtopicIds : undefined,
+          commandWords: commandWords.length ? commandWords : undefined,
+          hasDiagram: hasDiagram ? hasDiagram === 'true' : undefined,
+          dependency,
+          classId: generatorDialog.excludeSeen ? generatorDialog.classId : undefined,
+          excludeSeen: generatorDialog.excludeSeen,
+          seed: generatorDialog.seed.trim() ? Number(generatorDialog.seed) : undefined,
+        }),
+      });
+      await refreshSelections();
+      setSelectionId(generated.selection.id);
+      setReview(generated.review);
+      setGeneratedMeta(generated.generator);
+      setBasketNotice(
+        `Auto paper tayyor: ${generated.review.totalMarks} ball · ${generated.generator.gradedCount} baholanadigan qism`,
+      );
+      setGeneratorDialog(null);
+      setBasketOpen(true);
+      setReviewing(true);
+    } catch (cause) {
+      setGeneratorError(message(cause, 'Auto paper yaratilmadi.'));
+    } finally {
+      setGeneratorSaving(false);
+    }
+  };
+
   if (user.role === 'student') {
     return <main className="qb-auth-state"><h1>Savol banki</h1><p>Bu ish maydoni o‘qituvchi va owner uchun.</p></main>;
   }
 
   if (reviewing && review) {
-    return <ReviewScreen review={review} selectionName={selections.find((item) => item.id === selectionId)?.name ?? 'Savollar to‘plami'} selectionId={selectionId} forClass={forClass} onBack={() => setReviewing(false)} />;
+    return <ReviewScreen review={review} selectionName={selections.find((item) => item.id === selectionId)?.name ?? 'Savollar to‘plami'} selectionId={selectionId} forClass={forClass} generatedMeta={generatedMeta} onBack={() => setReviewing(false)} />;
   }
 
   return (
@@ -660,7 +731,7 @@ export function QuestionBankPage({ user }: { user: User }) {
           <div><strong>CamPath</strong><span>Question Bank v2</span></div>
         </div>
         <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge {syllabusCode || '—'}</span>{activeSyllabus && <span className="qb-badge">{activeSyllabus.question_count} savol</span>}<span className="qb-badge">Leaf-first</span></div>
-        <div className="qb-topbar-actions"><button className="qb-filter-toggle" type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Funnel size={17} /><span>Filtrlar</span>{activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}</button><button className="qb-basket-toggle" type="button" aria-expanded={basketOpen} onClick={() => setBasketOpen((open) => !open)}><ShoppingCart size={18} /><span>Savatcha</span><strong>{review?.items.length ?? 0}</strong></button></div>
+        <div className="qb-topbar-actions"><button className="qb-generator-toggle" type="button" disabled={syllabusCode !== '9618'} title={syllabusCode === '9618' ? 'Joriy filtrlardan avtomatik paper yarating' : 'Auto generator hozir 9618 uchun'} onClick={openGenerator}><Plus size={17} weight="bold" /><span>Auto paper</span></button><button className="qb-filter-toggle" type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Funnel size={17} /><span>Filtrlar</span>{activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}</button><button className="qb-basket-toggle" type="button" aria-expanded={basketOpen} onClick={() => setBasketOpen((open) => !open)}><ShoppingCart size={18} /><span>Savatcha</span><strong>{review?.items.length ?? 0}</strong></button></div>
       </header>
 
       <div className="qb-layout">
@@ -696,7 +767,7 @@ export function QuestionBankPage({ user }: { user: User }) {
         {basketOpen && <button className="qb-basket-backdrop" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)} />}
         <aside className={`qb-basket ${basketOpen ? 'open' : ''}`} aria-label="Savollar savatchasi">
           <div className="qb-panel-title"><div><strong>Savatcha</strong><small>Serverda avtomatik saqlanadi</small></div><div className="qb-basket-head-actions"><button className="qb-icon-button" aria-label="Savatcha nomini o‘zgartirish" disabled={!selectionId} onClick={() => setSelectionDialog({ mode: 'rename', name: selections.find((item) => item.id === selectionId)?.name ?? '', confirmDelete: false })}><PencilSimple size={16} /></button><button className="qb-icon-button" aria-label="Yangi savatcha" onClick={() => void createSelection()}><Plus size={17} /></button><button className="qb-icon-button qb-basket-close" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)}><X size={17} /></button></div></div>
-          <select className="qb-basket-select" value={selectionId} onChange={(event) => { setReview(null); setBasketNotice(''); setLastRemoved(null); setSelectionId(event.target.value); }}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
+          <select className="qb-basket-select" value={selectionId} onChange={(event) => { setReview(null); setGeneratedMeta(null); setBasketNotice(''); setLastRemoved(null); setSelectionId(event.target.value); }}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
           <div className="qb-basket-items">
             {reviewLoading && <div className="qb-loading">Savatcha yuklanmoqda…</div>}
             {!reviewLoading && review?.items.map((item, index) => <article className={`qb-basket-item ${pendingItemIds.has(item.id) ? 'pending' : ''}`} key={item.id}><div className="qb-basket-item-head"><div className="qb-basket-order"><button disabled={index === 0 || pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini yuqoriga surish`} onClick={() => void moveItem(item.id, -1)}><CaretUp size={14} /></button><button disabled={index === review.items.length - 1 || pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini pastga surish`} onClick={() => void moveItem(item.id, 1)}><CaretDown size={14} /></button><strong>{item.freshRef}</strong></div><button disabled={pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini olib tashlash`} onClick={() => void removeItem(item.id)}><Trash size={15} /></button></div><small>{item.sourceRef}</small><LatexQuestionText latex={item.portable.leaf.bodyFormat === 'latex' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} /><div className="qb-basket-item-footer"><select aria-label={`${item.freshRef} savolining roli`} disabled={pendingItemIds.has(item.id)} value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}><option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option><option value="context_only">Faqat kontekst · 0 ball</option></select><button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button></div></article>)}
@@ -711,6 +782,7 @@ export function QuestionBankPage({ user }: { user: User }) {
       {preview && <PortableModal portable={preview} onClose={() => setPreview(null)} />}
       {dependencyDialog && <DependencyModal dependencies={dependencyDialog} onClose={() => setDependencyDialog(null)} onAdd={(id, role) => void addQuestion(id, role)} />}
       {selectionDialog && <SelectionDialog state={selectionDialog} saving={selectionSaving} canDelete={selectionDialog.mode === 'rename' && Boolean(selectionId)} onChange={setSelectionDialog} onSave={() => void saveSelectionDialog()} onDelete={() => void deleteSelection()} onClose={() => { setSelectionDialog(null); setQueuedQuestion(null); }} />}
+      {generatorDialog && <GeneratorDialog state={generatorDialog} saving={generatorSaving} error={generatorError} filterCount={activeFilterCount} classes={options.classes} syllabusCode={syllabusCode} onChange={setGeneratorDialog} onGenerate={() => void generatePaperSelection()} onClose={() => { if (!generatorSaving) { setGeneratorDialog(null); setGeneratorError(''); } }} />}
     </main>
   );
 }
