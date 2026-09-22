@@ -33,7 +33,7 @@ const promptVersion = 'extract-learning-objectives.v1';
 
 const raw = await readFile(textPath, 'utf8');
 const prompt = await readFile(
-  join(process.cwd(), 'prompts', `${promptVersion}.md`),
+  join(process.cwd(), 'prompts', `${promptVersion}.txt`),
   'utf8',
 );
 

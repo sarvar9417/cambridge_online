@@ -24,11 +24,11 @@ import {
  * the extraction example to populate one.
  */
 const PROMPTS: Array<{ file: string; schema: ZodType }> = [
-  { file: 'extract-question.v4.md', schema: extractQpSchema },
-  { file: 'extract-markscheme.v2.md', schema: extractMsSchema },
-  { file: 'classify-question.v2.md', schema: classificationSchema },
-  { file: 'detect-dependencies.v1.md', schema: dependencyOutputSchema },
-  { file: 'cross-check.v2.md', schema: crossCheckSchema },
+  { file: 'extract-question.v4.txt', schema: extractQpSchema },
+  { file: 'extract-markscheme.v2.txt', schema: extractMsSchema },
+  { file: 'classify-question.v2.txt', schema: classificationSchema },
+  { file: 'detect-dependencies.v1.txt', schema: dependencyOutputSchema },
+  { file: 'cross-check.v2.txt', schema: crossCheckSchema },
 ];
 
 const promptsDir = join(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.', 'prompts');
@@ -92,11 +92,11 @@ describe('prompt worked examples satisfy the contract they feed', () => {
    * what goes in it, which is precisely how the asset shape came to be invented.
    */
   const MUST_BE_POPULATED: Array<{ file: string; paths: string[] }> = [
-    { file: 'extract-question.v4.md', paths: ['questions[].assets'] },
+    { file: 'extract-question.v4.txt', paths: ['questions[].assets'] },
     // A banded scheme is a different shape entirely, and it is the one that
     // decides how an Evaluate answer is marked.
-    { file: 'extract-markscheme.v2.md', paths: ['schemes[].groups', 'schemes[].points', 'schemes[].levels'] },
-    { file: 'cross-check.v2.md', paths: ['disagreements'] },
+    { file: 'extract-markscheme.v2.txt', paths: ['schemes[].groups', 'schemes[].points', 'schemes[].levels'] },
+    { file: 'cross-check.v2.txt', paths: ['disagreements'] },
   ];
 
   function collect(node: unknown, path: string, into: Map<string, number>) {
@@ -123,7 +123,7 @@ describe('prompt worked examples satisfy the contract they feed', () => {
 
   it('gives every drawn asset a bbox, since the crop is its only copy', () => {
     const [example] = jsonExamples(
-      readFileSync(join(promptsDir, 'extract-question.v4.md'), 'utf8'),
+      readFileSync(join(promptsDir, 'extract-question.v4.txt'), 'utf8'),
     );
     const parsed = extractQpSchema.parse(JSON.parse(example!));
     const drawn = parsed.questions
@@ -135,7 +135,7 @@ describe('prompt worked examples satisfy the contract they feed', () => {
 
   it('shows a parent node, which has no answer of its own', () => {
     const [example] = jsonExamples(
-      readFileSync(join(promptsDir, 'extract-question.v4.md'), 'utf8'),
+      readFileSync(join(promptsDir, 'extract-question.v4.txt'), 'utf8'),
     );
     const parsed = extractQpSchema.parse(JSON.parse(example!));
     const parents = parsed.questions.filter((question) =>
