@@ -444,10 +444,10 @@ export class SelectionGeneratorService {
       input.name,
       expanded.items.map(({ questionId, role, sourceRef }) => ({ questionId, role, sourceRef })),
     );
-    if (!selection) throw new DomainError('generator_selection_failed', 500);
+    if (!selection) throw new DomainError('generator_selection_failed', 409);
 
     const review = await this.selections.review(actor, selection.id);
-    if (!review) throw new DomainError('generator_selection_failed', 500);
+    if (!review) throw new DomainError('generator_selection_failed', 409);
     if (!review.canPublish) throw new DomainError('generator_dependency_not_ready', 409);
 
     return {
