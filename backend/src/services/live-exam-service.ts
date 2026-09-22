@@ -476,30 +476,41 @@ export class LiveExamService {
 
     const client = await this.pool.connect();
     try {
-      await client.query('begin');
       await this.requireClassControl(client, actor, input.classId);
-      const joinCode = String(randomInt(100000, 1000000));
-      const session = await client.query(
-        `insert into live_exam_sessions(
-           class_id,host_id,title,join_code,marking_mode,question_time_limit_s,settings
-         ) values($1,$2,$3,$4,$5,$6,$7::jsonb)
-         returning id,class_id,title,join_code,status,marking_mode,question_time_limit_s,version,created_at`,
-        [input.classId, actor.id, input.title, joinCode, input.markingMode,
-          input.questionTimeLimitS ?? null,
-          JSON.stringify({
-            topicIds: input.topicIds,
-            subtopicIds: input.subtopicIds,
-            includeDiagrams: input.includeDiagrams,
-            excludeSeen: input.excludeSeen,
-            questionOrder: input.questionOrder ?? 'shuffled',
-            allowLateJoin: input.allowLateJoin ?? false,
-            autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
-            teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
-            leaderboardMode: input.leaderboardMode ?? 'marks',
-            requestedQuestionCount: questionIds.length,
-            dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
-          })],
-      );
+      let session;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await client.query('begin');
+        try {
+          const joinCode = String(randomInt(100000, 1000000));
+          session = await client.query(
+            `insert into live_exam_sessions(
+               class_id,host_id,title,join_code,join_code_expires_at,marking_mode,question_time_limit_s,settings
+             ) values($1,$2,$3,$4,now()+interval '24 hours',$5,$6,$7::jsonb)
+             returning id,class_id,title,join_code,status,marking_mode,question_time_limit_s,version,created_at`,
+            [input.classId, actor.id, input.title, joinCode, input.markingMode,
+              input.questionTimeLimitS ?? null,
+              JSON.stringify({
+                topicIds: input.topicIds,
+                subtopicIds: input.subtopicIds,
+                includeDiagrams: input.includeDiagrams,
+                excludeSeen: input.excludeSeen,
+                questionOrder: input.questionOrder ?? 'shuffled',
+                allowLateJoin: input.allowLateJoin ?? false,
+                autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
+                teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
+                leaderboardMode: input.leaderboardMode ?? 'marks',
+                requestedQuestionCount: questionIds.length,
+                dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
+              })],
+          );
+          break;
+        } catch (error) {
+          await client.query('rollback');
+          if (typeof error === 'object' && error && 'code' in error && error.code === '23505' && attempt < 4) continue;
+          throw error;
+        }
+      }
+      if (!session) throw new DomainError('live_join_code_conflict', 409);
       for (const [position, snapshot] of snapshots.entries()) {
         await client.query(
           `insert into live_exam_questions(
@@ -571,7 +582,7 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-         where les.join_code=$1 and (
+         where les.join_code=$1 and les.join_code_expires_at > now() and (
            les.status='lobby'
            or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )

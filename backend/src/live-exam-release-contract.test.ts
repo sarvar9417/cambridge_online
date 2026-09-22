@@ -14,6 +14,7 @@ const learningEvidence=source('src/database/migrations/0170_live_exam_learning_e
 const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subtopic_evidence_fallback.sql');
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
 const integrityHardening=source('src/database/migrations/0191_live_challenge_integrity_and_deadline_hardening.sql');
+const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join_code_lifecycle.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -43,7 +44,7 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and (");
+    expect(service).toContain("where les.join_code=$1 and les.join_code_expires_at > now() and (");
     expect(service).toContain("les.status='lobby'");
     expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
@@ -145,5 +146,13 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('makes voluntary leave a lobby-only action',()=>{
     expect(service).toContain("if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);");
+  });
+
+  it('bounds join-code collisions and expires reusable codes safely',()=>{
+    expect(service).toContain('for (let attempt = 0; attempt < 5; attempt += 1)');
+    expect(service).toContain('join_code_expires_at > now()');
+    expect(joinCodeLifecycle).toContain('live_exam_sessions_active_join_code_unique');
+    expect(joinCodeLifecycle).toContain("interval '24 hours'");
+    expect(joinCodeLifecycle).toContain('live_join_code_retention');
   });
 });
