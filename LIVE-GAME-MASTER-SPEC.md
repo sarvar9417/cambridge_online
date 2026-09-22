@@ -80,7 +80,6 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       { "id": "LG-P1-02", "title": "Live endpoint rate limits and abuse controls" },
       { "id": "LG-P1-03", "title": "Idempotency and version checks on every teacher transition" },
       { "id": "LG-P1-05", "title": "Classroom-scale realtime and load evidence" },
-      { "id": "LG-P1-06", "title": "Projector privacy and display-name policy" },
       { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
       { "id": "LG-P1-08", "title": "Late-join and withdrawal fairness policy" },
       { "id": "LG-P1-09", "title": "Detailed reports and exports" },

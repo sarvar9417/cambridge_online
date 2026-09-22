@@ -163,4 +163,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(source('src/middleware/durable-rate-limit.ts')).toContain('on conflict(bucket_key) do update');
     expect(source('src/routes/live-exams.ts')).toContain('durableJoinLimit');
   });
+
+  it('keeps projector standings free of student identity fields',()=>{
+    const summary=source('src/services/live-exam-round-summary-service.ts');
+    const route=source('src/routes/live-exam-round-summary.ts');
+    expect(route).toContain("req.query.projector");
+    expect(summary).toContain('summary(actor: Actor, sessionId: string, projector = false)');
+    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${index + 1}`');
+    expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
+  });
 });

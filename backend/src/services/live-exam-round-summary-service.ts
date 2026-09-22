@@ -50,7 +50,7 @@ export class LiveExamRoundSummaryService {
     return result.rows[0] as { id:string; status:string; current_question_index:number; settings:Record<string,unknown> };
   }
 
-  async summary(actor: Actor, sessionId: string) {
+  async summary(actor: Actor, sessionId: string, projector = false) {
     const session = await this.controlledSession(actor, sessionId);
     if (!['review','finished'].includes(session.status)) {
       throw new DomainError('live_results_not_ready', 409);
@@ -100,17 +100,17 @@ export class LiveExamRoundSummaryService {
 
     const roundPossible = Number(roundResult.rows[0]?.marks ?? 0);
     const overallPossible = Number(possibleResult.rows[0]?.possible ?? 0);
-    const round: LiveExamStanding[] = roundResult.rows.map((row) => ({
+    const round: LiveExamStanding[] = roundResult.rows.map((row, index) => ({
       rank: Number(row.rank),
-      studentId: String(row.student_id),
-      studentName: String(row.full_name),
+      ...(projector ? {} : { studentId: String(row.student_id) }),
+      studentName: projector ? `Ishtirokchi ${index + 1}` : String(row.full_name),
       score: Number(row.score),
       possible: roundPossible,
     }));
-    const overall: LiveExamStanding[] = overallResult.rows.map((row) => ({
+    const overall: LiveExamStanding[] = overallResult.rows.map((row, index) => ({
       rank: Number(row.rank),
-      studentId: String(row.student_id),
-      studentName: String(row.full_name),
+      ...(projector ? {} : { studentId: String(row.student_id) }),
+      studentName: projector ? `Ishtirokchi ${index + 1}` : String(row.full_name),
       score: Number(row.score),
       possible: overallPossible,
     }));
