@@ -39,7 +39,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0192_live_challenge_join_code_lifecycle.sql",
+    "latest_migration": "0193_durable_rate_limits.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"

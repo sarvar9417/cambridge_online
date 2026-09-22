@@ -164,7 +164,7 @@ export function createApp(
   );
   if (pool && questionsRepository) mountPrivate(
     '/api/v1/live-exams',
-    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner)),
+    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner), pool),
   );
 
   app.use((_req, res) => {

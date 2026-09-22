@@ -15,6 +15,7 @@ const subtopicEvidence=source('src/database/migrations/0190_live_challenge_subto
 const unifiedControls=source('src/database/migrations/0172_unified_live_challenge_controls.sql');
 const integrityHardening=source('src/database/migrations/0191_live_challenge_integrity_and_deadline_hardening.sql');
 const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join_code_lifecycle.sql');
+const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -154,5 +155,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(joinCodeLifecycle).toContain('live_exam_sessions_active_join_code_unique');
     expect(joinCodeLifecycle).toContain("interval '24 hours'");
     expect(joinCodeLifecycle).toContain('live_join_code_retention');
+  });
+
+  it('uses durable rate-limit buckets for live abuse controls',()=>{
+    expect(durableRateLimits).toContain('api_rate_limit_buckets');
+    expect(durableRateLimits).toContain('ENABLE ROW LEVEL SECURITY');
+    expect(source('src/middleware/durable-rate-limit.ts')).toContain('on conflict(bucket_key) do update');
+    expect(source('src/routes/live-exams.ts')).toContain('durableJoinLimit');
   });
 });

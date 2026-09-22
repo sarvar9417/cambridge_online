@@ -2,6 +2,8 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
+import { durableRateLimit } from '../middleware/durable-rate-limit.js';
+import type { Pool } from 'pg';
 
 const uuid = z.string().uuid();
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
@@ -38,12 +40,15 @@ function privateNoStore(res: Response) {
   res.set('Cache-Control', 'private, no-store');
 }
 
-export function createLiveExamsRouter(service: LiveExamService) {
+export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   const router = Router();
   const userAndIp = (req: { ip?: string; actor?: { id?: string } }) => `${req.actor?.id ?? 'anonymous'}:${req.ip ?? 'unknown'}`;
   const joinLimit = rateLimit({ windowMs: 60_000, max: 20, key: userAndIp });
   const staffLimit = rateLimit({ windowMs: 60_000, max: 30, key: userAndIp });
   const autosaveLimit = rateLimit({ windowMs: 60_000, max: 120, key: userAndIp });
+  const durableJoinLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 20, key: userAndIp }) : joinLimit;
+  const durableStaffLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 30, key: userAndIp }) : staffLimit;
+  const durableAutosaveLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 120, key: userAndIp }) : autosaveLimit;
 
   router.get('/', async (req, res) => {
     // Session lists contain classroom membership state and room codes for
@@ -53,12 +58,12 @@ export function createLiveExamsRouter(service: LiveExamService) {
     res.json({ data: await service.list(req.actor!) });
   });
 
-  router.post('/', staffLimit, async (req, res) => {
+  router.post('/', durableStaffLimit, async (req, res) => {
     const body = createInput.parse(req.body);
     res.status(201).json(await service.create(req.actor!, body));
   });
 
-  router.get('/eligible-questions', staffLimit, async (req, res) => {
+  router.get('/eligible-questions', durableStaffLimit, async (req, res) => {
     privateNoStore(res);
     const csvUuids = z.string().default('').transform((value,ctx) => {
       const values=value ? value.split(',').filter(Boolean) : [];
@@ -91,7 +96,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
 
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
   // a UUID and turn a valid join request into a validation error.
-  router.post('/join', joinLimit, async (req, res) => {
+  router.post('/join', durableJoinLimit, async (req, res) => {
     const body = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict().parse(req.body);
     res.status(201).json(await service.join(req.actor!, body.code));
   });
@@ -136,7 +141,7 @@ export function createLiveExamsRouter(service: LiveExamService) {
     ));
   });
 
-  router.put('/:id/answer', autosaveLimit, async (req, res) => {
+  router.put('/:id/answer', durableAutosaveLimit, async (req, res) => {
     const body = z.object({ text: z.string().max(20000) }).strict().parse(req.body);
     res.json(await service.saveAnswer(req.actor!, id(req.params), body.text));
   });
