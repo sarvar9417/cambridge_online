@@ -475,6 +475,7 @@ export function QuestionBankPage({ user }: { user: User }) {
       return;
     }
     if (pendingQuestionIds.has(questionId) || review?.items.some((item) => item.portable.leaf.id === questionId)) return;
+    setGeneratedMeta(null);
     setPendingQuestionIds((current) => new Set(current).add(questionId));
     setError('');
     setBasketNotice('');
@@ -502,6 +503,7 @@ export function QuestionBankPage({ user }: { user: User }) {
 
   const changeRole = async (itemId: string, role: SelectionRole) => {
     if (!selectionId || pendingItemIds.has(itemId)) return;
+    setGeneratedMeta(null);
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, {
@@ -519,6 +521,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const removeItem = async (itemId: string) => {
     if (!selectionId || pendingItemIds.has(itemId)) return;
     const removed = review?.items.find((item) => item.id === itemId) ?? null;
+    setGeneratedMeta(null);
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, { method: 'DELETE' });
@@ -547,6 +550,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     if (index < 0 || target < 0 || target >= review.items.length) return;
     const nextItems = [...review.items];
     [nextItems[index], nextItems[target]] = [nextItems[target]!, nextItems[index]!];
+    setGeneratedMeta(null);
     setReview({ ...review, items: nextItems });
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
