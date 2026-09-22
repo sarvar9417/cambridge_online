@@ -174,6 +174,32 @@ type ExportItem = {
   file_format?: 'pdf' | 'docx';
 };
 
+type GeneratorMeta = {
+  seed: number;
+  targetMarks: number;
+  candidateCount: number;
+  baseMarks: number;
+  totalMarks: number;
+  baseQuestionCount: number;
+  gradedCount: number;
+  contextCount: number;
+  warnings: string[];
+};
+
+type GeneratorResponse = {
+  selection: SelectionSummary;
+  review: SelectionReview;
+  generator: GeneratorMeta;
+};
+
+type GeneratorDraft = {
+  name: string;
+  targetMarks: number;
+  classId: string;
+  excludeSeen: boolean;
+  seed: string;
+};
+
 const COMMAND_WORDS = [
   'State', 'Give', 'Name', 'Identify', 'Define', 'Describe', 'Explain', 'Compare',
   'Calculate', 'Complete', 'Draw', 'Write', 'Evaluate', 'Justify', 'Suggest', 'Show', 'Other',
@@ -229,6 +255,10 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [reviewing, setReviewing] = useState(false);
   const [preview, setPreview] = useState<PortableQuestion | null>(null);
   const [dependencyDialog, setDependencyDialog] = useState<Dependency[] | null>(null);
+  const [generatorDialog, setGeneratorDialog] = useState<GeneratorDraft | null>(null);
+  const [generatorSaving, setGeneratorSaving] = useState(false);
+  const [generatorError, setGeneratorError] = useState('');
+  const [generatedMeta, setGeneratedMeta] = useState<GeneratorMeta | null>(null);
   const [focused, setFocused] = useState(0);
 
   const [query, setQuery] = useState('');
@@ -445,6 +475,7 @@ export function QuestionBankPage({ user }: { user: User }) {
       return;
     }
     if (pendingQuestionIds.has(questionId) || review?.items.some((item) => item.portable.leaf.id === questionId)) return;
+    setGeneratedMeta(null);
     setPendingQuestionIds((current) => new Set(current).add(questionId));
     setError('');
     setBasketNotice('');
@@ -472,6 +503,7 @@ export function QuestionBankPage({ user }: { user: User }) {
 
   const changeRole = async (itemId: string, role: SelectionRole) => {
     if (!selectionId || pendingItemIds.has(itemId)) return;
+    setGeneratedMeta(null);
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, {
@@ -489,6 +521,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const removeItem = async (itemId: string) => {
     if (!selectionId || pendingItemIds.has(itemId)) return;
     const removed = review?.items.find((item) => item.id === itemId) ?? null;
+    setGeneratedMeta(null);
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
       await api(`/selections/${selectionId}/items/${itemId}`, { method: 'DELETE' });
@@ -517,6 +550,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     if (index < 0 || target < 0 || target >= review.items.length) return;
     const nextItems = [...review.items];
     [nextItems[index], nextItems[target]] = [nextItems[target]!, nextItems[index]!];
+    setGeneratedMeta(null);
     setReview({ ...review, items: nextItems });
     setPendingItemIds((current) => new Set(current).add(itemId));
     try {
@@ -614,12 +648,83 @@ export function QuestionBankPage({ user }: { user: User }) {
     setStatus('approved');
   };
 
+  const openGenerator = () => {
+    setGeneratorError('');
+    setGeneratorDialog({
+      name: `Cambridge ${syllabusCode || '9618'} · practice`,
+      targetMarks: 25,
+      classId: forClass,
+      excludeSeen: Boolean(forClass),
+      seed: '',
+    });
+  };
+
+  const generatePaperSelection = async () => {
+    if (!generatorDialog || generatorSaving) return;
+    if (syllabusCode !== '9618') {
+      setGeneratorError('Auto generator hozir source-closed Cambridge 9618 corpus uchun ishlaydi.');
+      return;
+    }
+    if (!generatorDialog.name.trim()) {
+      setGeneratorError('To‘plam nomini kiriting.');
+      return;
+    }
+    if (generatorDialog.excludeSeen && !generatorDialog.classId) {
+      setGeneratorError('Ko‘rilgan savollarni chiqarish uchun sinfni tanlang.');
+      return;
+    }
+
+    setGeneratorSaving(true);
+    setGeneratorError('');
+    try {
+      const generated = await api<GeneratorResponse>('/selections/generate', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          name: generatorDialog.name.trim(),
+          syllabusCode: '9618',
+          targetMarks: Number(generatorDialog.targetMarks),
+          q: query.trim() || undefined,
+          component: component ? Number(component) : undefined,
+          marksMin: marksMin ? Number(marksMin) : undefined,
+          marksMax: marksMax ? Number(marksMax) : undefined,
+          yearFrom: yearFrom ? Number(yearFrom) : undefined,
+          yearTo: yearTo ? Number(yearTo) : undefined,
+          series: series.length ? series : undefined,
+          aos: aos.length ? aos : undefined,
+          topicIds: topicIds.length ? topicIds : undefined,
+          subtopicIds: subtopicIds.length ? subtopicIds : undefined,
+          commandWords: commandWords.length ? commandWords : undefined,
+          hasDiagram: hasDiagram ? hasDiagram === 'true' : undefined,
+          dependency,
+          classId: generatorDialog.excludeSeen ? generatorDialog.classId : undefined,
+          excludeSeen: generatorDialog.excludeSeen,
+          seed: generatorDialog.seed.trim() ? Number(generatorDialog.seed) : undefined,
+        }),
+      });
+      await refreshSelections();
+      setSelectionId(generated.selection.id);
+      setReview(generated.review);
+      setGeneratedMeta(generated.generator);
+      setBasketNotice(
+        `Auto paper tayyor: ${generated.review.totalMarks} ball · ${generated.generator.gradedCount} baholanadigan qism`,
+      );
+      setGeneratorDialog(null);
+      setBasketOpen(true);
+      setReviewing(true);
+    } catch (cause) {
+      setGeneratorError(message(cause, 'Auto paper yaratilmadi.'));
+    } finally {
+      setGeneratorSaving(false);
+    }
+  };
+
   if (user.role === 'student') {
     return <main className="qb-auth-state"><h1>Savol banki</h1><p>Bu ish maydoni o‘qituvchi va owner uchun.</p></main>;
   }
 
   if (reviewing && review) {
-    return <ReviewScreen review={review} selectionName={selections.find((item) => item.id === selectionId)?.name ?? 'Savollar to‘plami'} selectionId={selectionId} forClass={forClass} onBack={() => setReviewing(false)} />;
+    return <ReviewScreen review={review} selectionName={selections.find((item) => item.id === selectionId)?.name ?? 'Savollar to‘plami'} selectionId={selectionId} forClass={forClass} generatedMeta={generatedMeta} onBack={() => setReviewing(false)} />;
   }
 
   return (
@@ -630,7 +735,7 @@ export function QuestionBankPage({ user }: { user: User }) {
           <div><strong>CamPath</strong><span>Question Bank v2</span></div>
         </div>
         <div className="qb-topbar-center"><span className="qb-badge qb-badge-primary">Cambridge {syllabusCode || '—'}</span>{activeSyllabus && <span className="qb-badge">{activeSyllabus.question_count} savol</span>}<span className="qb-badge">Leaf-first</span></div>
-        <div className="qb-topbar-actions"><button className="qb-filter-toggle" type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Funnel size={17} /><span>Filtrlar</span>{activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}</button><button className="qb-basket-toggle" type="button" aria-expanded={basketOpen} onClick={() => setBasketOpen((open) => !open)}><ShoppingCart size={18} /><span>Savatcha</span><strong>{review?.items.length ?? 0}</strong></button></div>
+        <div className="qb-topbar-actions"><button className="qb-generator-toggle" type="button" disabled={syllabusCode !== '9618'} title={syllabusCode === '9618' ? 'Joriy filtrlardan avtomatik paper yarating' : 'Auto generator hozir 9618 uchun'} onClick={openGenerator}><Plus size={17} weight="bold" /><span>Auto paper</span></button><button className="qb-filter-toggle" type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Funnel size={17} /><span>Filtrlar</span>{activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}</button><button className="qb-basket-toggle" type="button" aria-expanded={basketOpen} onClick={() => setBasketOpen((open) => !open)}><ShoppingCart size={18} /><span>Savatcha</span><strong>{review?.items.length ?? 0}</strong></button></div>
       </header>
 
       <div className="qb-layout">
@@ -666,7 +771,7 @@ export function QuestionBankPage({ user }: { user: User }) {
         {basketOpen && <button className="qb-basket-backdrop" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)} />}
         <aside className={`qb-basket ${basketOpen ? 'open' : ''}`} aria-label="Savollar savatchasi">
           <div className="qb-panel-title"><div><strong>Savatcha</strong><small>Serverda avtomatik saqlanadi</small></div><div className="qb-basket-head-actions"><button className="qb-icon-button" aria-label="Savatcha nomini o‘zgartirish" disabled={!selectionId} onClick={() => setSelectionDialog({ mode: 'rename', name: selections.find((item) => item.id === selectionId)?.name ?? '', confirmDelete: false })}><PencilSimple size={16} /></button><button className="qb-icon-button" aria-label="Yangi savatcha" onClick={() => void createSelection()}><Plus size={17} /></button><button className="qb-icon-button qb-basket-close" aria-label="Savatchani yopish" onClick={() => setBasketOpen(false)}><X size={17} /></button></div></div>
-          <select className="qb-basket-select" value={selectionId} onChange={(event) => { setReview(null); setBasketNotice(''); setLastRemoved(null); setSelectionId(event.target.value); }}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
+          <select className="qb-basket-select" value={selectionId} onChange={(event) => { setReview(null); setGeneratedMeta(null); setBasketNotice(''); setLastRemoved(null); setSelectionId(event.target.value); }}><option value="">Savatchani tanlang</option>{selections.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.item_count} ta · {item.total_marks} ball</option>)}</select>
           <div className="qb-basket-items">
             {reviewLoading && <div className="qb-loading">Savatcha yuklanmoqda…</div>}
             {!reviewLoading && review?.items.map((item, index) => <article className={`qb-basket-item ${pendingItemIds.has(item.id) ? 'pending' : ''}`} key={item.id}><div className="qb-basket-item-head"><div className="qb-basket-order"><button disabled={index === 0 || pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini yuqoriga surish`} onClick={() => void moveItem(item.id, -1)}><CaretUp size={14} /></button><button disabled={index === review.items.length - 1 || pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini pastga surish`} onClick={() => void moveItem(item.id, 1)}><CaretDown size={14} /></button><strong>{item.freshRef}</strong></div><button disabled={pendingItemIds.has(item.id)} aria-label={`${item.freshRef} savolini olib tashlash`} onClick={() => void removeItem(item.id)}><Trash size={15} /></button></div><small>{item.sourceRef}</small><LatexQuestionText latex={item.portable.leaf.bodyFormat === 'latex' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} /><div className="qb-basket-item-footer"><select aria-label={`${item.freshRef} savolining roli`} disabled={pendingItemIds.has(item.id)} value={item.role} onChange={(event) => void changeRole(item.id, event.target.value as SelectionRole)}><option value="graded">Baholanadi · {item.portable.leaf.marks} ball</option><option value="context_only">Faqat kontekst · 0 ball</option></select><button className="qb-link-button" onClick={() => setPreview(item.portable)}>Ko‘rish</button></div></article>)}
@@ -681,6 +786,7 @@ export function QuestionBankPage({ user }: { user: User }) {
       {preview && <PortableModal portable={preview} onClose={() => setPreview(null)} />}
       {dependencyDialog && <DependencyModal dependencies={dependencyDialog} onClose={() => setDependencyDialog(null)} onAdd={(id, role) => void addQuestion(id, role)} />}
       {selectionDialog && <SelectionDialog state={selectionDialog} saving={selectionSaving} canDelete={selectionDialog.mode === 'rename' && Boolean(selectionId)} onChange={setSelectionDialog} onSave={() => void saveSelectionDialog()} onDelete={() => void deleteSelection()} onClose={() => { setSelectionDialog(null); setQueuedQuestion(null); }} />}
+      {generatorDialog && <GeneratorDialog state={generatorDialog} saving={generatorSaving} error={generatorError} filterCount={activeFilterCount} classes={options.classes} syllabusCode={syllabusCode} onChange={setGeneratorDialog} onGenerate={() => void generatePaperSelection()} onClose={() => { if (!generatorSaving) { setGeneratorDialog(null); setGeneratorError(''); } }} />}
     </main>
   );
 }
@@ -694,6 +800,55 @@ function CheckGroup({ label, options, value, onChange, maxHeight = false }: { la
 function SelectionDialog({ state, saving, canDelete, onChange, onSave, onDelete, onClose }: { state: { mode: 'create' | 'rename'; name: string; confirmDelete: boolean }; saving: boolean; canDelete: boolean; onChange: (state: { mode: 'create' | 'rename'; name: string; confirmDelete: boolean }) => void; onSave: () => void; onDelete: () => void; onClose: () => void }) {
   useDialogClose(onClose);
   return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) onClose(); }}><section className="qb-modal qb-selection-modal" role="dialog" aria-modal="true" aria-labelledby="selection-dialog-title"><header><div><span className="qb-eyebrow">Savatcha boshqaruvi</span><h2 id="selection-dialog-title">{state.mode === 'create' ? 'Yangi savatcha' : 'Savatchani tahrirlash'}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" disabled={saving} onClick={onClose}><X size={18} /></button></header>{!state.confirmDelete ? <form onSubmit={(event) => { event.preventDefault(); onSave(); }}><label className="qb-dialog-field"><span>Savatcha nomi</span><input autoFocus maxLength={120} value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} placeholder="Masalan, 10-sinf · Networks nazorat" /></label><div className="qb-selection-dialog-actions">{canDelete && <button className="qb-danger-button" type="button" onClick={() => onChange({ ...state, confirmDelete: true })}><Trash size={16} /> O‘chirish</button>}<div><button className="qb-secondary-button" type="button" onClick={onClose}>Bekor qilish</button><button type="submit" disabled={!state.name.trim() || saving}>{saving ? 'Saqlanmoqda…' : state.mode === 'create' ? 'Yaratish' : 'Saqlash'}</button></div></div></form> : <div className="qb-delete-confirm"><div className="qb-delete-icon"><Trash size={22} /></div><h3>Savatchani o‘chirasizmi?</h3><p>Undagi barcha tanlangan savollar ham o‘chadi. Bu amalni qaytarib bo‘lmaydi.</p><div><button className="qb-secondary-button" onClick={() => onChange({ ...state, confirmDelete: false })}>Ortga</button><button className="qb-danger-button solid" disabled={saving} onClick={onDelete}>{saving ? 'O‘chirilmoqda…' : 'Ha, o‘chirish'}</button></div></div>}</section></div>;
+}
+
+
+function GeneratorDialog({
+  state,
+  saving,
+  error,
+  filterCount,
+  classes,
+  syllabusCode,
+  onChange,
+  onGenerate,
+  onClose,
+}: {
+  state: GeneratorDraft;
+  saving: boolean;
+  error: string;
+  filterCount: number;
+  classes: FilterOptions['classes'];
+  syllabusCode: string;
+  onChange: (state: GeneratorDraft) => void;
+  onGenerate: () => void;
+  onClose: () => void;
+}) {
+  useDialogClose(() => { if (!saving) onClose(); });
+  const blocked = saving
+    || syllabusCode !== '9618'
+    || !state.name.trim()
+    || state.targetMarks < 1
+    || state.targetMarks > 200
+    || (state.excludeSeen && !state.classId);
+
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) onClose(); }}>
+    <section className="qb-modal qb-generator-modal" role="dialog" aria-modal="true" aria-labelledby="generator-dialog-title">
+      <header><div><span className="qb-eyebrow">Smart paper generator</span><h2 id="generator-dialog-title">Cambridge 9618 paper yaratish</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" disabled={saving} onClick={onClose}><X size={18} /></button></header>
+      <div className="qb-generator-scope"><strong>{filterCount ? `${filterCount} ta joriy filtr ishlatiladi` : 'Butun approved 9618 corpus ishlatiladi'}</strong><span>Generator oilalarni ajratmaydi, required dependencylarni avtomatik qo‘shadi va faqat verified canonical Mark Scheme mavjud savollardan foydalanadi.</span></div>
+      <div className="qb-generator-grid">
+        <label className="qb-dialog-field qb-generator-name"><span>To‘plam nomi</span><input autoFocus maxLength={120} value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} /></label>
+        <label className="qb-dialog-field"><span>Maqsad ball</span><input type="number" min={1} max={200} value={state.targetMarks} onChange={(event) => onChange({ ...state, targetMarks: Number(event.target.value) })} /></label>
+        <label className="qb-dialog-field"><span>Sinf (ixtiyoriy)</span><select value={state.classId} onChange={(event) => onChange({ ...state, classId: event.target.value })}><option value="">Sinf tanlanmagan</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="qb-dialog-field"><span>Seed (ixtiyoriy)</span><input inputMode="numeric" value={state.seed} onChange={(event) => onChange({ ...state, seed: event.target.value.replace(/[^0-9-]/g, '') })} placeholder="Avtomatik" /></label>
+      </div>
+      <label className="qb-generator-check"><input type="checkbox" checked={state.excludeSeen} onChange={(event) => onChange({ ...state, excludeSeen: event.target.checked })} /><span><strong>Sinfda avval ishlatilgan savollarni chiqarib tashlash</strong><small>Sinf tanlanganda oldingi assignment savollari pool’dan olib tashlanadi.</small></span></label>
+      {syllabusCode !== '9618' && <div className="qb-error">Auto generator hozir source-closed Cambridge 9618 corpus uchun ishlaydi.</div>}
+      {error && <div className="qb-error">{error}</div>}
+      <div className="qb-generator-rules"><span>✓ Approved + LaTeX + structured</span><span>✓ Canonical MS</span><span>✓ Dependency-safe</span><span>✓ Deterministik seed</span></div>
+      <footer><button className="qb-secondary-button" type="button" disabled={saving} onClick={onClose}>Bekor qilish</button><button type="button" disabled={blocked} onClick={onGenerate}>{saving ? 'Paper yaratilmoqda…' : `${state.targetMarks || 0} ballik paper yaratish`}</button></footer>
+    </section>
+  </div>;
 }
 
 function useDialogClose(onClose: () => void) {
@@ -732,7 +887,7 @@ function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Depen
   return <div className="qb-modal-backdrop" role="presentation"><section className="qb-modal qb-dependency-modal" role="dialog" aria-modal="true" aria-labelledby="dependency-title"><header><div><span className="qb-eyebrow">Dependency check</span><h2 id="dependency-title">Oldingi qism kerak</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><p className="qb-modal-intro">Tanlangan subpart boshqa qismdagi material yoki candidate javobiga tayanadi. To‘g‘ri prerequisite’ni qo‘shing.</p><div className="qb-dependency-list">{dependencies.map((item) => <article key={item.id}><div className="qb-meta-line"><strong>{item.displayRef}</strong><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><span>{item.strength}</span></div><p>{item.stem || item.evidence || 'Referenced part'}</p>{item.evidence && <blockquote>{item.evidence}</blockquote>}<div className="qb-modal-actions"><button onClick={() => onAdd(item.dependsOnId, 'graded')}>Baholanadigan qilib qo‘shish</button><button className="qb-secondary-button" disabled={item.kind === 'answer_ref'} title={item.kind === 'answer_ref' ? 'Candidate javobi kerak: prerequisite baholanadigan bo‘lishi shart.' : ''} onClick={() => onAdd(item.dependsOnId, 'context_only')}>Faqat kontekst</button></div></article>)}</div><footer><small>`answer_ref` faqat graded prerequisite bilan qondiriladi.</small><button className="qb-secondary-button" onClick={onClose}>Keyin hal qilaman</button></footer></section></div>;
 }
 
-function ReviewScreen({ review, selectionName, selectionId, forClass, onBack }: { review: SelectionReview; selectionName: string; selectionId: string; forClass: string; onBack: () => void }) {
+function ReviewScreen({ review, selectionName, selectionId, forClass, generatedMeta, onBack }: { review: SelectionReview; selectionName: string; selectionId: string; forClass: string; generatedMeta: GeneratorMeta | null; onBack: () => void }) {
   const [exporting, setExporting] = useState<'pdf' | 'docx' | ''>('');
   const [exportError, setExportError] = useState('');
   const syllabusCodes = [...new Set(review.items.map((item) => item.sourceRef.split('/')[0]).filter(Boolean))];
@@ -768,7 +923,16 @@ function ReviewScreen({ review, selectionName, selectionId, forClass, onBack }: 
     }
   };
 
-  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{selectionName}</strong><span>{review.items.length} qism · {review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>{documentLabel.toUpperCase()} · GENERATED PRACTICE</span><h1>{selectionName}</h1><small>Yangi raqamlash · asl manba reference’lari saqlangan</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Faqat kontekst · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><LatexQuestionText className="qb-review-stem" latex={item.portable.leaf.bodyFormat === 'latex' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} /><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Tayyorlik tekshiruvi</h2><div className="qb-review-stat"><span>Savollar</span><strong>{review.items.length}</strong></div><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Bog‘liqlik muammolari</span><strong>{review.dependencyIssues.length}</strong></div>{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha bog‘liqlik qoidalari bajarilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'PDF yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Word (.docx) yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Topshiriq yaratish →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word hujjatlari shu savatchadan to‘g‘ridan-to‘g‘ri tayyorlanadi.</small></aside></div></main>;
+  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{selectionName}</strong><span>{review.items.length} qism · {review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>{documentLabel.toUpperCase()} · GENERATED PRACTICE</span><h1>{selectionName}</h1><small>Yangi raqamlash · asl manba reference’lari saqlangan</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Faqat kontekst · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><LatexQuestionText className="qb-review-stem" latex={item.portable.leaf.bodyFormat === 'latex' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} /><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Tayyorlik tekshiruvi</h2><div className="qb-review-stat"><span>Savollar</span><strong>{review.items.length}</strong></div><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Bog‘liqlik muammolari</span><strong>{review.dependencyIssues.length}</strong></div>{generatedMeta && <div className="qb-generator-review"><div><span>Auto target</span><strong>{generatedMeta.targetMarks} → {review.totalMarks} ball</strong></div><div><span>Candidate pool</span><strong>{generatedMeta.candidateCount}</strong></div><div><span>Baholanadigan</span><strong>{generatedMeta.gradedCount}</strong></div><div><span>Kontekst</span><strong>{generatedMeta.contextCount}</strong></div><small>Seed: {generatedMeta.seed}</small>{generatedMeta.warnings.length > 0 && <ul>{generatedMeta.warnings.map((warning) => <li key={warning}>{generatorWarningLabel(warning)}</li>)}</ul>}</div>}{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha bog‘liqlik qoidalari bajarilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'PDF yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Word (.docx) yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Topshiriq yaratish →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word hujjatlari shu savatchadan to‘g‘ridan-to‘g‘ri tayyorlanadi.</small></aside></div></main>;
+}
+
+function generatorWarningLabel(warning: string) {
+  if (warning === 'insufficient_pool') return 'Tanlangan filtrlar uchun savol hovuzi yetarli emas.';
+  if (warning.startsWith('dependency_marks_added:')) return `Dependency prerequisite’lari +${warning.split(':')[1]} ball qo‘shdi.`;
+  if (warning.startsWith('context_items_added:')) return `${warning.split(':')[1]} ta context-only prerequisite qo‘shildi.`;
+  if (warning.startsWith('final_target_unmet:')) return `Dependencylardan keyingi jami maqsaddan farq qiladi: ${warning.split(':')[1]}.`;
+  if (warning.startsWith('target_unmet:')) return `Asosiy tanlov maqsadga aniq tushmadi: ${warning.split(':')[1]}.`;
+  return warning;
 }
 
 function issueLabel(issue: SelectionIssue) {

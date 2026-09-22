@@ -53,6 +53,55 @@ export class PgSelectionsRepository {
     ).rows[0];
   }
 
+  async createWithItems(
+    actor: Actor,
+    name: string,
+    items: Array<{ questionId: string; role: SelectionRole; sourceRef: string }>,
+  ) {
+    if (!this.eligible(actor)) return null;
+    if (!items.length) return null;
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const selection = await client.query(
+        `insert into selections(school_id,owner_id,name)
+         values($1,$2,$3)
+         returning id,name,created_at,updated_at`,
+        [actor.schoolId, actor.id, name],
+      );
+      const selectionId = selection.rows[0].id as string;
+
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index]!;
+        await client.query(
+          `insert into selection_items(selection_id,question_id,role,sort_order,source_ref)
+           values($1,$2,$3,$4,$5)
+           on conflict(selection_id,question_id)
+           do update set
+             role=case
+               when selection_items.role='graded' or excluded.role='graded' then 'graded'::selection_item_role
+               else excluded.role
+             end,
+             sort_order=least(selection_items.sort_order,excluded.sort_order),
+             source_ref=excluded.source_ref`,
+          [selectionId, item.questionId, item.role, index + 1, item.sourceRef],
+        );
+      }
+
+      await client.query('commit');
+      return {
+        ...selection.rows[0],
+        item_count: items.length,
+      };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async rename(actor: Actor, selectionId: string, name: string) {
     if (!this.eligible(actor)) return null;
     return (
