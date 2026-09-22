@@ -18,7 +18,7 @@ export interface AiUsage {
 const promptCache=new Map<string,PromptFile>();
 export async function loadPrompt(name:string,version=1):Promise<PromptFile>{
   const key=`${name}.v${version}`,cached=promptCache.get(key);if(cached)return cached;
-  const body=await readFile(resolve(PROMPTS_DIR,`${key}.md`),'utf8');const prompt={version:key,body};promptCache.set(key,prompt);return prompt;
+  const body=await readFile(resolve(PROMPTS_DIR,`${key}.txt`),'utf8');const prompt={version:key,body};promptCache.set(key,prompt);return prompt;
 }
 
 /**
