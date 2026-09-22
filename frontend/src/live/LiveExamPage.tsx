@@ -331,6 +331,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const [levelNumber,setLevelNumber]=useState<number|undefined>();
   const [feedback,setFeedback]=useState('');
   const saveTimer=useRef<number|undefined>(undefined);
+  const retryTimer=useRef<number|undefined>(undefined);
+  const pendingSave=useRef<string|null>(null);
   const answerKey=useRef('');
   const remaining=useCountdown(session.deadline,session.serverNow);
   const leave=async()=>{
@@ -353,16 +355,32 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer);
   },[answer,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
+  const flushAnswer=async(text=answer,attempt=0)=>{
+    if(!text||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
+    pendingSave.current=text;
+    setSaving(true);
+    try{
+      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text})});
+      if(pendingSave.current===text){pendingSave.current=null;setDirty(false);setError('')}
+    }catch(cause){
+      setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
+      if(attempt<4){window.clearTimeout(retryTimer.current);retryTimer.current=window.setTimeout(()=>void flushAnswer(text,attempt+1),2**attempt*1000)}
+    }finally{setSaving(false)}
+  };
   useEffect(()=>{
     if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
     window.clearTimeout(saveTimer.current);
-    saveTimer.current=window.setTimeout(async()=>{
-      setSaving(true);
-      try{await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:answer})});setDirty(false)}
-      catch(cause){setError(message(cause,'Javob saqlanmadi.'))}finally{setSaving(false)}
-    },700);
+    saveTimer.current=window.setTimeout(()=>void flushAnswer(answer),700);
     return()=>window.clearTimeout(saveTimer.current);
   },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
+  useEffect(()=>{
+    const retry=()=>{if(pendingSave.current)void flushAnswer(pendingSave.current)};
+    const flush=()=>{if(dirty&&pendingSave.current)void flushAnswer(pendingSave.current)};
+    window.addEventListener('online',retry);
+    window.addEventListener('visibilitychange',flush);
+    window.addEventListener('pagehide',flush);
+    return()=>{window.removeEventListener('online',retry);window.removeEventListener('visibilitychange',flush);window.removeEventListener('pagehide',flush);window.clearTimeout(retryTimer.current)};
+  },[dirty]);
 
   const submitAnswer=async()=>{
     setBusy(true);setError('');
