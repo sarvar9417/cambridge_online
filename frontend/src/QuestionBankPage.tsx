@@ -798,6 +798,55 @@ function SelectionDialog({ state, saving, canDelete, onChange, onSave, onDelete,
   return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) onClose(); }}><section className="qb-modal qb-selection-modal" role="dialog" aria-modal="true" aria-labelledby="selection-dialog-title"><header><div><span className="qb-eyebrow">Savatcha boshqaruvi</span><h2 id="selection-dialog-title">{state.mode === 'create' ? 'Yangi savatcha' : 'Savatchani tahrirlash'}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" disabled={saving} onClick={onClose}><X size={18} /></button></header>{!state.confirmDelete ? <form onSubmit={(event) => { event.preventDefault(); onSave(); }}><label className="qb-dialog-field"><span>Savatcha nomi</span><input autoFocus maxLength={120} value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} placeholder="Masalan, 10-sinf · Networks nazorat" /></label><div className="qb-selection-dialog-actions">{canDelete && <button className="qb-danger-button" type="button" onClick={() => onChange({ ...state, confirmDelete: true })}><Trash size={16} /> O‘chirish</button>}<div><button className="qb-secondary-button" type="button" onClick={onClose}>Bekor qilish</button><button type="submit" disabled={!state.name.trim() || saving}>{saving ? 'Saqlanmoqda…' : state.mode === 'create' ? 'Yaratish' : 'Saqlash'}</button></div></div></form> : <div className="qb-delete-confirm"><div className="qb-delete-icon"><Trash size={22} /></div><h3>Savatchani o‘chirasizmi?</h3><p>Undagi barcha tanlangan savollar ham o‘chadi. Bu amalni qaytarib bo‘lmaydi.</p><div><button className="qb-secondary-button" onClick={() => onChange({ ...state, confirmDelete: false })}>Ortga</button><button className="qb-danger-button solid" disabled={saving} onClick={onDelete}>{saving ? 'O‘chirilmoqda…' : 'Ha, o‘chirish'}</button></div></div>}</section></div>;
 }
 
+
+function GeneratorDialog({
+  state,
+  saving,
+  error,
+  filterCount,
+  classes,
+  syllabusCode,
+  onChange,
+  onGenerate,
+  onClose,
+}: {
+  state: GeneratorDraft;
+  saving: boolean;
+  error: string;
+  filterCount: number;
+  classes: FilterOptions['classes'];
+  syllabusCode: string;
+  onChange: (state: GeneratorDraft) => void;
+  onGenerate: () => void;
+  onClose: () => void;
+}) {
+  useDialogClose(() => { if (!saving) onClose(); });
+  const blocked = saving
+    || syllabusCode !== '9618'
+    || !state.name.trim()
+    || state.targetMarks < 1
+    || state.targetMarks > 200
+    || (state.excludeSeen && !state.classId);
+
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !saving) onClose(); }}>
+    <section className="qb-modal qb-generator-modal" role="dialog" aria-modal="true" aria-labelledby="generator-dialog-title">
+      <header><div><span className="qb-eyebrow">Smart paper generator</span><h2 id="generator-dialog-title">Cambridge 9618 paper yaratish</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" disabled={saving} onClick={onClose}><X size={18} /></button></header>
+      <div className="qb-generator-scope"><strong>{filterCount ? `${filterCount} ta joriy filtr ishlatiladi` : 'Butun approved 9618 corpus ishlatiladi'}</strong><span>Generator oilalarni ajratmaydi, required dependencylarni avtomatik qo‘shadi va faqat verified canonical Mark Scheme mavjud savollardan foydalanadi.</span></div>
+      <div className="qb-generator-grid">
+        <label className="qb-dialog-field qb-generator-name"><span>To‘plam nomi</span><input autoFocus maxLength={120} value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} /></label>
+        <label className="qb-dialog-field"><span>Maqsad ball</span><input type="number" min={1} max={200} value={state.targetMarks} onChange={(event) => onChange({ ...state, targetMarks: Number(event.target.value) })} /></label>
+        <label className="qb-dialog-field"><span>Sinf (ixtiyoriy)</span><select value={state.classId} onChange={(event) => onChange({ ...state, classId: event.target.value })}><option value="">Sinf tanlanmagan</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="qb-dialog-field"><span>Seed (ixtiyoriy)</span><input inputMode="numeric" value={state.seed} onChange={(event) => onChange({ ...state, seed: event.target.value.replace(/[^0-9-]/g, '') })} placeholder="Avtomatik" /></label>
+      </div>
+      <label className="qb-generator-check"><input type="checkbox" checked={state.excludeSeen} onChange={(event) => onChange({ ...state, excludeSeen: event.target.checked })} /><span><strong>Sinfda avval ishlatilgan savollarni chiqarib tashlash</strong><small>Sinf tanlanganda oldingi assignment savollari pool’dan olib tashlanadi.</small></span></label>
+      {syllabusCode !== '9618' && <div className="qb-error">Auto generator hozir source-closed Cambridge 9618 corpus uchun ishlaydi.</div>}
+      {error && <div className="qb-error">{error}</div>}
+      <div className="qb-generator-rules"><span>✓ Approved + LaTeX + structured</span><span>✓ Canonical MS</span><span>✓ Dependency-safe</span><span>✓ Deterministik seed</span></div>
+      <footer><button className="qb-secondary-button" type="button" disabled={saving} onClick={onClose}>Bekor qilish</button><button type="button" disabled={blocked} onClick={onGenerate}>{saving ? 'Paper yaratilmoqda…' : `${state.targetMarks || 0} ballik paper yaratish`}</button></footer>
+    </section>
+  </div>;
+}
+
 function useDialogClose(onClose: () => void) {
   useEffect(() => {
     const handle = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
