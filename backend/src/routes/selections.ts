@@ -4,6 +4,7 @@ import type { PgSelectionsRepository } from '../repositories/selections-reposito
 import type { SelectionAssignmentService } from '../services/selection-assignment-service.js';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import type { Pool } from 'pg';
+import type { SelectionGeneratorService } from '../services/selection-generator-service.js';
 
 const roleSchema = z.enum(['graded', 'context_only']);
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
@@ -20,12 +21,44 @@ const assignmentSchema = z.object({
   mode: z.enum(['online', 'pdf', 'mock']).default('online'),
   publish: z.boolean().default(false),
 });
+const generatorSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  syllabusCode: z.literal('9618').default('9618'),
+  targetMarks: z.number().int().min(1).max(200),
+  q: z.string().trim().max(300).optional(),
+  component: z.number().int().min(1).max(4).optional(),
+  marksMin: z.number().int().min(0).max(100).optional(),
+  marksMax: z.number().int().min(0).max(100).optional(),
+  yearFrom: z.number().int().min(2021).max(2026).optional(),
+  yearTo: z.number().int().min(2021).max(2026).optional(),
+  series: z.array(z.enum(['FM','MJ','ON'])).max(3).optional(),
+  aos: z.array(z.enum(['AO1','AO2','AO3'])).max(3).optional(),
+  topicIds: z.array(z.string().uuid()).max(20).optional(),
+  subtopicIds: z.array(z.string().uuid()).max(80).optional(),
+  commandWords: z.array(z.string().trim().min(1).max(80)).max(30).optional(),
+  hasDiagram: z.boolean().optional(),
+  dependency: z.enum(['any','independent']).default('any'),
+  classId: z.string().uuid().optional(),
+  excludeSeen: z.boolean().default(false),
+  seed: z.number().int().optional(),
+}).superRefine((value,ctx)=>{
+  if(value.yearFrom!==undefined&&value.yearTo!==undefined&&value.yearFrom>value.yearTo){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:['yearTo'],message:'Yil oralig‘i noto‘g‘ri.'});
+  }
+  if(value.marksMin!==undefined&&value.marksMax!==undefined&&value.marksMin>value.marksMax){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:['marksMax'],message:'Ball oralig‘i noto‘g‘ri.'});
+  }
+  if(value.excludeSeen&&!value.classId){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:['classId'],message:'Ko‘rilgan savollarni chiqarish uchun sinfni tanlang.'});
+  }
+});
 const uuid = z.string().uuid();
 
 export function createSelectionsRouter(
   repository: PgSelectionsRepository,
   assignments?: SelectionAssignmentService,
   pool?: Pool,
+  generator?: SelectionGeneratorService,
 ) {
   const router = Router();
 
@@ -50,6 +83,18 @@ export function createSelectionsRouter(
     const selection = await repository.create(req.actor!, body.name);
     if (!selection) { res.status(403).json({ error: { code: 'forbidden', message: 'Ruxsat yo‘q.' } }); return; }
     res.status(201).json(selection);
+  });
+
+  router.post('/generate', async (req, res) => {
+    if (!generator) {
+      res.status(503).json({ error: { code: 'selection_generator_unavailable', message: 'Auto paper generator sozlanmagan.' } });
+      return;
+    }
+    const body = generatorSchema.parse(req.body);
+    const operation = async () => ({ status: 201, body: await generator.generate(req.actor!, body) });
+    if (pool) return runIdempotent(req, res, pool, operation);
+    const result = await operation();
+    return res.status(result.status).json(result.body);
   });
 
   router.get('/:id', async (req, res) => {
