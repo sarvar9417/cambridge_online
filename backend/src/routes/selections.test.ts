@@ -1,4 +1,4 @@
-import express from'express';import request from'supertest';import{describe,expect,it,vi}from'vitest';import{ZodError}from'zod';import type{PgSelectionsRepository}from'../repositories/selections-repository.js';import type{SelectionAssignmentService}from'../services/selection-assignment-service.js';import{createSelectionsRouter}from'./selections.js';
+import express from'express';import request from'supertest';import{describe,expect,it,vi}from'vitest';import{ZodError}from'zod';import type{PgSelectionsRepository}from'../repositories/selections-repository.js';import type{SelectionAssignmentService}from'../services/selection-assignment-service.js';import type{SelectionGeneratorService}from'../services/selection-generator-service.js';import{createSelectionsRouter}from'./selections.js';
 const selectionId='11111111-1111-4111-8111-111111111111',classId='22222222-2222-4222-8222-222222222222';
 const teacher={id:'teacher',role:'teacher'as const,schoolId:'school',fullName:'Teacher'},student={id:'student',role:'student'as const,schoolId:'school',fullName:'Student'};
 function appFor(actor:typeof teacher|typeof student,create=vi.fn().mockResolvedValue({id:'assignment-1'})){const app=express();app.use(express.json());app.use((req,_res,next)=>{req.actor=actor;next()});app.use('/selections',createSelectionsRouter({}as PgSelectionsRepository,{create}as unknown as SelectionAssignmentService));return{app,create}}
@@ -16,4 +16,74 @@ describe('selection management routes',()=>{
  it('deletes an owned selection',async()=>{const remove=vi.fn().mockResolvedValue(true);await request(managedApp({remove})).delete(`/selections/${selectionId}`).expect(204);expect(remove).toHaveBeenCalledWith(teacher,selectionId)});
  it('persists the complete item order',async()=>{const reorderItems=vi.fn().mockResolvedValue(true);await request(managedApp({reorderItems})).put(`/selections/${selectionId}/items/order`).send({itemIds:[itemB,itemA]}).expect(200);expect(reorderItems).toHaveBeenCalledWith(teacher,selectionId,[itemB,itemA])});
  it('rejects duplicate item ids in an order',async()=>{const reorderItems=vi.fn();await request(managedApp({reorderItems})).put(`/selections/${selectionId}/items/order`).send({itemIds:[itemA,itemA]}).expect(400);expect(reorderItems).not.toHaveBeenCalled()});
+});
+
+
+describe('smart selection generator route',()=>{
+ function generatorApp(actor:typeof teacher|typeof student,generate=vi.fn().mockResolvedValue({
+   selection:{id:selectionId,name:'Generated paper'},
+   review:{items:[],totalMarks:25,dependencyIssues:[],canPublish:true},
+   generator:{seed:42,targetMarks:25,totalMarks:25,warnings:[]},
+ })){
+   const app=express();
+   app.use(express.json());
+   app.use((req,_res,next)=>{req.actor=actor;next()});
+   app.use('/selections',createSelectionsRouter(
+     {} as PgSelectionsRepository,
+     undefined,
+     undefined,
+     {generate} as unknown as SelectionGeneratorService,
+   ));
+   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
+     if(error instanceof ZodError){res.status(400).json({error:{code:'validation_error'}});return}
+     res.status(500).json({error:{code:'internal_error'}});
+   });
+   return{app,generate};
+ }
+ it('creates a generated selection from staff filters',async()=>{
+   const{app,generate}=generatorApp(teacher);
+   const response=await request(app).post('/selections/generate').send({
+     name:'Networks 25',
+     syllabusCode:'9618',
+     targetMarks:25,
+     component:1,
+     yearFrom:2023,
+     yearTo:2026,
+     series:['MJ'],
+     excludeSeen:false,
+     seed:42,
+   }).expect(201);
+   expect(response.body.selection.id).toBe(selectionId);
+   expect(generate).toHaveBeenCalledWith(teacher,{
+     name:'Networks 25',
+     syllabusCode:'9618',
+     targetMarks:25,
+     component:1,
+     yearFrom:2023,
+     yearTo:2026,
+     series:['MJ'],
+     dependency:'any',
+     excludeSeen:false,
+     seed:42,
+   });
+ });
+ it('requires a class when seen questions are excluded',async()=>{
+   const{app,generate}=generatorApp(teacher);
+   await request(app).post('/selections/generate').send({
+     name:'Unseen paper',
+     syllabusCode:'9618',
+     targetMarks:20,
+     excludeSeen:true,
+   }).expect(400);
+   expect(generate).not.toHaveBeenCalled();
+ });
+ it('blocks students before generation',async()=>{
+   const{app,generate}=generatorApp(student);
+   await request(app).post('/selections/generate').send({
+     name:'Student paper',
+     syllabusCode:'9618',
+     targetMarks:20,
+   }).expect(403);
+   expect(generate).not.toHaveBeenCalled();
+ });
 });
