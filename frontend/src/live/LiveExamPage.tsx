@@ -46,6 +46,28 @@ function message(error:unknown,fallback:string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function liveDraftKey(sessionId:string,answerId:string) {
+  return `campath:live-draft:${sessionId}:${answerId}`;
+}
+
+function readLiveDraft(key:string) {
+  try {
+    const raw=localStorage.getItem(key);
+    if(!raw)return null;
+    const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
+    if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
+    return draft.text;
+  }catch{return null}
+}
+
+function writeLiveDraft(key:string,text:string) {
+  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now()}))}catch{/* Storage may be disabled or full. */}
+}
+
+function removeLiveDraft(key:string) {
+  try{localStorage.removeItem(key)}catch{/* Storage may be disabled. */}
+}
+
 function formatClock(seconds:number|null) {
   if (seconds === null) return 'Vaqt cheklanmagan';
   const safe=Math.max(0,seconds),minutes=Math.floor(safe/60),rest=safe%60;
@@ -321,9 +343,15 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
     if(key===answerKey.current)return;
     answerKey.current=key;
-    setAnswer(snapshot.ownAnswer?.text??'');
+    const serverText=snapshot.ownAnswer?.text??'';
+    setAnswer(serverText||readLiveDraft(liveDraftKey(session.id,key))||'');
     setDirty(false);
-  },[snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.question?.id]);
+  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.question?.id]);
+  const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
+  useEffect(()=>{
+    if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
+    writeLiveDraft(liveDraftKey(session.id,draftKey),answer);
+  },[answer,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
   useEffect(()=>{
     if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
@@ -338,7 +366,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   const submitAnswer=async()=>{
     setBusy(true);setError('');
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});setDirty(false);await refresh()}
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
     catch(cause){setError(message(cause,'Javob topshirilmadi.'))}finally{setBusy(false)}
   };
   const submitReview=async()=>{
