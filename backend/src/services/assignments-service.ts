@@ -5,7 +5,7 @@ import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-que
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
-export class DomainError extends Error { constructor(public code:string, public status:400|403|404|409|429) { super(code); } }
+export class DomainError extends Error { constructor(public code:string, public status:400|403|404|409|429, public details?:Record<string, unknown>) { super(code); } }
 
 export class AssignmentsService {
   constructor(private pool:Pool,private assetUrlSigner?:AssetUrlSigner) {}

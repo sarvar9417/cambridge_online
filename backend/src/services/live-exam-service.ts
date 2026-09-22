@@ -158,7 +158,10 @@ export class LiveExamService {
 
   private assertExpectedVersion(session: Record<string, unknown>, expectedVersion?: number) {
     if (expectedVersion !== undefined && Number(session.version) !== expectedVersion) {
-      throw new DomainError('live_state_conflict', 409);
+      throw new DomainError('live_state_conflict', 409, {
+        currentVersion: Number(session.version),
+        currentStatus: session.status,
+      });
     }
   }
 
@@ -966,11 +969,12 @@ export class LiveExamService {
     };
   }
 
-  async start(actor: Actor, sessionId: string) {
+  async start(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'lobby') throw new DomainError('live_invalid_state', 409);
       const count = await client.query(
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
@@ -1144,11 +1148,12 @@ export class LiveExamService {
     return { sessionId, status: 'marking' as const, version };
   }
 
-  async revealMarkScheme(actor: Actor, sessionId: string) {
+  async revealMarkScheme(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const result = await this.revealWithinTransaction(client, session, actor.id);
       await client.query('commit');
@@ -1303,11 +1308,12 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async completeMarking(actor: Actor, sessionId: string, force = false) {
+  async completeMarking(actor: Actor, sessionId: string, force = false, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'marking' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const pending = await client.query(
         `select count(*)::int count
@@ -1346,11 +1352,12 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async nextQuestion(actor: Actor, sessionId: string) {
+  async nextQuestion(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'review' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const nextPosition = Number(session.current_question_index) + 1;
       const next = await client.query(
@@ -1491,11 +1498,12 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async cancel(actor: Actor, sessionId: string) {
+  async cancel(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (['finished', 'cancelled'].includes(String(session.status))) throw new DomainError('live_invalid_state', 409);
       await client.query(
         `update live_exam_sessions set status='cancelled',finished_at=now() where id=$1`, [sessionId]);

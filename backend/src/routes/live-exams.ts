@@ -108,7 +108,8 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/start', async (req, res) => {
-    res.json(await service.start(req.actor!, id(req.params)));
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/pause', async (req, res) => {
@@ -146,8 +147,9 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/reveal', async (req, res) => {
+    const body = versionInput.parse(req.body ?? {});
     try {
-      res.json(await service.revealMarkScheme(req.actor!, id(req.params)));
+      res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
     } catch (error) {
       if (!isPeerIntegrityConflict(error)) throw error;
       res.status(409).json({ error: {
@@ -176,16 +178,18 @@ export function createLiveExamsRouter(service: LiveExamService) {
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
-    const body = z.object({ force: z.boolean().default(false) }).strict().parse(req.body ?? {});
-    res.json(await service.completeMarking(req.actor!, id(req.params), body.force));
+    const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive().optional() }).strict().parse(req.body ?? {});
+    res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
   });
 
   router.post('/:id/next', async (req, res) => {
-    res.json(await service.nextQuestion(req.actor!, id(req.params)));
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.nextQuestion(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/cancel', async (req, res) => {
-    res.json(await service.cancel(req.actor!, id(req.params)));
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.cancel(req.actor!, id(req.params), body.expectedVersion));
   });
 
   return router;

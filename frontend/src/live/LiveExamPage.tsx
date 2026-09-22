@@ -393,7 +393,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const [activeAnswerId,setActiveAnswerId]=useState('');
   const remaining=useCountdown(session.deadline,session.serverNow);
   const activeAnswer=snapshot.teacherAnswers.find((item)=>item.id===activeAnswerId)??snapshot.teacherAnswers.find((item)=>item.reviewStatus==='assigned')??snapshot.teacherAnswers[0];
-  const act=async(path:string,body?:unknown)=>{setBusy(true);setError('');try{await api(`/live-exams/${session.id}${path}`,{method:'POST',body:body===undefined?undefined:JSON.stringify(body)});await refresh()}catch(cause){setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}};
+  const act=async(path:string,body?:Record<string, unknown>)=>{setBusy(true);setError('');try{const payload=body??{};if(!('expectedVersion' in payload)&&['/start','/reveal','/marking/complete','/next','/cancel'].includes(path))payload.expectedVersion=session.version;await api(`/live-exams/${session.id}${path}`,{method:'POST',body:JSON.stringify(payload)});await refresh()}catch(cause){setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}};
   const removeParticipant=async(studentId:string,fullName:string)=>{
     if(!window.confirm(`${fullName} xonadan chiqarilsinmi?`))return;
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});

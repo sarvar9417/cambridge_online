@@ -91,6 +91,26 @@ describe('live exam routes', () => {
     expect(resume).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',8);
   });
 
+  it('passes optimistic state versions to every teacher transition', async () => {
+    const start=vi.fn().mockResolvedValue({version:2});
+    const revealMarkScheme=vi.fn().mockResolvedValue({version:3});
+    const completeMarking=vi.fn().mockResolvedValue({version:4});
+    const nextQuestion=vi.fn().mockResolvedValue({version:5});
+    const cancel=vi.fn().mockResolvedValue({version:6});
+    const app=appFor({start,revealMarkScheme,completeMarking,nextQuestion,cancel});
+    const sessionId='22222222-2222-4222-8222-222222222222';
+    await request(app).post(`/live-exams/${sessionId}/start`).send({expectedVersion:1}).expect(200);
+    await request(app).post(`/live-exams/${sessionId}/reveal`).send({expectedVersion:2}).expect(200);
+    await request(app).post(`/live-exams/${sessionId}/marking/complete`).send({force:true,expectedVersion:3}).expect(200);
+    await request(app).post(`/live-exams/${sessionId}/next`).send({expectedVersion:4}).expect(200);
+    await request(app).post(`/live-exams/${sessionId}/cancel`).send({expectedVersion:5}).expect(200);
+    expect(start).toHaveBeenCalledWith(student,sessionId,1);
+    expect(revealMarkScheme).toHaveBeenCalledWith(student,sessionId,2);
+    expect(completeMarking).toHaveBeenCalledWith(student,sessionId,true,3);
+    expect(nextQuestion).toHaveBeenCalledWith(student,sessionId,4);
+    expect(cancel).toHaveBeenCalledWith(student,sessionId,5);
+  });
+
   it('routes lobby removal and voluntary leave separately', async () => {
     const removeParticipant=vi.fn().mockResolvedValue({version:3});
     const leave=vi.fn().mockResolvedValue({version:4});
