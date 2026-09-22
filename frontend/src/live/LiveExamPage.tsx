@@ -60,8 +60,8 @@ function readLiveDraft(key:string) {
   }catch{return null}
 }
 
-function writeLiveDraft(key:string,text:string) {
-  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now()}))}catch{/* Storage may be disabled or full. */}
+function writeLiveDraft(key:string,text:string,tabId:string) {
+  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
 }
 
 function removeLiveDraft(key:string) {
@@ -334,6 +334,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const retryTimer=useRef<number|undefined>(undefined);
   const pendingSave=useRef<string|null>(null);
   const answerKey=useRef('');
+  const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const remaining=useCountdown(session.deadline,session.serverNow);
   const leave=async()=>{
     setBusy(true);setError('');
@@ -352,8 +353,23 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
-    writeLiveDraft(liveDraftKey(session.id,draftKey),answer);
+    writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
   },[answer,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
+  useEffect(()=>{
+    if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
+    const key=liveDraftKey(session.id,draftKey);
+    const onStorage=(event:StorageEvent)=>{
+      if(event.key!==key||!event.newValue)return;
+      try{
+        const incoming=JSON.parse(event.newValue) as {text?:unknown;updatedAt?:unknown;tabId?:unknown};
+        if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
+        if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
+        setAnswer(incoming.text);setDirty(false);
+      }catch{/* Ignore malformed storage entries. */}
+    };
+    window.addEventListener('storage',onStorage);
+    return()=>window.removeEventListener('storage',onStorage);
+  },[answer,dirty,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
   const flushAnswer=async(text=answer,attempt=0)=>{
     if(!text||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
