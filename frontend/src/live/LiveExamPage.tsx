@@ -249,7 +249,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     event.preventDefault();setBusy(true);setError('');
     const data=new FormData(event.currentTarget);
     try{
-      const created=await api<{id:string}>('/live-exams',{method:'POST',body:JSON.stringify({
+      const created=await api<{id:string}>('/live-exams',{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds,subtopicIds,
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:Number(data.get('questionCount')),questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:data.get('markingMode'),includeDiagrams:data.get('includeDiagrams')==='on',excludeSeen:data.get('excludeSeen')==='on',
