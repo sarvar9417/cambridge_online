@@ -150,6 +150,24 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
       ];
     }
 
+    const referencedVisualIds=new Set(contentJson.blocks.flatMap((block)=>
+      block.type==='asset'&&['diagram','image','flowchart','logic_circuit'].includes(block.kind)
+        ? [block.assetId]
+        : [],
+    ));
+    contextBlocks=contextBlocks
+      .map((block)=>({
+        ...block,
+        // question_assets is append-only repair history. For canonical v1
+        // content, expose only visual rows that the structured source actually
+        // references; keep semantic table/code assets unchanged.
+        assets:block.assets.filter((asset)=>
+          !['diagram','image'].includes(String(asset.kind).toLowerCase())
+          || referencedVisualIds.has(asset.id),
+        ),
+      }))
+      .filter((block)=>Boolean(block.context)||block.assets.length>0);
+
     return {
       ...portable,
       contextBlocks,
