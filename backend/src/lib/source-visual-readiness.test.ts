@@ -69,7 +69,8 @@ describe('source visual readiness', () => {
     expect(ready).toContain("asset.storage_path");
     expect(ready).toContain("asset.content_md");
     expect(ready).toContain("asset.svg_markup");
-    expect(ready).toContain("<\\\\?xml");
+    expect(ready).toContain("[[:space:]]");
+    expect(ready).toContain("<[?]xml");
     expect(broken).toContain('not');
   });
 });
