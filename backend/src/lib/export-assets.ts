@@ -20,7 +20,12 @@ function pngAsSvg(bytes:Uint8Array,alt:string){
 }
 
 async function materializeAsset(asset:ExportAsset,signer:AssetUrlSigner|undefined,fetchImpl:FetchLike){
-  if(asset.contentMd||!asset.storagePath)return asset;
+  // A reviewed ready crop is literal source evidence and must outrank a
+  // generated/legacy SVG for PDF/DOCX export. This keeps export parity aligned
+  // with Question Bank/Live, where the signed source crop is already preferred.
+  const readySourceCrop=asset.cropStatus==='ready'&&Boolean(asset.storagePath);
+  if(!readySourceCrop&&(asset.contentMd||!asset.storagePath))return asset;
+  if(!asset.storagePath)return asset;
   if(!signer)throw new Error(`export_asset_storage_unavailable:${asset.altText??asset.kind}`);
   const url=await signer.signStoragePath(asset.storagePath,300);
   if(!url)throw new Error(`export_asset_storage_path_invalid:${asset.altText??asset.kind}`);
