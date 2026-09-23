@@ -24,7 +24,8 @@
     "syllabus:catalog": "tsx src/jobs/syllabus-catalog-import-cli.ts",
     "syllabus:coverage": "tsx src/jobs/syllabus-coverage-cli.ts",
     "syllabus:repair": "tsx src/jobs/historical-syllabus-repair-cli.ts",
-    "syllabus:lo-apply": "tsx src/jobs/syllabus-lo-apply-cli.ts"
+    "syllabus:lo-apply": "tsx src/jobs/syllabus-lo-apply-cli.ts",
+    "corpus:visual-fidelity": "tsx src/jobs/visual-fidelity-audit-cli.ts"
   },
   "dependencies": {
     "@sparticuz/chromium-min": "^149.0.0",

@@ -1,0 +1,82 @@
+{
+  "version": "9618-mark-scheme-source-evidence-v1",
+  "sourcePaper": {
+    "id": "fa26b542-9ad7-4ebd-89a5-eab2d4695fc6",
+    "ref": "9618/11/M/J/21 MS",
+    "year": 2021,
+    "series": "MJ",
+    "component": 1,
+    "variant": 1,
+    "kind": "MS",
+    "pageCount": 10,
+    "sha256": "e0c2cd4128ec9e2491d8ef2befe7674281dd934cb366f72cbcc6ee026fef6733",
+    "verifiedPimaDriveFileId": "1BbRcyELuB2Nj_AeYnNvnUEbFysGNdmGX",
+    "verifiedPimaTitle": "9618_s21_ms_11.pdf",
+    "sourceIdentityStatus": "EXACT_SHA_MATCH",
+    "renderDpi": 200
+  },
+  "pageEvidence": {
+    "1": "06e45cb985b110b58ebf53368cd2f54554df146fecffb406388c4e8fad3a55c4",
+    "2": "c706a2712d0dbe1a7bcd300790612968a24770dadff054108656e9df211b19dd",
+    "3": "e9075b3b4bc1ff72bb728c12c536e6f6bb4ebe90a47c29a617d354f504efd424",
+    "4": "28bd9a1da4f614c32b8a4b12cd4ea47b7e30a9ef80fe9e6755ff40a99f9badbc",
+    "5": "a955b4b5fb7206e3b30060ab81d6a883448a529c9bbc30195f5a3da529c9092f",
+    "6": "678dea9da11b3e246fb02338c7ffcbd58a11b8d955fc32066fcefa7424dc35ac",
+    "7": "e220b279a855dec3617158ca736cd84ae4e478dcd24c27b07cd60207da53edda",
+    "8": "81b2859fd7f71d24879e9b7a8e2ebbe9327c28d5c502dcffb23e0796ec25b080",
+    "9": "08eb8c095b143bb700ce78d6c6302d8560c4b85683301fd8767eecffd70ed70f",
+    "10": "5871305c9b2b4c9415c695a99a51fb906d4014dd345bb0bef1d1d3d85631b411"
+  },
+  "structuredVisualInventory": [
+    {
+      "questionRef": "2(a)",
+      "sourcePage": 4,
+      "kind": "completed_matching_diagram",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    },
+    {
+      "questionRef": "3(b)",
+      "sourcePage": 5,
+      "kind": "completed_trace_table",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    },
+    {
+      "questionRef": "3(c)(i)",
+      "sourcePage": 6,
+      "kind": "completed_binary_row",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    },
+    {
+      "questionRef": "4(c)(i)",
+      "sourcePage": 7,
+      "kind": "completed_tick_table",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    },
+    {
+      "questionRef": "7(b)(ii)",
+      "sourcePage": 9,
+      "kind": "completed_tick_table",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    },
+    {
+      "questionRef": "8",
+      "sourcePage": 10,
+      "kind": "completed_tick_table",
+      "classification": "VF-5",
+      "blocker": "exact_geometry_and_product_surface_proof_not_captured"
+    }
+  ],
+  "summary": {
+    "exactSourceShaVerified": true,
+    "exactPageCountVerified": true,
+    "pageEvidenceCount": 10,
+    "structuredVisualCandidates": 6,
+    "vf5Count": 6,
+    "note": "This is source-side mark-scheme evidence only. It does not claim database/render/export fidelity and does not award VF-0/VF-1."
+  }
+}

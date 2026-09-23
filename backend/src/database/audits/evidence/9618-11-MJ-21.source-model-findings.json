@@ -1,0 +1,82 @@
+{
+  "version": "9618-source-model-findings-v1",
+  "sourcePaperId": "fab329b3-9fbc-43ac-938b-5d83c815a1e5",
+  "paperRef": "9618/11/M/J/21",
+  "sourceSha256": "d73fa3294ec38a62d756742887a1bfc99909a2135ea86ac4a6713915fc305453",
+  "status": "SOURCE_MODEL_DEFECTS_CONFIRMED_RENDER_SURFACE_NOT_YET_CLASSIFIED",
+  "findings": [
+    {
+      "id": "QP11-2021-MJ-Q1AI-TABLE-GEOMETRY",
+      "questionRef": "9618/11/M/J/21 Q1(a)(i)",
+      "questionId": "5b3a6893-9dd0-49cf-832b-517716b46524",
+      "targetKey": "block:2",
+      "sourcePage": 2,
+      "severity": "source_model_fidelity_defect",
+      "evidence": "The source table has two tall description cells with three dotted response lines in each cell. The current structured table records only null editable cells and carries no row-height or dotted-line geometry.",
+      "surfaceClassification": "VF-5",
+      "nextAction": "Capture Question Bank/PDF/DOCX/Live output, then repair the renderer/model so source response-line geometry is representable."
+    },
+    {
+      "id": "QP11-2021-MJ-Q3B-MEMORY-LAYOUT",
+      "questionRef": "9618/11/M/J/21 Q3(b)",
+      "questionId": "6b1f48a6-22ba-4522-a8a4-33c41bcfa9ee",
+      "targetKey": "block:2",
+      "sourcePage": 8,
+      "severity": "source_model_fidelity_defect",
+      "evidence": "The source memory listing places Address values outside a boxed Instruction column and uses a discontinuity/ellipsis between address 209 and 365. The current generic two-column table model will box both columns uniformly and cannot preserve that geometry.",
+      "surfaceClassification": "VF-5",
+      "nextAction": "Capture surfaces and replace the generic table representation with a source-faithful structured/image representation."
+    },
+    {
+      "id": "QP11-2021-MJ-Q3B-TRACE-MERGED-HEADER",
+      "questionRef": "9618/11/M/J/21 Q3(b)",
+      "questionId": "6b1f48a6-22ba-4522-a8a4-33c41bcfa9ee",
+      "targetKey": "block:5",
+      "sourcePage": 9,
+      "severity": "source_model_fidelity_defect",
+      "evidence": "The source trace table has a two-level header with 'Memory address' merged over columns 365–368. The current block has a single flat header row and omits the merged 'Memory address' heading.",
+      "surfaceClassification": "VF-5",
+      "nextAction": "Add merged-cell/table-header geometry to the structured model or use an exact source-faithful representation."
+    },
+    {
+      "id": "QP11-2021-MJ-Q4CII-INVENTED-HEADER",
+      "questionRef": "9618/11/M/J/21 Q4(c)(ii)",
+      "questionId": "b0304966-4b2b-4a9d-9bb8-b4ba34b7740d",
+      "targetKey": "block:2",
+      "sourcePage": 12,
+      "severity": "source_content_fidelity_defect",
+      "evidence": "The source is a two-row, two-column grid labelled only 'Wired' and 'Wireless'. Current content_json invents the header row ['Connection','Tick (✓)'], which is not present in the Cambridge source.",
+      "surfaceClassification": "VF-5",
+      "nextAction": "Remove the invented header in a source-backed data repair after staging validation."
+    },
+    {
+      "id": "QP11-2021-MJ-Q4CII-JUSTIFICATION-LINES",
+      "questionRef": "9618/11/M/J/21 Q4(c)(ii)",
+      "questionId": "b0304966-4b2b-4a9d-9bb8-b4ba34b7740d",
+      "targetKey": "block:3",
+      "sourcePage": 12,
+      "severity": "source_content_fidelity_defect",
+      "evidence": "The source includes the literal label 'Justification' followed by six dotted writing lines. The current content_json has only answer_area(lines=5) and no 'Justification' label block.",
+      "surfaceClassification": "VF-5",
+      "nextAction": "Restore the label and exact writing-line count/geometry in a source-backed repair after staging validation."
+    }
+  ],
+  "rendererRisks": [
+    {
+      "id": "GENERIC-TABLE-SHADING",
+      "evidence": "Current structured-question CSS applies soft background to table headers and accent background to editable cells; the reviewed Cambridge source tables are unshaded.",
+      "status": "needs_literal_surface_capture"
+    },
+    {
+      "id": "GENERIC-PSEUDOCODE-CARD",
+      "evidence": "Current structured-question CSS gives code a border, rounded corners and soft background; the reviewed Cambridge pseudocode on page 14 is plain monospaced text on white.",
+      "status": "needs_literal_surface_capture"
+    },
+    {
+      "id": "GENERIC-ANSWER-AREA",
+      "evidence": "Current answer-area CSS uses a rounded outer border and repeating solid lines, while reviewed Cambridge answer areas use unboxed dotted writing lines and labelled inline starts in several questions.",
+      "status": "needs_literal_surface_capture"
+    }
+  ],
+  "rule": "These are source/model findings. No VF-2/VF-3/VF-4 surface classification is awarded until a literal product-surface capture is attached."
+}
