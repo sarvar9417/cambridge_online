@@ -11,7 +11,7 @@ import type { StructuredQuestionContent } from '../../lib/structured-question-co
 import { SupabaseAssetStore } from '../asset-store.js';
 import type { Job } from '../job-queue.js';
 
-type FrozenSelectionReview={totalMarks:number;items:Array<{role:'graded'|'context_only';freshRef:string;sourceRef:string;effectiveMarks:number;portable:{leaf:{id:string;stem:string;contentJson?:StructuredQuestionContent|null;marks:number;answerLines?:number|null};contextBlocks:Array<{displayRef?:string;context?:string|null;assets?:Array<{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}>}>}}>};
+type FrozenSelectionReview={totalMarks:number;items:Array<{role:'graded'|'context_only';freshRef:string;sourceRef:string;effectiveMarks:number;portable:{leaf:{id:string;stem:string;contentJson?:StructuredQuestionContent|null;marks:number;answerLines?:number|null};contextBlocks:Array<{displayRef?:string;context?:string|null;assets?:Array<{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null;cropStatus?:string|null}>}>}}>};
 type SchemeExport={status:string;guidance:string|null;points:ExportQuestion['points']};
 
 const schemePointJson=`json_build_object(
