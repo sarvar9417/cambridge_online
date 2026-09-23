@@ -4,6 +4,7 @@ import type { LiveExamService } from '../services/live-exam-service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
+import { runIdempotent } from '../lib/idempotent-request.js';
 
 const uuid = z.string().uuid();
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
@@ -27,7 +28,7 @@ const createInput = z.object({
 }).strict();
 
 const versionInput = z.object({
-  expectedVersion: z.number().int().positive().optional(),
+  expectedVersion: z.number().int().positive(),
 }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
@@ -60,7 +61,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
 
   router.post('/', durableStaffLimit, async (req, res) => {
     const body = createInput.parse(req.body);
-    res.status(201).json(await service.create(req.actor!, body));
+    const operation = async () => ({ status:201, body:await service.create(req.actor!, body) });
+    if (pool) return runIdempotent(req, res, pool, operation);
+    const result = await operation();
+    return res.status(result.status).json(result.body);
   });
 
   router.get('/eligible-questions', durableStaffLimit, async (req, res) => {
@@ -190,7 +194,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
-    const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive().optional() }).strict().parse(req.body ?? {});
+    const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive() }).strict().parse(req.body ?? {});
     res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
   });
 
