@@ -88,10 +88,46 @@ function mathXml(block:Extract<StructuredQuestionBlock,{type:'math'}>){
   return `<m:oMathPara><m:oMath><m:r><m:t>${x(value)}</m:t></m:r></m:oMath></m:oMathPara>`;
 }
 function structuredTableXml(block:Extract<StructuredQuestionBlock,{type:'table'}>){
-  const rows:string[][]=[];
-  if(block.headers.length)rows.push(block.headers);
-  rows.push(...block.rows.map(row=>row.map(cell=>cell??'')));
-  return wordTable(rows,block.headers.length>0);
+  if(!block.headerRows?.length){
+    const rows:string[][]=[];
+    if(block.headers.length)rows.push(block.headers);
+    rows.push(...block.rows.map(row=>row.map(cell=>cell??'')));
+    return wordTable(rows,block.headers.length>0);
+  }
+  const cols=block.rows[0]?.length??block.headers.length;
+  const tc=(text:string,opts:{bold?:boolean;gridSpan?:number;vMerge?:'restart'|'continue'}={})=>`<w:tc><w:tcPr><w:tcW w:w="${Math.floor(9000/Math.max(1,cols))*(opts.gridSpan??1)}" w:type="dxa"/>${(opts.gridSpan??1)>1?`<w:gridSpan w:val="${opts.gridSpan}"/>`:''}${opts.vMerge?`<w:vMerge${opts.vMerge==='restart'?' w:val="restart"':''}/>`:''}</w:tcPr>${para(text,{bold:opts.bold})}</w:tc>`;
+  const headerRows=block.headerRows.map((headerRow,rowIndex)=>{
+    let column=0,xml='';
+    const starts=new Map(headerRow.map(cell=>[cell.column,cell]));
+    while(column<cols){
+      const cell=starts.get(column);
+      if(cell){
+        const colSpan=cell.colSpan??1,rowSpan=cell.rowSpan??1;
+        xml+=tc(cell.text,{bold:true,gridSpan:colSpan,vMerge:rowSpan>1?'restart':undefined});
+        column+=colSpan;
+        continue;
+      }
+      let active:{column:number;colSpan:number}|undefined;
+      for(let prior=0;prior<rowIndex;prior+=1){
+        for(const candidate of block.headerRows![prior]??[]){
+          const rowSpan=candidate.rowSpan??1,colSpan=candidate.colSpan??1;
+          if(prior+rowSpan>rowIndex&&column>=candidate.column&&column<candidate.column+colSpan){
+            active={column:candidate.column,colSpan};break;
+          }
+        }
+        if(active)break;
+      }
+      if(active){
+        if(column===active.column)xml+=tc('',{bold:true,gridSpan:active.colSpan,vMerge:'continue'});
+        column=active.column+active.colSpan;
+      }else{
+        xml+=tc('',{bold:true});column+=1;
+      }
+    }
+    return `<w:tr>${xml}</w:tr>`;
+  }).join('');
+  const body=block.rows.map(row=>`<w:tr>${Array.from({length:cols},(_,ci)=>tc(row[ci]??'')).join('')}</w:tr>`).join('');
+  return `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>${headerRows}${body}</w:tbl>`;
 }
 function matchingXml(block:Extract<StructuredQuestionBlock,{type:'matching'}>){
   const count=Math.max(block.left.length,block.right.length);
