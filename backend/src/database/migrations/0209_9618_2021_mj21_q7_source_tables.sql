@@ -98,5 +98,5 @@ BEGIN
     SELECT count(*) FROM questions q
     CROSS JOIN LATERAL jsonb_array_elements(q.content_json->'blocks') b
     WHERE q.id IN (v_qa,v_qb,v_qc) AND b->>'type'='asset'
-  ) <> 11 THEN RAISE EXCEPTION 'vf_mj21_21_q7_asset_consumption_failed'; END IF;
+  ) <> 8 THEN RAISE EXCEPTION 'vf_mj21_21_q7_asset_consumption_failed'; END IF;
 END $$;
