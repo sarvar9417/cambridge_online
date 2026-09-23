@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
-import { completeInlineSvg, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
@@ -144,7 +144,8 @@ export class AssignmentsService {
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
       const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
       const assetRows=assetIds.length
-        ? (await client.query(`select id,storage_path,coalesce(svg_markup,content_md) content_md from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+        ? (await client.query(`select id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
+           from question_assets where id=any($1::uuid[])`,[assetIds])).rows
         : [];
       await client.query('commit');
 
@@ -154,11 +155,24 @@ export class AssignmentsService {
           const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
           if(url){signedAssetUrls[row.id]=url;return;}
         }
-        if(completeInlineSvg(row.content_md)){
-          signedAssetUrls[row.id]=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(String(row.content_md).trim())}`;
-        }
+        const inline=sourceVisualDataUrl(row.content_md);
+        if(inline)signedAssetUrls[row.id]=inline;
       }));
-      const questions=qr.rows.map((row)=>serializeAttemptQuestion(row,signedAssetUrls));
+      const sourceAssetsById=new Map(assetRows.map((row)=>[String(row.id),{
+        id:String(row.id),
+        kind:String(row.kind),
+        url:signedAssetUrls[row.id]??null,
+        contentMd:row.content_md?String(row.content_md):null,
+        altText:row.alt_text?String(row.alt_text):'',
+        sourcePage:row.source_page==null?null:Number(row.source_page),
+      }] as const));
+      const questions=qr.rows.map((row)=>{
+        const question=serializeAttemptQuestion(row,signedAssetUrls);
+        const sourceAssets=attemptQuestionAssetIds(question.contentJson)
+          .map((id)=>sourceAssetsById.get(id))
+          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
+        return {...question,sourceAssets};
+      });
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
       return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
