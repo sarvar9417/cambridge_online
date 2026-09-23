@@ -55,6 +55,17 @@ describe('structured question content v1', () => {
     expect(parsed.blocks[1]).toMatchObject({ type: 'math', semantics: 'boolean_expression' });
   });
 
+  it('accepts source-faithful table/code asset kinds for literal rendering', () => {
+    const parsed = parseStructuredQuestionContent({
+      ...valid,
+      blocks: [
+        { type: 'asset', kind: 'table', assetId: '33333333-3333-4333-8333-333333333333', altText: 'Merged source table', source: location },
+        { type: 'asset', kind: 'pseudocode', assetId: '44444444-4444-4444-8444-444444444444', altText: 'Source pseudocode SVG', source: location },
+      ],
+    });
+    expect(parsed.blocks).toHaveLength(2);
+  });
+
   it('rejects a malformed source hash', () => {
     const result = safeParseStructuredQuestionContent({
       ...valid,
