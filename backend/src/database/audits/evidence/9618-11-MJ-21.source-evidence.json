@@ -102,7 +102,7 @@
       "assetId": "8649e01d-0211-4558-a541-bbed3279c6ae",
       "kind": "table",
       "sourcePage": 8,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "132166353982c587b848c69c1836345333d9ef53328d7337d3bd510cf29d6ccc",
       "consumerState": "dormant",
       "classification": "VF-5",
       "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
@@ -122,7 +122,7 @@
       "assetId": "1894154b-5802-47ca-a2d2-2ee9dc63f6f5",
       "kind": "table",
       "sourcePage": 8,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "a68e5d2bbdb0317de78e2fe35d7a2ecad4546fae29fc1cac24cb020aea795fd0",
       "consumerState": "dormant",
       "classification": "VF-5",
       "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
@@ -391,10 +391,10 @@
     "primaryOccurrenceCount": 16,
     "activeByStructuredAssetReference": 1,
     "dormantOrCompanionByStructuredAssetReference": 15,
-    "exactBboxCropCount": 14,
+    "exactBboxCropCount": 16,
     "pageOnlyManualLocalisationCount": 0,
     "vf5Count": 16,
-    "note": "All 16 source elements are now localised without OCR. Two page-8 localisation boxes were corrected after visual review and await regenerated crop hashes. Product-surface proof is still not claimed; every occurrence remains VF-5.",
-    "pendingCropHashCount": 2
+    "note": "All 16 source elements are now localised and hashed from the exact SHA-matched source PDF without OCR. Product-surface proof is still not claimed; every occurrence remains VF-5 until Question Bank/PDF/DOCX/Live evidence is attached.",
+    "pendingCropHashCount": 0
   }
 }
