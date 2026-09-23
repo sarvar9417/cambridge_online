@@ -16,8 +16,8 @@ export function renderableVisualAssetSql(alias='qa'){
   const a=identifier(alias);
   return `(
     nullif(btrim(coalesce(${a}.storage_path,'')),'') is not null
-    or coalesce(${a}.content_md,'') ~* '^\\s*<svg(?:\\s|>)'
-    or coalesce(${a}.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)'
+    or coalesce(${a}.content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)'
+    or coalesce(${a}.svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)'
   )`;
 }
 
@@ -30,6 +30,7 @@ export function renderableVisualAssetSql(alias='qa'){
  */
 export function questionVisualIntegritySql(questionAlias='q'){
   const q=identifier(questionAlias);
+  const renderable=renderableVisualAssetSql('qa');
   return `not exists(
     with recursive source_visual_chain as (
       select ${q}.id,${q}.parent_id
@@ -40,9 +41,32 @@ export function questionVisualIntegritySql(questionAlias='q'){
     )
     select 1
     from source_visual_chain svc
-    join question_assets qa on qa.question_id=svc.id
-    where qa.kind in ('diagram','image')
-      and not ${renderableVisualAssetSql('qa')}
+    join questions source_node on source_node.id=svc.id
+    where (
+      source_node.content_version=1
+      and source_node.content_json is not null
+      and exists(
+        select 1
+        from jsonb_array_elements(coalesce(source_node.content_json->'blocks','[]'::jsonb)) block
+        left join question_assets qa on qa.id::text=block->>'assetId'
+        where block->>'type'='asset'
+          and block->>'kind' in ('diagram','image','flowchart','logic_circuit')
+          and (qa.id is null or not ${renderable})
+      )
+    ) or (
+      (source_node.content_json is null or source_node.content_version is distinct from 1)
+      and exists(
+        select 1 from question_assets visual
+        where visual.question_id=source_node.id
+          and visual.kind in ('diagram','image')
+      )
+      and not exists(
+        select 1 from question_assets qa
+        where qa.question_id=source_node.id
+          and qa.kind in ('diagram','image')
+          and ${renderable}
+      )
+    )
   )`;
 }
 
@@ -62,4 +86,41 @@ export function portableVisualReady(asset:PortableVisualLike){
   const kind=(asset.kind??'').toLowerCase();
   if(kind!=='diagram'&&kind!=='image')return true;
   return Boolean(asset.url)||completeInlineSvg(asset.contentMd);
+}
+
+type PortableVisualAsset=PortableVisualLike&{id?:string|null};
+type StructuredContentLike={version?:unknown;blocks?:unknown};
+
+function structuredVisualIds(content:unknown){
+  if(!content||typeof content!=='object')return null;
+  const candidate=content as StructuredContentLike;
+  if(candidate.version!==1||!Array.isArray(candidate.blocks))return null;
+  const ids=new Set<string>();
+  for(const block of candidate.blocks){
+    if(!block||typeof block!=='object')continue;
+    const row=block as Record<string,unknown>;
+    if(row.type!=='asset'||!['diagram','image','flowchart','logic_circuit'].includes(String(row.kind)))continue;
+    if(typeof row.assetId==='string')ids.add(row.assetId);
+  }
+  return ids;
+}
+
+/**
+ * Validate the visuals that the canonical structured question actually
+ * references. Legacy DTOs without structured content require at least one
+ * renderable visual when visual assets are present. Stale, unreferenced repair
+ * rows therefore cannot block an otherwise source-complete question.
+ */
+export function portableQuestionVisualReady(content:unknown,assets:PortableVisualAsset[]){
+  const referenced=structuredVisualIds(content);
+  if(referenced){
+    const byId=new Map(assets.filter((asset)=>asset.id).map((asset)=>[asset.id!,asset] as const));
+    for(const id of referenced){
+      const asset=byId.get(id);
+      if(!asset||!portableVisualReady(asset))return false;
+    }
+    return true;
+  }
+  const visuals=assets.filter((asset)=>['diagram','image'].includes((asset.kind??'').toLowerCase()));
+  return !visuals.length||visuals.some(portableVisualReady);
 }
