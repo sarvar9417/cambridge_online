@@ -33,11 +33,23 @@ function run(command:string,args:string[],cwd:string){
   });
 }
 
+function latexDocument(source:string){
+  if(/\\documentclass\b/.test(source))return source;
+  return [
+    '\\documentclass[border=6pt]{standalone}',
+    '\\usepackage{tikz}',
+    '\\usetikzlibrary{arrows.meta,positioning}',
+    '\\begin{document}',
+    source,
+    '\\end{document}',
+  ].join('\n');
+}
+
 async function compileLatexToSvg(assetId:string,latex:string){
   const dir=await mkdtemp(join(tmpdir(),'campath-visual-'));
   try{
     const tex=join(dir,'source.tex');
-    await writeFile(tex,latex,'utf8');
+    await writeFile(tex,latexDocument(latex),'utf8');
     await run('pdflatex',['-interaction=nonstopmode','-halt-on-error',basename(tex)],dir);
     await run('pdftocairo',['-svg','source.pdf','source.svg'],dir);
     const svg=await readFile(join(dir,'source.svg'),'utf8');
@@ -69,9 +81,17 @@ const result=await pool.query<Row>(`
   left join source_papers sp on sp.id=q.source_paper_id
   where qa.kind in ('diagram','image')
     and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
-    and not (coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)')
-    and not (coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)')
+    and not (coalesce(qa.content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
+    and not (coalesce(qa.svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
     and nullif(btrim(coalesce(qa.latex_source,'')),'') is not null
+    and exists(
+      select 1
+      from questions consumer
+      cross join lateral jsonb_array_elements(coalesce(consumer.content_json->'blocks','[]'::jsonb)) block
+      where consumer.content_version=1
+        and block->>'type'='asset'
+        and block->>'assetId'=qa.id::text
+    )
     and ($1::boolean or cardinality($2::uuid[])>0)
     and ($1::boolean or qa.id=any($2::uuid[]))
   order by q.display_ref,qa.id
@@ -94,8 +114,8 @@ for(const row of result.rows){
        set svg_markup=$2,content_hash=$3,size_bytes=$4
        where id=$1
          and nullif(btrim(coalesce(storage_path,'')),'') is null
-         and not (coalesce(content_md,'') ~* '^\\s*<svg(?:\\s|>)')
-         and not (coalesce(svg_markup,'') ~* '^\\s*<svg(?:\\s|>)')
+         and not (coalesce(content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
+         and not (coalesce(svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
          and latex_source=$5
        returning id`,
       [row.asset_id,compiled.svg,compiled.contentHash,compiled.sizeBytes,row.latex_source],
