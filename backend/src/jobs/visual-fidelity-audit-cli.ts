@@ -200,7 +200,12 @@ async function main() {
   await mkdir(assetDir, { recursive: true });
 
   const pageEvidence = new Map<number, Awaited<ReturnType<typeof renderPng>>>();
-  for (const page of [...new Set(occurrences.rows.map((row) => row.source_page).filter((value): value is number => value !== null))].sort((a,b)=>a-b)) {
+  for (const page of [...new Set(
+    occurrences.rows
+      .filter((row) => row.is_primary)
+      .map((row) => row.source_page)
+      .filter((value): value is number => value !== null),
+  )].sort((a, b) => a - b)) {
     if (page < 1 || page > localPageCount) {
       throw new Error(`visual_fidelity_asset_page_out_of_range:${page}/${localPageCount}`);
     }
@@ -215,6 +220,33 @@ async function main() {
 
   const manifestRows: Array<Record<string, unknown>> = [];
   for (const row of occurrences.rows) {
+    if (!row.is_primary) {
+      manifestRows.push({
+        occurrenceId: row.occurrence_id,
+        questionId: row.question_id,
+        displayRef: row.display_ref,
+        isPrimaryOccurrence: false,
+        assetId: row.asset_id,
+        kind: row.kind,
+        consumerState: row.is_referenced ? 'active' : 'dormant',
+        sourcePage: null,
+        sourceBbox: null,
+        sourceEvidence: null,
+        representations: {
+          storage: row.has_storage,
+          svg: row.has_svg,
+          latex: row.has_latex,
+          structuredMd: row.has_structured_md,
+        },
+        contentHash: row.content_hash,
+        cropStatus: row.crop_status,
+        classification: 'VF-5',
+        blocker: 'non_primary_occurrence_requires_occurrence_specific_source_mapping',
+        requiredSurfaces: row.is_referenced ? QP_REQUIRED_VISUAL_FIDELITY_SURFACES : [],
+      });
+      continue;
+    }
+
     if (row.source_page === null) {
       manifestRows.push({
         occurrenceId: row.occurrence_id,
