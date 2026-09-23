@@ -12,7 +12,7 @@ describe('source visual readiness',()=>{
   it('accepts complete inline SVG and rejects prose or partial markup',()=>{
     expect(completeInlineSvg('<svg viewBox="0 0 1 1"><path d="M0 0"/></svg>')).toBe(true);
     expect(completeInlineSvg('<?xml version="1.0"?><svg></svg>')).toBe(true);
-    expect(renderableVisualAssetSql('qa')).toContain("<\\?xml");
+    expect(renderableVisualAssetSql('qa')).toContain("<[?]xml");
     expect(completeInlineSvg('<svg><path/>')).toBe(false);
     expect(completeInlineSvg('K-map diagram goes here')).toBe(false);
   });
