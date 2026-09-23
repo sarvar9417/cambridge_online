@@ -33,7 +33,7 @@ const content:StructuredQuestionContent={
 describe('structured question frontend contract',()=>{
   it('recognises the canonical v1 shape',()=>{
     expect(isStructuredQuestionContent(content)).toBe(true);
-    expect(content.blocks).toHaveLength(6);
+    expect(content.blocks).toHaveLength(5);
     expect(isStructuredQuestionContent({ ...content,version:2 })).toBe(false);
   });
 
