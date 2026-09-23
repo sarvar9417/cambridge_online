@@ -76,6 +76,7 @@ describe('live exam routes', () => {
     ));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:1})
       .expect(409);
     expect(response.body.error.code).toBe('live_peer_assignment_impossible');
   });
@@ -84,8 +85,18 @@ describe('live exam routes', () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:1})
       .expect(500);
     expect(response.body.error.code).toBe('internal_error');
+  });
+
+  it('rejects teacher transitions that omit the authoritative session version', async () => {
+    const start=vi.fn();
+    await request(appFor({start}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/start')
+      .send({})
+      .expect(400);
+    expect(start).not.toHaveBeenCalled();
   });
 
   it('passes optimistic state versions to pause and resume controls', async () => {
