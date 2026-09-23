@@ -30,7 +30,17 @@ const isSvg=(value:string)=>/^\s*<svg\b/i.test(value);
 const svgDataUri=(value:string)=>`data:image/svg+xml;base64,${Buffer.from(value,'utf8').toString('base64')}`;
 const renderAsset=(a:ExportAsset)=>{let body='';if(a.contentMd){if(isSvg(a.contentMd))body=`<img class="asset-image" src="${svgDataUri(a.contentMd)}" alt="${esc(a.altText??a.kind)}"/>`;else body=markdownTable(a.contentMd)??`<pre>${esc(a.contentMd)}</pre>`}return `<div class="asset"><strong>${esc(a.kind)}</strong>${a.altText?`<span>${esc(a.altText)}</span>`:''}${a.sourcePage?`<small>Source page ${esc(a.sourcePage)}</small>`:''}${body}</div>`};
 function canonicalAssetIds(q:ExportQuestion){return new Set((q.contentJson?.blocks??[]).filter(block=>block.type==='asset').map(block=>block.type==='asset'?block.assetId:''))}
-const renderContextBlocks=(q:ExportQuestion)=>{const canonical=canonicalAssetIds(q);const blocks=(q.contextBlocks??[]).map(block=>({...block,assets:(block.assets??[]).filter(asset=>!asset.id||!canonical.has(asset.id))})).filter(block=>Boolean(block.context)||(block.assets?.length??0)>0);if(!blocks.length)return q.context?`<p class="context">${esc(q.context)}</p>`:'';return `<div class="context-blocks">${blocks.map(b=>`<aside class="context-block">${b.displayRef?`<div class="context-ref">${esc(b.displayRef)}</div>`:''}${b.context?`<p class="context">${esc(b.context)}</p>`:''}${(b.assets??[]).map(renderAsset).join('')}</aside>`).join('')}</div>`};
+function structuredLegacyAssetSuperseded(q:ExportQuestion,asset:ExportAsset){
+  if(!q.contentJson||asset.sourcePage==null)return false;
+  if(asset.id&&canonicalAssetIds(q).has(asset.id))return true;
+  return q.contentJson.blocks.some(block=>
+    block.source.page===asset.sourcePage&&(
+      (asset.kind==='table'&&block.type==='table')
+      ||((asset.kind==='code'||asset.kind==='pseudocode')&&block.type==='code')
+    )
+  );
+}
+const renderContextBlocks=(q:ExportQuestion)=>{const blocks=(q.contextBlocks??[]).map(block=>({...block,assets:(block.assets??[]).filter(asset=>!structuredLegacyAssetSuperseded(q,asset))})).filter(block=>Boolean(block.context)||(block.assets?.length??0)>0);if(!blocks.length)return q.context?`<p class="context">${esc(q.context)}</p>`:'';return `<div class="context-blocks">${blocks.map(b=>`<aside class="context-block">${b.displayRef?`<div class="context-ref">${esc(b.displayRef)}</div>`:''}${b.context?`<p class="context">${esc(b.context)}</p>`:''}${(b.assets??[]).map(renderAsset).join('')}</aside>`).join('')}</div>`};
 
 function valueItems(value:unknown):string[]{
   if(value===null||value===undefined)return[];
