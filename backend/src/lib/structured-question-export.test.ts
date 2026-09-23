@@ -59,6 +59,19 @@ describe('structured question HTML export',()=>{
     expect(html).toContain('alt="Logic circuit"');
   });
 
+  it('exports a source-faithful table SVG as an asset instead of flattening merged geometry',()=>{
+    const assetId='33333333-3333-4333-8333-333333333333';
+    const html=renderStructuredQuestionHtml({
+      version:1,source,blocks:[{
+        type:'asset',kind:'table',assetId,altText:'Merged Cambridge instruction table',source:location,
+      }],
+    },{assets:[{id:assetId,dataUri:'data:image/svg+xml;base64,PHN2Zy8+'}]});
+    expect(html).toContain('sq-table');
+    expect(html).toContain('data-block="asset"');
+    expect(html).toContain('data-asset-id="33333333-3333-4333-8333-333333333333"');
+    expect(html).toContain('data:image/svg+xml;base64,PHN2Zy8+');
+  });
+
   it('does not silently drop an unresolved source visual',()=>{
     const html=renderStructuredQuestionHtml({
       version:1,source,blocks:[{
