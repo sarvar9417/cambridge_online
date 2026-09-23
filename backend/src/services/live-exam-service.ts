@@ -6,6 +6,7 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
+import { portableVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -225,6 +226,7 @@ export class LiveExamService {
       `q.status='approved'`,
       `q.marks>0`,
       `ms.status='approved'`,
+      questionVisualIntegritySql('q'),
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
         select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
       ))`,
@@ -472,8 +474,8 @@ export class LiveExamService {
         this.markScheme(questionId),
       ]);
       if (!portable) throw new DomainError('live_question_not_ready', 409);
-      if (input.includeDiagrams && portable.contextBlocks.some(
-        (block) => block.assets.some((asset) => asset.storagePath && !asset.contentMd && !asset.url),
+      if (portable.contextBlocks.some(
+        (block) => block.assets.some((asset) => !portableVisualReady(asset)),
       )) throw new DomainError('live_assets_unavailable', 409);
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
