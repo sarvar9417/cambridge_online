@@ -17,15 +17,34 @@ type TableBlock = Extract<StructuredQuestionBlock, { type:'table' }>;
 type AssetBlock = Extract<StructuredQuestionBlock, { type:'asset' }>;
 type CodeBlock = Extract<StructuredQuestionBlock, { type:'code' }>;
 
+export function extractFaithfulInlineSvg(value: string | null | undefined) {
+  let candidate = (value ?? '').replace(/^\uFEFF/, '').trim();
+  if (!candidate) return null;
+
+  const fenced = candidate.match(/^\`\`\`(?:svg|xml)\s*\r?\n([\s\S]*?)\r?\n\`\`\`\s*$/i);
+  if (fenced) candidate = fenced[1]!.trim();
+
+  // Historical repairs occasionally preserved the XML declaration. Keep the
+  // actual SVG but reject arbitrary markup/prose before or after it.
+  candidate = candidate.replace(/^<\?xml[^>]*\?>\s*/i, '');
+  if (!/^<svg(?:\s|>)/i.test(candidate) || !/<\/svg>\s*$/i.test(candidate)) return null;
+  return candidate;
+}
+
 export function isFaithfulInlineSvg(value: string | null | undefined) {
-  return /^\s*<svg(?:\s|>)/i.test(value ?? '');
+  return extractFaithfulInlineSvg(value) !== null;
 }
 
 export function portableAssetUrl(asset: PortableSourceAsset | undefined) {
   if (!asset) return null;
   if (asset.url) return asset.url;
-  if (!isFaithfulInlineSvg(asset.contentMd)) return null;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(asset.contentMd!)}`;
+  const svg = extractFaithfulInlineSvg(asset.contentMd);
+  if (!svg) return null;
+
+  // Render source SVG through <img src="data:image/svg+xml,..."> rather than
+  // injecting its markup into the document. This preserves the diagram while
+  // keeping scripts/event attributes in the SVG outside the page DOM.
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 function pipeCells(line: string) {
