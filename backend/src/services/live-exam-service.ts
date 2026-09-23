@@ -341,6 +341,7 @@ export class LiveExamService {
         select 1 from live_exam_questions leq
         join live_exam_sessions previous on previous.id=leq.session_id
         where leq.question_id=q.id and previous.class_id=${classParameter}
+          and previous.started_at is not null
       )`);
     }
     values.push(input.questionCount);
