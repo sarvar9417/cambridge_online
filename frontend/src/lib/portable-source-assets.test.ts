@@ -84,7 +84,7 @@ describe('portable source assets',()=>{
       contentMd:'<svg viewBox="0 0 100 40"><path d="M0 0H100V40H0Z"/></svg>',
     }]);
     expect(next.blocks[0]?.type).toBe('asset');
-    expect(portableAssetUrl({id:assetId,kind:'table',contentMd:'<svg viewBox="0 0 1 1"></svg>'})).toMatch(/^data:image\\/svg\\+xml/);
+    expect(portableAssetUrl({id:assetId,kind:'table',contentMd:'<svg viewBox="0 0 1 1"></svg>'})).toMatch(/^data:image\/svg\+xml/);
   });
 
   it('upgrades a legacy generic asset block that points at a semantic table',()=>{
