@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   completeInlineSvg,
   portableQuestionVisualReady,
+  sourceVisualDataUrl,
   portableVisualReady,
   questionVisualIntegritySql,
   renderableVisualAssetSql,
@@ -22,6 +23,14 @@ describe('source visual readiness',()=>{
     expect(portableVisualReady({kind:'diagram',url:null,contentMd:'diagram description'})).toBe(false);
     expect(portableVisualReady({kind:'code',url:null,contentMd:'OUTPUT X'})).toBe(true);
   });
+  it('accepts fenced SVG consistently and encodes it as an image URL',()=>{
+    const fenced='\`\`\`svg\n<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>\n\`\`\`';
+    expect(completeInlineSvg(fenced)).toBe(true);
+    const url=sourceVisualDataUrl(fenced);
+    expect(url).toMatch(/^data:image\/svg\+xml/);
+    expect(decodeURIComponent(url!.split(',')[1]!)).toMatch(/^<svg/);
+  });
+
 
   it('uses the same three canonical source fields in SQL readiness',()=>{
     const sql=renderableVisualAssetSql('qa');
@@ -36,6 +45,7 @@ describe('source visual readiness',()=>{
     expect(sql).toContain("block->>'type'='asset'");
     expect(sql).toContain("block->>'kind' in ('diagram','image','flowchart','logic_circuit')");
     expect(sql).toContain("qa.id::text=block->>'assetId'");
+    expect(sql).toContain("qa.kind in ('diagram','image')");
     expect(sql).toContain('qa.svg_markup');
   });
 
@@ -45,5 +55,14 @@ describe('source visual readiness',()=>{
     const content={version:1,blocks:[{type:'asset',kind:'image',assetId:'ready'}]};
     expect(portableQuestionVisualReady(content,[ready,stale])).toBe(true);
     expect(portableQuestionVisualReady({version:1,blocks:[{type:'asset',kind:'image',assetId:'stale'}]},[ready,stale])).toBe(false);
+  });
+  it('does not misclassify semantic table/code assets referenced through legacy image-shaped blocks as missing visuals',()=>{
+    const table={id:'table-1',kind:'table',url:null,contentMd:'| A | B |\n|---|---|\n|0|1|'};
+    const code={id:'code-1',kind:'pseudocode',url:null,contentMd:'INPUT X\nOUTPUT X'};
+    const content={version:1,blocks:[
+      {type:'asset',kind:'image',assetId:'table-1'},
+      {type:'asset',kind:'image',assetId:'code-1'},
+    ]};
+    expect(portableQuestionVisualReady(content,[table,code])).toBe(true);
   });
 });
