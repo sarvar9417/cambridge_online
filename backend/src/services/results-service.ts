@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { parseStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
 import { DomainError } from './assignments-service.js';
+import { sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
@@ -91,11 +92,13 @@ export class ResultsService {
       for(const id of assetIds(content))referencedAssets.add(id);
     }
     const signedAssetUrls:Record<string,string>={};
-    if(referencedAssets.size&&this.assetUrlSigner){
-      const assets=await this.pool.query(`select id,storage_path from question_assets where id=any($1::uuid[])`,[[...referencedAssets]]);
+    if(referencedAssets.size){
+      const assets=await this.pool.query(`select id,storage_path,coalesce(svg_markup,content_md) source_markup from question_assets where id=any($1::uuid[])`,[[...referencedAssets]]);
       await Promise.all(assets.rows.map(async(row)=>{
-        if(!row.storage_path)return;
-        const url=await this.assetUrlSigner!.signStoragePath(row.storage_path,300);
+        const inline=sourceVisualDataUrl(row.source_markup);
+        if(inline){signedAssetUrls[row.id]=inline;return}
+        if(!row.storage_path||!this.assetUrlSigner)return;
+        const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
         if(url)signedAssetUrls[row.id]=url;
       }));
     }
