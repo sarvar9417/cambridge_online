@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { generateSmartPaper, type SmartPaperCandidate } from '../lib/smart-paper-generator.js';
+import { renderableVisualAssetSql, unrenderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
 import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
@@ -128,6 +129,19 @@ export class SelectionGeneratorService {
           and cms.status='approved'
           and cms.max_marks=q.marks
       )`,
+      `not exists(
+        with recursive ancestry as (
+          select q.id,q.parent_id
+          union all
+          select parent.id,parent.parent_id
+          from ancestry child
+          join questions parent on parent.id=child.parent_id
+        )
+        select 1
+        from ancestry
+        join question_assets qa on qa.question_id=ancestry.id
+        where ${unrenderableVisualAssetSql('qa')}
+      )`,
     ];
 
     if (input.component !== undefined) {
@@ -165,7 +179,7 @@ export class SelectionGeneratorService {
     if (input.hasDiagram !== undefined) {
       const visual = `exists(
         select 1 from question_assets qa
-        where qa.question_id=q.id and qa.kind in ('diagram','image')
+        where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
       )`;
       conditions.push(input.hasDiagram ? visual : `not ${visual}`);
     }
@@ -230,7 +244,7 @@ export class SelectionGeneratorService {
            q.ao,sp.year,
            exists(
              select 1 from question_assets qa
-             where qa.question_id=q.id and qa.kind in ('diagram','image')
+             where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
            ) has_diagram,
            (
              select st.code
