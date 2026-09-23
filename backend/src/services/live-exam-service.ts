@@ -818,7 +818,12 @@ export class LiveExamService {
       const answerResult = await this.pool.query(
         `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
-           r.id review_id,r.status::text review_status,r.kind::text review_kind
+           r.id review_id,r.status::text review_status,r.kind::text review_kind,
+           coalesce((
+             select array_agg(rp.mark_scheme_point_id order by rp.mark_scheme_point_id)
+             from live_exam_review_points rp
+             where rp.review_id=r.id and rp.matched
+           ),'{}'::uuid[]) review_matched_point_ids
          from live_exam_answers a
          join live_exam_participants lep on lep.id=a.participant_id
          join users u on u.id=lep.student_id
@@ -834,6 +839,7 @@ export class LiveExamService {
         reviewId: row.review_id,
         reviewStatus: row.review_status,
         reviewKind: row.review_kind,
+        reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
       }));
     }
 
