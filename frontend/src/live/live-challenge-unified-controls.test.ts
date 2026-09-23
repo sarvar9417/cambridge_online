@@ -30,4 +30,12 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('TeacherAnswerMarker');
     expect(page).toContain('/answers/${answer.id}/moderate');
   });
+
+  it('uses the same diagram and seen-question filters in manual pool discovery and room creation',()=>{
+    expect(page).toContain('includeDiagrams:String(includeDiagrams)');
+    expect(page).toContain('excludeSeen:String(excludeSeen)');
+    expect(page).toContain('markingMode:data.get(\'markingMode\'),includeDiagrams,excludeSeen');
+    expect(page).toContain('setIncludeDiagrams(event.target.checked);setQuestionPool([]);setSelectedQuestionIds([])');
+    expect(page).toContain('setExcludeSeen(event.target.checked);setQuestionPool([]);setSelectedQuestionIds([])');
+  });
 });
