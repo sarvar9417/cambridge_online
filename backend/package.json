@@ -25,6 +25,7 @@
     "syllabus:coverage": "tsx src/jobs/syllabus-coverage-cli.ts",
     "syllabus:repair": "tsx src/jobs/historical-syllabus-repair-cli.ts",
     "syllabus:lo-apply": "tsx src/jobs/syllabus-lo-apply-cli.ts",
+    "visuals:recover": "tsx src/jobs/source-visual-recovery-cli.ts",
     "audit:visual-fidelity": "tsx scripts/visual-fidelity-manifest.ts"
   },
   "dependencies": {
