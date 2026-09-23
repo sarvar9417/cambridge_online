@@ -56,7 +56,7 @@ function readLiveDraft(key:string) {
     if(!raw)return null;
     const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
     if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
-    return draft.text;
+    return {text:draft.text,updatedAt:draft.updatedAt};
   }catch{return null}
 }
 
@@ -96,7 +96,7 @@ function useCountdown(deadline:string|null,serverNow:string|undefined) {
   return remaining;
 }
 
-function useLiveSnapshot(sessionId:string) {
+function useLiveSnapshot(sessionId:string,projector=false) {
   const [snapshot,setSnapshot]=useState<LiveExamSnapshot|null>(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
@@ -105,14 +105,14 @@ function useLiveSnapshot(sessionId:string) {
     if(request.current)return;
     request.current=true;
     try{
-      const next=await api<LiveExamSnapshot>(`/live-exams/${sessionId}`);
+      const next=await api<LiveExamSnapshot>(`/live-exams/${sessionId}${projector?'/projector':''}`);
       // Presence changes do not increment the session version, so retain the
       // complete server snapshot on every poll instead of only state changes.
       setSnapshot(next);
       setError('');
     }catch(cause){if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));}
     finally{request.current=false;setLoading(false)}
-  },[sessionId]);
+  },[projector,sessionId]);
   useEffect(()=>{
     void refresh();
     const timer=window.setInterval(()=>void refresh(true),1500);
@@ -338,7 +338,11 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const saveTimer=useRef<number|undefined>(undefined);
   const retryTimer=useRef<number|undefined>(undefined);
   const pendingSave=useRef<string|null>(null);
+  const saveInFlight=useRef(false);
+  const submitting=useRef(false);
+  const latestAnswer=useRef('');
   const answerKey=useRef('');
+  const [hydratedKey,setHydratedKey]=useState('');
   const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const remaining=useCountdown(session.deadline,session.serverNow);
   const leave=async()=>{
@@ -351,15 +355,23 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
     if(key===answerKey.current)return;
     answerKey.current=key;
+    setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
-    setAnswer(serverText||readLiveDraft(liveDraftKey(session.id,key))||'');
-    setDirty(false);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.question?.id]);
+    const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
+    const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
+    const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
+    const initial=useLocal?localDraft!.text:serverText;
+    latestAnswer.current=initial;
+    pendingSave.current=useLocal?initial:null;
+    setAnswer(initial);
+    setDirty(useLocal);
+    setHydratedKey(key);
+  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
   useEffect(()=>{
-    if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
+    if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
-  },[answer,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
+  },[answer,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
     const key=liveDraftKey(session.id,draftKey);
@@ -369,6 +381,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
         const incoming=JSON.parse(event.newValue) as {text?:unknown;updatedAt?:unknown;tabId?:unknown};
         if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
         if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
+        latestAnswer.current=incoming.text;
         setAnswer(incoming.text);setDirty(false);
       }catch{/* Ignore malformed storage entries. */}
     };
@@ -376,27 +389,48 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     return()=>window.removeEventListener('storage',onStorage);
   },[answer,dirty,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
-  const flushAnswer=async(text=answer,attempt=0)=>{
-    if(!text||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
+  const flushAnswer=async(text=latestAnswer.current,attempt=0)=>{
+    if(session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt||submitting.current)return;
     pendingSave.current=text;
+    if(saveInFlight.current)return;
+    const outgoing=pendingSave.current;
+    pendingSave.current=null;
+    saveInFlight.current=true;
     setSaving(true);
+    let retryScheduled=false;
     try{
-      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text})});
-      if(pendingSave.current===text){pendingSave.current=null;setDirty(false);setError('')}
+      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:outgoing})});
+      if(latestAnswer.current===outgoing){setDirty(false);setError('')}
+      else pendingSave.current=latestAnswer.current;
     }catch(cause){
+      pendingSave.current=latestAnswer.current;
       setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
-      if(attempt<4){window.clearTimeout(retryTimer.current);retryTimer.current=window.setTimeout(()=>void flushAnswer(text,attempt+1),2**attempt*1000)}
-    }finally{setSaving(false)}
+      if(attempt<4){
+        retryScheduled=true;
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current=window.setTimeout(()=>{
+          const pending=pendingSave.current;
+          if(pending!==null)void flushAnswer(pending,attempt+1);
+        },2**attempt*1000);
+      }
+    }finally{
+      saveInFlight.current=false;
+      setSaving(false);
+      if(!retryScheduled&&!submitting.current&&pendingSave.current!==null){
+        const pending=pendingSave.current;
+        void flushAnswer(pending);
+      }
+    }
   };
   useEffect(()=>{
     if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
     window.clearTimeout(saveTimer.current);
-    saveTimer.current=window.setTimeout(()=>void flushAnswer(answer),700);
+    saveTimer.current=window.setTimeout(()=>void flushAnswer(latestAnswer.current),700);
     return()=>window.clearTimeout(saveTimer.current);
   },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
-    const retry=()=>{if(pendingSave.current)void flushAnswer(pendingSave.current)};
-    const flush=()=>{if(dirty&&pendingSave.current)void flushAnswer(pendingSave.current)};
+    const retry=()=>{if(pendingSave.current!==null)void flushAnswer(pendingSave.current)};
+    const flush=()=>{if(dirty){const pending=pendingSave.current??latestAnswer.current;void flushAnswer(pending)}};
     window.addEventListener('online',retry);
     window.addEventListener('visibilitychange',flush);
     window.addEventListener('pagehide',flush);
@@ -405,8 +439,13 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   const submitAnswer=async()=>{
     setBusy(true);setError('');
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
-    catch(cause){setError(message(cause,'Javob topshirilmadi.'))}finally{setBusy(false)}
+    submitting.current=true;
+    window.clearTimeout(saveTimer.current);
+    window.clearTimeout(retryTimer.current);
+    pendingSave.current=null;
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
+    catch(cause){pendingSave.current=latestAnswer.current;setError(message(cause,'Javob topshirilmadi.'))}
+    finally{submitting.current=false;setBusy(false)}
   };
   const submitReview=async()=>{
     if(!snapshot.review)return;setBusy(true);setError('');
@@ -419,7 +458,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{setAnswer(event.target.value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={submitAnswer}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':'Javobni topshirish'}</button></section>
+    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={submitAnswer}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-marking-layout"><div><MarkSchemeView scheme={snapshot.markScheme}/></div><aside className="live-review-card">
     {!snapshot.review?<><h2>Baholash kutilmoqda</h2><p>O‘qituvchi sizga javob biriktirmoqda.</p></>:snapshot.review.status!=='assigned'?<><CheckCircle size={54} weight="fill"/><h2>Baholash yuborildi</h2><p>O‘qituvchi barcha baholashlarni yakunlashi kutilmoqda.</p><strong>{snapshot.review.awardedMarks}/{snapshot.question?.marks} ball</strong></>:<><span className="live-eyebrow">{snapshot.review.kind==='peer'?'ANONIM JAVOB':snapshot.review.kind==='self'?'O‘Z JAVOBINGIZ':'JAVOB'}</span><h2>Mark scheme asosida tekshiring</h2><blockquote>{snapshot.review.answerText||'Javob yozilmagan'}</blockquote><MarkSchemeView scheme={{...snapshot.markScheme,points:snapshot.review.points}} interactive selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>{snapshot.markScheme.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=snapshot.markScheme?.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setManualScore(level.minMarks)}}><option value="">Bandni tanlang</option>{snapshot.markScheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}{schemeNeedsManualScore(snapshot.markScheme)?<label>Ball<input type="number" min={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={manualScore} onChange={(e)=>setManualScore(Number(e.target.value))}/></label>:null}<label>Qisqa izoh<textarea value={feedback} maxLength={5000} onChange={(e)=>setFeedback(e.target.value)} placeholder="Nima uchun shu ballni berdingiz?"/></label>{error?<p className="live-error" role="alert">{error}</p>:null}<button disabled={busy} onClick={submitReview}>{busy?'Yuborilmoqda…':'Baholashni yuborish'}</button></>}
@@ -484,11 +523,12 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 }
 
 function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;projector:boolean}) {
-  const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId);
+  const projectorView=projector&&user.role!=='student';
+  const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId,projectorView);
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
-  if(projector&&user.role!=='student')return <ProjectorView snapshot={snapshot}/>;
+  if(projectorView)return <ProjectorView snapshot={snapshot}/>;
   return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
 }
 
