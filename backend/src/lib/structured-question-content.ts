@@ -33,10 +33,18 @@ const listBlockSchema = z.object({
   source: sourceLocationSchema,
 }).strict();
 
+const tableHeaderCellSchema = z.object({
+  text: z.string(),
+  column: z.number().int().nonnegative(),
+  colSpan: z.number().int().positive().optional(),
+  rowSpan: z.number().int().positive().optional(),
+}).strict();
+
 const tableBlockSchema = z.object({
   type: z.literal('table'),
   kind: z.enum(['table', 'truth_table', 'tick_grid', 'selection_grid']),
   headers: z.array(z.string()),
+  headerRows: z.array(z.array(tableHeaderCellSchema).min(1)).min(1).optional(),
   rows: z.array(z.array(z.string().nullable())).min(1),
   editableCells: z.array(z.tuple([
     z.number().int().nonnegative(),
@@ -120,6 +128,38 @@ export const structuredQuestionContentSchema = z.object({
           });
         }
       });
+
+      if (block.headerRows) {
+        const occupied = new Set<string>();
+        block.headerRows.forEach((headerRow, headerRowIndex) => {
+          headerRow.forEach((cell, cellIndex) => {
+            const colSpan = cell.colSpan ?? 1;
+            const rowSpan = cell.rowSpan ?? 1;
+            if (cell.column + colSpan > width) {
+              ctx.addIssue({
+                code: 'custom',
+                path: ['blocks', blockIndex, 'headerRows', headerRowIndex, cellIndex],
+                message: 'header cell exceeds table width',
+              });
+              return;
+            }
+            for (let row = headerRowIndex; row < headerRowIndex + rowSpan; row += 1) {
+              for (let column = cell.column; column < cell.column + colSpan; column += 1) {
+                const key = `${row}:${column}`;
+                if (occupied.has(key)) {
+                  ctx.addIssue({
+                    code: 'custom',
+                    path: ['blocks', blockIndex, 'headerRows', headerRowIndex, cellIndex],
+                    message: 'header cells overlap',
+                  });
+                  return;
+                }
+                occupied.add(key);
+              }
+            }
+          });
+        });
+      }
     }
 
     if (block.type === 'matching') {
