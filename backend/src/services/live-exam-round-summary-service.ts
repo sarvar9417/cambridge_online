@@ -62,10 +62,11 @@ export class LiveExamRoundSummaryService {
       this.pool.query(
         `select lep.student_id,u.full_name,coalesce(a.final_score,0)::float8 score,leq.marks,
            rank() over(order by coalesce(a.final_score,0) desc,
-             case when $3::boolean then a.submitted_at end asc nulls last)::int rank
+             case when $3::boolean then a.submitted_at end asc nulls last)::int rank,
+           row_number() over(order by lep.joined_at,lep.student_id)::int alias_no
          from live_exam_questions leq
          join live_exam_sessions les on les.id=leq.session_id
-         join live_exam_participants lep on lep.session_id=les.id
+         join live_exam_participants lep on lep.session_id=les.id and lep.left_at is null
          join users u on u.id=lep.student_id
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
@@ -77,7 +78,8 @@ export class LiveExamRoundSummaryService {
         `select lep.student_id,u.full_name,
            coalesce(sum(coalesce(a.final_score,0)),0)::float8 score,
            rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc,
-             case when $3::boolean then sum(extract(epoch from (a.submitted_at-les.started_at))) end asc nulls last)::int rank
+             case when $3::boolean then sum(extract(epoch from (a.submitted_at-les.started_at))) end asc nulls last)::int rank,
+           row_number() over(order by lep.joined_at,lep.student_id)::int alias_no
          from live_exam_participants lep
          join live_exam_sessions les on les.id=lep.session_id
          join users u on u.id=lep.student_id
@@ -85,8 +87,8 @@ export class LiveExamRoundSummaryService {
            on leq.session_id=lep.session_id and leq.position<=$2
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
-         where lep.session_id=$1
-         group by lep.student_id,u.full_name
+         where lep.session_id=$1 and lep.left_at is null
+         group by lep.student_id,u.full_name,lep.joined_at
          order by score desc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
@@ -103,14 +105,14 @@ export class LiveExamRoundSummaryService {
     const round: LiveExamStanding[] = roundResult.rows.map((row, index) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${index + 1}` : String(row.full_name),
+      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
       score: Number(row.score),
       possible: roundPossible,
     }));
     const overall: LiveExamStanding[] = overallResult.rows.map((row, index) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${index + 1}` : String(row.full_name),
+      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
       score: Number(row.score),
       possible: overallPossible,
     }));
