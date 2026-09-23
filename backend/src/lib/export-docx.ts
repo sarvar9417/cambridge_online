@@ -46,8 +46,9 @@ function canonicalAssetIds(question:ExportQuestion){
   return new Set((question.contentJson?.blocks??[]).filter((block):block is Extract<StructuredQuestionBlock,{type:'asset'}>=>block.type==='asset').map(block=>block.assetId));
 }
 function structuredLegacyAssetSuperseded(question:ExportQuestion,asset:ExportAsset){
-  if(!question.contentJson||asset.sourcePage==null)return false;
+  if(!question.contentJson)return false;
   if(asset.id&&canonicalAssetIds(question).has(asset.id))return true;
+  if(asset.sourcePage==null)return false;
   return question.contentJson.blocks.some(block=>
     block.source.page===asset.sourcePage&&(
       (asset.kind==='table'&&block.type==='table')
