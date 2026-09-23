@@ -45,7 +45,7 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps class membership and live participation at the join boundary',()=>{
     expect(service).toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("where les.join_code=$1 and les.join_code_expires_at > now() and (");
+    expect(service).toContain("(to_jsonb(les)->>'join_code_expires_at')::timestamptz");
     expect(service).toContain("les.status='lobby'");
     expect(service).toContain("les.settings->>'allowLateJoin'");
     expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
@@ -151,7 +151,8 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('bounds join-code collisions and expires reusable codes safely',()=>{
     expect(service).toContain('for (let attempt = 0; attempt < 5; attempt += 1)');
-    expect(service).toContain('join_code_expires_at > now()');
+    expect(service).toContain("'infinity'::timestamptz");
+    expect(service).not.toContain('class_id,host_id,title,join_code,join_code_expires_at,marking_mode');
     expect(joinCodeLifecycle).toContain('live_exam_sessions_active_join_code_unique');
     expect(joinCodeLifecycle).toContain("interval '24 hours'");
     expect(joinCodeLifecycle).toContain('live_join_code_retention');
@@ -161,6 +162,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(durableRateLimits).toContain('api_rate_limit_buckets');
     expect(durableRateLimits).toContain('ENABLE ROW LEVEL SECURITY');
     expect(source('src/middleware/durable-rate-limit.ts')).toContain('on conflict(bucket_key) do update');
+    expect(source('src/middleware/durable-rate-limit.ts')).toContain("error.code === '42P01'");
+    expect(source('src/middleware/durable-rate-limit.ts')).toContain('localFallback(req, res, next)');
     expect(source('src/routes/live-exams.ts')).toContain('durableJoinLimit');
   });
 
