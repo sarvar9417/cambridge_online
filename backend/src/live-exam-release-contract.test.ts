@@ -166,6 +166,14 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('[reviewId, point.id, matched, matched ? point.marks : 0]');
   });
 
+  it('keeps auto-close responses and review attribution authoritative',()=>{
+    expect(service).toContain('let autoRevealed = false;');
+    expect(service).toContain('autoRevealed = true;');
+    expect(service).toContain('return { submittedAt: new Date(), version, autoRevealed };');
+    expect(service).toContain("actor.role !== 'student' && row.kind !== 'teacher'");
+    expect(service).toContain("new DomainError('live_review_not_assigned_to_staff', 403)");
+  });
+
   it('makes voluntary leave a lobby-only action',()=>{
     expect(service).toContain("if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);");
   });
