@@ -1076,6 +1076,7 @@ export class LiveExamService {
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let autoRevealed = false;
       const settings = this.settings(state.rows[0].settings);
       if (settings.autoCloseWhenAllSubmitted) {
         const pending = await client.query(
@@ -1090,10 +1091,11 @@ export class LiveExamService {
         if (Number(pending.rows[0].count) === 0) {
           const revealed = await this.revealWithinTransaction(client, state.rows[0], actor.id);
           version = revealed.version;
+          autoRevealed = true;
         }
       }
       await client.query('commit');
-      return { submittedAt: new Date(), version, autoRevealed: state.rows[0].status === 'marking' };
+      return { submittedAt: new Date(), version, autoRevealed };
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -1208,6 +1210,9 @@ export class LiveExamService {
       );
       if (!target.rowCount) throw new DomainError('not_found', 404);
       const row = target.rows[0];
+      if (actor.role !== 'student' && row.kind !== 'teacher') {
+        throw new DomainError('live_review_not_assigned_to_staff', 403);
+      }
       if (row.status !== 'assigned') throw new DomainError('live_review_submitted', 409);
       if (input.matchedPointIds.length) {
         const allowed = await client.query(
