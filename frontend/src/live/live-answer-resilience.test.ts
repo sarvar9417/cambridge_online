@@ -11,6 +11,8 @@ describe('Live Challenge answer resilience contract',()=>{
     expect(page).toContain('if(saveInFlight.current)return');
     expect(page).toContain('pendingSave.current!==null');
     expect(page).toContain('latestAnswer.current=value;pendingSave.current=value');
+    expect(page).toContain('pendingSave.current=incoming.text');
+    expect(page).toContain('setAnswer(incoming.text);setDirty(true)');
   });
 
   it('does not overwrite a recoverable local draft before hydration',()=>{
