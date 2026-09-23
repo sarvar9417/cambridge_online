@@ -17,15 +17,28 @@ type TableBlock = Extract<StructuredQuestionBlock, { type:'table' }>;
 type AssetBlock = Extract<StructuredQuestionBlock, { type:'asset' }>;
 type CodeBlock = Extract<StructuredQuestionBlock, { type:'code' }>;
 
+export function extractFaithfulInlineSvg(value: string | null | undefined) {
+  let candidate = (value ?? '').replace(/^\uFEFF/, '').trim();
+  if (!candidate) return null;
+
+  const fenced = candidate.match(/^\`\`\`(?:svg|xml)\s*\r?\n([\s\S]*?)\r?\n\`\`\`\s*$/i);
+  if (fenced) candidate = fenced[1]!.trim();
+
+  candidate = candidate.replace(/^<\?xml[^>]*\?>\s*/i, '');
+  if (!/^<svg(?:\s|>)/i.test(candidate) || !/<\/svg>\s*$/i.test(candidate)) return null;
+  return candidate;
+}
+
 export function isFaithfulInlineSvg(value: string | null | undefined) {
-  return /^\s*<svg(?:\s|>)/i.test(value ?? '');
+  return extractFaithfulInlineSvg(value) !== null;
 }
 
 export function portableAssetUrl(asset: PortableSourceAsset | undefined) {
   if (!asset) return null;
   if (asset.url) return asset.url;
-  if (!isFaithfulInlineSvg(asset.contentMd)) return null;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(asset.contentMd!)}`;
+  const svg = extractFaithfulInlineSvg(asset.contentMd);
+  if (!svg) return null;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 function pipeCells(line: string) {
@@ -47,14 +60,6 @@ function tableKind(asset: PortableSourceAsset): TableBlock['kind'] {
   return 'table';
 }
 
-/**
- * Parse the semantic table form already stored in question_assets.content_md.
- *
- * Historical repairs contain both ordinary Markdown tables (with a --- header
- * separator) and source grids with only pipe-delimited rows. The latter are
- * still structured data and must not be forced through an image URL that does
- * not exist.
- */
 export function portableTableBlock(
   asset: PortableSourceAsset,
   source: SourceLocation,
@@ -114,11 +119,6 @@ function assetMap(assets: PortableSourceAsset[]) {
   return new Map(assets.filter((asset) => asset.id).map((asset) => [asset.id, asset] as const));
 }
 
-/**
- * Compatibility bridge for canonical v1 rows produced before table/code blocks
- * were consistently backfilled. The original asset id remains in the database;
- * only the browser representation is upgraded for rendering.
- */
 export function materializePortableSourceAssets(
   content: StructuredQuestionContent,
   assets: PortableSourceAsset[],
@@ -129,11 +129,11 @@ export function materializePortableSourceAssets(
     if (block.type !== 'asset') return block;
     const asset = byId.get(block.assetId);
     if (!asset) return block;
-    // When the DB already carries a source-faithful inline SVG, preserve the
-    // visual asset itself. Converting that SVG back into a semantic table/code
-    // surrogate would discard Cambridge geometry such as merged cells,
-    // connector layout, spacing and line placement.
+
+    // Source-faithful inline SVGs must remain visual assets. Converting them
+    // back into semantic table/code surrogates discards Cambridge geometry.
     if (isFaithfulInlineSvg(asset.contentMd)) return block;
+
     if (asset.kind === 'table') {
       const table = portableTableBlock(asset, block.source);
       if (table) { changed = true; return table; }
