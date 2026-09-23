@@ -51,6 +51,33 @@ describe('LiveExamRoundSummaryService', () => {
     expect(result.overall.standings[0]).toMatchObject({studentId:'s2',score:8,rank:1,possible:10});
   });
 
+  it('excludes lobby leavers and keeps projector aliases stable across round and overall standings', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'review',current_question_index:0,settings:{}}]})
+      .mockResolvedValueOnce({rowCount:2,rows:[
+        {student_id:'s2',full_name:'Vali',score:4,marks:5,rank:1,alias_no:2},
+        {student_id:'s1',full_name:'Ali',score:3,marks:5,rank:2,alias_no:1},
+      ]})
+      .mockResolvedValueOnce({rowCount:2,rows:[
+        {student_id:'s1',full_name:'Ali',score:8,rank:1,alias_no:1},
+        {student_id:'s2',full_name:'Vali',score:7,rank:2,alias_no:2},
+      ]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:5}]});
+
+    const result=await serviceFor(query).summary(teacher,'session-1',true);
+    expect(result.round.standings).toEqual([
+      {rank:1,studentName:'Ishtirokchi 2',score:4,possible:5},
+      {rank:2,studentName:'Ishtirokchi 1',score:3,possible:5},
+    ]);
+    expect(result.overall.standings).toEqual([
+      {rank:1,studentName:'Ishtirokchi 1',score:8,possible:5},
+      {rank:2,studentName:'Ishtirokchi 2',score:7,possible:5},
+    ]);
+    expect(result.round.standings.every((item)=>!('studentId' in item))).toBe(true);
+    expect(String(query.mock.calls[1]?.[0])).toContain('lep.left_at is null');
+    expect(String(query.mock.calls[2]?.[0])).toContain('lep.left_at is null');
+  });
+
   it('keeps speed disabled unless the room explicitly enables a tie-break', async () => {
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'finished',current_question_index:0}]})
