@@ -5,6 +5,7 @@ import { CheckCircle } from '@phosphor-icons/react/CheckCircle';
 import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass';
 import { Printer } from '@phosphor-icons/react/Printer';
 import { api } from '../lib/api';
+import { portableAssetUrl } from '../lib/portable-source-assets';
 import { type LessonAudience } from './lesson-experience-model';
 import { lessonCatalogChapter } from './lesson-course-catalog';
 import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
@@ -43,12 +44,9 @@ function questionComplete(question:ExamQuestion){
 }
 
 function ExamAssetView({asset}:{asset:ExamAsset}) {
-  if(asset.url)return <figure className="lx-exam-asset"><img src={asset.url} alt={asset.altText||'Question diagram'}/>{asset.sourcePage?<figcaption>Source page {asset.sourcePage}</figcaption>:null}</figure>;
+  const src=portableAssetUrl(asset);
+  if(src)return <figure className="lx-exam-asset"><img src={src} alt={asset.altText||'Question diagram'}/>{asset.sourcePage?<figcaption>Source page {asset.sourcePage}</figcaption>:null}</figure>;
   if(!asset.contentMd)return null;
-  if(/^\s*<svg[\s>]/i.test(asset.contentMd)){
-    const src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(asset.contentMd)}`;
-    return <figure className="lx-exam-asset"><img src={src} alt={asset.altText||'Question diagram'}/>{asset.sourcePage?<figcaption>Source page {asset.sourcePage}</figcaption>:null}</figure>;
-  }
   return <figure className="lx-exam-asset lx-exam-asset--text"><figcaption>{asset.altText||asset.kind}</figcaption><pre>{asset.contentMd}</pre></figure>;
 }
 
