@@ -1402,3 +1402,43 @@ Resolve these in the product decision log with date/owner and change acceptance 
 - [ ] Final report names **implemented, verified, partly verified, blocked and out-of-scope** items separately; every claim links to evidence; `main` merge and production deployment status are recorded independently.
 
 **AI handoff record template for every completed item:** `ID | user-facing result | original requirement | current SHA | touched paths/migrations | before evidence | after evidence | exact test/browser/DB results | source-fidelity reviewer | security/role reviewer | commit/PR | remaining risk | status`. If a field is unknown, write `UNKNOWN` and a next action. A corrected code path without its acceptance evidence remains **partially completed**.
+
+
+## Source Visual Canonical Readiness — 2026-09-23
+
+### Canonical audit result
+
+The earlier coarse inventory counted 65 `diagram/image` rows without a storage path or SVG in `content_md`. That count is **not** the learner-facing denominator because `question_assets` also contains append-only repair history and verified source in `svg_markup`.
+
+The production source-of-truth audit must follow `questions.content_json -> assetId -> question_assets`:
+
+- 600 canonical structured references resolve to actual `diagram/image` assets.
+- 0 of those 600 canonical visual references are unresolved.
+- 825 structured asset references resolve to semantic tables and 71 to pseudocode/code; these must not be misclassified as missing diagrams merely because legacy v1 blocks use an image-shaped asset block.
+- The four approved rows previously called “missing” are stale historical repair rows. Their current canonical question content references separate storage-backed source images:
+  - `9618/22/O/N/22 Q2(b)`
+  - `9618/31/O/N/22 Q4`
+  - `9618/31/O/N/22 Q7(a)`
+  - `9618/31/O/N/22 Q7(b)`
+- `LEGACY/9618/11/M/J/26 Q19(a)` remains archived and cannot enter learner delivery.
+- Across 4,490 approved graded leaves, 0 are blocked by an unresolved canonical visual in their ancestry after applying the canonical-reference predicate.
+
+### Required product invariant
+
+A visual is learner-ready only when the **asset actually referenced by canonical structured content** is browser-renderable. Renderable means either a signable private storage object or a complete source SVG in `content_md`/`svg_markup`. Stale, unreferenced repair rows do not block an otherwise complete question and must not generate false diagram flags.
+
+For canonical v1 content:
+
+1. Follow the referenced `assetId`.
+2. If the referenced DB asset is `diagram/image`, require a renderable visual source.
+3. If the referenced DB asset is `table/pseudocode/code`, pass it to the semantic materializer; do not apply visual readiness rules to it.
+4. Missing referenced asset rows fail closed.
+5. Browser signing failure for a storage-backed required visual fails closed at runtime.
+
+### Release decision
+
+- PR #280 and migration `0194_verified_source_visual_recovery.sql` were superseded after the canonical-reference audit; **do not merge or apply that migration**.
+- PR #282 is the active source-visual hardening line.
+- No production data rewrite is required to close the current learner-facing source-visual gap.
+- Historical orphan rows may be cleaned only as a separate provenance-preserving maintenance task; they are not student-delivery blockers.
+- Release gate: canonical approved unresolved visual references = 0, raw SVG/prose exposure = 0, and all learner-facing generators/assignments/Live Challenge paths use the same canonical readiness contract.
