@@ -11,8 +11,8 @@ import type { StructuredQuestionContent } from '../../lib/structured-question-co
 import { SupabaseAssetStore } from '../asset-store.js';
 import type { Job } from '../job-queue.js';
 
-type FrozenSelectionReview={totalMarks:number;items:Array<{role:'graded'|'context_only';freshRef:string;sourceRef:string;effectiveMarks:number;portable:{leaf:{id:string;stem:string;contentJson?:StructuredQuestionContent|null;marks:number;answerLines?:number|null};contextBlocks:Array<{displayRef?:string;context?:string|null;assets?:Array<{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}>}>}}>};
-type SchemeExport={status:string;guidance:string|null;points:ExportQuestion['points']};
+type FrozenSelectionReview={totalMarks:number;items:Array<{role:'graded'|'context_only';freshRef:string;sourceRef:string;effectiveMarks:number;portable:{leaf:{id:string;stem:string;contentJson?:StructuredQuestionContent|null;marks:number;answerLines?:number|null};contextBlocks:Array<{displayRef?:string;context?:string|null;assets?:Array<{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null;cropStatus?:string|null}>}>}}>};
+type SchemeExport={status:string;guidance:string|null;assets:ExportQuestion['schemeAssets'];points:ExportQuestion['points']};
 
 const schemePointJson=`json_build_object(
   'code',msp.code,
@@ -28,6 +28,14 @@ const schemePointJson=`json_build_object(
   'groupSortOrder',msg.sort_order
 )`;
 
+const schemeAssetJson=`json_build_object(
+  'id',msa.id,
+  'kind',msa.kind,
+  'contentMd',msa.content_md,
+  'altText',msa.alt_text,
+  'sourcePage',msa.source_page,
+  'sourceSha256',msa.source_sha256
+)`;
 export function createExportPdfProcessor(pool:Pool){
   const assetStore=config.SUPABASE_URL&&config.SUPABASE_STORAGE_SECRET_KEY
     ?new SupabaseAssetStore({url:config.SUPABASE_URL,secretKey:config.SUPABASE_STORAGE_SECRET_KEY,bucket:config.ASSET_STORAGE_BUCKET})
@@ -47,8 +55,9 @@ export function createExportPdfProcessor(pool:Pool){
         union all
         select a.id assignment_id,a.title,a.total_marks,aci.question_id,aci.sort_order,'context_only'::text role,aci.fresh_ref,aci.source_ref,0 marks,aci.portable_snapshot,q.display_ref,q.stem_md,q.context_md,q.content_json
         from assignments a join assignment_context_items aci on aci.assignment_id=a.id join questions q on q.id=aci.question_id where a.id=$1)
-        select i.*,mp.scheme_status,mp.scheme_guidance,coalesce(mp.points,'[]'::json) points from items i left join lateral(
+        select i.*,mp.scheme_status,mp.scheme_guidance,coalesce(mp.scheme_assets,'[]'::json) scheme_assets,coalesce(mp.points,'[]'::json) points from items i left join lateral(
           select ms.status::text scheme_status,ms.guidance_md scheme_guidance,
+                 coalesce((select json_agg(${schemeAssetJson} order by msa.sort_order,msa.id) from mark_scheme_assets msa where msa.mark_scheme_id=ms.id),'[]'::json) scheme_assets,
                  coalesce(json_agg(${schemePointJson} order by coalesce(msg.sort_order,2147483647),msp.sort_order,msp.id) filter(where msp.id is not null),'[]'::json) points
           from canonical_mark_schemes ms
           left join mark_scheme_points msp on msp.mark_scheme_id=ms.id
@@ -62,14 +71,15 @@ export function createExportPdfProcessor(pool:Pool){
       if(!review||!Array.isArray(review.items)||!review.items.length)throw Error('selection_export_snapshot_missing');
       const questionIds=review.items.filter(i=>i.role==='graded').map(i=>i.portable.leaf.id);
       const pointsResult=questionIds.length?await pool.query(`select ms.question_id,ms.status::text scheme_status,ms.guidance_md scheme_guidance,
+        coalesce((select json_agg(${schemeAssetJson} order by msa.sort_order,msa.id) from mark_scheme_assets msa where msa.mark_scheme_id=ms.id),'[]'::json) scheme_assets,
         coalesce(json_agg(${schemePointJson} order by coalesce(msg.sort_order,2147483647),msp.sort_order,msp.id) filter(where msp.id is not null),'[]'::json) points
         from canonical_mark_schemes ms
         left join mark_scheme_points msp on msp.mark_scheme_id=ms.id
         left join mark_scheme_groups msg on msg.id=msp.group_id
         where ms.question_id=any($1::uuid[]) and ms.status in ('approved','needs_review')
-        group by ms.id,ms.question_id,ms.status,ms.guidance_md`,[questionIds]):{rows:[] as Array<{question_id:string;scheme_status:string;scheme_guidance:string|null;points:ExportQuestion['points']}>};
-      const schemesByQuestion=new Map<string,SchemeExport>(pointsResult.rows.map((row:{question_id:string;scheme_status:string;scheme_guidance:string|null;points:ExportQuestion['points']}):[string,SchemeExport]=>[row.question_id,{status:row.scheme_status,guidance:row.scheme_guidance,points:row.points}]));
-      title=payload.title||'Cambridge Computer Science practice';questions=review.items.map(item=>{const scheme=schemesByQuestion.get(item.portable.leaf.id);return{displayRef:item.freshRef,sourceRef:item.sourceRef,stem:item.portable.leaf.stem,contentJson:item.portable.leaf.contentJson??null,contextBlocks:item.portable.contextBlocks,marks:item.role==='context_only'?0:item.effectiveMarks,answerLines:item.portable.leaf.answerLines,role:item.role,schemeStatus:item.role==='graded'?scheme?.status:undefined,schemeGuidance:item.role==='graded'?(scheme?.guidance??null):null,points:item.role==='graded'?(scheme?.points??[]):[]}});assertPaperTotal(questions,Number(review.totalMarks));
+        group by ms.id,ms.question_id,ms.status,ms.guidance_md`,[questionIds]):{rows:[] as Array<{question_id:string;scheme_status:string;scheme_guidance:string|null;scheme_assets:ExportQuestion['schemeAssets'];points:ExportQuestion['points']}>};
+      const schemesByQuestion=new Map<string,SchemeExport>(pointsResult.rows.map((row:{question_id:string;scheme_status:string;scheme_guidance:string|null;scheme_assets:ExportQuestion['schemeAssets'];points:ExportQuestion['points']}):[string,SchemeExport]=>[row.question_id,{status:row.scheme_status,guidance:row.scheme_guidance,assets:row.scheme_assets??[],points:row.points}]));
+      title=payload.title||'Cambridge Computer Science practice';questions=review.items.map(item=>{const scheme=schemesByQuestion.get(item.portable.leaf.id);return{displayRef:item.freshRef,sourceRef:item.sourceRef,stem:item.portable.leaf.stem,contentJson:item.portable.leaf.contentJson??null,contextBlocks:item.portable.contextBlocks,marks:item.role==='context_only'?0:item.effectiveMarks,answerLines:item.portable.leaf.answerLines,role:item.role,schemeStatus:item.role==='graded'?scheme?.status:undefined,schemeGuidance:item.role==='graded'?(scheme?.guidance??null):null,schemeAssets:item.role==='graded'?(scheme?.assets??[]):[],points:item.role==='graded'?(scheme?.points??[]):[]}});assertPaperTotal(questions,Number(review.totalMarks));
     }else{
       const result=await pool.query(`select a.title,q.display_ref,q.stem_md,q.marks,ans.text,coalesce(json_agg(json_build_object('code',msp.code,'text',msp.text,'marks',gp.awarded_marks)order by msp.sort_order)filter(where gp.id is not null),'[]') points from submissions s join assignments a on a.id=s.assignment_id join answers ans on ans.submission_id=s.id join questions q on q.id=ans.question_id join gradings g on g.answer_id=ans.id left join grading_points gp on gp.grading_id=g.id left join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id where s.id=$1 and s.released_at is not null group by a.id,q.id,ans.id order by q.sort_order`,[exp.ref_id]);
       title=`${result.rows[0]?.title??'Result'} Feedback`;questions=result.rows.map(row=>({displayRef:row.display_ref,stem:`${row.stem_md}\n\nStudent answer: ${row.text}`,marks:row.marks,points:row.points}));

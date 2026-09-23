@@ -14,6 +14,8 @@ export interface PortableAsset {
   altText: string;
   sortOrder: number;
   sourcePage: number | null;
+  /** Ready means the private storage object is an exact source-page crop. */
+  cropStatus?: string | null;
 }
 
 export interface PortableQuestion {

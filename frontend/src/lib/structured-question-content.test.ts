@@ -33,6 +33,7 @@ const content:StructuredQuestionContent={
 describe('structured question frontend contract',()=>{
   it('recognises the canonical v1 shape',()=>{
     expect(isStructuredQuestionContent(content)).toBe(true);
+    expect(content.blocks).toHaveLength(5);
     expect(isStructuredQuestionContent({ ...content,version:2 })).toBe(false);
   });
 
@@ -43,6 +44,25 @@ describe('structured question frontend contract',()=>{
     expect(table?.dataset.tableKind).toBe('truth_table');
     expect(table?.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(table?.querySelectorAll('[data-editable="true"]')).toHaveLength(2);
+  });
+
+  it('renders source-faithful grouped headers with colspan and rowspan',()=>{
+    const grouped:StructuredQuestionContent={
+      version:1,source:content.source,blocks:[{
+        type:'table',kind:'selection_grid',headers:['Instruction address','ACC','365','366','367','368','IX','Output'],
+        headerRows:[
+          [{text:'Instruction address',column:0,rowSpan:2},{text:'ACC',column:1,rowSpan:2},{text:'Memory address',column:2,colSpan:4},{text:'IX',column:6,rowSpan:2},{text:'Output',column:7,rowSpan:2}],
+          [{text:'365',column:2},{text:'366',column:3},{text:'367',column:4},{text:'368',column:5}],
+        ],
+        rows:[[null,null,'1','3','65','66','0',null]],editableCells:[[0,0],[0,1],[0,7]],source:{page:9},
+      }],
+    };
+    expect(isStructuredQuestionContent(grouped)).toBe(true);
+    const host=document.createElement('div');host.append(renderStructuredQuestionContent(grouped));
+    const head=host.querySelector('thead');
+    expect(head?.querySelectorAll('tr')).toHaveLength(2);
+    expect(head?.querySelector('th[colspan="4"]')?.textContent).toBe('Memory address');
+    expect(head?.querySelectorAll('th[rowspan="2"]')).toHaveLength(4);
   });
 
   it('keeps matching sides as separate semantic lists',()=>{
@@ -67,5 +87,16 @@ describe('structured question frontend contract',()=>{
     }));
     expect(host.querySelector('img')?.src).toBe('https://example.test/diagram.png');
     expect(host.querySelector('img')?.alt).toBe('Original source diagram');
+  });
+
+  it('accepts source-faithful table assets when geometry must be preserved',()=>{
+    expect(isStructuredQuestionContent({
+      version:1,
+      source:content.source,
+      blocks:[{
+        type:'asset',kind:'table',assetId:'33333333-3333-4333-8333-333333333333',
+        altText:'Merged-header source table',source:{page:7},
+      }],
+    })).toBe(true);
   });
 });

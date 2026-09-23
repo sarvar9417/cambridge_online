@@ -1,4 +1,4 @@
-import type { ExportMode, ExportQuestion, ExportSchemePoint } from './export-html.js';
+import type { ExportAsset, ExportMode, ExportQuestion, ExportSchemePoint } from './export-html.js';
 import { assertPortableAssetCoverage } from './export-html.js';
 import { structureQuestionText } from './question-structure.js';
 import type { StructuredQuestionBlock } from './structured-question-content.js';
@@ -45,10 +45,20 @@ function assetXml(content:string,kind:string,alt:string|null|undefined,ctx:Build
 function canonicalAssetIds(question:ExportQuestion){
   return new Set((question.contentJson?.blocks??[]).filter((block):block is Extract<StructuredQuestionBlock,{type:'asset'}>=>block.type==='asset').map(block=>block.assetId));
 }
+function structuredLegacyAssetSuperseded(question:ExportQuestion,asset:ExportAsset){
+  if(!question.contentJson)return false;
+  if(asset.id&&canonicalAssetIds(question).has(asset.id))return true;
+  if(asset.sourcePage==null)return false;
+  return question.contentJson.blocks.some(block=>
+    block.source.page===asset.sourcePage&&(
+      (asset.kind==='table'&&block.type==='table')
+      ||((asset.kind==='code'||asset.kind==='pseudocode')&&block.type==='code')
+    )
+  );
+}
 function contextXml(question:ExportQuestion,ctx:BuildContext){
-  const canonical=canonicalAssetIds(question);
   const blocks=(question.contextBlocks??[])
-    .map(block=>({...block,assets:(block.assets??[]).filter(asset=>!asset.id||!canonical.has(asset.id))}))
+    .map(block=>({...block,assets:(block.assets??[]).filter(asset=>!structuredLegacyAssetSuperseded(question,asset))}))
     .filter(block=>Boolean(block.context)||(block.assets?.length??0)>0);
   if(!blocks.length)return question.context?para(question.context):'';
   return blocks.map(block=>`${block.displayRef?para(block.displayRef,{bold:true}):''}${block.context?para(block.context):''}${(block.assets??[]).map(asset=>asset.contentMd?assetXml(asset.contentMd,asset.kind,asset.altText,ctx):'').join('')}`).join('');
@@ -78,10 +88,46 @@ function mathXml(block:Extract<StructuredQuestionBlock,{type:'math'}>){
   return `<m:oMathPara><m:oMath><m:r><m:t>${x(value)}</m:t></m:r></m:oMath></m:oMathPara>`;
 }
 function structuredTableXml(block:Extract<StructuredQuestionBlock,{type:'table'}>){
-  const rows:string[][]=[];
-  if(block.headers.length)rows.push(block.headers);
-  rows.push(...block.rows.map(row=>row.map(cell=>cell??'')));
-  return wordTable(rows,block.headers.length>0);
+  if(!block.headerRows?.length){
+    const rows:string[][]=[];
+    if(block.headers.length)rows.push(block.headers);
+    rows.push(...block.rows.map(row=>row.map(cell=>cell??'')));
+    return wordTable(rows,block.headers.length>0);
+  }
+  const cols=block.rows[0]?.length??block.headers.length;
+  const tc=(text:string,opts:{bold?:boolean;gridSpan?:number;vMerge?:'restart'|'continue'}={})=>`<w:tc><w:tcPr><w:tcW w:w="${Math.floor(9000/Math.max(1,cols))*(opts.gridSpan??1)}" w:type="dxa"/>${(opts.gridSpan??1)>1?`<w:gridSpan w:val="${opts.gridSpan}"/>`:''}${opts.vMerge?`<w:vMerge${opts.vMerge==='restart'?' w:val="restart"':''}/>`:''}</w:tcPr>${para(text,{bold:opts.bold})}</w:tc>`;
+  const headerRows=block.headerRows.map((headerRow,rowIndex)=>{
+    let column=0,xml='';
+    const starts=new Map(headerRow.map(cell=>[cell.column,cell]));
+    while(column<cols){
+      const cell=starts.get(column);
+      if(cell){
+        const colSpan=cell.colSpan??1,rowSpan=cell.rowSpan??1;
+        xml+=tc(cell.text,{bold:true,gridSpan:colSpan,vMerge:rowSpan>1?'restart':undefined});
+        column+=colSpan;
+        continue;
+      }
+      let active:{column:number;colSpan:number}|undefined;
+      for(let prior=0;prior<rowIndex;prior+=1){
+        for(const candidate of block.headerRows![prior]??[]){
+          const rowSpan=candidate.rowSpan??1,colSpan=candidate.colSpan??1;
+          if(prior+rowSpan>rowIndex&&column>=candidate.column&&column<candidate.column+colSpan){
+            active={column:candidate.column,colSpan};break;
+          }
+        }
+        if(active)break;
+      }
+      if(active){
+        if(column===active.column)xml+=tc('',{bold:true,gridSpan:active.colSpan,vMerge:'continue'});
+        column=active.column+active.colSpan;
+      }else{
+        xml+=tc('',{bold:true});column+=1;
+      }
+    }
+    return `<w:tr>${xml}</w:tr>`;
+  }).join('');
+  const body=block.rows.map(row=>`<w:tr>${Array.from({length:cols},(_,ci)=>tc(row[ci]??'')).join('')}</w:tr>`).join('');
+  return `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>${headerRows}${body}</w:tbl>`;
 }
 function matchingXml(block:Extract<StructuredQuestionBlock,{type:'matching'}>){
   const count=Math.max(block.left.length,block.right.length);
@@ -128,7 +174,14 @@ function schemeGroupHeader(point:ExportSchemePoint){
   if(point.groupAwardMode)parts.push(point.groupAwardMode.replaceAll('_',' '));
   return parts.join(' · ');
 }
-function schemeXml(question:ExportQuestion){
+function schemeAssetXml(question:ExportQuestion,ctx:BuildContext){
+  return (question.schemeAssets??[]).map(asset=>{
+    if(isSvg(asset.contentMd))return svgDrawing(asset.contentMd,asset.altText||asset.kind,ctx);
+    const table=markdownTable(asset.contentMd);
+    return table??para(asset.contentMd,{mono:asset.kind==='code'||asset.kind==='pseudocode'||asset.kind==='table'});
+  }).join('');
+}
+function schemeXml(question:ExportQuestion,ctx:BuildContext){
   const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';
   const guidance=question.schemeGuidance?`${para('Guidance',{bold:true})}${para(question.schemeGuidance)}`:'';
   let previousGroup='';
@@ -143,7 +196,8 @@ function schemeXml(question:ExportQuestion){
     ].join('');
     return `${groupXml}${para(`${point.code}  ${point.text}  [${point.marks}]`)}${notes}`;
   }).join('');
-  return `${warning}${guidance}${points||para('No atomic mark-scheme points are available for this item.')}`;
+  const visuals=schemeAssetXml(question,ctx);
+  return `${warning}${guidance}${visuals}${points||para('No atomic mark-scheme points are available for this item.')}`;
 }
 function answerSpace(question:ExportQuestion){const count=Math.max(0,Math.min(12,question.answerLines??Math.max(2,question.marks*2)));return Array.from({length:count},()=>para('________________________________________________________________________________')).join('')}
 function questionCoreXml(question:ExportQuestion,ctx:BuildContext){
@@ -159,7 +213,7 @@ function documentXml(title:string,questions:ExportQuestion[],mode:ExportMode,ctx
   const body=(mode==='mark_scheme'?questions.filter(q=>q.role!=='context_only'):questions).map(q=>{
     const core=questionCoreXml(q,ctx);
     const answer=q.role!=='context_only'&&showAnswerSpace?answerSpace(q):'';
-    const scheme=q.role!=='context_only'&&showScheme?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:'';
+    const scheme=q.role!=='context_only'&&showScheme?`${para('Mark scheme',{bold:true})}${schemeXml(q,ctx)}`:'';
     return `${core}${answer}${scheme}`;
   }).join('');
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body>${header}${candidate}${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020"/></w:sectPr></w:body></w:document>`;

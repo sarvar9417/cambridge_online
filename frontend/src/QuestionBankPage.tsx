@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
+import { StructuredQuestionView, structuredQuestionUsable } from './student/StructuredQuestionView';
 import { portableAssetUrl } from './lib/portable-source-assets';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
@@ -47,6 +49,7 @@ type PortableQuestion = {
     marks: number;
     answerKind: string;
     answerLines: number | null;
+    contentJson?: StructuredQuestionContent | null;
   };
   chain: Array<{ id: string; label: string; depth: number }>;
   contextBlocks: Array<{
@@ -872,14 +875,49 @@ function QuestionAsset({ asset }: { asset: PortableAsset }) {
   return <div className="qb-asset"><strong>{asset.kind}</strong><span>{asset.altText || 'Savol asseti'}{asset.sourcePage ? ` · source page ${asset.sourcePage}` : ''}</span>{url ? <img src={url} alt={asset.altText || 'Cambridge source asset'} loading="lazy" /> : asset.contentMd ? <pre>{asset.contentMd}</pre> : asset.storagePath ? <small>Private storage asset: {asset.storagePath.split('/').pop()}</small> : <small>Asset content missing</small>}</div>;
 }
 
+function canonicalContent(portable: PortableQuestion) {
+  return structuredQuestionUsable(portable.leaf.contentJson) ? portable.leaf.contentJson : null;
+}
+
+function structuredAssetUrls(portable: PortableQuestion) {
+  const urls: Record<string, string> = {};
+  for (const asset of portable.contextBlocks.flatMap((block) => block.assets)) {
+    const url = portableAssetUrl(asset);
+    if (url) urls[asset.id] = url;
+  }
+  return urls;
+}
+
+function contextAssetSuperseded(portable: PortableQuestion, blockId: string, asset: PortableAsset) {
+  const content = canonicalContent(portable);
+  if (!content) return false;
+  if (content.blocks.some((block) => block.type === 'asset' && block.assetId === asset.id)) return true;
+  if (blockId !== portable.leaf.id || asset.sourcePage == null) return false;
+  return content.blocks.some((block) => block.source.page === asset.sourcePage && (
+    (asset.kind === 'table' && block.type === 'table')
+    || ((asset.kind === 'code' || asset.kind === 'pseudocode') && block.type === 'code')
+  ));
+}
+
 function ContextBlocks({ portable }: { portable: PortableQuestion }) {
-  if (!portable.contextBlocks.length) return <div className="qb-no-context">Alohida shared context talab qilinmaydi.</div>;
-  return <div className="qb-context-list">{portable.contextBlocks.map((block) => <section key={block.id}><div className="qb-context-head"><strong>{block.displayRef}</strong><span>Context</span></div>{(block.contextLatex || block.context) && <LatexQuestionText latex={block.contextLatex} fallback={block.context ?? ''} />}{block.assets.map((asset) => <QuestionAsset asset={asset} key={asset.id} />)}</section>)}</div>;
+  const blocks = portable.contextBlocks
+    .map((block) => ({ ...block, assets: block.assets.filter((asset) => !contextAssetSuperseded(portable, block.id, asset)) }))
+    .filter((block) => Boolean(block.contextLatex || block.context || block.assets.length));
+  if (!blocks.length) return null;
+  return <div className="qb-context-list">{blocks.map((block) => <section key={block.id}><div className="qb-context-head"><strong>{block.displayRef}</strong><span>Context</span></div>{(block.contextLatex || block.context) && <LatexQuestionText latex={block.contextLatex} fallback={block.context ?? ''} />}{block.assets.map((asset) => <QuestionAsset asset={asset} key={asset.id} />)}</section>)}</div>;
+}
+
+function PortableQuestionBody({ portable, className }: { portable: PortableQuestion; className?: string }) {
+  const content = canonicalContent(portable);
+  if (content) {
+    return <div className={className}><StructuredQuestionView content={content} assetUrls={structuredAssetUrls(portable)} /></div>;
+  }
+  return <LatexQuestionText className={className} latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />;
 }
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><PortableQuestionBody portable={portable} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
@@ -923,7 +961,7 @@ function ReviewScreen({ review, selectionName, selectionId, forClass, generatedM
     }
   };
 
-  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{selectionName}</strong><span>{review.items.length} qism · {review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>{documentLabel.toUpperCase()} · GENERATED PRACTICE</span><h1>{selectionName}</h1><small>Yangi raqamlash · asl manba reference’lari saqlangan</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Faqat kontekst · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><LatexQuestionText className="qb-review-stem" latex={item.portable.leaf.bodyFormat === 'latex' ? item.portable.leaf.stemLatex : null} fallback={item.portable.leaf.stem} /><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Tayyorlik tekshiruvi</h2><div className="qb-review-stat"><span>Savollar</span><strong>{review.items.length}</strong></div><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Bog‘liqlik muammolari</span><strong>{review.dependencyIssues.length}</strong></div>{generatedMeta && <div className="qb-generator-review"><div><span>Auto target</span><strong>{generatedMeta.targetMarks} → {review.totalMarks} ball</strong></div><div><span>Candidate pool</span><strong>{generatedMeta.candidateCount}</strong></div><div><span>Baholanadigan</span><strong>{generatedMeta.gradedCount}</strong></div><div><span>Kontekst</span><strong>{generatedMeta.contextCount}</strong></div><small>Seed: {generatedMeta.seed}</small>{generatedMeta.warnings.length > 0 && <ul>{generatedMeta.warnings.map((warning) => <li key={warning}>{generatorWarningLabel(warning)}</li>)}</ul>}</div>}{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha bog‘liqlik qoidalari bajarilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'PDF yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Word (.docx) yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Topshiriq yaratish →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word hujjatlari shu savatchadan to‘g‘ridan-to‘g‘ri tayyorlanadi.</small></aside></div></main>;
+  return <main className="qb-review-page"><header className="qb-review-header"><button className="qb-secondary-button" onClick={onBack}>← Savol bankiga qaytish</button><div><strong>{selectionName}</strong><span>{review.items.length} qism · {review.totalMarks} ball</span></div><span className={`qb-review-state ${review.canPublish ? 'ready' : 'blocked'}`}>{review.canPublish ? 'Eksportga tayyor' : 'Dependency bloklangan'}</span></header><div className="qb-review-layout"><section className="qb-review-paper"><div className="qb-paper-title"><span>{documentLabel.toUpperCase()} · GENERATED PRACTICE</span><h1>{selectionName}</h1><small>Yangi raqamlash · asl manba reference’lari saqlangan</small></div>{review.items.map((item) => <article className={`qb-review-question ${item.role === 'context_only' ? 'context-only' : ''}`} key={item.id}><div className="qb-review-question-head"><strong>{item.freshRef}</strong><span>{item.role === 'graded' ? `${item.effectiveMarks} ball` : 'Faqat kontekst · 0 ball'}</span></div><ContextBlocks portable={item.portable} /><PortableQuestionBody portable={item.portable} className="qb-review-stem" /><footer>Manba: {item.sourceRef}</footer></article>)}</section><aside className="qb-review-side"><h2>Tayyorlik tekshiruvi</h2><div className="qb-review-stat"><span>Savollar</span><strong>{review.items.length}</strong></div><div className="qb-review-stat"><span>Jami ball</span><strong>{review.totalMarks}</strong></div><div className="qb-review-stat"><span>Bog‘liqlik muammolari</span><strong>{review.dependencyIssues.length}</strong></div>{generatedMeta && <div className="qb-generator-review"><div><span>Auto target</span><strong>{generatedMeta.targetMarks} → {review.totalMarks} ball</strong></div><div><span>Candidate pool</span><strong>{generatedMeta.candidateCount}</strong></div><div><span>Baholanadigan</span><strong>{generatedMeta.gradedCount}</strong></div><div><span>Kontekst</span><strong>{generatedMeta.contextCount}</strong></div><small>Seed: {generatedMeta.seed}</small>{generatedMeta.warnings.length > 0 && <ul>{generatedMeta.warnings.map((warning) => <li key={warning}>{generatorWarningLabel(warning)}</li>)}</ul>}</div>}{review.dependencyIssues.map((issue, index) => <div className={`qb-issue ${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.dependsOnRef}</strong><span>{issueLabel(issue)}</span>{issue.evidence && <small>{issue.evidence}</small>}</div>)}{!review.dependencyIssues.length && <div className="qb-success-box">✓ Barcha bog‘liqlik qoidalari bajarilgan.</div>}<button disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('pdf')}>{exporting === 'pdf' ? 'PDF tayyorlanmoqda…' : 'PDF yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => void exportSelection('docx')}>{exporting === 'docx' ? 'Word tayyorlanmoqda…' : 'Word (.docx) yuklab olish'}</button><button className="qb-secondary-button" disabled={!review.canPublish || !selectionId || Boolean(exporting)} onClick={() => navigate(`oqitish/tanlovlar?id=${encodeURIComponent(selectionId)}${forClass ? `&sinf=${encodeURIComponent(forClass)}` : ''}`)}>Topshiriq yaratish →</button>{exportError && <div className="qb-error">{exportError}</div>}<small className="qb-muted">PDF va Word hujjatlari shu savatchadan to‘g‘ridan-to‘g‘ri tayyorlanadi.</small></aside></div></main>;
 }
 
 function generatorWarningLabel(warning: string) {

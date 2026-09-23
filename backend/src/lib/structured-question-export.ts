@@ -38,9 +38,11 @@ function renderBooleanLatex(latex: string) {
 }
 
 function renderTable(block: Extract<StructuredQuestionBlock, { type: 'table' }>) {
-  const head = block.headers.length
-    ? `<thead><tr>${block.headers.map((value) => `<th>${escapeHtml(value)}</th>`).join('')}</tr></thead>`
-    : '';
+  const head = block.headerRows?.length
+    ? `<thead>${block.headerRows.map((row) => `<tr>${row.map((cell) => `<th data-column="${cell.column}"${(cell.colSpan??1)>1 ? ` colspan="${cell.colSpan}"` : ''}${(cell.rowSpan??1)>1 ? ` rowspan="${cell.rowSpan}"` : ''}>${escapeHtml(cell.text)}</th>`).join('')}</tr>`).join('')}</thead>`
+    : block.headers.length
+      ? `<thead><tr>${block.headers.map((value) => `<th>${escapeHtml(value)}</th>`).join('')}</tr></thead>`
+      : '';
   const editable = new Set(block.editableCells.map(([row, column]) => `${row}:${column}`));
   const body = block.rows.map((row, rowIndex) => `<tr>${row.map((cell, columnIndex) => {
     const answer = editable.has(`${rowIndex}:${columnIndex}`) ? ' data-answer-cell="true"' : '';
@@ -103,5 +105,5 @@ export function renderStructuredQuestionHtml(
 }
 
 export const structuredQuestionPrintCss = `
-.structured-question{font:inherit;color:inherit}.sq-text{margin:.35em 0;white-space:pre-wrap}.sq-task{font-weight:600}.sq-code{white-space:pre-wrap;border:1px solid #d7dce2;border-radius:6px;padding:8px;background:#f8fafc}.sq-list{margin:.4em 0 .6em 1.4em}.sq-table{border-collapse:collapse;width:100%;margin:.7em 0;break-inside:avoid}.sq-table th,.sq-table td{border:1px solid #20242a;padding:6px 8px;vertical-align:top}.sq-table [data-answer-cell="true"]{min-width:52px;height:28px}.sq-matching{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:.7em 0;break-inside:avoid}.sq-matching ol{margin:0;padding-left:1.5em}.sq-matching li{margin:.45em 0;min-height:1.35em}.sq-math{font-family:"Times New Roman",serif;font-size:1.05em;letter-spacing:.01em}.sq-math.sq-boolean-expression{font-family:Arial,sans-serif}.sq-overline{text-decoration:overline;text-decoration-thickness:1px}.sq-asset{margin:.7em 0;break-inside:avoid}.sq-asset img{display:block;max-width:100%;height:auto}.sq-asset-missing{border:1px dashed #aab2bd;padding:12px}.sq-answer-lines{min-height:4.5em;border-bottom:1px solid #c9ced5}
+.structured-question{font:inherit;color:inherit}.sq-text{margin:.35em 0;white-space:pre-wrap}.sq-task{font-weight:600}.sq-code{white-space:pre-wrap;border:0;border-radius:0;padding:0 0 0 1.2em;background:transparent;line-height:1.55}.sq-list{margin:.4em 0 .6em 1.4em}.sq-table{border-collapse:collapse;width:100%;margin:.7em 0;break-inside:avoid}.sq-table th,.sq-table td{border:1px solid #20242a;padding:6px 8px;vertical-align:top}.sq-table [data-answer-cell="true"]{min-width:52px;height:28px}.sq-matching{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:.7em 0;break-inside:avoid}.sq-matching ol{margin:0;padding-left:1.5em}.sq-matching li{margin:.45em 0;min-height:1.35em}.sq-math{font-family:"Times New Roman",serif;font-size:1.05em;letter-spacing:.01em}.sq-math.sq-boolean-expression{font-family:Arial,sans-serif}.sq-overline{text-decoration:overline;text-decoration-thickness:1px}.sq-asset{margin:.7em 0;break-inside:avoid}.sq-asset img{display:block;max-width:100%;height:auto}.sq-asset-missing{border:1px dashed #aab2bd;padding:12px}.sq-answer-lines{min-height:4.5em;border-bottom:1px solid #c9ced5}
 `;
