@@ -393,7 +393,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     if(session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt||submitting.current)return;
     pendingSave.current=text;
     if(saveInFlight.current)return;
-    const outgoing=pendingSave.current;
+    const outgoing=pendingSave.current??'';
     pendingSave.current=null;
     saveInFlight.current=true;
     setSaving(true);
