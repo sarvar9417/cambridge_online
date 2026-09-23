@@ -45,6 +45,19 @@ describe('portable source assets',()=>{
     expect(table?.rows[1]).toEqual([null,null,null,null,null,null,null,null]);
   });
 
+  it('keeps a source-faithful inline SVG table as an image-backed asset',()=>{
+    const tableContent:StructuredQuestionContent={
+      ...content,
+      blocks:[{type:'asset',kind:'table',assetId,altText:'Merged Cambridge table',source:{page:7}}],
+    };
+    const next=materializePortableSourceAssets(tableContent,[{
+      id:assetId,kind:'table',altText:'Merged Cambridge table',
+      contentMd:'<svg viewBox="0 0 100 40"><path d="M0 0H100V40H0Z"/></svg>',
+    }]);
+    expect(next.blocks[0]?.type).toBe('asset');
+    expect(portableAssetUrl({id:assetId,kind:'table',contentMd:'<svg viewBox="0 0 1 1"></svg>'})).toMatch(/^data:image\/svg\+xml/);
+  });
+
   it('upgrades a legacy generic asset block that points at a semantic table',()=>{
     const next=materializePortableSourceAssets(content,[{
       id:assetId,kind:'table',altText:'Truth table',
