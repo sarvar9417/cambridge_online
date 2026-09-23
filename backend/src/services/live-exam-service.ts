@@ -6,6 +6,7 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
+import { sourceVisualAssetRenderable, unrenderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -228,6 +229,19 @@ export class LiveExamService {
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
         select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
       ))`,
+      `not exists(
+        with recursive ancestry as (
+          select q.id,q.parent_id
+          union all
+          select parent.id,parent.parent_id
+          from ancestry child
+          join questions parent on parent.id=child.parent_id
+        )
+        select 1
+        from ancestry
+        join question_assets qa on qa.question_id=ancestry.id
+        where ${unrenderableVisualAssetSql('qa')}
+      )`,
       // Finished sessions publish mastery into the class syllabus. Prefer direct
       // or explicitly reviewed LO compatibility, but do not discard a valid
       // Cambridge question solely because an older syllabus split its LOs
@@ -473,7 +487,10 @@ export class LiveExamService {
       ]);
       if (!portable) throw new DomainError('live_question_not_ready', 409);
       if (input.includeDiagrams && portable.contextBlocks.some(
-        (block) => block.assets.some((asset) => asset.storagePath && !asset.contentMd && !asset.url),
+        (block) => block.assets.some((asset) =>
+          (asset.kind === 'diagram' || asset.kind === 'image')
+          && !sourceVisualAssetRenderable(asset),
+        ),
       )) throw new DomainError('live_assets_unavailable', 409);
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
