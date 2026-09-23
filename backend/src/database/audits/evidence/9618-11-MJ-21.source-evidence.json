@@ -1,0 +1,287 @@
+{
+  "version": "9618-source-visual-evidence-v1",
+  "sourcePaper": {
+    "id": "fab329b3-9fbc-43ac-938b-5d83c815a1e5",
+    "ref": "9618/11/M/J/21",
+    "year": 2021,
+    "series": "MJ",
+    "component": 1,
+    "variant": 1,
+    "kind": "QP",
+    "pageCount": 16,
+    "sha256": "d73fa3294ec38a62d756742887a1bfc99909a2135ea86ac4a6713915fc305453",
+    "databaseSourceUrl": "https://drive.google.com/file/d/12vhfbT_LUMMUEU-aCHSQJ-O0S-OJVCRN/view?usp=drivesdk",
+    "verifiedPimaDriveFileId": "14Nt3QZiY4YH9dILAiql7yyYtJXr0fS2q",
+    "verifiedPimaTitle": "9618_s21_qp_11.pdf",
+    "sourceIdentityStatus": "EXACT_SHA_MATCH",
+    "renderDpi": 200
+  },
+  "pageEvidence": {
+    "2": "59c94cf511211c28b3d5a832db6cc8674636bbb041bfe892ad149ab1f9e150ff",
+    "5": "e53628fb602234a208163b3d657a551c834b4c86c96d27247e37b4fa9877889c",
+    "7": "79cdacd71c1947b07aad0df14cc67bca1951fad8b39262e0c4a785d81350beaf",
+    "8": "2db633a362f51b78baca39c8ba05d6af46473daa1d102cf823e7ccd5e4c1b367",
+    "9": "1d656d31c44b68d69327113fa5c91d00bea2549af5c6bdddb78e4685ecb45d91",
+    "10": "ddbe48a9f2976f9c326982ffe8dc1106627e8ef7a286334c51568e97cd39570b",
+    "11": "17f146bb7c770e7cbe76718b7d2da9922bb01c154e0f592ae587c265165ee868",
+    "12": "2f6c1e2687d2195a03146909e7473d4346da6d367e9a384fd8548a53a4d31044",
+    "14": "a36d13c346685488548b08c777446e7d02f287e44783133c8a668a3fdfa14489",
+    "15": "5106c56a9bf8ed44e34e4c611784d3f0904d1161e6810ef4b97578f57c265fa3",
+    "16": "4f76de49ecf77311408a0b7ec01fb0af4e85072cec4e3fba714ce554c783ceab"
+  },
+  "occurrences": [
+    {
+      "occurrenceId": "5193be6b-5381-4407-aa39-5f4b8661828c",
+      "questionId": "5b3a6893-9dd0-49cf-832b-517716b46524",
+      "displayRef": "9618/11/M/J/21 Q1(a)(i)",
+      "assetId": "ac6a3282-23d5-462b-8212-191ce792db64",
+      "kind": "table",
+      "sourcePage": 2,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "b63e95e5-27b2-4c82-8755-73c5c3d1d0f3",
+      "questionId": "6342a928-068e-4758-8ba3-d0d9e91e72df",
+      "displayRef": "9618/11/M/J/21 Q2(a)",
+      "assetId": "1e91f11f-37f0-43d3-afbb-64f1c7efda3c",
+      "kind": "diagram",
+      "sourcePage": 5,
+      "sourceBbox": [
+        60,
+        190,
+        1390,
+        870
+      ],
+      "sourceCropSha256": "1333582919d23147ba394edb8be12028a8f12000d4306f02dc3d0f8fdf5e2c33",
+      "consumerState": "active",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured"
+    },
+    {
+      "occurrenceId": "22f3ff37-c44f-4ad8-ab68-d14811c8c832",
+      "questionId": "e8c0b040-a260-456b-bac4-b0a06205a032",
+      "displayRef": "9618/11/M/J/21 Q3",
+      "assetId": "f9483ad1-7672-4b18-bd0c-cb6b21507950",
+      "kind": "table",
+      "sourcePage": 7,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
+      "questionId": "6b1f48a6-22ba-4522-a8a4-33c41bcfa9ee",
+      "displayRef": "9618/11/M/J/21 Q3(b)",
+      "assetId": "8649e01d-0211-4558-a541-bbed3279c6ae",
+      "kind": "table",
+      "sourcePage": 8,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
+      "questionId": "6b1f48a6-22ba-4522-a8a4-33c41bcfa9ee",
+      "displayRef": "9618/11/M/J/21 Q3(b)",
+      "assetId": "1894154b-5802-47ca-a2d2-2ee9dc63f6f5",
+      "kind": "table",
+      "sourcePage": 8,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
+      "questionId": "6b1f48a6-22ba-4522-a8a4-33c41bcfa9ee",
+      "displayRef": "9618/11/M/J/21 Q3(b)",
+      "assetId": "c43ee7fc-9486-4302-a9c9-b48f51f34a33",
+      "kind": "table",
+      "sourcePage": 9,
+      "sourceBbox": [
+        72,
+        100,
+        808,
+        770
+      ],
+      "sourceCropSha256": "a71e0560e69acdfce1b6985614aa44585f5c25a301a7a8377eb75d3cb9d66049",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    },
+    {
+      "occurrenceId": "b110a3c0-e21e-465a-aaff-f8c390527d95",
+      "questionId": "65a578cd-6296-4167-a467-108db756924e",
+      "displayRef": "9618/11/M/J/21 Q3(c)(i)",
+      "assetId": "b8bf030d-017b-4577-a9eb-15547cc6638c",
+      "kind": "table",
+      "sourcePage": 10,
+      "sourceBbox": [
+        130,
+        115,
+        710,
+        175
+      ],
+      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    },
+    {
+      "occurrenceId": "b110a3c0-e21e-465a-aaff-f8c390527d95",
+      "questionId": "65a578cd-6296-4167-a467-108db756924e",
+      "displayRef": "9618/11/M/J/21 Q3(c)(i)",
+      "assetId": "9ad478a9-6db1-4571-b99b-ec2aa0484cf0",
+      "kind": "table",
+      "sourcePage": 10,
+      "sourceBbox": [
+        130,
+        270,
+        710,
+        330
+      ],
+      "sourceCropSha256": "9a67d627bbe947f82c1feb7890cae712c3dd0628819ffc5f9f658ba11c7b10db",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    },
+    {
+      "occurrenceId": "1e5cbf34-7cc3-4d87-ae7d-4ccde00d7d8d",
+      "questionId": "18a43ef1-5579-4f3a-bd74-e983e85ba3f2",
+      "displayRef": "9618/11/M/J/21 Q3(c)(ii)",
+      "assetId": "e6d89739-5797-42ce-9b13-abc43e526d8a",
+      "kind": "table",
+      "sourcePage": 10,
+      "sourceBbox": [
+        130,
+        455,
+        710,
+        515
+      ],
+      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    },
+    {
+      "occurrenceId": "e944dfea-e73b-4b41-a998-e1b7940722e5",
+      "questionId": "560c749b-567d-4f45-9ef4-7cc67d4c25e3",
+      "displayRef": "9618/11/M/J/21 Q4(c)(i)",
+      "assetId": "a6403741-7948-46e6-9c22-c96acb8711d5",
+      "kind": "table",
+      "sourcePage": 11,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "9dccf15a-7469-495f-9c46-93d18fa38ce9",
+      "questionId": "b0304966-4b2b-4a9d-9bb8-b4ba34b7740d",
+      "displayRef": "9618/11/M/J/21 Q4(c)(ii)",
+      "assetId": "29e7c51c-1a27-46f7-a122-b629f0985bd5",
+      "kind": "table",
+      "sourcePage": 12,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "069b5f47-4595-4d62-bca4-1dd66e5a21f1",
+      "questionId": "1a333460-5dc3-418e-9bc3-f78bc155aaaa",
+      "displayRef": "9618/11/M/J/21 Q6(a)",
+      "assetId": "a788cc18-3d0d-4981-a54f-33a43e537045",
+      "kind": "pseudocode",
+      "sourcePage": 14,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "a7bf44e6-bc18-494d-89e6-d0ed95c8be6a",
+      "questionId": "072658a1-dd3b-4c0c-a50a-6eb06d12bc0c",
+      "displayRef": "9618/11/M/J/21 Q6(b)",
+      "assetId": "949abd24-4bfd-4784-a85e-d852e786a23e",
+      "kind": "pseudocode",
+      "sourcePage": 14,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "fd4e30be-024f-44dc-9e34-96ee95dde25d",
+      "questionId": "836764e0-fd17-4cbb-ad84-99a1c61efc9e",
+      "displayRef": "9618/11/M/J/21 Q6(c)",
+      "assetId": "9ee6950f-c1f4-4b00-97f1-a1dfab02ed4b",
+      "kind": "pseudocode",
+      "sourcePage": 14,
+      "sourceBbox": null,
+      "sourceCropSha256": null,
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+    },
+    {
+      "occurrenceId": "5ccdf2f5-0081-4104-8577-e6b9f13c38a3",
+      "questionId": "15f5674e-b6cf-4386-89e6-8f50a604e948",
+      "displayRef": "9618/11/M/J/21 Q7(b)(ii)",
+      "assetId": "17eb0daa-5410-45db-8843-633f7fb02272",
+      "kind": "table",
+      "sourcePage": 15,
+      "sourceBbox": [
+        310,
+        900,
+        760,
+        1090
+      ],
+      "sourceCropSha256": "58ce6b30a761adc3960d0bc4d241658f9272ffdbf0bf6655cad40450f4ff180f",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    },
+    {
+      "occurrenceId": "f11dbaab-496c-43c0-bd5c-da1e07bf7539",
+      "questionId": "62e94632-92d3-435f-8ea2-61e8a003d6be",
+      "displayRef": "9618/11/M/J/21 Q8",
+      "assetId": "168599f4-5cee-4993-a3b4-d7cecea66c43",
+      "kind": "table",
+      "sourcePage": 16,
+      "sourceBbox": [
+        62,
+        465,
+        888,
+        655
+      ],
+      "sourceCropSha256": "388f498968a5ab54bb2c984850098910cd8ad31b5c0305988751020f9bd2ca0d",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+    }
+  ],
+  "summary": {
+    "occurrenceCount": 16,
+    "primaryOccurrenceCount": 16,
+    "activeByStructuredAssetReference": 1,
+    "dormantOrCompanionByStructuredAssetReference": 15,
+    "exactBboxCropCount": 7,
+    "pageOnlyManualLocalisationCount": 9,
+    "vf5Count": 16,
+    "note": "This is source-provenance evidence only. It does not satisfy a VF-0/VF-1 product-surface proof requirement."
+  }
+}
