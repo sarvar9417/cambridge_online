@@ -33,6 +33,7 @@ const content:StructuredQuestionContent={
 describe('structured question frontend contract',()=>{
   it('recognises the canonical v1 shape',()=>{
     expect(isStructuredQuestionContent(content)).toBe(true);
+    expect(content.blocks).toHaveLength(6);
     expect(isStructuredQuestionContent({ ...content,version:2 })).toBe(false);
   });
 
@@ -67,5 +68,16 @@ describe('structured question frontend contract',()=>{
     }));
     expect(host.querySelector('img')?.src).toBe('https://example.test/diagram.png');
     expect(host.querySelector('img')?.alt).toBe('Original source diagram');
+  });
+
+  it('accepts source-faithful table assets when geometry must be preserved',()=>{
+    expect(isStructuredQuestionContent({
+      version:1,
+      source:content.source,
+      blocks:[{
+        type:'asset',kind:'table',assetId:'33333333-3333-4333-8333-333333333333',
+        altText:'Merged-header source table',source:{page:7},
+      }],
+    })).toBe(true);
   });
 });
