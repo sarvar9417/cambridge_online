@@ -341,6 +341,7 @@ export class LiveExamService {
         select 1 from live_exam_questions leq
         join live_exam_sessions previous on previous.id=leq.session_id
         where leq.question_id=q.id and previous.class_id=${classParameter}
+          and previous.started_at is not null
       )`);
     }
     values.push(input.questionCount);
@@ -487,8 +488,8 @@ export class LiveExamService {
           const joinCode = String(randomInt(100000, 1000000));
           session = await client.query(
             `insert into live_exam_sessions(
-               class_id,host_id,title,join_code,join_code_expires_at,marking_mode,question_time_limit_s,settings
-             ) values($1,$2,$3,$4,now()+interval '24 hours',$5,$6,$7::jsonb)
+               class_id,host_id,title,join_code,marking_mode,question_time_limit_s,settings
+             ) values($1,$2,$3,$4,$5,$6,$7::jsonb)
              returning id,class_id,title,join_code,status,marking_mode,question_time_limit_s,version,created_at`,
             [input.classId, actor.id, input.title, joinCode, input.markingMode,
               input.questionTimeLimitS ?? null,
@@ -557,7 +558,8 @@ export class LiveExamService {
        join classes c on c.id=les.class_id
        where (
          ($1='student' and exists(
-           select 1 from live_exam_participants lep where lep.session_id=les.id and lep.student_id=$2
+           select 1 from live_exam_participants lep
+           where lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
          ))
          or ($1='owner' and c.school_id=$3)
          or ($1='teacher' and (c.owner_id=$2 or exists(
@@ -585,7 +587,11 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-         where les.join_code=$1 and les.join_code_expires_at > now() and (
+         where les.join_code=$1
+           and coalesce(
+             (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
+             'infinity'::timestamptz
+           ) > now() and (
            les.status='lobby'
            or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
@@ -703,7 +709,7 @@ export class LiveExamService {
     return { ...snapshot, contextBlocks };
   }
 
-  async snapshot(actor: Actor, sessionId: string): Promise<Record<string, unknown>> {
+  async snapshot(actor: Actor, sessionId: string, projector = false): Promise<Record<string, unknown>> {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
@@ -722,9 +728,11 @@ export class LiveExamService {
       [sessionId, actor.role, actor.id, actor.schoolId],
     );
     if (!access.rowCount) throw new DomainError('not_found', 404);
-    if (await this.closeExpiredQuestion(sessionId)) return this.snapshot(actor, sessionId);
+    if (await this.closeExpiredQuestion(sessionId)) return this.snapshot(actor, sessionId, projector);
     const session = access.rows[0];
     const isStaff = Boolean(session.is_staff);
+    if (projector && !isStaff) throw new DomainError('staff_only', 403);
+    const detailedStaff = isStaff && !projector;
     const participantId = session.participant_id ? String(session.participant_id) : null;
 
     const [questionRows, participantRows] = await Promise.all([
@@ -736,7 +744,7 @@ export class LiveExamService {
          from live_exam_questions where session_id=$1 order by position`,
         [sessionId, Number(session.current_question_index)],
       ),
-      isStaff
+      detailedStaff
         ? this.pool.query(
           `select lep.id,lep.student_id,u.full_name,lep.joined_at,lep.last_seen_at,
              a.id answer_id,a.submitted_at,a.final_score,a.score_source,a.moderated_at
@@ -800,18 +808,23 @@ export class LiveExamService {
     let teacherAnswers: Record<string, unknown>[] = [];
     if (currentRow && participantId) {
       const answerResult = await this.pool.query(
-        `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at
+        `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
          from live_exam_answers where session_question_id=$1 and participant_id=$2`,
         [currentRow.id, participantId],
       );
       if (answerResult.rows[0]) ownAnswer = this.mapAnswer(answerResult.rows[0]);
       if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));
     }
-    if (currentRow && isStaff && reveal) {
+    if (currentRow && detailedStaff && reveal) {
       const answerResult = await this.pool.query(
         `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
-           a.score_source,a.moderated_at,u.full_name student_name,lep.student_id,
-           r.id review_id,r.status::text review_status,r.kind::text review_kind
+           a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
+           r.id review_id,r.status::text review_status,r.kind::text review_kind,
+           coalesce((
+             select array_agg(rp.mark_scheme_point_id order by rp.mark_scheme_point_id)
+             from live_exam_review_points rp
+             where rp.review_id=r.id and rp.matched
+           ),'{}'::uuid[]) review_matched_point_ids
          from live_exam_answers a
          join live_exam_participants lep on lep.id=a.participant_id
          join users u on u.id=lep.student_id
@@ -827,6 +840,7 @@ export class LiveExamService {
         reviewId: row.review_id,
         reviewStatus: row.review_status,
         reviewKind: row.review_kind,
+        reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
       }));
     }
 
@@ -835,15 +849,15 @@ export class LiveExamService {
       earned: number;
       possible: number;
     } | null = null;
-    if (session.status === 'finished') {
+    if (session.status === 'finished' && !projector) {
       const reportRows = await this.pool.query(
         `select leq.position,leq.marks,
            coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
-           a.answer_text,a.final_score,a.score_source::text,lep.student_id,u.full_name student_name
+           coalesce(a.answer_text,'') answer_text,a.final_score,a.score_source::text,lep.student_id,u.full_name student_name
          from live_exam_questions leq
-         join live_exam_answers a on a.session_question_id=leq.id
-         join live_exam_participants lep on lep.id=a.participant_id
+         join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
          join users u on u.id=lep.student_id
+         left join live_exam_answers a on a.session_question_id=leq.id and a.participant_id=lep.id
          where leq.session_id=$1 and ($2::boolean or lep.student_id=$3)
          order by leq.position,u.full_name`,
         [sessionId, isStaff, actor.id],
@@ -864,11 +878,11 @@ export class LiveExamService {
       };
     }
 
-    const participants = isStaff ? participantRows.rows : [];
-    const participantCount = isStaff
+    const participants = detailedStaff ? participantRows.rows : [];
+    const participantCount = detailedStaff
       ? participants.length
       : Number(participantRows.rows[0]?.participant_count ?? 0);
-    const submittedCount = isStaff
+    const submittedCount = detailedStaff
       ? participants.filter((row) => row.submitted_at).length
       : Number(participantRows.rows[0]?.submitted_count ?? 0);
     const reviewCounts = currentRow ? await this.pool.query(
@@ -900,13 +914,13 @@ export class LiveExamService {
         reviewedCount: Number(reviewCounts.rows[0].completed),
         questionCount: questionRows.rowCount ?? 0,
       },
-      questions: isStaff ? questionRows.rows.map((row) => ({
+      questions: detailedStaff ? questionRows.rows.map((row) => ({
         id: row.id,
         position: Number(row.position),
         marks: Number(row.marks),
         displayRef: row.display_ref,
       })) : [],
-      participants: isStaff ? participants.map((row) => ({
+      participants: detailedStaff ? participants.map((row) => ({
         id: row.id,
         studentId: row.student_id,
         fullName: row.full_name,
@@ -1063,6 +1077,7 @@ export class LiveExamService {
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
+      let autoRevealed = false;
       const settings = this.settings(state.rows[0].settings);
       if (settings.autoCloseWhenAllSubmitted) {
         const pending = await client.query(
@@ -1077,10 +1092,11 @@ export class LiveExamService {
         if (Number(pending.rows[0].count) === 0) {
           const revealed = await this.revealWithinTransaction(client, state.rows[0], actor.id);
           version = revealed.version;
+          autoRevealed = true;
         }
       }
       await client.query('commit');
-      return { submittedAt: new Date(), version, autoRevealed: state.rows[0].status === 'marking' };
+      return { submittedAt: new Date(), version, autoRevealed };
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -1195,6 +1211,9 @@ export class LiveExamService {
       );
       if (!target.rowCount) throw new DomainError('not_found', 404);
       const row = target.rows[0];
+      if (actor.role !== 'student' && row.kind !== 'teacher') {
+        throw new DomainError('live_review_not_assigned_to_staff', 403);
+      }
       if (row.status !== 'assigned') throw new DomainError('live_review_submitted', 409);
       if (input.matchedPointIds.length) {
         const allowed = await client.query(
@@ -1213,15 +1232,6 @@ export class LiveExamService {
         throw new DomainError('invalid_level', 400);
       }
       const selectedIds = new Set(input.matchedPointIds);
-      await client.query(
-        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
-      for (const point of snapshot.points.filter((item) => selectedIds.has(item.id))) {
-        await client.query(
-          `update live_exam_review_points set matched=true,awarded_marks=$3
-           where review_id=$1 and mark_scheme_point_id=$2`,
-          [reviewId, point.id, point.marks],
-        );
-      }
       const computed = computeScore({
         type: snapshot.schemeType as Scheme['type'],
         maxMarks: snapshot.maxMarks,
@@ -1244,6 +1254,16 @@ export class LiveExamService {
         matched: selectedIds.has(point.id),
         confidence: 1,
       })));
+      await client.query(
+        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
+      for (const point of snapshot.points) {
+        const matched = computed.effectiveMatched[point.code] === true;
+        await client.query(
+          `update live_exam_review_points set matched=$3,awarded_marks=$4
+           where review_id=$1 and mark_scheme_point_id=$2`,
+          [reviewId, point.id, matched, matched ? point.marks : 0],
+        );
+      }
       const score = pointCount > 0 && computed.score !== null ? computed.score : input.score;
       if (score === undefined || score < 0 || score > Number(row.marks)) throw new DomainError('invalid_score', 400);
       if (selectedLevel && (score < selectedLevel.minMarks || score > selectedLevel.maxMarks)) {
@@ -1251,8 +1271,8 @@ export class LiveExamService {
       }
       await client.query(
         `update live_exam_reviews set status='submitted',awarded_marks=$2,feedback_md=$3,
-           submitted_at=now() where id=$1`,
-        [reviewId, score, input.feedback ?? null],
+           reviewer_id=$4,submitted_at=now() where id=$1`,
+        [reviewId, score, input.feedback ?? null, actor.id],
       );
       await client.query(
         `update live_exam_answers set final_score=$2,final_feedback_md=$3,score_source=$4
@@ -1275,12 +1295,14 @@ export class LiveExamService {
     actor: Actor,
     sessionId: string,
     answerId: string,
-    input: { score: number; feedback?: string },
+    input: { score: number; feedback?: string; levelNumber?: number },
+    expectedVersion?: number,
   ) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (!['marking', 'review'].includes(String(session.status)) || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const settings = this.settings(session.settings);
       if (session.marking_mode !== 'teacher' && !settings.teacherOverrideEnabled) {
@@ -1292,10 +1314,20 @@ export class LiveExamService {
          from live_exam_questions leq
          where a.id=$1 and leq.id=a.session_question_id and leq.session_id=$2
            and $3 between 0 and leq.marks
-         returning a.id`,
+         returning a.id,leq.mark_scheme_snapshot`,
         [answerId, sessionId, input.score, input.feedback ?? null, actor.id],
       );
       if (!result.rowCount) throw new DomainError('invalid_score', 400);
+      const scheme = result.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
+      if (scheme.schemeType === 'levels_of_response') {
+        const selectedLevel = input.levelNumber === undefined
+          ? undefined
+          : scheme.levels.find((level) => level.levelNumber === input.levelNumber);
+        if (!selectedLevel) throw new DomainError('invalid_level', 400);
+        if (input.score < selectedLevel.minMarks || input.score > selectedLevel.maxMarks) {
+          throw new DomainError('score_outside_level', 400);
+        }
+      }
       await client.query(
         `update live_exam_reviews set status='moderated',moderated_by=$2,moderated_at=now()
          where answer_id=$1`, [answerId, actor.id]);
@@ -1408,9 +1440,15 @@ export class LiveExamService {
                question_started_at+question_time_limit_s*interval '1 second'-now()
              )))::int)
            else null
-         end where id=$1 returning pause_remaining_s`,
+         end
+         where id=$1 and (
+           status<>'question_open' or question_started_at is null or question_time_limit_s is null
+           or now()<question_started_at+question_time_limit_s*interval '1 second'
+         )
+         returning pause_remaining_s`,
         [sessionId],
       );
+      if (!paused.rowCount) throw new DomainError('live_answer_locked', 409);
       const remaining = paused.rows[0].pause_remaining_s === null ? null : Number(paused.rows[0].pause_remaining_s);
       const version = await this.bump(client, sessionId, actor.id, 'session.paused', { remainingSeconds: remaining });
       await client.query('commit');
@@ -1429,6 +1467,18 @@ export class LiveExamService {
       this.assertExpectedVersion(session, expectedVersion);
       if (!session.paused_at || !['question_open', 'marking', 'review'].includes(String(session.status))) {
         throw new DomainError('live_invalid_state', 409);
+      }
+      if (session.status === 'question_open' && session.question_time_limit_s !== null
+        && session.pause_remaining_s !== null && Number(session.pause_remaining_s) <= 0) {
+        await client.query(
+          `update live_exam_sessions set paused_at=null,pause_remaining_s=null where id=$1`,
+          [sessionId],
+        );
+        session.paused_at = null;
+        session.pause_remaining_s = null;
+        const result = await this.revealWithinTransaction(client, session, actor.id);
+        await client.query('commit');
+        return result;
       }
       await client.query(
         `update live_exam_sessions set
@@ -1559,6 +1609,7 @@ export class LiveExamService {
       feedback: row.final_feedback_md,
       scoreSource: row.score_source,
       moderatedAt: row.moderated_at,
+      updatedAt: row.updated_at,
     };
   }
 }

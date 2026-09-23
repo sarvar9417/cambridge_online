@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import { portableAssetUrl } from '../lib/portable-source-assets';
 
 type ExamAsset = {
   id:string;
@@ -44,20 +45,23 @@ function normalized(value:string|null|undefined){
   return (value??'').replace(/\s+/g,' ').trim();
 }
 
-function sourceAssetValue(asset:ExamAsset){
-  if(asset.url)return `[[browser_asset_url:${encodeURIComponent(asset.url)}]]`;
-  return asset.contentMd??'';
-}
-
 function renderAsset(asset:ExamAsset){
-  const value=sourceAssetValue(asset);
-  if(!value)return null;
+  const url=portableAssetUrl(asset);
+  const value=asset.contentMd??'';
+  if(!url&&!value)return null;
   const figure=document.createElement('figure');
   figure.className='qb-asset lesson-past-paper-inline-asset';
   const kind=document.createElement('strong');
   kind.textContent=asset.kind;
   const label=document.createElement('span');
   label.textContent=[asset.altText,asset.sourcePage?`Source page ${asset.sourcePage}`:''].filter(Boolean).join(' · ');
+  if(url){
+    const image=document.createElement('img');
+    image.src=url;
+    image.alt=asset.altText||'Cambridge source visual';
+    figure.append(kind,label,image);
+    return figure;
+  }
   const source=document.createElement('pre');
   source.textContent=value;
   figure.append(kind,label,source);
@@ -72,13 +76,12 @@ function paragraph(className:string,text:string|null|undefined){
   return node;
 }
 
-function assetComplete(asset:ExamAsset){
-  return Boolean(asset.url||asset.contentMd);
+function isVisualAsset(asset:ExamAsset){
+  return ['diagram','image','flowchart','logic_circuit'].includes(asset.kind.toLowerCase());
 }
 
-function isVisualAsset(asset:ExamAsset){
-  const kind=asset.kind.toLowerCase();
-  return kind==='diagram'||kind==='image';
+function assetComplete(asset:ExamAsset){
+  return isVisualAsset(asset)?Boolean(portableAssetUrl(asset)):Boolean(asset.url||asset.contentMd);
 }
 
 function questionComplete(question:ExamQuestion){

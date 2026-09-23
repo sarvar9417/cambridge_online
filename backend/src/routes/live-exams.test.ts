@@ -38,6 +38,15 @@ describe('live exam routes', () => {
     expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
   });
 
+  it('routes projector snapshots through the privacy-scoped service view', async () => {
+    const snapshot=vi.fn().mockResolvedValue({session:{version:4},participants:[],teacherAnswers:[]});
+    const response=await request(appFor({snapshot}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/projector')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',true);
+  });
+
   it('keeps /join above the UUID session route', async () => {
     const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
     const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
@@ -67,6 +76,7 @@ describe('live exam routes', () => {
     ));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:1})
       .expect(409);
     expect(response.body.error.code).toBe('live_peer_assignment_impossible');
   });
@@ -75,8 +85,27 @@ describe('live exam routes', () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(new Error('database exploded'),{code:'XX000'}));
     const response=await request(appFor({revealMarkScheme}))
       .post('/live-exams/22222222-2222-4222-8222-222222222222/reveal')
+      .send({expectedVersion:1})
       .expect(500);
     expect(response.body.error.code).toBe('internal_error');
+  });
+
+  it('rejects stale-risk teacher score overrides without a session version', async () => {
+    const moderateAnswer=vi.fn();
+    await request(appFor({moderateAnswer}))
+      .put('/live-exams/22222222-2222-4222-8222-222222222222/answers/33333333-3333-4333-8333-333333333333/moderate')
+      .send({score:1})
+      .expect(400);
+    expect(moderateAnswer).not.toHaveBeenCalled();
+  });
+
+  it('rejects teacher transitions that omit the authoritative session version', async () => {
+    const start=vi.fn();
+    await request(appFor({start}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/start')
+      .send({})
+      .expect(400);
+    expect(start).not.toHaveBeenCalled();
   });
 
   it('passes optimistic state versions to pause and resume controls', async () => {

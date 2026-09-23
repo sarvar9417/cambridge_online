@@ -47,6 +47,19 @@ describe('LiveExamService role boundary', () => {
   });
 });
 
+describe('LiveExamService active participation visibility', () => {
+  it('does not list rooms that a student already left in the lobby', async () => {
+    const query=vi.fn().mockResolvedValue({rowCount:0,rows:[]});
+    const service=new LiveExamService(
+      {query} as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+    await expect(service.list({id:'s1',role:'student',schoolId:'school',fullName:'Student'})).resolves.toEqual([]);
+    const sql=String(query.mock.calls[0]?.[0]??'');
+    expect(sql).toContain('lep.student_id=$2 and lep.left_at is null');
+  });
+});
+
 describe('LiveExamService source fidelity', () => {
   const actor = { id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
   const input = {
@@ -81,7 +94,7 @@ describe('LiveExamService source fidelity', () => {
       throw new Error(`unexpected query: ${sql}`);
     });
     const service = new LiveExamService({ query } as unknown as Pool, {} as PgQuestionsRepository);
-    await expect(service.create(actor,input)).rejects.toMatchObject({ code:'live_question_pool_small' });
+    await expect(service.create(actor,{ ...input,excludeSeen:true })).rejects.toMatchObject({ code:'live_question_pool_small' });
     const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('with recursive ancestry');
@@ -99,6 +112,7 @@ describe('LiveExamService source fidelity', () => {
     expect(selectionSql).toContain(') candidate');
     expect(selectionSql).toContain('order by md5(candidate.id::text || $1::text)');
     expect(selectionSql).toContain('selected_topic.id=any($3::uuid[])');
+    expect(selectionSql).toContain('previous.started_at is not null');
     expect(selectionCall?.[1]).toEqual([expect.any(String), input.classId, input.topicIds, input.questionCount]);
   });
 

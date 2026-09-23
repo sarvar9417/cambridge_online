@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
+import { portableAssetUrl } from '../lib/portable-source-assets';
 import type { LessonTopic, TopicPage } from '../teaching/lesson-topic-plan';
 import type { LessonSlide } from '../teaching/lesson-content-full';
 
@@ -55,29 +56,25 @@ type CheckpointResponse = {
   yearTo: number;
 };
 
-function sourceAssetValue(asset:ExamAsset) {
-  if(asset.url)return `[[browser_asset_url:${encodeURIComponent(asset.url)}]]`;
-  return asset.contentMd??'';
+function isVisualAsset(asset:ExamAsset) {
+  return ['diagram','image','flowchart','logic_circuit'].includes(asset.kind.toLowerCase());
 }
 
 function SourceAsset({ asset }: { asset:ExamAsset }) {
-  const value=sourceAssetValue(asset);
-  if(!value)return null;
+  const url=portableAssetUrl(asset);
   const label=[asset.altText,asset.sourcePage?`Source page ${asset.sourcePage}`:''].filter(Boolean).join(' · ');
+  if(url)return <figure className="student-topic-exam-asset"><img src={url} alt={asset.altText||'Cambridge source visual'}/>{label?<figcaption>{label}</figcaption>:null}</figure>;
+  if(!asset.contentMd)return null;
+  if(isVisualAsset(asset))return <figure className="student-topic-exam-asset"><div role="alert">Original Cambridge diagrammasi yuklanmadi.</div>{label?<figcaption>{label}</figcaption>:null}</figure>;
   return <figure className="qb-asset student-topic-exam-asset">
     <strong>{asset.kind}</strong>
     <span>{label}</span>
-    <pre>{value}</pre>
+    <pre>{asset.contentMd}</pre>
   </figure>;
 }
 
 function assetComplete(asset:ExamAsset) {
-  return Boolean(asset.url||asset.contentMd);
-}
-
-function isVisualAsset(asset:ExamAsset) {
-  const kind=asset.kind.toLowerCase();
-  return kind==='diagram'||kind==='image';
+  return isVisualAsset(asset)?Boolean(portableAssetUrl(asset)):Boolean(asset.url||asset.contentMd);
 }
 
 function questionComplete(question:ExamQuestion) {

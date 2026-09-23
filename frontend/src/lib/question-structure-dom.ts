@@ -1,5 +1,6 @@
 import { api } from './api';
 import { structureQuestionText, type QuestionTextBlock } from './question-structure';
+import { portableAssetUrl } from './portable-source-assets';
 import {
   cleanExamStem,
   parseChoiceQuestion,
@@ -432,17 +433,23 @@ function renderGenericResponse(detail: QuestionDetail, portable: PortableQuestio
 function renderAsset(asset: PortableAsset) {
   const wrapper = document.createElement('figure');
   wrapper.className = 'lesson-workspace-asset';
-  if (asset.url) {
+  const url=portableAssetUrl(asset);
+  if (url) {
     const image = document.createElement('img');
-    image.src = asset.url;
+    image.src = url;
     image.alt = asset.altText || 'Question asset';
     wrapper.append(image);
-  }
-  if (asset.contentMd) {
+  } else if (asset.contentMd && ['table','pseudocode','code'].includes(asset.kind.toLowerCase())) {
     const content = document.createElement('div');
     content.className = 'lesson-workspace-asset-content';
     renderQuestionText(content, asset.contentMd);
     wrapper.append(content);
+  } else if (asset.kind.toLowerCase()==='diagram'||asset.kind.toLowerCase()==='image') {
+    const unavailable=document.createElement('div');
+    unavailable.className='qb-asset-unavailable';
+    unavailable.setAttribute('role','alert');
+    unavailable.textContent='Original diagramma yuklanmadi.';
+    wrapper.append(unavailable);
   }
   if (asset.altText || asset.sourcePage) {
     const caption = document.createElement('figcaption');
