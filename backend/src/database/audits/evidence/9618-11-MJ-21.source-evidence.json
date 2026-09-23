@@ -394,7 +394,29 @@
     "exactBboxCropCount": 16,
     "pageOnlyManualLocalisationCount": 0,
     "vf5Count": 16,
-    "note": "All 16 source elements are now localised and hashed from the exact SHA-matched source PDF without OCR. Product-surface proof is still not claimed; every occurrence remains VF-5 until Question Bank/PDF/DOCX/Live evidence is attached.",
+    "note": "All 16 source asset elements are localised and hashed from the exact SHA-matched source PDF without OCR. The paper also has 68 renderer targets (30 scoring questions + 38 visual/answer-area blocks), requiring 408 surface evidence rows across six QP surfaces. Product-surface proof is not yet claimed; all unproved targets remain VF-5.",
     "pendingCropHashCount": 0
+  },
+  "rendererScope": {
+    "questionOccurrenceCount": 42,
+    "scoringLeafQuestionTargets": 30,
+    "structuredVisualTargets": 38,
+    "structuredVisualBreakdown": {
+      "table": 11,
+      "asset": 1,
+      "code": 3,
+      "answer_area": 23
+    },
+    "totalRendererTargets": 68,
+    "requiredSurfaces": [
+      "question_bank_desktop",
+      "question_bank_mobile",
+      "pdf",
+      "docx",
+      "live_student",
+      "live_teacher"
+    ],
+    "requiredSurfaceEvidenceRows": 408,
+    "sourceNote": "Renderer-target counts come from the current production content_json for this exact paper. They are evidence requirements, not PASS counts."
   }
 }
