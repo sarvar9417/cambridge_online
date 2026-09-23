@@ -384,7 +384,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
         if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
         if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
         latestAnswer.current=incoming.text;
-        setAnswer(incoming.text);setDirty(false);
+        pendingSave.current=incoming.text;
+        setAnswer(incoming.text);setDirty(true);
       }catch{/* Ignore malformed storage entries. */}
     };
     window.addEventListener('storage',onStorage);
