@@ -61,12 +61,12 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
     expect(service).toContain("($2='student' and lep.id is not null)");
-    expect(service).toContain('questions: isStaff ? questionRows.rows.map');
-    expect(service).toContain('participants: isStaff ? participants.map');
+    expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
+    expect(service).toContain('participants: detailedStaff ? participants.map');
     expect(service).toContain('teacherAnswers = answerResult.rows.map');
     expect(service).toContain('review_matched_point_ids');
     expect(service).toContain('reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String)');
-    expect(service).toContain("if (currentRow && isStaff && reveal)");
+    expect(service).toContain("if (currentRow && detailedStaff && reveal)");
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
