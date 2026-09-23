@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
@@ -27,6 +28,7 @@ export class AssignmentsService {
          join mark_schemes ms on ms.question_id=q.id and ms.status='approved'
          where qs.subtopic_id=$1 and q.status='approved' and q.parent_id is not null
            and q.marks is not null and q.answer_kind not in('diagram','image')
+           and ${questionVisualIntegritySql('q')}
            and($2::text is null or q.command_word::text=$2)
          order by md5(q.id::text||$3||current_date::text) limit 5`,
         [input.subtopicId,input.commandWord??null,actor.id],
@@ -56,7 +58,7 @@ export class AssignmentsService {
     const client=await this.pool.connect();try{await client.query('begin');
       const visible=await client.query(`select 1 from classes c where c.id=$1 and (($2='owner' and c.school_id=$3) or ($2='teacher' and(c.owner_id=$4 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4))))`,[input.classId,actor.role,actor.schoolId,actor.id]);
       if(!visible.rowCount)throw new DomainError('not_found',404);
-      const marks=await client.query(`select count(*)::int count,coalesce(sum(marks),0)::int total from questions where id=any($1::uuid[]) and status in('approved','manual') and parent_id is not null`,[input.questionIds]);
+      const marks=await client.query(`select count(*)::int count,coalesce(sum(q.marks),0)::int total from questions q where q.id=any($1::uuid[]) and q.status in('approved','manual') and q.parent_id is not null and ${questionVisualIntegritySql('q')}`,[input.questionIds]);
       if(marks.rows[0].count!==input.questionIds.length)throw new DomainError('invalid_questions',400);
       const assignment=await client.query(`insert into assignments(class_id,created_by,title,instructions_md,total_marks,opens_at,due_at,time_limit_min,published_at) values($1,$2,$3,$4,$5,now(),$6,$7,now()) returning id,title,total_marks`,[input.classId,actor.id,input.title,input.instructions??null,marks.rows[0].total,input.dueAt??null,input.timeLimitMin??null]);
       for(const [index,id]of input.questionIds.entries())await client.query(`insert into assignment_questions(assignment_id,question_id,sort_order)values($1,$2,$3)`,[assignment.rows[0].id,id,index+1]);
