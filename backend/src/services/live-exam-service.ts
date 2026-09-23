@@ -1290,11 +1290,13 @@ export class LiveExamService {
     sessionId: string,
     answerId: string,
     input: { score: number; feedback?: string },
+    expectedVersion?: number,
   ) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (!['marking', 'review'].includes(String(session.status)) || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const settings = this.settings(session.settings);
       if (session.marking_mode !== 'teacher' && !settings.teacherOverrideEnabled) {
