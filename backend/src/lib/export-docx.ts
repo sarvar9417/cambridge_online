@@ -174,7 +174,14 @@ function schemeGroupHeader(point:ExportSchemePoint){
   if(point.groupAwardMode)parts.push(point.groupAwardMode.replaceAll('_',' '));
   return parts.join(' · ');
 }
-function schemeXml(question:ExportQuestion){
+function schemeAssetXml(question:ExportQuestion,ctx:BuildContext){
+  return (question.schemeAssets??[]).map(asset=>{
+    if(isSvg(asset.contentMd))return svgDrawing(asset.contentMd,asset.altText||asset.kind,ctx);
+    const table=markdownTable(asset.contentMd);
+    return table??para(asset.contentMd,{mono:asset.kind==='code'||asset.kind==='pseudocode'||asset.kind==='table'});
+  }).join('');
+}
+function schemeXml(question:ExportQuestion,ctx:BuildContext){
   const warning=question.schemeStatus&&question.schemeStatus!=='approved'?para(`Mark scheme review status: ${question.schemeStatus} — source points are shown without promoting this review state.`,{bold:true}):'';
   const guidance=question.schemeGuidance?`${para('Guidance',{bold:true})}${para(question.schemeGuidance)}`:'';
   let previousGroup='';
@@ -189,7 +196,8 @@ function schemeXml(question:ExportQuestion){
     ].join('');
     return `${groupXml}${para(`${point.code}  ${point.text}  [${point.marks}]`)}${notes}`;
   }).join('');
-  return `${warning}${guidance}${points||para('No atomic mark-scheme points are available for this item.')}`;
+  const visuals=schemeAssetXml(question,ctx);
+  return `${warning}${guidance}${visuals}${points||para('No atomic mark-scheme points are available for this item.')}`;
 }
 function answerSpace(question:ExportQuestion){const count=Math.max(0,Math.min(12,question.answerLines??Math.max(2,question.marks*2)));return Array.from({length:count},()=>para('________________________________________________________________________________')).join('')}
 function questionCoreXml(question:ExportQuestion,ctx:BuildContext){
@@ -205,7 +213,7 @@ function documentXml(title:string,questions:ExportQuestion[],mode:ExportMode,ctx
   const body=(mode==='mark_scheme'?questions.filter(q=>q.role!=='context_only'):questions).map(q=>{
     const core=questionCoreXml(q,ctx);
     const answer=q.role!=='context_only'&&showAnswerSpace?answerSpace(q):'';
-    const scheme=q.role!=='context_only'&&showScheme?`${para('Mark scheme',{bold:true})}${schemeXml(q)}`:'';
+    const scheme=q.role!=='context_only'&&showScheme?`${para('Mark scheme',{bold:true})}${schemeXml(q,ctx)}`:'';
     return `${core}${answer}${scheme}`;
   }).join('');
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body>${header}${candidate}${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020"/></w:sectPr></w:body></w:document>`;
