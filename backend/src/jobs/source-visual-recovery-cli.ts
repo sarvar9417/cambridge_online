@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { pool } from '../database/client.js';
-import { completeInlineSvg } from '../lib/source-visual-readiness.js';
+import { completeInlineSvg, renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 type Row={
   asset_id:string;
@@ -80,9 +80,7 @@ const result=await pool.query<Row>(`
   join questions q on q.id=qa.question_id
   left join source_papers sp on sp.id=q.source_paper_id
   where qa.kind in ('diagram','image')
-    and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
-    and not (coalesce(qa.content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
-    and not (coalesce(qa.svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
+    and not ${renderableVisualAssetSql('qa')}
     and nullif(btrim(coalesce(qa.latex_source,'')),'') is not null
     and exists(
       select 1
@@ -110,14 +108,12 @@ for(const row of result.rows){
   const canWrite=write&&verified.has(row.asset_id);
   if(canWrite){
     const updated=await pool.query(
-      `update question_assets
+      `update question_assets qa
        set svg_markup=$2,content_hash=$3,size_bytes=$4
-       where id=$1
-         and nullif(btrim(coalesce(storage_path,'')),'') is null
-         and not (coalesce(content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
-         and not (coalesce(svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)')
-         and latex_source=$5
-       returning id`,
+       where qa.id=$1
+         and not ${renderableVisualAssetSql('qa')}
+         and qa.latex_source=$5
+       returning qa.id`,
       [row.asset_id,compiled.svg,compiled.contentHash,compiled.sizeBytes,row.latex_source],
     );
     if(updated.rowCount!==1)throw new Error(`visual_recovery_concurrent_change:${row.asset_id}`);
@@ -136,18 +132,24 @@ for(const row of result.rows){
 }
 
 const remaining=await pool.query(`
-  select count(*)::int count
+  select count(distinct qa.id)::int count
   from question_assets qa
   where qa.kind in ('diagram','image')
-    and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
-    and not (coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)')
-    and not (coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)')
+    and not ${renderableVisualAssetSql('qa')}
+    and exists(
+      select 1
+      from questions consumer
+      cross join lateral jsonb_array_elements(coalesce(consumer.content_json->'blocks','[]'::jsonb)) block
+      where consumer.content_version=1
+        and block->>'type'='asset'
+        and block->>'assetId'=qa.id::text
+    )
 `);
 
 console.log(JSON.stringify({
   mode:write?'write':'dry-run',
   assets:report,
-  remainingUnresolved:Number(remaining.rows[0]?.count??0),
+  remainingCanonicalUnresolved:Number(remaining.rows[0]?.count??0),
 },null,2));
 
 await pool.end();
