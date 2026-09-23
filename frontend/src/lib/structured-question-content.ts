@@ -24,7 +24,7 @@ export type StructuredQuestionBlock =
     }
   | {
       type:'asset';
-      kind:'diagram'|'image'|'flowchart'|'logic_circuit';
+      kind:'diagram'|'image'|'flowchart'|'logic_circuit'|'table'|'pseudocode'|'code';
       assetId:string;
       altText:string;
       source:SourceLocation;
@@ -77,7 +77,7 @@ export function isStructuredQuestionContent(value:unknown):value is StructuredQu
         return Array.isArray(candidate.editableCells)&&candidate.editableCells.every((cell)=>Array.isArray(cell)&&cell.length===2&&cell.every((index)=>Number.isInteger(index)&&Number(index)>=0));
       }
       case 'matching': return ['left','right'].every((side)=>Array.isArray(candidate[side])&&candidate[side].length>0&&candidate[side].every((item)=>object(item)&&typeof item.id==='string'&&item.id.length>0&&typeof item.text==='string'&&item.text.length>0));
-      case 'asset': return ['diagram','image','flowchart','logic_circuit'].includes(String(candidate.kind))&&typeof candidate.assetId==='string'&&UUID.test(candidate.assetId)&&typeof candidate.altText==='string';
+      case 'asset': return ['diagram','image','flowchart','logic_circuit','table','pseudocode','code'].includes(String(candidate.kind))&&typeof candidate.assetId==='string'&&UUID.test(candidate.assetId)&&typeof candidate.altText==='string';
       case 'answer_area': return ['lines','box','table_cells','drawing'].includes(String(candidate.kind))&&(candidate.lines===null||(Number.isInteger(candidate.lines)&&Number(candidate.lines)>0));
       default: return false;
     }
