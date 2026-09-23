@@ -471,27 +471,29 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
-function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null;reviewMatchedPointIds?:string[]};onDone:()=>void}) {
+function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds?:string[]};onDone:()=>void}) {
   const [selected,setSelected]=useState<Set<string>>(new Set(answer.reviewMatchedPointIds??[]));
   const [score,setScore]=useState(answer.score??0);
   const [levelNumber,setLevelNumber]=useState<number|undefined>();
   const [feedback,setFeedback]=useState(answer.feedback??'');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const teacherOwnsReview=answer.reviewStatus==='assigned'&&Boolean(answer.reviewId)&&answer.reviewKind==='teacher';
+  const canOverride=snapshot.session.markingMode==='teacher'||snapshot.session.settings.teacherOverrideEnabled;
   const submit=async()=>{
     setBusy(true);setError('');
     try{
-      if(answer.reviewStatus==='assigned'&&answer.reviewId)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
+      if(teacherOwnsReview)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
       else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined,expectedVersion:snapshot.session.version})});
       onDone();
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'));setBusy(false)}
   };
   const scheme=snapshot.markScheme;
   return <article className="live-teacher-marker"><header><div><span>O‘QUVCHI JAVOBI</span><h2>{answer.studentName}</h2></div><strong>{answer.score??0}/{snapshot.question?.marks}</strong></header><blockquote>{answer.text||'Javob yozilmagan'}</blockquote>
-    {scheme?<MarkSchemeView scheme={scheme} interactive={answer.reviewStatus==='assigned'} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
-    {scheme?.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=scheme.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setScore(level.minMarks)}}><option value="">Bandni tanlang</option>{scheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}
-    {(schemeNeedsManualScore(scheme)||answer.reviewStatus!=='assigned')?<label>Ball<input type="number" min={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}
-    <label>Izoh<textarea value={feedback} onChange={(e)=>setFeedback(e.target.value)} maxLength={5000}/></label>{error?<p className="live-error">{error}</p>:null}<button disabled={busy||Boolean(snapshot.session.pausedAt)} onClick={submit}>{busy?'Saqlanmoqda…':answer.reviewStatus==='assigned'?'Bahoni tasdiqlash':'Bahoni yangilash'}</button>
+    {scheme?<MarkSchemeView scheme={scheme} interactive={teacherOwnsReview} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
+    {scheme?.levels.length?<label>Rasmiy band<select disabled={!teacherOwnsReview&&!canOverride} value={levelNumber??''} onChange={(e)=>{const level=scheme.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setScore(level.minMarks)}}><option value="">Bandni tanlang</option>{scheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}
+    {(schemeNeedsManualScore(scheme)||!teacherOwnsReview)?<label>Ball<input disabled={!teacherOwnsReview&&!canOverride} type="number" min={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}
+    <label>Izoh<textarea disabled={!teacherOwnsReview&&!canOverride} value={feedback} onChange={(e)=>setFeedback(e.target.value)} maxLength={5000}/></label>{error?<p className="live-error">{error}</p>:null}<button disabled={busy||Boolean(snapshot.session.pausedAt)||(!teacherOwnsReview&&!canOverride)} onClick={submit}>{busy?'Saqlanmoqda…':teacherOwnsReview?'Bahoni tasdiqlash':canOverride?'Bahoni yangilash':'Teacher override o‘chirilgan'}</button>
   </article>;
 }
 
