@@ -51,4 +51,45 @@ describe('student attempt source-backed question delivery',()=>{
     expect(JSON.stringify(attempt)).not.toContain('supabase://');
     expect(query.mock.calls.some(([sql])=>String(sql).includes('q.content_json,q.content_version'))).toBe(true);
   });
+
+
+  it('delivers a DB-resident SVG asset without requiring a storage signer',async()=>{
+    const assetId='44444444-4444-4444-8444-444444444444';
+    const content={
+      version:1,
+      source:{paperId:'11111111-1111-4111-8111-111111111111',sha256:'d'.repeat(64)},
+      blocks:[
+        {type:'text',style:'task',text:'Complete the K-map.',source:{page:7}},
+        {type:'asset',kind:'image',assetId,altText:'K-map',source:{page:7}},
+      ],
+    };
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select a.*,existing.late_granted_until'))return{rowCount:1,rows:[{
+        id:'assignment-2',opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:30,
+      }]};
+      if(sql.includes('insert into submissions'))return{rowCount:1,rows:[{
+        id:'submission-2',status:'in_progress',started_at:new Date('2026-09-04T10:00:00Z'),time_extension_min:0,
+      }]};
+      if(sql.includes('q.content_json,q.content_version'))return{rowCount:1,rows:[{
+        id:'55555555-5555-4555-8555-555555555555',display_ref:'9618/31/O/N/22 Q7(a)',stem_md:'Complete the K-map.',
+        context_md:null,parent_context:null,command_word:'Complete',marks:4,answer_kind:'text',answer_text:'',
+        content_json:content,content_version:1,
+      }]};
+      if(sql.includes('from question_assets'))return{rowCount:1,rows:[{
+        id:assetId,storage_path:null,
+        source_markup:'<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>',
+      }]};
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    });
+    const client={query,release:vi.fn()};
+    const pool={connect:vi.fn().mockResolvedValue(client)} as unknown as Pool;
+
+    const attempt=await new AssignmentsService(pool).start(student,'assignment-2','session-2');
+
+    const url=attempt.questions[0]?.assetUrls[assetId];
+    expect(url).toMatch(/^data:image\/svg\+xml/);
+    expect(decodeURIComponent(url!.split(',')[1]!)).toMatch(/^<svg/);
+    expect(JSON.stringify(attempt)).not.toContain('<?xml');
+  });
 });
