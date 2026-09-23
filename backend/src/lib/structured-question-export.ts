@@ -38,9 +38,11 @@ function renderBooleanLatex(latex: string) {
 }
 
 function renderTable(block: Extract<StructuredQuestionBlock, { type: 'table' }>) {
-  const head = block.headers.length
-    ? `<thead><tr>${block.headers.map((value) => `<th>${escapeHtml(value)}</th>`).join('')}</tr></thead>`
-    : '';
+  const head = block.headerRows?.length
+    ? `<thead>${block.headerRows.map((row) => `<tr>${row.map((cell) => `<th data-column="${cell.column}"${(cell.colSpan??1)>1 ? ` colspan="${cell.colSpan}"` : ''}${(cell.rowSpan??1)>1 ? ` rowspan="${cell.rowSpan}"` : ''}>${escapeHtml(cell.text)}</th>`).join('')}</tr>`).join('')}</thead>`
+    : block.headers.length
+      ? `<thead><tr>${block.headers.map((value) => `<th>${escapeHtml(value)}</th>`).join('')}</tr></thead>`
+      : '';
   const editable = new Set(block.editableCells.map(([row, column]) => `${row}:${column}`));
   const body = block.rows.map((row, rowIndex) => `<tr>${row.map((cell, columnIndex) => {
     const answer = editable.has(`${rowIndex}:${columnIndex}`) ? ' data-answer-cell="true"' : '';
