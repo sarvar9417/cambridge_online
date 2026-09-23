@@ -35,6 +35,7 @@ function contextBlocks(value: unknown): ExportContextBlock[] {
           storagePath: typeof asset.storagePath === 'string' ? asset.storagePath : null,
           altText: typeof asset.altText === 'string' ? asset.altText : null,
           sourcePage: typeof asset.sourcePage === 'number' ? asset.sourcePage : null,
+          cropStatus: typeof asset.cropStatus === 'string' ? asset.cropStatus : null,
         }))
       : [],
   }));
