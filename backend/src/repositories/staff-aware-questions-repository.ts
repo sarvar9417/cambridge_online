@@ -108,7 +108,7 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
       // merely assets owned by the leaf's ancestry. Keep this source-paper scoped.
       const assets = await this.detailPool.query(
         `select qa.id,qa.kind,qa.storage_path,coalesce(qa.svg_markup,qa.content_md) content_md,
-          qa.alt_text,qa.sort_order,qa.source_page,
+          qa.alt_text,qa.sort_order,qa.source_page,qa.crop_status,
           owner.source_paper_id owner_source_paper_id,leaf.source_paper_id leaf_source_paper_id
          from question_assets qa
          join questions owner on owner.id=qa.question_id
@@ -135,6 +135,7 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
         altText: String(asset.alt_text ?? ''),
         sortOrder: Number(asset.sort_order),
         sourcePage: asset.source_page == null ? null : Number(asset.source_page),
+        cropStatus: asset.crop_status == null ? null : String(asset.crop_status),
       })));
 
       contextBlocks = [
