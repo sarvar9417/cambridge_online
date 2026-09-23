@@ -19,6 +19,18 @@ describe('portable source assets',()=>{
     expect(url).toMatch(/^data:image\/svg\+xml/);
     expect(decodeURIComponent(url!.split(',')[1]!)).toContain('<svg');
   });
+  it('renders XML-declared SVG markup produced by canonical source conversion',()=>{
+    const url=portableAssetUrl({
+      id:assetId,
+      kind:'diagram',
+      contentMd:'<?xml version="1.0" encoding="UTF-8"?>\n<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+    });
+    expect(url).toMatch(/^data:image\/svg\+xml/);
+    const decoded=decodeURIComponent(url!.split(',')[1]!);
+    expect(decoded).toMatch(/^<svg/);
+    expect(decoded).not.toContain('<?xml');
+  });
+
 
   it('renders fenced SVG repairs as an image instead of exposing the SVG source',()=>{
     const url=portableAssetUrl({
