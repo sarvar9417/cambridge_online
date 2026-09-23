@@ -66,6 +66,34 @@ describe('structured question content v1', () => {
     expect(parsed.blocks).toHaveLength(2);
   });
 
+  it('accepts non-overlapping grouped table header geometry', () => {
+    const parsed = parseStructuredQuestionContent({
+      ...valid,
+      blocks: [{
+        type: 'table', kind: 'selection_grid',
+        headers: ['Instruction address','ACC','365','366','367','368','IX','Output'],
+        headerRows: [
+          [{text:'Instruction address',column:0,rowSpan:2},{text:'ACC',column:1,rowSpan:2},{text:'Memory address',column:2,colSpan:4},{text:'IX',column:6,rowSpan:2},{text:'Output',column:7,rowSpan:2}],
+          [{text:'365',column:2},{text:'366',column:3},{text:'367',column:4},{text:'368',column:5}],
+        ],
+        rows: [[null,null,'1','3','65','66','0',null]], editableCells: [[0,0],[0,1],[0,7]], source: location,
+      }],
+    });
+    expect(parsed.blocks[0]).toMatchObject({ type:'table', headerRows: expect.any(Array) });
+  });
+
+  it('rejects overlapping grouped table headers', () => {
+    const result = safeParseStructuredQuestionContent({
+      ...valid,
+      blocks: [{
+        type: 'table', kind: 'table', headers: ['A','B'],
+        headerRows: [[{text:'AB',column:0,colSpan:2},{text:'B',column:1}]],
+        rows: [['x','y']], editableCells: [], source: location,
+      }],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects a malformed source hash', () => {
     const result = safeParseStructuredQuestionContent({
       ...valid,
