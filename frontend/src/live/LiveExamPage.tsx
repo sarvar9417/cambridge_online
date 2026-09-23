@@ -213,6 +213,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [topicIds,setTopicIds]=useState<string[]>([]);
   const [subtopicIds,setSubtopicIds]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
+  const [includeDiagrams,setIncludeDiagrams]=useState(true);
+  const [excludeSeen,setExcludeSeen]=useState(true);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
 
@@ -238,7 +240,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const params=new URLSearchParams({
         classId:selectedClassId,
-        topicIds:topicIds.join(','),subtopicIds:subtopicIds.join(','),includeDiagrams:'true',excludeSeen:'true',limit:'30',
+        topicIds:topicIds.join(','),subtopicIds:subtopicIds.join(','),includeDiagrams:String(includeDiagrams),excludeSeen:String(excludeSeen),limit:'30',
       });
       const result=await api<{data:EligibleQuestion[]}>(`/live-exams/eligible-questions?${params}`);
       setQuestionPool(result.data);setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
@@ -252,7 +254,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       const created=await api<{id:string}>('/live-exams',{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds,subtopicIds,
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:Number(data.get('questionCount')),questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
-        markingMode:data.get('markingMode'),includeDiagrams:data.get('includeDiagrams')==='on',excludeSeen:data.get('excludeSeen')==='on',
+        markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder:data.get('questionOrder'),
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
@@ -289,8 +291,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
-        <label className="live-check"><input name="includeDiagrams" type="checkbox" defaultChecked/><span>Diagramma va jadvallarni qo‘shish</span></label>
-        <label className="live-check"><input name="excludeSeen" type="checkbox" defaultChecked/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
+        <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);setQuestionPool([]);setSelectedQuestionIds([])}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
+        <label className="live-check"><input name="excludeSeen" type="checkbox" checked={excludeSeen} onChange={(event)=>{setExcludeSeen(event.target.checked);setQuestionPool([]);setSelectedQuestionIds([])}}/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
         <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
