@@ -12,6 +12,8 @@ export type StructuredQuestionBlock =
       type:'table';
       kind:'table'|'truth_table'|'tick_grid'|'selection_grid';
       headers:string[];
+      /** Optional source-faithful multi-row header geometry. `column` is zero-based. */
+      headerRows?:Array<Array<{text:string;column:number;colSpan?:number;rowSpan?:number}>>;
       rows:Array<Array<string|null>>;
       editableCells:Array<[number,number]>;
       source:SourceLocation;
@@ -74,6 +76,27 @@ export function isStructuredQuestionContent(value:unknown):value is StructuredQu
         const first=Array.isArray(candidate.rows[0])?candidate.rows[0]:[];
         const width=candidate.headers.length||first.length;
         if(!width||!candidate.rows.every((row)=>Array.isArray(row)&&row.length===width&&row.every((cell)=>cell===null||typeof cell==='string')))return false;
+        if(candidate.headerRows!==undefined){
+          if(!Array.isArray(candidate.headerRows)||!candidate.headerRows.length)return false;
+          const occupied=new Set<string>();
+          for(let headerRow=0;headerRow<candidate.headerRows.length;headerRow+=1){
+            const cells=candidate.headerRows[headerRow];
+            if(!Array.isArray(cells)||!cells.length)return false;
+            for(const cell of cells){
+              if(!object(cell)||typeof cell.text!=='string'||!Number.isInteger(cell.column)||Number(cell.column)<0)return false;
+              const colSpan=cell.colSpan===undefined?1:Number(cell.colSpan);
+              const rowSpan=cell.rowSpan===undefined?1:Number(cell.rowSpan);
+              if(!Number.isInteger(colSpan)||colSpan<1||!Number.isInteger(rowSpan)||rowSpan<1||Number(cell.column)+colSpan>width)return false;
+              for(let r=headerRow;r<headerRow+rowSpan;r+=1){
+                for(let col=Number(cell.column);col<Number(cell.column)+colSpan;col+=1){
+                  const key=`${r}:${col}`;
+                  if(occupied.has(key))return false;
+                  occupied.add(key);
+                }
+              }
+            }
+          }
+        }
         return Array.isArray(candidate.editableCells)&&candidate.editableCells.every((cell)=>Array.isArray(cell)&&cell.length===2&&cell.every((index)=>Number.isInteger(index)&&Number(index)>=0));
       }
       case 'matching': return ['left','right'].every((side)=>Array.isArray(candidate[side])&&candidate[side].length>0&&candidate[side].every((item)=>object(item)&&typeof item.id==='string'&&item.id.length>0&&typeof item.text==='string'&&item.text.length>0));
