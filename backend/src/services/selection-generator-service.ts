@@ -4,6 +4,7 @@ import { generateSmartPaper, type SmartPaperCandidate } from '../lib/smart-paper
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
 import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
+import { questionVisualIntegritySql, renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 export interface SmartSelectionInput {
   name: string;
@@ -122,6 +123,7 @@ export class SelectionGeneratorService {
       `q.body_format='latex'`,
       `nullif(btrim(coalesce(q.stem_latex,'')),'') is not null`,
       `q.content_json is not null and q.content_version=1`,
+      questionVisualIntegritySql('q'),
       `exists(
         select 1 from canonical_mark_schemes cms
         where cms.question_id=q.id
@@ -165,7 +167,9 @@ export class SelectionGeneratorService {
     if (input.hasDiagram !== undefined) {
       const visual = `exists(
         select 1 from question_assets qa
-        where qa.question_id=q.id and qa.kind in ('diagram','image')
+        where qa.question_id=q.id
+          and qa.kind in ('diagram','image')
+          and ${renderableVisualAssetSql('qa')}
       )`;
       conditions.push(input.hasDiagram ? visual : `not ${visual}`);
     }
@@ -230,7 +234,9 @@ export class SelectionGeneratorService {
            q.ao,sp.year,
            exists(
              select 1 from question_assets qa
-             where qa.question_id=q.id and qa.kind in ('diagram','image')
+             where qa.question_id=q.id
+               and qa.kind in ('diagram','image')
+               and ${renderableVisualAssetSql('qa')}
            ) has_diagram,
            (
              select st.code
