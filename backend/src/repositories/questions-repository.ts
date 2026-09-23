@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { serializeQuestion } from '../services/question-serializer.js';
+import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 import type {
   DependencyKind,
   DependencyStrength,
@@ -180,7 +181,7 @@ export class PgQuestionsRepository {
     if (filters.hasDiagram !== undefined) {
       const predicate = `exists(
         select 1 from question_assets qa
-        where qa.question_id=q.id and qa.kind in ('diagram','image')
+        where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
       )`;
       conditions.push(filters.hasDiagram ? predicate : `not ${predicate}`);
     }
@@ -217,7 +218,7 @@ export class PgQuestionsRepository {
            syllabus.code syllabus_code,component.number component,sp.year,sp.series,sp.variant,
            exists(
              select 1 from question_assets qa
-             where qa.question_id=q.id and qa.kind in ('diagram','image')
+             where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
            ) has_diagram
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
