@@ -37,6 +37,7 @@ export function unrenderableVisualAssetSql(alias = 'qa') {
 export type SourceVisualAssetRecord = {
   kind?: unknown;
   storagePath?: unknown;
+  url?: unknown;
   contentMd?: unknown;
   svgMarkup?: unknown;
 };
@@ -54,4 +55,18 @@ export function sourceVisualAssetRenderable(asset: SourceVisualAssetRecord) {
   if (asset.kind !== 'diagram' && asset.kind !== 'image') return false;
   if (typeof asset.storagePath === 'string' && asset.storagePath.trim()) return true;
   return inlineSvg(asset.contentMd) || inlineSvg(asset.svgMarkup);
+}
+
+
+/**
+ * Runtime readiness for a portable/hydrated browser asset.
+ *
+ * A storage path proves the source exists, but a learner cannot render that
+ * private object unless the repository successfully minted a browser URL.
+ * Inline verified SVG remains self-contained and does not need a signed URL.
+ */
+export function portableSourceVisualAssetRenderable(asset: SourceVisualAssetRecord) {
+  if (asset.kind !== 'diagram' && asset.kind !== 'image') return false;
+  if (inlineSvg(asset.contentMd) || inlineSvg(asset.svgMarkup)) return true;
+  return typeof asset.url === 'string' && asset.url.trim().length > 0;
 }
