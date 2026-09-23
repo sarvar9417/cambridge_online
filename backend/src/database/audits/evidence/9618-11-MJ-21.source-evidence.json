@@ -37,11 +37,18 @@
       "assetId": "ac6a3282-23d5-462b-8212-191ce792db64",
       "kind": "table",
       "sourcePage": 2,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "b5a30a6d3fa2c8d745d434bc60faed0b0ae2f46952aa1d138645fd1bb8b2a3ac",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        187,
+        385,
+        1466,
+        927
+      ],
+      "localisationMethod": "raster_line_geometry"
     },
     {
       "occurrenceId": "b63e95e5-27b2-4c82-8755-73c5c3d1d0f3",
@@ -50,16 +57,23 @@
       "assetId": "1e91f11f-37f0-43d3-afbb-64f1c7efda3c",
       "kind": "diagram",
       "sourcePage": 5,
-      "sourceBbox": [
+      "sourceCropSha256": "1333582919d23147ba394edb8be12028a8f12000d4306f02dc3d0f8fdf5e2c33",
+      "consumerState": "active",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured",
+      "databaseSourceBbox": [
         60,
         190,
         1390,
         870
       ],
-      "sourceCropSha256": "1333582919d23147ba394edb8be12028a8f12000d4306f02dc3d0f8fdf5e2c33",
-      "consumerState": "active",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured"
+      "verifiedSourceBbox": [
+        60,
+        190,
+        1390,
+        870
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "22f3ff37-c44f-4ad8-ab68-d14811c8c832",
@@ -68,11 +82,18 @@
       "assetId": "f9483ad1-7672-4b18-bd0c-cb6b21507950",
       "kind": "table",
       "sourcePage": 7,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "24991ca882f06cbdee467d314e91f69f7b4e93b8d263923c8587fa5fa2f27edc",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        89,
+        285,
+        1564,
+        1549
+      ],
+      "localisationMethod": "raster_line_geometry"
     },
     {
       "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
@@ -81,11 +102,18 @@
       "assetId": "8649e01d-0211-4558-a541-bbed3279c6ae",
       "kind": "table",
       "sourcePage": 8,
-      "sourceBbox": null,
       "sourceCropSha256": null,
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        275,
+        285,
+        660,
+        1160
+      ],
+      "localisationMethod": "pdf_text_and_raster_geometry"
     },
     {
       "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
@@ -94,11 +122,18 @@
       "assetId": "1894154b-5802-47ca-a2d2-2ee9dc63f6f5",
       "kind": "table",
       "sourcePage": 8,
-      "sourceBbox": null,
       "sourceCropSha256": null,
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        900,
+        280,
+        1525,
+        585
+      ],
+      "localisationMethod": "pdf_text_and_raster_geometry"
     },
     {
       "occurrenceId": "de156f10-1bf0-44f1-88e0-a7d880174a76",
@@ -107,16 +142,23 @@
       "assetId": "c43ee7fc-9486-4302-a9c9-b48f51f34a33",
       "kind": "table",
       "sourcePage": 9,
-      "sourceBbox": [
+      "sourceCropSha256": "a71e0560e69acdfce1b6985614aa44585f5c25a301a7a8377eb75d3cb9d66049",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         72,
         100,
         808,
         770
       ],
-      "sourceCropSha256": "a71e0560e69acdfce1b6985614aa44585f5c25a301a7a8377eb75d3cb9d66049",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        72,
+        100,
+        808,
+        770
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "b110a3c0-e21e-465a-aaff-f8c390527d95",
@@ -125,16 +167,23 @@
       "assetId": "b8bf030d-017b-4577-a9eb-15547cc6638c",
       "kind": "table",
       "sourcePage": 10,
-      "sourceBbox": [
+      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         130,
         115,
         710,
         175
       ],
-      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        130,
+        115,
+        710,
+        175
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "b110a3c0-e21e-465a-aaff-f8c390527d95",
@@ -143,16 +192,23 @@
       "assetId": "9ad478a9-6db1-4571-b99b-ec2aa0484cf0",
       "kind": "table",
       "sourcePage": 10,
-      "sourceBbox": [
+      "sourceCropSha256": "9a67d627bbe947f82c1feb7890cae712c3dd0628819ffc5f9f658ba11c7b10db",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         130,
         270,
         710,
         330
       ],
-      "sourceCropSha256": "9a67d627bbe947f82c1feb7890cae712c3dd0628819ffc5f9f658ba11c7b10db",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        130,
+        270,
+        710,
+        330
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "1e5cbf34-7cc3-4d87-ae7d-4ccde00d7d8d",
@@ -161,16 +217,23 @@
       "assetId": "e6d89739-5797-42ce-9b13-abc43e526d8a",
       "kind": "table",
       "sourcePage": 10,
-      "sourceBbox": [
+      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         130,
         455,
         710,
         515
       ],
-      "sourceCropSha256": "b03db0ec5998763e49917a0cc5a4f45194058389a4e1d09bd0f37fd8e5b14de0",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        130,
+        455,
+        710,
+        515
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "e944dfea-e73b-4b41-a998-e1b7940722e5",
@@ -179,11 +242,18 @@
       "assetId": "a6403741-7948-46e6-9c22-c96acb8711d5",
       "kind": "table",
       "sourcePage": 11,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "70ebce801f141172e311fc3469a88509099507e60d21fcd2560cc57807d7b5f9",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        137,
+        1477,
+        1515,
+        1801
+      ],
+      "localisationMethod": "raster_line_geometry"
     },
     {
       "occurrenceId": "9dccf15a-7469-495f-9c46-93d18fa38ce9",
@@ -192,11 +262,18 @@
       "assetId": "29e7c51c-1a27-46f7-a122-b629f0985bd5",
       "kind": "table",
       "sourcePage": 12,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "22027f34d9495b5cb760670652198ea17594b2f60d204037354ccb4ecfe47b33",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        327,
+        357,
+        750,
+        477
+      ],
+      "localisationMethod": "raster_line_geometry"
     },
     {
       "occurrenceId": "069b5f47-4595-4d62-bca4-1dd66e5a21f1",
@@ -205,11 +282,18 @@
       "assetId": "a788cc18-3d0d-4981-a54f-33a43e537045",
       "kind": "pseudocode",
       "sourcePage": 14,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "119ae67e17bc902cd8af872c0ed8e53350b932fbef93fd9de67ceb5c49d06d75",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        190,
+        375,
+        635,
+        666
+      ],
+      "localisationMethod": "pdf_text_geometry"
     },
     {
       "occurrenceId": "a7bf44e6-bc18-494d-89e6-d0ed95c8be6a",
@@ -218,11 +302,18 @@
       "assetId": "949abd24-4bfd-4784-a85e-d852e786a23e",
       "kind": "pseudocode",
       "sourcePage": 14,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "90fb3002e04456cd73dfa04b0ee984b8bdc1b75e529679777b77cdda7fd289a4",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        190,
+        810,
+        560,
+        1095
+      ],
+      "localisationMethod": "pdf_text_geometry"
     },
     {
       "occurrenceId": "fd4e30be-024f-44dc-9e34-96ee95dde25d",
@@ -231,11 +322,18 @@
       "assetId": "9ee6950f-c1f4-4b00-97f1-a1dfab02ed4b",
       "kind": "pseudocode",
       "sourcePage": 14,
-      "sourceBbox": null,
-      "sourceCropSha256": null,
+      "sourceCropSha256": "6dc34b3490471b944a28e444769ff19649d36e2ce807ed6309425156e2dbceaf",
       "consumerState": "dormant",
       "classification": "VF-5",
-      "blocker": "source_bbox_missing_manual_localisation_required_without_ocr_guess"
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": null,
+      "verifiedSourceBbox": [
+        190,
+        1240,
+        1170,
+        1535
+      ],
+      "localisationMethod": "pdf_text_geometry"
     },
     {
       "occurrenceId": "5ccdf2f5-0081-4104-8577-e6b9f13c38a3",
@@ -244,16 +342,23 @@
       "assetId": "17eb0daa-5410-45db-8843-633f7fb02272",
       "kind": "table",
       "sourcePage": 15,
-      "sourceBbox": [
+      "sourceCropSha256": "58ce6b30a761adc3960d0bc4d241658f9272ffdbf0bf6655cad40450f4ff180f",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         310,
         900,
         760,
         1090
       ],
-      "sourceCropSha256": "58ce6b30a761adc3960d0bc4d241658f9272ffdbf0bf6655cad40450f4ff180f",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        310,
+        900,
+        760,
+        1090
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     },
     {
       "occurrenceId": "f11dbaab-496c-43c0-bd5c-da1e07bf7539",
@@ -262,16 +367,23 @@
       "assetId": "168599f4-5cee-4993-a3b4-d7cecea66c43",
       "kind": "table",
       "sourcePage": 16,
-      "sourceBbox": [
+      "sourceCropSha256": "388f498968a5ab54bb2c984850098910cd8ad31b5c0305988751020f9bd2ca0d",
+      "consumerState": "dormant",
+      "classification": "VF-5",
+      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled",
+      "databaseSourceBbox": [
         62,
         465,
         888,
         655
       ],
-      "sourceCropSha256": "388f498968a5ab54bb2c984850098910cd8ad31b5c0305988751020f9bd2ca0d",
-      "consumerState": "dormant",
-      "classification": "VF-5",
-      "blocker": "product_surface_evidence_not_captured_and_dormant_intent_unreconciled"
+      "verifiedSourceBbox": [
+        62,
+        465,
+        888,
+        655
+      ],
+      "localisationMethod": "existing_database_bbox_reverified_against_exact_sha_source"
     }
   ],
   "summary": {
@@ -279,9 +391,10 @@
     "primaryOccurrenceCount": 16,
     "activeByStructuredAssetReference": 1,
     "dormantOrCompanionByStructuredAssetReference": 15,
-    "exactBboxCropCount": 7,
-    "pageOnlyManualLocalisationCount": 9,
+    "exactBboxCropCount": 14,
+    "pageOnlyManualLocalisationCount": 0,
     "vf5Count": 16,
-    "note": "This is source-provenance evidence only. It does not satisfy a VF-0/VF-1 product-surface proof requirement."
+    "note": "All 16 source elements are now localised without OCR. Two page-8 localisation boxes were corrected after visual review and await regenerated crop hashes. Product-surface proof is still not claimed; every occurrence remains VF-5.",
+    "pendingCropHashCount": 2
   }
 }
