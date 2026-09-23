@@ -178,8 +178,17 @@ export class SelectionGeneratorService {
     }
     if (input.hasDiagram !== undefined) {
       const visual = `exists(
-        select 1 from question_assets qa
-        where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
+        with recursive ancestry as (
+          select q.id node_id,q.parent_id
+          union all
+          select parent.id,parent.parent_id
+          from ancestry child
+          join questions parent on parent.id=child.parent_id
+        )
+        select 1
+        from ancestry
+        join question_assets qa on qa.question_id=ancestry.node_id
+        where ${renderableVisualAssetSql('qa')}
       )`;
       conditions.push(input.hasDiagram ? visual : `not ${visual}`);
     }
@@ -243,8 +252,17 @@ export class SelectionGeneratorService {
          select q.id,q.parent_id,q.depth,q.sort_order,q.display_ref,q.marks,q.command_word,
            q.ao,sp.year,
            exists(
-             select 1 from question_assets qa
-             where qa.question_id=q.id and ${renderableVisualAssetSql('qa')}
+             with recursive ancestry as (
+               select q.id node_id,q.parent_id
+               union all
+               select parent.id,parent.parent_id
+               from ancestry child
+               join questions parent on parent.id=child.parent_id
+             )
+             select 1
+             from ancestry
+             join question_assets qa on qa.question_id=ancestry.node_id
+             where ${renderableVisualAssetSql('qa')}
            ) has_diagram,
            (
              select st.code
