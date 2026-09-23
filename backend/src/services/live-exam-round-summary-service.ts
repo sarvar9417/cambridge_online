@@ -4,7 +4,7 @@ import { DomainError } from './assignments-service.js';
 
 export interface LiveExamStanding {
   rank: number;
-  studentId: string;
+  studentId?: string;
   studentName: string;
   score: number;
   possible: number;

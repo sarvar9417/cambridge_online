@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const startup = vi.hoisted(() => ({ listen: vi.fn(), schedule: vi.fn(), pool: {} }));
+const startup = vi.hoisted(() => ({ listen: vi.fn(), on: vi.fn(), schedule: vi.fn(), pool: {} }));
 vi.mock('./app.js', () => ({ app: { listen: startup.listen } }));
 vi.mock('./config.js', () => ({ config: { PORT: 3001 } }));
 vi.mock('./database/client.js', () => ({ pool: startup.pool }));
@@ -15,6 +15,7 @@ describe('backend startup', () => {
     exitCode = process.exitCode;
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    startup.listen.mockReturnValue({ on: startup.on });
   });
 
   afterEach(() => {
@@ -33,7 +34,8 @@ describe('backend startup', () => {
 
   it('reports an occupied port without claiming the backend started', async () => {
     await import('./server.js');
-    startup.listen.mock.calls[0]![1](Object.assign(new Error('Port busy'), { code: 'EADDRINUSE' }));
+    const errorHandler = startup.on.mock.calls.find((call) => call[0] === 'error')?.[1];
+    errorHandler(Object.assign(new Error('Port busy'), { code: 'EADDRINUSE' }));
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('3001-port band'));
     expect(console.log).not.toHaveBeenCalled();
     expect(startup.schedule).not.toHaveBeenCalled();
@@ -43,7 +45,8 @@ describe('backend startup', () => {
   it('reports other startup errors and exits unsuccessfully', async () => {
     await import('./server.js');
     const error = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
-    startup.listen.mock.calls[0]![1](error);
+    const errorHandler = startup.on.mock.calls.find((call) => call[0] === 'error')?.[1];
+    errorHandler(error);
     expect(console.error).toHaveBeenCalledWith('Backend ishga tushmadi:', error);
     expect(console.log).not.toHaveBeenCalled();
     expect(startup.schedule).not.toHaveBeenCalled();
