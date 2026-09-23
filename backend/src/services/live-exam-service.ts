@@ -1270,8 +1270,8 @@ export class LiveExamService {
       }
       await client.query(
         `update live_exam_reviews set status='submitted',awarded_marks=$2,feedback_md=$3,
-           submitted_at=now() where id=$1`,
-        [reviewId, score, input.feedback ?? null],
+           reviewer_id=$4,submitted_at=now() where id=$1`,
+        [reviewId, score, input.feedback ?? null, actor.id],
       );
       await client.query(
         `update live_exam_answers set final_score=$2,final_feedback_md=$3,score_source=$4
@@ -1294,7 +1294,7 @@ export class LiveExamService {
     actor: Actor,
     sessionId: string,
     answerId: string,
-    input: { score: number; feedback?: string },
+    input: { score: number; feedback?: string; levelNumber?: number },
     expectedVersion?: number,
   ) {
     const client = await this.pool.connect();
@@ -1313,10 +1313,20 @@ export class LiveExamService {
          from live_exam_questions leq
          where a.id=$1 and leq.id=a.session_question_id and leq.session_id=$2
            and $3 between 0 and leq.marks
-         returning a.id`,
+         returning a.id,leq.mark_scheme_snapshot`,
         [answerId, sessionId, input.score, input.feedback ?? null, actor.id],
       );
       if (!result.rowCount) throw new DomainError('invalid_score', 400);
+      const scheme = result.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
+      if (scheme.schemeType === 'levels_of_response') {
+        const selectedLevel = input.levelNumber === undefined
+          ? undefined
+          : scheme.levels.find((level) => level.levelNumber === input.levelNumber);
+        if (!selectedLevel) throw new DomainError('invalid_level', 400);
+        if (input.score < selectedLevel.minMarks || input.score > selectedLevel.maxMarks) {
+          throw new DomainError('score_outside_level', 400);
+        }
+      }
       await client.query(
         `update live_exam_reviews set status='moderated',moderated_by=$2,moderated_at=now()
          where answer_id=$1`, [answerId, actor.id]);
