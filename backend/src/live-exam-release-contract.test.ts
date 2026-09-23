@@ -40,6 +40,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("'levelNumber',msl.level_number");
     expect(service).toContain('const QUESTION_DEADLINE_GRACE_S = 10;');
     expect(service).toContain('closeExpiredQuestion(sessionId)');
+    expect(service).toContain("or now()<question_started_at+question_time_limit_s*interval '1 second'");
+    expect(service).toContain("Number(session.pause_remaining_s) <= 0");
     expect(service).toContain("new DomainError('score_outside_level', 400)");
   });
 
