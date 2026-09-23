@@ -85,4 +85,16 @@ describe('portable source assets',()=>{
       expect(next.blocks[0].editableCells).toEqual([[0,1],[1,1]]);
     }
   });
+
+  it('upgrades a legacy image-shaped asset block that points at pseudocode',()=>{
+    const next=materializePortableSourceAssets(content,[{
+      id:assetId,kind:'pseudocode',altText:'Source pseudocode',
+      contentMd:'\`\`\`pseudocode\nINPUT X\nOUTPUT X\n\`\`\`',
+    }]);
+    expect(next.blocks[0]?.type).toBe('code');
+    if(next.blocks[0]?.type==='code'){
+      expect(next.blocks[0].language).toBe('pseudocode');
+      expect(next.blocks[0].text).toBe('INPUT X\nOUTPUT X');
+    }
+  });
 });
