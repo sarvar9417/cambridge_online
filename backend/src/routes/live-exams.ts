@@ -101,6 +101,13 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     res.status(201).json(await service.join(req.actor!, body.code));
   });
 
+  router.get('/:id/projector', async (req, res) => {
+    // Projectors are a separate privacy surface: return only the classroom
+    // presentation DTO, never the teacher's participant/answer payload.
+    privateNoStore(res);
+    res.json(await service.snapshot(req.actor!, id(req.params), true));
+  });
+
   router.get('/:id', async (req, res) => {
     // A snapshot can contain the learner's draft/submitted answer and, after
     // reveal, Mark Scheme or review data. Treat it as sensitive per-user state.
