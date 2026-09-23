@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
+import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 export type LessonCheckpointAsset = {
   id: string;
@@ -136,8 +137,20 @@ export class LessonCheckpointService {
          exists(
            select 1
            from question_assets qa
+           join questions asset_owner on asset_owner.id=qa.question_id
            where qa.question_id in (q.id,parent.id)
              and qa.kind in ('diagram','image')
+             and ${renderableVisualAssetSql('qa')}
+             and (
+               asset_owner.content_json is null
+               or asset_owner.content_version is distinct from 1
+               or exists(
+                 select 1
+                 from jsonb_array_elements(coalesce(asset_owner.content_json->'blocks','[]'::jsonb)) asset_block
+                 where asset_block->>'type'='asset'
+                   and asset_block->>'assetId'=qa.id::text
+               )
+             )
          ) has_diagram,
          exists(
            select 1 from question_dependencies qd where qd.question_id=q.id
@@ -196,11 +209,23 @@ export class LessonCheckpointService {
     ])];
     const assetResult = assetQuestionIds.length
       ? await this.pool.query(
-        `select id,question_id,kind,storage_path,
-           coalesce(svg_markup,content_md) content_md,alt_text,source_page
-         from question_assets
-         where question_id=any($1::uuid[])
-         order by question_id,sort_order,id`,
+        `select qa.id,qa.question_id,qa.kind,qa.storage_path,
+           coalesce(qa.svg_markup,qa.content_md) content_md,qa.alt_text,qa.source_page
+         from question_assets qa
+         join questions asset_owner on asset_owner.id=qa.question_id
+         where qa.question_id=any($1::uuid[])
+           and (
+             qa.kind not in ('diagram','image')
+             or asset_owner.content_json is null
+             or asset_owner.content_version is distinct from 1
+             or exists(
+               select 1
+               from jsonb_array_elements(coalesce(asset_owner.content_json->'blocks','[]'::jsonb)) asset_block
+               where asset_block->>'type'='asset'
+                 and asset_block->>'assetId'=qa.id::text
+             )
+           )
+         order by qa.question_id,qa.sort_order,qa.id`,
         [assetQuestionIds],
       )
       : { rows: [] as AssetRow[] };
