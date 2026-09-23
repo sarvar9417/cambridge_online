@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
+import { sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
@@ -142,18 +143,18 @@ export class AssignmentsService {
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
       const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
       const assetRows=assetIds.length
-        ? (await client.query(`select id,storage_path from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+        ? (await client.query(`select id,storage_path,coalesce(svg_markup,content_md) source_markup from question_assets where id=any($1::uuid[])`,[assetIds])).rows
         : [];
       await client.query('commit');
 
       const signedAssetUrls:Record<string,string>={};
-      if(this.assetUrlSigner){
-        await Promise.all(assetRows.map(async(row)=>{
-          if(!row.storage_path)return;
-          const url=await this.assetUrlSigner!.signStoragePath(row.storage_path,300);
-          if(url)signedAssetUrls[row.id]=url;
-        }));
-      }
+      await Promise.all(assetRows.map(async(row)=>{
+        const inline=sourceVisualDataUrl(row.source_markup);
+        if(inline){signedAssetUrls[row.id]=inline;return}
+        if(!row.storage_path||!this.assetUrlSigner)return;
+        const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
+        if(url)signedAssetUrls[row.id]=url;
+      }));
       const questions=qr.rows.map((row)=>serializeAttemptQuestion(row,signedAssetUrls));
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
       return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions};
