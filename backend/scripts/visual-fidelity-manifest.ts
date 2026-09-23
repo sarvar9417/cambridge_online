@@ -20,7 +20,9 @@ type ManifestRow = {
   latex_source: string | null;
   svg_markup: string | null;
   content_md: string | null;
-  active_reference_count: number;
+  content_json_reference_count: number;
+  portable_consumer_count: number;
+  active_consumer_count: number;
 };
 
 function digest(rows: ManifestRow[]) {
@@ -31,7 +33,7 @@ async function main() {
   if (!pool) throw new Error('DATABASE_URL is required');
 
   const result = await pool.query<ManifestRow>(`
-    with canonical_qp as (
+    with recursive canonical_qp as (
       select
         sp.id,
         sp.year,
@@ -52,16 +54,36 @@ async function main() {
           or (sp.year = 2026 and sp.series = 'MJ')
         )
     ),
-    active_refs as (
+    canonical_questions as (
+      select q.*
+      from questions q
+      join canonical_qp qp on qp.id = q.source_paper_id
+    ),
+    content_refs as (
       select
         (block.value->>'assetId')::uuid as asset_id,
         count(*)::int as ref_count
-      from questions q
+      from canonical_questions q
       cross join lateral jsonb_array_elements(coalesce(q.content_json->'blocks','[]'::jsonb)) block(value)
       where block.value->>'type' = 'asset'
         and block.value ? 'assetId'
         and (block.value->>'assetId') ~* '^[0-9a-f-]{36}$'
       group by (block.value->>'assetId')::uuid
+    ),
+    portable_chain as (
+      select q.id as leaf_id, q.id as node_id, q.parent_id
+      from canonical_questions q
+      where q.marks is not null and q.marks > 0
+      union all
+      select c.leaf_id, parent.id, parent.parent_id
+      from portable_chain c
+      join canonical_questions parent on parent.id = c.parent_id
+    ),
+    portable_consumers as (
+      select qa.id as asset_id, count(distinct c.leaf_id)::int as consumer_count
+      from portable_chain c
+      join question_assets qa on qa.question_id = c.node_id
+      group by qa.id
     )
     select
       ('asset:' || qp.syllabus_code || ':' || qp.year || ':' || qp.series || ':' ||
@@ -83,11 +105,14 @@ async function main() {
       qa.latex_source,
       qa.svg_markup,
       qa.content_md,
-      coalesce(ar.ref_count,0) as active_reference_count
+      coalesce(cr.ref_count,0) as content_json_reference_count,
+      coalesce(pc.consumer_count,0) as portable_consumer_count,
+      greatest(coalesce(cr.ref_count,0),coalesce(pc.consumer_count,0)) as active_consumer_count
     from canonical_qp qp
-    join questions q on q.source_paper_id = qp.id
+    join canonical_questions q on q.source_paper_id = qp.id
     join question_assets qa on qa.question_id = q.id
-    left join active_refs ar on ar.asset_id = qa.id
+    left join content_refs cr on cr.asset_id = qa.id
+    left join portable_consumers pc on pc.asset_id = qa.id
     where qa.source_page is not null
     order by qp.year, qp.series, qp.paper, qp.variant, qa.source_page, q.sort_order, qa.sort_order, qa.id
   `);
@@ -97,8 +122,11 @@ async function main() {
     generated_at: new Date().toISOString(),
     syllabus: '9618',
     canonical_asset_rows: rows.length,
-    active_asset_rows: rows.filter((row) => row.active_reference_count > 0).length,
-    dormant_asset_rows: rows.filter((row) => row.active_reference_count === 0).length,
+    active_asset_rows: rows.filter((row) => row.active_consumer_count > 0).length,
+    dormant_asset_rows: rows.filter((row) => row.active_consumer_count === 0).length,
+    ancestor_only_asset_rows: rows.filter(
+      (row) => row.content_json_reference_count === 0 && row.portable_consumer_count > 0,
+    ).length,
     source_inventory_digest: digest(rows),
     rows,
   };
