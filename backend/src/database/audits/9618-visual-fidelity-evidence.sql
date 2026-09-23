@@ -77,7 +77,7 @@ LEFT JOIN latest
  AND latest.asset_id=req.asset_id
  AND latest.surface=req.surface;
 
--- Final closure must return zero rows here.
+-- Active-surface closure must return zero rows here.
 WITH canonical_qp AS (
   SELECT sp.id
   FROM source_papers sp
@@ -136,3 +136,44 @@ WHERE latest.id IS NULL
      AND (latest.rendered_sha256 IS NULL OR latest.evidence_path IS NULL)
    )
 ORDER BY req.source_paper_id,req.question_id,req.asset_id,req.surface;
+
+-- Dormant/companion intent closure must also return zero rows.
+-- A row remains here until the asset is either referenced by canonical structured
+-- content, removed/archived by a source-backed repair, or represented by a future
+-- explicit supporting-asset disposition. Do not silently exclude these rows from
+-- the final visual-fidelity verdict.
+WITH canonical_qp AS (
+  SELECT sp.id
+  FROM source_papers sp
+  JOIN syllabi s ON s.id=sp.syllabus_id
+  WHERE s.code='9618'
+    AND sp.kind='QP'
+    AND sp.year BETWEEN 2021 AND 2026
+    AND sp.variant IN (1,2,3)
+    AND (
+      (sp.year BETWEEN 2021 AND 2025 AND sp.series IN ('MJ','ON'))
+      OR (sp.year=2026 AND sp.series='MJ')
+    )
+),
+referenced_assets AS (
+  SELECT DISTINCT (block->>'assetId')::uuid asset_id
+  FROM questions q
+  CROSS JOIN LATERAL jsonb_array_elements(coalesce(q.content_json->'blocks','[]'::jsonb)) block
+  WHERE block->>'type'='asset'
+    AND block->>'assetId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+)
+SELECT
+  qso.source_paper_id,
+  qso.question_id,
+  qa.id asset_id,
+  qso.display_ref,
+  qa.kind,
+  qa.source_page,
+  qa.source_bbox,
+  'dormant_intent_unreconciled'::text blocker
+FROM question_source_occurrences qso
+JOIN canonical_qp cp ON cp.id=qso.source_paper_id
+JOIN question_assets qa ON qa.question_id=qso.question_id
+LEFT JOIN referenced_assets ra ON ra.asset_id=qa.id
+WHERE ra.asset_id IS NULL
+ORDER BY qso.source_paper_id,qso.display_ref,qa.sort_order,qa.id;
