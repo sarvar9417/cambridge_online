@@ -1,5 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { Pool } from 'pg';
+import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 const BROWSER_ASSET_PREFIX = '[[browser_asset_url:';
 
@@ -75,11 +76,7 @@ async function visualPresence(pool: Pool, ids: string[]) {
        bool_or(
          qa.id is not null
          and qa.kind in ('diagram','image')
-         and (
-           nullif(btrim(coalesce(qa.storage_path,'')),'') is not null
-           or coalesce(qa.content_md,'') ~* '^\\s*<svg(?:\\s|>)'
-           or coalesce(qa.svg_markup,'') ~* '^\\s*<svg(?:\\s|>)'
-         )
+         and ${renderableVisualAssetSql('qa')}
        ) has_visual
      from chain c
      left join question_assets qa on qa.question_id=c.node_id
