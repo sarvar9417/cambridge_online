@@ -129,6 +129,11 @@ export function materializePortableSourceAssets(
     if (block.type !== 'asset') return block;
     const asset = byId.get(block.assetId);
     if (!asset) return block;
+    // When the DB already carries a source-faithful inline SVG, preserve the
+    // visual asset itself. Converting that SVG back into a semantic table/code
+    // surrogate would discard Cambridge geometry such as merged cells,
+    // connector layout, spacing and line placement.
+    if (isFaithfulInlineSvg(asset.contentMd)) return block;
     if (asset.kind === 'table') {
       const table = portableTableBlock(asset, block.source);
       if (table) { changed = true; return table; }
