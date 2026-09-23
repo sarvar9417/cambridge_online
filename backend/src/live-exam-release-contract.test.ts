@@ -40,6 +40,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("'levelNumber',msl.level_number");
     expect(service).toContain('const QUESTION_DEADLINE_GRACE_S = 10;');
     expect(service).toContain('closeExpiredQuestion(sessionId)');
+    expect(service).toContain("or now()<question_started_at+question_time_limit_s*interval '1 second'");
+    expect(service).toContain("Number(session.pause_remaining_s) <= 0");
     expect(service).toContain("new DomainError('score_outside_level', 400)");
   });
 
@@ -59,10 +61,14 @@ describe('Live Exam release security and recovery contract',()=>{
 
   it('keeps student snapshots private while retaining teacher classroom visibility',()=>{
     expect(service).toContain("($2='student' and lep.id is not null)");
-    expect(service).toContain('questions: isStaff ? questionRows.rows.map');
-    expect(service).toContain('participants: isStaff ? participants.map');
+    expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
+    expect(service).toContain('participants: detailedStaff ? participants.map');
     expect(service).toContain('teacherAnswers = answerResult.rows.map');
-    expect(service).toContain("if (currentRow && isStaff && reveal)");
+    expect(service).toContain('review_matched_point_ids');
+    expect(service).toContain('reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String)');
+    expect(service).toContain('join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null');
+    expect(service).toContain('left join live_exam_answers a on a.session_question_id=leq.id and a.participant_id=lep.id');
+    expect(service).toContain("if (currentRow && detailedStaff && reveal)");
   });
 
   it('serializes answer writes against the teacher lock/reveal transition',()=>{
@@ -110,6 +116,14 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(realtimeRoute).toContain("res.set('Cache-Control','private, no-store')");
   });
 
+  it('keeps create retries idempotent and teacher transitions version-guarded',()=>{
+    const route=source('src/routes/live-exams.ts');
+    expect(route).toContain("runIdempotent(req, res, pool, operation)");
+    expect(route).toContain("expectedVersion: z.number().int().positive()");
+    expect(route).not.toContain("expectedVersion: z.number().int().positive().optional()");
+    expect(service).toContain('return this.snapshot(actor, sessionId, projector)');
+  });
+
   it('keeps state changes versioned so reconnecting clients can detect missed events',()=>{
     expect(schema).toContain('version bigint NOT NULL DEFAULT 1 CHECK (version > 0)');
     expect(schema).toContain('session_version bigint NOT NULL');
@@ -145,6 +159,21 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(integrityHardening).toContain('ALTER FUNCTION public.persist_live_exam_learning_evidence()');
   });
 
+  it('keeps cleared drafts, left participants and prerequisite mark points authoritative',()=>{
+    expect(service).toContain("lep.student_id=$2 and lep.left_at is null");
+    expect(service).toContain('updatedAt: row.updated_at');
+    expect(service).toContain('const matched = computed.effectiveMatched[point.code] === true;');
+    expect(service).toContain('[reviewId, point.id, matched, matched ? point.marks : 0]');
+  });
+
+  it('keeps auto-close responses and review attribution authoritative',()=>{
+    expect(service).toContain('let autoRevealed = false;');
+    expect(service).toContain('autoRevealed = true;');
+    expect(service).toContain('return { submittedAt: new Date(), version, autoRevealed };');
+    expect(service).toContain("actor.role !== 'student' && row.kind !== 'teacher'");
+    expect(service).toContain("new DomainError('live_review_not_assigned_to_staff', 403)");
+  });
+
   it('makes voluntary leave a lobby-only action',()=>{
     expect(service).toContain("if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);");
   });
@@ -167,12 +196,20 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(source('src/routes/live-exams.ts')).toContain('durableJoinLimit');
   });
 
-  it('keeps projector standings free of student identity fields',()=>{
+  it('keeps projector standings and snapshots free of teacher-only identity payloads',()=>{
     const summary=source('src/services/live-exam-round-summary-service.ts');
     const route=source('src/routes/live-exam-round-summary.ts');
+    const liveRoute=source('src/routes/live-exams.ts');
     expect(route).toContain("req.query.projector");
     expect(summary).toContain('summary(actor: Actor, sessionId: string, projector = false)');
-    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${index + 1}`');
+    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}`');
     expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
+    expect(summary).toContain('lep.left_at is null');
+    expect(liveRoute).toContain("router.get('/:id/projector'");
+    expect(liveRoute).toContain('service.snapshot(req.actor!, id(req.params), true)');
+    expect(service).toContain('const detailedStaff = isStaff && !projector;');
+    expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
+    expect(service).toContain('participants: detailedStaff ? participants.map');
+    expect(service).toContain('if (currentRow && detailedStaff && reveal)');
   });
 });

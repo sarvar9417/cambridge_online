@@ -15,6 +15,11 @@ import {
 } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { LatexQuestionText } from '../lib/latex-question-text';
+import {
+  materializePortableSourceAssets,
+  portableAssetsForContent,
+  portableAssetUrl,
+} from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import {
   StructuredQuestionView,
@@ -56,7 +61,7 @@ function readLiveDraft(key:string) {
     if(!raw)return null;
     const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
     if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
-    return draft.text;
+    return {text:draft.text,updatedAt:draft.updatedAt};
   }catch{return null}
 }
 
@@ -96,7 +101,7 @@ function useCountdown(deadline:string|null,serverNow:string|undefined) {
   return remaining;
 }
 
-function useLiveSnapshot(sessionId:string) {
+function useLiveSnapshot(sessionId:string,projector=false) {
   const [snapshot,setSnapshot]=useState<LiveExamSnapshot|null>(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
@@ -105,14 +110,14 @@ function useLiveSnapshot(sessionId:string) {
     if(request.current)return;
     request.current=true;
     try{
-      const next=await api<LiveExamSnapshot>(`/live-exams/${sessionId}`);
+      const next=await api<LiveExamSnapshot>(`/live-exams/${sessionId}${projector?'/projector':''}`);
       // Presence changes do not increment the session version, so retain the
       // complete server snapshot on every poll instead of only state changes.
       setSnapshot(next);
       setError('');
     }catch(cause){if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));}
     finally{request.current=false;setLoading(false)}
-  },[sessionId]);
+  },[projector,sessionId]);
   useEffect(()=>{
     void refresh();
     const timer=window.setInterval(()=>void refresh(true),1500);
@@ -128,18 +133,26 @@ function useLiveSnapshot(sessionId:string) {
 }
 
 function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][number]['assets'][number]}) {
+  const url=portableAssetUrl(asset);
+  const semanticText=asset.contentMd?.trim();
+  const canShowAsText=asset.kind==='code'||asset.kind==='pseudocode'||asset.kind==='table';
   return <figure className="live-asset">
-    {asset.url?<img src={asset.url} alt={asset.altText||'Cambridge source diagram'} />:
-      asset.contentMd?<pre>{asset.contentMd}</pre>:<div role="alert">Diagramma yuklanmadi.</div>}
+    {url?<img src={url} alt={asset.altText||'Cambridge source diagram'} />:
+      semanticText&&canShowAsText?<pre>{semanticText}</pre>:
+        <div className="live-asset-missing" role="alert">
+          {asset.altText||'Original Cambridge diagrammasi yuklanmadi.'}
+        </div>}
     {asset.altText?<figcaption>{asset.altText}</figcaption>:null}
   </figure>;
 }
 
 function LiveQuestionView({question}:{question:LiveExamQuestion}) {
   const portable=question.portable;
-  const content=portable.leaf.contentJson;
-  const assetUrls=useMemo(()=>Object.fromEntries(portable.contextBlocks.flatMap((block)=>
-    block.assets.filter((asset)=>Boolean(asset.url)).map((asset)=>[asset.id,asset.url!] as const))),[portable]);
+  const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
+  const content=useMemo(()=>portable.leaf.contentJson
+    ?materializePortableSourceAssets(portable.leaf.contentJson,assets)
+    :null,[assets,portable.leaf.contentJson]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
   const structured=content&&structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls);
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
@@ -213,8 +226,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [topicIds,setTopicIds]=useState<string[]>([]);
   const [subtopicIds,setSubtopicIds]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
+  const [includeDiagrams,setIncludeDiagrams]=useState(true);
+  const [excludeSeen,setExcludeSeen]=useState(true);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
+  const createAttempt=useRef<{body:string;key:string}|null>(null);
 
   useEffect(()=>{
     const requests:Promise<unknown>[]=[api<{data:LiveExamSummary[]}>('/live-exams').then((r)=>setSessions(r.data))];
@@ -227,6 +243,12 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const topics=[...new Map(syllabusTopics.map((item)=>[item.topic_id,item])).values()];
   const visibleSubtopics=syllabusTopics.filter((item)=>!topicIds.length||topicIds.includes(item.topic_id));
   const toggle=(value:string,current:string[],set:(value:string[])=>void)=>set(current.includes(value)?current.filter((id)=>id!==value):[...current,value]);
+  const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])};
+  const toggleSelectedQuestion=(questionId:string)=>setSelectedQuestionIds((current)=>{
+    if(current.includes(questionId))return current.filter((id)=>id!==questionId);
+    if(current.length>=20)return current;
+    return [...current,questionId];
+  });
   const moveSelectedQuestion=(index:number,direction:-1|1)=>setSelectedQuestionIds((current)=>{
     const target=index+direction;
     if(target<0||target>=current.length)return current;
@@ -238,7 +260,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const params=new URLSearchParams({
         classId:selectedClassId,
-        topicIds:topicIds.join(','),subtopicIds:subtopicIds.join(','),includeDiagrams:'true',excludeSeen:'true',limit:'30',
+        topicIds:topicIds.join(','),subtopicIds:subtopicIds.join(','),includeDiagrams:String(includeDiagrams),excludeSeen:String(excludeSeen),limit:'30',
       });
       const result=await api<{data:EligibleQuestion[]}>(`/live-exams/eligible-questions?${params}`);
       setQuestionPool(result.data);setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
@@ -249,14 +271,17 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     event.preventDefault();setBusy(true);setError('');
     const data=new FormData(event.currentTarget);
     try{
-      const created=await api<{id:string}>('/live-exams',{method:'POST',body:JSON.stringify({
+      const body=JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds,subtopicIds,
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:Number(data.get('questionCount')),questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
-        markingMode:data.get('markingMode'),includeDiagrams:data.get('includeDiagrams')==='on',excludeSeen:data.get('excludeSeen')==='on',
+        markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder:data.get('questionOrder'),
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
-      })});
+      });
+      const key=createAttempt.current?.body===body?createAttempt.current.key:crypto.randomUUID();
+      createAttempt.current={body,key};
+      const created=await api<{id:string}>('/live-exams',{method:'POST',headers:{'Idempotency-Key':key},body});
       navigate(`oqitish/live?id=${created.id}`);
     }catch(cause){setError(message(cause,'Live Challenge yaratilmadi.'));setBusy(false)}
   };
@@ -275,12 +300,12 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       <form onSubmit={join}><input aria-label="Xona kodi" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" value={code} onChange={(e)=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/><button disabled={busy||code.length!==6}>Qo‘shilish</button></form>
     </section>:<form className="live-create" onSubmit={create}>
       <section className="live-create-main"><span className="live-step">1</span><div><h2>Sessiya</h2><p>Sinf va savollar ko‘lamini tanlang.</p></div>
-        <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);setQuestionPool([]);setSelectedQuestionIds([])}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
+        <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);clearManualPool()}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder="Chapter 14 revision"/></label>
-        <div className="live-topic-grid"><fieldset><legend>Topic</legend>{topics.map((topic)=><label key={topic.topic_id}><input type="checkbox" checked={topicIds.includes(topic.topic_id)} onChange={()=>{toggle(topic.topic_id,topicIds,setTopicIds);setSubtopicIds((current)=>current.filter((id)=>syllabusTopics.some((row)=>row.subtopic_id===id&&row.topic_id!==topic.topic_id)))}}/><span>{topic.topic_number}. {topic.topic_title}</span></label>)}</fieldset>
-          <fieldset><legend>Subtopic</legend>{visibleSubtopics.map((subtopic)=><label key={subtopic.subtopic_id}><input type="checkbox" checked={subtopicIds.includes(subtopic.subtopic_id)} onChange={()=>toggle(subtopic.subtopic_id,subtopicIds,setSubtopicIds)}/><span>{subtopic.code} {subtopic.subtopic_title}</span></label>)}</fieldset></div>
+        <div className="live-topic-grid"><fieldset><legend>Topic</legend>{topics.map((topic)=><label key={topic.topic_id}><input type="checkbox" checked={topicIds.includes(topic.topic_id)} onChange={()=>{toggle(topic.topic_id,topicIds,setTopicIds);setSubtopicIds((current)=>current.filter((id)=>syllabusTopics.some((row)=>row.subtopic_id===id&&row.topic_id!==topic.topic_id)));clearManualPool()}}/><span>{topic.topic_number}. {topic.topic_title}</span></label>)}</fieldset>
+          <fieldset><legend>Subtopic</legend>{visibleSubtopics.map((subtopic)=><label key={subtopic.subtopic_id}><input type="checkbox" checked={subtopicIds.includes(subtopic.subtopic_id)} onChange={()=>{toggle(subtopic.subtopic_id,subtopicIds,setSubtopicIds);clearManualPool()}}/><span>{subtopic.code} {subtopic.subtopic_title}</span></label>)}</fieldset></div>
         <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>setSelectionMode(event.target.value as 'auto'|'manual')}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
-          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggle(question.id,selectedQuestionIds,setSelectedQuestionIds)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
+          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||!selectedClassId||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length}/20 ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} disabled={!selectedQuestionIds.includes(question.id)&&selectedQuestionIds.length>=20} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
         </section>
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
@@ -289,8 +314,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
-        <label className="live-check"><input name="includeDiagrams" type="checkbox" defaultChecked/><span>Diagramma va jadvallarni qo‘shish</span></label>
-        <label className="live-check"><input name="excludeSeen" type="checkbox" defaultChecked/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
+        <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);clearManualPool()}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
+        <label className="live-check"><input name="excludeSeen" type="checkbox" checked={excludeSeen} onChange={(event)=>{setExcludeSeen(event.target.checked);clearManualPool()}}/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
         <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
@@ -338,7 +363,11 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const saveTimer=useRef<number|undefined>(undefined);
   const retryTimer=useRef<number|undefined>(undefined);
   const pendingSave=useRef<string|null>(null);
+  const saveInFlight=useRef(false);
+  const submitting=useRef(false);
+  const latestAnswer=useRef('');
   const answerKey=useRef('');
+  const [hydratedKey,setHydratedKey]=useState('');
   const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const remaining=useCountdown(session.deadline,session.serverNow);
   const leave=async()=>{
@@ -351,15 +380,23 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
     if(key===answerKey.current)return;
     answerKey.current=key;
+    setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
-    setAnswer(serverText||readLiveDraft(liveDraftKey(session.id,key))||'');
-    setDirty(false);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.question?.id]);
+    const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
+    const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
+    const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
+    const initial=useLocal?localDraft!.text:serverText;
+    latestAnswer.current=initial;
+    pendingSave.current=useLocal?initial:null;
+    setAnswer(initial);
+    setDirty(useLocal);
+    setHydratedKey(key);
+  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
   useEffect(()=>{
-    if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
+    if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
-  },[answer,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
+  },[answer,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
     const key=liveDraftKey(session.id,draftKey);
@@ -369,34 +406,57 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
         const incoming=JSON.parse(event.newValue) as {text?:unknown;updatedAt?:unknown;tabId?:unknown};
         if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
         if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
-        setAnswer(incoming.text);setDirty(false);
+        latestAnswer.current=incoming.text;
+        pendingSave.current=incoming.text;
+        setAnswer(incoming.text);setDirty(true);
       }catch{/* Ignore malformed storage entries. */}
     };
     window.addEventListener('storage',onStorage);
     return()=>window.removeEventListener('storage',onStorage);
   },[answer,dirty,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
-  const flushAnswer=async(text=answer,attempt=0)=>{
-    if(!text||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
+  const flushAnswer=async(text=latestAnswer.current,attempt=0)=>{
+    if(session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt||submitting.current)return;
     pendingSave.current=text;
+    if(saveInFlight.current)return;
+    const outgoing=pendingSave.current??'';
+    pendingSave.current=null;
+    saveInFlight.current=true;
     setSaving(true);
+    let retryScheduled=false;
     try{
-      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text})});
-      if(pendingSave.current===text){pendingSave.current=null;setDirty(false);setError('')}
+      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:outgoing})});
+      if(latestAnswer.current===outgoing){setDirty(false);setError('')}
+      else pendingSave.current=latestAnswer.current;
     }catch(cause){
+      pendingSave.current=latestAnswer.current;
       setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
-      if(attempt<4){window.clearTimeout(retryTimer.current);retryTimer.current=window.setTimeout(()=>void flushAnswer(text,attempt+1),2**attempt*1000)}
-    }finally{setSaving(false)}
+      if(attempt<4){
+        retryScheduled=true;
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current=window.setTimeout(()=>{
+          const pending=pendingSave.current;
+          if(pending!==null)void flushAnswer(pending,attempt+1);
+        },2**attempt*1000);
+      }
+    }finally{
+      saveInFlight.current=false;
+      setSaving(false);
+      if(!retryScheduled&&!submitting.current&&pendingSave.current!==null){
+        const pending=pendingSave.current;
+        void flushAnswer(pending);
+      }
+    }
   };
   useEffect(()=>{
     if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
     window.clearTimeout(saveTimer.current);
-    saveTimer.current=window.setTimeout(()=>void flushAnswer(answer),700);
+    saveTimer.current=window.setTimeout(()=>void flushAnswer(latestAnswer.current),700);
     return()=>window.clearTimeout(saveTimer.current);
   },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
-    const retry=()=>{if(pendingSave.current)void flushAnswer(pendingSave.current)};
-    const flush=()=>{if(dirty&&pendingSave.current)void flushAnswer(pendingSave.current)};
+    const retry=()=>{if(pendingSave.current!==null)void flushAnswer(pendingSave.current)};
+    const flush=()=>{if(dirty){const pending=pendingSave.current??latestAnswer.current;void flushAnswer(pending)}};
     window.addEventListener('online',retry);
     window.addEventListener('visibilitychange',flush);
     window.addEventListener('pagehide',flush);
@@ -405,8 +465,13 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   const submitAnswer=async()=>{
     setBusy(true);setError('');
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:answer})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
-    catch(cause){setError(message(cause,'Javob topshirilmadi.'))}finally{setBusy(false)}
+    submitting.current=true;
+    window.clearTimeout(saveTimer.current);
+    window.clearTimeout(retryTimer.current);
+    pendingSave.current=null;
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
+    catch(cause){pendingSave.current=latestAnswer.current;setError(message(cause,'Javob topshirilmadi.'))}
+    finally{submitting.current=false;setBusy(false)}
   };
   const submitReview=async()=>{
     if(!snapshot.review)return;setBusy(true);setError('');
@@ -419,7 +484,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{setAnswer(event.target.value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={submitAnswer}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':'Javobni topshirish'}</button></section>
+    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={submitAnswer}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-marking-layout"><div><MarkSchemeView scheme={snapshot.markScheme}/></div><aside className="live-review-card">
     {!snapshot.review?<><h2>Baholash kutilmoqda</h2><p>O‘qituvchi sizga javob biriktirmoqda.</p></>:snapshot.review.status!=='assigned'?<><CheckCircle size={54} weight="fill"/><h2>Baholash yuborildi</h2><p>O‘qituvchi barcha baholashlarni yakunlashi kutilmoqda.</p><strong>{snapshot.review.awardedMarks}/{snapshot.question?.marks} ball</strong></>:<><span className="live-eyebrow">{snapshot.review.kind==='peer'?'ANONIM JAVOB':snapshot.review.kind==='self'?'O‘Z JAVOBINGIZ':'JAVOB'}</span><h2>Mark scheme asosida tekshiring</h2><blockquote>{snapshot.review.answerText||'Javob yozilmagan'}</blockquote><MarkSchemeView scheme={{...snapshot.markScheme,points:snapshot.review.points}} interactive selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>{snapshot.markScheme.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=snapshot.markScheme?.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setManualScore(level.minMarks)}}><option value="">Bandni tanlang</option>{snapshot.markScheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}{schemeNeedsManualScore(snapshot.markScheme)?<label>Ball<input type="number" min={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={manualScore} onChange={(e)=>setManualScore(Number(e.target.value))}/></label>:null}<label>Qisqa izoh<textarea value={feedback} maxLength={5000} onChange={(e)=>setFeedback(e.target.value)} placeholder="Nima uchun shu ballni berdingiz?"/></label>{error?<p className="live-error" role="alert">{error}</p>:null}<button disabled={busy} onClick={submitReview}>{busy?'Yuborilmoqda…':'Baholashni yuborish'}</button></>}
@@ -429,27 +494,29 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
-function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null};onDone:()=>void}) {
-  const [selected,setSelected]=useState<Set<string>>(new Set());
+function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds?:string[]};onDone:()=>void}) {
+  const [selected,setSelected]=useState<Set<string>>(new Set(answer.reviewMatchedPointIds??[]));
   const [score,setScore]=useState(answer.score??0);
   const [levelNumber,setLevelNumber]=useState<number|undefined>();
   const [feedback,setFeedback]=useState(answer.feedback??'');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const teacherOwnsReview=answer.reviewStatus==='assigned'&&Boolean(answer.reviewId)&&answer.reviewKind==='teacher';
+  const canOverride=snapshot.session.markingMode==='teacher'||snapshot.session.settings.teacherOverrideEnabled;
   const submit=async()=>{
     setBusy(true);setError('');
     try{
-      if(answer.reviewStatus==='assigned'&&answer.reviewId)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
-      else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined})});
+      if(teacherOwnsReview)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
+      else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined,levelNumber,expectedVersion:snapshot.session.version})});
       onDone();
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'));setBusy(false)}
   };
   const scheme=snapshot.markScheme;
   return <article className="live-teacher-marker"><header><div><span>O‘QUVCHI JAVOBI</span><h2>{answer.studentName}</h2></div><strong>{answer.score??0}/{snapshot.question?.marks}</strong></header><blockquote>{answer.text||'Javob yozilmagan'}</blockquote>
-    {scheme?<MarkSchemeView scheme={scheme} interactive={answer.reviewStatus==='assigned'} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
-    {scheme?.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=scheme.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setScore(level.minMarks)}}><option value="">Bandni tanlang</option>{scheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}
-    {(schemeNeedsManualScore(scheme)||answer.reviewStatus!=='assigned')?<label>Ball<input type="number" min={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}
-    <label>Izoh<textarea value={feedback} onChange={(e)=>setFeedback(e.target.value)} maxLength={5000}/></label>{error?<p className="live-error">{error}</p>:null}<button disabled={busy||Boolean(snapshot.session.pausedAt)} onClick={submit}>{busy?'Saqlanmoqda…':answer.reviewStatus==='assigned'?'Bahoni tasdiqlash':'Bahoni yangilash'}</button>
+    {scheme?<MarkSchemeView scheme={scheme} interactive={teacherOwnsReview} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
+    {scheme?.levels.length?<label>Rasmiy band<select disabled={!teacherOwnsReview&&!canOverride} value={levelNumber??''} onChange={(e)=>{const level=scheme.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setScore(level.minMarks)}}><option value="">Bandni tanlang</option>{scheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}
+    {(schemeNeedsManualScore(scheme)||!teacherOwnsReview)?<label>Ball<input disabled={!teacherOwnsReview&&!canOverride} type="number" min={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}
+    <label>Izoh<textarea disabled={!teacherOwnsReview&&!canOverride} value={feedback} onChange={(e)=>setFeedback(e.target.value)} maxLength={5000}/></label>{error?<p className="live-error">{error}</p>:null}<button disabled={busy||Boolean(snapshot.session.pausedAt)||(!teacherOwnsReview&&!canOverride)} onClick={submit}>{busy?'Saqlanmoqda…':teacherOwnsReview?'Bahoni tasdiqlash':canOverride?'Bahoni yangilash':'Teacher override o‘chirilgan'}</button>
   </article>;
 }
 
@@ -477,18 +544,19 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
       {session.markingMode==='teacher'&&activeAnswer?<div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.reviewStatus==='assigned'?'Kutilmoqda':`${answer.score??0}/${snapshot.question?.marks}`}</i></button>)}</nav><TeacherAnswerMarker key={`${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>{setActiveAnswerId('');void refresh()}}/></div>:null}
       {session.markingMode!=='teacher'?<div className="live-peer-progress"><MarkSchemeView scheme={snapshot.markScheme!}/><section><h2>{MODE_LABEL[session.markingMode]}</h2><p>O‘quvchilar mark scheme asosida baholamoqda. Ismlar faqat o‘qituvchi ekranida ko‘rinadi.</p>{snapshot.teacherAnswers.map((answer)=><div key={answer.id}><span><strong>{answer.studentName}</strong><small>{answer.reviewStatus==='assigned'?'Baholamoqda':'Yakunladi'}</small></span><b>{answer.score===null?'—':`${answer.score}/${snapshot.question?.marks}`}</b></div>)}</section></div>:null}
     </>:null}
-    {session.status==='review'?<><section className="live-review-summary"><div><span className="live-eyebrow">SAVOL YAKUNI</span><h2>Natijalarni ko‘rib chiqing</h2><p>{session.settings.teacherOverrideEnabled?'Peer va self baholarni kerak bo‘lsa o‘qituvchi tuzatishi mumkin.':'Peer va self baholar final; teacher override o‘chirilgan.'}</p></div><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/next')}>{session.currentQuestionIndex+1<session.questionCount?'Keyingi savol →':'Sessiyani yakunlash'}</button></section><LiveExamLeaderboard sessionId={session.id} version={session.version}/><div className="live-result-table"><header><span>O‘quvchi</span><span>Baholash</span><span>Ball</span></header>{snapshot.teacherAnswers.map((answer)=><div key={answer.id}><strong>{answer.studentName}</strong><span>{answer.scoreSource?MODE_LABEL[answer.scoreSource]:'Baholanmagan'}</span><b>{answer.score??'—'} / {snapshot.question?.marks}</b></div>)}</div>{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}</>:null}
+    {session.status==='review'?<><section className="live-review-summary"><div><span className="live-eyebrow">SAVOL YAKUNI</span><h2>Natijalarni ko‘rib chiqing</h2><p>{session.markingMode==='teacher'||session.settings.teacherOverrideEnabled?'Baholarni keyingi savolga o‘tishdan oldin o‘qituvchi tuzatishi mumkin.':'Peer va self baholar final; teacher override o‘chirilgan.'}</p></div><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/next')}>{session.currentQuestionIndex+1<session.questionCount?'Keyingi savol →':'Sessiyani yakunlash'}</button></section><LiveExamLeaderboard sessionId={session.id} version={session.version}/><div className="live-result-table"><header><span>O‘quvchi</span><span>Baholash</span><span>Ball</span></header>{snapshot.teacherAnswers.map((answer)=><div key={answer.id}><strong>{answer.studentName}</strong><span>{answer.scoreSource?MODE_LABEL[answer.scoreSource]:'Baholanmagan'}</span><b>{answer.score??'—'} / {snapshot.question?.marks}</b></div>)}</div>{(session.markingMode==='teacher'||session.settings.teacherOverrideEnabled)&&activeAnswer?<section className="live-review-override"><header><span className="live-eyebrow">BAHONI TUZATISH</span><h2>Teacher override</h2></header><div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.score??0}/{snapshot.question?.marks}</i></button>)}</nav><TeacherAnswerMarker key={`review:${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>void refresh()}/></div></section>:null}{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}</>:null}
     {session.status==='finished'?<section className="live-finished live-teacher-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.questionCount} ta savol bajarildi</h1><p>Barcha javoblar, baholar va audit voqealari saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible} sinf ballari</strong><div className="live-report-list">{snapshot.report.rows.map((row,index)=><article key={`${row.studentId}-${row.questionPosition}-${index}`}><span>Savol {row.questionPosition+1}</span><strong>{row.studentName} · {row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b></article>)}</div></>:null}<button onClick={()=>navigate('oqitish/live')}>Sessiyalar ro‘yxati</button></section>:null}
     {session.status==='cancelled'?<section className="live-finished"><h1>Sessiya bekor qilingan</h1><button onClick={()=>navigate('oqitish/live')}>Ortga</button></section>:null}
   </div>;
 }
 
 function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;projector:boolean}) {
-  const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId);
+  const projectorView=projector&&user.role!=='student';
+  const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId,projectorView);
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
-  if(projector&&user.role!=='student')return <ProjectorView snapshot={snapshot}/>;
+  if(projectorView)return <ProjectorView snapshot={snapshot}/>;
   return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
 }
 

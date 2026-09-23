@@ -1,7 +1,7 @@
 import type { StructuredQuestionContent } from './structured-question-content';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
-const LIVE_SNAPSHOT_PATH = /^\/live-exams\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LIVE_SNAPSHOT_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/projector)?$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
 type LiveSnapshotCacheEntry = { body:unknown; version:number; fetchedAt:number };
@@ -88,6 +88,11 @@ function liveSnapshotKey(path:string, init:RequestInit) {
   return method==='GET'&&!init.body&&LIVE_SNAPSHOT_PATH.test(path)?path:null;
 }
 
+function liveCursorPath(path:string) {
+  const match=path.match(LIVE_SNAPSHOT_PATH);
+  return match ? `/live-exams/${match[1]}/events` : null;
+}
+
 function snapshotVersion(body:unknown) {
   if (!body || typeof body !== 'object' || !('session' in body)) return null;
   const session=(body as {session?:unknown}).session;
@@ -109,9 +114,10 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
   if(!cacheKey)return requestJson<T>(path,init,options);
 
   const cached=liveSnapshotCache.get(cacheKey);
-  if(cached&&Date.now()-cached.fetchedAt<LIVE_FULL_REFRESH_MS){
+  const cursorPath=liveCursorPath(path);
+  if(cached&&cursorPath&&Date.now()-cached.fetchedAt<LIVE_FULL_REFRESH_MS){
     try{
-      const cursor=await requestJson<LiveCursor>(`${path}/events?afterVersion=${cached.version}&limit=1`,{},options);
+      const cursor=await requestJson<LiveCursor>(`${cursorPath}?afterVersion=${cached.version}&limit=1`,{},options);
       if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
     }catch{
       // During a rolling deployment the cursor route may briefly be absent or
@@ -172,13 +178,13 @@ export interface LiveExamQuestion {id:string;sourceQuestionId:string;position:nu
 export interface LiveMarkSchemePoint {id:string;code:string;text:string;marks:number;accept?:unknown;reject?:unknown;requires?:unknown;isBod?:boolean;groupId?:string|null;matched?:boolean}
 export interface LiveMarkSchemeLevel {id:string;levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd:string|null}
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;levels:LiveMarkSchemeLevel[];points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
-export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null}
+export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string}
 export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
-  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null}>;
+  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }

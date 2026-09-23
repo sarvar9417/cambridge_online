@@ -4,6 +4,7 @@ import type { LiveExamService } from '../services/live-exam-service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
+import { runIdempotent } from '../lib/idempotent-request.js';
 
 const uuid = z.string().uuid();
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
@@ -27,7 +28,7 @@ const createInput = z.object({
 }).strict();
 
 const versionInput = z.object({
-  expectedVersion: z.number().int().positive().optional(),
+  expectedVersion: z.number().int().positive(),
 }).strict();
 
 function isPeerIntegrityConflict(error: unknown) {
@@ -60,7 +61,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
 
   router.post('/', durableStaffLimit, async (req, res) => {
     const body = createInput.parse(req.body);
-    res.status(201).json(await service.create(req.actor!, body));
+    const operation = async () => ({ status:201, body:await service.create(req.actor!, body) });
+    if (pool) return runIdempotent(req, res, pool, operation);
+    const result = await operation();
+    return res.status(result.status).json(result.body);
   });
 
   router.get('/eligible-questions', durableStaffLimit, async (req, res) => {
@@ -99,6 +103,13 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   router.post('/join', durableJoinLimit, async (req, res) => {
     const body = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict().parse(req.body);
     res.status(201).json(await service.join(req.actor!, body.code));
+  });
+
+  router.get('/:id/projector', async (req, res) => {
+    // Projectors are a separate privacy surface: return only the classroom
+    // presentation DTO, never the teacher's participant/answer payload.
+    privateNoStore(res);
+    res.json(await service.snapshot(req.actor!, id(req.params), true));
   });
 
   router.get('/:id', async (req, res) => {
@@ -178,12 +189,20 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     const body = z.object({
       score: z.number().min(0).max(100),
       feedback: z.string().trim().max(5000).optional(),
+      levelNumber: z.number().int().positive().optional(),
+      expectedVersion: z.number().int().positive(),
     }).strict().parse(req.body);
-    res.json(await service.moderateAnswer(req.actor!, id(req.params), id(req.params, 'answerId'), body));
+    res.json(await service.moderateAnswer(
+      req.actor!,
+      id(req.params),
+      id(req.params, 'answerId'),
+      { score:body.score,feedback:body.feedback,levelNumber:body.levelNumber },
+      body.expectedVersion,
+    ));
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
-    const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive().optional() }).strict().parse(req.body ?? {});
+    const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive() }).strict().parse(req.body ?? {});
     res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
   });
 
