@@ -6,7 +6,7 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
-import { sourceVisualAssetRenderable, unrenderableVisualAssetSql } from '../lib/source-visual-readiness.js';
+import { portableSourceVisualAssetRenderable, unrenderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -489,7 +489,7 @@ export class LiveExamService {
       if (input.includeDiagrams && portable.contextBlocks.some(
         (block) => block.assets.some((asset) =>
           (asset.kind === 'diagram' || asset.kind === 'image')
-          && !sourceVisualAssetRenderable(asset),
+          && !portableSourceVisualAssetRenderable(asset),
         ),
       )) throw new DomainError('live_assets_unavailable', 409);
       return { questionId, portable: storedPortable(portable), markScheme };
