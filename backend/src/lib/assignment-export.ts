@@ -41,6 +41,29 @@ function contextBlocks(value: unknown): ExportContextBlock[] {
   }));
 }
 
+function schemeAssets(value: unknown): NonNullable<ExportQuestion['schemeAssets']> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const asset=item as Record<string,unknown>;
+    if (
+      typeof asset.id!=='string' ||
+      typeof asset.kind!=='string' ||
+      typeof asset.contentMd!=='string' ||
+      typeof asset.altText!=='string' ||
+      typeof asset.sourcePage!=='number'
+    ) return [];
+    return [{
+      id:asset.id,
+      kind:asset.kind,
+      contentMd:asset.contentMd,
+      altText:asset.altText,
+      sourcePage:asset.sourcePage,
+      sourceSha256:typeof asset.sourceSha256==='string'?asset.sourceSha256:null,
+    }];
+  });
+}
+
 /** Convert one unioned assignment/context DB row into the stable PDF/DOCX model. */
 export function toAssignmentExportQuestion(row: Row): ExportQuestion {
   const frozen = snapshot(row.portable_snapshot);
@@ -60,6 +83,7 @@ export function toAssignmentExportQuestion(row: Row): ExportQuestion {
     role,
     schemeStatus: role==='graded'&&typeof row.scheme_status==='string'?row.scheme_status:undefined,
     schemeGuidance: role==='graded'&&typeof row.scheme_guidance==='string'?row.scheme_guidance:null,
+    schemeAssets: role==='graded'?schemeAssets(row.scheme_assets):[],
     points: role==='graded'&&Array.isArray(row.points) ? row.points as ExportQuestion['points'] : [],
   };
 }
