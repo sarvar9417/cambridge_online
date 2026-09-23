@@ -36,7 +36,8 @@ with visual_assets as (
     sp.page_count,
     case
       when nullif(btrim(coalesce(qa.storage_path,'')),'') is not null then 'storage_backed'
-      when coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)' then 'content_svg'
+      when coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)'
+        or coalesce(qa.content_md,'') ~* '^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)' then 'content_svg'
       when coalesce(qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)' then 'svg_markup'
       when nullif(btrim(coalesce(qa.latex_source,'')),'') is not null
         and nullif(btrim(coalesce(sp.storage_path,'')),'') is not null
@@ -183,6 +184,7 @@ with orphan_unready as (
   where qa.kind in ('diagram','image')
     and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
     and not(coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+    and not(coalesce(qa.content_md,'') ~* '^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
     and not(coalesce(qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
     and not exists (
       select 1
