@@ -56,8 +56,7 @@ $state$;
 
   UPDATE question_assets qa
   SET svg_markup=v_svg,
-      source_bbox='[61,305,529,738]'::jsonb,
-      crop_status='ready',
+      crop_status='not_needed',
       crop_error=NULL,
       content_hash=encode(digest(v_svg,'sha256'),'hex'),
       size_bytes=octet_length(v_svg)
@@ -95,8 +94,7 @@ $compiler$;
 
   UPDATE question_assets qa
   SET svg_markup=v_svg,
-      source_bbox='[65,345,529,737]'::jsonb,
-      crop_status='ready',
+      crop_status='not_needed',
       crop_error=NULL,
       content_hash=encode(digest(v_svg,'sha256'),'hex'),
       size_bytes=octet_length(v_svg)
@@ -132,8 +130,7 @@ $kmap$;
 
   UPDATE question_assets qa
   SET svg_markup=v_svg,
-      source_bbox='[190,355,415,560]'::jsonb,
-      crop_status='ready',
+      crop_status='not_needed',
       crop_error=NULL,
       content_hash=encode(digest(v_svg,'sha256'),'hex'),
       size_bytes=octet_length(v_svg)
