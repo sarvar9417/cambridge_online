@@ -482,7 +482,7 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
     setBusy(true);setError('');
     try{
       if(answer.reviewStatus==='assigned'&&answer.reviewId)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
-      else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined})});
+      else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined,expectedVersion:snapshot.session.version})});
       onDone();
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'));setBusy(false)}
   };
