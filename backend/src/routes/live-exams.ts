@@ -189,13 +189,14 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     const body = z.object({
       score: z.number().min(0).max(100),
       feedback: z.string().trim().max(5000).optional(),
+      levelNumber: z.number().int().positive().optional(),
       expectedVersion: z.number().int().positive(),
     }).strict().parse(req.body);
     res.json(await service.moderateAnswer(
       req.actor!,
       id(req.params),
       id(req.params, 'answerId'),
-      { score:body.score,feedback:body.feedback },
+      { score:body.score,feedback:body.feedback,levelNumber:body.levelNumber },
       body.expectedVersion,
     ));
   });
