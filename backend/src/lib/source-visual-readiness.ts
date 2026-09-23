@@ -45,3 +45,21 @@ export function questionVisualIntegritySql(questionAlias='q'){
       and not ${renderableVisualAssetSql('qa')}
   )`;
 }
+
+export type PortableVisualLike={
+  kind?:string|null;
+  url?:string|null;
+  contentMd?:string|null;
+};
+
+/** Runtime equivalent of the SQL readiness rule for already-materialized DTOs. */
+export function completeInlineSvg(value:string|null|undefined){
+  const text=(value??'').trim().replace(/^<\?xml[^>]*\?>\s*/i,'');
+  return /^<svg(?:\s|>)/i.test(text)&&/<\/svg>\s*$/i.test(text);
+}
+
+export function portableVisualReady(asset:PortableVisualLike){
+  const kind=(asset.kind??'').toLowerCase();
+  if(kind!=='diagram'&&kind!=='image')return true;
+  return Boolean(asset.url)||completeInlineSvg(asset.contentMd);
+}
