@@ -102,14 +102,14 @@ export class LiveExamRoundSummaryService {
 
     const roundPossible = Number(roundResult.rows[0]?.marks ?? 0);
     const overallPossible = Number(possibleResult.rows[0]?.possible ?? 0);
-    const round: LiveExamStanding[] = roundResult.rows.map((row, index) => ({
+    const round: LiveExamStanding[] = roundResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
       studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
       score: Number(row.score),
       possible: roundPossible,
     }));
-    const overall: LiveExamStanding[] = overallResult.rows.map((row, index) => ({
+    const overall: LiveExamStanding[] = overallResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
       studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
