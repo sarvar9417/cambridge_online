@@ -132,7 +132,8 @@ export class ResultsService {
       return {
         gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
         finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
-        contentJson:content,contentVersion:content?1:null,assetUrls:rowAssetUrls,sourceAssets,
+        contentJson:content,contentVersion:content?1:null,assetUrls:rowAssetUrls,
+        ...(sourceAssets.length?{sourceAssets}:{}),
         practiceTargets: Array.isArray(row.practice_targets) ? row.practice_targets : [],
       };
     });
