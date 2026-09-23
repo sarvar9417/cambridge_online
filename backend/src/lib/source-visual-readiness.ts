@@ -42,13 +42,22 @@ export type SourceVisualAssetRecord = {
   svgMarkup?: unknown;
 };
 
-function inlineSvg(value: unknown) {
-  if (typeof value !== 'string') return false;
+function extractInlineSvg(value: unknown) {
+  if (typeof value !== 'string') return null;
   let candidate = value.replace(/^\uFEFF/, '').trim();
   const fenced = candidate.match(/^\`\`\`(?:svg|xml)\s*\r?\n([\s\S]*?)\r?\n\`\`\`\s*$/i);
   if (fenced) candidate = fenced[1]!.trim();
   candidate = candidate.replace(/^<\?xml[^>]*\?>\s*/i, '');
-  return /^<svg(?:\s|>)/i.test(candidate) && /<\/svg>\s*$/i.test(candidate);
+  return /^<svg(?:\s|>)/i.test(candidate) && /<\/svg>\s*$/i.test(candidate) ? candidate : null;
+}
+
+function inlineSvg(value: unknown) {
+  return extractInlineSvg(value) !== null;
+}
+
+export function sourceVisualDataUrl(value: unknown) {
+  const svg=extractInlineSvg(value);
+  return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : null;
 }
 
 export function sourceVisualAssetRenderable(asset: SourceVisualAssetRecord) {
