@@ -195,12 +195,13 @@
 
 .lesson-v3-canonical-question .structured-question-code {
   overflow: auto;
-  padding: 16px 18px;
-  border: 1px solid #dce2ea;
-  border-radius: 8px;
-  background: #f8fafc;
+  padding: 0 0 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #111827;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  line-height: 1.55;
   white-space: pre-wrap;
 }
 
@@ -219,7 +220,7 @@
 }
 
 .lesson-v3-canonical-question .structured-question-table th {
-  background: #f3f6fa;
+  background: transparent;
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 12px;
 }
