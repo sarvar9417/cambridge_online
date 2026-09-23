@@ -5,7 +5,7 @@ import { renderStructuredQuestionHtml,structuredQuestionPrintCss } from './struc
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 
 export type ExportMode='question_paper'|'mark_scheme'|'combined'|'feedback';
-export interface ExportAsset{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null}
+export interface ExportAsset{id?:string;kind:string;contentMd?:string|null;storagePath?:string|null;altText?:string|null;sourcePage?:number|null;cropStatus?:string|null}
 export interface ExportContextBlock{displayRef?:string;context?:string|null;assets?:ExportAsset[]}
 export interface ExportSchemePoint{
   code:string;
