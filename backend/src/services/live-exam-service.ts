@@ -1416,9 +1416,15 @@ export class LiveExamService {
                question_started_at+question_time_limit_s*interval '1 second'-now()
              )))::int)
            else null
-         end where id=$1 returning pause_remaining_s`,
+         end
+         where id=$1 and (
+           status<>'question_open' or question_started_at is null or question_time_limit_s is null
+           or now()<question_started_at+question_time_limit_s*interval '1 second'
+         )
+         returning pause_remaining_s`,
         [sessionId],
       );
+      if (!paused.rowCount) throw new DomainError('live_answer_locked', 409);
       const remaining = paused.rows[0].pause_remaining_s === null ? null : Number(paused.rows[0].pause_remaining_s);
       const version = await this.bump(client, sessionId, actor.id, 'session.paused', { remainingSeconds: remaining });
       await client.query('commit');
@@ -1437,6 +1443,18 @@ export class LiveExamService {
       this.assertExpectedVersion(session, expectedVersion);
       if (!session.paused_at || !['question_open', 'marking', 'review'].includes(String(session.status))) {
         throw new DomainError('live_invalid_state', 409);
+      }
+      if (session.status === 'question_open' && session.question_time_limit_s !== null
+        && session.pause_remaining_s !== null && Number(session.pause_remaining_s) <= 0) {
+        await client.query(
+          `update live_exam_sessions set paused_at=null,pause_remaining_s=null where id=$1`,
+          [sessionId],
+        );
+        session.paused_at = null;
+        session.pause_remaining_s = null;
+        const result = await this.revealWithinTransaction(client, session, actor.id);
+        await client.query('commit');
+        return result;
       }
       await client.query(
         `update live_exam_sessions set
