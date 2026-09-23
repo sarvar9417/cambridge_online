@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { renderStructuredQuestionHtml } from './structured-question-export.js';
+import { renderStructuredQuestionHtml,structuredQuestionPrintCss } from './structured-question-export.js';
 
 const source={
   paperId:'11111111-1111-4111-8111-111111111111',
@@ -8,6 +8,12 @@ const source={
 const location={page:4,bbox:[1,2,300,400] as [number,number,number,number]};
 
 describe('structured question HTML export',()=>{
+  it('keeps Cambridge code blocks unboxed in print/export CSS',()=>{
+    expect(structuredQuestionPrintCss).toContain('.sq-code{white-space:pre-wrap;border:0');
+    expect(structuredQuestionPrintCss).toContain('background:transparent');
+    expect(structuredQuestionPrintCss).not.toContain('.sq-code{white-space:pre-wrap;border:1px');
+  });
+
   it('renders truth tables as real tables with answer cells',()=>{
     const html=renderStructuredQuestionHtml({
       version:1,source,blocks:[{
