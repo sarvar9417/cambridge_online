@@ -1,7 +1,7 @@
 export const VISUAL_ASSET_KINDS_SQL = "('diagram','image')";
 
-const DIRECT_SVG_SQL = String.raw`^\\s*(<\\?xml[^>]*\\?>\\s*)?<svg(?:\\s|>)`;
-const FENCED_SVG_SQL = String.raw`^\\s*\`\`\`(?:svg|xml)\\s*[\\r\\n]+(<\\?xml[^>]*\\?>\\s*)?<svg(?:\\s|>)`;
+const DIRECT_SVG_SQL = '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)';
+const FENCED_SVG_SQL = '^[[:space:]]*```(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)';
 
 export function visualAssetSql(alias = 'qa') {
   return `${alias}.kind in ${VISUAL_ASSET_KINDS_SQL}`;
