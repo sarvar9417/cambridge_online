@@ -185,6 +185,6 @@ export interface LiveExamSnapshot {
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
-  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null}>;
+  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
