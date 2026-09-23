@@ -28,7 +28,11 @@ const configSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_MODEL: z.string().min(1).optional(),
   SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  VITE_SUPABASE_URL: z.string().url().optional(),
   SUPABASE_STORAGE_SECRET_KEY: z.string().min(1).optional(),
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   ASSET_STORAGE_BUCKET: z.string().min(1).default('question-assets'),
   CHROME_EXECUTABLE_PATH: z.string().optional(),
   CHROMIUM_PACK_URL: z.string().url().optional(),
@@ -39,8 +43,25 @@ const configSchema = z.object({
   EMAIL_FROM: z.string().min(1).optional(),
 });
 
+export function resolveSupabaseStorageEnv(input:{
+  SUPABASE_URL?:string;
+  NEXT_PUBLIC_SUPABASE_URL?:string;
+  VITE_SUPABASE_URL?:string;
+  SUPABASE_STORAGE_SECRET_KEY?:string;
+  SUPABASE_SECRET_KEY?:string;
+  SUPABASE_SERVICE_ROLE_KEY?:string;
+}) {
+  return {
+    url: input.SUPABASE_URL ?? input.NEXT_PUBLIC_SUPABASE_URL ?? input.VITE_SUPABASE_URL,
+    secretKey: input.SUPABASE_STORAGE_SECRET_KEY ?? input.SUPABASE_SECRET_KEY ?? input.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
 const parsed = configSchema.parse(normalizeEmptyEnv(process.env));
+const storageEnv = resolveSupabaseStorageEnv(parsed);
 export const config = {
   ...parsed,
+  SUPABASE_URL: storageEnv.url,
+  SUPABASE_STORAGE_SECRET_KEY: storageEnv.secretKey,
   DB_POOL_MAX: parsed.DB_POOL_MAX ?? (process.env.VERCEL ? 2 : 10),
 };
