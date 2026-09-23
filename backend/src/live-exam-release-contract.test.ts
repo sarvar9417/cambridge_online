@@ -145,6 +145,13 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(integrityHardening).toContain('ALTER FUNCTION public.persist_live_exam_learning_evidence()');
   });
 
+  it('keeps cleared drafts, left participants and prerequisite mark points authoritative',()=>{
+    expect(service).toContain("lep.student_id=$2 and lep.left_at is null");
+    expect(service).toContain('updatedAt: row.updated_at');
+    expect(service).toContain('const matched = computed.effectiveMatched[point.code] === true;');
+    expect(service).toContain('[reviewId, point.id, matched, matched ? point.marks : 0]');
+  });
+
   it('makes voluntary leave a lobby-only action',()=>{
     expect(service).toContain("if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);");
   });
@@ -167,12 +174,20 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(source('src/routes/live-exams.ts')).toContain('durableJoinLimit');
   });
 
-  it('keeps projector standings free of student identity fields',()=>{
+  it('keeps projector standings and snapshots free of teacher-only identity payloads',()=>{
     const summary=source('src/services/live-exam-round-summary-service.ts');
     const route=source('src/routes/live-exam-round-summary.ts');
+    const liveRoute=source('src/routes/live-exams.ts');
     expect(route).toContain("req.query.projector");
     expect(summary).toContain('summary(actor: Actor, sessionId: string, projector = false)');
-    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${index + 1}`');
+    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}`');
     expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
+    expect(summary).toContain('lep.left_at is null');
+    expect(liveRoute).toContain("router.get('/:id/projector'");
+    expect(liveRoute).toContain('service.snapshot(req.actor!, id(req.params), true)');
+    expect(service).toContain('const detailedStaff = isStaff && !projector;');
+    expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
+    expect(service).toContain('participants: detailedStaff ? participants.map');
+    expect(service).toContain('if (currentRow && detailedStaff && reveal)');
   });
 });
