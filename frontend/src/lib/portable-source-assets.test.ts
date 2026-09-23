@@ -20,6 +20,23 @@ describe('portable source assets',()=>{
     expect(decodeURIComponent(url!.split(',')[1]!)).toContain('<svg');
   });
 
+  it('renders fenced SVG repairs as an image instead of exposing the SVG source',()=>{
+    const url=portableAssetUrl({
+      id:assetId,
+      kind:'diagram',
+      contentMd:'```svg\n<svg xmlns="http://www.w3.org/2000/svg" width="620" height="250"><rect width="10" height="10"/></svg>\n```',
+    });
+    expect(url).toMatch(/^data:image\/svg\+xml/);
+    const decoded=decodeURIComponent(url!.split(',')[1]!);
+    expect(decoded).toMatch(/^<svg/);
+    expect(decoded).not.toContain('```');
+  });
+
+  it('rejects partial SVG or SVG mixed with trailing prose so markup cannot leak into a visual path',()=>{
+    expect(portableAssetUrl({id:assetId,kind:'diagram',contentMd:'<svg><rect/></svg> extra text'})).toBeNull();
+    expect(portableAssetUrl({id:assetId,kind:'diagram',contentMd:'<svg><rect/>'})).toBeNull();
+  });
+
   it('does not pretend a prose/ASCII diagram substitute is a visual',()=>{
     expect(portableAssetUrl({id:assetId,kind:'diagram',contentMd:'Use the original PDF for exact gate symbols.'})).toBeNull();
   });
