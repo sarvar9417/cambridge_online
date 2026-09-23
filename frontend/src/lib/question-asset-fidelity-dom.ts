@@ -1,14 +1,13 @@
-import { portableTableBlock } from './portable-source-assets';
-
-const SVG_START = /^\s*<svg\b/i;
+import { extractFaithfulInlineSvg, portableTableBlock } from './portable-source-assets';
 const BROWSER_ASSET_PREFIX = '[[browser_asset_url:';
 
 export function isSvgAsset(value: string | null | undefined) {
-  return Boolean(value && SVG_START.test(value));
+  return extractFaithfulInlineSvg(value) !== null;
 }
 
 export function svgAssetDataUrl(value: string) {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value)}`;
+  const svg=extractFaithfulInlineSvg(value);
+  return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : '';
 }
 
 export function browserAssetUrl(value: string | null | undefined) {
