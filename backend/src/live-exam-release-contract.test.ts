@@ -110,6 +110,14 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(realtimeRoute).toContain("res.set('Cache-Control','private, no-store')");
   });
 
+  it('keeps create retries idempotent and teacher transitions version-guarded',()=>{
+    const route=source('src/routes/live-exams.ts');
+    expect(route).toContain("runIdempotent(req, res, pool, operation)");
+    expect(route).toContain("expectedVersion: z.number().int().positive()");
+    expect(route).not.toContain("expectedVersion: z.number().int().positive().optional()");
+    expect(service).toContain('return this.snapshot(actor, sessionId, projector)');
+  });
+
   it('keeps state changes versioned so reconnecting clients can detect missed events',()=>{
     expect(schema).toContain('version bigint NOT NULL DEFAULT 1 CHECK (version > 0)');
     expect(schema).toContain('session_version bigint NOT NULL');
