@@ -6,7 +6,7 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
-import { portableVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -474,9 +474,10 @@ export class LiveExamService {
         this.markScheme(questionId),
       ]);
       if (!portable) throw new DomainError('live_question_not_ready', 409);
-      if (portable.contextBlocks.some(
-        (block) => block.assets.some((asset) => !portableVisualReady(asset)),
-      )) throw new DomainError('live_assets_unavailable', 409);
+      const sourceAssets=portable.contextBlocks.flatMap((block)=>block.assets);
+      if (!portableQuestionVisualReady(portable.leaf.contentJson,sourceAssets)) {
+        throw new DomainError('live_assets_unavailable', 409);
+      }
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
 
