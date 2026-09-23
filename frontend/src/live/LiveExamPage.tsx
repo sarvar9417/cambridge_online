@@ -470,8 +470,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
-function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null};onDone:()=>void}) {
-  const [selected,setSelected]=useState<Set<string>>(new Set());
+function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot;answer:LiveExamAnswer&{studentName:string;reviewId:string|null;reviewStatus:string|null;reviewMatchedPointIds?:string[]};onDone:()=>void}) {
+  const [selected,setSelected]=useState<Set<string>>(new Set(answer.reviewMatchedPointIds??[]));
   const [score,setScore]=useState(answer.score??0);
   const [levelNumber,setLevelNumber]=useState<number|undefined>();
   const [feedback,setFeedback]=useState(answer.feedback??'');
