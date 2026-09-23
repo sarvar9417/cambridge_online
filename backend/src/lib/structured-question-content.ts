@@ -59,7 +59,7 @@ const matchingBlockSchema = z.object({
 
 const assetBlockSchema = z.object({
   type: z.literal('asset'),
-  kind: z.enum(['diagram', 'image', 'flowchart', 'logic_circuit']),
+  kind: z.enum(['diagram', 'image', 'flowchart', 'logic_circuit', 'table', 'pseudocode', 'code']),
   assetId: z.string().uuid(),
   altText: z.string(),
   source: sourceLocationSchema,
