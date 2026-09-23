@@ -90,6 +90,15 @@ describe('live exam routes', () => {
     expect(response.body.error.code).toBe('internal_error');
   });
 
+  it('rejects stale-risk teacher score overrides without a session version', async () => {
+    const moderateAnswer=vi.fn();
+    await request(appFor({moderateAnswer}))
+      .put('/live-exams/22222222-2222-4222-8222-222222222222/answers/33333333-3333-4333-8333-333333333333/moderate')
+      .send({score:1})
+      .expect(400);
+    expect(moderateAnswer).not.toHaveBeenCalled();
+  });
+
   it('rejects teacher transitions that omit the authoritative session version', async () => {
     const start=vi.fn();
     await request(appFor({start}))
