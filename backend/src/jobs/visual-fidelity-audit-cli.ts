@@ -44,6 +44,20 @@ type AssetOccurrenceRow = {
   is_referenced: boolean;
 };
 
+type RendererTargetRow = {
+  occurrence_id: string;
+  question_id: string;
+  display_ref: string;
+  is_primary: boolean;
+  target_kind: 'question' | 'structured_block';
+  target_key: string;
+  block_index: number | null;
+  block_type: string | null;
+  block_kind: string | null;
+  asset_id: string | null;
+  source_page: number | null;
+};
+
 function argument(name: string) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -189,6 +203,275 @@ async function main() {
      left join referenced_assets ra on ra.asset_id=qa.id
      where qso.source_paper_id=$1
      order by qa.source_page nulls last,qso.display_ref,qa.sort_order,qa.id`,
+    [sourcePaperId],
+  );
+
+  const rendererTargets = await pool.query<RendererTargetRow>(
+    `with occurrence_questions as (
+       select
+         qso.id occurrence_id,
+         qso.question_id,
+         qso.display_ref,
+         qso.is_primary,
+         q.marks,
+         q.content_json
+       from question_source_occurrences qso
+       join questions q on q.id=qso.question_id
+       where qso.source_paper_id=$1
+     ),
+     question_targets as (
+       select
+         oq.occurrence_id,
+         oq.question_id,
+         oq.display_ref,
+         oq.is_primary,
+         'question'::text target_kind,
+         'question'::text target_key,
+         null::integer block_index,
+         null::text block_type,
+         null::text block_kind,
+         null::uuid asset_id,
+         coalesce((
+           select min(nullif(block->'source'->>'page','')::integer)
+           from jsonb_array_elements(coalesce(oq.content_json->'blocks','[]'::jsonb)) block
+           where nullif(block->'source'->>'page','') is not null
+         ),1) source_page
+       from occurrence_questions oq
+       where oq.marks is not null
+         and oq.marks > 0
+         and not exists (
+           select 1 from questions child where child.parent_id=oq.question_id
+         )
+     ),
+     block_targets as (
+       select
+         oq.occurrence_id,
+         oq.question_id,
+         oq.display_ref,
+         oq.is_primary,
+         'structured_block'::text target_kind,
+         ('block:' || (source_block.ordinality - 1)::text)::text target_key,
+         (source_block.ordinality - 1)::integer block_index,
+         source_block.block->>'type' block_type,
+         source_block.block->>'kind' block_kind,
+         case
+           when source_block.block->>'type'='asset'
+            and source_block.block->>'assetId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  const outputRoot = resolve(argument('--output-dir') ?? `tmp/visual-fidelity/${slug}`);
+  const pageDir = join(outputRoot, 'source-pages');
+  const assetDir = join(outputRoot, 'source-assets');
+  await mkdir(pageDir, { recursive: true });
+  await mkdir(assetDir, { recursive: true });
+
+  const pageEvidence = new Map<number, Awaited<ReturnType<typeof renderPng>>>();
+  const sourcePages = new Set<number>();
+  occurrences.rows
+    .filter((row) => row.is_primary && row.source_page !== null)
+    .forEach((row) => sourcePages.add(row.source_page!));
+  rendererTargets.rows
+    .filter((row) => row.is_primary && row.source_page !== null)
+    .forEach((row) => sourcePages.add(row.source_page!));
+
+  for (const page of [...sourcePages].sort((a, b) => a - b)) {
+    if (page < 1 || page > localPageCount) {
+      throw new Error(`visual_fidelity_asset_page_out_of_range:${page}/${localPageCount}`);
+    }
+    const pageRender = await renderPng({
+      sourcePdf: exactPdfPath,
+      page,
+      outputPrefix: join(pageDir, `page-${String(page).padStart(3, '0')}`),
+      dpi,
+    });
+    pageEvidence.set(page, pageRender);
+  }
+
+  const manifestRows: Array<Record<string, unknown>> = [];
+  for (const row of occurrences.rows) {
+    if (!row.is_primary) {
+      manifestRows.push({
+        occurrenceId: row.occurrence_id,
+        questionId: row.question_id,
+        displayRef: row.display_ref,
+        isPrimaryOccurrence: false,
+        assetId: row.asset_id,
+        kind: row.kind,
+        consumerState: row.is_referenced ? 'active' : 'dormant',
+        sourcePage: null,
+        sourceBbox: null,
+        sourceEvidence: null,
+        representations: {
+          storage: row.has_storage,
+          svg: row.has_svg,
+          latex: row.has_latex,
+          structuredMd: row.has_structured_md,
+        },
+        contentHash: row.content_hash,
+        cropStatus: row.crop_status,
+        classification: 'VF-5',
+        blocker: 'non_primary_occurrence_requires_occurrence_specific_source_mapping',
+        requiredSurfaces: row.is_referenced ? QP_REQUIRED_VISUAL_FIDELITY_SURFACES : [],
+      });
+      continue;
+    }
+
+    if (row.source_page === null) {
+      manifestRows.push({
+        occurrenceId: row.occurrence_id,
+        questionId: row.question_id,
+        displayRef: row.display_ref,
+        isPrimaryOccurrence: row.is_primary,
+        assetId: row.asset_id,
+        kind: row.kind,
+        consumerState: row.is_referenced ? 'active' : 'dormant',
+        sourcePage: null,
+        sourceBbox: null,
+        sourceEvidence: null,
+        representations: {
+          storage: row.has_storage,
+          svg: row.has_svg,
+          latex: row.has_latex,
+          structuredMd: row.has_structured_md,
+        },
+        contentHash: row.content_hash,
+        cropStatus: row.crop_status,
+        classification: 'VF-5',
+        blocker: 'source_page_missing',
+        requiredSurfaces: row.is_referenced ? QP_REQUIRED_VISUAL_FIDELITY_SURFACES : [],
+      });
+      continue;
+    }
+
+    const bbox = normalizeSourceBbox(row.source_bbox);
+    const pageRender = pageEvidence.get(row.source_page);
+    if (!pageRender) throw new Error(`visual_fidelity_source_page_not_rendered:${row.source_page}`);
+
+    let elementRender: Awaited<ReturnType<typeof renderPng>> | null = null;
+    if (bbox) {
+      elementRender = await renderPng({
+        sourcePdf: exactPdfPath,
+        page: row.source_page,
+        outputPrefix: join(assetDir, row.asset_id),
+        dpi,
+        bbox,
+      });
+    }
+
+    manifestRows.push({
+      occurrenceId: row.occurrence_id,
+      questionId: row.question_id,
+      displayRef: row.display_ref,
+      isPrimaryOccurrence: row.is_primary,
+      assetId: row.asset_id,
+      kind: row.kind,
+      consumerState: row.is_referenced ? 'active' : 'dormant',
+      sourcePage: row.source_page,
+      sourceBbox: bbox,
+      sourceEvidence: {
+        scope: elementRender ? 'bbox' : 'page',
+        pagePath: relative(outputRoot, pageRender.path),
+        pageSha256: pageRender.sha256,
+        elementPath: elementRender ? relative(outputRoot, elementRender.path) : null,
+        elementSha256: elementRender?.sha256 ?? null,
+        requiresManualLocate: !elementRender,
+      },
+      representations: {
+        storage: row.has_storage,
+        svg: row.has_svg,
+        latex: row.has_latex,
+        structuredMd: row.has_structured_md,
+      },
+      contentHash: row.content_hash,
+      cropStatus: row.crop_status,
+      classification: 'VF-5',
+      blocker: elementRender
+        ? 'product_surface_evidence_not_captured'
+        : 'source_bbox_missing_manual_localisation_required_without_ocr_guess',
+      requiredSurfaces: row.is_referenced ? QP_REQUIRED_VISUAL_FIDELITY_SURFACES : [],
+    });
+  }
+
+  const rendererTargetRows = rendererTargets.rows.map((row) => ({
+    occurrenceId: row.occurrence_id,
+    questionId: row.question_id,
+    displayRef: row.display_ref,
+    isPrimaryOccurrence: row.is_primary,
+    targetKind: row.target_kind,
+    targetKey: row.target_key,
+    blockIndex: row.block_index,
+    blockType: row.block_type,
+    blockKind: row.block_kind,
+    assetId: row.asset_id,
+    sourcePage: row.is_primary ? row.source_page : null,
+    classification: 'VF-5',
+    blocker: !row.is_primary
+      ? 'non_primary_occurrence_requires_occurrence_specific_source_mapping'
+      : row.source_page === null
+        ? 'renderer_target_source_page_missing'
+        : 'product_surface_evidence_not_captured',
+    requiredSurfaces: QP_REQUIRED_VISUAL_FIDELITY_SURFACES,
+  }));
+
+  const manifest = {
+    version: '9618-visual-fidelity-manifest-v2',
+    generatedAt: new Date().toISOString(),
+    source: {
+      sourcePaperId: source.id,
+      paperRef: paperRef(source),
+      sourceUrl: source.source_url,
+      sourcePdf: exactPdfPath,
+      expectedSha256: source.sha256,
+      actualSha256: localSha256,
+      expectedPageCount: source.page_count,
+      actualPageCount: localPageCount,
+      dpi,
+    },
+    summary: {
+      occurrenceCount: manifestRows.length,
+      activeOccurrenceCount: manifestRows.filter((row) => row.consumerState === 'active').length,
+      dormantOccurrenceCount: manifestRows.filter((row) => row.consumerState === 'dormant').length,
+      bboxEvidenceCount: manifestRows.filter(
+        (row) => (row.sourceEvidence as { scope?: string } | null)?.scope === 'bbox',
+      ).length,
+      manualLocalisationCount: manifestRows.filter(
+        (row) => (row.sourceEvidence as { requiresManualLocate?: boolean } | null)?.requiresManualLocate,
+      ).length,
+      rendererTargetCount: rendererTargetRows.length,
+      questionTargetCount: rendererTargetRows.filter((row) => row.targetKind === 'question').length,
+      structuredVisualTargetCount: rendererTargetRows.filter((row) => row.targetKind === 'structured_block').length,
+      nonPrimaryRendererTargetCount: rendererTargetRows.filter((row) => !row.isPrimaryOccurrence).length,
+    },
+    requiredQpSurfaces: QP_REQUIRED_VISUAL_FIDELITY_SURFACES,
+    rendererTargets: rendererTargetRows,
+    assetOccurrences: manifestRows,
+  };
+
+  await writeFile(join(outputRoot, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+  console.log(JSON.stringify(manifest, null, 2));
+}
+
+main()
+  .catch((error) => {
+    console.error(error instanceof Error ? error.stack ?? error.message : error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (pool) await pool.end().catch(() => undefined);
+  });
+
+           then (source_block.block->>'assetId')::uuid
+           else null::uuid
+         end asset_id,
+         nullif(source_block.block->'source'->>'page','')::integer source_page
+       from occurrence_questions oq
+       cross join lateral jsonb_array_elements(
+         coalesce(oq.content_json->'blocks','[]'::jsonb)
+       ) with ordinality as source_block(block,ordinality)
+       where source_block.block->>'type' in ('table','asset','code','matching','math','answer_area')
+     )
+     select * from question_targets
+     union all
+     select * from block_targets
+     order by display_ref,target_kind,target_key`,
     [sourcePaperId],
   );
 
