@@ -112,6 +112,7 @@ describe('LiveExamService source fidelity', () => {
     expect(selectionSql).toContain(') candidate');
     expect(selectionSql).toContain('order by md5(candidate.id::text || $1::text)');
     expect(selectionSql).toContain('selected_topic.id=any($3::uuid[])');
+    expect(selectionSql).toContain('previous.started_at is not null');
     expect(selectionCall?.[1]).toEqual([expect.any(String), input.classId, input.topicIds, input.questionCount]);
   });
 
