@@ -1,4 +1,4 @@
-import type { ExportMode, ExportQuestion, ExportSchemePoint } from './export-html.js';
+import type { ExportAsset, ExportMode, ExportQuestion, ExportSchemePoint } from './export-html.js';
 import { assertPortableAssetCoverage } from './export-html.js';
 import { structureQuestionText } from './question-structure.js';
 import type { StructuredQuestionBlock } from './structured-question-content.js';
@@ -45,10 +45,19 @@ function assetXml(content:string,kind:string,alt:string|null|undefined,ctx:Build
 function canonicalAssetIds(question:ExportQuestion){
   return new Set((question.contentJson?.blocks??[]).filter((block):block is Extract<StructuredQuestionBlock,{type:'asset'}>=>block.type==='asset').map(block=>block.assetId));
 }
+function structuredLegacyAssetSuperseded(question:ExportQuestion,asset:ExportAsset){
+  if(!question.contentJson||asset.sourcePage==null)return false;
+  if(asset.id&&canonicalAssetIds(question).has(asset.id))return true;
+  return question.contentJson.blocks.some(block=>
+    block.source.page===asset.sourcePage&&(
+      (asset.kind==='table'&&block.type==='table')
+      ||((asset.kind==='code'||asset.kind==='pseudocode')&&block.type==='code')
+    )
+  );
+}
 function contextXml(question:ExportQuestion,ctx:BuildContext){
-  const canonical=canonicalAssetIds(question);
   const blocks=(question.contextBlocks??[])
-    .map(block=>({...block,assets:(block.assets??[]).filter(asset=>!asset.id||!canonical.has(asset.id))}))
+    .map(block=>({...block,assets:(block.assets??[]).filter(asset=>!structuredLegacyAssetSuperseded(question,asset))}))
     .filter(block=>Boolean(block.context)||(block.assets?.length??0)>0);
   if(!blocks.length)return question.context?para(question.context):'';
   return blocks.map(block=>`${block.displayRef?para(block.displayRef,{bold:true}):''}${block.context?para(block.context):''}${(block.assets??[]).map(asset=>asset.contentMd?assetXml(asset.contentMd,asset.kind,asset.altText,ctx):'').join('')}`).join('');
