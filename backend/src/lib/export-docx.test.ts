@@ -80,6 +80,22 @@ describe('DOCX export',()=>{
     expect((text.match(/<w:drawing>/g)??[])).toHaveLength(1);
   });
 
+  it('does not duplicate a legacy table asset when canonical structured content replaces the same source page',()=>{
+    const legacy='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60"/></svg>';
+    const text=buildDocx('T',[{
+      displayRef:'Q8',stem:'Flattened tick grid',marks:3,
+      contentJson:{version:1,source,blocks:[
+        {type:'text',style:'task',text:'Tick one box in each row.',source:{page:16}},
+        {type:'table',kind:'tick_grid',headers:['Statement','AND','OR'],rows:[['A',null,null]],editableCells:[[0,1],[0,2]],source:{page:16}},
+      ]},
+      contextBlocks:[{assets:[{id:'33333333-3333-4333-8333-333333333333',kind:'table',sourcePage:16,contentMd:legacy,altText:'Legacy table'}]}],
+    }]).toString('utf8');
+    expect(text).toContain('Tick one box in each row.');
+    expect(text).toContain('<w:tbl>');
+    expect(text).not.toContain('word/media/diagram-1.svg');
+    expect(text).not.toContain('Legacy table');
+  });
+
   it('supports self-contained mark-scheme-only output',()=>{
     const text=buildDocx('MS',[{displayRef:'Q2',sourceRef:'old Q2',stem:'Question',context:'Shared source context',marks:2,schemeGuidance:'Award one mark per valid point.',points:[{code:'MP1',text:'First point',marks:1,accept:['equivalent']},{code:'MP2',text:'Second point',marks:1}]}],'mark_scheme').toString('utf8');
     expect(text).toContain('Mark Scheme');
