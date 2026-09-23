@@ -64,6 +64,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('questions: isStaff ? questionRows.rows.map');
     expect(service).toContain('participants: isStaff ? participants.map');
     expect(service).toContain('teacherAnswers = answerResult.rows.map');
+    expect(service).toContain('review_matched_point_ids');
+    expect(service).toContain('reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String)');
     expect(service).toContain("if (currentRow && isStaff && reveal)");
   });
 
