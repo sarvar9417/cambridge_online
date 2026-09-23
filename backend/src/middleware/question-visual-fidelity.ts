@@ -77,8 +77,19 @@ async function visualPresence(pool: Pool, ids: string[]) {
          qa.id is not null
          and qa.kind in ('diagram','image')
          and ${renderableVisualAssetSql('qa')}
+         and (
+           source_node.content_json is null
+           or source_node.content_version is distinct from 1
+           or exists(
+             select 1
+             from jsonb_array_elements(coalesce(source_node.content_json->'blocks','[]'::jsonb)) block
+             where block->>'type'='asset'
+               and block->>'assetId'=qa.id::text
+           )
+         )
        ) has_visual
      from chain c
+     join questions source_node on source_node.id=c.node_id
      left join question_assets qa on qa.question_id=c.node_id
      group by c.leaf_id`,
     [ids],
