@@ -256,7 +256,25 @@ async function main() {
          source_block.block->>'kind' block_kind,
          case
            when source_block.block->>'type'='asset'
-            and source_block.block->>'assetId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+            and source_block.block->>'assetId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           then (source_block.block->>'assetId')::uuid
+           else null::uuid
+         end asset_id,
+         nullif(source_block.block->'source'->>'page','')::integer source_page
+       from occurrence_questions oq
+       cross join lateral jsonb_array_elements(
+         coalesce(oq.content_json->'blocks','[]'::jsonb)
+       ) with ordinality as source_block(block,ordinality)
+       where source_block.block->>'type' in ('table','asset','code','matching','math','answer_area')
+     )
+     select * from question_targets
+     union all
+     select * from block_targets
+     order by display_ref,target_kind,target_key`,
+    [sourcePaperId],
+  );
+
+  const slug = paperRef(source).replaceAll('/', '-');
   const outputRoot = resolve(argument('--output-dir') ?? `tmp/visual-fidelity/${slug}`);
   const pageDir = join(outputRoot, 'source-pages');
   const assetDir = join(outputRoot, 'source-assets');
