@@ -32,6 +32,12 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('expectedVersion:snapshot.session.version');
   });
 
+  it('never submits peer/self reviews as if the teacher were the assigned reviewer',()=>{
+    expect(page).toContain("answer.reviewKind==='teacher'");
+    expect(page).toContain("const canOverride=snapshot.session.markingMode==='teacher'||snapshot.session.settings.teacherOverrideEnabled");
+    expect(page).toContain("teacherOwnsReview?'Bahoni tasdiqlash':canOverride?'Bahoni yangilash':'Teacher override o‘chirilgan'");
+  });
+
   it('uses the same diagram and seen-question filters in manual pool discovery and room creation',()=>{
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
