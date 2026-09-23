@@ -1,5 +1,6 @@
 import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
+import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-attempt-workspace.css';
 
@@ -45,12 +46,19 @@ export function StudentAttemptWorkspace({
   const answeredCount = attempt.questions.filter((item) => isAnswered(answers[item.id])).length;
   const timer = formatRemainingTime(remainingSeconds);
   const expired = remainingSeconds === 0;
-  const structuredPresent = question.contentJson != null;
+  const materializedContent = question.contentJson && question.contentVersion === 1
+    ? materializePortableSourceAssets(question.contentJson, question.sourceAssets ?? [])
+    : question.contentJson;
+  const effectiveAssetUrls = {
+    ...portableAssetsForContent(question.sourceAssets ?? []),
+    ...(question.assetUrls ?? {}),
+  };
+  const structuredPresent = materializedContent != null;
   const structuredValid = structuredPresent
     && question.contentVersion === 1
-    && structuredQuestionUsable(question.contentJson);
+    && structuredQuestionUsable(materializedContent);
   const structuredReady = structuredValid
-    && structuredQuestionAssetsReady(question.contentJson!, question.assetUrls ?? {});
+    && structuredQuestionAssetsReady(materializedContent!, effectiveAssetUrls);
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
 
@@ -117,10 +125,10 @@ export function StudentAttemptWorkspace({
           </div>
 
           <article className="saw-question">
-            {structuredReady && question.contentJson ? (
-              <StructuredQuestionView content={question.contentJson} assetUrls={question.assetUrls} />
+            {structuredReady && materializedContent ? (
+              <StructuredQuestionView content={materializedContent} assetUrls={effectiveAssetUrls} />
             ) : structuredPresent ? (
-              <StructuredQuestionView content={question.contentJson!} assetUrls={question.assetUrls} />
+              <StructuredQuestionView content={materializedContent!} assetUrls={effectiveAssetUrls} />
             ) : (
               <>
                 {question.contextMd && <AttemptContext value={question.contextMd} />}
