@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  portableSourceVisualAssetRenderable,
   renderableVisualAssetSql,
   sourceVisualAssetRenderable,
   unrenderableVisualAssetSql,
@@ -46,6 +47,21 @@ describe('source visual readiness', () => {
       contentMd:'| A | B |\n|---|---|\n|0|1|',
     })).toBe(false);
   });
+  it('requires a signed browser URL when a portable visual is storage-backed', () => {
+    expect(portableSourceVisualAssetRenderable({
+      kind:'diagram',
+      storagePath:'legacy/private.png',
+      url:null,
+      contentMd:null,
+    })).toBe(false);
+    expect(portableSourceVisualAssetRenderable({
+      kind:'diagram',
+      storagePath:'legacy/private.png',
+      url:'https://example.test/signed.png',
+      contentMd:null,
+    })).toBe(true);
+  });
+
 
   it('keeps SQL predicates aligned with storage, content SVG and svg_markup recovery', () => {
     const ready=renderableVisualAssetSql('asset');
@@ -53,7 +69,7 @@ describe('source visual readiness', () => {
     expect(ready).toContain("asset.storage_path");
     expect(ready).toContain("asset.content_md");
     expect(ready).toContain("asset.svg_markup");
-    expect(ready).toContain("<\\?xml");
+    expect(ready).toContain("<\\\\?xml");
     expect(broken).toContain('not');
   });
 });
