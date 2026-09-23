@@ -96,6 +96,28 @@ describe('DOCX export',()=>{
     expect(text).not.toContain('Legacy table');
   });
 
+  it('preserves grouped table headers with Word gridSpan and vertical merge',()=>{
+    const text=buildDocx('T',[{displayRef:'Q3(b)',stem:'Trace',marks:6,contentJson:{version:1,source,blocks:[{
+      type:'table',kind:'selection_grid',headers:['Instruction address','ACC','365','366','367','368','IX','Output'],
+      headerRows:[
+        [{text:'Instruction address',column:0,rowSpan:2},{text:'ACC',column:1,rowSpan:2},{text:'Memory address',column:2,colSpan:4},{text:'IX',column:6,rowSpan:2},{text:'Output',column:7,rowSpan:2}],
+        [{text:'365',column:2},{text:'366',column:3},{text:'367',column:4},{text:'368',column:5}],
+      ],rows:[[null,null,'1','3','65','66','0',null]],editableCells:[[0,0],[0,1],[0,7]],source:{page:9},
+    }]}}]).toString('utf8');
+    expect(text).toContain('<w:gridSpan w:val="4"/>');
+    expect(text).toContain('<w:vMerge w:val="restart"/>');
+    expect(text).toContain('<w:vMerge/>');
+    expect(text).toContain('Memory address');
+  });
+
+  it('embeds source-backed mark-scheme SVG visuals in DOCX',()=>{
+    const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect width="100" height="50"/></svg>';
+    const text=buildDocx('MS',[{displayRef:'Q8',stem:'Logic gate table',marks:3,schemeAssets:[{id:'11111111-1111-4111-8111-111111111111',kind:'table',contentMd:svg,altText:'Official completed logic table',sourcePage:10}],points:[{code:'MP1',text:'correct row',marks:1}]}],'mark_scheme').toString('utf8');
+    expect(text).toContain('word/media/diagram-1.svg');
+    expect(text).toContain('Official completed logic table');
+    expect(text).toContain('MP1');
+  });
+
   it('supports self-contained mark-scheme-only output',()=>{
     const text=buildDocx('MS',[{displayRef:'Q2',sourceRef:'old Q2',stem:'Question',context:'Shared source context',marks:2,schemeGuidance:'Award one mark per valid point.',points:[{code:'MP1',text:'First point',marks:1,accept:['equivalent']},{code:'MP2',text:'Second point',marks:1}]}],'mark_scheme').toString('utf8');
     expect(text).toContain('Mark Scheme');
