@@ -31,8 +31,9 @@ const svgDataUri=(value:string)=>`data:image/svg+xml;base64,${Buffer.from(value,
 const renderAsset=(a:ExportAsset)=>{let body='';if(a.contentMd){if(isSvg(a.contentMd))body=`<img class="asset-image" src="${svgDataUri(a.contentMd)}" alt="${esc(a.altText??a.kind)}"/>`;else body=markdownTable(a.contentMd)??`<pre>${esc(a.contentMd)}</pre>`}return `<div class="asset"><strong>${esc(a.kind)}</strong>${a.altText?`<span>${esc(a.altText)}</span>`:''}${a.sourcePage?`<small>Source page ${esc(a.sourcePage)}</small>`:''}${body}</div>`};
 function canonicalAssetIds(q:ExportQuestion){return new Set((q.contentJson?.blocks??[]).filter(block=>block.type==='asset').map(block=>block.type==='asset'?block.assetId:''))}
 function structuredLegacyAssetSuperseded(q:ExportQuestion,asset:ExportAsset){
-  if(!q.contentJson||asset.sourcePage==null)return false;
+  if(!q.contentJson)return false;
   if(asset.id&&canonicalAssetIds(q).has(asset.id))return true;
+  if(asset.sourcePage==null)return false;
   return q.contentJson.blocks.some(block=>
     block.source.page===asset.sourcePage&&(
       (asset.kind==='table'&&block.type==='table')
