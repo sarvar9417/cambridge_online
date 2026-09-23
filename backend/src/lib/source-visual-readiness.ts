@@ -14,10 +14,13 @@ function identifier(value:string){
  */
 export function renderableVisualAssetSql(alias='qa'){
   const a=identifier(alias);
+  const direct="^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)";
+  const fenced="^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)";
   return `(
     nullif(btrim(coalesce(${a}.storage_path,'')),'') is not null
-    or coalesce(${a}.content_md,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)'
-    or coalesce(${a}.svg_markup,'') ~* '^\\s*(<\\?xml[^>]*>\\s*)?<svg(?:\\s|>)'
+    or coalesce(${a}.content_md,'') ~* '${direct}'
+    or coalesce(${a}.content_md,'') ~* '${fenced}'
+    or coalesce(${a}.svg_markup,'') ~* '${direct}'
   )`;
 }
 
@@ -51,7 +54,10 @@ export function questionVisualIntegritySql(questionAlias='q'){
         left join question_assets qa on qa.id::text=block->>'assetId'
         where block->>'type'='asset'
           and block->>'kind' in ('diagram','image','flowchart','logic_circuit')
-          and (qa.id is null or not ${renderable})
+          and (
+            qa.id is null
+            or (qa.kind in ('diagram','image') and not ${renderable})
+          )
       )
     ) or (
       (source_node.content_json is null or source_node.content_version is distinct from 1)
@@ -77,9 +83,21 @@ export type PortableVisualLike={
 };
 
 /** Runtime equivalent of the SQL readiness rule for already-materialized DTOs. */
+export function extractCompleteInlineSvg(value:string|null|undefined){
+  let text=(value??'').replace(/^\uFEFF/,'').trim();
+  const fenced=text.match(/^```(?:svg|xml)\s*\r?\n([\s\S]*?)\r?\n```\s*$/i);
+  if(fenced)text=fenced[1]!.trim();
+  text=text.replace(/^<\?xml[^>]*\?>\s*/i,'');
+  return /^<svg(?:\s|>)/i.test(text)&&/<\/svg>\s*$/i.test(text)?text:null;
+}
+
 export function completeInlineSvg(value:string|null|undefined){
-  const text=(value??'').trim().replace(/^<\?xml[^>]*\?>\s*/i,'');
-  return /^<svg(?:\s|>)/i.test(text)&&/<\/svg>\s*$/i.test(text);
+  return extractCompleteInlineSvg(value)!==null;
+}
+
+export function sourceVisualDataUrl(value:string|null|undefined){
+  const svg=extractCompleteInlineSvg(value);
+  return svg?`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`:null;
 }
 
 export function portableVisualReady(asset:PortableVisualLike){
