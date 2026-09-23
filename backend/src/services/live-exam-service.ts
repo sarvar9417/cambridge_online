@@ -487,8 +487,8 @@ export class LiveExamService {
           const joinCode = String(randomInt(100000, 1000000));
           session = await client.query(
             `insert into live_exam_sessions(
-               class_id,host_id,title,join_code,join_code_expires_at,marking_mode,question_time_limit_s,settings
-             ) values($1,$2,$3,$4,now()+interval '24 hours',$5,$6,$7::jsonb)
+               class_id,host_id,title,join_code,marking_mode,question_time_limit_s,settings
+             ) values($1,$2,$3,$4,$5,$6,$7::jsonb)
              returning id,class_id,title,join_code,status,marking_mode,question_time_limit_s,version,created_at`,
             [input.classId, actor.id, input.title, joinCode, input.markingMode,
               input.questionTimeLimitS ?? null,
@@ -585,7 +585,11 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
-         where les.join_code=$1 and les.join_code_expires_at > now() and (
+         where les.join_code=$1
+           and coalesce(
+             (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
+             'infinity'::timestamptz
+           ) > now() and (
            les.status='lobby'
            or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
