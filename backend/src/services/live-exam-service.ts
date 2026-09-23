@@ -852,11 +852,11 @@ export class LiveExamService {
       const reportRows = await this.pool.query(
         `select leq.position,leq.marks,
            coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
-           a.answer_text,a.final_score,a.score_source::text,lep.student_id,u.full_name student_name
+           coalesce(a.answer_text,'') answer_text,a.final_score,a.score_source::text,lep.student_id,u.full_name student_name
          from live_exam_questions leq
-         join live_exam_answers a on a.session_question_id=leq.id
-         join live_exam_participants lep on lep.id=a.participant_id
+         join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
          join users u on u.id=lep.student_id
+         left join live_exam_answers a on a.session_question_id=leq.id and a.participant_id=lep.id
          where leq.session_id=$1 and ($2::boolean or lep.student_id=$3)
          order by leq.position,u.full_name`,
         [sessionId, isStaff, actor.id],
