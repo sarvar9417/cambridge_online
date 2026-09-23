@@ -458,7 +458,7 @@ export class PgQuestionsRepository {
          coalesce((
            select jsonb_agg(jsonb_build_object(
              'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',coalesce(qa.svg_markup,qa.content_md),
-             'altText',qa.alt_text,'sortOrder',qa.sort_order,'sourcePage',qa.source_page
+             'altText',qa.alt_text,'sortOrder',qa.sort_order,'sourcePage',qa.source_page,'cropStatus',qa.crop_status
            ) order by qa.sort_order,qa.id)
            from question_assets qa where qa.question_id=c.id
          ),'[]'::jsonb) assets
