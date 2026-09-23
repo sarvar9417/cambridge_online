@@ -37,6 +37,23 @@ describe('Live Exam client isolation and recovery',()=>{
     expect(headers.get('Authorization')).toBe('Bearer student-b-token');
   });
 
+  it('keeps projector snapshots on the safe event cursor path',async()=>{
+    const projectorPath=`${path}/projector`;
+    const snapshot={session:{version:5},participants:[],teacherAnswers:[]};
+    const fetchMock=vi.fn()
+      .mockResolvedValueOnce(json(200,snapshot))
+      .mockResolvedValueOnce(json(200,{currentVersion:5,changed:false,events:[]}));
+    vi.stubGlobal('fetch',fetchMock);
+    setAccessToken('teacher-token');
+
+    await expect(api(projectorPath)).resolves.toEqual(snapshot);
+    await expect(api(projectorPath)).resolves.toEqual(snapshot);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]![0])).toContain(`/live-exams/${sessionId}/events?afterVersion=5&limit=1`);
+    expect(String(fetchMock.mock.calls[1]![0])).not.toContain('/projector/events');
+  });
+
   it('forces an authoritative full snapshot after the recovery window even without an event hint',async()=>{
     let now=1_000_000;
     vi.spyOn(Date,'now').mockImplementation(()=>now);
