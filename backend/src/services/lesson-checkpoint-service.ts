@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
+import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
 
 export type LessonCheckpointAsset = {
   id: string;
@@ -137,7 +138,7 @@ export class LessonCheckpointService {
            select 1
            from question_assets qa
            where qa.question_id in (q.id,parent.id)
-             and qa.kind in ('diagram','image')
+             and ${renderableVisualAssetSql('qa')}
          ) has_diagram,
          exists(
            select 1 from question_dependencies qd where qd.question_id=q.id
