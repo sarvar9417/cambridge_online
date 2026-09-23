@@ -85,4 +85,40 @@ describe('student attempt source-backed question delivery',()=>{
     expect(url).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
     expect(decodeURIComponent(url!.split(',')[1]!)).toContain('<svg');
   });
+  it('carries semantic table assets so legacy image-shaped blocks can be materialized in the browser',async()=>{
+    const assetId='66666666-6666-4666-8666-666666666666';
+    const table='| A | B | X |\n| --- | --- | --- |\n| 0 | 0 | 1 |\n| 0 | 1 | |';
+    const content={
+      version:1,
+      source:{paperId:'11111111-1111-4111-8111-111111111111',sha256:'e'.repeat(64)},
+      blocks:[{type:'asset',kind:'image',assetId,altText:'Truth table',source:{page:4}}],
+    };
+    const query=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:null,rows:[]};
+      if(sql.includes('select a.*,existing.late_granted_until'))return{rowCount:1,rows:[{
+        id:'assignment-3',opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:null,
+      }]};
+      if(sql.includes('insert into submissions'))return{rowCount:1,rows:[{
+        id:'submission-3',status:'in_progress',started_at:new Date('2026-09-04T10:00:00Z'),time_extension_min:0,
+      }]};
+      if(sql.includes('q.content_json,q.content_version'))return{rowCount:1,rows:[{
+        id:'77777777-7777-4777-8777-777777777777',display_ref:'9618/11/M/J/21 Q3(b)',stem_md:'Complete the table.',
+        context_md:null,parent_context:null,command_word:'Complete',marks:2,answer_kind:'table',answer_text:'',
+        content_json:content,content_version:1,
+      }]};
+      if(sql.includes('from question_assets'))return{rowCount:1,rows:[{
+        id:assetId,kind:'table',storage_path:null,content_md:table,alt_text:'Truth table',source_page:4,
+      }]};
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    });
+    const client={query,release:vi.fn()};
+    const pool={connect:vi.fn().mockResolvedValue(client)} as unknown as Pool;
+
+    const attempt=await new AssignmentsService(pool).start(student,'assignment-3','session-3');
+    expect(attempt.questions[0]?.assetUrls).toEqual({});
+    expect(attempt.questions[0]?.sourceAssets).toEqual([{
+      id:assetId,kind:'table',url:null,contentMd:table,altText:'Truth table',sourcePage:4,
+    }]);
+  });
+
 });
