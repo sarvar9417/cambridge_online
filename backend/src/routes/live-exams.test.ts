@@ -38,6 +38,15 @@ describe('live exam routes', () => {
     expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222');
   });
 
+  it('routes projector snapshots through the privacy-scoped service view', async () => {
+    const snapshot=vi.fn().mockResolvedValue({session:{version:4},participants:[],teacherAnswers:[]});
+    const response=await request(appFor({snapshot}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/projector')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',true);
+  });
+
   it('keeps /join above the UUID session route', async () => {
     const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
     const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
