@@ -36,8 +36,8 @@ with visual_assets as (
     sp.page_count,
     case
       when nullif(btrim(coalesce(qa.storage_path,'')),'') is not null then 'storage_backed'
-      when coalesce(qa.content_md,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)' then 'content_svg'
-      when coalesce(qa.svg_markup,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)' then 'svg_markup'
+      when coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)' then 'content_svg'
+      when coalesce(qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)' then 'svg_markup'
       when nullif(btrim(coalesce(qa.latex_source,'')),'') is not null
         and nullif(btrim(coalesce(sp.storage_path,'')),'') is not null
         and qa.source_page is not null then 'recoverable_from_latex'
@@ -102,21 +102,24 @@ with referenced as (
   left join source_papers sp on sp.id=r.source_paper_id
 )
 select
-  count(*) referenced_visual_blocks,
-  count(*) filter(where question_status='approved') approved_referenced_visual_blocks,
+  count(*) referenced_asset_blocks,
+  count(*) filter(where db_kind in ('diagram','image')) referenced_visual_assets,
+  count(*) filter(where db_kind in ('table','pseudocode','code')) referenced_semantic_assets,
   count(*) filter(where resolved_asset_id is null) missing_asset_rows,
   count(*) filter(
-    where resolved_asset_id is not null
+    where db_kind in ('diagram','image')
       and nullif(btrim(coalesce(storage_path,'')),'') is null
-      and not(coalesce(content_md,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
-      and not(coalesce(svg_markup,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
+      and not(coalesce(content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+      and not(coalesce(content_md,'') ~* '^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+      and not(coalesce(svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
   ) unresolved_referenced_visuals,
   count(*) filter(
     where question_status='approved'
-      and resolved_asset_id is not null
+      and db_kind in ('diagram','image')
       and nullif(btrim(coalesce(storage_path,'')),'') is null
-      and not(coalesce(content_md,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
-      and not(coalesce(svg_markup,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
+      and not(coalesce(content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+      and not(coalesce(content_md,'') ~* '^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+      and not(coalesce(svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
   ) unresolved_approved_referenced_visuals
 from resolved;
 
@@ -153,9 +156,11 @@ left join question_assets qa on qa.id::text=r.asset_id
 left join source_papers sp on sp.id=r.source_paper_id
 where qa.id is null
    or (
-     nullif(btrim(coalesce(qa.storage_path,'')),'') is null
-     and not(coalesce(qa.content_md,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
-     and not(coalesce(qa.svg_markup,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
+     qa.kind in ('diagram','image')
+     and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
+     and not(coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+     and not(coalesce(qa.content_md,'') ~* '^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+     and not(coalesce(qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
    )
 order by r.question_status,r.display_ref,r.asset_id;
 
@@ -177,8 +182,8 @@ with orphan_unready as (
   left join source_papers sp on sp.id=q.source_paper_id
   where qa.kind in ('diagram','image')
     and nullif(btrim(coalesce(qa.storage_path,'')),'') is null
-    and not(coalesce(qa.content_md,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
-    and not(coalesce(qa.svg_markup,'') ~* '^\s*(<\?xml[^>]*>\s*)?<svg(?:\s|>)')
+    and not(coalesce(qa.content_md,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
+    and not(coalesce(qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)')
     and not exists (
       select 1
       from jsonb_array_elements(coalesce(q.content_json->'blocks','[]'::jsonb)) block
