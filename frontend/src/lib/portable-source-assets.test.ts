@@ -19,17 +19,29 @@ describe('portable source assets',()=>{
     expect(url).toMatch(/^data:image\/svg\+xml/);
     expect(decodeURIComponent(url!.split(',')[1]!)).toContain('<svg');
   });
+  it('renders XML-declared SVG markup produced by canonical source conversion',()=>{
+    const url=portableAssetUrl({
+      id:assetId,
+      kind:'diagram',
+      contentMd:'<?xml version="1.0" encoding="UTF-8"?>\n<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+    });
+    expect(url).toMatch(/^data:image\/svg\+xml/);
+    const decoded=decodeURIComponent(url!.split(',')[1]!);
+    expect(decoded).toMatch(/^<svg/);
+    expect(decoded).not.toContain('<?xml');
+  });
+
 
   it('renders fenced SVG repairs as an image instead of exposing the SVG source',()=>{
     const url=portableAssetUrl({
       id:assetId,
       kind:'diagram',
-      contentMd:'```svg\n<svg xmlns="http://www.w3.org/2000/svg" width="620" height="250"><rect width="10" height="10"/></svg>\n```',
+      contentMd:'\`\`\`svg\n<svg xmlns="http://www.w3.org/2000/svg" width="620" height="250"><rect width="10" height="10"/></svg>\n\`\`\`',
     });
     expect(url).toMatch(/^data:image\/svg\+xml/);
     const decoded=decodeURIComponent(url!.split(',')[1]!);
     expect(decoded).toMatch(/^<svg/);
-    expect(decoded).not.toContain('```');
+    expect(decoded).not.toContain('\`\`\`');
   });
 
   it('rejects partial SVG or SVG mixed with trailing prose so markup cannot leak into a visual path',()=>{
@@ -72,7 +84,7 @@ describe('portable source assets',()=>{
       contentMd:'<svg viewBox="0 0 100 40"><path d="M0 0H100V40H0Z"/></svg>',
     }]);
     expect(next.blocks[0]?.type).toBe('asset');
-    expect(portableAssetUrl({id:assetId,kind:'table',contentMd:'<svg viewBox="0 0 1 1"></svg>'})).toMatch(/^data:image\/svg\+xml/);
+    expect(portableAssetUrl({id:assetId,kind:'table',contentMd:'<svg viewBox="0 0 1 1"></svg>'})).toMatch(/^data:image\\/svg\\+xml/);
   });
 
   it('upgrades a legacy generic asset block that points at a semantic table',()=>{
@@ -84,6 +96,18 @@ describe('portable source assets',()=>{
     if(next.blocks[0]?.type==='table'){
       expect(next.blocks[0].headers).toEqual(['A','X']);
       expect(next.blocks[0].editableCells).toEqual([[0,1],[1,1]]);
+    }
+  });
+
+  it('upgrades a legacy image-shaped asset block that points at pseudocode',()=>{
+    const next=materializePortableSourceAssets(content,[{
+      id:assetId,kind:'pseudocode',altText:'Source pseudocode',
+      contentMd:'\`\`\`pseudocode\nINPUT X\nOUTPUT X\n\`\`\`',
+    }]);
+    expect(next.blocks[0]?.type).toBe('code');
+    if(next.blocks[0]?.type==='code'){
+      expect(next.blocks[0].language).toBe('pseudocode');
+      expect(next.blocks[0].text).toBe('INPUT X\nOUTPUT X');
     }
   });
 });
