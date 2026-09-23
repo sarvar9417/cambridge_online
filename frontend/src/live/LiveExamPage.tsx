@@ -15,6 +15,11 @@ import {
 } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
 import { LatexQuestionText } from '../lib/latex-question-text';
+import {
+  materializePortableSourceAssets,
+  portableAssetsForContent,
+  portableAssetUrl,
+} from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import {
   StructuredQuestionView,
@@ -128,18 +133,26 @@ function useLiveSnapshot(sessionId:string,projector=false) {
 }
 
 function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][number]['assets'][number]}) {
+  const url=portableAssetUrl(asset);
+  const semanticText=asset.contentMd?.trim();
+  const canShowAsText=asset.kind==='code'||asset.kind==='pseudocode'||asset.kind==='table';
   return <figure className="live-asset">
-    {asset.url?<img src={asset.url} alt={asset.altText||'Cambridge source diagram'} />:
-      asset.contentMd?<pre>{asset.contentMd}</pre>:<div role="alert">Diagramma yuklanmadi.</div>}
+    {url?<img src={url} alt={asset.altText||'Cambridge source diagram'} />:
+      semanticText&&canShowAsText?<pre>{semanticText}</pre>:
+        <div className="live-asset-missing" role="alert">
+          {asset.altText||'Original Cambridge diagrammasi yuklanmadi.'}
+        </div>}
     {asset.altText?<figcaption>{asset.altText}</figcaption>:null}
   </figure>;
 }
 
 function LiveQuestionView({question}:{question:LiveExamQuestion}) {
   const portable=question.portable;
-  const content=portable.leaf.contentJson;
-  const assetUrls=useMemo(()=>Object.fromEntries(portable.contextBlocks.flatMap((block)=>
-    block.assets.filter((asset)=>Boolean(asset.url)).map((asset)=>[asset.id,asset.url!] as const))),[portable]);
+  const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
+  const content=useMemo(()=>portable.leaf.contentJson
+    ?materializePortableSourceAssets(portable.leaf.contentJson,assets)
+    :null,[assets,portable.leaf.contentJson]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
   const structured=content&&structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls);
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
