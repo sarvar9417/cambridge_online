@@ -39,6 +39,14 @@ describe('question asset fidelity helpers', () => {
     expect(url).toContain('%3Csvg');
     expect(url).not.toContain('<svg');
   });
+  it('uses the same fenced SVG compatibility rules across DOM-enhanced surfaces', () => {
+    const fenced='\`\`\`svg\n<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>\n\`\`\`';
+    expect(isSvgAsset(fenced)).toBe(true);
+    const url=svgAssetDataUrl(fenced);
+    expect(decodeURIComponent(url.split(',')[1]!)).toMatch(/^<svg/);
+    expect(decodeURIComponent(url.split(',')[1]!)).not.toContain('\`\`\`');
+  });
+
 
   it('decodes a server-projected signed storage URL', () => {
     const url = 'https://project.supabase.co/storage/v1/object/sign/question-assets/a.png?token=temp';
