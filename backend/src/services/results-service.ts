@@ -92,18 +92,30 @@ export class ResultsService {
       for(const id of assetIds(content))referencedAssets.add(id);
     }
     const signedAssetUrls:Record<string,string>={};
+    const sourceAssetsById=new Map<string,{
+      id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null
+    }>();
     if(referencedAssets.size){
       const assets=await this.pool.query(
-        `select id,storage_path,coalesce(svg_markup,content_md) source_markup
+        `select id,kind,storage_path,coalesce(svg_markup,content_md) source_markup,alt_text,source_page
          from question_assets where id=any($1::uuid[])`,
         [[...referencedAssets]],
       );
       await Promise.all(assets.rows.map(async(row)=>{
         const inline=sourceVisualDataUrl(row.source_markup);
-        if(inline){signedAssetUrls[row.id]=inline;return;}
-        if(!row.storage_path||!this.assetUrlSigner)return;
-        const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
-        if(url)signedAssetUrls[row.id]=url;
+        if(inline)signedAssetUrls[row.id]=inline;
+        else if(row.storage_path&&this.assetUrlSigner){
+          const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
+          if(url)signedAssetUrls[row.id]=url;
+        }
+        sourceAssetsById.set(String(row.id),{
+          id:String(row.id),
+          kind:String(row.kind),
+          url:signedAssetUrls[row.id]??null,
+          contentMd:row.source_markup?String(row.source_markup):null,
+          altText:row.alt_text?String(row.alt_text):'',
+          sourcePage:row.source_page==null?null:Number(row.source_page),
+        });
       }));
     }
 
@@ -114,10 +126,13 @@ export class ResultsService {
           .filter((id)=>Boolean(signedAssetUrls[id]))
           .map((id)=>[id,signedAssetUrls[id]!] as const),
       );
+      const sourceAssets=assetIds(content)
+        .map((id)=>sourceAssetsById.get(id))
+        .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
       return {
         gradingId: row.grading_id, appealStatus: row.appeal_status, displayRef: row.display_ref, stemMd: row.stem_md, marks: row.marks, answerText: row.text,
         finalScore: Number(row.final_score), feedback: row.teacher_feedback_md, points: row.points,
-        contentJson:content,contentVersion:content?1:null,assetUrls:rowAssetUrls,
+        contentJson:content,contentVersion:content?1:null,assetUrls:rowAssetUrls,sourceAssets,
         practiceTargets: Array.isArray(row.practice_targets) ? row.practice_targets : [],
       };
     });
