@@ -41,7 +41,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0193_durable_rate_limits.sql",
+    "latest_migration": "0194_verified_source_visual_recovery.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
@@ -1402,3 +1402,24 @@ Resolve these in the product decision log with date/owner and change acceptance 
 - [ ] Final report names **implemented, verified, partly verified, blocked and out-of-scope** items separately; every claim links to evidence; `main` merge and production deployment status are recorded independently.
 
 **AI handoff record template for every completed item:** `ID | user-facing result | original requirement | current SHA | touched paths/migrations | before evidence | after evidence | exact test/browser/DB results | source-fidelity reviewer | security/role reviewer | commit/PR | remaining risk | status`. If a field is unknown, write `UNKNOWN` and a next action. A corrected code path without its acceptance evidence remains **partially completed**.
+
+
+## Source Visual Recovery — 2026-09-23
+
+### Audit xulosasi
+
+Dastlabki query 65 ta `diagram/image` assetda `storage_path` va `content_md` SVG yo‘qligini ko‘rsatgan. Chuqur audit `svg_markup`ni ham hisobga olganda bu guruh quyidagicha ajraldi:
+
+- 60 ta asset allaqachon source-backed SVG bilan renderable; universal renderer direct SVG, XML-prefixed SVG va fenced SVG/XML formatlarini bir xil qabul qiladi.
+- 4 ta approved Cambridge asset source QP SHA-256 bilan tekshirildi va aniq source page asosida tiklanishi kerak: `9618/22/O/N/22 Q2(b)`, `9618/31/O/N/22 Q4`, `9618/31/O/N/22 Q7(a)`, `9618/31/O/N/22 Q7(b)`.
+- 1 ta `LEGACY/9618/11/M/J/26 Q19(a)` asset archived va verifiable source yo‘q. Uni source-faithful deb invent qilish taqiqlanadi; quarantine holati saqlanadi.
+
+### Professional closure qoidalari
+
+1. Visual row mavjudligi yetarli emas; learner-facing oqim faqat renderable source visualni qabul qiladi.
+2. Renderable visual: private storage object yoki valid direct/fenced/XML-prefixed SVG (`content_md` yoki `svg_markup`).
+3. Prose placeholder, partial SVG yoki bo‘sh visual learner flowga tushmaydi.
+4. Live Challenge, smart paper generator, Question Bank va Lesson checkpoint bir xil readiness predicate ishlatadi.
+5. 4 verified repair existing question/asset IDlarni saqlaydi va exact source-paper SHA bilan guard qilinadi.
+6. Source repair productionga faqat renderer deployment READY bo‘lgandan keyin targetlangan migration sifatida qo‘llanadi; blanket `npm run db:migrate` ishlatilmaydi.
+7. Yakuniy acceptance: approved/student-eligible corpusda 0 ta unrenderable required visual, learner UI’da 0 ta raw SVG/XML, archived unverifiable legacy asset promotion = 0.
