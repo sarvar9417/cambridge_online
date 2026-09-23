@@ -21,6 +21,20 @@ describe('structured question HTML export',()=>{
     expect(html).toContain('data-source-page="4"');
   });
 
+  it('exports grouped Cambridge headers with colspan and rowspan',()=>{
+    const html=renderStructuredQuestionHtml({version:1,source,blocks:[{
+      type:'table',kind:'selection_grid',headers:['Instruction address','ACC','365','366','367','368','IX','Output'],
+      headerRows:[
+        [{text:'Instruction address',column:0,rowSpan:2},{text:'ACC',column:1,rowSpan:2},{text:'Memory address',column:2,colSpan:4},{text:'IX',column:6,rowSpan:2},{text:'Output',column:7,rowSpan:2}],
+        [{text:'365',column:2},{text:'366',column:3},{text:'367',column:4},{text:'368',column:5}],
+      ],
+      rows:[[null,null,'1','3','65','66','0',null]],editableCells:[[0,0],[0,1],[0,7]],source:location,
+    }]});
+    expect(html).toContain('colspan="4"');
+    expect(html).toContain('rowspan="2"');
+    expect(html).toContain('Memory address');
+  });
+
   it('keeps matching columns semantically separate',()=>{
     const html=renderStructuredQuestionHtml({
       version:1,source,blocks:[{
