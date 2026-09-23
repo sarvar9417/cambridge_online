@@ -76,7 +76,23 @@ function renderTable(asset: Element, source: Element, value: string) {
   table.className = `structured-question-table structured-question-${block.kind.replaceAll('_', '-')}`;
   table.dataset.questionBlock = 'table';
   table.dataset.tableKind = block.kind;
-  if (block.headers.length) {
+  if (block.headerRows?.length) {
+    const thead = document.createElement('thead');
+    for (const headerRow of block.headerRows) {
+      const row = document.createElement('tr');
+      for (const header of headerRow) {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = header.text;
+        th.dataset.column = String(header.column);
+        if ((header.colSpan ?? 1) > 1) th.colSpan = header.colSpan ?? 1;
+        if ((header.rowSpan ?? 1) > 1) th.rowSpan = header.rowSpan ?? 1;
+        row.append(th);
+      }
+      thead.append(row);
+    }
+    table.append(thead);
+  } else if (block.headers.length) {
     const thead = document.createElement('thead');
     const row = document.createElement('tr');
     for (const header of block.headers) {
