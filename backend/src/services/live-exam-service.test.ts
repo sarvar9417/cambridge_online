@@ -85,6 +85,10 @@ describe('LiveExamService source fidelity', () => {
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).toContain('with recursive source_visual_chain');
+    expect(selectionSql).toContain("coalesce(qa.svg_markup,'')");
+    expect(selectionSql).toContain("qa.kind in ('diagram','image')");
+
   });
 
   it('excludes diagrams inherited from any parent context when diagrams are disabled', async () => {

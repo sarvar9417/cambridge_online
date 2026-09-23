@@ -1,4 +1,5 @@
 import type { StructuredQuestionContent } from './structured-question-content';
+import type { PortableSourceAsset } from './portable-source-assets';
 
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/projector)?$/i;
@@ -138,13 +139,13 @@ export interface User { id: string; fullName: string; role: 'owner'|'teacher'|'s
 export interface ClassItem { id:string; name:string; grade:number|null; level:'AS'|'A2'; academicYear:string; studentCount:number }
 export interface Question { id:string; displayRef:string; stemMd:string; commandWord:string; marks:number; ao:string; answerKind:string }
 export interface Assignment {id:string;classId:string;title:string;mode:string;className:string;totalMarks:number;opensAt:string|null;dueAt:string|null;timeLimitMin:number|null;publishedAt:string|null;submissionStatus:string|null;classSize:number;submittedCount:number;pendingGrading:number}
-export interface AttemptQuestion {id:string;displayRef:string;stemMd:string;contextMd:string;commandWord:string;marks:number;answerKind:string;answerText:string;contentJson?:StructuredQuestionContent|null;contentVersion?:1|null;assetUrls?:Record<string,string>}
+export interface AttemptQuestion {id:string;displayRef:string;stemMd:string;contextMd:string;commandWord:string;marks:number;answerKind:string;answerText:string;contentJson?:StructuredQuestionContent|null;contentVersion?:1|null;assetUrls?:Record<string,string>;sourceAssets?:PortableSourceAsset[]}
 export interface Attempt {submissionId:string;activeSessionId:string;startedAt:string;deadline:string|null;serverNow:string;questions:AttemptQuestion[]}
 export interface GradingPoint {id:string;code:string;text:string;matched:boolean|null;marks:number}
 export interface GradingItem {id:string;text:string;displayRef:string;stemMd:string;marks:number;answerKind:string;studentName:string;points:GradingPoint[]}
 export interface ResultItem {id:string;title:string;className:string;studentName:string;totalScore:number;totalMax:number;percentage:number;grade:string|null;releasedAt:string}
 export interface PracticeTarget {subtopicId:string;code:string;title:string}
-export interface ResultDetail {gradingId:string;appealStatus:'open'|'accepted'|'rejected'|null;displayRef:string;stemMd:string;marks:number;answerText:string;finalScore:number;feedback:string|null;points:Array<{code:string;text:string;matched:boolean;marks:number}>;contentJson?:StructuredQuestionContent|null;contentVersion?:1|null;assetUrls?:Record<string,string>;practiceTargets?:PracticeTarget[]}
+export interface ResultDetail {gradingId:string;appealStatus:'open'|'accepted'|'rejected'|null;displayRef:string;stemMd:string;marks:number;answerText:string;finalScore:number;feedback:string|null;points:Array<{code:string;text:string;matched:boolean;marks:number}>;contentJson?:StructuredQuestionContent|null;contentVersion?:1|null;assetUrls?:Record<string,string>;sourceAssets?:PortableSourceAsset[];practiceTargets?:PracticeTarget[]}
 export interface AppealItem {id:string;gradingId:string;reason:string;createdAt:string;studentName:string;displayRef:string;stemMd:string;answerText:string;finalScore:number;marks:number}
 export interface MasteryItem {subtopic_id:string;code:string;title:string;score:number;attempts:number;marksEarned:number;marksPossible:number;compatibilityMapped?:boolean;practiceQuestionCount?:number;practiceReady?:boolean}
 export interface CommandWordProgress {commandWord:string;percentage:number;sampleSize:number}

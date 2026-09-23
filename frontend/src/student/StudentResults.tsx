@@ -1,5 +1,6 @@
 import type { PracticeTarget, ResultDetail, ResultItem, User } from '../lib/api';
 import { navigate } from '../lib/router';
+import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
 import './student-results.css';
 import './student-results-remediation.css';
@@ -64,13 +65,20 @@ export function StudentResults({
       <ol className="sr-questions">{detail.map((item)=>{
         const full=item.finalScore===item.marks;
         const zero=item.finalScore===0;
-        const structuredPresent=item.contentJson!=null;
-        const structuredValid=structuredPresent&&item.contentVersion===1&&structuredQuestionUsable(item.contentJson);
-        const structuredReady=structuredValid&&structuredQuestionAssetsReady(item.contentJson!,item.assetUrls??{});
+        const materializedContent=item.contentJson&&item.contentVersion===1
+          ?materializePortableSourceAssets(item.contentJson,item.sourceAssets??[])
+          :item.contentJson;
+        const effectiveAssetUrls={
+          ...portableAssetsForContent(item.sourceAssets??[]),
+          ...(item.assetUrls??{}),
+        };
+        const structuredPresent=materializedContent!=null;
+        const structuredValid=structuredPresent&&item.contentVersion===1&&structuredQuestionUsable(materializedContent);
+        const structuredReady=structuredValid&&structuredQuestionAssetsReady(materializedContent!,effectiveAssetUrls);
         const targetsForQuestion=item.practiceTargets??[];
         return <li key={item.gradingId} className="sr-question">
           <div className="sr-question-head"><span className="sr-ref">{item.displayRef}</span>{structuredReady?<span className="sr-source-backed">Source-backed</span>:null}<span className={`sr-mark ${full?'is-full':zero?'is-zero':'is-part'}`}>{item.finalScore}/{item.marks}</span></div>
-          {structuredPresent?<div className="sr-structured-question"><StructuredQuestionView content={item.contentJson!} assetUrls={item.assetUrls}/></div>:<p className="sr-stem">{item.stemMd}</p>}
+          {structuredPresent?<div className="sr-structured-question"><StructuredQuestionView content={materializedContent!} assetUrls={effectiveAssetUrls}/></div>:<p className="sr-stem">{item.stemMd}</p>}
           <div className="sr-answer"><span className="sr-answer-label">Sening javobing</span><blockquote>{item.answerText||'Javob yozilmagan'}</blockquote></div>
           {item.feedback?<div className="sr-feedback"><span className="sr-feedback-label">Izoh</span><p>{item.feedback}</p></div>:null}
           {item.points.length?<div className="sr-points"><span className="sr-points-label">Ball taqsimoti</span>{item.points.map((point)=><div className={`sr-point${point.matched?' is-awarded':''}`} key={point.code}><span className="sr-point-mark" aria-hidden="true">{point.matched?'✓':'×'}</span><span className="sr-point-text">{point.text}</span><span className="sr-point-marks">{point.matched?`+${point.marks}`:'0'}</span></div>)}</div>:null}

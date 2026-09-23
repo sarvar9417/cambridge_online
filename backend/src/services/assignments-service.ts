@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
@@ -27,6 +28,7 @@ export class AssignmentsService {
          join mark_schemes ms on ms.question_id=q.id and ms.status='approved'
          where qs.subtopic_id=$1 and q.status='approved' and q.parent_id is not null
            and q.marks is not null and q.answer_kind not in('diagram','image')
+           and ${questionVisualIntegritySql('q')}
            and($2::text is null or q.command_word::text=$2)
          order by md5(q.id::text||$3||current_date::text) limit 5`,
         [input.subtopicId,input.commandWord??null,actor.id],
@@ -56,7 +58,7 @@ export class AssignmentsService {
     const client=await this.pool.connect();try{await client.query('begin');
       const visible=await client.query(`select 1 from classes c where c.id=$1 and (($2='owner' and c.school_id=$3) or ($2='teacher' and(c.owner_id=$4 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4))))`,[input.classId,actor.role,actor.schoolId,actor.id]);
       if(!visible.rowCount)throw new DomainError('not_found',404);
-      const marks=await client.query(`select count(*)::int count,coalesce(sum(marks),0)::int total from questions where id=any($1::uuid[]) and status in('approved','manual') and parent_id is not null`,[input.questionIds]);
+      const marks=await client.query(`select count(*)::int count,coalesce(sum(q.marks),0)::int total from questions q where q.id=any($1::uuid[]) and q.status in('approved','manual') and q.parent_id is not null and ${questionVisualIntegritySql('q')}`,[input.questionIds]);
       if(marks.rows[0].count!==input.questionIds.length)throw new DomainError('invalid_questions',400);
       const assignment=await client.query(`insert into assignments(class_id,created_by,title,instructions_md,total_marks,opens_at,due_at,time_limit_min,published_at) values($1,$2,$3,$4,$5,now(),$6,$7,now()) returning id,title,total_marks`,[input.classId,actor.id,input.title,input.instructions??null,marks.rows[0].total,input.dueAt??null,input.timeLimitMin??null]);
       for(const [index,id]of input.questionIds.entries())await client.query(`insert into assignment_questions(assignment_id,question_id,sort_order)values($1,$2,$3)`,[assignment.rows[0].id,id,index+1]);
@@ -142,19 +144,35 @@ export class AssignmentsService {
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
       const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
       const assetRows=assetIds.length
-        ? (await client.query(`select id,storage_path from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+        ? (await client.query(`select id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
+           from question_assets where id=any($1::uuid[])`,[assetIds])).rows
         : [];
       await client.query('commit');
 
       const signedAssetUrls:Record<string,string>={};
-      if(this.assetUrlSigner){
-        await Promise.all(assetRows.map(async(row)=>{
-          if(!row.storage_path)return;
-          const url=await this.assetUrlSigner!.signStoragePath(row.storage_path,300);
-          if(url)signedAssetUrls[row.id]=url;
-        }));
-      }
-      const questions=qr.rows.map((row)=>serializeAttemptQuestion(row,signedAssetUrls));
+      await Promise.all(assetRows.map(async(row)=>{
+        if(row.storage_path&&this.assetUrlSigner){
+          const url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
+          if(url){signedAssetUrls[row.id]=url;return;}
+        }
+        const inline=sourceVisualDataUrl(row.content_md);
+        if(inline)signedAssetUrls[row.id]=inline;
+      }));
+      const sourceAssetsById=new Map(assetRows.map((row)=>[String(row.id),{
+        id:String(row.id),
+        kind:String(row.kind),
+        url:signedAssetUrls[row.id]??null,
+        contentMd:row.content_md?String(row.content_md):null,
+        altText:row.alt_text?String(row.alt_text):'',
+        sourcePage:row.source_page==null?null:Number(row.source_page),
+      }] as const));
+      const questions=qr.rows.map((row)=>{
+        const question=serializeAttemptQuestion(row,signedAssetUrls);
+        const sourceAssets=attemptQuestionAssetIds(question.contentJson)
+          .map((id)=>sourceAssetsById.get(id))
+          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
+        return {...question,sourceAssets};
+      });
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
       return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
