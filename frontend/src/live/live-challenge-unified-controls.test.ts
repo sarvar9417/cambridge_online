@@ -29,6 +29,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain("session.markingMode==='teacher'||session.settings.teacherOverrideEnabled");
     expect(page).toContain('TeacherAnswerMarker');
     expect(page).toContain('/answers/${answer.id}/moderate');
+    expect(page).toContain('expectedVersion:snapshot.session.version');
   });
 
   it('uses the same diagram and seen-question filters in manual pool discovery and room creation',()=>{
