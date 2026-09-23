@@ -94,7 +94,7 @@ describe('LiveExamService source fidelity', () => {
       throw new Error(`unexpected query: ${sql}`);
     });
     const service = new LiveExamService({ query } as unknown as Pool, {} as PgQuestionsRepository);
-    await expect(service.create(actor,input)).rejects.toMatchObject({ code:'live_question_pool_small' });
+    await expect(service.create(actor,{ ...input,excludeSeen:true })).rejects.toMatchObject({ code:'live_question_pool_small' });
     const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('with recursive ancestry');
