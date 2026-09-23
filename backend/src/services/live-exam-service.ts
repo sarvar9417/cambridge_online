@@ -727,7 +727,7 @@ export class LiveExamService {
       [sessionId, actor.role, actor.id, actor.schoolId],
     );
     if (!access.rowCount) throw new DomainError('not_found', 404);
-    if (await this.closeExpiredQuestion(sessionId)) return this.snapshot(actor, sessionId);
+    if (await this.closeExpiredQuestion(sessionId)) return this.snapshot(actor, sessionId, projector);
     const session = access.rows[0];
     const isStaff = Boolean(session.is_staff);
     if (projector && !isStaff) throw new DomainError('staff_only', 403);
