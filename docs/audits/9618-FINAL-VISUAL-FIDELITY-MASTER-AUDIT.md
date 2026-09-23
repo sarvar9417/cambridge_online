@@ -3,10 +3,12 @@
 **Audit timestamp:** 2026-09-23T06:44:00+05:00  
 **Repository:** `sarvar9417/cambridge_online`  
 **Audit branch:** `audit/9618-final-visual-fidelity`  
-**Audited main SHA:** `ab7b7d6e6ec74cd35389027181d2429ef6dc27f5`  
+**Audited main SHA:** `b65175501d0a08c36d76d9b69502b4e636601eef`  
 **Production Supabase project:** `mphmganorvhsnwvhcxyj`  
 **Production mutation during audit:** **NONE**  
 **Final closure state:** **BLOCKED — NOT VISUALLY CLOSED**
+
+**Main movement note:** audit started while main was at `ab7b7d6e6ec74cd35389027181d2429ef6dc27f5`; before the audit branch was created, main advanced to `b65175501d0a08c36d76d9b69502b4e636601eef`. The intervening commit changed only `LIVE-GAME-MASTER-SPEC.md`; the audited visual/database/render/export implementation files did not change in that delta. The branch is based on `b65175501d0a08c36d76d9b69502b4e636601eef`.
 
 > This document is deliberately stricter than the earlier corpus/readiness audits. “Renderable”, “asset exists”, “LaTeX exists”, “READY” and “0 blocker” are not treated as proof that a Cambridge visual is source-faithful. No element receives VF-0/VF-1 without literal source-vs-rendered evidence. The current environment can inspect production metadata/code and source identity, but it did not produce literal browser + PDF + DOCX + Live Challenge visual proof for every element. Therefore unresolved elements are classified VF-5, not silently passed.
 
@@ -41,7 +43,7 @@ Audited layers: current GitHub main and relevant historical fidelity branches; p
 1. Re-established canonical source inventory from production `source_papers`, not from old READY labels.
 2. Rebuilt the visual register from every canonical `question_assets` row and every official `question_source_occurrences` mapping, so exact-equivalent paper occurrences remain visible.
 3. Cross-checked `content_json.blocks[type=asset]` references against asset IDs and source ownership.
-4. Inspected current render/export/live code paths on main SHA ab7b7d6e6ec74cd35389027181d2429ef6dc27f5.
+4. Inspected current render/export/live code paths on main SHA b65175501d0a08c36d76d9b69502b4e636601eef.
 5. Applied a fail-closed fidelity rule: metadata/renderability is structural evidence only. Literal source-page vs actual rendered surface proof is required for VF-0/VF-1.
 6. Where literal visual proof is absent, classification is VF-5 and an exact verification action is generated.
 7. No production mutation or silent repair was performed.
