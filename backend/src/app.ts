@@ -111,7 +111,13 @@ export function createApp(
   }
 
   app.use('/api/v1', requireAuth(auth));
-  const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(()=>new AssignmentsService(maintenancePool).closeExpired(20)));
+  const liveExamService=pool&&questionsRepository?new LiveExamService(pool,questionsRepository,assetUrlSigner):undefined;
+  const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(async()=>{
+    await Promise.all([
+      new AssignmentsService(maintenancePool).closeExpired(20),
+      liveExamService?.closeExpired(20),
+    ]);
+  }));
   const assignmentsService=pool?new AssignmentsService(pool,assetUrlSigner):undefined;
   const selectionsRepository = pool && questionsRepository ? new PgSelectionsRepository(pool, questionsRepository) : undefined;
   const questionVisualFidelity = pool ? createQuestionVisualFidelityMiddleware(pool) : undefined;
@@ -162,9 +168,9 @@ export function createApp(
     '/api/v1/live-exams',
     createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
   );
-  if (pool && questionsRepository) mountPrivate(
+  if (pool && liveExamService) mountPrivate(
     '/api/v1/live-exams',
-    createLiveExamsRouter(new LiveExamService(pool, questionsRepository, assetUrlSigner), pool),
+    createLiveExamsRouter(liveExamService, pool),
   );
 
   app.use((_req, res) => {

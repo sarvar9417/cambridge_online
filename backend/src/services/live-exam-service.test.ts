@@ -191,3 +191,67 @@ describe('LiveExamService dependency closure', () => {
     }).expandRequiredDependencies(['q-a'])).rejects.toMatchObject({ code:'live_dependency_cycle',status:409 });
   });
 });
+
+describe('LiveExamService deadline reconciliation', () => {
+  it('finds only unpaused open rounds beyond the shared deadline grace', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount:0,rows:[] });
+    const service = new LiveExamService(
+      { query } as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+
+    await expect(service.closeExpired(25)).resolves.toBe(0);
+    expect(String(query.mock.calls[0]?.[0])).toContain("status='question_open'");
+    expect(String(query.mock.calls[0]?.[0])).toContain('paused_at is null');
+    expect(String(query.mock.calls[0]?.[0])).toContain("question_time_limit_s * interval '1 second'");
+    expect(query.mock.calls[0]?.[1]).toEqual([10,25]);
+  });
+});
+
+describe('LiveExamService snapshot consistency', () => {
+  it('rebuilds a torn snapshot when the session version advances during hydration', async () => {
+    let accessCount = 0;
+    let latestCount = 0;
+    const baseSession = {
+      id:'session-1',class_id:'class-1',host_id:'teacher-1',title:'Live',join_code:'123456',
+      status:'lobby',marking_mode:'self',question_time_limit_s:null,current_question_index:0,
+      question_started_at:null,started_at:null,finished_at:null,paused_at:null,pause_remaining_s:null,
+      settings:{},created_at:new Date(),updated_at:new Date(),class_name:'AS',host_name:'Teacher',
+      is_staff:true,participant_id:null,
+    };
+    const query = vi.fn(async (sql:string) => {
+      if (sql.includes('select les.*,c.name class_name')) {
+        accessCount += 1;
+        return { rowCount:1,rows:[{ ...baseSession,version:accessCount }] };
+      }
+      if (sql.includes('select id,question_id,position,marks')) return { rowCount:0,rows:[] };
+      if (sql.includes('join users u on u.id=lep.student_id')) {
+        return { rowCount:3,rows:[
+          { id:'p1',student_id:'s1',full_name:'One',joined_at:new Date(),last_seen_at:new Date(),submitted_at:null,final_score:null,score_source:null },
+          { id:'p2',student_id:'s2',full_name:'Two',joined_at:new Date(),last_seen_at:new Date(),submitted_at:null,final_score:null,score_source:null },
+          { id:'p3',student_id:'s3',full_name:'Three',joined_at:new Date(),last_seen_at:new Date(),submitted_at:null,final_score:null,score_source:null },
+        ] };
+      }
+      if (sql.includes('select count(*)::int participant_count')) {
+        return { rowCount:1,rows:[{ participant_count:3,submitted_count:0 }] };
+      }
+      if (sql.includes('select version,status::text')) {
+        latestCount += 1;
+        return { rowCount:1,rows:[{ version:2,status:'lobby' }] };
+      }
+      throw new Error(`unexpected pool query: ${sql}`);
+    });
+    const clientQuery = vi.fn(async (sql:string) => {
+      if (sql === 'begin' || sql === 'commit' || sql === 'rollback') return { rowCount:0,rows:[] };
+      if (sql.includes('select * from live_exam_sessions')) return { rowCount:1,rows:[{ ...baseSession,version:accessCount }] };
+      throw new Error(`unexpected client query: ${sql}`);
+    });
+    const pool = { query,connect:vi.fn().mockResolvedValue({ query:clientQuery,release:vi.fn() }) } as unknown as Pool;
+    const service = new LiveExamService(pool, {} as PgQuestionsRepository);
+
+    const result = await service.snapshot({ id:'teacher-1',role:'teacher',schoolId:'school-1',fullName:'Teacher' }, 'session-1');
+    expect((result.session as { version:number }).version).toBe(2);
+    expect(accessCount).toBe(2);
+    expect(latestCount).toBe(2);
+  });
+});

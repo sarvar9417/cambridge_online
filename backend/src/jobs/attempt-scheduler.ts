@@ -1,15 +1,21 @@
 import type { Pool } from 'pg';
 import { AssignmentsService } from '../services/assignments-service.js';
+import { PgQuestionsRepository } from '../repositories/questions-repository.js';
+import { LiveExamService } from '../services/live-exam-service.js';
 
 export function startAttemptScheduler(pool: Pool) {
-  const service = new AssignmentsService(pool);
+  const assignments = new AssignmentsService(pool);
+  const liveExams = new LiveExamService(pool, new PgQuestionsRepository(pool));
   let running = false;
   let failures = 0;
   let nextAllowedAt = 0;
   const tick = async () => {
     if (running || Date.now() < nextAllowedAt) return;
     running = true;
-    try { await service.closeExpired(); failures = 0; }
+    try {
+      await Promise.all([assignments.closeExpired(), liveExams.closeExpired()]);
+      failures = 0;
+    }
     catch (error) {
       failures += 1;
       nextAllowedAt = Date.now() + Math.min(10 * 60_000, 30_000 * 2 ** Math.min(failures - 1, 5));

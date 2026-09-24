@@ -680,6 +680,27 @@ export class LiveExamService {
     }
   }
 
+  async closeExpired(limit = 100) {
+    const candidates = await this.pool.query(
+      `select id
+       from live_exam_sessions
+       where status='question_open'
+         and paused_at is null
+         and question_started_at is not null
+         and question_time_limit_s is not null
+         and now() > question_started_at + question_time_limit_s * interval '1 second'
+           + $1::int * interval '1 second'
+       order by question_started_at
+       limit $2`,
+      [QUESTION_DEADLINE_GRACE_S, limit],
+    );
+    let closed = 0;
+    for (const row of candidates.rows) {
+      if (await this.closeExpiredQuestion(String(row.id))) closed += 1;
+    }
+    return closed;
+  }
+
   private async requireClassControlForSession(actor: Actor, sessionId: string) {
     const result = await this.pool.query('select class_id from live_exam_sessions where id=$1', [sessionId]);
     if (!result.rowCount) throw new DomainError('not_found', 404);
@@ -898,6 +919,21 @@ export class LiveExamService {
       ? new Date(new Date(session.question_started_at).getTime() + Number(session.question_time_limit_s) * 1000)
       : null;
 
+    // The DTO is assembled from several queries. A join, submit, or teacher
+    // action may advance the session between the first query and the roster or
+    // review queries, producing a torn snapshot (new counts with an old
+    // expectedVersion). Retry rather than hand the UI a state that cannot be
+    // acted on.
+    const latest = await this.pool.query(
+      `select version,status::text from live_exam_sessions where id=$1`,
+      [sessionId],
+    );
+    if (!latest.rowCount
+      || Number(latest.rows[0].version) !== Number(session.version)
+      || String(latest.rows[0].status) !== String(session.status)) {
+      return this.snapshot(actor, sessionId, projector);
+    }
+
     return {
       session: {
         ...this.mapSession(session),
@@ -1025,6 +1061,9 @@ export class LiveExamService {
 
   async saveAnswer(actor: Actor, sessionId: string, text: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
+    // A late write is also a reconciliation signal. Close the round first so
+    // it cannot remain question_open merely because every browser went away.
+    await this.closeExpiredQuestion(sessionId);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -1057,6 +1096,7 @@ export class LiveExamService {
 
   async submitAnswer(actor: Actor, sessionId: string, text?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
+    await this.closeExpiredQuestion(sessionId);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
