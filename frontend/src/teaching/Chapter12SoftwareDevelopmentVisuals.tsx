@@ -9,8 +9,12 @@ export const CHAPTER_12_SOFTWARE_DEVELOPMENT_VISUAL_IDS = [
   'h12-1221-structure-chart',
   'h12-1221-repetition-sphere',
   'h12-1221-whole-sphere',
+  'h12-1221-sphere-modules',
   'h12-1222-fsm-table',
+  'h12-1222-door-tv',
+  'h12-123-faults-testing-keyterms',
   'h12-1232-syntax-logic',
+  'h12-1232-runtime-test-strategy',
   'h12-1233-dry-run',
   'h12-1233-walkthrough-testdata',
   'h12-1233-testing-levels-maintenance',
@@ -121,6 +125,44 @@ function TestingMaintenance({reveal}:{reveal:number}){
   </div>;
 }
 
+
+function SphereModules({reveal}:{reveal:number}){
+  return <div className="h12sd h12sd-sphere-modules" aria-label="Sphere structure chart mapped to functions procedures and identifiers">
+    <div className={'h12sd-sphere-core '+state(reveal,1)}><b>SPHERE CALCULATOR</b><span>module design</span></div>
+    <section className={state(reveal,1)}><b>inputRadius</b><span>PROCEDURE</span><small>input radius</small></section>
+    <section className={state(reveal,2)}><b>calculateVolume(radius)</b><span>FUNCTION</span><small>returns answer</small></section>
+    <section className={state(reveal,2)}><b>calculateSurfaceArea(radius)</b><span>FUNCTION</span><small>returns answer</small></section>
+    <section className={state(reveal,3)}><b>outputAnswer</b><span>PROCEDURE</span><small>display result</small></section>
+    <footer className={state(reveal,3)}><b>IDENTIFIERS</b><span>radius · answer · pi = 3.142</span></footer>
+  </div>;
+}
+
+function DoorTv({reveal}:{reveal:number}){
+  return <div className="h12sd h12sd-door-tv" aria-label="Door code and television finite state machine examples">
+    <section className={state(reveal,1)}><header>DOOR CODE 259</header><div className="h12sd-state-row"><span>S0</span><i>2</i><span>S1</span><i>5</i><span>S2</span><i>9</i><span>OPEN</span></div><small>wrong input resets according to the source transition model</small></section>
+    <section className={state(reveal,2)}><header>ACTIVITY 12E · TELEVISION</header><div className="h12sd-state-row"><span>OFF</span><i>press</i><span>STANDBY</span><i>press</i><span>ON</span></div><small>complete single/double-press transitions, then draw the state diagram</small></section>
+    <footer className={state(reveal,3)}>state + event/input → transition → next state</footer>
+  </div>;
+}
+
+function TestingKeyTerms({reveal}:{reveal:number}){
+  const data=[['NORMAL','accepted'],['ABNORMAL','rejected'],['EXTREME','at accepted limit'],['BOUNDARY','at limit + just outside']] as const;
+  return <div className="h12sd h12sd-testing-map" aria-label="Program testing terminology and test data categories">
+    <div className={'h12sd-testing-core '+state(reveal,1)}><b>TESTING</b><span>expose faults; cannot prove every large program fault-free</span></div>
+    <div className="h12sd-testdata-grid">{data.map(([name,note],index)=><section className={state(reveal,index<2?1:index<3?2:3)} key={name}><b>{name}</b><span>{note}</span></section>)}</div>
+    <div className={'h12sd-testing-terms '+state(reveal,3)}><span>TRACE TABLE</span><span>DRY RUN</span><span>WALKTHROUGH</span><span>WHITE-BOX</span><span>BLACK-BOX</span><span>INTEGRATION</span><span>ALPHA</span><span>BETA</span><span>ACCEPTANCE</span></div>
+  </div>;
+}
+
+function RuntimeStrategy({reveal}:{reveal:number}){
+  return <div className="h12sd h12sd-runtime-strategy" aria-label="Runtime error patch test strategy and test plan visual">
+    <section className={state(reveal,1)}><b>RUN-TIME ERROR</b><span>appears during execution</span><small>example: division by zero · possible halt / uncontrolled behaviour</small></section>
+    <i>→</i><section className={state(reveal,2)}><b>PATCH</b><span>small update to correct an error or add functionality</span></section>
+    <div className={'h12sd-strategy-pair '+state(reveal,3)}><span><b>TEST STRATEGY</b> what / how / when to test</span><span><b>TEST PLAN</b> specific tests + expected/actual results</span></div>
+    <footer className={state(reveal,3)}>testing begins during design: pseudocode can be dry-run before coding.</footer>
+  </div>;
+}
+
 export function Chapter12SoftwareDevelopmentVisual({beat,reveal}:{beat:LessonPresentationBeat;reveal:number}){
   switch(beat.slideId){
     case 'h12-121-purpose-stages': return <Lifecycle reveal={reveal}/>;
@@ -130,8 +172,12 @@ export function Chapter12SoftwareDevelopmentVisual({beat,reveal}:{beat:LessonPre
     case 'h12-1221-structure-chart': return <StructureChart reveal={reveal}/>;
     case 'h12-1221-repetition-sphere': return <RepetitionSphere reveal={reveal}/>;
     case 'h12-1221-whole-sphere': return <WholeSphere reveal={reveal}/>;
+    case 'h12-1221-sphere-modules': return <SphereModules reveal={reveal}/>;
     case 'h12-1222-fsm-table': return <Fsm reveal={reveal}/>;
+    case 'h12-1222-door-tv': return <DoorTv reveal={reveal}/>;
+    case 'h12-123-faults-testing-keyterms': return <TestingKeyTerms reveal={reveal}/>;
     case 'h12-1232-syntax-logic': return <ErrorTypes reveal={reveal}/>;
+    case 'h12-1232-runtime-test-strategy': return <RuntimeStrategy reveal={reveal}/>;
     case 'h12-1233-dry-run': return <DryRun reveal={reveal}/>;
     case 'h12-1233-walkthrough-testdata': return <TestData reveal={reveal}/>;
     case 'h12-1233-testing-levels-maintenance': return <TestingMaintenance reveal={reveal}/>;
