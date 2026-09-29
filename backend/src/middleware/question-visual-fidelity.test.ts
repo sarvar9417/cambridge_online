@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { applyVisualPresence, browserAssetProjection, readBrowserAssetProjection } from './question-visual-fidelity.js';
 
 describe('question visual fidelity middleware helpers', () => {
+  it('preserves PostgreSQL timestamps in selection response JSON', () => {
+    const date = new Date('2026-09-28T08:30:00.000Z');
+    const projected = browserAssetProjection({
+      publishedAt: date,
+      data: [{ createdAt: date, archivedAt: null }],
+    });
+    expect(JSON.parse(JSON.stringify(projected))).toEqual({
+      publishedAt: date.toISOString(),
+      data: [{ createdAt: date.toISOString(), archivedAt: null }],
+    });
+  });
+
   it('marks a leaf from ancestor-derived visual presence and applies the diagram filter', () => {
     const body = {
       view: 'parts',

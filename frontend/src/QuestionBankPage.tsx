@@ -900,7 +900,7 @@ function ReviewScreen({ review, selectionName, selectionId, forClass, generatedM
     setExportError('');
     try {
       const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: `${documentLabel} practice` }) });
-      await api('/jobs/run-once', { method: 'POST' }).catch(() => null);
+      await api('/jobs/run-once', { method: 'POST', body: JSON.stringify({ exportId: exp.id }) }).catch(() => null);
       let complete: ExportItem | null = null;
       for (let attempt = 0; attempt < 25; attempt++) {
         const current = await api<ExportItem>(`/exports/${exp.id}`);

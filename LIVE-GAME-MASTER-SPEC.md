@@ -1442,3 +1442,52 @@ For canonical v1 content:
 - No production data rewrite is required to close the current learner-facing source-visual gap.
 - Historical orphan rows may be cleaned only as a separate provenance-preserving maintenance task; they are not student-delivery blockers.
 - Release gate: canonical approved unresolved visual references = 0, raw SVG/prose exposure = 0, and all learner-facing generators/assignments/Live Challenge paths use the same canonical readiness contract.
+
+## Browser QA execution plan — 2026-09-25
+
+User-authorized scope: inspect every existing product function, exercise it in a real browser, fix reproduced defects, and retest each bounded flow before continuing. This register describes the current working tree; earlier audit results above are historical evidence.
+
+Environment: local Vite frontend at `http://localhost:5173`, local Express backend at `http://localhost:3001`, configured remote PostgreSQL/Supabase database. Browser: installed Google Chrome. Use clearly identified QA records for new test data. Never overwrite existing users, classes, answers, or assessment history to make a test pass.
+
+Status vocabulary: `pending`, `in progress`, `passed`, `fixed and retested`, `blocked`, `partly verified`. Code review and unit tests do not count as browser acceptance. Record unsupported or unavailable cases explicitly.
+
+| Order / ID | Flow | Required browser cases | Current status |
+|---|---|---|---|
+| 01 / QA-ENV | Runtime | Start frontend/backend, health/readiness, meaningful page, browser console/network, desktop screenshot | Passed (local runtime) |
+| 02 / QA-AUTH | Identity and session | Empty/invalid login, successful role login, registration validation/pending state, invalid reset/verify link, password visibility, refresh, logout/account switch, keyboard labels | Partly verified; fixes retested |
+| 03 / QA-NAV | Role navigation | Every menu destination, direct URL, forbidden role route, back/forward/reload, help/profile controls, mobile menu, theme persistence | Partly verified; fixes retested |
+| 04 / QA-ADMIN | Owner administration | Overview, people search/filter/pagination, QA account approval/role/status, corpus/quality/system pages, read/error/empty states | Blocked: owner credentials |
+| 05 / QA-CLASS | Classes and enrolment | QA class create/edit, field validation, learner enrolment, teacher assignment, class-specific navigation and access restrictions | Partly verified |
+| 06 / QA-QB | Question bank | Syllabus/topic/year/search filters, pagination, empty result, canonical question/parent/dependency, diagram/table/code/LaTeX, MS toggle, selection and generator | Partly verified |
+| 07 / QA-ASSIGN | Assignment lifecycle | Selection handoff, draft/publish, time/mark validation, student start/save/reload/submit, duplicate submit, close/release | Partly verified: published online lifecycle passed |
+| 08 / QA-GRADE | Grading and results | Point/manual marking, caps, release, own results, appeal and resolution, teacher analytics/mastery, export/download | Partly verified: release and appeal passed |
+| 09 / QA-LEARN | Lessons and practice | Course/chapter/subtopic navigation, representative presentations/checkpoints, fullscreen/keyboard/mobile, progress, practice, flashcards/games and empty content | Pending |
+| 10 / QA-LIVE | Live Challenge | Teacher + three learners + projector; self/peer/teacher modes, lobby join/leave, answer/save/reload, pause/resume, expiry, review/override/finish, unauthorized join, MS secrecy | In progress |
+| 11 / QA-RESILIENCE | Shared edge cases | Offline/reconnect, stale state/double click, multiple tabs/account isolation, expired session, 320/390/768/1440px layout, keyboard focus | Partly verified: offline answers and navigation |
+| 12 / QA-REGRESSION | Final evidence | Project-state, TypeScript, relevant then full tests, inventory/build, screenshots and issue ledger, exact remaining gaps | In progress |
+
+Each item records: reproduction → expected/actual → cause → affected files → fix → browser retest → relevant automated checks. Keep incomplete scenarios visible. Evidence artifacts are stored under ignored `output/qa-2026-09-25/`; reproducible browser checks belong under `scripts/` when stabilized.
+
+Initial working-tree changes existed in `backend/src/services/live-exam-service.ts`, its test, `frontend/src/live/LiveExamPage.tsx`, an untracked live polling test, and `del.py`. Preserve these changes. Initial `npm.cmd run typecheck` was interrupted by Windows process exit `3221225477`; a direct backend TypeScript invocation subsequently exited successfully. This is an environment/tooling observation, not proof of a code defect.
+
+### Browser QA evidence update — 2026-09-28
+
+The matrix above is the scenario inventory; the evidence below supersedes its initial Pending labels. Unlisted cases remain pending. This is not a completed whole-project acceptance.
+
+- QA-ENV: passed local health/readiness and real Chrome startup against the configured PostgreSQL database.
+- QA-AUTH / QA-NAV: partly verified. Teacher/student login, session reload, logout, all 13 role menu destinations, invalid credentials/reset/verify links, registration validation, password visibility, and mobile navigation exercised. Fixed and browser-retested password label association, password clearing on screen change, reveal-button movement during pointer press, duplicate StrictMode verification, forbidden role route mounting, and skip-link hash corruption. Owner credentials in the local environment fail login; owner administration is blocked pending valid credentials. Email delivery is unavailable in this environment.
+- QA-CLASS: partly verified. Created `QA 20260928 Browser Class`; archive cancellation, archive, unarchive, and next-year rollover passed. Rollover had zero students, so no existing enrolments were changed. Enrolment and teacher-assignment cases remain pending.
+- QA-QB: in progress. Empty search, populated search, new selection, add, reorder, reload persistence, removal, and review passed. A dedicated `QA 20260928 Browser Assignment` selection is used for the assignment lifecycle.
+- QA-REGRESSION: frontend 841/841 tests passed, exit 0. Backend JSON reports 937/937 passed, but its process returned exit 1; teardown/runner status remains unresolved. Backend/frontend/API TypeScript checks, backend compilation, frontend production build, and project-state check passed. Python inventory tests have not run: the available Python command is a Windows Store alias that cannot execute. Frontend build reports a large-bundle warning.
+
+Evidence is in `output/qa-2026-09-25/` (authentication, navigation, suite reports) and `output/qa-2026-09-28/` (ongoing real-browser flow report/screenshots). `scripts/browser-qa.mjs` provides reusable real Chrome helpers with separate role contexts and runtime-only credentials. Browser fixtures and their IDs are recorded in the latter report. No migration, deployment, real-user password reset, or production role change was performed.
+
+### Assignment, grading and export evidence — 2026-09-28/29
+
+- Passed in Chrome with the real API/database: selection add/reorder/remove/reload; one-question online publication; learner answer save/reload; offline/reconnect; submit/cancel; teacher point marking; zero-score release; result visibility without page reload; short appeal validation; appeal acceptance, correction and re-release. New QA records only; existing account membership was preserved.
+- Fixed and retested: selection Date objects became {}; grading queue omitted learner/question fields; queue/results stayed stale on route entry; release SQL used a nonexistent join column and untyped enum literal; repeated release and corrected appeals duplicated learning evidence; untouched mark points could not release zero. The final release, repeat-release and corrected-appeal paths were checked against PostgreSQL, including one hit and zero misses per corrected answer.
+- Fixed: successful appeal retained the prior validation error; old result detail survived navigation; release failures were unhandled. Error reset still needs a separate post-fix short/valid appeal retest.
+- Export: a one-shot queue drain processed an unrelated older job and left the requested DOCX queued. The interactive endpoint now targets an owned export and claims its exact job; scheduled workers retain their ordinary queue behavior. Added ownership/targeting regressions. The history list now labels DOCX correctly and saves it as .docx.
+- 2026-09-29: actual Chrome downloads completed for DOCX (5,272 bytes) and PDF (51,625 bytes); extensions and file signatures match. Windows Chrome path configured in local ignored .env. Browser download directory must use a native absolute Windows path. No delayed-revoke product change was necessary. Full diagram/table/code export fidelity remains pending.
+- Automated checks: latest backend report has 943/943 passing tests, 353/353 suites, success=true, but process exit remains 1 (not claimed as a green verify). Focused backend checks passed 43/43 before the export addition; frontend route/session checks passed 6/6. Full frontend rerun and final compilation are in progress. Windows process startup intermittently fails with EPERM/access violations; thread workers allow the complete backend report to finish.
+- Evidence: output/qa-2026-09-28/browser-report.json (40 recorded checks with before-fix failures retained), output/qa-2026-09-29/browser-report.json, and downloaded files under output/qa-2026-09-29/downloads/. Live Challenge is next. Owner administration remains blocked; original LiveExam changes are preserved.

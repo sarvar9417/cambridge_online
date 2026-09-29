@@ -196,6 +196,9 @@
 
 .auth-reveal:hover { background: var(--surface-soft); }
 
+/* Preserve centering on press so the button stays under the pointer. */
+.auth-reveal:active:not(:disabled) { transform: translateY(-50%); }
+
 .auth-strength { margin-top: 0.5rem; }
 
 .auth-strength-track {

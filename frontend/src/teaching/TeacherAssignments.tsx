@@ -34,10 +34,10 @@ const STATE_LABEL: Record<State, string> = {
 };
 
 const EXPORT_LABEL: Record<ExportItem['kind'], string> = {
-  question_paper: 'Savollar PDF',
-  mark_scheme: 'Mark scheme PDF',
+  question_paper: 'Savollar',
+  mark_scheme: 'Mark scheme',
   combined: 'Savollar va mark scheme',
-  feedback: 'Natija PDF',
+  feedback: 'Natija',
 };
 
 const EXPORT_STATUS: Record<ExportItem['status'], string> = {
@@ -193,11 +193,11 @@ export function TeacherAssignments({
 
       {recentExports.length ? (
         <section className="ta-exports" aria-live="polite">
-          <h2>PDF tayyorlash</h2>
+          <h2>Hujjatlar</h2>
           {recentExports.map((item) => (
             <div className="ta-export" key={item.id}>
               <div>
-                <strong>{EXPORT_LABEL[item.kind]}</strong>
+                <strong>{EXPORT_LABEL[item.kind]} · {item.file_format === 'docx' ? 'Word (.docx)' : 'PDF'}</strong>
                 <small>{new Date(item.created_at).toLocaleString('uz-UZ')}</small>
               </div>
               <span className={`ta-export-status status-${item.status}`}>{EXPORT_STATUS[item.status]}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, api, type User } from '../lib/api';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ratePassword } from './password-strength';
@@ -36,14 +36,15 @@ function PasswordField({ label, name, value, onChange, autoComplete, personal, s
   autoComplete: string; personal?: string[]; showMeter?: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const inputId = useId();
   const strength = useMemo(() => ratePassword(value, personal ?? []), [value, personal]);
 
   return (
     <div className="auth-field">
-      <span className="auth-field-label">{label}</span>
+      <label className="auth-field-label" htmlFor={inputId}>{label}</label>
       <div className="auth-password">
         <input
-          name={name} value={value} onChange={(event) => onChange(event.target.value)}
+          id={inputId} name={name} value={value} onChange={(event) => onChange(event.target.value)}
           type={revealed ? 'text' : 'password'} autoComplete={autoComplete} minLength={8} required
         />
         <button
@@ -100,7 +101,7 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
   const [username, setUsername] = useState('');
   const [note, setNote] = useState('');
 
-  const go = (next: AuthView) => { setError(null); setNotice(null); setView(next); };
+  const go = (next: AuthView) => { setError(null); setNotice(null); setPassword(''); setView(next); };
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -172,19 +173,31 @@ export function AuthScreens({ onSignedIn }: { onSignedIn: (session: Session) => 
   };
 
   const [verifyState, setVerifyState] = useState<'working' | 'done' | 'failed'>('working');
+  const verificationRequest = useRef<{ token: string; promise: Promise<unknown> } | null>(null);
   useEffect(() => {
     if (view !== 'verify' || !resetTokenFromUrl) return;
-    api('/auth/email/verify', { method: 'POST', body: JSON.stringify({ token: resetTokenFromUrl }) })
+    // Share the single-use request across StrictMode effect replays.
+    if (verificationRequest.current?.token !== resetTokenFromUrl) {
+      verificationRequest.current = {
+        token: resetTokenFromUrl,
+        promise: api('/auth/email/verify', { method: 'POST', body: JSON.stringify({ token: resetTokenFromUrl }) }),
+      };
+    }
+    let active = true;
+    verificationRequest.current.promise
       .then(() => {
+        if (!active) return;
         setVerifyState('done');
         // The link is single use; leaving it in the bar invites a reload that
         // fails for no visible reason.
         window.history.replaceState(null, '', window.location.pathname);
       })
       .catch((cause) => {
+        if (!active) return;
         setVerifyState('failed');
         setError({ message: cause instanceof ApiError ? cause.message : 'Tasdiqlanmadi.' });
       });
+    return () => { active = false; };
   }, [view, resetTokenFromUrl]);
 
   const identifierRef = useAutoFocus<HTMLInputElement>(view === 'login');

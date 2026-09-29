@@ -92,4 +92,81 @@ describe('App session restoration', () => {
     expect(container.querySelector('.shell')).not.toBeNull();
     expect(container.textContent).not.toContain('Sessiya muddati tugadi. Qayta kiring.');
   });
+
+  it.each(['teacher', 'student'] as const)('redirects a %s away from a direct administrator URL without mounting its requests', async (role) => {
+    window.history.replaceState(null, '', '/#boshqaruv/odamlar');
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/refresh')) return json(200, { ...session, user: { ...session.user, role } });
+      if (url.endsWith('/selections')) return json(200, []);
+      if (url.endsWith('/questions/filter-options')) return json(200, {
+        syllabi: [], components: [], topics: [], subtopics: [], commandWords: [], years: [], sessions: [], aos: [],
+      });
+      return dataResponse(url);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await act(async () => root.render(<App />));
+    await act(async () => { await flush(); await flush(); });
+
+    expect(window.location.hash).toBe(role === 'teacher' ? '#oqitish/savol-banki' : '#oquvchi/uy');
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/admin/'))).toBe(false);
+    expect(container.textContent).not.toContain('Yangi foydalanuvchi');
+  });
+
+  it('refreshes the grading queue when a teacher returns after a learner submits', async () => {
+    window.history.replaceState(null, '', '/#oqitish/tekshirish');
+    let submitted = false;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/refresh')) return json(200, { ...session, user: { ...session.user, role: 'teacher' } });
+      if (url.includes('/grading/queue')) return json(200, { data: submitted ? [{
+        id: 'grading-id', text: '39', displayRef: 'Q1', stemMd: 'Convert to denary.',
+        marks: 1, answerKind: 'text', studentName: 'New learner answer', points: [],
+      }] : [] });
+      return dataResponse(url);
+    }));
+    await act(async () => root.render(<App />));
+    await act(async () => { await flush(); });
+    expect(container.textContent).toContain('Navbat bo‘sh');
+    await act(async () => {
+      window.location.hash = 'oqitish/vazifalar';
+      await flush();
+    });
+    submitted = true;
+    await act(async () => {
+      window.location.hash = 'oqitish/tekshirish';
+      await flush();
+    });
+    await act(async () => { await flush(); });
+    expect(container.textContent).toContain('New learner answer');
+    expect(container.textContent).toContain('Convert to denary.');
+  });
+
+  it('loads newly published assignments and released results on student navigation', async () => {
+    let updated = false;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/refresh')) return json(200, session);
+      if (url.endsWith('/assignments') && updated) return json(200, { data: [{
+        id: 'assignment-id', title: 'New assignment', className: 'QA Class', totalMarks: 1,
+        dueAt: null, timeLimitMin: null, submissionStatus: 'not_started',
+      }] });
+      if (url.endsWith('/results') && updated) return json(200, { data: [{
+        id: 'result-id', title: 'New result', className: 'QA Class', totalScore: 1,
+        totalMax: 1, percentage: 100, grade: null, releasedAt: '2026-09-28T08:30:00Z',
+      }] });
+      return dataResponse(url);
+    }));
+    await act(async () => root.render(<App />));
+    await act(async () => { await flush(); });
+    updated = true;
+    await act(async () => { window.location.hash = 'oquvchi/vazifalar'; await flush(); });
+    await act(async () => { await flush(); });
+    expect(container.textContent).toContain('New assignment');
+    await act(async () => { window.location.hash = 'oquvchi/natijalar'; await flush(); });
+    await act(async () => { await flush(); });
+    expect(container.textContent).toContain('New result');
+    expect(container.textContent).toContain('100%');
+  });
 });

@@ -88,7 +88,16 @@ export class GradingService {
        order by ${order}`,
       values,
     );
-    return result.rows;
+    return result.rows.map((row) => ({
+      id: row.id,
+      text: row.text,
+      displayRef: row.display_ref,
+      stemMd: row.stem_md,
+      marks: Number(row.marks),
+      answerKind: row.answer_kind,
+      studentName: row.student_name,
+      points: row.points,
+    }));
   }
 
   async detail(actor:Actor,gradingId:string) {
@@ -251,9 +260,26 @@ export class GradingService {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
+      // Serialize releases for answers in the same submission. A second click
+      // must not count the same learning evidence again.
+      const locked = await client.query(
+        `select s.id, s.status from submissions s
+         join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
+         where g.id=$1 for update of s`, [gradingId],
+      );
+      const current = await client.query('select status from gradings where id=$1', [gradingId]);
+      if (current.rows[0]?.status === 'released') {
+        await client.query('commit');
+        return { id: gradingId, submissionReleased: locked.rows[0]?.status === 'released' };
+      }
       const result = await client.query(
-        `update gradings set status = 'released', released_at = now()
-         where id = $1 and final_score is not null returning id, answer_id`,
+        `update gradings set status = 'released', released_at = now(),
+           final_score=coalesce(final_score,least(max_marks,(
+             select sum(awarded_marks) from grading_points where grading_id=$1
+           )))
+         where id = $1 and (final_score is not null or exists (
+           select 1 from grading_points where grading_id=$1
+         )) returning id, answer_id`,
         [gradingId],
       );
       if (!result.rowCount) throw new DomainError('score_required', 409);
@@ -270,19 +296,25 @@ export class GradingService {
            from gradings g join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id
            join questions q on q.id=ans.question_id join grading_points gp on gp.grading_id=g.id
            join mark_scheme_points msp on msp.id=gp.mark_scheme_point_id
-           join question_subtopics qs on qs.question_id=q.id and qs.is_primary
+           left join question_subtopics qs on qs.question_id=q.id and qs.is_primary
            where g.id=$1
          ), bumped as (
            insert into error_patterns(student_id,mark_scheme_point_id,miss_count,hit_count,last_seen_at)
-           select student_id,mark_scheme_point_id,case when matched then 0 else 1 end,case when matched then 1 else 0 end,now() from observed
+           select s.student_id,gp.mark_scheme_point_id,
+             count(*) filter(where not coalesce(gp.final_matched,false)),
+             count(*) filter(where coalesce(gp.final_matched,false)),now()
+           from gradings g join grading_points gp on gp.grading_id=g.id
+           join answers ans on ans.id=g.answer_id join submissions s on s.id=ans.submission_id
+           where g.status='released' and exists (
+             select 1 from observed o where o.student_id=s.student_id and o.mark_scheme_point_id=gp.mark_scheme_point_id
+           ) group by s.student_id,gp.mark_scheme_point_id
            on conflict(student_id,mark_scheme_point_id)do update set
-             miss_count=error_patterns.miss_count+case when excluded.miss_count=1 then 1 else 0 end,
-             hit_count=error_patterns.hit_count+case when excluded.hit_count=1 then 1 else 0 end,last_seen_at=now()
+             miss_count=excluded.miss_count,hit_count=excluded.hit_count,last_seen_at=now()
            returning student_id,mark_scheme_point_id,miss_count
          ), decks as (
            insert into flashcard_decks(subtopic_id,title,status)
-           select distinct o.subtopic_id,'Xatolardan takrorlash','approved' from observed o join bumped b using(student_id,mark_scheme_point_id)
-           where not o.matched and b.miss_count>=2
+           select distinct o.subtopic_id,'Xatolardan takrorlash','approved'::review_status from observed o join bumped b using(student_id,mark_scheme_point_id)
+           where not o.matched and b.miss_count>=2 and o.subtopic_id is not null
            on conflict(subtopic_id,title)do update set title=excluded.title returning id,subtopic_id
          ), cards as (
            insert into flashcards(deck_id,front_md,back_md,hint_md,source_question_id,source_mark_scheme_point_id)
@@ -293,7 +325,8 @@ export class GradingService {
            do update set back_md=excluded.back_md returning id,source_mark_scheme_point_id
          )
          insert into flashcard_reviews(user_id,flashcard_id,interval_days,due_at)
-         select distinct b.student_id,c.id,3,now()+interval '3 days' from bumped b join cards c using(mark_scheme_point_id)
+         select distinct b.student_id,c.id,3,now()+interval '3 days'
+         from bumped b join cards c on c.source_mark_scheme_point_id=b.mark_scheme_point_id
          on conflict(user_id,flashcard_id)do nothing`,
         [gradingId],
       );
@@ -320,23 +353,19 @@ export class GradingService {
              case when sum(g.max_marks*a.mastery_weight)>0 then sum(g.final_score*a.mastery_weight)/sum(g.max_marks*a.mastery_weight) else 0 end,
              count(distinct g.id),sum(g.final_score*a.mastery_weight),sum(g.max_marks*a.mastery_weight),now()
            from submissions s join assignments a on a.id=s.assignment_id join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
-           join question_subtopics qs on qs.question_id=ans.question_id where s.id=$1
+           join question_subtopics qs on qs.question_id=ans.question_id
+           where s.status='released'
+             and s.student_id=(select student_id from submissions where id=$1)
+             and qs.subtopic_id in (
+               select affected.subtopic_id from answers source
+               join question_subtopics affected on affected.question_id=source.question_id
+               where source.submission_id=$1
+             )
            group by s.student_id,qs.subtopic_id
            on conflict(student_id,subtopic_id) do update set
-             marks_earned=mastery.marks_earned+excluded.marks_earned,
-             marks_possible=mastery.marks_possible+excluded.marks_possible,
-             attempts=mastery.attempts+excluded.attempts,
-             score=(mastery.marks_earned+excluded.marks_earned)/nullif(mastery.marks_possible+excluded.marks_possible,0),
+             marks_earned=excluded.marks_earned,marks_possible=excluded.marks_possible,
+             attempts=excluded.attempts,score=excluded.score,
              last_activity_at=now(),updated_at=now()`, [submissionId],
-        );
-        await client.query(
-          `insert into error_patterns(student_id,mark_scheme_point_id,miss_count,hit_count,last_seen_at)
-           select s.student_id,gp.mark_scheme_point_id,
-             count(*) filter(where not coalesce(gp.final_matched,false)),count(*) filter(where coalesce(gp.final_matched,false)),now()
-           from submissions s join answers ans on ans.submission_id=s.id join gradings g on g.answer_id=ans.id
-           join grading_points gp on gp.grading_id=g.id where s.id=$1 group by s.student_id,gp.mark_scheme_point_id
-           on conflict(student_id,mark_scheme_point_id)do update set
-             miss_count=error_patterns.miss_count+excluded.miss_count,hit_count=error_patterns.hit_count+excluded.hit_count,last_seen_at=now()`, [submissionId],
         );
       } else {
         await client.query(`update submissions set status = 'grading' where id = $1`, [submissionId]);

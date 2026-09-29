@@ -12,6 +12,9 @@ function isRecord(value: unknown): value is JsonRecord {
 
 export function browserAssetProjection(body: unknown): unknown {
   if (Array.isArray(body)) return body.map(browserAssetProjection);
+  // PostgreSQL timestamps must retain Date.toJSON() when Express serializes
+  // selection responses. Walking their enumerable properties produces {}.
+  if (body instanceof Date) return body;
   if (!isRecord(body)) return body;
 
   const projected: JsonRecord = {};

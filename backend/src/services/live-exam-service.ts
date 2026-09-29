@@ -635,15 +635,24 @@ export class LiveExamService {
   async heartbeat(actor: Actor, sessionId: string) {
     if (actor.role === 'student') {
       const result = await this.pool.query(
-        `update live_exam_participants set last_seen_at=now()
-         where session_id=$1 and student_id=$2 and left_at is null returning id`,
-        [sessionId, actor.id],
+        `update live_exam_participants lep set last_seen_at=now()
+         from live_exam_sessions les
+         where lep.session_id=$1 and lep.student_id=$2 and lep.left_at is null
+           and les.id=lep.session_id
+         returning lep.id,(
+           les.status='question_open' and les.paused_at is null
+           and les.question_started_at is not null and les.question_time_limit_s is not null
+           and now() > les.question_started_at + les.question_time_limit_s * interval '1 second'
+             + $3::int * interval '1 second'
+         ) deadline_expired`,
+        [sessionId, actor.id, QUESTION_DEADLINE_GRACE_S],
       );
       if (!result.rowCount) throw new DomainError('not_found', 404);
+      if (result.rows[0].deadline_expired) await this.closeExpiredQuestion(sessionId);
     } else {
       await this.requireClassControlForSession(actor, sessionId);
+      await this.closeExpiredQuestion(sessionId);
     }
-    await this.closeExpiredQuestion(sessionId);
     return { serverNow: new Date() };
   }
 
@@ -737,7 +746,13 @@ export class LiveExamService {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
-         lep.id participant_id
+         lep.id participant_id,
+         (
+           les.status='question_open' and les.paused_at is null
+           and les.question_started_at is not null and les.question_time_limit_s is not null
+           and now() > les.question_started_at + les.question_time_limit_s * interval '1 second'
+             + $5::int * interval '1 second'
+         ) deadline_expired
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        join users u on u.id=les.host_id
@@ -749,11 +764,13 @@ export class LiveExamService {
            select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3
          )))
        )`,
-      [sessionId, actor.role, actor.id, actor.schoolId],
+      [sessionId, actor.role, actor.id, actor.schoolId, QUESTION_DEADLINE_GRACE_S],
     );
     if (!access.rowCount) throw new DomainError('not_found', 404);
-    if (await this.closeExpiredQuestion(sessionId)) return this.snapshot(actor, sessionId, projector);
     const session = access.rows[0];
+    if (session.deadline_expired && await this.closeExpiredQuestion(sessionId)) {
+      return this.snapshot(actor, sessionId, projector);
+    }
     const isStaff = Boolean(session.is_staff);
     if (projector && !isStaff) throw new DomainError('staff_only', 403);
     const detailedStaff = isStaff && !projector;

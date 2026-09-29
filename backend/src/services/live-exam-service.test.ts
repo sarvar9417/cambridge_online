@@ -206,6 +206,26 @@ describe('LiveExamService deadline reconciliation', () => {
     expect(String(query.mock.calls[0]?.[0])).toContain("question_time_limit_s * interval '1 second'");
     expect(query.mock.calls[0]?.[1]).toEqual([10,25]);
   });
+
+  it('does not lock the shared session row on a normal student heartbeat', async () => {
+    const query = vi.fn().mockResolvedValue({
+      rowCount:1,
+      rows:[{ id:'participant-1',deadline_expired:false }],
+    });
+    const connect = vi.fn();
+    const service = new LiveExamService(
+      { query,connect } as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+
+    await expect(service.heartbeat(
+      { id:'student-1',role:'student',schoolId:'school-1',fullName:'Student' },
+      'session-1',
+    )).resolves.toEqual({ serverNow:expect.any(Date) });
+    expect(String(query.mock.calls[0]?.[0])).toContain('returning lep.id,(');
+    expect(query.mock.calls[0]?.[1]).toEqual(['session-1','student-1',10]);
+    expect(connect).not.toHaveBeenCalled();
+  });
 });
 
 describe('LiveExamService snapshot consistency', () => {
@@ -246,12 +266,14 @@ describe('LiveExamService snapshot consistency', () => {
       if (sql.includes('select * from live_exam_sessions')) return { rowCount:1,rows:[{ ...baseSession,version:accessCount }] };
       throw new Error(`unexpected client query: ${sql}`);
     });
-    const pool = { query,connect:vi.fn().mockResolvedValue({ query:clientQuery,release:vi.fn() }) } as unknown as Pool;
+    const connect = vi.fn().mockResolvedValue({ query:clientQuery,release:vi.fn() });
+    const pool = { query,connect } as unknown as Pool;
     const service = new LiveExamService(pool, {} as PgQuestionsRepository);
 
     const result = await service.snapshot({ id:'teacher-1',role:'teacher',schoolId:'school-1',fullName:'Teacher' }, 'session-1');
     expect((result.session as { version:number }).version).toBe(2);
     expect(accessCount).toBe(2);
     expect(latestCount).toBe(2);
+    expect(connect).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,34 @@ const student:Actor={id:'student-a',role:'student',schoolId:'school-a',fullName:
 const teacher:Actor={id:'teacher-a',role:'teacher',schoolId:'school-a',fullName:'Teacher A'};
 
 describe('grading detail scope',()=>{
+  it('treats repeated release as a no-op without adding mastery or error counts',async()=>{
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:'grading-a'}]});
+    const transaction=vi.fn()
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({rows:[{id:'submission-a',status:'released'}]})
+      .mockResolvedValueOnce({rows:[{status:'released'}]})
+      .mockResolvedValueOnce({});
+    const release=vi.fn();
+    const pool={query,connect:vi.fn().mockResolvedValue({query:transaction,release})}as unknown as Pool;
+    await expect(new GradingService(pool).release(teacher,'grading-a')).resolves.toEqual({
+      id:'grading-a',submissionReleased:true,
+    });
+    expect(transaction.mock.calls.some(([sql])=>/insert|update gradings/i.test(String(sql)))).toBe(false);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('returns the learner and question fields needed by the grading queue',async()=>{
+    const points=[{id:'point-a',code:'M1',text:'39',matched:false,marks:1}];
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{
+      id:'grading-a',text:'39',display_ref:'Q1(a)(i)',stem_md:'Convert to denary.',
+      marks:1,answer_kind:'text',student_name:'Student A',points,
+    }]});
+    await expect(new GradingService({query}as unknown as Pool).queue(teacher)).resolves.toEqual([{
+      id:'grading-a',text:'39',displayRef:'Q1(a)(i)',stemMd:'Convert to denary.',
+      marks:1,answerKind:'text',studentName:'Student A',points,
+    }]);
+  });
+
   it('hides unreleased or cross-student grading as 404',async()=>{
     const query=vi.fn().mockResolvedValue({rowCount:0,rows:[]});
     await expect(new GradingService({query}as unknown as Pool).detail(student,'grading-b'))

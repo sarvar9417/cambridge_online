@@ -153,7 +153,7 @@ export interface ReviewQuestion {id:string;display_ref:string;stem_md:string;con
 export interface Flashcard {flashcard_id:string;front_md:string;back_md:string;hint_md:string|null}
 export interface ContentGames {termMatch:Array<{id:string;term:string;definition:string}>;sequence:Array<{id:string;code:string;text:string}>;spotTheGap:Array<{id:string;prompt:string;answer:string}>}
 export interface LessonProgress {chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
-export interface ExportItem {id:string;kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
+export interface ExportItem {id:string;file_format?:'pdf'|'docx';kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
 export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
 export type LiveExamMarkingMode = 'teacher'|'peer'|'self';

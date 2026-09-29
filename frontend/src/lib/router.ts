@@ -36,6 +36,21 @@ export function parseRoute(hash: string): Route {
   return { path, surface, page, params: new URLSearchParams(query) };
 }
 
+const PAGES_BY_SURFACE = {
+  boshqaruv: new Set(['holat', 'odamlar', 'korpus', 'sifat', 'tizim']),
+  oqitish: new Set(['darslar', 'savol-banki', 'live', 'tanlovlar', 'vazifalar', 'tekshirish', 'oquvchilar', 'sinf']),
+  oquvchi: new Set(['uy', 'darslar', 'live', 'vazifalar', 'natijalar', 'organish']),
+};
+
+export function canAccessRoute(role: keyof typeof HOME_BY_ROLE, route: Route): boolean {
+  const { surface, page, path } = route;
+  if (path !== `${surface}/${page}`) return false;
+  if (surface === 'boshqaruv') return role === 'owner' && PAGES_BY_SURFACE.boshqaruv.has(page);
+  if (surface === 'oqitish') return role !== 'student' && PAGES_BY_SURFACE.oqitish.has(page);
+  if (surface === 'oquvchi') return role === 'student' && PAGES_BY_SURFACE.oquvchi.has(page);
+  return false;
+}
+
 export function navigate(path: string) {
   // Assigning to location.hash fires hashchange, which is what every listener
   // is already waiting on -- pushState would not.

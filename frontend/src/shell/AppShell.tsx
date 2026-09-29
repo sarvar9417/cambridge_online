@@ -72,7 +72,7 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
   const pageTitle = route.page === 'holat' || route.page === 'uy' ? 'Ish stoli' : primaryGroups.flatMap((g) => g.items).find((i) => route.path === i.path)?.label ?? 'CamPath';
 
   return <div className={`shell${classGroup ? ' shell--with-context' : ''}`}>
-    <a className="shell-skip" href="#main">Asosiy qismga o‘tish</a>
+    <a className="shell-skip" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Asosiy qismga o‘tish</a>
     <nav className={`shell-rail${menuOpen ? ' is-open' : ''}`} aria-label="Asosiy navigatsiya">
       <div className="shell-primary">
         <div className="shell-brand"><span className="shell-mark" aria-hidden="true" /><span>CamPath<small>Cambridge 9618</small></span></div>
@@ -89,7 +89,7 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
         <button type="button" className="shell-archive" onClick={() => navigate('oqitish/sinf')}><Archive size={18} /> Arxivlangan sinflar</button>
       </aside> : null}
     </nav>
-    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div><time dateTime={new Date().toISOString().slice(0, 10)}>{today}</time><ThemeToggle /></header><main id="main" className="shell-main">{children}</main></div>
+    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div><time dateTime={new Date().toISOString().slice(0, 10)}>{today}</time><ThemeToggle /></header><main id="main" tabIndex={-1} className="shell-main">{children}</main></div>
     {menuOpen ? <button type="button" className="shell-scrim" aria-label="Menyuni yopish" onClick={() => setMenuOpen(false)} /> : null}
   </div>;
 }

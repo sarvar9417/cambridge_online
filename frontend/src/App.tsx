@@ -40,7 +40,7 @@ import { StudentLearning } from './student/StudentLearning';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
-import { useRoute, navigate, HOME_BY_ROLE } from './lib/router';
+import { useRoute, navigate, HOME_BY_ROLE, canAccessRoute } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { LiveExamPage } from './live/LiveExamPage';
@@ -119,13 +119,7 @@ export function App() {
       setGames(g.data);setSequence([...g.data.sequence].reverse());
     }
     if (session.user.role !== "student") {
-      const [gradingData, appealData, exportData] = await Promise.all([
-        api<{ data: GradingItem[] }>("/grading/queue"),
-        api<{ data: AppealItem[] }>("/grading/appeals"),
-        api<{ data: ExportItem[] }>("/exports"),
-      ]);
-      setGrading(gradingData.data);
-      setAppeals(appealData.data);
+      const exportData = await api<{ data: ExportItem[] }>("/exports");
       setExports(exportData.data);
     }
   };
@@ -144,31 +138,50 @@ export function App() {
   // a blank page with a working sidebar.
   useEffect(() => {
     if (!user) return;
-    const STANDALONE = ['oqitish/savol-banki', 'oqitish/tanlovlar', 'oqitish/live', 'oquvchi/live'];
-    const stranded = route.surface !== 'boshqaruv'
-      && !STANDALONE.includes(route.path)
-      && sectionsFor(route.surface, route.page, user.role).length === 0;
-    if (!route.surface || stranded) navigate(HOME_BY_ROLE[user.role]);
-  }, [user, route.surface, route.page]);
+    if (!canAccessRoute(user.role, route)) navigate(HOME_BY_ROLE[user.role]);
+  }, [user, route.path]);
 
   useEffect(() => {
-    if (!user || user.role === 'student') return;
+    if (!user || user.role === 'student' || route.path !== 'oqitish/tekshirish') return;
     const fromRoute = route.params.get('sinf') ?? '';
-    if (route.path !== 'oqitish/tekshirish' || fromRoute === gradingClass) return;
+    let active = true;
     setGradingClass(fromRoute);
-    void loadGrading(gradingView, fromRoute).catch(() => {});
+    const query = new URLSearchParams(gradingView === 'confidence' ? { sort: 'confidence' } : { mode: gradingView });
+    if (fromRoute) query.set('classId', fromRoute);
+    void Promise.all([
+      api<{ data: GradingItem[] }>(`/grading/queue?${query}`),
+      api<{ data: AppealItem[] }>('/grading/appeals'),
+    ]).then(([queue, appealData]) => {
+      if (!active) return;
+      setGrading(queue.data);
+      setAppeals(appealData.data);
+    }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Baholash navbati yuklanmadi.'); });
+    return () => { active = false; };
   }, [user, route.path, route.params.get('sinf')]);
 
   // The class page links to its own assignments; without this the link would
   // arrive on a list of every class's work and quietly mean nothing.
   useEffect(() => {
-    if (!user || user.role === 'student' || route.path !== 'oqitish/vazifalar') return;
-    const classId = route.params.get('sinf') ?? '';
+    if (!user || !canAccessRoute(user.role, route) || !['oqitish/vazifalar', 'oquvchi/vazifalar'].includes(route.path)) return;
+    let active = true;
+    const classId = user.role === 'student' ? '' : route.params.get('sinf') ?? '';
     const query = classId ? `?classId=${encodeURIComponent(classId)}` : '';
     void api<{ data: Assignment[] }>(`/assignments${query}`)
-      .then((result) => setAssignments(result.data))
-      .catch(() => {});
+      .then((result) => { if (active) setAssignments(result.data); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Vazifalar yuklanmadi.'); });
+    return () => { active = false; };
   }, [user, route.path, route.params.get('sinf')]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || route.path !== 'oquvchi/natijalar') return;
+    let active = true;
+    setOpenResultId(null);
+    setResultDetail(null);
+    void api<{ data: ResultItem[] }>('/results')
+      .then((result) => { if (active) setResults(result.data); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Natijalar yuklanmadi.'); });
+    return () => { active = false; };
+  }, [user, route.path]);
 
   useEffect(() => {
     if (user?.role !== 'owner') return;
@@ -294,8 +307,13 @@ export function App() {
     });
   };
   const release = async (item: GradingItem) => {
-    await api(`/gradings/${item.id}/release`, { method: "POST" });
-    setGrading((current) => current.filter((entry) => entry.id !== item.id));
+    setError('');
+    try {
+      await api(`/gradings/${item.id}/release`, { method: "POST" });
+      setGrading((current) => current.filter((entry) => entry.id !== item.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Natijani chiqarib bo‘lmadi.');
+    }
   };
   const loadGrading=async(view:'by_question'|'by_student'|'confidence',classId:string)=>{
     const query=new URLSearchParams(view==='confidence'?{sort:'confidence'}:{mode:view});
@@ -320,18 +338,23 @@ export function App() {
       setError("Apellyatsiya sababini kamida 10 belgi bilan yozing.");
       return;
     }
-    await api(`/gradings/${item.gradingId}/appeal`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    });
-    setResultDetail(
-      (current) =>
-        current?.map((entry) =>
-          entry.gradingId === item.gradingId
-            ? { ...entry, appealStatus: "open" } : entry,
-        ) ?? null,
-    );
-    setAppealDraft((current) => ({ ...current, [item.gradingId]: "" }));
+    setError('');
+    try {
+      await api(`/gradings/${item.gradingId}/appeal`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      setResultDetail(
+        (current) =>
+          current?.map((entry) =>
+            entry.gradingId === item.gradingId
+              ? { ...entry, appealStatus: "open" } : entry,
+          ) ?? null,
+      );
+      setAppealDraft((current) => ({ ...current, [item.gradingId]: "" }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Apellyatsiya yuborilmadi.');
+    }
   };
   const resolveAppeal = async (
     item: AppealItem,
@@ -371,7 +394,7 @@ export function App() {
         body: JSON.stringify({ kind, refTable: "assignments", refId: id }),
       });
       setExports((current) => [created, ...current]);
-      await api('/jobs/run-once',{method:'POST'});
+      await api('/jobs/run-once', { method: 'POST', body: JSON.stringify({ exportId: created.id }) });
       setExports((await api<{data:ExportItem[]}>('/exports')).data);
     } catch (cause) {
       setError(
@@ -379,7 +402,7 @@ export function App() {
       );
     }
   };
-  const downloadExport=async(item:ExportItem)=>{const blob=await apiBlob(`/exports/${item.id}/file`),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`campath-${item.kind}.pdf`;anchor.click();URL.revokeObjectURL(url)};
+  const downloadExport=async(item:ExportItem)=>{const blob=await apiBlob(`/exports/${item.id}/file`),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`campath-${item.kind}.${item.file_format==='docx'?'docx':'pdf'}`;anchor.click();URL.revokeObjectURL(url)};
   const generateAssignment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -601,7 +624,7 @@ export function App() {
   const routedSections = sectionsFor(route.surface, route.page, user.role)
     .map((name) => <Fragment key={name}>{bySection[name]}</Fragment>);
 
-  const page =
+  const page = !canAccessRoute(user.role, route) ? null :
     route.surface === 'boshqaruv' && route.page === 'holat' ? <OverviewPage />
       : route.surface === 'boshqaruv' && route.page === 'odamlar'
         ? <UserApprovalPanel classes={classes} currentUserId={user.id} />
