@@ -48,7 +48,7 @@ export function ClassesPage({ user, classes, onChanged }: {
   const route = useRoute();
   const classId = route.params.get('id');
   return classId
-    ? <ClassDetail user={user} classId={classId} onChanged={onChanged} />
+    ? <ClassDetail key={classId} user={user} classId={classId} onChanged={onChanged} />
     : <ClassList classes={classes} onChanged={onChanged} />;
 }
 

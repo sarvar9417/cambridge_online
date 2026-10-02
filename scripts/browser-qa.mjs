@@ -23,8 +23,8 @@ export async function createBrowserQA({ baseUrl = 'http://localhost:5173', execu
     await page.keyboard.down('Control');
     await page.keyboard.press('KeyA');
     await page.keyboard.up('Control');
-    await page.keyboard.press('Backspace');
-    await page.type(selector, String(value));
+    if (String(value) === '') await page.keyboard.press('Backspace');
+    else await page.type(selector, String(value));
     await page.waitForFunction((selector, value) => document.querySelector(selector)?.value === value, {}, selector, String(value));
   }
   async function clickText(page, text, scope = 'button') {
@@ -60,6 +60,12 @@ export async function createBrowserQA({ baseUrl = 'http://localhost:5173', execu
     await page.waitForFunction(route => location.hash === '#' + route, {}, route);
   }
   async function screenshot(page, name) {
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      const transitions = document.getAnimations().filter(animation =>
+        Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
+      await Promise.allSettled(transitions.map(animation => animation.finished));
+    });
     await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage: false });
   }
   async function enableDownloads(context) {

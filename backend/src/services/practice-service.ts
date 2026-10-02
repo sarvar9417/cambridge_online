@@ -110,7 +110,7 @@ export class PracticeService {
       if (!context.rowCount) throw new DomainError('not_found', 404);
 
       const questions = await client.query(
-        `select distinct q.id,q.marks
+        `select distinct q.id,q.marks,md5(q.id::text||$3||current_date::text) daily_order
          from questions q
          join question_learning_objectives qlo on qlo.question_id=q.id
          join learning_objective_compatibility compat
@@ -149,7 +149,7 @@ export class PracticeService {
              join question_assets asset on asset.question_id=chain.id
              where nullif(btrim(coalesce(asset.content_md,'')),'') is null
            )
-         order by md5(q.id::text||$3||current_date::text)
+         order by daily_order,q.id
          limit 5`,
         [input.subtopicId, input.commandWord ?? null, actor.id],
       );

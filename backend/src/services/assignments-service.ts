@@ -122,12 +122,14 @@ export class AssignmentsService {
     if(actor.role!=='student') throw new DomainError('students_only',403);
     if(requestedStudentId&&requestedStudentId!==actor.id)throw new DomainError('student_scope_forbidden',403);
     const client=await this.pool.connect(); try { await client.query('begin');
-      const ar=await client.query(`select a.*,existing.late_granted_until from assignments a join enrollments e on e.class_id=a.class_id
+      const ar=await client.query(`select a.*,existing.late_granted_until,statement_timestamp() server_now from assignments a join enrollments e on e.class_id=a.class_id
         left join submissions existing on existing.assignment_id=a.id and existing.student_id=e.student_id
         where a.id=$1 and e.student_id=$2 and e.left_at is null and a.published_at is not null for update of a`,[assignmentId,actor.id]);
-      const a=ar.rows[0]; if(!a) throw new DomainError('not_found',404);
-      if(a.opens_at&&new Date(a.opens_at)>new Date())throw new DomainError('assignment_not_open',409);
-      if(a.due_at&&new Date(a.due_at)<new Date()&&!a.allow_late&&(!a.late_granted_until||new Date(a.late_granted_until)<=new Date()))throw new DomainError('assignment_closed',409);
+      const a=ar.rows[0]; if(!a||(a.mode==='practice'&&a.created_by!==actor.id)) throw new DomainError('not_found',404);
+      // Deadlines and started_at originate in PostgreSQL; the API host may have a different clock.
+      const now=new Date(a.server_now);
+      if(a.opens_at&&new Date(a.opens_at)>now)throw new DomainError('assignment_not_open',409);
+      if(a.due_at&&new Date(a.due_at)<now&&!a.allow_late&&(!a.late_granted_until||new Date(a.late_granted_until)<=now))throw new DomainError('assignment_closed',409);
       const sid=clientSessionId??randomUUID();
       const sr=await client.query(`insert into submissions(assignment_id,student_id,status,started_at,active_session_id)
         values($1,$2,'in_progress',now(),$3) on conflict(assignment_id,student_id) do update set
@@ -174,15 +176,15 @@ export class AssignmentsService {
         return {...question,sourceAssets};
       });
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
-      return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:new Date(),questions};
+      return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:now,questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
   }
   async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string) {
-    const r=await this.pool.query(`select s.*,a.time_limit_min,a.due_at from submissions s join assignments a on a.id=s.assignment_id where s.id=$1 and s.student_id=$2`,[submissionId,actor.id]);
+    const r=await this.pool.query(`select s.*,a.time_limit_min,a.due_at,statement_timestamp() server_now from submissions s join assignments a on a.id=s.assignment_id where s.id=$1 and s.student_id=$2`,[submissionId,actor.id]);
     const s=r.rows[0]; if(!s)throw new DomainError('not_found',404); if(!['not_started','in_progress'].includes(s.status))throw new DomainError('submission_closed',409);
     if(sessionId&&s.active_session_id!==sessionId)throw new DomainError('session_replaced',409);
     const deadline=s.time_limit_min?new Date(new Date(s.started_at).getTime()+(s.time_limit_min+s.time_extension_min)*60000):latestDeadline(s.due_at,s.late_granted_until);
-    if(deadline&&Date.now()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
+    if(deadline&&new Date(s.server_now).getTime()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
     const q=await this.pool.query(`select 1 from assignment_questions where assignment_id=$1 and question_id=$2`,[s.assignment_id,questionId]);if(!q.rowCount)throw new DomainError('not_found',404);
     await this.pool.query(`insert into answers(submission_id,question_id,text,word_count) values($1,$2,$3,$4)
       on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0]);
@@ -201,17 +203,18 @@ export class AssignmentsService {
   }
   async heartbeat(actor:Actor,submissionId:string,sessionId:string) {
     if(actor.role!=='student')throw new DomainError('students_only',403);
-    const result=await this.pool.query(`select s.id,s.status,s.started_at,s.active_session_id,s.time_extension_min,s.late_granted_until,a.time_limit_min,a.due_at
+    const result=await this.pool.query(`select s.id,s.status,s.started_at,s.active_session_id,s.time_extension_min,s.late_granted_until,a.time_limit_min,a.due_at,statement_timestamp() server_now
       from submissions s join assignments a on a.id=s.assignment_id where s.id=$1 and s.student_id=$2`,[submissionId,actor.id]);
     const s=result.rows[0];if(!s)throw new DomainError('not_found',404);
     if(s.active_session_id!==sessionId)throw new DomainError('session_replaced',409);
     const deadline=s.time_limit_min?new Date(new Date(s.started_at).getTime()+(s.time_limit_min+s.time_extension_min)*60000):latestDeadline(s.due_at,s.late_granted_until);
-    const remainingSeconds=deadline?Math.max(0,Math.floor((deadline.getTime()-Date.now())/1000)):null;
+    const now=new Date(s.server_now);
+    const remainingSeconds=deadline?Math.max(0,Math.floor((deadline.getTime()-now.getTime())/1000)):null;
     if(remainingSeconds===0&&['not_started','in_progress'].includes(s.status)){
       await this.autoSubmit(submissionId);throw new DomainError('time_expired',409);
     }
     await this.pool.query(`update submissions set time_spent_s=time_spent_s+least(30,greatest(0,extract(epoch from(now()-coalesce(started_at,now())))::int-time_spent_s)) where id=$1`,[submissionId]);
-    return{serverNow:new Date(),remainingSeconds,status:s.status};
+    return{serverNow:now,remainingSeconds,status:s.status};
   }
   async closeExpired(limit=100) {
     const client=await this.pool.connect();try{await client.query('begin');

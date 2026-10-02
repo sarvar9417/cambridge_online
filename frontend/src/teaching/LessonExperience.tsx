@@ -36,7 +36,7 @@ import { realSlideDeckFor } from './real-slide-decks';
 import './lesson-experience.css';
 import './presentation-hodder-benchmark.css';
 
-type LessonExperienceProps = {audience:LessonAudience};
+type LessonExperienceProps = {audience:LessonAudience;userId:string};
 type LessonCourseCode = '9618' | '0478';
 
 const modeLabel:Record<LessonMode,string>={study:'Study',present:'Presentation',exam:'Past Papers'};
@@ -130,7 +130,7 @@ function SourceAudit({page}:{page:TopicPage}){
   return <details className="lx-source-audit"><summary>Teacher source audit</summary><div>{pages.length?<p><strong>Source pages:</strong> {pages.join(', ')}</p>:null}{elements.length?<section><strong>Covered elements</strong><ul>{elements.map(item=><li key={item}>{item}</li>)}</ul></section>:null}{atoms.length?<section><strong>Verified source atoms</strong><ul>{atoms.map(atom=><li key={atom.id}><span>{atom.kind}</span>{atom.sourceRef}</li>)}</ul></section>:null}{bulletEvidence.length?<section><strong>Extraction evidence</strong><ul>{bulletEvidence.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul></section>:null}</div></details>;
 }
 
-export function LessonExperience({audience}:LessonExperienceProps){
+export function LessonExperience({audience,userId}:LessonExperienceProps){
   const route=useRoute();
   const rootRef=useRef<HTMLElement|null>(null);
   const chapterNumber=Number(route.params.get('chapter')||0);
@@ -276,7 +276,7 @@ export function LessonExperience({audience}:LessonExperienceProps){
       {mode==='study'?<main className="lx-reader-main">
         {activePage?<><header className="lx-page-head"><div><span>{topicLabel(activeTopic)} · {studyPages.indexOf(activePage)+1}/{studyPages.length}</span><h1>{displayPageTitle(activePage,activeTopic)}</h1><p>{activeTopic.title}</p></div>{audience==='student'?<button type="button" className={pageComplete?'is-complete':''} disabled={pageComplete||saving} onClick={markComplete}><CheckCircle size={21}/>{pageComplete?'Completed':saving?'Saving…':'Mark lesson complete'}</button>:null}</header><div className="lx-study-content">{learnerSlidesForPage(activePage).map(slide=><LessonStudySlide sourceSlide={slide} pageTitle={displayPageTitle(activePage,activeTopic)} key={slide.id}/>)}</div>{audience==='teacher'?<SourceAudit page={activePage}/>:null}</>:<div className="lx-empty"><strong>No study section is available for this topic.</strong></div>}
         <footer className="lx-reader-nav"><button type="button" disabled={!previous} onClick={()=>previous&&navigateTo(previous.topic,previous.page,'study')}><ArrowLeft size={20}/><span>Previous lesson</span></button><div><span>{Math.max(0,flatIndex+1)} / {flatStudy.length}</span><small>Chapter progress</small></div><button type="button" disabled={!next} onClick={()=>next&&navigateTo(next.topic,next.page,'study')}><span>Next lesson</span><ArrowRight size={20}/></button></footer>
-      </main>:<main className="lx-exam-shell"><header className="lx-exam-topic-head"><div><span>{courseCode(chapter)} · CHAPTER {chapter.number} · PAST PAPERS</span><h1>{chapter.title}</h1><p>Approved Cambridge questions mapped to this chapter's learning objectives. Focus on one question, write an answer and then check it against the mark scheme.</p></div>{audience==='teacher'?<button type="button" onClick={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}><ArrowsOut size={20}/>Full screen</button>:null}</header><LessonPastPaper page={examPage} topic={activeTopic} audience={audience}/></main>}
+      </main>:<main className="lx-exam-shell"><header className="lx-exam-topic-head"><div><span>{courseCode(chapter)} · CHAPTER {chapter.number} · PAST PAPERS</span><h1>{chapter.title}</h1><p>Approved Cambridge questions mapped to this chapter's learning objectives. Focus on one question, write an answer and then check it against the mark scheme.</p></div>{audience==='teacher'?<button type="button" onClick={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}><ArrowsOut size={20}/>Full screen</button>:null}</header><LessonPastPaper page={examPage} topic={activeTopic} audience={audience} userId={userId}/></main>}
     </div>
   </section>;
 }

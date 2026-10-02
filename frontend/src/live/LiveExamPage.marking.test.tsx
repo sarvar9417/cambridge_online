@@ -2,9 +2,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LiveExamPage } from './LiveExamPage';
-import { api, type LiveExamSnapshot } from '../lib/api';
+import { api, ApiError, type LiveExamSnapshot } from '../lib/api';
 
-vi.mock('../lib/api', () => ({ api: vi.fn() }));
+vi.mock('../lib/api', async importOriginal => ({ ...await importOriginal<typeof import('../lib/api')>(), api: vi.fn() }));
 vi.mock('./LiveExamLeaderboard', () => ({ LiveExamLeaderboard: () => null }));
 
 const timestamp = '2026-09-29T00:00:00Z';
@@ -27,7 +27,7 @@ const makeSnapshot = (): LiveExamSnapshot => ({
   }],
 });
 
-describe('Live teacher feedback corrections', () => {
+describe('Live session updates', () => {
   let root: Root;
   let container: HTMLDivElement;
 
@@ -113,5 +113,45 @@ describe('Live teacher feedback corrections', () => {
     await act(async () => button().click());
     expect(view.session.version).toBe(6);
     expect(button().disabled).toBe(false);
+  });
+
+  it.each([403, 404])('removes the stale lobby and stops polling when access is revoked (%s)', async status => {
+    vi.useFakeTimers();
+    const view = makeSnapshot();
+    view.session.status = 'lobby';
+    view.teacherAnswers = [];
+    let reads = 0;
+    vi.mocked(api).mockImplementation(async url => {
+      if (url.endsWith('/heartbeat')) return {} as never;
+      if (++reads > 1) throw new ApiError('Topilmadi.', 'not_found', undefined, status);
+      return view as never;
+    });
+    await act(async () => root.render(<LiveExamPage user={{ id: 'student', fullName: 'Learner', role: 'student', schoolId: null }} classes={[]} />));
+    expect(container.textContent).toContain('XONAGA QO‘SHILDINGIZ');
+    await act(async () => { vi.advanceTimersByTime(1500); });
+    expect(container.textContent).not.toContain('XONAGA QO‘SHILDINGIZ');
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('qatnashish huquqingiz yo‘q');
+    const count = vi.mocked(api).mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(30_000); });
+    expect(vi.mocked(api).mock.calls).toHaveLength(count);
+  });
+
+  it('retains the current room through a temporary polling failure', async () => {
+    vi.useFakeTimers();
+    const view = makeSnapshot();
+    view.session.status = 'lobby';
+    view.teacherAnswers = [];
+    let reads = 0;
+    vi.mocked(api).mockImplementation(async url => {
+      if (url.endsWith('/heartbeat')) return {} as never;
+      if (++reads === 2) throw new ApiError('Temporarily unavailable', 'unavailable', undefined, 503);
+      return view as never;
+    });
+    await act(async () => root.render(<LiveExamPage user={{ id: 'student', fullName: 'Learner', role: 'student', schoolId: null }} classes={[]} />));
+    await act(async () => { vi.advanceTimersByTime(1500); });
+    expect(container.textContent).toContain('XONAGA QO‘SHILDINGIZ');
+    await act(async () => { vi.advanceTimersByTime(1500); });
+    expect(reads).toBe(3);
+    expect(container.textContent).toContain('XONAGA QO‘SHILDINGIZ');
   });
 });

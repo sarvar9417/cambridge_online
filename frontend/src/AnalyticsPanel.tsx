@@ -9,7 +9,7 @@ interface MarkPoint { id:string;code:string;text:string;displayRef:string;comman
 interface CommandWord { commandWord:string;percentage:number;sampleSize:number }
 interface AiQuality { promptVersion:string;sampleSize:number;pointAgreement:number;falsePositive:number;falseNegative:number }
 
-export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:boolean }) {
+export function AnalyticsPanel({ classes, owner, userId }: { classes:ClassItem[];owner:boolean;userId:string }) {
   const route=useRoute();
   const [classId,setClassId]=useState(classes[0]?.id??'');
   const [heat,setHeat]=useState<HeatCell[]>([]);
@@ -31,7 +31,7 @@ export function AnalyticsPanel({ classes, owner }: { classes:ClassItem[];owner:b
     owner?api<{data:AiQuality[]}>('/analytics/ai-quality'):Promise.resolve({data:[]}),
   ]).then(([h,p,w,q])=>{setHeat(h.data);setPoints(p.data);setWords(w.data);setQuality(q.data)}).catch(cause=>setError(cause instanceof Error?cause.message:'Analitika yuklanmadi.'))},[classId,owner,route.page]);
 
-  if(route.page==='darslar')return <LessonExperience audience="teacher"/>;
+  if(route.page==='darslar')return <LessonExperience audience="teacher" userId={userId}/>;
 
   const students=[...new Map(heat.map(cell=>[cell.studentId,cell.studentName])).entries()];
   const topics=[...new Set(heat.map(cell=>cell.topic))];

@@ -57,25 +57,37 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createRound(qa, teacher, students, { classId, mode, title }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
   await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
-  await qa.fill(teacher.page, 'input[name="questionCount"]', '1');
-  await teacher.page.select('select[name="timeLimit"]', '');
+  await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
+  await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
+  if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
+  if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
   await qa.waitText(teacher.page, 'JOIN CODE');
   const id = new URLSearchParams(teacher.page.url().split('?')[1]).get('id');
   const code = await teacher.page.$eval('.live-code-card strong', el => el.textContent);
   qa.report.fixtures.push({ type: 'live', id, mode, title });
   qa.save();
+  return { id, code };
+}
+
+export async function joinLobby(qa, student, code) {
+  await qa.go(student.page, 'oquvchi/live');
+  await qa.fill(student.page, 'input[aria-label="Xona kodi"]', code);
+  await qa.clickText(student.page, 'Qo‘shilish');
+}
+
+export async function createRound(qa, teacher, students, options) {
+  const { id, code } = await createLobby(qa, teacher, options);
+  const { mode } = options;
   for (const student of students) {
-    await qa.go(student.page, 'oquvchi/live');
-    await qa.fill(student.page, 'input[aria-label="Xona kodi"]', code);
-    await qa.clickText(student.page, 'Qo‘shilish');
+    await joinLobby(qa, student, code);
     await qa.waitText(student.page, 'XONAGA QO‘SHILDINGIZ');
   }
   await qa.waitText(teacher.page, `${students.length} qo‘shildi`);

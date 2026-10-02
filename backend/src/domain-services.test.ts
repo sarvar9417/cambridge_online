@@ -46,7 +46,7 @@ describe('domain authorization', () => {
     const startedAt=new Date();
     const query=vi.fn()
       .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({rows:[{id:'assignment-id',time_limit_min:30,due_at:null}]})
+      .mockResolvedValueOnce({rows:[{id:'assignment-id',time_limit_min:30,due_at:null,server_now:startedAt}]})
       .mockResolvedValueOnce({rows:[{id:'submission-id',status:'in_progress',started_at:startedAt,time_extension_min:0}]})
       .mockResolvedValueOnce({rows:[]})
       .mockResolvedValueOnce({});
@@ -106,7 +106,7 @@ describe('domain authorization', () => {
   });
 
   it('rejects answer changes after the attempt deadline with 409',async()=>{
-    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',started_at:new Date(Date.now()-120_000),time_limit_min:1,time_extension_min:0,due_at:null}]});
+    const query=vi.fn().mockResolvedValue({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',server_now:new Date(),started_at:new Date(Date.now()-120_000),time_limit_min:1,time_extension_min:0,due_at:null}]});
     await expect(new AssignmentsService({query}as unknown as Pool).saveAnswer(student,'submission-id','question-id','answer'))
       .rejects.toMatchObject({code:'time_expired',status:409});
     expect(query).toHaveBeenCalledTimes(1);
@@ -114,7 +114,7 @@ describe('domain authorization', () => {
 
   it('allows a due-only answer save during an individual late grant',async()=>{
     const query=vi.fn()
-      .mockResolvedValueOnce({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',started_at:new Date(),time_limit_min:null,time_extension_min:0,due_at:new Date(Date.now()-60_000),late_granted_until:new Date(Date.now()+60_000)}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{assignment_id:'assignment-id',status:'in_progress',server_now:new Date(),started_at:new Date(),time_limit_min:null,time_extension_min:0,due_at:new Date(Date.now()-60_000),late_granted_until:new Date(Date.now()+60_000)}]})
       .mockResolvedValueOnce({rowCount:1,rows:[{}]})
       .mockResolvedValueOnce({rowCount:1,rows:[]});
     await expect(new AssignmentsService({query}as unknown as Pool).saveAnswer(student,'submission-id','question-id','answer')).resolves.toHaveProperty('savedAt');
@@ -178,12 +178,12 @@ describe('domain authorization', () => {
   });
 
   it('heartbeat rejects a replaced device session', async () => {
-    const query=vi.fn().mockResolvedValueOnce({rows:[{id:'submission',status:'in_progress',started_at:new Date(),active_session_id:'new-session',time_extension_min:0,time_limit_min:30,due_at:null}]});
+    const query=vi.fn().mockResolvedValueOnce({rows:[{id:'submission',status:'in_progress',server_now:new Date(),started_at:new Date(),active_session_id:'new-session',time_extension_min:0,time_limit_min:30,due_at:null}]});
     await expect(new AssignmentsService({query} as unknown as Pool).heartbeat(student,'submission','old-session')).rejects.toMatchObject({code:'session_replaced',status:409});
   });
 
   it('heartbeat returns server-authoritative remaining time', async () => {
-    const query=vi.fn().mockResolvedValueOnce({rows:[{id:'submission',status:'in_progress',started_at:new Date(),active_session_id:'session',time_extension_min:0,time_limit_min:30,due_at:null}]}).mockResolvedValueOnce({rowCount:1});
+    const query=vi.fn().mockResolvedValueOnce({rows:[{id:'submission',status:'in_progress',server_now:new Date(),started_at:new Date(),active_session_id:'session',time_extension_min:0,time_limit_min:30,due_at:null}]}).mockResolvedValueOnce({rowCount:1});
     const state=await new AssignmentsService({query} as unknown as Pool).heartbeat(student,'submission','session');
     expect(state.remainingSeconds).toBeGreaterThan(1700);expect(state.status).toBe('in_progress');
   });

@@ -20,7 +20,7 @@ describe('student attempt source-backed question delivery',()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:null,rows:[]};
       if(sql.includes('select a.*,existing.late_granted_until'))return{rowCount:1,rows:[{
-        id:'assignment-1',opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:30,
+        id:'assignment-1',server_now:new Date(),opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:30,
       }]};
       if(sql.includes('insert into submissions'))return{rowCount:1,rows:[{
         id:'submission-1',status:'in_progress',started_at:startedAt,time_extension_min:0,
@@ -62,7 +62,7 @@ describe('student attempt source-backed question delivery',()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:null,rows:[]};
       if(sql.includes('select a.*,existing.late_granted_until'))return{rowCount:1,rows:[{
-        id:'assignment-2',opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:null,
+        id:'assignment-2',server_now:new Date(),opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:null,
       }]};
       if(sql.includes('insert into submissions'))return{rowCount:1,rows:[{
         id:'submission-2',status:'in_progress',started_at:new Date('2026-09-04T10:00:00Z'),time_extension_min:0,
@@ -96,7 +96,7 @@ describe('student attempt source-backed question delivery',()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:null,rows:[]};
       if(sql.includes('select a.*,existing.late_granted_until'))return{rowCount:1,rows:[{
-        id:'assignment-3',opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:null,
+        id:'assignment-3',server_now:new Date(),opens_at:null,due_at:null,allow_late:false,late_granted_until:null,time_limit_min:null,
       }]};
       if(sql.includes('insert into submissions'))return{rowCount:1,rows:[{
         id:'submission-3',status:'in_progress',started_at:new Date('2026-09-04T10:00:00Z'),time_extension_min:0,

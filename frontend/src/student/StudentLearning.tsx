@@ -6,10 +6,13 @@ import { StudentMasteryMap } from './StudentMasteryMap';
 import './student-learning.css';
 
 export interface StudentLearningProps {
+  userId: string;
   mastery: MasteryItem[];
   commandWords: CommandWordProgress[];
   flashcards: Flashcard[];
   cardRevealed: boolean;
+  cardReviewing: boolean;
+  cardReviewError: string;
   practicing: string | null;
   onReveal: () => void;
   onGrade: (grade: number) => void;
@@ -21,7 +24,7 @@ const WEAK = 0.6;
 export function bandOf(score: number) { return score >= 0.8 ? 'strong' : score >= WEAK ? 'fair' : 'weak'; }
 
 export function StudentLearning({
-  mastery, commandWords, flashcards, cardRevealed, practicing,
+  userId, mastery, commandWords, flashcards, cardRevealed, cardReviewing, cardReviewError, practicing,
   onReveal, onGrade, onPractice, games,
 }: StudentLearningProps) {
   const route = useRoute();
@@ -39,7 +42,7 @@ export function StudentLearning({
     onPractice(requestedItem);
   },[route.page,requestedItem?.subtopic_id,requestedItem?.practiceReady,practicing,onPractice]);
 
-  if (route.page === 'darslar') return <LessonExperience audience="student" />;
+  if (route.page === 'darslar') return <LessonExperience audience="student" userId={userId} />;
 
   const headline = card
     ? `${flashcards.length} ta kartochka takrorlashni kutmoqda.`
@@ -72,10 +75,11 @@ export function StudentLearning({
         {cardRevealed ? <p className="sl-flash-back">{card.back_md}</p> : null}
         {!cardRevealed && card.hint_md ? <p className="sl-flash-hint">{card.hint_md}</p> : null}
       </div>
-      {cardRevealed ? <div className="sl-grades">
-        <button type="button" className="sl-grade sl-grade--hard" onClick={()=>onGrade(1)}>Qiyin<small>tez orada qaytadi</small></button>
-        <button type="button" className="sl-grade" onClick={()=>onGrade(3)}>O‘rtacha<small>bir necha kundan keyin</small></button>
-        <button type="button" className="sl-grade sl-grade--easy" onClick={()=>onGrade(5)}>Oson<small>ancha keyin</small></button>
+      {cardReviewError && <p role="alert" className="error">{cardReviewError}</p>}
+      {cardRevealed ? <div className="sl-grades" aria-busy={cardReviewing}>
+        <button type="button" className="sl-grade sl-grade--hard" disabled={cardReviewing} onClick={()=>onGrade(1)}>Qiyin<small>tez orada qaytadi</small></button>
+        <button type="button" className="sl-grade" disabled={cardReviewing} onClick={()=>onGrade(3)}>O‘rtacha<small>bir necha kundan keyin</small></button>
+        <button type="button" className="sl-grade sl-grade--easy" disabled={cardReviewing} onClick={()=>onGrade(5)}>Oson<small>ancha keyin</small></button>
       </div> : <button type="button" className="sl-primary" onClick={onReveal}>Javobni ko‘rsatish</button>}
     </section> : <section className="sl-card"><h2>Kartochkalar</h2><p className="sl-empty">Bugunga takrorlanadigan kartochka qolmadi.</p></section>}
 

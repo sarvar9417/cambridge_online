@@ -20,6 +20,7 @@ import {
 import { queueAnswer } from "./lib/offline-queue";
 import { useOfflineAnswerSync } from './hooks/useOfflineAnswerSync';
 import { useAttemptTiming } from './hooks/useAttemptTiming';
+import { useFlashcardReview } from './hooks/useFlashcardReview';
 import { useStaffExportPolling } from './hooks/useStaffExportPolling';
 import { useSessionLifecycle } from './hooks/useSessionLifecycle';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -37,6 +38,7 @@ import { StudentAssignments } from './student/StudentAssignments';
 import { StudentAttemptWorkspace } from './student/StudentAttemptWorkspace';
 import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
+import { StudentGames } from './student/StudentGames';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
@@ -69,12 +71,11 @@ export function App() {
   const [commandWords,setCommandWords]=useState<CommandWordProgress[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [games,setGames]=useState<ContentGames>({termMatch:[],sequence:[],spotTheGap:[]});
-  const [gameMode,setGameMode]=useState<'term'|'sequence'|'gap'>('term');
-  const [termAnswers,setTermAnswers]=useState<Record<string,string>>({});
-  const [sequence,setSequence]=useState<ContentGames['sequence']>([]);
-  const [gapAnswer,setGapAnswer]=useState('');
-  const [gameResult,setGameResult]=useState('');
   const [cardRevealed, setCardRevealed] = useState(false);
+  const cardReview = useFlashcardReview(flashcards[0]?.flashcard_id, (cardId) => {
+    setFlashcards(current => current.filter(card => card.flashcard_id !== cardId));
+    setCardRevealed(false);
+  });
   const [generating, setGenerating] = useState(false);
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
   const [exports, setExports] = useState<ExportItem[]>([]);
@@ -116,7 +117,7 @@ export function App() {
       setMastery(m.data);
       setCommandWords(w.data);
       setFlashcards(c.data);
-      setGames(g.data);setSequence([...g.data.sequence].reverse());
+      setGames(g.data);
     }
     if (session.user.role !== "student") {
       const exportData = await api<{ data: ExportItem[] }>("/exports");
@@ -372,16 +373,6 @@ export function App() {
     if (decision === "accepted")
       setGrading((await api<{ data: GradingItem[] }>("/grading/queue")).data);
   };
-  const gradeCard = async (grade: number) => {
-    const card = flashcards[0];
-    if (!card) return;
-    await api(`/content/flashcards/${card.flashcard_id}/review`, {
-      method: "POST",
-      body: JSON.stringify({ grade }),
-    });
-    setFlashcards((current) => current.slice(1));
-    setCardRevealed(false);
-  };
   const exportAssignment = async (
     id: string,
     kind: "question_paper" | "combined",
@@ -479,31 +470,18 @@ export function App() {
 
   const studentLearning = (
     <StudentLearning
+      userId={user.id}
       mastery={mastery}
       commandWords={commandWords}
       flashcards={flashcards}
       cardRevealed={cardRevealed}
+      cardReviewing={cardReview.reviewing}
+      cardReviewError={cardReview.error}
       practicing={practicing}
       onReveal={() => setCardRevealed(true)}
-      onGrade={gradeCard}
+      onGrade={cardReview.grade}
       onPractice={startPractice}
-      games={<>
-        {user.role === "student" && (games.termMatch.length>0||games.sequence.length>1) && (
-          <section id="student-games">
-            <div className="section-title"><h2>Mashq o‘yinlari</h2><div className="segmented game-tabs" aria-label="O‘yin turi">
-              <button className={gameMode==='term'?'active':''} onClick={()=>{setGameMode('term');setGameResult('')}}>Term match</button>
-              <button className={gameMode==='sequence'?'active':''} onClick={()=>{setGameMode('sequence');setGameResult('')}}>Sequence</button>
-              <button className={gameMode==='gap'?'active':''} onClick={()=>{setGameMode('gap');setGameResult('')}}>Spot the gap</button>
-            </div></div>
-            <div className="learning-game">
-              {gameMode==='term'&&<>{games.termMatch.map(item=><label key={item.id}><strong>{item.term}</strong><select value={termAnswers[item.id]??''} onChange={event=>setTermAnswers(current=>({...current,[item.id]:event.target.value}))}><option value="">Ta’rifni tanlang</option>{games.termMatch.map(option=><option value={option.id} key={option.id}>{option.definition}</option>)}</select></label>)}<button onClick={()=>setGameResult(`${games.termMatch.filter(item=>termAnswers[item.id]===item.id).length}/${games.termMatch.length} to‘g‘ri`)}>Tekshirish</button></>}
-              {gameMode==='sequence'&&<>{sequence.map((item,index)=><div className="sequence-item" key={item.id}><b>{index+1}</b><span>{item.code} {item.text}</span><button title="Yuqoriga" disabled={index===0} onClick={()=>setSequence(current=>{const next=[...current];[next[index-1],next[index]]=[next[index]!,next[index-1]!];return next})}>↑</button><button title="Pastga" disabled={index===sequence.length-1} onClick={()=>setSequence(current=>{const next=[...current];[next[index],next[index+1]]=[next[index+1]!,next[index]!];return next})}>↓</button></div>)}<button onClick={()=>setGameResult(sequence.every((item,index)=>item.id===games.sequence[index]?.id)?'To‘g‘ri tartib':'Tartibni yana tekshiring')}>Tekshirish</button></>}
-              {gameMode==='gap'&&games.spotTheGap[0]&&<><p className="gap-prompt">{games.spotTheGap[0].prompt}</p><label>Atama<input value={gapAnswer} onChange={event=>setGapAnswer(event.target.value)} /></label><button onClick={()=>setGameResult(gapAnswer.trim().toLowerCase()===games.spotTheGap[0]!.answer.toLowerCase()?'To‘g‘ri':`Javob: ${games.spotTheGap[0]!.answer}`)}>Tekshirish</button></>}
-              {gameResult&&<strong className="game-result" aria-live="polite">{gameResult}</strong>}
-            </div>
-          </section>
-        )}
-      </>}
+      games={<StudentGames key={user.id} games={games} />}
     />
   );
 
@@ -517,7 +495,7 @@ export function App() {
   const analyticsPanel = (
     <>
         {user.role !== "student" && classes.length > 0 && (
-          <AnalyticsPanel classes={classes} owner={user.role === "owner"} />
+          <AnalyticsPanel classes={classes} owner={user.role === "owner"} userId={user.id} />
         )}
     </>
   );

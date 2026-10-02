@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { ArrowLeft, ArrowsClockwise, Broadcast, CaretDown, CaretUp, CheckCircle, Copy, Monitor, UsersThree } from '@phosphor-icons/react';
 import {
   api,
+  ApiError,
   type ClassItem,
   type LiveExamAnswer,
   type LiveExamMarkingMode,
@@ -105,9 +106,10 @@ function useLiveSnapshot(sessionId:string,projector=false) {
   const [snapshot,setSnapshot]=useState<LiveExamSnapshot|null>(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
+  const [unavailable,setUnavailable]=useState(false);
   const request=useRef<Promise<void>|null>(null);
   const status=snapshot?.session.status;
-  const terminal=status==='finished'||status==='cancelled';
+  const terminal=status==='finished'||status==='cancelled'||unavailable;
   const refresh=useCallback(async(silent=false)=>{
     // A user action needs a snapshot taken after its mutation. An older poll
     // can still be in flight, so wait for it before requesting the fresh state.
@@ -121,7 +123,13 @@ function useLiveSnapshot(sessionId:string,projector=false) {
       // complete server snapshot on every poll instead of only state changes.
       setSnapshot(next);
       setError('');
-    }catch(cause){if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));}
+    }catch(cause){
+      if(cause instanceof ApiError&&(cause.status===403||cause.status===404)){
+        setUnavailable(true);
+        setSnapshot(null);
+        setError('Live sessiya topilmadi yoki unda qatnashish huquqingiz yo‘q.');
+      }else if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));
+    }
     finally{setLoading(false)}})();
     request.current=pending;
     try{await pending}finally{if(request.current===pending)request.current=null}
@@ -565,7 +573,7 @@ function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;project
   const projectorView=projector&&user.role!=='student';
   const {snapshot,error,loading,refresh}=useLiveSnapshot(sessionId,projectorView);
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
-  if(error&&!snapshot)return <div className="live-page"><p className="live-error">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
+  if(error&&!snapshot)return <div className="live-page"><p className="live-error" role="alert">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
   if(projectorView)return <ProjectorView snapshot={snapshot}/>;
   return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
@@ -575,5 +583,5 @@ export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {
   const route=useRoute();
   const sessionId=route.params.get('id');
   const projector=route.params.get('projector')==='1';
-  return sessionId?<LiveRoom user={user} sessionId={sessionId} projector={projector}/>:<LiveLanding user={user} classes={classes}/>;
+  return sessionId?<LiveRoom key={`${sessionId}:${projector}`} user={user} sessionId={sessionId} projector={projector}/>:<LiveLanding user={user} classes={classes}/>;
 }
