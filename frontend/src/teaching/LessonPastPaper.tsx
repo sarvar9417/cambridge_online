@@ -5,7 +5,13 @@ import { CheckCircle } from '@phosphor-icons/react/CheckCircle';
 import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass';
 import { Printer } from '@phosphor-icons/react/Printer';
 import { api } from '../lib/api';
-import { portableAssetUrl } from '../lib/portable-source-assets';
+import {
+  materializePortableSourceAssets,
+  portableAssetsForContent,
+  portableAssetUrl,
+} from '../lib/portable-source-assets';
+import type { StructuredQuestionContent } from '../lib/structured-question-content';
+import { StructuredQuestionView, structuredQuestionUsable } from '../student/StructuredQuestionView';
 import { type LessonAudience } from './lesson-experience-model';
 import { lessonCatalogChapter } from './lesson-course-catalog';
 import { buildTopicPlan, type LessonTopic, type TopicPage } from './lesson-topic-plan';
@@ -13,7 +19,7 @@ import { chapterPastPaperScope } from './lesson-chapter-past-paper-scope';
 
 type ExamAsset = {id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null};
 type ExamContextBlock = {id:string;displayRef:string;contextMd:string|null;assets:ExamAsset[]};
-type ExamDependency = {id:string;displayRef:string;stem:string;contextMd:string|null;assets:ExamAsset[]};
+type ExamDependency = {id:string;displayRef:string;stem:string;contextMd:string|null;assets:ExamAsset[];contentJson?:StructuredQuestionContent|null};
 type MarkPoint = {code:string;text:string;marks:number};
 type ExamQuestion = {
   id:string;
@@ -31,6 +37,7 @@ type ExamQuestion = {
   contextBlocks:ExamContextBlock[];
   dependencies:ExamDependency[];
   markSchemePoints:MarkPoint[];
+  contentJson?:StructuredQuestionContent|null;
 };
 type CheckpointResponse = {data:ExamQuestion[];yearFrom:number;yearTo:number;syllabusCode:string};
 
@@ -51,11 +58,31 @@ function ExamAssetView({asset}:{asset:ExamAsset}) {
   return <figure className="lx-exam-asset lx-exam-asset--text"><figcaption>{asset.altText||asset.kind}</figcaption><pre>{asset.contentMd}</pre></figure>;
 }
 
-function QuestionContext({question}:{question:ExamQuestion}) {
+function CanonicalContent({content,assets}:{content:StructuredQuestionContent;assets:ExamAsset[]}) {
+  const materialized=materializePortableSourceAssets(content,assets);
+  return <StructuredQuestionView content={materialized} assetUrls={portableAssetsForContent(assets)}/>;
+}
+
+function withoutRepeatedCanonicalContext(content:StructuredQuestionContent,seen:Set<string>) {
+  const blocks=content.blocks.filter(block=>{
+    if(block.type!=='text'||block.style!=='paragraph')return true;
+    const key=block.text.replace(/\s+/g,' ').trim();
+    if(!key||seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+  return blocks.length===content.blocks.length?content:{...content,blocks};
+}
+
+function RequiredDependency({dependency,content}:{dependency:ExamDependency;content:StructuredQuestionContent|null}) {
+  return <section className="lx-required-context"><span>REQUIRED PREVIOUS PART · {dependency.displayRef}</span>{content?<CanonicalContent content={content} assets={dependency.assets}/>:<>{dependency.contextMd?<p>{dependency.contextMd}</p>:null}{dependency.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}{dependency.stem?<p>{dependency.stem}</p>:null}</>}</section>;
+}
+
+function QuestionContext({question,dependencyContent,includeSource=true}:{question:ExamQuestion;dependencyContent:Map<string,StructuredQuestionContent>;includeSource?:boolean}) {
   return <>
-    {question.dependencies.map(dependency=><section className="lx-required-context" key={dependency.id}><span>REQUIRED PREVIOUS PART · {dependency.displayRef}</span>{dependency.contextMd?<p>{dependency.contextMd}</p>:null}{dependency.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}{dependency.stem?<p>{dependency.stem}</p>:null}</section>)}
-    {question.contextBlocks.map(block=><section className="lx-question-context" key={block.id}>{block.contextMd?<p>{block.contextMd}</p>:null}{block.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}</section>)}
-    {!question.contextBlocks.length&&question.contextMd?<section className="lx-question-context"><p>{question.contextMd}</p></section>:null}
+    {question.dependencies.map(dependency=><RequiredDependency dependency={dependency} content={dependencyContent.get(dependency.id)??null} key={dependency.id}/>)}
+    {includeSource?question.contextBlocks.map(block=><section className="lx-question-context" key={block.id}>{block.contextMd?<p>{block.contextMd}</p>:null}{block.assets.map(asset=><ExamAssetView asset={asset} key={asset.id}/>)}</section>):null}
+    {includeSource&&!question.contextBlocks.length&&question.contextMd?<section className="lx-question-context"><p>{question.contextMd}</p></section>:null}
   </>;
 }
 
@@ -66,12 +93,20 @@ function ExamQuestionView({question,audience,userId}:{question:ExamQuestion;audi
     try{return window.localStorage.getItem(answerStorageKey(userId,question.id))??'';}catch{return '';}
   });
   const [schemeOpen,setSchemeOpen]=useState(false);
+  const seenCanonicalContexts=new Set<string>();
+  const dependencyContent=new Map<string,StructuredQuestionContent>();
+  question.dependencies.forEach(dependency=>{
+    if(structuredQuestionUsable(dependency.contentJson))dependencyContent.set(dependency.id,withoutRepeatedCanonicalContext(dependency.contentJson,seenCanonicalContexts));
+  });
+  const rawCanonical=structuredQuestionUsable(question.contentJson)?question.contentJson:null;
+  const canonical=rawCanonical?withoutRepeatedCanonicalContext(rawCanonical,seenCanonicalContexts):null;
+  const sourceAssets=question.contextBlocks.flatMap(block=>block.assets);
   useEffect(()=>{
     try{window.localStorage.setItem(answerStorageKey(userId,question.id),answer);}catch{/* Local persistence is optional. */}
   },[answer,question.id,userId]);
   return <article className="lx-question-paper">
     <header className="lx-question-meta"><div><span>{question.displayRef}</span><small>{question.year} · {question.series} · Paper {question.component} · Variant {question.variant}</small></div><strong>{question.marks} mark</strong></header>
-    <div className="lx-question-body"><QuestionContext question={question}/><p className="lx-question-stem">{question.stem}</p>{question.commandWord?<span className="lx-command-word">Command word · {question.commandWord}</span>:null}</div>
+    <div className="lx-question-body"><QuestionContext question={question} dependencyContent={dependencyContent} includeSource={!canonical}/>{canonical?<CanonicalContent content={canonical} assets={sourceAssets}/>:<p className="lx-question-stem">{question.stem}</p>}{question.commandWord?<span className="lx-command-word">Command word · {question.commandWord}</span>:null}</div>
     <label className="lx-answer"><span>{audience==='teacher'?'Class answer or teacher notes':'Your answer'}</span><textarea value={answer} rows={Math.max(5,Math.min(12,question.marks*2))} onChange={event=>setAnswer(event.target.value)} placeholder="Write your answer here…"/></label>
     <div className="lx-scheme-actions"><button type="button" aria-expanded={schemeOpen} onClick={()=>setSchemeOpen(open=>!open)}><CheckCircle size={20} aria-hidden="true"/>{schemeOpen?'Hide mark scheme':'Reveal mark scheme'}</button></div>
     {schemeOpen?<section className="lx-mark-scheme"><header><span>MARK SCHEME</span><strong>{question.marks} marks available</strong></header>{question.markSchemePoints?.length?<ol>{question.markSchemePoints.map((point,index)=><li key={`${point.code}-${index}`}><span>{point.code||`MP${index+1}`}</span><p>{point.text}</p><strong>+{point.marks}</strong></li>)}</ol>:<p className="lx-no-scheme">Approved mark points for this question are not yet available in the checkpoint database.</p>}</section>:null}

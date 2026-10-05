@@ -83,4 +83,36 @@ describe('Past Paper drafts', () => {
     await render();
     expect(answer().value).toBe('');
   });
+
+  it('renders canonical source content instead of a truncated legacy stem', async () => {
+    vi.mocked(api).mockResolvedValue({ data: [{
+      ...questions[0],
+      stem: 'Calculate the answer, giving',
+      hasDependency: true,
+      dependencies: [{
+        id: 'previous', displayRef: '9618 Q1(a)', stem: 'Legacy previous part', contextMd: null, assets: [],
+        contentJson: {
+          version: 1,
+          source: { paperId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sha256: 'a'.repeat(64) },
+          blocks: [
+            { type: 'text', style: 'paragraph', text: 'Shared bitmap context.', source: { page: 2 } },
+            { type: 'text', style: 'task', text: 'Identify the colour depth.', source: { page: 2 } },
+          ],
+        },
+      }],
+      contentJson: {
+        version: 1,
+        source: { paperId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sha256: 'a'.repeat(64) },
+        blocks: [
+          { type: 'text', style: 'paragraph', text: 'Shared bitmap context.', source: { page: 2 } },
+          { type: 'text', style: 'task', text: 'Calculate the answer, giving your answer in bytes.', source: { page: 3 } },
+        ],
+      },
+    }] });
+    await render();
+    expect(container.querySelector('.lx-question-body')?.textContent).toContain('giving your answer in bytes');
+    expect(container.querySelector('.lx-question-stem')).toBeNull();
+    expect(container.textContent?.match(/Shared bitmap context\./g)).toHaveLength(1);
+    expect(container.textContent).toContain('Identify the colour depth.');
+  });
 });

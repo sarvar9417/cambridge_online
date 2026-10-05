@@ -7,6 +7,11 @@ import { createLessonCheckpointsRouter } from './routes/lesson-checkpoints.js';
 
 const teacher={id:'teacher',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
 const student={id:'student',role:'student' as const,schoolId:'school',fullName:'Student'};
+const contentJson={
+  version:1 as const,
+  source:{paperId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',sha256:'a'.repeat(64)},
+  blocks:[{type:'text' as const,style:'task' as const,text:'Complete canonical question.',source:{page:2}}],
+};
 
 describe('LessonCheckpointService',()=>{
   it('resolves current target LOs and returns full source context/assets/dependencies',async()=>{
@@ -15,11 +20,12 @@ describe('LessonCheckpointService',()=>{
         id:'11111111-1111-4111-8111-111111111111',parent_id:'22222222-2222-4222-8222-222222222222',
         display_ref:'9618/31/M/J/24 Q1(a)',stem:'Question',context_md:'Context',command_word:'Explain',marks:2,
         year:2024,series:'MJ',variant:1,component:3,matched_lo_codes:['13.2-lo-04'],has_diagram:true,has_dependency:true,
+        content_json:contentJson,content_version:1,
         mark_scheme_points:[{code:'MP1',text:'First marking point',marks:1},{code:'MP2',text:'Second marking point',marks:1}],
       }]})
       .mockResolvedValueOnce({rows:[
         {leaf_id:'11111111-1111-4111-8111-111111111111',id:'22222222-2222-4222-8222-222222222222',parent_id:null,display_ref:'9618/31/M/J/24 Q1',context_md:'Shared context',depth:0},
-        {leaf_id:'11111111-1111-4111-8111-111111111111',id:'11111111-1111-4111-8111-111111111111',parent_id:'22222222-2222-4222-8222-222222222222',display_ref:'9618/31/M/J/24 Q1(a)',context_md:null,depth:1},
+        {leaf_id:'11111111-1111-4111-8111-111111111111',id:'11111111-1111-4111-8111-111111111111',parent_id:'22222222-2222-4222-8222-222222222222',display_ref:'9618/31/M/J/24 Q1(a)',context_md:'Shared context',depth:1},
       ]})
       .mockResolvedValueOnce({rows:[{
         question_id:'11111111-1111-4111-8111-111111111111',depends_on_id:'33333333-3333-4333-8333-333333333333',
@@ -53,6 +59,7 @@ describe('LessonCheckpointService',()=>{
       displayRef:'9618/31/M/J/24 Q1(a)',
       matchedLearningObjectiveCodes:['13.2-lo-04'],
       contextMd:'Context',
+      contentJson,
       hasDependency:true,
       contextBlocks:[{
         displayRef:'9618/31/M/J/24 Q1',
@@ -69,6 +76,7 @@ describe('LessonCheckpointService',()=>{
         {code:'MP2',text:'Second marking point',marks:1},
       ],
     });
+    expect(result.data[0]?.contextBlocks).toHaveLength(1);
     expect(result.syllabusCode).toBe('9618');
   });
 

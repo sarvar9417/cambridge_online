@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
+import { parseStoredStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
 
 export type LessonCheckpointAsset = {
   id: string;
@@ -24,6 +25,7 @@ export type LessonCheckpointDependency = {
   stem: string;
   contextMd: string | null;
   assets: LessonCheckpointAsset[];
+  contentJson: StructuredQuestionContent | null;
 };
 
 export type LessonCheckpointMarkPoint = {
@@ -49,6 +51,7 @@ export type LessonCheckpointQuestion = {
   contextBlocks: LessonCheckpointContextBlock[];
   dependencies: LessonCheckpointDependency[];
   markSchemePoints: LessonCheckpointMarkPoint[];
+  contentJson: StructuredQuestionContent | null;
 };
 
 type AssetRow = {
@@ -60,6 +63,13 @@ type AssetRow = {
   alt_text: string | null;
   source_page: number | null;
 };
+
+function storedContent(value:unknown,version:unknown) {
+  if(value == null)return null;
+  const content=parseStoredStructuredQuestionContent(value);
+  if(version!==1)throw new Error('Structured question content has an unsupported database version.');
+  return content;
+}
 
 export class LessonCheckpointService {
   constructor(
@@ -119,6 +129,8 @@ export class LessonCheckpointService {
          coalesce(nullif(q.context_md,''),nullif(parent.context_md,'')) context_md,
          q.command_word,
          q.marks,
+         q.content_json,
+         q.content_version,
          sp.year,
          sp.series,
          sp.variant,
@@ -195,7 +207,7 @@ export class LessonCheckpointService {
 
     const dependencyResult = await this.pool.query(
       `select qd.question_id,qd.depends_on_id,target.display_ref,
-         coalesce(target.stem_md,'') stem,target.context_md
+         coalesce(target.stem_md,'') stem,target.context_md,target.content_json,target.content_version
        from question_dependencies qd
        join questions target on target.id=qd.depends_on_id
        where qd.question_id=any($1::uuid[])
@@ -261,13 +273,20 @@ export class LessonCheckpointService {
     return {
       data: result.rows.map((row) => {
         const id = String(row.id);
+        const seenContext = new Set<string>();
         const contextBlocks = (chainByLeaf.get(id) ?? [])
-          .map((item) => ({
-            id: String(item.id),
-            displayRef: String(item.display_ref),
-            contextMd: item.context_md ? String(item.context_md) : null,
-            assets: assetsByQuestion.get(String(item.id)) ?? [],
-          }))
+          .map((item) => {
+            const rawContext = item.context_md ? String(item.context_md) : null;
+            const contextKey = rawContext?.trim() ?? '';
+            const contextMd = contextKey && !seenContext.has(contextKey) ? rawContext : null;
+            if (contextKey) seenContext.add(contextKey);
+            return {
+              id: String(item.id),
+              displayRef: String(item.display_ref),
+              contextMd,
+              assets: assetsByQuestion.get(String(item.id)) ?? [],
+            };
+          })
           .filter((item) => Boolean(item.contextMd) || item.assets.length > 0);
         const dependencies = (dependenciesByQuestion.get(id) ?? []).map((item) => ({
           id: String(item.depends_on_id),
@@ -275,6 +294,7 @@ export class LessonCheckpointService {
           stem: String(item.stem ?? ''),
           contextMd: item.context_md ? String(item.context_md) : null,
           assets: assetsByQuestion.get(String(item.depends_on_id)) ?? [],
+          contentJson: storedContent(item.content_json,item.content_version),
         }));
         return {
           id,
@@ -292,6 +312,7 @@ export class LessonCheckpointService {
           matchedLearningObjectiveCodes: (row.matched_lo_codes ?? []).map(String),
           contextBlocks,
           dependencies,
+          contentJson: storedContent(row.content_json,row.content_version),
           markSchemePoints: (row.mark_scheme_points ?? []).map((point: { code?:unknown;text?:unknown;marks?:unknown }) => ({
             code:String(point.code ?? ''),
             text:String(point.text ?? ''),
