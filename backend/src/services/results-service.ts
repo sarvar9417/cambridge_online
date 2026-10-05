@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
-import { parseStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
+import { parseStoredStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
 import { DomainError } from './assignments-service.js';
 import { sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 
@@ -9,7 +9,7 @@ interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:
 function resultContent(row:{content_json?:unknown|null;content_version?:number|null;id:string}) {
   if(row.content_json==null)return null;
   if(Number(row.content_version)!==1)throw new Error(`Unsupported structured content version for question ${row.id}`);
-  return parseStructuredQuestionContent(row.content_json);
+  return parseStoredStructuredQuestionContent(row.content_json);
 }
 
 function assetIds(content:StructuredQuestionContent|null) {

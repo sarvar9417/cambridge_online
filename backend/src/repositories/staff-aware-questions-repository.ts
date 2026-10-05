@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
-import { parseStructuredQuestionContent } from '../lib/structured-question-content.js';
+import { parseStoredStructuredQuestionContent } from '../lib/structured-question-content.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import { PgQuestionsRepository } from './questions-repository.js';
 
@@ -91,7 +91,7 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
     if (!row?.content_json) return portable;
     if (Number(row.content_version) !== 1) throw new Error('structured_question_version_unsupported');
 
-    const contentJson = parseStructuredQuestionContent(row.content_json);
+    const contentJson = parseStoredStructuredQuestionContent(row.content_json);
     const referencedAssetIds = [...new Set(contentJson.blocks.flatMap((block) =>
       block.type === 'asset' ? [block.assetId] : [],
     ))];

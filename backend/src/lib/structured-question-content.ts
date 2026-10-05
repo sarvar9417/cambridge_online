@@ -144,6 +144,37 @@ export function parseStructuredQuestionContent(value: unknown): StructuredQuesti
   return structuredQuestionContentSchema.parse(value);
 }
 
+const legacySemanticAssetKinds = new Set(['table', 'pseudocode', 'code']);
+
+/**
+ * Parse canonical content read from the database while preserving compatibility
+ * with early v1 imports. Those imports represented semantic table/code sources
+ * as asset blocks and kept the real source type on question_assets. Portable
+ * clients resolve the referenced asset and materialize the final table or code
+ * block, so expose the reference as the generic image-shaped v1 form here.
+ *
+ * The public schema remains strict: only these three known historical values are
+ * upgraded and every other malformed field still fails closed.
+ */
+export function parseStoredStructuredQuestionContent(value: unknown): StructuredQuestionContent {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return parseStructuredQuestionContent(value);
+  }
+  const candidate = value as Record<string, unknown>;
+  if (!Array.isArray(candidate.blocks)) return parseStructuredQuestionContent(value);
+
+  let changed = false;
+  const blocks = candidate.blocks.map((block) => {
+    if (!block || typeof block !== 'object' || Array.isArray(block)) return block;
+    const row = block as Record<string, unknown>;
+    if (row.type !== 'asset' || !legacySemanticAssetKinds.has(String(row.kind))) return block;
+    changed = true;
+    return { ...row, kind: 'image' };
+  });
+
+  return parseStructuredQuestionContent(changed ? { ...candidate, blocks } : value);
+}
+
 export function safeParseStructuredQuestionContent(value: unknown) {
   return structuredQuestionContentSchema.safeParse(value);
 }

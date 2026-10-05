@@ -73,6 +73,7 @@ describe('question bank v2', () => {
     expect(sql).toContain("qa.kind in ('diagram','image')");
     expect(sql).toContain('not exists(select 1 from question_dependencies');
     expect(sql).toContain('websearch_to_tsquery');
+    expect(sql).toContain("q.display_ref ilike '%' ||");
     expect(values).toContain('cache');
     expect(values).toContain(25);
     expect(result.view).toBe('parts');

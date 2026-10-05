@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseStructuredQuestionContent,
+  parseStoredStructuredQuestionContent,
   safeParseStructuredQuestionContent,
 } from './structured-question-content.js';
 
@@ -104,5 +105,24 @@ describe('structured question content v1', () => {
       }],
     });
     expect(result.success).toBe(false);
+  });
+
+  it('upgrades only known early-v1 semantic asset kinds when reading stored content', () => {
+    const assetId = '22222222-2222-4222-8222-222222222222';
+    const legacy = {
+      ...valid,
+      blocks: [{
+        type: 'asset', kind: 'table', assetId, altText: 'Source table', source: location,
+      }],
+    };
+
+    expect(() => parseStructuredQuestionContent(legacy)).toThrow();
+    expect(parseStoredStructuredQuestionContent(legacy).blocks[0]).toMatchObject({
+      type: 'asset', kind: 'image', assetId,
+    });
+    expect(() => parseStoredStructuredQuestionContent({
+      ...legacy,
+      blocks: [{ ...legacy.blocks[0],kind:'unknown' }],
+    })).toThrow();
   });
 });

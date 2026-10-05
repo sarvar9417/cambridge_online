@@ -596,7 +596,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     const handle = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const editing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName);
-      if (event.key === '/') {
+      if (event.key === '/' && !editing) {
         event.preventDefault();
         searchRef.current?.focus();
         return;

@@ -24,6 +24,40 @@ export function renderableVisualAssetSql(alias='qa'){
   )`;
 }
 
+/** Visual-integrity failure predicate for one question/context node. */
+export function sourceVisualBlockerSql(questionAlias='source_node'){
+  const node=identifier(questionAlias);
+  const renderable=renderableVisualAssetSql('qa');
+  return `(
+    ${node}.content_version=1
+    and ${node}.content_json is not null
+    and exists(
+      select 1
+      from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb)) block
+      left join question_assets qa on qa.id::text=block->>'assetId'
+      where block->>'type'='asset'
+        and block->>'kind' in ('diagram','image','flowchart','logic_circuit')
+        and (
+          qa.id is null
+          or (qa.kind in ('diagram','image') and not ${renderable})
+        )
+    )
+  ) or (
+    (${node}.content_json is null or ${node}.content_version is distinct from 1)
+    and exists(
+      select 1 from question_assets visual
+      where visual.question_id=${node}.id
+        and visual.kind in ('diagram','image')
+    )
+    and not exists(
+      select 1 from question_assets qa
+      where qa.question_id=${node}.id
+        and qa.kind in ('diagram','image')
+        and ${renderable}
+    )
+  )`;
+}
+
 /**
  * Candidate-level integrity guard. It walks the question ancestry because
  * Cambridge subparts routinely depend on a diagram/table owned by a parent.
@@ -33,7 +67,6 @@ export function renderableVisualAssetSql(alias='qa'){
  */
 export function questionVisualIntegritySql(questionAlias='q'){
   const q=identifier(questionAlias);
-  const renderable=renderableVisualAssetSql('qa');
   return `not exists(
     with recursive source_visual_chain as (
       select ${q}.id,${q}.parent_id
@@ -45,34 +78,7 @@ export function questionVisualIntegritySql(questionAlias='q'){
     select 1
     from source_visual_chain svc
     join questions source_node on source_node.id=svc.id
-    where (
-      source_node.content_version=1
-      and source_node.content_json is not null
-      and exists(
-        select 1
-        from jsonb_array_elements(coalesce(source_node.content_json->'blocks','[]'::jsonb)) block
-        left join question_assets qa on qa.id::text=block->>'assetId'
-        where block->>'type'='asset'
-          and block->>'kind' in ('diagram','image','flowchart','logic_circuit')
-          and (
-            qa.id is null
-            or (qa.kind in ('diagram','image') and not ${renderable})
-          )
-      )
-    ) or (
-      (source_node.content_json is null or source_node.content_version is distinct from 1)
-      and exists(
-        select 1 from question_assets visual
-        where visual.question_id=source_node.id
-          and visual.kind in ('diagram','image')
-      )
-      and not exists(
-        select 1 from question_assets qa
-        where qa.question_id=source_node.id
-          and qa.kind in ('diagram','image')
-          and ${renderable}
-      )
-    )
+    where ${sourceVisualBlockerSql('source_node')}
   )`;
 }
 

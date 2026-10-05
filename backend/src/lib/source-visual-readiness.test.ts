@@ -6,6 +6,7 @@ import {
   portableVisualReady,
   questionVisualIntegritySql,
   renderableVisualAssetSql,
+  sourceVisualBlockerSql,
 } from './source-visual-readiness.js';
 
 describe('source visual readiness',()=>{
@@ -47,6 +48,7 @@ describe('source visual readiness',()=>{
     expect(sql).toContain("qa.id::text=block->>'assetId'");
     expect(sql).toContain("qa.kind in ('diagram','image')");
     expect(sql).toContain('qa.svg_markup');
+    expect(sql).toContain(sourceVisualBlockerSql('source_node'));
   });
 
   it('ignores stale unreferenced visual rows when canonical structured content points at a ready asset',()=>{

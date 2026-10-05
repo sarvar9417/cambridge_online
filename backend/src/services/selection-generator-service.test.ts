@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
 import { SelectionGeneratorService } from './selection-generator-service.js';
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
@@ -55,7 +55,27 @@ type Expand = {
   };
 };
 
+type DependencyGraph = {
+  dependencyGraph(seedIds:string[]):Promise<unknown[]>;
+};
+
 describe('SelectionGeneratorService dependency expansion',()=>{
+  it('loads only dependencies reachable from the generated seed questions',async()=>{
+    const query=vi.fn().mockResolvedValue({rows:[]});
+    const scopedService=new SelectionGeneratorService(
+      {query} as unknown as Pool,
+      {} as PgSelectionsRepository,
+    );
+
+    await (scopedService as unknown as DependencyGraph).dependencyGraph(['seed-1','seed-2']);
+
+    const [sql,values]=query.mock.calls[0]!;
+    expect(sql).toContain('with recursive dependency_nodes');
+    expect(sql).toContain('select unnest($1::uuid[])');
+    expect(sql).toContain('join question_dependencies qd on qd.question_id=node.id');
+    expect(values).toEqual([['seed-1','seed-2']]);
+  });
+
   it('places an answer prerequisite before its dependent and keeps it graded',()=>{
     const result=(service as unknown as Expand).expandDependencies(
       ['q-b'],

@@ -189,6 +189,7 @@ export class PgQuestionsRepository {
       conditions.push(`(
         to_tsvector('english',coalesce(q.stem_md,'')) @@ websearch_to_tsquery('english',${parameter})
         or q.stem_md ilike '%' || ${parameter} || '%'
+        or q.display_ref ilike '%' || ${parameter} || '%'
       )`);
     }
     if (filters.dependency === 'independent') {

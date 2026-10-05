@@ -4,7 +4,7 @@ import { generateSmartPaper, type SmartPaperCandidate } from '../lib/smart-paper
 import type { PgSelectionsRepository } from '../repositories/selections-repository.js';
 import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
-import { questionVisualIntegritySql, renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
+import { renderableVisualAssetSql, sourceVisualBlockerSql } from '../lib/source-visual-readiness.js';
 
 export interface SmartSelectionInput {
   name: string;
@@ -123,7 +123,6 @@ export class SelectionGeneratorService {
       `q.body_format='latex'`,
       `nullif(btrim(coalesce(q.stem_latex,'')),'') is not null`,
       `q.content_json is not null and q.content_version=1`,
-      questionVisualIntegritySql('q'),
       `exists(
         select 1 from canonical_mark_schemes cms
         where cms.question_id=q.id
@@ -229,7 +228,7 @@ export class SelectionGeneratorService {
     }
 
     const result = await this.pool.query(
-      `with recursive matching as (
+      `with recursive matching_raw as (
          select q.id,q.parent_id,q.depth,q.sort_order,q.display_ref,q.marks,q.command_word,
            q.ao,sp.year,
            exists(
@@ -253,11 +252,22 @@ export class SelectionGeneratorService {
          where ${conditions.join(' and ')}
        ), chain as (
          select m.id leaf_id,m.id node_id,m.parent_id,m.depth
-         from matching m
+         from matching_raw m
          union all
          select ch.leaf_id,p.id,p.parent_id,p.depth
          from chain ch
          join questions p on p.id=ch.parent_id
+       ), visual_blockers as (
+         select distinct ch.leaf_id
+         from chain ch
+         join questions source_node on source_node.id=ch.node_id
+         where ${sourceVisualBlockerSql('source_node')}
+       ), matching as (
+         select raw.*
+         from matching_raw raw
+         where not exists(
+           select 1 from visual_blockers blocked where blocked.leaf_id=raw.id
+         )
        ), roots as (
          select distinct on (leaf_id) leaf_id,node_id root_id
          from chain
@@ -272,9 +282,16 @@ export class SelectionGeneratorService {
     return result.rows as CandidateRow[];
   }
 
-  private async dependencyGraph() {
+  private async dependencyGraph(seedIds: string[]) {
     const result = await this.pool.query(
-      `select qd.question_id,qd.depends_on_id,qd.kind::text,qd.strength::text,
+      `with recursive dependency_nodes(id) as (
+         select unnest($1::uuid[])
+         union
+         select qd.depends_on_id
+         from dependency_nodes node
+         join question_dependencies qd on qd.question_id=node.id
+       )
+       select qd.question_id,qd.depends_on_id,qd.kind::text,qd.strength::text,
          source.display_ref source_ref,source.marks source_marks,source.status::text source_status,
          source.sort_order source_sort_order,
          exists(
@@ -287,7 +304,8 @@ export class SelectionGeneratorService {
            select 1 from canonical_mark_schemes cms
            where cms.question_id=target.id and cms.status='approved' and cms.max_marks=target.marks
          ) target_ms_ready
-       from question_dependencies qd
+       from dependency_nodes node
+       join question_dependencies qd on qd.question_id=node.id
        join questions source on source.id=qd.question_id
        join questions target on target.id=qd.depends_on_id
        join source_papers sp on sp.id=source.source_paper_id
@@ -297,6 +315,7 @@ export class SelectionGeneratorService {
          and sp.year between 2021 and 2026
          and sp.variant between 1 and 3
        order by source.sort_order,target.sort_order,target.id`,
+      [seedIds],
     );
     return result.rows as DependencyRow[];
   }
@@ -434,7 +453,7 @@ export class SelectionGeneratorService {
     });
     if (!basePlan.questionIds.length) throw new DomainError('generator_empty_pool', 409);
 
-    const dependencyRows = await this.dependencyGraph();
+    const dependencyRows = await this.dependencyGraph(basePlan.questionIds);
     const expanded = this.expandDependencies(basePlan.questionIds, rows, dependencyRows);
     const warnings = [...basePlan.warnings];
 

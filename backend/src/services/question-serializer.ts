@@ -1,4 +1,4 @@
-import { parseStructuredQuestionContent } from '../lib/structured-question-content.js';
+import { parseStoredStructuredQuestionContent } from '../lib/structured-question-content.js';
 
 interface QuestionRow {
   id: string;
@@ -22,7 +22,7 @@ interface QuestionRow {
 export function serializeQuestion(row: QuestionRow) {
   const structuredContent = row.content_json == null
     ? null
-    : parseStructuredQuestionContent(row.content_json);
+    : parseStoredStructuredQuestionContent(row.content_json);
   if (structuredContent && row.content_version !== 1) {
     throw new Error('Structured question content has an unsupported database version.');
   }

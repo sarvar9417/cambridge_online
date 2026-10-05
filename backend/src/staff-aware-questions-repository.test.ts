@@ -23,6 +23,10 @@ const structuredContent={
   source:{paperId,sha256:'a'.repeat(64)},
   blocks:[{type:'asset',kind:'diagram',assetId,altText:'Shared source diagram',source:{page:2}}],
 };
+const legacySemanticContent={
+  ...structuredContent,
+  blocks:[{type:'asset',kind:'table',assetId,altText:'Source table',source:{page:2}}],
+};
 
 describe('staff mark-scheme fallback', () => {
   it('returns a needs-review source scheme to staff and prefers approved in SQL', async () => {
@@ -65,6 +69,26 @@ describe('staff mark-scheme fallback', () => {
 });
 
 describe('staff portable structured asset closure',()=>{
+  it('normalizes an early-v1 semantic asset reference for portable rendering',async()=>{
+    const row={...portableLeafRow,assets:[{
+      id:assetId,kind:'table',storagePath:null,contentMd:'| A | X |\n| --- | --- |\n| 0 | |',
+      altText:'Source table',sortOrder:1,sourcePage:2,
+    }]};
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[row]})
+      .mockResolvedValueOnce({rowCount:0,rows:[]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{content_json:legacySemanticContent,content_version:1}]});
+
+    const result=await new PgStaffAwareQuestionsRepository({query} as unknown as Pool).portable(teacher,'q1');
+    expect(result?.leaf.contentJson?.blocks[0]).toMatchObject({
+      type:'asset',kind:'image',assetId,
+    });
+    expect(result?.contextBlocks.flatMap(block=>block.assets)).toContainEqual(expect.objectContaining({
+      id:assetId,kind:'table',
+    }));
+    expect(query).toHaveBeenCalledTimes(3);
+  });
+
   it('freezes an explicitly referenced sibling source asset into the portable snapshot',async()=>{
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[portableLeafRow]})
