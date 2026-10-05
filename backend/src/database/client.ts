@@ -34,9 +34,13 @@ export const pool = connectionString
       // each instance to one client; Supabase transaction mode multiplexes the
       // short queries safely across the upstream database pool.
       max: isVercel ? 1 : config.DB_POOL_MAX,
-      // A serverless instance must not pin an idle session between bursts.
-      connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? (isVercel ? 3000 : 5000)),
-      idleTimeoutMillis: isVercel ? 1000 : 30000,
+      // Cross-region/TLS handshakes can occasionally exceed three seconds.
+      // Keep the fail-fast behaviour, but allow enough time for a healthy
+      // Supabase transaction-pooler connection to complete.
+      connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? (isVercel ? 10000 : 5000)),
+      // Reusing a warm serverless connection avoids forcing a new TLS/database
+      // handshake after every brief gap between parallel classroom API calls.
+      idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? (isVercel ? 10000 : 30000)),
       allowExitOnIdle: true,
     })
   : null;
