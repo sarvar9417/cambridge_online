@@ -4,6 +4,8 @@ import {
   portableQuestionVisualReady,
   sourceVisualDataUrl,
   portableVisualReady,
+  portableCanonicalAssetReady,
+  renderableCanonicalAssetSql,
   questionVisualIntegritySql,
   renderableVisualAssetSql,
   sourceVisualBlockerSql,
@@ -25,6 +27,18 @@ describe('source visual readiness',()=>{
     expect(portableVisualReady({kind:'code',url:null,contentMd:'OUTPUT X'})).toBe(true);
   });
 
+  it('validates semantic and storage-backed canonical asset kinds explicitly',()=>{
+    expect(portableCanonicalAssetReady({kind:'table',url:null,contentMd:'| A | B |\n|---|---|\n|0|1|'})).toBe(true);
+    expect(portableCanonicalAssetReady({kind:'table',url:null,contentMd:'table description only'})).toBe(false);
+    expect(portableCanonicalAssetReady({kind:'table',url:null,contentMd:null})).toBe(false);
+    expect(portableCanonicalAssetReady({kind:'table',url:'https://signed.example/table.png',contentMd:null})).toBe(true);
+    expect(portableCanonicalAssetReady({kind:'pseudocode',url:null,contentMd:'INPUT X\nOUTPUT X'})).toBe(true);
+    expect(portableCanonicalAssetReady({kind:'unknown',url:'https://signed.example/unknown.png',contentMd:null})).toBe(false);
+    const sql=renderableCanonicalAssetSql('qa');
+    expect(sql).toContain("qa.kind='table'");
+    expect(sql).toContain("qa.kind in ('pseudocode','code')");
+  });
+
   it('accepts fenced SVG consistently and encodes it as an image URL',()=>{
     const fenced='```svg\n<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>\n```';
     expect(completeInlineSvg(fenced)).toBe(true);
@@ -44,9 +58,10 @@ describe('source visual readiness',()=>{
     const sql=questionVisualIntegritySql('q');
     expect(sql).toContain('with recursive source_visual_chain');
     expect(sql).toContain("block->>'type'='asset'");
-    expect(sql).toContain("block->>'kind' in ('diagram','image','flowchart','logic_circuit')");
+    expect(sql).toContain("block->>'type'='asset'");
     expect(sql).toContain("qa.id::text=block->>'assetId'");
     expect(sql).toContain("qa.kind in ('diagram','image')");
+    expect(sql).toContain("qa.kind='table'");
     expect(sql).toContain('qa.svg_markup');
     expect(sql).toContain(sourceVisualBlockerSql('source_node'));
   });
@@ -85,7 +100,7 @@ describe('source visual readiness',()=>{
     }])).toBe(true);
   });
 
-  it('accepts storage-backed table assets even when contentMd is empty',()=>{
+  it('accepts storage-backed table assets only when a signed browser URL is available',()=>{
     const content={version:1,blocks:[
       {type:'text',text:'The diagram shows the circular queue populated with four items.'},
       {type:'asset',kind:'table',assetId:'queue-state'},
@@ -93,6 +108,9 @@ describe('source visual readiness',()=>{
     expect(portableQuestionVisualReady(content,[{
       id:'queue-state',kind:'table',url:'https://signed.example/queue.png',contentMd:null,
     }])).toBe(true);
+    expect(portableQuestionVisualReady(content,[{
+      id:'queue-state',kind:'table',url:null,contentMd:null,
+    }])).toBe(false);
   });
 
   it('accepts a legacy image-shaped block when it resolves to a source-backed table asset',()=>{
