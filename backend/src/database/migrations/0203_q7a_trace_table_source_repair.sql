@@ -50,7 +50,7 @@ BEGIN
     AND qa.source_bbox='[153,234,1542,2214]'::jsonb
     AND nullif(btrim(coalesce(qa.storage_path,'')),'') IS NOT NULL
     AND qa.alt_text='Original Cambridge source layout for 9618/12/O/N/22 Q7(a)'
-  ORDER BY qa.created_at DESC,qa.id
+  ORDER BY qa.sort_order,qa.id
   LIMIT 1;
 
   IF NOT FOUND THEN
