@@ -47,6 +47,20 @@ describe('structured question HTML export',()=>{
     expect(html).toContain('<span class="sq-overline">A</span> ∧ B');
   });
 
+  it('renders answer scaffolds as labelled lines instead of raw underscore filler',()=>{
+    const html=renderStructuredQuestionHtml({
+      version:1,source,blocks:[{
+        type:'text',style:'task',
+        text:'Describe the routine and give a benefit.\n\nFunction __________\n\nBenefit __________',
+        source:location,
+      }],
+    });
+    expect(html).toContain('data-answer-scaffold="true"');
+    expect(html).toContain('data-answer-label="Function"');
+    expect(html).toContain('data-answer-label="Benefit"');
+    expect(html).not.toContain('__________');
+  });
+
   it('uses an explicit source-backed asset resolver for diagrams',()=>{
     const assetId='22222222-2222-4222-8222-222222222222';
     const html=renderStructuredQuestionHtml({

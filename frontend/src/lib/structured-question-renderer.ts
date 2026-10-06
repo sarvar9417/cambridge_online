@@ -15,6 +15,68 @@ function text(className:string,value:string){
   return node;
 }
 
+type AnswerScaffoldSegment=
+  | {kind:'text';text:string}
+  | {kind:'answer';label:string;suffix:string};
+
+const ANSWER_SCAFFOLD=/^(.{1,80}?)\s+(?:_{3,}|\.{5,}|…{3,})(?:\s*(.*))?$/;
+
+export function splitAnswerScaffoldText(value:string):AnswerScaffoldSegment[]{
+  const sections=value
+    .split(/\r?\n\s*\r?\n/)
+    .map((section)=>section.trim())
+    .filter(Boolean);
+  return sections.map((section)=>{
+    const oneLine=section.replace(/\s*\r?\n\s*/g,' ').trim();
+    const match=oneLine.match(ANSWER_SCAFFOLD);
+    if(!match)return {kind:'text',text:oneLine};
+    return {kind:'answer',label:match[1]!.trim(),suffix:(match[2]??'').trim()};
+  });
+}
+
+function renderTextBlock(block:Extract<StructuredQuestionBlock,{type:'text'}>){
+  const segments=splitAnswerScaffoldText(block.text);
+  const hasScaffold=segments.some((segment)=>segment.kind==='answer');
+  if(!hasScaffold){
+    const paragraph=document.createElement('p');
+    paragraph.className=`structured-question-text structured-question-${block.style}`;
+    paragraph.dataset.questionBlock='text';
+    paragraph.textContent=block.text;
+    return paragraph;
+  }
+
+  const wrapper=document.createElement('div');
+  wrapper.className=`structured-question-text structured-question-${block.style} structured-question-text-scaffold`;
+  wrapper.dataset.questionBlock='text';
+  wrapper.dataset.answerScaffold='true';
+
+  for(const segment of segments){
+    if(segment.kind==='text'){
+      const paragraph=document.createElement('p');
+      paragraph.className='structured-question-scaffold-copy';
+      paragraph.textContent=segment.text;
+      wrapper.append(paragraph);
+      continue;
+    }
+    const row=document.createElement('div');
+    row.className='structured-question-scaffold-row';
+    row.dataset.answerLabel=segment.label;
+    const label=document.createElement('strong');
+    label.textContent=segment.label;
+    const line=document.createElement('span');
+    line.className='structured-question-scaffold-line';
+    line.setAttribute('aria-hidden','true');
+    row.append(label,line);
+    if(segment.suffix){
+      const suffix=document.createElement('small');
+      suffix.textContent=segment.suffix;
+      row.append(suffix);
+    }
+    wrapper.append(row);
+  }
+  return wrapper;
+}
+
 export function readableBooleanLatex(latex:string){
   return latex
     .replace(/\\overline\{([^{}]+)\}/g,(_,value:string)=>[...value].map(char=>`${char}\u0305`).join(''))
@@ -126,13 +188,7 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
 
 function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRenderOptions){
   switch(block.type){
-    case 'text': {
-      const paragraph=document.createElement('p');
-      paragraph.className=`structured-question-text structured-question-${block.style}`;
-      paragraph.dataset.questionBlock='text';
-      paragraph.textContent=block.text;
-      return paragraph;
-    }
+    case 'text': return renderTextBlock(block);
     case 'math': return renderMath(block);
     case 'code': {
       const pre=document.createElement('pre');

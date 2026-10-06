@@ -53,6 +53,13 @@
 .structured-question-view { display:grid; gap:.85rem; min-width:0; }
 .structured-question-text { margin:0; font-family:var(--font-read); font-size:1rem; line-height:1.6; }
 .structured-question-task { font-weight:600; }
+.structured-question-text-scaffold { display:grid; gap:.85rem; }
+.structured-question-scaffold-copy { margin:0; }
+.structured-question-scaffold-row { display:grid; grid-template-columns:max-content minmax(96px,1fr) max-content; align-items:end; gap:.65rem; font-family:var(--font-read); font-weight:500; }
+.structured-question-scaffold-row strong { font-weight:750; }
+.structured-question-scaffold-line { min-width:96px; height:1.25em; border-bottom:1px solid var(--border-strong); }
+.structured-question-scaffold-row small { color:var(--text-muted); font-size:.9em; }
+
 .structured-question-code { margin:0; padding:.9rem; overflow:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-soft); font-family:var(--font-mono); line-height:1.5; white-space:pre-wrap; }
 .structured-question-list { margin:0; padding-left:1.35rem; display:grid; gap:.35rem; line-height:1.5; }
 .structured-question-math { max-width:100%; overflow-x:auto; padding:.35rem .5rem; border-radius:var(--radius-sm); background:var(--surface-soft); font-family:var(--font-mono); white-space:pre-wrap; }

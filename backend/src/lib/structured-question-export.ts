@@ -22,6 +22,37 @@ const escapeHtml = (value: string) => value
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;');
 
+type AnswerScaffoldSegment=
+  | {kind:'text';text:string}
+  | {kind:'answer';label:string;suffix:string};
+
+const ANSWER_SCAFFOLD=/^(.{1,80}?)\s+(?:_{3,}|\.{5,}|…{3,})(?:\s*(.*))?$/;
+
+function splitAnswerScaffoldText(value:string):AnswerScaffoldSegment[] {
+  return value
+    .split(/\r?\n\s*\r?\n/)
+    .map((section)=>section.trim())
+    .filter(Boolean)
+    .map((section)=>{
+      const oneLine=section.replace(/\s*\r?\n\s*/g,' ').trim();
+      const match=oneLine.match(ANSWER_SCAFFOLD);
+      if(!match)return {kind:'text',text:oneLine};
+      return {kind:'answer',label:match[1]!.trim(),suffix:(match[2]??'').trim()};
+    });
+}
+
+function renderTextBlockHtml(block:Extract<StructuredQuestionBlock,{type:'text'}>,provenance:string){
+  const segments=splitAnswerScaffoldText(block.text);
+  if(!segments.some((segment)=>segment.kind==='answer')){
+    return `<p class="sq-text sq-${block.style}" data-block="text"${provenance}>${escapeHtml(block.text)}</p>`;
+  }
+  const body=segments.map((segment)=>{
+    if(segment.kind==='text')return `<p class="sq-scaffold-copy">${escapeHtml(segment.text)}</p>`;
+    return `<div class="sq-scaffold-row" data-answer-label="${escapeHtml(segment.label)}"><strong>${escapeHtml(segment.label)}</strong><span class="sq-scaffold-line" aria-hidden="true"></span>${segment.suffix?`<small>${escapeHtml(segment.suffix)}</small>`:''}</div>`;
+  }).join('');
+  return `<div class="sq-text sq-${block.style} sq-text-scaffold" data-block="text" data-answer-scaffold="true"${provenance}>${body}</div>`;
+}
+
 function renderBooleanLatex(latex: string) {
   let rendered = escapeHtml(latex);
   rendered = rendered.replace(/\\overline\{([^{}]+)\}/g, '<span class="sq-overline">$1</span>');
@@ -63,7 +94,7 @@ function renderBlock(
   const provenance = ` data-source-page="${block.source.page}"${block.source.bbox ? ` data-source-bbox="${block.source.bbox.join(',')}"` : ''}`;
   switch (block.type) {
     case 'text':
-      return `<p class="sq-text sq-${block.style}" data-block="text"${provenance}>${escapeHtml(block.text)}</p>`;
+      return renderTextBlockHtml(block,provenance);
     case 'math': {
       const body = block.semantics === 'boolean_expression'
         ? renderBooleanLatex(block.latex)
@@ -103,5 +134,5 @@ export function renderStructuredQuestionHtml(
 }
 
 export const structuredQuestionPrintCss = `
-.structured-question{font:inherit;color:inherit}.sq-text{margin:.35em 0;white-space:pre-wrap}.sq-task{font-weight:600}.sq-code{white-space:pre-wrap;border:1px solid #d7dce2;border-radius:6px;padding:8px;background:#f8fafc}.sq-list{margin:.4em 0 .6em 1.4em}.sq-table{border-collapse:collapse;width:100%;margin:.7em 0;break-inside:avoid}.sq-table th,.sq-table td{border:1px solid #20242a;padding:6px 8px;vertical-align:top}.sq-table [data-answer-cell="true"]{min-width:52px;height:28px}.sq-matching{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:.7em 0;break-inside:avoid}.sq-matching ol{margin:0;padding-left:1.5em}.sq-matching li{margin:.45em 0;min-height:1.35em}.sq-math{font-family:"Times New Roman",serif;font-size:1.05em;letter-spacing:.01em}.sq-math.sq-boolean-expression{font-family:Arial,sans-serif}.sq-overline{text-decoration:overline;text-decoration-thickness:1px}.sq-asset{margin:.7em 0;break-inside:avoid}.sq-asset img{display:block;max-width:100%;height:auto}.sq-asset-missing{border:1px dashed #aab2bd;padding:12px}.sq-answer-lines{min-height:4.5em;border-bottom:1px solid #c9ced5}
+.structured-question{font:inherit;color:inherit}.sq-text{margin:.35em 0;white-space:pre-wrap}.sq-task{font-weight:600}.sq-text-scaffold{display:grid;gap:.65em;white-space:normal}.sq-scaffold-copy{margin:0}.sq-scaffold-row{display:grid;grid-template-columns:max-content minmax(90px,1fr) max-content;align-items:end;gap:.55em;font-weight:400}.sq-scaffold-row strong{font-weight:700}.sq-scaffold-line{height:1.2em;border-bottom:1px solid #60646c}.sq-scaffold-row small{font-size:.9em;color:#555}.sq-code{white-space:pre-wrap;border:1px solid #d7dce2;border-radius:6px;padding:8px;background:#f8fafc}.sq-list{margin:.4em 0 .6em 1.4em}.sq-table{border-collapse:collapse;width:100%;margin:.7em 0;break-inside:avoid}.sq-table th,.sq-table td{border:1px solid #20242a;padding:6px 8px;vertical-align:top}.sq-table [data-answer-cell="true"]{min-width:52px;height:28px}.sq-matching{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:.7em 0;break-inside:avoid}.sq-matching ol{margin:0;padding-left:1.5em}.sq-matching li{margin:.45em 0;min-height:1.35em}.sq-math{font-family:"Times New Roman",serif;font-size:1.05em;letter-spacing:.01em}.sq-math.sq-boolean-expression{font-family:Arial,sans-serif}.sq-overline{text-decoration:overline;text-decoration-thickness:1px}.sq-asset{margin:.7em 0;break-inside:avoid}.sq-asset img{display:block;max-width:100%;height:auto}.sq-asset-missing{border:1px dashed #aab2bd;padding:12px}.sq-answer-lines{min-height:4.5em;border-bottom:1px solid #c9ced5}
 `;

@@ -60,6 +60,39 @@ describe('structured question DOM renderer', () => {
     expect(math?.dataset.mathError).toBeTruthy();
   });
 
+  it('renders labelled Cambridge answer scaffolds without exposing underscore filler', () => {
+    const host = render({
+      version: 1,
+      source,
+      blocks: [{
+        type: 'text',
+        style: 'task',
+        text: 'Describe the routine and give a benefit.\n\nFunction __________\n\nBenefit __________',
+        source: { page: 5 },
+      }],
+    });
+    expect(host.querySelector('[data-answer-scaffold="true"]')).not.toBeNull();
+    expect([...host.querySelectorAll<HTMLElement>('[data-answer-label]')].map((row)=>row.dataset.answerLabel))
+      .toEqual(['Function','Benefit']);
+    expect(host.textContent).toContain('Describe the routine and give a benefit.');
+    expect(host.textContent).not.toContain('__________');
+  });
+
+  it('keeps units after an answer scaffold as a separate suffix', () => {
+    const host = render({
+      version: 1,
+      source,
+      blocks: [{
+        type: 'text',
+        style: 'task',
+        text: 'Calculate the file size.\n\nAnswer __________ mebibytes',
+        source: { page: 2 },
+      }],
+    });
+    const row=host.querySelector<HTMLElement>('[data-answer-label="Answer"]');
+    expect(row?.querySelector('small')?.textContent).toBe('mebibytes');
+  });
+
   it('renders verified assets by stable id and fails visibly when unresolved', () => {
     const assetId = '22222222-2222-4222-8222-222222222222';
     const content: StructuredQuestionContent = {

@@ -193,6 +193,33 @@
   font-weight: 650;
 }
 
+.lesson-v3-canonical-question .structured-question-text-scaffold {
+  display: grid;
+  gap: 14px;
+}
+.lesson-v3-canonical-question .structured-question-scaffold-copy {
+  margin: 0;
+}
+.lesson-v3-canonical-question .structured-question-scaffold-row {
+  display: grid;
+  grid-template-columns: max-content minmax(120px,1fr) max-content;
+  align-items: end;
+  gap: 10px;
+  font-weight: 500;
+}
+.lesson-v3-canonical-question .structured-question-scaffold-row strong {
+  font-weight: 750;
+}
+.lesson-v3-canonical-question .structured-question-scaffold-line {
+  min-width: 120px;
+  height: 1.25em;
+  border-bottom: 1px solid #98a2b3;
+}
+.lesson-v3-canonical-question .structured-question-scaffold-row small {
+  color: #667085;
+  font-size: .86em;
+}
+
 .lesson-v3-canonical-question .structured-question-code {
   overflow: auto;
   padding: 16px 18px;
