@@ -84,6 +84,24 @@ describe('source visual readiness',()=>{
     expect(sourceVisualBlockerSql('source_node')).toContain('regexp_split_to_table');
   });
 
+  it('rejects flattened binary truth-table rows even when a source-backed table image follows',()=>{
+    const contaminated={version:1,blocks:[
+      {type:'text',style:'paragraph',text:[
+        'This truth table represents a logic circuit.',
+        'INPUT OUTPUT',
+        'A B C D Z',
+        '0 0 0 0 1',
+        '0 0 0 1 1',
+        '0 0 1 0 1',
+        '0 0 1 1 1',
+      ].join('\n')},
+      {type:'asset',kind:'image',assetId:'truth-table'},
+    ]};
+    expect(portableQuestionVisualReady(contaminated,[{
+      id:'truth-table',kind:'image',url:'https://signed.example/truth-table.png',contentMd:null,
+    }])).toBe(false);
+  });
+
   it('accepts the repaired shared Cambridge circuit asset',()=>{
     const svg='<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>';
     const repaired={version:1,blocks:[

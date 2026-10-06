@@ -46,6 +46,17 @@ function hasVisualOcrSpill(value:unknown){
   return shortLabels.length>=3;
 }
 
+function hasFlattenedBinaryTableSpill(value:unknown){
+  if(typeof value!=='string')return false;
+  const normalized=value.replace(/\s+/g,' ').trim();
+  if(!/(?:\btruth\s+table\b|\binput\s+output\b)/i.test(normalized))return false;
+  const binaryRows=value
+    .split(/\r?\n/)
+    .map((line)=>line.trim())
+    .filter((line)=>/^[01](?:\s+[01]){2,}$/.test(line));
+  return binaryRows.length>=4;
+}
+
 /**
  * SQL predicate for a browser/source-faithful visual asset.
  *
@@ -250,7 +261,9 @@ function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]
     const block=blocks[index];
     if(!block||typeof block!=='object')continue;
     const row=block as Record<string,unknown>;
-    if(row.type!=='text'||!isSourcePresentVisualCue(row.text))continue;
+    if(row.type!=='text')continue;
+    if(hasFlattenedBinaryTableSpill(row.text))return true;
+    if(!isSourcePresentVisualCue(row.text))continue;
     if(hasVisualOcrSpill(row.text))return true;
     const next=blocks[index+1];
     if(!next||typeof next!=='object')return true;
