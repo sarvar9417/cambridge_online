@@ -37,10 +37,17 @@ function isSourcePresentVisualCue(value:unknown){
   return SOURCE_PRESENT_VISUAL_CUE_RE.test(text);
 }
 
+function sourceLines(value:string){
+  // Canonical JSON should contain real line breaks, but historical OCR/backfill
+  // rows can preserve escaped "\\n" separators. Treat both forms as lines so
+  // source-fidelity guards remain fail-closed instead of trusting flattened
+  // diagram/table labels.
+  return value.split(/\r?\n|\\r\\n|\\n/);
+}
+
 function hasVisualOcrSpill(value:unknown){
   if(typeof value!=='string')return false;
-  const shortLabels=value
-    .split(/\r?\n/)
+  const shortLabels=sourceLines(value)
     .map((line)=>line.trim())
     .filter((line)=>/^[A-Z0-9]{1,3}$/.test(line));
   return shortLabels.length>=3;
@@ -50,8 +57,7 @@ function hasFlattenedBinaryTableSpill(value:unknown){
   if(typeof value!=='string')return false;
   const normalized=value.replace(/\s+/g,' ').trim();
   if(!/(?:\btruth\s+table\b|\binput\s+output\b)/i.test(normalized))return false;
-  const binaryRows=value
-    .split(/\r?\n/)
+  const binaryRows=sourceLines(value)
     .map((line)=>line.trim())
     .filter((line)=>/^[01](?:\s+[01]){2,}$/.test(line));
   return binaryRows.length>=4;

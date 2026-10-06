@@ -86,6 +86,23 @@ describe('portable source assets',()=>{
     }
   });
 
+  it('keeps an exact storage-backed table crop instead of reconstructing it',()=>{
+    const next=materializePortableSourceAssets(content,[{
+      id:assetId,kind:'table',altText:'Cambridge table',
+      url:'https://signed.example/table.png',
+      contentMd:'| A | X |\n| --- | --- |\n| 0 | 1 |',
+    }]);
+    expect(next.blocks[0]).toEqual(content.blocks[0]);
+  });
+
+  it('keeps an inline SVG pseudocode source as an image instead of exposing SVG markup as code',()=>{
+    const next=materializePortableSourceAssets(content,[{
+      id:assetId,kind:'pseudocode',altText:'Source pseudocode',
+      contentMd:'<svg xmlns="http://www.w3.org/2000/svg"><text x="5" y="15">OUTPUT X</text></svg>',
+    }]);
+    expect(next.blocks[0]).toEqual(content.blocks[0]);
+  });
+
   it('upgrades a legacy image-shaped asset block that points at pseudocode',()=>{
     const next=materializePortableSourceAssets(content,[{
       id:assetId,kind:'pseudocode',altText:'Source pseudocode',
