@@ -197,12 +197,16 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
 function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
   scheme:LiveMarkScheme;selected?:Set<string>;onToggle?:(id:string)=>void;interactive?:boolean;
 }) {
+  const oneMarkPerPoint=scheme.points.length>0&&scheme.points.every((point)=>point.marks===1);
+  const compactRule=scheme.groups.length===1&&oneMarkPerPoint
+    ?`Har bir to‘g‘ri band uchun 1 ball · Maksimum ${scheme.groups[0]!.maxMarks} ball`
+    :null;
   return <section className="live-scheme">
     <header><div><span>OFFICIAL MARK SCHEME</span><h2>Baholash mezoni</h2></div><strong>{scheme.maxMarks} ball</strong></header>
-    {scheme.guidanceMd?<p className="live-scheme-guidance">{scheme.guidanceMd}</p>:null}
-    {scheme.groups.length?<div className="live-scheme-groups">{scheme.groups.map((group)=><span key={group.id}>
-      {group.label||'Mark group'} · {group.nRequired} ta talab · maksimum {group.maxMarks}
-    </span>)}</div>:null}
+    {compactRule?<div className="live-scheme-rule"><span>{compactRule}</span></div>:
+      scheme.groups.length?<div className="live-scheme-groups">{scheme.groups.map((group)=><span key={group.id}>
+        {group.label&&group.label!=='main'?`${group.label}: `:''}{group.nRequired} ta band · maksimum {group.maxMarks} ball
+      </span>)}</div>:null}
     {scheme.levels.length?<div className="live-scheme-levels"><h3>Levels of response</h3>{scheme.levels.map((level)=><article key={level.id}><header><strong>Level {level.levelNumber}</strong><b>{level.minMarks}–{level.maxMarks} ball</b></header><p>{level.descriptorMd}</p>{level.indicativeContentMd?<small>{level.indicativeContentMd}</small>:null}</article>)}</div>:null}
     <div className="live-scheme-points">
       {scheme.points.map((point,index)=><label className={selected?.has(point.id)?'is-selected':''} key={point.id}>
@@ -211,6 +215,10 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
       </label>)}
       {!scheme.points.length?<p>Bu savol umumiy ball bilan baholanadi.</p>:null}
     </div>
+    {scheme.guidanceMd?<details className="live-scheme-original">
+      <summary>Original Cambridge mark scheme’ni ko‘rish</summary>
+      <p>{scheme.guidanceMd}</p>
+    </details>:null}
   </section>;
 }
 
