@@ -85,7 +85,8 @@ describe('AdminUsersService', () => {
     expect(result.total).toBe(1);
     expect(result.users).toHaveLength(1);
     expect(params.some((values) => values.includes('school-1'))).toBe(true);
-    expect(statements.some((sql) => sql.includes('(select count(*) from schools) = 1'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('select count(distinct ou.school_id)'))).toBe(true);
+    expect(statements.some((sql) => sql.includes("ou.role='owner' and ou.status='active'"))).toBe(true);
   });
 
   it('hides a target from an owner when it is outside their school', async () => {

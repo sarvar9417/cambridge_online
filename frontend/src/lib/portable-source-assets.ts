@@ -148,6 +148,13 @@ export function materializePortableSourceAssets(
     if (block.type !== 'asset') return block;
     const asset = byId.get(block.assetId);
     if (!asset) return block;
+
+    // Prefer the exact source crop/SVG whenever it is available. Semantic
+    // materialisation is a compatibility fallback for historical rows that
+    // have no browser-renderable visual, not a reason to replace a faithful
+    // Cambridge source image with reconstructed text.
+    if (portableAssetUrl(asset)) return block;
+
     if (asset.kind === 'table') {
       const table = portableTableBlock(asset, block.source);
       if (table) { changed = true; return table; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { browserAssetUrl, enhanceLessonContextAsset, enhanceQuestionAsset, isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
+import { browserAssetUrl, enhanceLessonContextAsset, enhanceLiveAsset, enhanceQuestionAsset, isSvgAsset, svgAssetDataUrl } from './question-asset-fidelity-dom';
 
 function asset(kind: string, value: string, label = 'Source asset · source page 7') {
   const host = document.createElement('div');
@@ -19,6 +19,17 @@ function lessonAsset(value: string, caption = 'Question context · Source page 7
   figure.className = 'lesson-v3-context-asset';
   const pre = document.createElement('pre');
   pre.className = 'lesson-v3-context-semantic';
+  pre.textContent = value;
+  const figcaption = document.createElement('figcaption');
+  figcaption.textContent = caption;
+  figure.append(pre, figcaption);
+  return figure;
+}
+
+function liveAsset(value: string, caption = 'Cambridge source element') {
+  const figure = document.createElement('figure');
+  figure.className = 'live-asset';
+  const pre = document.createElement('pre');
   pre.textContent = value;
   const figcaption = document.createElement('figcaption');
   figcaption.textContent = caption;
@@ -46,7 +57,6 @@ describe('question asset fidelity helpers', () => {
     expect(decodeURIComponent(url.split(',')[1]!)).toMatch(/^<svg/);
     expect(decodeURIComponent(url.split(',')[1]!)).not.toContain('\`\`\`');
   });
-
 
   it('decodes a server-projected signed storage URL', () => {
     const url = 'https://project.supabase.co/storage/v1/object/sign/question-assets/a.png?token=temp';
@@ -108,5 +118,23 @@ describe('question asset fidelity helpers', () => {
     enhanceLessonContextAsset(host);
     expect(host.textContent).not.toContain('Preserve the original PDF');
     expect(host.querySelector('[data-source-asset-unavailable="true"]')).not.toBeNull();
+  });
+
+  it('turns a Live Challenge pipe-grid fallback into a semantic table', () => {
+    const host=liveAsset('| A | B | X |\n| --- | --- | --- |\n| 0 | 0 | 1 |\n| 0 | 1 | |','Truth table');
+    enhanceLiveAsset(host);
+    expect(host.querySelector('table.structured-question-table')).not.toBeNull();
+    expect(host.querySelector(':scope > pre')).toBeNull();
+  });
+
+  it('turns a Live Challenge pseudocode fallback into code and blocks unknown repair prose', () => {
+    const code=liveAsset('INPUT X\nIF X > 0 THEN\n  OUTPUT X\nENDIF','Pseudocode');
+    enhanceLiveAsset(code);
+    expect(code.querySelector('pre.structured-question-code code')?.textContent).toContain('OUTPUT X');
+
+    const unknown=liveAsset('Use the original paper for exact layout.','Source element');
+    enhanceLiveAsset(unknown);
+    expect(unknown.textContent).not.toContain('Use the original paper');
+    expect(unknown.querySelector('[data-source-asset-unavailable="true"]')).not.toBeNull();
   });
 });

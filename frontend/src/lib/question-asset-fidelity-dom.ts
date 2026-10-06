@@ -168,6 +168,29 @@ export function enhanceLessonContextAsset(asset: Element) {
   asset.setAttribute('data-semantic-enhanced', 'true');
 }
 
+/**
+ * Live Challenge's legacy compatibility view exposes semantic table/code
+ * content as a plain <pre> but does not carry the DB asset kind in the DOM.
+ * Recover only structures we can identify without guessing. Source images are
+ * already rendered as <img> before this enhancer runs.
+ */
+export function enhanceLiveAsset(asset: Element) {
+  if (asset.getAttribute('data-live-semantic-enhanced') === 'true') return;
+  const source = asset.querySelector(':scope > pre');
+  if (!source) {
+    asset.setAttribute('data-live-semantic-enhanced', 'true');
+    return;
+  }
+  const value = source.textContent ?? '';
+  if (value.includes('|') && renderTable(asset, source, value)) {
+    asset.setAttribute('data-live-semantic-enhanced', 'true');
+    return;
+  }
+  if (looksLikeCode(value)) renderCode(source, value);
+  else unavailable(source, 'unknown');
+  asset.setAttribute('data-live-semantic-enhanced', 'true');
+}
+
 function clarifyDiagramAction(card: Element) {
   if (![...card.querySelectorAll('.qb-chip')].some((chip) => chip.textContent?.trim() === 'Diagramma')) return;
   const button = [...card.querySelectorAll<HTMLButtonElement>('button')]
@@ -190,15 +213,16 @@ function simplifyLessonExamHeading(section: Element) {
 function enhance(root: ParentNode = document) {
   root.querySelectorAll('.qb-asset').forEach(enhanceQuestionAsset);
   root.querySelectorAll('.lesson-v3-context-asset').forEach(enhanceLessonContextAsset);
+  root.querySelectorAll('.live-asset').forEach(enhanceLiveAsset);
   root.querySelectorAll('.lesson-v3-source-paper').forEach(simplifyLessonExamHeading);
   root.querySelectorAll('.qb-question-card').forEach(clarifyDiagramAction);
 }
 
 /**
- * Shared compatibility layer for Question Bank and Lesson Studio context.
- * Source-backed visuals are images, semantic grids are tables and pseudocode is
- * code. Flattened diagram/table descriptions fail closed instead of appearing
- * on the classroom board as if they were Cambridge source content.
+ * Shared compatibility layer for Question Bank, Lesson Studio and Live
+ * Challenge context. Source-backed visuals are images, semantic grids are
+ * tables and pseudocode is code. Flattened diagram/table descriptions fail
+ * closed instead of appearing in the classroom as if they were source content.
  */
 export function installQuestionAssetFidelityEnhancer() {
   let scheduled = false;
