@@ -5,6 +5,38 @@ function identifier(value:string){
   return value;
 }
 
+const SOURCE_PRESENT_VISUAL_CUE_SQL = [
+  'following[[:space:]]+((vector|logic|state[- ]transition|class|e-?r|entity[- ]relationship)[[:space:]]+)?(logo|diagram|figure|flowchart|graph|circuit|image|chart|shape|screen[[:space:]]+image|screenshot)',
+  '(the|this|given)[[:space:]]+(diagram|figure|flowchart|graph|circuit|image|chart|shape|screen[[:space:]]+image)[[:space:]]+(shows?|showing|represents?|contains?|illustrates?)',
+  '(logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)[[:space:]]+(is[[:space:]]+shown|are[[:space:]]+shown|illustrated|given|provided|below|above)',
+  '(shown|illustrated|given|provided)[[:space:]]+(below|above|in[[:space:]]+the[[:space:]]+question[[:space:]]+)?(logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)',
+  '(study|examine|refer[[:space:]]+to|using)[[:space:]]+(the[[:space:]]+)?(logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)',
+  '(for|using|from)[[:space:]]+this[[:space:]]+logo',
+  'example[[:space:]]+from[[:space:]]+(the|this)[[:space:]]+logo',
+].join('|');
+
+const SOURCE_PRESENT_VISUAL_CUE_RE = new RegExp([
+  String.raw`\bfollowing\s+(?:(?:vector|logic|state[- ]transition|class|e-?r|entity[- ]relationship)\s+)?(?:logo|diagram|figure|flowchart|graph|circuit|image|chart|shape|screen\s+image|screenshot)\b`,
+  String.raw`\b(?:the|this|given)\s+(?:diagram|figure|flowchart|graph|circuit|image|chart|shape|screen\s+image)\s+(?:shows?|showing|represents?|contains?|illustrates?)\b`,
+  String.raw`\b(?:logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)\s+(?:is\s+shown|are\s+shown|illustrated|given|provided|below|above)\b`,
+  String.raw`\b(?:shown|illustrated|given|provided)\s+(?:(?:below|above|in\s+the\s+question)\s+)?(?:logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)\b`,
+  String.raw`\b(?:study|examine|refer\s+to|using)\s+(?:the\s+)?(?:logo|diagram|figure|flowchart|graph|circuit|image|chart|shape)\b`,
+  String.raw`\b(?:for|using|from)\s+this\s+logo\b`,
+  String.raw`\bexample\s+from\s+(?:the|this)\s+logo\b`,
+].join('|'),'i');
+
+function normalizedCueText(value:unknown){
+  return typeof value==='string'?value.replace(/\s+/g,' ').trim():'';
+}
+
+function isSourcePresentVisualCue(value:unknown){
+  const text=normalizedCueText(value);
+  if(!text)return false;
+  if(/\b(?:take|capture|provide|submit)\s+(?:a\s+)?screenshot\b/i.test(text))return false;
+  if(/\btruth\s+table.{0,100}(?:logic\s+)?circuit\s+(?:is\s+)?shown\b/i.test(text))return false;
+  return SOURCE_PRESENT_VISUAL_CUE_RE.test(text);
+}
+
 /**
  * SQL predicate for a browser/source-faithful visual asset.
  *
@@ -28,6 +60,12 @@ export function renderableVisualAssetSql(alias='qa'){
 export function sourceVisualBlockerSql(questionAlias='source_node'){
   const node=identifier(questionAlias);
   const renderable=renderableVisualAssetSql('qa');
+  const nextRenderable=renderableVisualAssetSql('next_qa');
+  const nextTableReady=`(
+    nullif(btrim(coalesce(next_qa.storage_path,'')),'') is not null
+    or nullif(btrim(coalesce(next_qa.content_md,'')),'') is not null
+    or coalesce(next_qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)'
+  )`;
   return `(
     ${node}.content_version=1
     and ${node}.content_json is not null
@@ -40,6 +78,39 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
         and (
           qa.id is null
           or (qa.kind in ('diagram','image') and not ${renderable})
+        )
+    )
+  ) or (
+    ${node}.content_version=1
+    and ${node}.content_json is not null
+    and exists(
+      select 1
+      from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb))
+        with ordinality as cue(block,ordinality)
+      where cue.block->>'type'='text'
+        and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) ~ '${SOURCE_PRESENT_VISUAL_CUE_SQL}'
+        and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) !~ '(take|capture|provide|submit)[[:space:]]+(a[[:space:]]+)?screenshot'
+        and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) !~ 'truth[[:space:]]+table.{0,100}(logic[[:space:]]+)?circuit[[:space:]]+(is[[:space:]]+)?shown'
+        and not exists(
+          select 1
+          from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb))
+            with ordinality as next(block,ordinality)
+          left join question_assets next_qa on next_qa.id::text=next.block->>'assetId'
+          where next.ordinality=cue.ordinality+1
+            and (
+              next.block->>'type'='table'
+              or (
+                next.block->>'type'='asset'
+                and next_qa.kind='table'
+                and ${nextTableReady}
+              )
+              or (
+                next.block->>'type'='asset'
+                and next.block->>'kind' in ('diagram','image','flowchart','logic_circuit')
+                and next_qa.kind in ('diagram','image')
+                and ${nextRenderable}
+              )
+            )
         )
     )
   ) or (
@@ -129,13 +200,43 @@ function structuredVisualIds(content:unknown){
   return ids;
 }
 
+function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]){
+  if(!content||typeof content!=='object')return false;
+  const candidate=content as StructuredContentLike;
+  if(candidate.version!==1||!Array.isArray(candidate.blocks))return false;
+  const blocks=candidate.blocks as unknown[];
+  const byId=new Map(assets.filter((asset)=>asset.id).map((asset)=>[asset.id!,asset] as const));
+  for(let index=0;index<blocks.length;index+=1){
+    const block=blocks[index];
+    if(!block||typeof block!=='object')continue;
+    const row=block as Record<string,unknown>;
+    if(row.type!=='text'||!isSourcePresentVisualCue(row.text))continue;
+    const next=blocks[index+1];
+    if(!next||typeof next!=='object')return true;
+    const nextRow=next as Record<string,unknown>;
+    if(nextRow.type==='table')continue;
+    if(nextRow.type!=='asset'||!['table','diagram','image','flowchart','logic_circuit'].includes(String(nextRow.kind)))return true;
+    const assetId=typeof nextRow.assetId==='string'?nextRow.assetId:null;
+    const asset=assetId?byId.get(assetId):undefined;
+    if(!asset)return true;
+    const assetKind=(asset.kind??'').toLowerCase();
+    const sourceReady=assetKind==='table'
+      ? Boolean(asset.url)||Boolean(asset.contentMd?.trim())
+      : portableVisualReady(asset);
+    if(!sourceReady)return true;
+  }
+  return false;
+}
+
 /**
  * Validate the visuals that the canonical structured question actually
- * references. Legacy DTOs without structured content require at least one
- * renderable visual when visual assets are present. Stale, unreferenced repair
- * rows therefore cannot block an otherwise source-complete question.
+ * references. Canonical text that explicitly introduces a printed visual must
+ * be immediately followed by a structured/source-backed visual representation.
+ * Legacy DTOs without structured content require at least one renderable visual
+ * when visual assets are present.
  */
 export function portableQuestionVisualReady(content:unknown,assets:PortableVisualAsset[]){
+  if(structuredVisualCueMissing(content,assets))return false;
   const referenced=structuredVisualIds(content);
   if(referenced){
     const byId=new Map(assets.filter((asset)=>asset.id).map((asset)=>[asset.id!,asset] as const));
