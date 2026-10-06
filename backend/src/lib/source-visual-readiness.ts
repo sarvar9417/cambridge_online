@@ -56,16 +56,34 @@ export function renderableVisualAssetSql(alias='qa'){
   )`;
 }
 
+/**
+ * SQL predicate for any canonical asset block that the browser can render
+ * without inventing source content. Historical v1 rows can point at semantic
+ * table/code assets through a generic image-shaped block, so readiness must
+ * follow the referenced question_assets row rather than the block label alone.
+ */
+export function renderableCanonicalAssetSql(alias='qa'){
+  const a=identifier(alias);
+  const visual=renderableVisualAssetSql(a);
+  const semanticTable=`(
+    nullif(btrim(coalesce(${a}.content_md,'')),'') is not null
+    and coalesce(${a}.content_md,'') like '%|%'
+  )`;
+  const semanticCode=`nullif(btrim(coalesce(${a}.content_md,'')),'') is not null`;
+  return `(
+    (${a}.kind in ('diagram','image') and ${visual})
+    or (${a}.kind='table' and (${visual} or ${semanticTable}))
+    or (${a}.kind in ('pseudocode','code') and (${visual} or ${semanticCode}))
+  )`;
+}
+
 /** Visual-integrity failure predicate for one question/context node. */
 export function sourceVisualBlockerSql(questionAlias='source_node'){
   const node=identifier(questionAlias);
   const renderable=renderableVisualAssetSql('qa');
+  const canonicalAssetReady=renderableCanonicalAssetSql('qa');
   const nextRenderable=renderableVisualAssetSql('next_qa');
-  const nextTableReady=`(
-    nullif(btrim(coalesce(next_qa.storage_path,'')),'') is not null
-    or nullif(btrim(coalesce(next_qa.content_md,'')),'') is not null
-    or coalesce(next_qa.svg_markup,'') ~* '^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)'
-  )`;
+  const nextCanonicalAssetReady=renderableCanonicalAssetSql('next_qa');
   return `(
     ${node}.content_version=1
     and ${node}.content_json is not null
@@ -74,10 +92,9 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
       from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb)) block
       left join question_assets qa on qa.id::text=block->>'assetId'
       where block->>'type'='asset'
-        and block->>'kind' in ('diagram','image','flowchart','logic_circuit')
         and (
           qa.id is null
-          or (qa.kind in ('diagram','image') and not ${renderable})
+          or not ${canonicalAssetReady}
         )
     )
   ) or (
@@ -101,14 +118,7 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
               next.block->>'type'='table'
               or (
                 next.block->>'type'='asset'
-                and next_qa.kind='table'
-                and ${nextTableReady}
-              )
-              or (
-                next.block->>'type'='asset'
-                and next.block->>'kind' in ('diagram','image','flowchart','logic_circuit')
-                and next_qa.kind in ('diagram','image')
-                and ${nextRenderable}
+                and ${nextCanonicalAssetReady}
               )
             )
         )
@@ -183,10 +193,27 @@ export function portableVisualReady(asset:PortableVisualLike){
   return Boolean(asset.url)||completeInlineSvg(asset.contentMd);
 }
 
+function semanticTableReady(value:string|null|undefined){
+  const rows=(value??'')
+    .split(/\r?\n/)
+    .map((line)=>line.trim())
+    .filter((line)=>line.includes('|'))
+    .map((line)=>line.replace(/^\|/,'').replace(/\|$/,'').split('|'));
+  return rows.some((cells)=>cells.length>1);
+}
+
+export function portableCanonicalAssetReady(asset:PortableVisualLike){
+  const kind=(asset.kind??'').toLowerCase();
+  if(kind==='diagram'||kind==='image')return portableVisualReady(asset);
+  if(kind==='table')return Boolean(asset.url)||completeInlineSvg(asset.contentMd)||semanticTableReady(asset.contentMd);
+  if(kind==='pseudocode'||kind==='code')return Boolean(asset.url)||completeInlineSvg(asset.contentMd)||Boolean(asset.contentMd?.trim());
+  return false;
+}
+
 type PortableVisualAsset=PortableVisualLike&{id?:string|null};
 type StructuredContentLike={version?:unknown;blocks?:unknown};
 
-function structuredVisualIds(content:unknown){
+function structuredAssetIds(content:unknown){
   if(!content||typeof content!=='object')return null;
   const candidate=content as StructuredContentLike;
   if(candidate.version!==1||!Array.isArray(candidate.blocks))return null;
@@ -194,7 +221,7 @@ function structuredVisualIds(content:unknown){
   for(const block of candidate.blocks){
     if(!block||typeof block!=='object')continue;
     const row=block as Record<string,unknown>;
-    if(row.type!=='asset'||!['diagram','image','flowchart','logic_circuit'].includes(String(row.kind)))continue;
+    if(row.type!=='asset')continue;
     if(typeof row.assetId==='string')ids.add(row.assetId);
   }
   return ids;
@@ -220,10 +247,7 @@ function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]
     const asset=assetId?byId.get(assetId):undefined;
     if(!asset)return true;
     const assetKind=(asset.kind??'').toLowerCase();
-    const sourceReady=assetKind==='table'
-      ? Boolean(asset.url)||Boolean(asset.contentMd?.trim())
-      : portableVisualReady(asset);
-    if(!sourceReady)return true;
+    if(!portableCanonicalAssetReady(asset))return true;
   }
   return false;
 }
@@ -237,12 +261,12 @@ function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]
  */
 export function portableQuestionVisualReady(content:unknown,assets:PortableVisualAsset[]){
   if(structuredVisualCueMissing(content,assets))return false;
-  const referenced=structuredVisualIds(content);
+  const referenced=structuredAssetIds(content);
   if(referenced){
     const byId=new Map(assets.filter((asset)=>asset.id).map((asset)=>[asset.id!,asset] as const));
     for(const id of referenced){
       const asset=byId.get(id);
-      if(!asset||!portableVisualReady(asset))return false;
+      if(!asset||!portableCanonicalAssetReady(asset))return false;
     }
     return true;
   }
