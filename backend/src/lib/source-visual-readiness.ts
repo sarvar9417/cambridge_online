@@ -82,7 +82,6 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
   const node=identifier(questionAlias);
   const renderable=renderableVisualAssetSql('qa');
   const canonicalAssetReady=renderableCanonicalAssetSql('qa');
-  const nextRenderable=renderableVisualAssetSql('next_qa');
   const nextCanonicalAssetReady=renderableCanonicalAssetSql('next_qa');
   return `(
     ${node}.content_version=1
@@ -246,7 +245,6 @@ function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]
     const assetId=typeof nextRow.assetId==='string'?nextRow.assetId:null;
     const asset=assetId?byId.get(assetId):undefined;
     if(!asset)return true;
-    const assetKind=(asset.kind??'').toLowerCase();
     if(!portableCanonicalAssetReady(asset))return true;
   }
   return false;
