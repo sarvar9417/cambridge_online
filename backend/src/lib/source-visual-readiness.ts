@@ -37,6 +37,15 @@ function isSourcePresentVisualCue(value:unknown){
   return SOURCE_PRESENT_VISUAL_CUE_RE.test(text);
 }
 
+function hasVisualOcrSpill(value:unknown){
+  if(typeof value!=='string')return false;
+  const shortLabels=value
+    .split(/\r?\n/)
+    .map((line)=>line.trim())
+    .filter((line)=>/^[A-Z0-9]{1,3}$/.test(line));
+  return shortLabels.length>=3;
+}
+
 /**
  * SQL predicate for a browser/source-faithful visual asset.
  *
@@ -54,6 +63,30 @@ export function renderableVisualAssetSql(alias='qa'){
     or coalesce(${a}.content_md,'') ~* '${fenced}'
     or coalesce(${a}.svg_markup,'') ~* '${direct}'
   )`;
+}
+
+/**
+ * Pick the browser payload that most closely matches the cropped source asset.
+ *
+ * Historical repairs can contain both a tight `content_md` crop and a legacy
+ * full-page `svg_markup`. Prefer semantic table/code content, then a complete
+ * cropped SVG, and only then fall back to the legacy page SVG.
+ */
+export function sourceAssetContentSql(alias='qa'){
+  const a=identifier(alias);
+  const direct="^[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)";
+  const fenced="^[[:space:]]*`{3}(svg|xml)[[:space:]]*(<[?]xml[^>]*[?]>[[:space:]]*)?<svg([[:space:]]|>)";
+  return `case
+    when ${a}.kind in ('table','code','pseudocode')
+      and nullif(btrim(coalesce(${a}.content_md,'')),'') is not null
+      then ${a}.content_md
+    when coalesce(${a}.content_md,'') ~* '${direct}'
+      or coalesce(${a}.content_md,'') ~* '${fenced}'
+      then ${a}.content_md
+    when coalesce(${a}.svg_markup,'') ~* '${direct}'
+      then ${a}.svg_markup
+    else coalesce(${a}.content_md,${a}.svg_markup)
+  end`;
 }
 
 /** Visual-integrity failure predicate for one question/context node. */
@@ -91,26 +124,33 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
         and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) ~ '${SOURCE_PRESENT_VISUAL_CUE_SQL}'
         and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) !~ '(take|capture|provide|submit)[[:space:]]+(a[[:space:]]+)?screenshot'
         and lower(regexp_replace(coalesce(cue.block->>'text',''),'[[:space:]]+',' ','g')) !~ 'truth[[:space:]]+table.{0,100}(logic[[:space:]]+)?circuit[[:space:]]+(is[[:space:]]+)?shown'
-        and not exists(
-          select 1
-          from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb))
-            with ordinality as next(block,ordinality)
-          left join question_assets next_qa on next_qa.id::text=next.block->>'assetId'
-          where next.ordinality=cue.ordinality+1
-            and (
-              next.block->>'type'='table'
-              or (
-                next.block->>'type'='asset'
-                and next_qa.kind='table'
-                and ${nextTableReady}
+        and (
+          (
+            select count(*)
+            from regexp_split_to_table(coalesce(cue.block->>'text',''),E'\\n') label_line
+            where btrim(label_line) ~ '^[A-Z0-9]{1,3}$'
+          ) >= 3
+          or not exists(
+            select 1
+            from jsonb_array_elements(coalesce(${node}.content_json->'blocks','[]'::jsonb))
+              with ordinality as next(block,ordinality)
+            left join question_assets next_qa on next_qa.id::text=next.block->>'assetId'
+            where next.ordinality=cue.ordinality+1
+              and (
+                next.block->>'type'='table'
+                or (
+                  next.block->>'type'='asset'
+                  and next_qa.kind='table'
+                  and ${nextTableReady}
+                )
+                or (
+                  next.block->>'type'='asset'
+                  and next.block->>'kind' in ('diagram','image','flowchart','logic_circuit')
+                  and next_qa.kind in ('diagram','image')
+                  and ${nextRenderable}
+                )
               )
-              or (
-                next.block->>'type'='asset'
-                and next.block->>'kind' in ('diagram','image','flowchart','logic_circuit')
-                and next_qa.kind in ('diagram','image')
-                and ${nextRenderable}
-              )
-            )
+          )
         )
     )
   ) or (
@@ -211,6 +251,7 @@ function structuredVisualCueMissing(content:unknown,assets:PortableVisualAsset[]
     if(!block||typeof block!=='object')continue;
     const row=block as Record<string,unknown>;
     if(row.type!=='text'||!isSourcePresentVisualCue(row.text))continue;
+    if(hasVisualOcrSpill(row.text))return true;
     const next=blocks[index+1];
     if(!next||typeof next!=='object')return true;
     const nextRow=next as Record<string,unknown>;

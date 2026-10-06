@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import type {
   DependencyKind,
@@ -458,7 +459,7 @@ export class PgQuestionsRepository {
          c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.context_md context,c.context_latex,
          coalesce((
            select jsonb_agg(jsonb_build_object(
-             'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',coalesce(qa.svg_markup,qa.content_md),
+             'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',${sourceAssetContentSql('qa')},
              'altText',qa.alt_text,'sortOrder',qa.sort_order,'sourcePage',qa.source_page
            ) order by qa.sort_order,qa.id)
            from question_assets qa where qa.question_id=c.id

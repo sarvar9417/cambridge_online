@@ -4,6 +4,7 @@ import {
   portableQuestionVisualReady,
   sourceVisualDataUrl,
   portableVisualReady,
+  sourceAssetContentSql,
   questionVisualIntegritySql,
   renderableVisualAssetSql,
   sourceVisualBlockerSql,
@@ -40,6 +41,14 @@ describe('source visual readiness',()=>{
     expect(sql).toContain('qa.svg_markup');
   });
 
+  it('prefers a tight cropped source payload over a legacy full-page SVG',()=>{
+    const sql=sourceAssetContentSql('qa');
+    expect(sql).toContain("qa.kind in ('table','code','pseudocode')");
+    expect(sql).toContain('then qa.content_md');
+    expect(sql).toContain('then qa.svg_markup');
+    expect(sql.indexOf('then qa.content_md')).toBeLessThan(sql.indexOf('then qa.svg_markup'));
+  });
+
   it('walks parent context and validates canonical structured asset references',()=>{
     const sql=questionVisualIntegritySql('q');
     expect(sql).toContain('with recursive source_visual_chain');
@@ -61,6 +70,18 @@ describe('source visual readiness',()=>{
     const sql=sourceVisualBlockerSql('source_node');
     expect(sql).toContain('next.ordinality=cue.ordinality+1');
     expect(sql).toContain('shows?|showing');
+  });
+
+  it('rejects OCR-spilled diagram labels even when a valid source asset follows',()=>{
+    const contaminated={version:1,blocks:[
+      {type:'text',style:'paragraph',text:'The diagram shows a logic circuit.\\n\\nA     P\\nY\\nB\\n\\nC     R\\n\\nZ\\nQ'},
+      {type:'asset',kind:'diagram',assetId:'circuit'},
+      {type:'text',style:'task',text:'State the name of the logic circuit.'},
+    ]};
+    expect(portableQuestionVisualReady(contaminated,[{
+      id:'circuit',kind:'diagram',url:'https://signed.example/circuit.png',contentMd:null,
+    }])).toBe(false);
+    expect(sourceVisualBlockerSql('source_node')).toContain('regexp_split_to_table');
   });
 
   it('accepts the repaired shared Cambridge circuit asset',()=>{

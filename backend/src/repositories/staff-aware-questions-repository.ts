@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
 import { parseStoredStructuredQuestionContent } from '../lib/structured-question-content.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import { PgQuestionsRepository } from './questions-repository.js';
@@ -107,7 +108,7 @@ export class PgStaffAwareQuestionsRepository extends PgQuestionsRepository {
       // portable unit must therefore carry every explicitly referenced asset, not
       // merely assets owned by the leaf's ancestry. Keep this source-paper scoped.
       const assets = await this.detailPool.query(
-        `select qa.id,qa.kind,qa.storage_path,coalesce(qa.svg_markup,qa.content_md) content_md,
+        `select qa.id,qa.kind,qa.storage_path,${sourceAssetContentSql('qa')} content_md,
           qa.alt_text,qa.sort_order,qa.source_page,
           owner.source_paper_id owner_source_paper_id,leaf.source_paper_id leaf_source_paper_id
          from question_assets qa

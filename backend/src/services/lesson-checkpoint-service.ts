@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
-import { renderableVisualAssetSql } from '../lib/source-visual-readiness.js';
+import { renderableVisualAssetSql, sourceAssetContentSql } from '../lib/source-visual-readiness.js';
 import { parseStoredStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
 
 export type LessonCheckpointAsset = {
@@ -222,7 +222,7 @@ export class LessonCheckpointService {
     const assetResult = assetQuestionIds.length
       ? await this.pool.query(
         `select qa.id,qa.question_id,qa.kind,qa.storage_path,
-           coalesce(qa.svg_markup,qa.content_md) content_md,qa.alt_text,qa.source_page
+           ${sourceAssetContentSql('qa')} content_md,qa.alt_text,qa.source_page
          from question_assets qa
          join questions asset_owner on asset_owner.id=qa.question_id
          where qa.question_id=any($1::uuid[])
