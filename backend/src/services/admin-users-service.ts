@@ -175,10 +175,11 @@ export class AdminUsersService {
   }
 
   /**
-   * Owners administer their own school. An unassigned pending/rejected account is
-   * accepted only while the installation has exactly one school. Once a second
-   * school exists, tenant-less onboarding fails closed until registration has an
-   * explicit school-selection/invite mechanism.
+   * Owners administer their own school. Legacy unassigned pending/rejected accounts
+   * are visible only when exactly one distinct school has an active owner and that
+   * school is the acting owner's school. Seed/archived school rows with no active
+   * owner therefore cannot hide legitimate onboarding, while a real multi-tenant
+   * installation still fails closed until registration selects a school explicitly.
    */
   private async assertManageable(client: PoolClient, actor: Actor, userId: string, lock = false) {
     const schoolId = this.ownerSchool(actor);
@@ -191,7 +192,16 @@ export class AdminUsersService {
            school_id = $2
            or (
              school_id is null and status in ('pending', 'rejected')
-             and (select count(*) from schools) = 1
+             and (
+               select count(distinct ou.school_id)
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             ) = 1
+             and $2 = (
+               select max(ou.school_id::text)::uuid
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             )
            )
          )
        ${lock ? 'for update' : ''}`,
@@ -210,7 +220,16 @@ export class AdminUsersService {
            u.school_id = $2
            or (
              u.school_id is null and u.status in ('pending', 'rejected')
-             and (select count(*) from schools) = 1
+             and (
+               select count(distinct ou.school_id)
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             ) = 1
+             and $2 = (
+               select max(ou.school_id::text)::uuid
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             )
            )
          )`,
       [userId, schoolId],
@@ -262,7 +281,16 @@ export class AdminUsersService {
            u.school_id = $6
            or (
              u.school_id is null and u.status in ('pending', 'rejected')
-             and (select count(*) from schools) = 1
+             and (
+               select count(distinct ou.school_id)
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             ) = 1
+             and $6 = (
+               select max(ou.school_id::text)::uuid
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             )
            )
          )
          and ($1::user_status is null or u.status = $1)
@@ -283,7 +311,16 @@ export class AdminUsersService {
            u.school_id = $4
            or (
              u.school_id is null and u.status in ('pending', 'rejected')
-             and (select count(*) from schools) = 1
+             and (
+               select count(distinct ou.school_id)
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             ) = 1
+             and $4 = (
+               select max(ou.school_id::text)::uuid
+               from users ou
+               where ou.role='owner' and ou.status='active' and ou.is_active=true and ou.school_id is not null
+             )
            )
          )
          and ($1::user_status is null or u.status = $1)

@@ -245,8 +245,16 @@ export class PgAuthRepository implements AuthRepository {
 
   async register(input: { fullName:string; email:string; username:string; passwordHash:string; note?:string }) {
     const result = await this.pool.query(
-      `insert into users (role, status, full_name, email, username, password_hash, registration_note)
-       values ('student', 'pending', $1, $2, $3, $4, $5)
+      `insert into users (school_id, role, status, full_name, email, username, password_hash, registration_note)
+       select intake.school_id, 'student', 'pending', $1, $2, $3, $4, $5
+       from (
+         select case
+           when count(distinct school_id)=1 then max(school_id::text)::uuid
+           else null::uuid
+         end school_id
+         from users
+         where role='owner' and status='active' and is_active=true and school_id is not null
+       ) intake
        returning *`,
       [input.fullName, input.email, input.username, input.passwordHash, input.note ?? null],
     );
