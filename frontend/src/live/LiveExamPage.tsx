@@ -20,11 +20,11 @@ import {
   materializePortableSourceAssets,
   portableAssetsForContent,
   portableAssetUrl,
+  portableTableBlock,
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import {
   StructuredQuestionView,
-  structuredQuestionAssetsReady,
   structuredQuestionUsable,
 } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
@@ -150,12 +150,33 @@ function useLiveSnapshot(sessionId:string,projector=false) {
   return{snapshot,error,loading,refresh};
 }
 
+function LiveSemanticTable({
+  table,
+  label,
+}:{
+  table:NonNullable<ReturnType<typeof portableTableBlock>>;
+  label:string;
+}) {
+  const editable=new Set(table.editableCells.map(([row,column])=>`${row}:${column}`));
+  return <div className="live-table-scroll" role="region" aria-label={label} tabIndex={0}>
+    <table className={`structured-question-table structured-question-${table.kind.replaceAll('_','-')}`}>
+      {table.headers.length?<thead><tr>{table.headers.map((header,index)=><th scope="col" key={index}>{header}</th>)}</tr></thead>:null}
+      <tbody>{table.rows.map((cells,rowIndex)=><tr key={rowIndex}>{cells.map((value,columnIndex)=>{
+        const key=`${rowIndex}:${columnIndex}`;
+        return <td key={key} data-editable={editable.has(key)?'true':undefined}>{value??''}</td>;
+      })}</tr>)}</tbody>
+    </table>
+  </div>;
+}
+
 function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][number]['assets'][number]}) {
   const url=portableAssetUrl(asset);
   const semanticText=asset.contentMd?.trim();
-  const canShowAsText=asset.kind==='code'||asset.kind==='pseudocode'||asset.kind==='table';
+  const table=asset.kind==='table'?portableTableBlock(asset,{page:asset.sourcePage??1}):null;
+  const canShowAsText=asset.kind==='code'||asset.kind==='pseudocode';
   return <figure className="live-asset">
-    {url?<img src={url} alt={asset.altText||'Cambridge source diagram'} />:
+    {url?<img src={url} alt={asset.altText||'Cambridge source diagram'} loading="eager" decoding="async" />:
+      table?<LiveSemanticTable table={table} label={asset.altText||'Cambridge source table'}/>:
       semanticText&&canShowAsText?<pre>{semanticText}</pre>:
         <div className="live-asset-missing" role="alert">
           {asset.altText||'Original Cambridge diagrammasi yuklanmadi.'}
@@ -167,11 +188,12 @@ function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][
 function LiveQuestionView({question}:{question:LiveExamQuestion}) {
   const portable=question.portable;
   const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
-  const content=useMemo(()=>portable.leaf.contentJson
-    ?materializePortableSourceAssets(portable.leaf.contentJson,assets)
-    :null,[assets,portable.leaf.contentJson]);
+  const rawContent=portable.leaf.contentJson;
+  const content=useMemo(()=>rawContent&&structuredQuestionUsable(rawContent)
+    ?materializePortableSourceAssets(rawContent,assets)
+    :null,[assets,rawContent]);
   const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
-  const structured=content&&structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls);
+  const structuredPresent=Boolean(rawContent);
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
@@ -182,15 +204,21 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
         {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
       </article>)}
     </section>:null}
-    {structured?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
-      {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
-        {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
-        {block.assets.map((asset)=><QuestionAsset key={asset.id} asset={asset}/>)}
-      </section>)}
-      {portable.leaf.stem?<LatexQuestionText
-        latex={portable.leaf.bodyFormat==='latex'?portable.leaf.stemLatex:null}
-        fallback={portable.leaf.stem}/>:null}
-    </>}
+    {structuredPresent
+      ? content
+        ? <StructuredQuestionView content={content} assetUrls={assetUrls}/>
+        : <div className="structured-question-invalid" role="alert">
+            Savolning source-backed tarkibini tekshirib bo‘lmadi. Noto‘liq savol ko‘rsatilmadi.
+          </div>
+      : <>
+        {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
+          {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
+          {block.assets.map((asset)=><QuestionAsset key={asset.id} asset={asset}/>)}
+        </section>)}
+        {portable.leaf.stem?<LatexQuestionText
+          latex={portable.leaf.bodyFormat==='latex'?portable.leaf.stemLatex:null}
+          fallback={portable.leaf.stem}/>:null}
+      </>}
   </article>;
 }
 
