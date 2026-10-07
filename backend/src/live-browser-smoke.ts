@@ -12,7 +12,7 @@ const ASSET_ID='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const PAPER_ID='ffffffff-ffff-4fff-8fff-ffffffffffff';
 const now='2026-10-07T05:00:00.000Z';
 
-const dist=normalize(join(fileURLToPath(new URL('.',import.meta.url)),'../../../frontend/dist'));
+const dist=normalize(join(fileURLToPath(new URL('.',import.meta.url)),'../../frontend/dist'));
 
 const mime = (path) => ({
   '.html':'text/html; charset=utf-8',
@@ -39,9 +39,13 @@ const server=createServer(async(req,res)=>{
   }
 });
 
-const listen=()=>new Promise((resolve,reject)=>{
+const listen=()=>new Promise<import('node:net').AddressInfo>((resolve,reject)=>{
   server.once('error',reject);
-  server.listen(0,'127.0.0.1',()=>resolve(server.address()));
+  server.listen(0,'127.0.0.1',()=>{
+    const address=server.address();
+    if(!address||typeof address==='string'){reject(new Error('Static server did not expose a TCP port'));return;}
+    resolve(address);
+  });
 });
 
 function json(request,body,status=200){
@@ -174,7 +178,6 @@ async function openSurface(browser,base,actor,viewport,hash){
 }
 
 const address=await listen();
-if(!address||typeof address==='string')throw new Error('Static server did not expose a TCP port');
 const base=`http://127.0.0.1:${address.port}`;
 const chrome=process.env.CHROME_PATH;
 if(!chrome)throw new Error('CHROME_PATH is required');
