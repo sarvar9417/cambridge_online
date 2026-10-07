@@ -428,7 +428,7 @@ try{
 
   // Autosave + retry + reload recovery.
   await student1.page.type('#live-answer','student one recovered answer');
-  await waitText(student1.page,'Javob saqlanmadi.',5_000);
+  await waitText(student1.page,'Temporary browser network drop.',5_000);
   await student1.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
   if(state.answers.student1.text!=='student one recovered answer')throw new Error('student1 autosave retry did not persist server state');
   await student1.page.reload({waitUntil:'networkidle0'});
