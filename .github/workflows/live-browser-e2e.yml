@@ -1,0 +1,126 @@
+name: Live Browser E2E
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/live/**'
+      - 'frontend/src/lib/api.ts'
+      - 'frontend/src/lib/portable-source-assets.ts'
+      - 'frontend/src/student/StructuredQuestionView.tsx'
+      - 'backend/src/routes/live-exams.ts'
+      - 'backend/src/services/live-exam-service.ts'
+      - 'backend/src/database/migrations/**'
+      - 'backend/src/database/seed-live-e2e.ts'
+      - 'scripts/browser-live-qa.mjs'
+      - 'scripts/browser-live-e2e.mjs'
+      - '.github/workflows/live-browser-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/live/**'
+      - 'frontend/src/lib/api.ts'
+      - 'frontend/src/lib/portable-source-assets.ts'
+      - 'frontend/src/student/StructuredQuestionView.tsx'
+      - 'backend/src/routes/live-exams.ts'
+      - 'backend/src/services/live-exam-service.ts'
+      - 'backend/src/database/migrations/**'
+      - 'backend/src/database/seed-live-e2e.ts'
+      - 'scripts/browser-live-qa.mjs'
+      - 'scripts/browser-live-e2e.mjs'
+      - '.github/workflows/live-browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campath
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d campath"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/campath
+      DB_SSL_MODE: disable
+      FRONTEND_URL: http://localhost:5173
+      SEED_OWNER_EMAIL: owner.e2e@example.test
+      SEED_OWNER_USERNAME: qa-owner
+      SEED_OWNER_PASSWORD: LocalQaOwnerPassword-2026
+      SEED_STUDENT_PASSWORD: LocalQaStudentPassword-2026
+      JWT_SECRET: local-e2e-jwt-secret-change-me-2026-0001
+      JWT_REFRESH_SECRET: local-e2e-refresh-secret-change-me-2026-0001
+      LIVE_E2E_BASE_URL: http://localhost:5173
+      LIVE_E2E_OUTPUT_DIR: output/live-browser-e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Resolve Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then
+            echo "Chrome/Chromium was not found on the GitHub runner." >&2
+            exit 1
+          fi
+          echo "CHROME_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
+          "$chrome" --version
+
+      - name: Prepare local Live E2E database
+        run: |
+          npm run db:migrate -w backend
+          npm run db:seed -w backend
+          npm run db:seed:live-e2e -w backend
+
+      - name: Start CamPath
+        shell: bash
+        run: |
+          npm run dev > /tmp/campath-dev.log 2>&1 &
+          echo $! > /tmp/campath-dev.pid
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:3001/api/v1/ready >/tmp/campath-ready.json \
+              && curl -fsS http://localhost:5173/ >/dev/null; then
+              cat /tmp/campath-ready.json
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/campath-dev.log
+          exit 1
+
+      - name: Run teacher + projector + 3 student Live flow
+        run: npm run test:live:e2e
+
+      - name: Show app log on failure
+        if: failure()
+        run: cat /tmp/campath-dev.log || true
+
+      - name: Upload Live browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-browser-e2e
+          path: |
+            output/live-browser-e2e
+            /tmp/campath-ready.json
+          if-no-files-found: warn
