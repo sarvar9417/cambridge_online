@@ -21,6 +21,7 @@ const files = [
   '0192_live_challenge_join_code_lifecycle.sql',
   '0193_durable_rate_limits.sql',
   '0204_live_peer_teacher_fallback.sql',
+  '0205_live_session_history_archive.sql',
 ];
 
 const pool = new Pool({ connectionString });
