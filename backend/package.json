@@ -28,7 +28,8 @@
     "visuals:recover": "tsx src/jobs/source-visual-recovery-cli.ts",
     "test:live-db": "vitest run src/database/live-database-acceptance.test.ts src/services/live-exam-service.real-db.test.ts",
     "db:migrate:live-test": "tsx src/database/live-test-migrate.ts",
-    "test:live-browser": "tsx src/live-browser-smoke.ts"
+    "test:live-browser": "tsx src/live-browser-smoke.ts",
+    "test:live-browser-lifecycle": "tsx src/live-browser-lifecycle.ts"
   },
   "dependencies": {
     "@sparticuz/chromium-min": "^149.0.0",
