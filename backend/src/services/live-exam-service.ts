@@ -559,7 +559,7 @@ export class LiveExamService {
          (select count(*) from live_exam_participants lep where lep.session_id=les.id and lep.left_at is null)::int participant_count
        from live_exam_sessions les
        join classes c on c.id=les.class_id
-       where (
+       where les.archived_at is null and (
          ($1='student' and exists(
            select 1 from live_exam_participants lep
            where lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
@@ -591,6 +591,7 @@ export class LiveExamService {
          from live_exam_sessions les
          join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
          where les.join_code=$1
+           and les.archived_at is null
            and coalesce(
              (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
              'infinity'::timestamptz
@@ -757,7 +758,7 @@ export class LiveExamService {
        join classes c on c.id=les.class_id
        join users u on u.id=les.host_id
        left join live_exam_participants lep on lep.session_id=les.id and lep.student_id=$3 and lep.left_at is null
-       where les.id=$1 and (
+       where les.id=$1 and les.archived_at is null and (
          ($2='student' and lep.id is not null)
          or ($2='owner' and c.school_id=$4)
          or ($2='teacher' and (c.owner_id=$3 or exists(
@@ -1636,6 +1637,33 @@ export class LiveExamService {
       const version = await this.bump(client, sessionId, actor.id, 'participant.left');
       await client.query('commit');
       return { sessionId, version };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async archiveHistory(actor: Actor, sessionId: string) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      if (session.archived_at) throw new DomainError('not_found', 404);
+      if (!['finished','cancelled'].includes(String(session.status))) {
+        throw new DomainError('live_archive_active_session', 409);
+      }
+      if (actor.role === 'teacher' && String(session.host_id) !== actor.id) {
+        throw new DomainError('live_archive_forbidden', 403);
+      }
+      const version = await this.bump(client, sessionId, actor.id, 'session.history_archived');
+      await client.query(
+        `update live_exam_sessions
+         set archived_at=now(),archived_by=$2,updated_at=now()
+         where id=$1`,
+        [sessionId, actor.id],
+      );
+      await client.query('commit');
+      return { sessionId, archived:true, version };
     } catch (error) {
       await client.query('rollback');
       throw error;
