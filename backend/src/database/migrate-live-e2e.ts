@@ -25,7 +25,6 @@ const selected=[
   '0029_email_verification.sql',
   '0032_mark_scheme_group_award_mode.sql',
   '0092_learning_objective_practice_compatibility.sql',
-  '0094_curated_9618_lo_compatibility.sql',
   '0108_refresh_token_session_default.sql',
   '0109_9618_ms_source_audit.sql',
   '0113_structured_question_content.sql',
