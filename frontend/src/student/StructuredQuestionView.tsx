@@ -12,6 +12,16 @@ export function structuredQuestionAssetsReady(content:StructuredQuestionContent,
   return content.blocks.every((block)=>block.type!=='asset'||Boolean(assetUrls[block.assetId]));
 }
 
+export function structuredQuestionRenderSignature(
+  content:StructuredQuestionContent,
+  assetUrls:Record<string,string>={},
+) {
+  return JSON.stringify([
+    content,
+    Object.entries(assetUrls).sort(([left],[right])=>left.localeCompare(right)),
+  ]);
+}
+
 export function StructuredQuestionView({
   content,
   assetUrls={},
@@ -24,6 +34,7 @@ export function StructuredQuestionView({
   const findings=useMemo(()=>valid?inspectStructuredQuestionIntegrity(content):[],[content,valid]);
   const presentationReady=valid&&findings.length===0;
   const assetsReady=presentationReady&&structuredQuestionAssetsReady(content,assetUrls);
+  const renderSignature=structuredQuestionRenderSignature(content,assetUrls);
 
   useEffect(()=>{
     const node=host.current;
@@ -32,7 +43,7 @@ export function StructuredQuestionView({
       resolveAsset:(assetId)=>assetUrls[assetId]??null,
     }));
     return()=>node.replaceChildren();
-  },[content,assetUrls,presentationReady,assetsReady]);
+  },[renderSignature,presentationReady,assetsReady]);
 
   if(!valid){
     return (
