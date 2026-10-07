@@ -861,6 +861,7 @@ export class LiveExamService {
         `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
            r.id review_id,r.status::text review_status,r.kind::text review_kind,
+           r.awarded_marks review_awarded_marks,r.feedback_md review_feedback_md,
            coalesce((
              select array_agg(rp.mark_scheme_point_id order by rp.mark_scheme_point_id)
              from live_exam_review_points rp
@@ -881,6 +882,8 @@ export class LiveExamService {
         reviewId: row.review_id,
         reviewStatus: row.review_status,
         reviewKind: row.review_kind,
+        provisionalScore: row.review_awarded_marks === null ? null : Number(row.review_awarded_marks),
+        provisionalFeedback: row.review_feedback_md,
         reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
       }));
     }
@@ -1192,9 +1195,11 @@ export class LiveExamService {
       ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
       : mode === 'self'
         ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(row.student_id), kind: 'self' as const }))
-        : assignPeerReviewers(answers.rows.map((row) => ({
-            answerId: String(row.answer_id), studentId: String(row.student_id),
-          })), `${sessionId}:${sessionQuestionId}`);
+        : answers.rows.length < 2
+          ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
+          : assignPeerReviewers(answers.rows.map((row) => ({
+              answerId: String(row.answer_id), studentId: String(row.student_id),
+            })), `${sessionId}:${sessionQuestionId}`);
     const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
     for (const assignment of assignments) {
       const review = await client.query(
@@ -1334,11 +1339,13 @@ export class LiveExamService {
            reviewer_id=$4,submitted_at=now() where id=$1`,
         [reviewId, score, input.feedback ?? null, actor.id],
       );
-      await client.query(
-        `update live_exam_answers set final_score=$2,final_feedback_md=$3,score_source=$4
-         where id=$1`,
-        [row.answer_id, score, input.feedback ?? null, row.kind],
-      );
+      if (row.kind === 'teacher') {
+        await client.query(
+          `update live_exam_answers set final_score=$2,final_feedback_md=$3,score_source='teacher'
+           where id=$1`,
+          [row.answer_id, score, input.feedback ?? null],
+        );
+      }
       const version = await this.bump(client, sessionId, actor.id, 'review.submitted', {
         reviewId,
         kind: row.kind,
@@ -1413,28 +1420,55 @@ export class LiveExamService {
          where leq.session_id=$1 and leq.position=$2 and r.status='assigned'`,
         [sessionId, session.current_question_index],
       );
-      if (Number(pending.rows[0].count) > 0 && !force) throw new DomainError('live_reviews_pending', 409);
-      if (Number(pending.rows[0].count) > 0) {
-        await client.query(
-          `with forced_reviews as (
-             update live_exam_reviews r set status='submitted',awarded_marks=0,
-               feedback_md=coalesce(feedback_md,'O‘qituvchi tomonidan baholash yopildi.'),submitted_at=now()
-             from live_exam_questions leq
-             where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
-               and r.status='assigned'
-             returning r.answer_id,r.kind
-           )
-           update live_exam_answers a set final_score=0,
-             final_feedback_md=coalesce(a.final_feedback_md,'O‘qituvchi tomonidan baholash yopildi.'),
-             score_source=forced_reviews.kind
-           from forced_reviews where a.id=forced_reviews.answer_id`,
-          [sessionId, session.current_question_index],
+      const pendingCount = Number(pending.rows[0].count);
+      if (pendingCount > 0 && !force) throw new DomainError('live_reviews_pending', 409);
+      if (pendingCount > 0) {
+        if (String(session.marking_mode) === 'teacher') {
+          throw new DomainError('live_reviews_pending', 409);
+        }
+        const fallback = await client.query(
+          `update live_exam_reviews r set reviewer_id=$3,kind='teacher'
+           from live_exam_questions leq
+           where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
+             and r.status='assigned'
+           returning r.id`,
+          [sessionId, session.current_question_index, session.host_id],
         );
+        const version = await this.bump(client, sessionId, actor.id, 'review.fallback_assigned', {
+          count: fallback.rowCount ?? 0,
+          fromMode: session.marking_mode,
+        });
+        await client.query('commit');
+        return {
+          sessionId,
+          status: 'marking' as const,
+          version,
+          fallbackAssigned: fallback.rowCount ?? 0,
+        };
       }
+
+      // Peer/self marks become official only when the teacher releases the round.
+      // A moderated answer is already authoritative and must never be overwritten
+      // by the provisional peer/self review that preceded it.
+      await client.query(
+        `update live_exam_answers a set
+           final_score=r.awarded_marks,
+           final_feedback_md=r.feedback_md,
+           score_source=r.kind
+         from live_exam_reviews r
+         join live_exam_questions leq on leq.id=r.session_question_id
+         where r.answer_id=a.id
+           and leq.session_id=$1 and leq.position=$2
+           and r.status in ('submitted','moderated')
+           and r.awarded_marks is not null
+           and a.moderated_at is null
+           and a.final_score is null`,
+        [sessionId, session.current_question_index],
+      );
       await client.query(`update live_exam_sessions set status='review' where id=$1`, [sessionId]);
       const version = await this.bump(client, sessionId, actor.id, 'marking.completed', {
-        forced: force,
-        pending: Number(pending.rows[0].count),
+        forced: false,
+        pending: 0,
       });
       await client.query('commit');
       return { sessionId, status: 'review' as const, version };
