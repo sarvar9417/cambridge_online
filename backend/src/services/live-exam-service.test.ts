@@ -57,6 +57,7 @@ describe('LiveExamService active participation visibility', () => {
     await expect(service.list({id:'s1',role:'student',schoolId:'school',fullName:'Student'})).resolves.toEqual([]);
     const sql=String(query.mock.calls[0]?.[0]??'');
     expect(sql).toContain('lep.student_id=$2 and lep.left_at is null');
+    expect(sql).toContain('les.archived_at is null');
   });
 });
 
