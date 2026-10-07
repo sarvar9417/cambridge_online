@@ -24,8 +24,7 @@ export function serverlessDatabaseUrl(
     // shared pooler host is configured, preserve the password/database/options
     // but switch host, username namespace and port to Supavisor transaction mode.
     const directMatch = /^db\.([a-z0-9]+)\.supabase\.co$/i.exec(url.hostname);
-    const validPoolerHost = poolerHost?.endsWith('.pooler.supabase.com');
-    if (directMatch && validPoolerHost) {
+    if (directMatch && poolerHost?.endsWith('.pooler.supabase.com')) {
       const projectRef = directMatch[1];
       url.hostname = poolerHost;
       url.port = '6543';
