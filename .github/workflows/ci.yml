@@ -63,7 +63,7 @@ jobs:
       - name: Bootstrap Supabase API roles
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          DO $$
+          DO $do$
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
               CREATE ROLE anon NOLOGIN;
@@ -75,7 +75,7 @@ jobs:
               CREATE ROLE service_role NOLOGIN;
             END IF;
           END
-          $;
+          $do$;
           CREATE OR REPLACE FUNCTION public.rls_auto_enable()
           RETURNS event_trigger
           LANGUAGE plpgsql
