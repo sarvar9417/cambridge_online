@@ -63,6 +63,34 @@ try {
   const classId = classes.data.find((item) => item.name === '10-A CS')?.id ?? classes.data[0]?.id;
   await qa.check('Live E2E: seeded class is visible to teacher', Boolean(classId));
 
+  const eligibility = await teacher.page.evaluate(async ({ classId }) => {
+    const { api } = await import('/src/lib/api.ts');
+    const options = await api('/questions/filter-options');
+    const topic = options.topics.find((item) =>
+      item.syllabus_code === '9618' && Number(item.topic_number) === 1);
+    if (!topic) return { topicId: null, refs: [], count: 0 };
+    const params = new URLSearchParams({
+      classId,
+      topicIds: topic.topic_id,
+      subtopicIds: '',
+      includeDiagrams: 'true',
+      excludeSeen: 'true',
+      limit: '30',
+    });
+    const result = await api(`/live-exams/eligible-questions?${params}`);
+    return {
+      topicId: topic.topic_id,
+      refs: result.data.map((item) => item.displayRef),
+      count: result.data.length,
+    };
+  }, { classId });
+  console.log('Live E2E eligible refs:', eligibility.refs.join(', ') || '(empty)');
+  await qa.check(
+    `Live E2E: eligible pool contains ${targetRef}`,
+    eligibility.refs.includes(targetRef),
+    eligibility,
+  );
+
   const title = `Live browser E2E ${Date.now()}`;
   const { id, code } = await createLobby(qa, teacher, {
     classId,
