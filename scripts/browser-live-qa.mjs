@@ -57,12 +57,26 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '' }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
   await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
+  if (displayRef) {
+    await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
+    await qa.clickText(teacher.page, 'Eligible savollarni ko‘rsatish');
+    await qa.waitText(teacher.page, displayRef);
+    const selected = await teacher.page.evaluate((targetRef) => {
+      const label = [...document.querySelectorAll('.live-question-pool label')]
+        .find((node) => node.textContent?.includes(targetRef));
+      const input = label?.querySelector('input[type="checkbox"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.click();
+      return input.checked;
+    }, displayRef);
+    await qa.check(`Live fixture: selected ${displayRef}`, selected);
+  }
   await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
