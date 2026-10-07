@@ -27,4 +27,12 @@ describe('Live Challenge answer resilience contract',()=>{
     expect(page).toContain('projectorView=projector&&user.role!==\'student\'');
     expect(page).toContain('busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)');
   });
+
+  it('forces pending draft saves near the deadline, including zero',()=>{
+    expect(page).toContain('const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0])');
+    expect(page).toContain('const deadlineFlushSecond=useRef<number|null>(null)');
+    expect(page).toContain('DEADLINE_DRAFT_FLUSH_SECONDS.has(remaining)');
+    expect(page).toContain('const pending=pendingSave.current??(dirty?latestAnswer.current:null)');
+    expect(page).toContain('void flushAnswer(pending)');
+  });
 });
