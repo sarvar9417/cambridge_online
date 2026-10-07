@@ -22,11 +22,7 @@ import {
   portableAssetUrl,
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
-import {
-  StructuredQuestionView,
-  structuredQuestionAssetsReady,
-  structuredQuestionUsable,
-} from '../student/StructuredQuestionView';
+import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -171,7 +167,7 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
     ?materializePortableSourceAssets(portable.leaf.contentJson,assets)
     :null,[assets,portable.leaf.contentJson]);
   const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
-  const structured=content&&structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls);
+  const hasCanonicalContent=Boolean(portable.leaf.contentJson);
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
@@ -182,7 +178,7 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
         {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
       </article>)}
     </section>:null}
-    {structured?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
+    {hasCanonicalContent&&content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
       {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
         {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
         {block.assets.map((asset)=><QuestionAsset key={asset.id} asset={asset}/>)}
