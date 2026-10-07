@@ -11,6 +11,12 @@ describe('live exam source fidelity contract', () => {
     expect(source).not.toContain('!portable.contextBlocks.length&&portable.leaf.stem');
   });
 
+  it('never falls back to legacy text when canonical content exists but an asset is unavailable', () => {
+    expect(source).toContain('const hasCanonicalContent=Boolean(portable.leaf.contentJson);');
+    expect(source).toContain('hasCanonicalContent&&content?<StructuredQuestionView');
+    expect(source).not.toContain('structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls)');
+  });
+
   it('keeps official mark-scheme guidance, accept and reject notes visible', () => {
     expect(source).toContain('scheme.guidanceMd');
     expect(source).toContain('markSchemeNotes(point.accept)');
