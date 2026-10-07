@@ -9,6 +9,16 @@ type StudentKey='student1'|'student2'|'student3';
 type ViewportSize={width:number;height:number};
 type AnswerState={text:string;submitted:boolean;score:number|null;feedback:string|null;updatedAt:string};
 type ReviewState={id:string;reviewer:StudentKey;target:StudentKey;status:'assigned'|'submitted';score:number|null;feedback:string|null};
+type LifecycleStatus='question_open'|'marking'|'review'|'finished';
+type LifecycleState={
+  status:LifecycleStatus;
+  paused:boolean;
+  version:number;
+  autosaveFailures:number;
+  student3Disconnected:boolean;
+  answers:Record<StudentKey,AnswerState>;
+  reviews:Record<StudentKey,ReviewState>;
+};
 
 const SESSION_ID='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CLASS_ID='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -21,8 +31,8 @@ const baseTime=Date.parse('2026-10-07T06:00:00.000Z');
 const iso=(offsetMs=0)=>new Date(baseTime+offsetMs).toISOString();
 const students:StudentKey[]=['student1','student2','student3'];
 
-const state={
-  status:'question_open' as 'question_open'|'marking'|'review'|'finished',
+const state:LifecycleState={
+  status:'question_open',
   paused:false,
   version:10,
   autosaveFailures:1,
@@ -36,7 +46,7 @@ const state={
     student1:{id:'61000000-0000-4000-8000-000000000001',reviewer:'student1',target:'student2',status:'assigned',score:null,feedback:null},
     student2:{id:'61000000-0000-4000-8000-000000000002',reviewer:'student2',target:'student3',status:'assigned',score:null,feedback:null},
     student3:{id:'61000000-0000-4000-8000-000000000003',reviewer:'student3',target:'student1',status:'assigned',score:null,feedback:null},
-  } satisfies Record<StudentKey,ReviewState>,
+  },
 };
 let tick=0;
 const bump=()=>{state.version+=1;tick+=1;return state.version;};
