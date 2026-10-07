@@ -359,8 +359,10 @@ async function teacherModeOneLearner(browser:Browser,base:string){
 
   await Promise.all([
     waitText(teacher.page,'O‘QUVCHI JAVOBI'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'OFFICIAL MARK SCHEME'),
     waitText(student.page,'Baholash kutilmoqda'),
+    waitText(student.page,'TEKSHIRILAYOTGAN SAVOL'),
   ]);
 
   await teacher.page.click('.live-teacher-marker .live-scheme-points input[type="checkbox"]');
@@ -371,8 +373,10 @@ async function teacherModeOneLearner(browser:Browser,base:string){
 
   await Promise.all([
     waitText(student.page,'SAVOL NATIJASI'),
+    waitText(student.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'Live Challenge reytingi'),
     waitText(teacher.page,'SAVOL YAKUNI'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
   ]);
   if(state.answers.student1.score!==1)throw new Error('teacher mode did not award the mark');
 
@@ -414,7 +418,10 @@ async function selfModeTwoLearnersWithLateJoin(browser:Browser,base:string){
 
   await Promise.all([
     waitText(student1.page,'O‘Z JAVOBINGIZ'),
+    waitText(student1.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(student2.page,'O‘Z JAVOBINGIZ'),
+    waitText(student2.page,'TEKSHIRILAYOTGAN SAVOL'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'OFFICIAL MARK SCHEME'),
   ]);
   for(const student of [student1,student2]){
@@ -428,7 +435,10 @@ async function selfModeTwoLearnersWithLateJoin(browser:Browser,base:string){
   await clickButton(teacher.page,'Natijalarni ochish');
   await Promise.all([
     waitText(student1.page,'SAVOL NATIJASI'),
+    waitText(student1.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(student2.page,'SAVOL NATIJASI'),
+    waitText(student2.page,'TEKSHIRILAYOTGAN SAVOL'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'Live Challenge reytingi'),
   ]);
   if(state.answers.student1.score!==1||state.answers.student2.score!==1)throw new Error('self mode scores did not reconcile');
