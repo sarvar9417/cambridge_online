@@ -22,11 +22,7 @@ import {
   portableAssetUrl,
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
-import {
-  StructuredQuestionView,
-  structuredQuestionAssetsReady,
-  structuredQuestionUsable,
-} from '../student/StructuredQuestionView';
+import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
