@@ -1,4 +1,5 @@
 import { pool } from './client.js';
+import { questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 
 if (!pool) throw new Error('DATABASE_URL is required');
 const rawUrl=process.env.DATABASE_URL;
@@ -94,6 +95,74 @@ try {
        set_by='live-e2e'`,
     [questionId, subtopicId],
   );
+
+  const classRow=await client.query<{id:string}>(
+    `select id from classes where name='10-A CS' order by created_at limit 1`,
+  );
+  const classId=classRow.rows[0]?.id;
+  if(!classId)throw new Error('Live E2E class fixture missing');
+
+  const gates=await client.query(
+    `select
+       q.status='approved' as approved,
+       coalesce(q.marks,0)>0 as marked,
+       exists(
+         select 1 from canonical_mark_schemes ms
+         where ms.question_id=q.id and ms.status='approved'
+       ) as mark_scheme_ready,
+       ${questionVisualIntegritySql('q')} as visual_ready,
+       exists(
+         select 1
+         from classes live_class
+         where live_class.id=$2
+           and exists(
+             select 1
+             from question_subtopics qst
+             join subtopics source_st on source_st.id=qst.subtopic_id
+             join topics source_t on source_t.id=source_st.topic_id
+             join topics target_t
+               on target_t.syllabus_id=live_class.syllabus_id
+              and target_t.number=source_t.number
+             join subtopics target_st
+               on target_st.topic_id=target_t.id
+              and target_st.code=source_st.code
+             where qst.question_id=q.id
+               and qst.is_primary
+               and coalesce(qst.confidence,0)>=0.95
+           )
+       ) as class_syllabus_ready,
+       exists(
+         select 1 from question_subtopics qst
+         join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+         join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+         join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+         where qst.question_id=q.id and exists(
+           select 1 from topics selected_topic
+           join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+           where selected_topic.id=$3
+             and selected_syllabus.code=mapped_syllabus.code
+             and selected_topic.number=mapped_topic.number
+         )
+       ) as topic_ready,
+       not exists(
+         select 1 from assignment_questions aq
+         join assignments a on a.id=aq.assignment_id
+         where aq.question_id=q.id and a.class_id=$2
+       ) as assignment_unseen,
+       not exists(
+         select 1 from live_exam_questions leq
+         join live_exam_sessions previous on previous.id=leq.session_id
+         where leq.question_id=q.id and previous.class_id=$2
+           and previous.started_at is not null
+       ) as live_unseen
+     from questions q where q.id=$1`,
+    [questionId,classId,topicId],
+  );
+  const readiness=gates.rows[0] as Record<string,boolean>|undefined;
+  console.log('Live E2E eligibility gates',JSON.stringify(readiness));
+  if(!readiness||Object.values(readiness).some((value)=>value!==true)){
+    throw new Error(`Live E2E eligibility fixture failed: ${JSON.stringify(readiness)}`);
+  }
 
   await client.query('commit');
   console.log('Seeded verified users and deterministic canonical Live E2E fixture');
