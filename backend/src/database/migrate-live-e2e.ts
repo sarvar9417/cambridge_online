@@ -17,6 +17,7 @@ const selected=[
   '0004_questions_and_markschemes.sql',
   '0005_platform_domains.sql',
   '0011_idempotency.sql',
+  '0012_submission_late_grants.sql',
   '0016_question_dependencies_and_selections.sql',
   '0018_question_asset_source_bbox.sql',
   '0020_question_asset_storage_metadata.sql',
