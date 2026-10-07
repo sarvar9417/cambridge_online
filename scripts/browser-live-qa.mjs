@@ -77,7 +77,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
     }, displayRef);
     await qa.check(`Live fixture: selected ${displayRef}`, selected);
   }
-  await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
+  if (!displayRef) await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
   if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
