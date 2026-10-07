@@ -2,7 +2,10 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import puppeteer from 'puppeteer-core';
+import puppeteer, { type Browser, type ConsoleMessage, type HTTPRequest, type Page } from 'puppeteer-core';
+
+type ActorKey='teacher'|'projector'|'student1'|'student2'|'student3';
+type ViewportSize={width:number;height:number};
 
 const SESSION_ID='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CLASS_ID='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -14,7 +17,7 @@ const now='2026-10-07T05:00:00.000Z';
 
 const dist=normalize(join(fileURLToPath(new URL('.',import.meta.url)),'../../frontend/dist'));
 
-const mime = (path) => ({
+const mime = (path:string) => ({
   '.html':'text/html; charset=utf-8',
   '.js':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8',
@@ -48,11 +51,11 @@ const listen=()=>new Promise<import('node:net').AddressInfo>((resolve,reject)=>{
   });
 });
 
-function json(request,body,status=200){
+function json(request:HTTPRequest,body:unknown,status=200){
   return request.respond({status,contentType:'application/json',body:JSON.stringify(body)});
 }
 
-function user(actor){
+function user(actor:ActorKey){
   if(actor==='teacher'||actor==='projector')return{
     id:'10000000-0000-4000-8000-000000000001',
     fullName:'Acceptance teacher',
@@ -71,7 +74,7 @@ function user(actor){
 const sourceSvg='<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180"><rect x="10" y="10" width="620" height="160" rx="8" fill="white" stroke="black"/><text x="40" y="60" font-size="24">A</text><path d="M70 52 H220" stroke="black" stroke-width="3"/><rect x="220" y="30" width="120" height="70" fill="none" stroke="black" stroke-width="3"/><text x="250" y="72" font-size="24">AND</text><path d="M340 65 H520" stroke="black" stroke-width="3"/><text x="530" y="72" font-size="24">Q</text><text x="40" y="130" font-size="20">Cambridge source-backed logic circuit</text></svg>';
 const assetUrl=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sourceSvg)}`;
 
-function snapshot(actor){
+function snapshot(actor:ActorKey){
   const isStaff=actor==='teacher'||actor==='projector';
   const tableRows=Array.from({length:6},(_,r)=>Array.from({length:8},(_,c)=>`${r}:${c}`));
   return{
@@ -129,9 +132,9 @@ function snapshot(actor){
   };
 }
 
-async function installApi(page,actor){
+async function installApi(page:Page,actor:ActorKey){
   await page.setRequestInterception(true);
-  page.on('request',request=>{
+  page.on('request',(request:HTTPRequest)=>{
     const url=new URL(request.url());
     if(!url.pathname.startsWith('/api/v1/')){void request.continue();return;}
     const path=url.pathname.slice('/api/v1'.length);
@@ -147,14 +150,14 @@ async function installApi(page,actor){
   });
 }
 
-async function openSurface(browser,base,actor,viewport,hash){
+async function openSurface(browser:Browser,base:string,actor:ActorKey,viewport:ViewportSize,hash:string){
   const context=await browser.createBrowserContext();
   const page=await context.newPage();
   await page.setViewport(viewport);
   await installApi(page,actor);
-  const consoleErrors=[];
-  page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text());});
-  page.on('pageerror',err=>consoleErrors.push(err.message));
+  const consoleErrors:string[]=[];
+  page.on('console',(msg:ConsoleMessage)=>{if(msg.type()==='error')consoleErrors.push(msg.text());});
+  page.on('pageerror',(err:Error)=>consoleErrors.push(err.message));
   await page.goto(`${base}/#${hash}`,{waitUntil:'networkidle0',timeout:30_000});
   await page.waitForSelector('.live-question-card',{timeout:15_000});
   const result=await page.evaluate(()=>{
