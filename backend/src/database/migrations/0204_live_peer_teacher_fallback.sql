@@ -50,4 +50,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$;
+
+ALTER FUNCTION public.enforce_live_exam_peer_review_integrity()
+  SET search_path = public, pg_temp;
