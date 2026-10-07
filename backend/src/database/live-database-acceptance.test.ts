@@ -40,18 +40,25 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    ownerId = (await client.query<{id:string}>("select id from users where role='owner' order by created_at limit 1")).rows[0]?.id ?? '';
-    const students = (await client.query<{id:string}>("select id from users where role='student' order by created_at limit 2")).rows;
-    studentA = students[0]?.id ?? '';
-    studentB = students[1]?.id ?? '';
-    classId = (await client.query<{id:string}>('select id from classes where owner_id=$1 order by created_at limit 1',[ownerId])).rows[0]?.id ?? '';
-    questionId = (await client.query<{id:string}>('select id from questions order by created_at limit 1')).rows[0]?.id ?? '';
-
-    expect(ownerId).toBeTruthy();
-    expect(studentA).toBeTruthy();
-    expect(studentB).toBeTruthy();
-    expect(classId).toBeTruthy();
-    expect(questionId).toBeTruthy();
+    ownerId = (await client.query<{id:string}>(
+      "insert into users (role,full_name) values ('owner','Acceptance owner') returning id",
+    )).rows[0]!.id;
+    studentA = (await client.query<{id:string}>(
+      "insert into users (role,full_name) values ('student','Acceptance student A') returning id",
+    )).rows[0]!.id;
+    studentB = (await client.query<{id:string}>(
+      "insert into users (role,full_name) values ('student','Acceptance student B') returning id",
+    )).rows[0]!.id;
+    const syllabusId = (await client.query<{id:string}>(
+      "insert into syllabi (code) values ('9618') returning id",
+    )).rows[0]!.id;
+    classId = (await client.query<{id:string}>(
+      "insert into classes (syllabus_id,owner_id,name) values ($1,$2,'Acceptance class') returning id",
+      [syllabusId,ownerId],
+    )).rows[0]!.id;
+    questionId = (await client.query<{id:string}>(
+      'insert into questions default values returning id',
+    )).rows[0]!.id;
 
     sessionA = (await client.query<{id:string}>(
       `insert into live_exam_sessions (class_id,host_id,title,join_code,marking_mode)
