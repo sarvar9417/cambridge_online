@@ -1,11 +1,25 @@
 import { pool } from './client.js';
 
 if (!pool) throw new Error('DATABASE_URL is required');
+const rawUrl=process.env.DATABASE_URL;
+if(!rawUrl)throw new Error('DATABASE_URL is required');
+const databaseHost=new URL(rawUrl).hostname;
+if(!['127.0.0.1','localhost','::1'].includes(databaseHost)){
+  throw new Error('Refusing to seed Live E2E outside localhost');
+}
 
 const client = await pool.connect();
 
 try {
   await client.query('begin');
+
+  await client.query(
+    `update users
+     set email_verified_at=coalesce(email_verified_at,now()),
+         status='active'
+     where username=any($1::text[])`,
+    [[process.env.SEED_OWNER_USERNAME ?? 'qa-owner','student01','student02','student03']],
+  );
 
   const topic = await client.query<{ id:string }>(
     `select t.id
@@ -44,6 +58,27 @@ try {
   if (!questionId) throw new Error('Run db:seed before db:seed:live-e2e');
 
   await client.query(
+    `update questions q
+     set content_json=jsonb_build_object(
+           'version',1,
+           'source',jsonb_build_object('paperId',q.source_paper_id::text,'sha256',sp.sha256),
+           'blocks',jsonb_build_array(
+             jsonb_build_object(
+               'type','text',
+               'style','task',
+               'text',q.stem_md,
+               'source',jsonb_build_object('page',2)
+             )
+           )
+         ),
+         content_version=1,
+         updated_at=now()
+     from source_papers sp
+     where q.id=$1 and sp.id=q.source_paper_id`,
+    [questionId],
+  );
+
+  await client.query(
     `update question_subtopics
      set is_primary=false
      where question_id=$1 and is_primary and subtopic_id<>$2`,
@@ -61,7 +96,7 @@ try {
   );
 
   await client.query('commit');
-  console.log('Seeded deterministic Live E2E taxonomy fixture');
+  console.log('Seeded verified users and deterministic canonical Live E2E fixture');
 } catch (error) {
   await client.query('rollback');
   throw error;
