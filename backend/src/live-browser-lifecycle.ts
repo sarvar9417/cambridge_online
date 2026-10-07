@@ -8,7 +8,7 @@ type ActorKey='teacher'|'projector'|'student1'|'student2'|'student3'|'outsider';
 type StudentKey='student1'|'student2'|'student3';
 type ViewportSize={width:number;height:number};
 type AnswerState={text:string;submitted:boolean;score:number|null;feedback:string|null;updatedAt:string};
-type ReviewState={id:string;reviewer:StudentKey;target:StudentKey;status:'assigned'|'submitted';score:number|null;feedback:string|null};
+type ReviewState={id:string;reviewer:StudentKey|'teacher';target:StudentKey;status:'assigned'|'submitted';score:number|null;feedback:string|null};
 type LifecycleStatus='question_open'|'marking'|'review'|'finished';
 type LifecycleState={
   status:LifecycleStatus;
@@ -187,7 +187,9 @@ function teacherAnswers(){
       studentId:studentId(owner),
       reviewId:review.id,
       reviewStatus:review.status,
-      reviewKind:'peer',
+      reviewKind:review.reviewer==='teacher'?'teacher':'peer',
+      provisionalScore:review.score,
+      provisionalFeedback:review.feedback,
       reviewMatchedPointIds:review.score===1?[POINT_ID]:[],
     };
   });
@@ -207,6 +209,7 @@ function ownAnswer(actor:StudentKey){
 function reviewFor(actor:StudentKey){
   if(state.status!=='marking')return null;
   const review=state.reviews[actor];
+  if(review.reviewer!==actor)return null;
   const target=state.answers[review.target];
   return{
     id:review.id,
@@ -316,13 +319,17 @@ async function handleApi(request:HTTPRequest,actor:ActorKey){
   }
   if(actor==='teacher'&&method==='POST'&&path===`/live-exams/${SESSION_ID}/marking/complete`){
     const body=parseBody(request);
-    const pending=students.filter((student)=>state.reviews[student].status==='assigned');
+    const pending=students.map((key)=>state.reviews[key]).filter((review)=>review.status==='assigned');
     if(pending.length&&!body.force)return respondError(request,'Baholashlar tugallanmagan.','live_reviews_pending',409);
-    for(const reviewer of pending){
-      const review=state.reviews[reviewer];
-      review.status='submitted';review.score=0;review.feedback='O‘qituvchi tomonidan baholash yopildi.';
+    if(pending.length&&body.force){
+      for(const review of pending)review.reviewer='teacher';
+      bump();
+      return respondJson(request,{sessionId:SESSION_ID,status:'marking',version:state.version,fallbackAssigned:pending.length});
+    }
+    for(const review of Object.values(state.reviews)){
+      if(review.status!=='submitted')continue;
       const target=state.answers[review.target];
-      target.score=0;target.feedback=review.feedback;touch(target);
+      target.score=review.score;target.feedback=review.feedback;touch(target);
     }
     state.status='review';bump();
     return respondJson(request,{sessionId:SESSION_ID,status:'review',version:state.version});
@@ -356,8 +363,17 @@ async function handleApi(request:HTTPRequest,actor:ActorKey){
     const body=parseBody(request);
     const matched=Array.isArray(body.matchedPointIds)&&body.matchedPointIds.includes(POINT_ID);
     review.status='submitted';review.score=matched?1:0;review.feedback=typeof body.feedback==='string'?body.feedback:null;
-    const target=state.answers[review.target];
-    target.score=review.score;target.feedback=review.feedback;touch(target);bump();
+    bump();
+    return respondJson(request,{reviewId:review.id,score:review.score,version:state.version});
+  }
+  if(actor==='teacher'&&method==='POST'&&path.startsWith(`/live-exams/${SESSION_ID}/reviews/`)&&path.endsWith('/submit')){
+    if(state.status!=='marking')return respondError(request,'Baholash yopilgan.','live_invalid_state',409);
+    const review=Object.values(state.reviews).find((item)=>item.reviewer==='teacher'&&path.includes(item.id));
+    if(!review)return respondError(request,'Baholash topilmadi.','not_found',404);
+    const body=parseBody(request);
+    const matched=Array.isArray(body.matchedPointIds)&&body.matchedPointIds.includes(POINT_ID);
+    review.status='submitted';review.score=matched?1:0;review.feedback=typeof body.feedback==='string'?body.feedback:null;
+    bump();
     return respondJson(request,{reviewId:review.id,score:review.score,version:state.version});
   }
 
@@ -477,18 +493,26 @@ try{
     waitText(student3.page,'ANONIM JAVOB'),
   ]);
 
-  // Two reviewers submit; the third disconnects and is force-completed by teacher.
+  // Two reviewers submit; the third disconnects and the unfinished review
+  // is reassigned to the teacher instead of forcing a zero.
   for(const student of [student1,student2]){
     await student.page.click('.live-review-card .live-scheme-points input[type="checkbox"]');
     await student.page.type('.live-review-card textarea','reviewed in browser');
     await clickButton(student.page,'Baholashni yuborish');
     await waitText(student.page,'Baholash yuborildi');
   }
+  if(state.answers.student2.score!==null||state.answers.student3.score!==null)throw new Error('peer score leaked into final answer before release');
   state.student3Disconnected=true;
   await closeContext(student3.context);
   teacher.page.on('dialog',(dialog)=>void dialog.accept());
   await waitText(teacher.page,'2/3 ta tugadi');
-  await clickButton(teacher.page,'Kutilayotganlarsiz davom etish');
+  await clickButton(teacher.page,'Kutilayotganlarni o‘qituvchiga olish');
+  await waitText(teacher.page,'TEACHER FALLBACK');
+  if(state.reviews.student3.reviewer!=='teacher'||state.reviews.student3.status!=='assigned')throw new Error('disconnected reviewer was not reassigned to teacher');
+  await teacher.page.click('.live-review-override .live-scheme-points input[type="checkbox"]');
+  await clickButton(teacher.page,'Bahoni tasdiqlash');
+  await waitText(teacher.page,'3/3 ta tugadi');
+  await clickButton(teacher.page,'Natijalarni ochish');
 
   await Promise.all([
     waitText(teacher.page,'SAVOL YAKUNI'),
@@ -496,8 +520,8 @@ try{
     waitText(student1.page,'SAVOL NATIJASI'),
     waitText(student2.page,'SAVOL NATIJASI'),
   ]);
-  if(state.status!=='review')throw new Error('force-complete did not transition to review');
-  if(state.reviews.student3.status!=='submitted'||state.answers.student1.score!==0)throw new Error('disconnected reviewer was not safely force-completed');
+  if(state.status!=='review')throw new Error('released peer round did not transition to review');
+  if(students.some((student)=>state.answers[student].score!==1))throw new Error('released peer/fallback marks were not materialized correctly');
 
   // Finalize and verify reports across roles.
   await clickButton(teacher.page,'Sessiyani yakunlash');
@@ -518,7 +542,7 @@ try{
   if(mobileOverflow>2)throw new Error(`student mobile lifecycle page overflowed by ${mobileOverflow}px`);
 
   await assertNoConsoleErrors([teacher,projector,student1,student2]);
-  console.log('Live lifecycle browser acceptance passed: autosave/reconnect, pause/resume, 3 submits, peer marking, disconnect force-complete, finish/report, unauthorized access');
+  console.log('Live lifecycle browser acceptance passed: autosave/reconnect, pause/resume, peer provisional scoring, teacher fallback, release, finish/report, unauthorized access');
 }finally{
   await browser.close();
   await new Promise<void>((resolve)=>server.close(()=>resolve()));
