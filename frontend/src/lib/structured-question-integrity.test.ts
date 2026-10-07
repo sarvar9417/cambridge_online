@@ -25,6 +25,17 @@ describe('structured question presentation integrity',()=>{
     expect(findings).toEqual([]);
   });
 
+  it('accepts the repaired Q1(a) semantic block sequence',()=>{
+    const findings=inspectStructuredQuestionIntegrity(content([
+      {type:'text',style:'paragraph',text:'The table has six statements about the Von Neumann model for a computer system. Three of the statements are incorrect.',source:{page:2}},
+      {type:'table',kind:'table',headers:['Statement number','Statement'],rows:[['1','The Program Counter stores the next instruction.'],['2','The ALU performs mathematical and logical operations.'],['3','The CU sends signals to other components.']],editableCells:[],source:{page:2}},
+      {type:'text',style:'task',text:'Complete the table by writing the three incorrect statement numbers and the corrected statements.',source:{page:2}},
+      {type:'table',kind:'table',headers:['Incorrect statement number','Corrected statement'],rows:[[null,null],[null,null],[null,null]],editableCells:[[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]],source:{page:2}},
+      {type:'answer_area',kind:'table_cells',lines:null,source:{page:2}},
+    ]));
+    expect(findings).toEqual([]);
+  });
+
   it('blocks duplicated semantic tables inside prose',()=>{
     const findings=inspectStructuredQuestionIntegrity(content([
       {
