@@ -330,6 +330,35 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
   });
 
+  it('removes only terminal sessions from history without deleting their evidence', async () => {
+    const active=await makeSession({code:'820006',markingMode:'teacher'});
+    await expect(service.archiveHistory(owner(),active.sessionId))
+      .rejects.toMatchObject({code:'live_archive_active_session',status:409});
+
+    const terminal=await makeSession({code:'820007',markingMode:'teacher'});
+    const cancelled=await service.cancel(owner(),terminal.sessionId,1);
+    expect(cancelled.status).toBe('cancelled');
+
+    const archived=await service.archiveHistory(owner(),terminal.sessionId);
+    expect(archived).toMatchObject({sessionId:terminal.sessionId,archived:true});
+
+    const row=await client.query<{archived_at:Date|null;question_count:number;event_count:number}>(
+      `select les.archived_at,
+         (select count(*)::int from live_exam_questions leq where leq.session_id=les.id) question_count,
+         (select count(*)::int from live_exam_events e where e.session_id=les.id and e.event_type='session.history_archived') event_count
+       from live_exam_sessions les where les.id=$1`,
+      [terminal.sessionId],
+    );
+    expect(row.rows[0]?.archived_at).not.toBeNull();
+    expect(Number(row.rows[0]?.question_count)).toBe(1);
+    expect(Number(row.rows[0]?.event_count)).toBe(1);
+
+    const listed=await service.list(owner());
+    expect(listed.some((session)=>session.id===terminal.sessionId)).toBe(false);
+    await expect(service.snapshot(owner(),terminal.sessionId))
+      .rejects.toMatchObject({code:'not_found',status:404});
+  });
+
   it('reconciles an expired timed round from the database clock exactly once', async () => {
     const {sessionId}=await makeSession({
       code:'820003',
