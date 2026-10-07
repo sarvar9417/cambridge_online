@@ -28,3 +28,35 @@ jobs:
             echo 'A Supabase credential-like token is present in a tracked file.' >&2
             exit 1
           fi
+
+  live-real-db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campath
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d campath"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campath
+      DB_SSL_MODE: disable
+      LIVE_DB_ACCEPTANCE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply Live migrations to clean PostgreSQL fixture
+        run: npm run db:migrate:live-test -w backend
+      - name: Run Live Challenge real-database acceptance
+        run: npm run test:live-db -w backend
