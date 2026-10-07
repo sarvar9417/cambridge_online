@@ -40,21 +40,27 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    const schoolId = (await client.query<{id:string}>(
+      "insert into schools (name) values ('Acceptance school') returning id",
+    )).rows[0]!.id;
     ownerId = (await client.query<{id:string}>(
-      "insert into users (role,full_name) values ('owner','Acceptance owner') returning id",
+      "insert into users (school_id,role,full_name) values ($1,'owner','Acceptance owner') returning id",
+      [schoolId],
     )).rows[0]!.id;
     studentA = (await client.query<{id:string}>(
-      "insert into users (role,full_name) values ('student','Acceptance student A') returning id",
+      "insert into users (school_id,role,full_name) values ($1,'student','Acceptance student A') returning id",
+      [schoolId],
     )).rows[0]!.id;
     studentB = (await client.query<{id:string}>(
-      "insert into users (role,full_name) values ('student','Acceptance student B') returning id",
+      "insert into users (school_id,role,full_name) values ($1,'student','Acceptance student B') returning id",
+      [schoolId],
     )).rows[0]!.id;
     const syllabusId = (await client.query<{id:string}>(
       "insert into syllabi (code) values ('9618') returning id",
     )).rows[0]!.id;
     classId = (await client.query<{id:string}>(
-      "insert into classes (syllabus_id,owner_id,name) values ($1,$2,'Acceptance class') returning id",
-      [syllabusId,ownerId],
+      "insert into classes (school_id,syllabus_id,owner_id,name) values ($1,$2,$3,'Acceptance class') returning id",
+      [schoolId,syllabusId,ownerId],
     )).rows[0]!.id;
     questionId = (await client.query<{id:string}>(
       'insert into questions default values returning id',
