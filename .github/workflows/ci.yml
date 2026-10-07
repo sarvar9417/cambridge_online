@@ -86,4 +86,6 @@ jobs:
         run: npm run test:live-browser -w backend
       - name: Run Live multi-context mutation lifecycle
         run: npm run test:live-browser-lifecycle -w backend
+      - name: Run Live teacher and self mode matrix
+        run: npm run test:live-browser-modes -w backend
 
