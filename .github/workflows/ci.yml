@@ -84,4 +84,6 @@ jobs:
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
       - name: Run teacher + projector + 3 student Live browser smoke
         run: npm run test:live-browser -w backend
+      - name: Run Live multi-context mutation lifecycle
+        run: npm run test:live-browser-lifecycle -w backend
 
