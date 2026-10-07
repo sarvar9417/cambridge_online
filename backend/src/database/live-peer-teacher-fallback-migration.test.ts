@@ -14,6 +14,11 @@ describe('live peer teacher fallback migration',()=>{
     expect(sql).toContain("MESSAGE = 'live_peer_assignment_impossible'");
   });
 
+  it('pins the replaced trigger function to the hardened search path',()=>{
+    expect(sql).toContain('ALTER FUNCTION public.enforce_live_exam_peer_review_integrity()');
+    expect(sql).toContain('SET search_path = public, pg_temp');
+  });
+
   it('preserves anonymous peer and historical one-learner self constraints',()=>{
     expect(sql).toContain("NEW.kind = 'peer'");
     expect(sql).toContain('NEW.reviewer_id <> answer_student_id');
