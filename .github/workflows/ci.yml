@@ -60,3 +60,28 @@ jobs:
         run: npm run db:migrate:live-test -w backend
       - name: Run Live Challenge real-database acceptance
         run: npm run test:live-db -w backend
+
+  live-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build frontend bundle
+        run: npm run build -w frontend
+      - name: Resolve Chrome executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then
+            echo "Chrome/Chromium is not installed on this runner." >&2
+            exit 1
+          fi
+          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
+      - name: Run teacher + projector + 3 student Live browser smoke
+        run: npm run test:live-browser -w backend
+
