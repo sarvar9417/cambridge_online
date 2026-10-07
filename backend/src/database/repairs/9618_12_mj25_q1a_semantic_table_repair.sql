@@ -16,6 +16,7 @@ DECLARE
   v_sp public.source_papers%ROWTYPE;
   v_source_asset public.question_assets%ROWTYPE;
   v_content jsonb;
+  v_repair_note constant text := 'source-fidelity-repair: 9618/12/M/J/25 Q1(a) page-2 statement/correction tables restored as canonical semantic tables.';
 BEGIN
   SELECT q.* INTO v_q
   FROM public.questions q
@@ -135,11 +136,10 @@ BEGIN
 
   UPDATE public.questions q
   SET status='approved'::review_status,
-      notes=concat_ws(
-        E'\n',
-        nullif(q.notes,''),
-        'source-fidelity-repair: 9618/12/M/J/25 Q1(a) page-2 statement/correction tables restored as canonical semantic tables.'
-      ),
+      notes=CASE
+        WHEN position(v_repair_note in coalesce(q.notes,''))>0 THEN q.notes
+        ELSE concat_ws(E'\n',nullif(q.notes,''),v_repair_note)
+      END,
       updated_at=now()
   WHERE q.id=v_q.id
     AND NOT EXISTS (
