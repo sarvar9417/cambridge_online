@@ -57,7 +57,7 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '' }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
   await teacher.page.select('select[name="classId"]', classId);
@@ -80,6 +80,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   if (!displayRef) await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
+  if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
   if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
