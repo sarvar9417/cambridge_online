@@ -160,7 +160,8 @@ try {
   );
   const readiness=gates.rows[0] as Record<string,boolean>|undefined;
   console.log('Live E2E eligibility gates',JSON.stringify(readiness));
-  if(!readiness||Object.values(readiness).some((value)=>value!==true)){
+  const requiredGates=['approved','marked','mark_scheme_ready','visual_ready','class_syllabus_ready','topic_ready'] as const;
+  if(!readiness||requiredGates.some((key)=>readiness[key]!==true)){
     throw new Error(`Live E2E eligibility fixture failed: ${JSON.stringify(readiness)}`);
   }
 
