@@ -179,7 +179,7 @@ export interface LiveExamQuestion {id:string;sourceQuestionId:string;position:nu
 export interface LiveMarkSchemePoint {id:string;code:string;text:string;marks:number;accept?:unknown;reject?:unknown;requires?:unknown;isBod?:boolean;groupId?:string|null;matched?:boolean}
 export interface LiveMarkSchemeLevel {id:string;levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd:string|null}
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;levels:LiveMarkSchemeLevel[];points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
-export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string}
+export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string;provisionalScore?:number|null;provisionalFeedback?:string|null}
 export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
