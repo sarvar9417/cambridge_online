@@ -487,10 +487,14 @@ try{
   await clickButton(teacher.page,'Javoblarni yopish va MSni ochish');
   await Promise.all([
     waitText(teacher.page,'BAHOLASH'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'OFFICIAL MARK SCHEME'),
     waitText(student1.page,'ANONIM JAVOB'),
+    waitText(student1.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(student2.page,'ANONIM JAVOB'),
+    waitText(student2.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(student3.page,'ANONIM JAVOB'),
+    waitText(student3.page,'TEKSHIRILAYOTGAN SAVOL'),
   ]);
 
   // Two reviewers submit; the third disconnects and the unfinished review
@@ -516,9 +520,12 @@ try{
 
   await Promise.all([
     waitText(teacher.page,'SAVOL YAKUNI'),
+    waitText(teacher.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(projector.page,'Live Challenge reytingi'),
     waitText(student1.page,'SAVOL NATIJASI'),
+    waitText(student1.page,'TEKSHIRILAYOTGAN SAVOL'),
     waitText(student2.page,'SAVOL NATIJASI'),
+    waitText(student2.page,'TEKSHIRILAYOTGAN SAVOL'),
   ]);
   if(state.status!=='review')throw new Error('released peer round did not transition to review');
   if(students.some((student)=>state.answers[student].score!==1))throw new Error('released peer/fallback marks were not materialized correctly');
