@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { isStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content';
+import { inspectStructuredQuestionIntegrity } from '../lib/structured-question-integrity';
 import { renderStructuredQuestionContent } from '../lib/structured-question-renderer';
+import './structured-question-reading.css';
 
 export function structuredQuestionUsable(value:unknown):value is StructuredQuestionContent {
   return isStructuredQuestionContent(value);
@@ -19,21 +21,31 @@ export function StructuredQuestionView({
 }) {
   const host=useRef<HTMLDivElement>(null);
   const valid=structuredQuestionUsable(content);
-  const assetsReady=valid&&structuredQuestionAssetsReady(content,assetUrls);
+  const findings=useMemo(()=>valid?inspectStructuredQuestionIntegrity(content):[],[content,valid]);
+  const presentationReady=valid&&findings.length===0;
+  const assetsReady=presentationReady&&structuredQuestionAssetsReady(content,assetUrls);
 
   useEffect(()=>{
     const node=host.current;
-    if(!node||!valid||!assetsReady)return;
+    if(!node||!presentationReady||!assetsReady)return;
     node.replaceChildren(renderStructuredQuestionContent(content,{
       resolveAsset:(assetId)=>assetUrls[assetId]??null,
     }));
     return()=>node.replaceChildren();
-  },[content,assetUrls,valid,assetsReady]);
+  },[content,assetUrls,presentationReady,assetsReady]);
 
   if(!valid){
     return (
       <div className="structured-question-invalid" role="alert">
         Savolning source-backed tarkibini tekshirib bo‘lmadi. Savol to‘liq ko‘rsatilmaguncha javob berish bloklandi.
+      </div>
+    );
+  }
+  if(findings.length){
+    return (
+      <div className="structured-question-integrity-error" role="alert" data-integrity-code={findings[0]?.code}>
+        <strong>Savol ko‘rinishi tekshiruvdan o‘tmadi.</strong>
+        Jadval yoki boshqa source tuzilmasi oddiy matnga qo‘shilib ketgan bo‘lishi mumkin. Noto‘liq yoki noto‘g‘ri ko‘rinish bilan ishlash bloklandi.
       </div>
     );
   }
