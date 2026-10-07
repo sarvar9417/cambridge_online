@@ -35,6 +35,7 @@ type FilterOptions = {
 type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[] };
+const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0]);
 
 const STATUS_LABEL:Record<LiveExamStatus,string> = {
   lobby:'Kutilmoqda',question_open:'Savol ochiq',marking:'Baholash',review:'Natijani ko‘rish',
@@ -390,6 +391,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const submitting=useRef(false);
   const latestAnswer=useRef('');
   const answerKey=useRef('');
+  const deadlineFlushSecond=useRef<number|null>(null);
   const [hydratedKey,setHydratedKey]=useState('');
   const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const remaining=useCountdown(session.deadline,session.serverNow);
@@ -403,6 +405,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
     if(key===answerKey.current)return;
     answerKey.current=key;
+    deadlineFlushSecond.current=null;
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
@@ -477,6 +480,15 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     saveTimer.current=window.setTimeout(()=>void flushAnswer(latestAnswer.current),700);
     return()=>window.clearTimeout(saveTimer.current);
   },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
+  useEffect(()=>{
+    if(remaining===null||!DEADLINE_DRAFT_FLUSH_SECONDS.has(remaining)||deadlineFlushSecond.current===remaining)return;
+    deadlineFlushSecond.current=remaining;
+    if(session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
+    const pending=pendingSave.current??(dirty?latestAnswer.current:null);
+    if(pending===null)return;
+    window.clearTimeout(saveTimer.current);
+    void flushAnswer(pending);
+  },[remaining,dirty,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     const retry=()=>{if(pendingSave.current!==null)void flushAnswer(pendingSave.current)};
     const flush=()=>{if(dirty){const pending=pendingSave.current??latestAnswer.current;void flushAnswer(pending)}};
