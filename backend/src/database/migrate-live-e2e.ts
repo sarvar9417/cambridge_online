@@ -20,6 +20,7 @@ const selected=[
   '0008_appeals.sql',
   '0011_idempotency.sql',
   '0012_submission_late_grants.sql',
+  '0013_ingestion_runs.sql',
   '0015_export_file_data.sql',
   '0016_question_dependencies_and_selections.sql',
   '0018_question_asset_source_bbox.sql',
