@@ -457,7 +457,7 @@ try{
   // Teacher reveals MS, all student contexts transition to peer review.
   await clickButton(teacher.page,'Javoblarni yopish va MSni ochish');
   await Promise.all([
-    waitText(teacher.page,'ANONIM O‘ZARO BAHOLASH'.toLowerCase().includes('x')?'BAHOLASH':'BAHOLASH'),
+    waitText(teacher.page,'BAHOLASH'),
     waitText(projector.page,'OFFICIAL MARK SCHEME'),
     waitText(student1.page,'ANONIM JAVOB'),
     waitText(student2.page,'ANONIM JAVOB'),
