@@ -1652,9 +1652,6 @@ export class LiveExamService {
       if (!['finished','cancelled'].includes(String(session.status))) {
         throw new DomainError('live_archive_active_session', 409);
       }
-      if (actor.role === 'teacher' && String(session.host_id) !== actor.id) {
-        throw new DomainError('live_archive_forbidden', 403);
-      }
       const version = await this.bump(client, sessionId, actor.id, 'session.history_archived');
       await client.query(
         `update live_exam_sessions
