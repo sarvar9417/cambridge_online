@@ -160,7 +160,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (pool) await pool.end();
   });
 
-  it('runs a three-learner peer round through pause, resume, force-complete and learning evidence', async () => {
+  it('keeps peer marks provisional until the teacher releases the round', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
       code:'820001',
       markingMode:'peer',
@@ -189,8 +189,8 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     const revealed=await service.revealMarkScheme(owner(),sessionId);
     expect(revealed.status).toBe('marking');
 
-    const assignments=await client.query<{answer_student:string;reviewer_id:string;kind:string}>(
-      `select p.student_id::text answer_student,r.reviewer_id::text,r.kind::text
+    const assignments=await client.query<{review_id:string;answer_student:string;reviewer_id:string;kind:string}>(
+      `select r.id::text review_id,p.student_id::text answer_student,r.reviewer_id::text,r.kind::text
        from live_exam_reviews r
        join live_exam_answers a on a.id=r.answer_id
        join live_exam_participants p on p.id=a.participant_id
@@ -200,10 +200,33 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(assignments.rowCount).toBe(3);
     expect(assignments.rows.every((row)=>row.kind==='peer' && row.answer_student!==row.reviewer_id)).toBe(true);
 
-    await expect(service.completeMarking(owner(),sessionId,false))
-      .rejects.toMatchObject({code:'live_reviews_pending',status:409});
-    const completed=await service.completeMarking(owner(),sessionId,true);
+    for (const assignment of assignments.rows) {
+      const reviewerIndex=studentIds.indexOf(assignment.reviewer_id);
+      expect(reviewerIndex).toBeGreaterThanOrEqual(0);
+      await service.submitReview(student(reviewerIndex),sessionId,assignment.review_id,{
+        matchedPointIds:[pointId],
+        feedback:'peer checked',
+      });
+    }
+
+    const beforeRelease=await client.query(
+      `select a.final_score,r.awarded_marks,r.status::text
+       from live_exam_answers a
+       join live_exam_reviews r on r.answer_id=a.id
+       where a.session_question_id=$1`,
+      [sessionQuestionId],
+    );
+    expect(beforeRelease.rows.every((row)=>row.final_score===null)).toBe(true);
+    expect(beforeRelease.rows.every((row)=>Number(row.awarded_marks)===1&&row.status==='submitted')).toBe(true);
+
+    const completed=await service.completeMarking(owner(),sessionId,false);
     expect(completed.status).toBe('review');
+
+    const released=await client.query(
+      'select final_score,score_source::text from live_exam_answers where session_question_id=$1',
+      [sessionQuestionId],
+    );
+    expect(released.rows.every((row)=>Number(row.final_score)===1&&row.score_source==='peer')).toBe(true);
 
     const finished=await service.nextQuestion(owner(),sessionId);
     expect(finished.status).toBe('finished');
@@ -216,10 +239,73 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       'select count(*) count from mastery where student_id=any($1::uuid[])',
       [studentIds],
     )).rows[0].count)).toBe(3);
+  });
+
+  it('reassigns unfinished peer reviews to the teacher instead of forcing zero marks', async () => {
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'820004',
+      markingMode:'peer',
+      participants:[0,1,2],
+    });
+    await service.start(owner(),sessionId,1);
+    for (let index=0; index<3; index+=1) {
+      await service.submitAnswer(student(index),sessionId,`fallback answer ${index+1}`);
+    }
+    await service.revealMarkScheme(owner(),sessionId);
+
+    const peerReviews=await client.query<{id:string;reviewer_id:string}>(
+      'select id::text,reviewer_id::text from live_exam_reviews where session_question_id=$1 order by id',
+      [sessionQuestionId],
+    );
+    const firstReviewer=studentIds.indexOf(peerReviews.rows[0]!.reviewer_id);
+    await service.submitReview(student(firstReviewer),sessionId,peerReviews.rows[0]!.id,{
+      matchedPointIds:[pointId],
+    });
+
+    const fallback=await service.completeMarking(owner(),sessionId,true);
+    expect(fallback).toMatchObject({status:'marking',fallbackAssigned:2});
+
+    const reassigned=await client.query<{id:string;reviewer_id:string;kind:string;status:string}>(
+      `select id::text,reviewer_id::text,kind::text,status::text
+       from live_exam_reviews where session_question_id=$1 order by id`,
+      [sessionQuestionId],
+    );
+    const teacherPending=reassigned.rows.filter((row)=>row.status==='assigned');
+    expect(teacherPending).toHaveLength(2);
+    expect(teacherPending.every((row)=>row.kind==='teacher'&&row.reviewer_id===ownerId)).toBe(true);
     expect(Number((await client.query(
-      'select count(*) count from live_exam_answers a join live_exam_questions q on q.id=a.session_question_id where q.session_id=$1 and a.final_score=0',
-      [sessionId],
-    )).rows[0].count)).toBe(3);
+      'select count(*) count from live_exam_answers where session_question_id=$1 and final_score=0',
+      [sessionQuestionId],
+    )).rows[0].count)).toBe(0);
+
+    for (const review of teacherPending) {
+      await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]});
+    }
+    const completed=await service.completeMarking(owner(),sessionId,false);
+    expect(completed.status).toBe('review');
+
+    const released=await client.query(
+      'select final_score,score_source::text from live_exam_answers where session_question_id=$1',
+      [sessionQuestionId],
+    );
+    expect(released.rows.every((row)=>Number(row.final_score)===1)).toBe(true);
+  });
+
+  it('uses teacher fallback for a one-learner peer round', async () => {
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'820005',
+      markingMode:'peer',
+      participants:[0],
+    });
+    await service.start(owner(),sessionId,1);
+    await service.submitAnswer(student(0),sessionId,'single learner answer');
+    await service.revealMarkScheme(owner(),sessionId);
+
+    const review=await client.query<{reviewer_id:string;kind:string}>(
+      'select reviewer_id::text,kind::text from live_exam_reviews where session_question_id=$1',
+      [sessionQuestionId],
+    );
+    expect(review.rows[0]).toEqual({reviewer_id:ownerId,kind:'teacher'});
   });
 
   it('allows configured late join and creates the current-round answer atomically', async () => {
