@@ -63,6 +63,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
   await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
+  if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (displayRef) {
     await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
     await qa.clickText(teacher.page, 'Eligible savollarni ko‘rsatish');
@@ -80,7 +81,6 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   if (!displayRef) await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
-  if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
   if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
