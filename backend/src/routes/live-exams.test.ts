@@ -140,6 +140,15 @@ describe('live exam routes', () => {
     expect(cancel).toHaveBeenCalledWith(student,sessionId,5);
   });
 
+  it('routes terminal history deletion through the archive service', async () => {
+    const archiveHistory=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',archived:true,version:7});
+    const app=appFor({archiveHistory});
+    const sessionId='22222222-2222-4222-8222-222222222222';
+    const response=await request(app).delete(`/live-exams/${sessionId}`).expect(200);
+    expect(response.body.archived).toBe(true);
+    expect(archiveHistory).toHaveBeenCalledWith(student,sessionId);
+  });
+
   it('routes lobby removal and voluntary leave separately', async () => {
     const removeParticipant=vi.fn().mockResolvedValue({version:3});
     const leave=vi.fn().mockResolvedValue({version:4});

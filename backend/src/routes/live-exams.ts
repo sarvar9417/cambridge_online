@@ -119,6 +119,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     res.json(await service.snapshot(req.actor!, id(req.params)));
   });
 
+  router.delete('/:id', durableStaffLimit, async (req, res) => {
+    res.json(await service.archiveHistory(req.actor!, id(req.params)));
+  });
+
   router.post('/:id/heartbeat', async (req, res) => {
     res.json(await service.heartbeat(req.actor!, id(req.params)));
   });
