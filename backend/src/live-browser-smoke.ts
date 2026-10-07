@@ -106,7 +106,7 @@ function snapshot(actor:ActorKey){
             blocks:[
               {type:'text',style:'task',text:'Complete the table, study the circuit and state the output.',source:{page:9}},
               {type:'table',kind:'truth_table',headers:['A','B','C','D','E','F','G','Q'],rows:tableRows,editableCells:[[5,7]],source:{page:9}},
-              {type:'math',semantics:'boolean_expression',latex:'\\\\overline{A} \\\\land B',display:true,source:{page:9}},
+              {type:'math',semantics:'boolean_expression',latex:'\\overline{A} \\land B',display:true,source:{page:9}},
               {type:'asset',kind:'logic_circuit',assetId:ASSET_ID,altText:'Logic circuit',source:{page:9}},
               {type:'code',language:'pseudocode',text:'IF Q = 1 THEN\n    OUTPUT "ON"\nENDIF',source:{page:9}},
               {type:'answer_area',kind:'lines',lines:4,source:{page:9}},
