@@ -22,6 +22,8 @@ type HarnessState={
   reviews:Record<StudentKey,Review>;
   allowLateJoin:boolean;
   lateJoinCreatedAnswer:boolean;
+  expireOnHeartbeat:boolean;
+  expiryReconciled:boolean;
 };
 
 const CLASS_ID='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -45,6 +47,7 @@ function makeState(sessionId:string,code:string,mode:Mode,joined:StudentKey[]):H
   };
   return{
     sessionId,code,mode,status:'question_open',version:1,joined:new Set(joined),allowLateJoin:true,lateJoinCreatedAnswer:false,
+    expireOnHeartbeat:false,expiryReconciled:false,
     answers:{
       student1:{text:'',submitted:false,score:null,feedback:null,updatedAt:iso()},
       student2:{text:'',submitted:false,score:null,feedback:null,updatedAt:iso()},
@@ -245,7 +248,18 @@ async function handleApi(request:HTTPRequest,actor:ActorKey,state:HarnessState){
     const after=Number(url.searchParams.get('afterVersion')??0);
     return respondJson(request,{sessionId:state.sessionId,currentVersion:state.version,changed:after!==state.version,events:after!==state.version?[{version:state.version,type:'mode.changed',createdAt:iso(tick*1000)}]:[]});
   }
-  if(path===`/live-exams/${state.sessionId}/heartbeat`)return respondJson(request,{serverNow:iso(5_000)});
+  if(path===`/live-exams/${state.sessionId}/heartbeat`){
+    if(state.expireOnHeartbeat&&!state.expiryReconciled&&state.status==='question_open'){
+      for(const student of state.joined){
+        state.answers[student].submitted=true;
+        touch(state.answers[student]);
+      }
+      state.status='marking';
+      state.expiryReconciled=true;
+      bump(state);
+    }
+    return respondJson(request,{serverNow:iso(5_000)});
+  }
   if(path===`/live-exams/${state.sessionId}/round-summary`)return respondJson(request,roundSummary(state));
 
   if(actor==='teacher'&&method==='POST'&&path===`/live-exams/${state.sessionId}/reveal`){
@@ -307,6 +321,10 @@ async function openSurface(browser:Browser,base:string,actor:ActorKey,state:Harn
 async function waitText(page:Page,text:string,timeout=12_000){
   await page.waitForFunction(needle=>document.body.textContent?.includes(String(needle)),{timeout},text);
 }
+async function assertNoText(page:Page,text:string){
+  const present=await page.evaluate(needle=>document.body.textContent?.includes(String(needle))??false,text);
+  if(present)throw new Error(`Confidential text visible before reveal: ${text}`);
+}
 async function clickButton(page:Page,text:string){
   await page.waitForFunction(needle=>[...document.querySelectorAll('button')].some(button=>button.textContent?.includes(String(needle))),{timeout:12_000},text);
   const ok=await page.evaluate(needle=>{
@@ -330,6 +348,10 @@ async function teacherModeOneLearner(browser:Browser,base:string){
   const student=await openSurface(browser,base,'student1',state,{width:390,height:844},`oquvchi/live?id=${state.sessionId}`);
   const all=[teacher,projector,student];
   for(const item of all)await item.page.waitForSelector('.live-question-card',{timeout:15_000});
+  for(const item of all){
+    await assertNoText(item.page,'OFFICIAL MARK SCHEME');
+    await assertNoText(item.page,'Correct output stated.');
+  }
 
   await student.page.type('#live-answer','Q is zero');
   await clickButton(student.page,'Javobni topshirish');
@@ -379,6 +401,10 @@ async function selfModeTwoLearnersWithLateJoin(browser:Browser,base:string){
   await clickButton(student2.page,'Qo‘shilish');
   await student2.page.waitForSelector('#live-answer',{timeout:15_000});
   if(!state.joined.has('student2')||!state.lateJoinCreatedAnswer)throw new Error('late join did not create the active learner answer');
+  for(const item of [projector,student1,student2]){
+    await assertNoText(item.page,'OFFICIAL MARK SCHEME');
+    await assertNoText(item.page,'Correct output stated.');
+  }
 
   await student1.page.type('#live-answer','self answer one');
   await student2.page.type('#live-answer','self answer two');
@@ -419,6 +445,47 @@ async function selfModeTwoLearnersWithLateJoin(browser:Browser,base:string){
   await closeAll(all);
 }
 
+
+async function timedExpiryAndPreRevealPrivacy(browser:Browser,base:string){
+  const state=makeState('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3','730003','self',['student1']);
+  const teacher=await openSurface(browser,base,'teacher',state,{width:1440,height:1000},`oqitish/live?id=${state.sessionId}`);
+  const projector=await openSurface(browser,base,'projector',state,{width:1920,height:1080},`oqitish/live?id=${state.sessionId}&projector=1`);
+  const student=await openSurface(browser,base,'student1',state,{width:390,height:844},`oquvchi/live?id=${state.sessionId}`);
+  const all=[teacher,projector,student];
+
+  await Promise.all([
+    teacher.page.waitForSelector('.live-question-card',{timeout:15_000}),
+    projector.page.waitForSelector('.live-question-card',{timeout:15_000}),
+    student.page.waitForSelector('#live-answer',{timeout:15_000}),
+  ]);
+  for(const item of all){
+    await assertNoText(item.page,'OFFICIAL MARK SCHEME');
+    await assertNoText(item.page,'Correct output stated.');
+  }
+
+  await student.page.type('#live-answer','draft before deadline');
+  await student.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
+
+  state.expireOnHeartbeat=true;
+  await student.page.evaluate(async(sessionId)=>{
+    await fetch(`/api/v1/live-exams/${sessionId}/heartbeat`,{method:'POST',credentials:'include'});
+  },state.sessionId);
+
+  await Promise.all([
+    waitText(teacher.page,'BAHOLASH'),
+    waitText(projector.page,'OFFICIAL MARK SCHEME'),
+    waitText(student.page,'O‘Z JAVOBINGIZ'),
+  ]);
+  await student.page.waitForFunction(()=>!document.querySelector('#live-answer'),{timeout:12_000});
+
+  if(!state.expiryReconciled)throw new Error('timed expiry heartbeat did not reconcile the round');
+  if(!state.answers.student1.submitted)throw new Error('timed expiry did not force-submit the active answer');
+  if(state.status!=='marking')throw new Error('timed expiry did not transition the round to marking');
+
+  await assertClean(all,'timed-expiry');
+  await closeAll(all);
+}
+
 const address=await listen(),base=`http://127.0.0.1:${address.port}`;
 const chrome=process.env.CHROME_PATH;
 if(!chrome)throw new Error('CHROME_PATH is required');
@@ -427,7 +494,8 @@ const browser=await puppeteer.launch({executablePath:chrome,headless:true,args:[
 try{
   await teacherModeOneLearner(browser,base);
   await selfModeTwoLearnersWithLateJoin(browser,base);
-  console.log('Live browser mode matrix passed: teacher/1 learner + self/2 learners with late join');
+  await timedExpiryAndPreRevealPrivacy(browser,base);
+  console.log('Live browser mode matrix passed: teacher/1 learner + self/2 learners with late join + timed expiry/privacy');
 }finally{
   await browser.close();
   await new Promise<void>(resolve=>server.close(()=>resolve()));
