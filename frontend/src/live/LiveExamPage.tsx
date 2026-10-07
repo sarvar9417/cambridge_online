@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowsClockwise, Broadcast, CaretDown, CaretUp, CheckCircle, Copy, Monitor, UsersThree } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowsClockwise, Broadcast, CaretDown, CaretUp, CheckCircle, Copy, Monitor, Trash, UsersThree } from '@phosphor-icons/react';
 import {
   api,
   ApiError,
@@ -252,6 +252,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
+  const [deletingSessionId,setDeletingSessionId]=useState('');
   const [code,setCode]=useState('');
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [topicIds,setTopicIds]=useState<string[]>([]);
@@ -324,6 +325,17 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     catch(cause){setError(message(cause,'Xonaga qo‘shilib bo‘lmadi.'));setBusy(false)}
   };
 
+  const deleteHistorySession=async(session:LiveExamSummary)=>{
+    if(!['finished','cancelled'].includes(session.status))return;
+    if(!window.confirm(`"${session.title}" sessiyasi tarixdan o‘chirilsinmi? Natija va mastery evidence xavfsizlik uchun saqlanadi.`))return;
+    setDeletingSessionId(session.id);setError('');
+    try{
+      await api(`/live-exams/${session.id}`,{method:'DELETE'});
+      setSessions((current)=>current.filter((item)=>item.id!==session.id));
+    }catch(cause){setError(message(cause,'Sessiyani tarixdan o‘chirib bo‘lmadi.'))}
+    finally{setDeletingSessionId('')}
+  };
+
   return <div className="live-page live-landing">
     <header className="live-page-head"><div><span className="live-eyebrow"><Broadcast size={18}/> CAMBRIDGE 9618</span><h1>Live Challenge</h1><p>Past-paper savolini bir vaqtda ishlang, so‘ng official mark scheme bilan baholang.</p></div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
@@ -356,7 +368,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       </aside>
     </form>}
     <section className="live-history"><header><h2>{user.role==='student'?'Sessiyalarim':'Oxirgi sessiyalar'}</h2><span>{sessions.length}</span></header>
-      {loading?<p className="live-empty">Yuklanmoqda…</p>:!sessions.length?<p className="live-empty">Hali live sessiya yo‘q.</p>:<div className="live-session-list">{sessions.map((session)=><button key={session.id} onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live?id=${session.id}`)}><span className={`live-state live-state--${session.status}`}>{STATUS_LABEL[session.status]}</span><strong>{session.title}</strong><small>{session.className} · {session.questionCount} savol · {session.participantCount} o‘quvchi</small><i>→</i></button>)}</div>}
+      {loading?<p className="live-empty">Yuklanmoqda…</p>:!sessions.length?<p className="live-empty">Hali live sessiya yo‘q.</p>:<div className="live-session-list">{sessions.map((session)=><article className="live-session-row" key={session.id}><button className="live-session-open" onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live?id=${session.id}`)}><span className={`live-state live-state--${session.status}`}>{STATUS_LABEL[session.status]}</span><strong>{session.title}</strong><small>{session.className} · {session.questionCount} savol · {session.participantCount} o‘quvchi</small><i>→</i></button>{user.role!=='student'&&['finished','cancelled'].includes(session.status)?<button type="button" className="live-session-delete" disabled={deletingSessionId===session.id} aria-label={`${session.title} sessiyasini tarixdan o‘chirish`} title="Tarixdan o‘chirish" onClick={()=>void deleteHistorySession(session)}><Trash/>{deletingSessionId===session.id?'O‘chirilmoqda…':'O‘chirish'}</button>:null}</article>)}</div>}
     </section>
   </div>;
 }
