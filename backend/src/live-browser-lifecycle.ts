@@ -504,7 +504,7 @@ try{
     waitText(student1.page,'SESSIYA YAKUNLANDI'),
     waitText(student2.page,'SESSIYA YAKUNLANDI'),
   ]);
-  if(state.status!=='finished')throw new Error('browser lifecycle did not reach finished state');
+  if((state.status as LifecycleStatus)!=='finished')throw new Error('browser lifecycle did not reach finished state');
 
   // Unauthorized learner must fail closed.
   const outsider=await openSurface(browser,base,'outsider',{width:390,height:844},`oquvchi/live?id=${SESSION_ID}`);
