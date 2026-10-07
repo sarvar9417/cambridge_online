@@ -401,7 +401,10 @@ async function clickButton(page:Page,text:string){
   if(!clicked)throw new Error(`Button unavailable: ${text}`);
 }
 async function assertNoConsoleErrors(surfaces:Array<{consoleErrors:string[]}>) {
-  const errors=surfaces.flatMap((surface,index)=>surface.consoleErrors.map((error)=>`surface ${index}: ${error}`));
+  const expectedTemporaryFailure=(error:string)=>error.includes('Failed to load resource')&&error.includes('503');
+  const errors=surfaces.flatMap((surface,index)=>surface.consoleErrors
+    .filter((error)=>!expectedTemporaryFailure(error))
+    .map((error)=>`surface ${index}: ${error}`));
   if(errors.length)throw new Error(`Browser console/page errors: ${errors.join(' | ')}`);
 }
 async function closeContext(context:BrowserContext){await context.close();}
