@@ -20,6 +20,7 @@ const files = [
   '0191_live_challenge_integrity_and_deadline_hardening.sql',
   '0192_live_challenge_join_code_lifecycle.sql',
   '0193_durable_rate_limits.sql',
+  '0204_live_peer_teacher_fallback.sql',
 ];
 
 const pool = new Pool({ connectionString });
