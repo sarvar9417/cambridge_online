@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx src/database/migrate.ts",
+    "db:bootstrap:live-e2e": "tsx src/database/bootstrap-local-e2e.ts",
     "db:seed": "tsx src/database/seed.ts && tsx src/database/seed-questions.ts",
     "db:seed:live-e2e": "tsx src/database/seed-live-e2e.ts",
     "db:inventory": "tsx src/database/inventory.ts",
