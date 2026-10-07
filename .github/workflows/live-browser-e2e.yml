@@ -88,6 +88,7 @@ jobs:
 
       - name: Prepare local Live E2E database
         run: |
+          npm run db:bootstrap:live-e2e -w backend
           npm run db:migrate -w backend
           npm run db:seed -w backend
           npm run db:seed:live-e2e -w backend
