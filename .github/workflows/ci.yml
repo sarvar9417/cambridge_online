@@ -71,8 +71,19 @@ jobs:
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
               CREATE ROLE authenticated NOLOGIN;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role NOLOGIN;
+            END IF;
           END
-          $$;
+          $;
+          CREATE OR REPLACE FUNCTION public.rls_auto_enable()
+          RETURNS event_trigger
+          LANGUAGE plpgsql
+          AS $fn$
+          BEGIN
+            NULL;
+          END;
+          $fn$;
           SQL
       - name: Apply every repository migration on clean PostgreSQL
         run: npm run db:migrate -w backend
