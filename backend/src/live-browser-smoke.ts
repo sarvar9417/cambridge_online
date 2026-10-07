@@ -157,7 +157,7 @@ async function openSurface(browser:Browser,base:string,actor:ActorKey,viewport:V
   await installApi(page,actor);
   const consoleErrors:string[]=[];
   page.on('console',(msg:ConsoleMessage)=>{if(msg.type()==='error')consoleErrors.push(msg.text());});
-  page.on('pageerror',(err:Error)=>consoleErrors.push(err.message));
+  page.on('pageerror',(err:unknown)=>{consoleErrors.push(err instanceof Error?err.message:String(err));});
   await page.goto(`${base}/#${hash}`,{waitUntil:'networkidle0',timeout:30_000});
   await page.waitForSelector('.live-question-card',{timeout:15_000});
   const result=await page.evaluate(()=>{
