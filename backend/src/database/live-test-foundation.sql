@@ -7,8 +7,14 @@ BEGIN
 END
 $do$;
 
+CREATE TABLE schools (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL DEFAULT 'Acceptance school'
+);
+
 CREATE TABLE users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid REFERENCES schools ON DELETE SET NULL,
   role text NOT NULL,
   full_name text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now()
@@ -44,10 +50,25 @@ CREATE TABLE learning_objective_compatibility (
 
 CREATE TABLE classes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid NOT NULL REFERENCES schools,
   syllabus_id uuid NOT NULL REFERENCES syllabi,
   owner_id uuid NOT NULL REFERENCES users,
   name text NOT NULL DEFAULT 'Acceptance class',
+  archived_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE class_teachers (
+  class_id uuid NOT NULL REFERENCES classes ON DELETE CASCADE,
+  teacher_id uuid NOT NULL REFERENCES users ON DELETE CASCADE,
+  PRIMARY KEY (class_id, teacher_id)
+);
+
+CREATE TABLE enrollments (
+  class_id uuid NOT NULL REFERENCES classes ON DELETE CASCADE,
+  student_id uuid NOT NULL REFERENCES users ON DELETE CASCADE,
+  left_at timestamptz,
+  PRIMARY KEY (class_id, student_id)
 );
 
 CREATE TABLE questions (
