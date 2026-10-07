@@ -74,7 +74,7 @@ try {
       topicIds: topic.topic_id,
       subtopicIds: '',
       includeDiagrams: 'true',
-      excludeSeen: 'true',
+      excludeSeen: 'false',
       limit: '30',
     });
     const result = await api(`/live-exams/eligible-questions?${params}`);
@@ -99,6 +99,7 @@ try {
     questionCount: 1,
     timeLimit: '',
     displayRef: targetRef,
+    excludeSeen: false,
   });
   await qa.check('Live E2E: session and join code created', Boolean(id) && /^\d{6}$/.test(code ?? ''));
 
