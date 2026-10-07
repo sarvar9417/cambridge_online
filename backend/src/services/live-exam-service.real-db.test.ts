@@ -14,6 +14,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
   let ownerId = '';
   let classId = '';
   let questionId = '';
+  let syllabusId = '';
   let loId = '';
   const studentIds: string[] = [];
   const pointId = '22222222-2222-4222-8222-222222222222';
@@ -91,7 +92,6 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (!connectionString) throw new Error('DATABASE_URL is required for LIVE_DB_ACCEPTANCE');
     pool = new Pool({ connectionString });
     client = await pool.connect();
-    await client.query('BEGIN');
 
     schoolId = (await client.query<{id:string}>(
       "insert into schools (name) values ('Lifecycle school') returning id",
@@ -106,7 +106,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
         [schoolId,`Acceptance student ${index+1}`],
       )).rows[0]!.id);
     }
-    const syllabusId = (await client.query<{id:string}>(
+    syllabusId = (await client.query<{id:string}>(
       "insert into syllabi (code) values ('9618') returning id",
     )).rows[0]!.id;
     const topicId = (await client.query<{id:string}>(
@@ -147,7 +147,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   afterAll(async () => {
     if (client) {
-      await client.query('ROLLBACK');
+      await client.query('delete from mastery where student_id=any($1::uuid[])',[studentIds]).catch(()=>{});
+      if (classId) await client.query('delete from classes where id=$1',[classId]).catch(()=>{});
+      if (questionId) await client.query('delete from questions where id=$1',[questionId]).catch(()=>{});
+      if (studentIds.length || ownerId) {
+        await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds].filter(Boolean)]).catch(()=>{});
+      }
+      if (syllabusId) await client.query('delete from syllabi where id=$1',[syllabusId]).catch(()=>{});
+      if (schoolId) await client.query('delete from schools where id=$1',[schoolId]).catch(()=>{});
       client.release();
     }
     if (pool) await pool.end();
