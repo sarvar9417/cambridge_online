@@ -16,6 +16,9 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
   let questionId = '';
   let syllabusId = '';
   let loId = '';
+  let sameSchoolGuestId = '';
+  let otherSchoolId = '';
+  let otherSchoolStudentId = '';
   const studentIds: string[] = [];
   const pointId = '22222222-2222-4222-8222-222222222222';
 
@@ -30,6 +33,18 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     role: 'student',
     schoolId,
     fullName: `Acceptance student ${index + 1}`,
+  });
+  const sameSchoolGuest = (): Actor => ({
+    id: sameSchoolGuestId,
+    role: 'student',
+    schoolId,
+    fullName: 'Same-school Live guest',
+  });
+  const otherSchoolStudent = (): Actor => ({
+    id: otherSchoolStudentId,
+    role: 'student',
+    schoolId: otherSchoolId,
+    fullName: 'Other-school student',
   });
 
   async function makeSession(input: {
@@ -106,6 +121,17 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
         [schoolId,`Acceptance student ${index+1}`],
       )).rows[0]!.id);
     }
+    sameSchoolGuestId = (await client.query<{id:string}>(
+      "insert into users (school_id,role,full_name) values ($1,'student','Same-school Live guest') returning id",
+      [schoolId],
+    )).rows[0]!.id;
+    otherSchoolId = (await client.query<{id:string}>(
+      "insert into schools (name) values ('Other lifecycle school') returning id",
+    )).rows[0]!.id;
+    otherSchoolStudentId = (await client.query<{id:string}>(
+      "insert into users (school_id,role,full_name) values ($1,'student','Other-school student') returning id",
+      [otherSchoolId],
+    )).rows[0]!.id;
     syllabusId = (await client.query<{id:string}>(
       "insert into syllabi (code) values ('9618') returning id",
     )).rows[0]!.id;
@@ -147,17 +173,48 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   afterAll(async () => {
     if (client) {
-      await client.query('delete from mastery where student_id=any($1::uuid[])',[studentIds]).catch(()=>{});
+      await client.query('delete from mastery where student_id=any($1::uuid[])',[[...studentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       if (classId) await client.query('delete from classes where id=$1',[classId]).catch(()=>{});
       if (questionId) await client.query('delete from questions where id=$1',[questionId]).catch(()=>{});
-      if (studentIds.length || ownerId) {
-        await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds].filter(Boolean)]).catch(()=>{});
+      if (studentIds.length || ownerId || sameSchoolGuestId || otherSchoolStudentId) {
+        await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       }
       if (syllabusId) await client.query('delete from syllabi where id=$1',[syllabusId]).catch(()=>{});
+      if (otherSchoolId) await client.query('delete from schools where id=$1',[otherSchoolId]).catch(()=>{});
       if (schoolId) await client.query('delete from schools where id=$1',[schoolId]).catch(()=>{});
       client.release();
     }
     if (pool) await pool.end();
+  });
+
+  it('lets an active same-school student join by code without class enrolment and blocks another school', async () => {
+    const {sessionId}=await makeSession({
+      code:'829901',
+      settings:{allowLateJoin:true},
+    });
+
+    const guestEnrollment=await client.query(
+      'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
+      [classId,sameSchoolGuestId],
+    );
+    expect(guestEnrollment.rowCount).toBe(0);
+
+    await expect(service.join(sameSchoolGuest(),'829901')).resolves.toMatchObject({sessionId});
+
+    const participant=await client.query(
+      'select 1 from live_exam_participants where session_id=$1 and student_id=$2 and left_at is null',
+      [sessionId,sameSchoolGuestId],
+    );
+    expect(participant.rowCount).toBe(1);
+
+    const stillNotEnrolled=await client.query(
+      'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
+      [classId,sameSchoolGuestId],
+    );
+    expect(stillNotEnrolled.rowCount).toBe(0);
+
+    await expect(service.join(otherSchoolStudent(),'829901'))
+      .rejects.toMatchObject({code:'live_code_not_found',status:404});
   });
 
   it('keeps peer marks provisional until the teacher releases the round', async () => {
