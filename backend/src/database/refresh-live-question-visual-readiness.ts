@@ -1,5 +1,9 @@
 import { pool } from './client.js';
-import { questionHasVisualSql, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import {
+  LIVE_VISUAL_READINESS_VERSION,
+  questionHasVisualSql,
+  questionVisualIntegritySql,
+} from '../lib/source-visual-readiness.js';
 
 if (!pool) throw new Error('DATABASE_URL is required');
 
@@ -28,9 +32,10 @@ try{
     `UPDATE public.live_question_visual_readiness_state
      SET dirty=false,
          refreshed_at=now(),
+         algorithm_version=$2,
          row_count=$1
      WHERE singleton=true`,
-    [inserted.rowCount ?? 0],
+    [inserted.rowCount ?? 0,LIVE_VISUAL_READINESS_VERSION],
   );
   await client.query('COMMIT');
   console.log(`Refreshed Live visual readiness for ${inserted.rowCount ?? 0} questions`);
