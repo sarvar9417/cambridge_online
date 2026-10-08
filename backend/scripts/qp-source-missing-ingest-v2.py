@@ -3,9 +3,11 @@
 
 The v1 ingestion contract is retained unchanged. This adapter hardens only the
 mark-scheme leaf detector: a trailing integer is accepted as a question mark
-value only when it is aligned with the printed ``Marks`` column on that PDF
-page. This prevents continuation code such as ``NumberRecords += 1`` from being
-misread as a second mark value for a repeated question label.
+value when it is aligned with the printed ``Marks`` column on that PDF page.
+For the rare Cambridge page that omits the repeated Question/Answer/Marks
+header, the row must instead contain an explicit ``mark``/``marks`` cue and the
+number must still sit in the far-right mark zone. This prevents continuation
+code such as ``NumberRecords += 1`` from becoming a false mark value.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ BASE = runpy.run_path(
     run_name="qp_source_missing_ingest_v1_impl",
 )
 MS_ROW = BASE["MS_ROW"]
+HEADERLESS_MARK_ZONE_MIN = 80
 
 
 def _page_aware_lines(text: str) -> tuple[list[str], list[int | None]]:
@@ -41,6 +44,25 @@ def _page_aware_lines(text: str) -> tuple[list[str], list[int | None]]:
     return lines, marks_columns
 
 
+def _is_trusted_mark_position(line: str, match: re.Match[str], marks_column: int | None) -> bool:
+    mark_position = line.rfind(match.group(3))
+    if marks_column is not None:
+        # On normal Cambridge MS pages the printed digit is at/just to the right
+        # of the Marks heading. The +20 window tolerates layout variation while
+        # excluding answer/code numerals inside the page body.
+        return marks_column <= mark_position <= marks_column + 20
+
+    # Some Cambridge pages omit the repeated table header even though the first
+    # question row still carries the actual mark total. Do not infer a column
+    # from a neighbouring page: require direct semantic evidence on this row and
+    # a far-right position. Code/data continuation rows therefore remain out.
+    answer_fragment = line[match.end(2) : match.start(3)]
+    return (
+        mark_position >= HEADERLESS_MARK_ZONE_MIN
+        and re.search(r"\bmarks?\b", answer_fragment, re.IGNORECASE) is not None
+    )
+
+
 def extract_ms_leaves(ms_pdf: Path, expected_marks: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
     lines, marks_columns = _page_aware_lines(BASE["pdftotext_layout"](ms_pdf))
     hits: list[tuple[int, str, str, int]] = []
@@ -50,19 +72,10 @@ def extract_ms_leaves(ms_pdf: Path, expected_marks: int) -> tuple[list[dict[str,
         match = MS_ROW.match(line)
         if not match or len(match.group(1)) > 6:
             continue
-        marks_column = marks_columns[index]
-        if marks_column is None:
-            # Fail closed: a numeric suffix is not a trusted mark unless the
-            # page exposes the Cambridge Marks-column anchor.
-            continue
         marks = int(match.group(3))
         if not (1 <= marks <= 20):
             continue
-        mark_position = line.rfind(match.group(3))
-        # In audited Cambridge layouts the mark digit is at/just to the right of
-        # the Marks heading. A generous +20 character window tolerates layout
-        # variation while rejecting answer/code numbers far inside the page.
-        if mark_position < marks_column or mark_position > marks_column + 20:
+        if not _is_trusted_mark_position(line, match, marks_columns[index]):
             continue
 
         token = match.group(2)
