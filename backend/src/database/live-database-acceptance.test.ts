@@ -118,6 +118,10 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:boolean;
       exposure_table:boolean;
       exposure_trigger:boolean;
+      visual_cache_table:boolean;
+      visual_cache_state:boolean;
+      visual_cache_question_trigger:boolean;
+      visual_cache_asset_trigger:boolean;
     }>(`
       select
         exists(select 1 from information_schema.columns where table_schema='public' and table_name='live_exam_sessions' and column_name='join_code_expires_at') join_code_expires_at,
@@ -128,7 +132,11 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
         exists(select 1 from pg_trigger where tgname='live_exam_review_points_integrity' and not tgisinternal) point_trigger,
         exists(select 1 from pg_trigger where tgname='live_exam_join_code_retention' and not tgisinternal) join_code_trigger,
         exists(select 1 from information_schema.tables where table_schema='public' and table_name='class_question_exposures') exposure_table,
-        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger
+        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger,
+        exists(select 1 from information_schema.tables where table_schema='public' and table_name='live_question_visual_readiness') visual_cache_table,
+        exists(select 1 from information_schema.tables where table_schema='public' and table_name='live_question_visual_readiness_state') visual_cache_state,
+        exists(select 1 from pg_trigger where tgname='questions_live_visual_readiness_dirty' and not tgisinternal) visual_cache_question_trigger,
+        exists(select 1 from pg_trigger where tgname='question_assets_live_visual_readiness_dirty' and not tgisinternal) visual_cache_asset_trigger
     `);
     expect(result.rows[0]).toEqual({
       join_code_expires_at:true,
@@ -140,7 +148,28 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:true,
       exposure_table:true,
       exposure_trigger:true,
+      visual_cache_table:true,
+      visual_cache_state:true,
+      visual_cache_question_trigger:true,
+      visual_cache_asset_trigger:true,
     });
+  });
+
+  it('invalidates a clean Live visual cache after Question Bank mutation', async () => {
+    await client.query(
+      `update live_question_visual_readiness_state
+       set dirty=false,refreshed_at=now(),row_count=0
+       where singleton=true`,
+    );
+    expect((await client.query<{dirty:boolean}>(
+      'select dirty from live_question_visual_readiness_state where singleton=true',
+    )).rows[0]?.dirty).toBe(false);
+
+    await client.query('update questions set updated_at=now() where id=$1',[questionId]);
+
+    expect((await client.query<{dirty:boolean}>(
+      'select dirty from live_question_visual_readiness_state where singleton=true',
+    )).rows[0]?.dirty).toBe(true);
   });
 
   it('records Live exposure only when the question is actually opened', async () => {
@@ -251,6 +280,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       'audit_live_exam_teacher_override',
       'persist_live_exam_learning_evidence',
       'record_live_question_exposure_from_event',
+      'mark_live_question_visual_readiness_dirty',
     ];
     const result = await client.query<{proname:string;proconfig:string[]|null}>(
       `select proname,proconfig from pg_proc join pg_namespace n on n.oid=pronamespace
