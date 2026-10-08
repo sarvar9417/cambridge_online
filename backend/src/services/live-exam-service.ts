@@ -347,7 +347,19 @@ export class LiveExamService {
       )`);
     }
     values.push(input.questionCount);
-    const limitParameter='
+    const limitParameter='$'+values.length;
+    const result = await this.pool.query(
+      `select candidate.id,count(*) over()::int total_count
+       from (
+         select distinct q.id
+         from questions q
+         join canonical_mark_schemes ms on ms.question_id=q.id
+         where ${filters.join(' and ')}
+       ) candidate
+       order by md5(candidate.id::text || $1::text)
+       limit ${limitParameter}`,
+      values,
+    );
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
     const selected = result.rows.map((row) => String(row.id));
@@ -357,7 +369,6 @@ export class LiveExamService {
     }
     return { ids:selected, total };
   }
-
   private async expandRequiredDependencies(questionIds: string[]) {
     if (!questionIds.length) return [];
     const result = await this.pool.query(
