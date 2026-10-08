@@ -269,11 +269,32 @@ export class LiveExamService {
 
   private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
     // Keep the random ordering seed first and bind the class ID for both
-    // syllabus-safe LO resolution and optional seen-question filtering.
+    // syllabus-safe readiness resolution and optional seen-question filtering.
     // Every value is referenced in the SQL so PostgreSQL can infer its type.
     const values: unknown[] = [randomUUID(), input.classId];
     const classParameter = '$2';
-    const filters = [
+
+    // Prefer the precomputed readiness cache when its revision matches the
+    // current corpus. Any source mutation marks the cache stale, at which point
+    // this query fails safely back to the original dynamic gate until the cache
+    // is explicitly refreshed.
+    const readinessCacheFresh = `coalesce((
+      select state.cache_revision=state.corpus_revision
+      from live_question_readiness_state state
+      where state.singleton=true
+    ),false)`;
+    const cachedReadiness = `exists(
+      select 1
+      from classes readiness_class
+      join live_question_readiness readiness
+        on readiness.target_syllabus_id=readiness_class.syllabus_id
+       and readiness.question_id=q.id
+      where readiness_class.id=${classParameter}
+        and readiness.live_ready
+        ${input.includeDiagrams ? '' : 'and not readiness.has_visual'}
+    )`;
+
+    const dynamicReadinessFilters = [
       `q.status='approved'`,
       `q.marks>0`,
       `ms.status='approved'`,
@@ -332,6 +353,26 @@ export class LiveExamService {
           )
       )`,
     ];
+    if (!input.includeDiagrams) {
+      dynamicReadinessFilters.push(`not exists(
+        with recursive ancestry as (
+          select q.id,q.parent_id
+          union all
+          select parent.id,parent.parent_id
+          from ancestry child join questions parent on parent.id=child.parent_id
+        )
+        select 1 from ancestry join question_assets qa on qa.question_id=ancestry.id
+        where qa.kind in ('diagram','image')
+      )`);
+    }
+
+    const filters = [
+      `(
+        (${readinessCacheFresh} and ${cachedReadiness})
+        or
+        (not ${readinessCacheFresh} and (${dynamicReadinessFilters.join(' and ')}))
+      )`,
+    ];
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
@@ -366,18 +407,6 @@ export class LiveExamService {
             and selected_topic.number=mapped_topic.number
             and selected_subtopic.code=mapped_subtopic.code
         )
-      )`);
-    }
-    if (!input.includeDiagrams) {
-      filters.push(`not exists(
-        with recursive ancestry as (
-          select q.id,q.parent_id
-          union all
-          select parent.id,parent.parent_id
-          from ancestry child join questions parent on parent.id=child.parent_id
-        )
-        select 1 from ancestry join question_assets qa on qa.question_id=ancestry.id
-        where qa.kind in ('diagram','image')
       )`);
     }
     if (input.questionIds?.length) {
