@@ -17,6 +17,8 @@ const integrityHardening=source('src/database/migrations/0191_live_challenge_int
 const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join_code_lifecycle.sql');
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
+const visualReadinessCache=source('src/database/migrations/0207_live_question_visual_readiness_cache.sql');
+const visualReadinessRefresh=source('src/database/refresh-live-question-visual-readiness.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -143,6 +145,18 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(questionExposure).not.toContain('started_at is not null');
     expect(service).toContain('from class_question_exposures exposure');
     expect(service).toContain("exposure.source_type='live'");
+  });
+
+  it('uses cached visual readiness only while the cache is clean and preserves the exact fallback guard',()=>{
+    expect(visualReadinessCache).toContain('live_question_visual_readiness_state');
+    expect(visualReadinessCache).toContain('dirty boolean NOT NULL DEFAULT true');
+    expect(visualReadinessCache).toContain('questions_live_visual_readiness_dirty');
+    expect(visualReadinessCache).toContain('question_assets_live_visual_readiness_dirty');
+    expect(visualReadinessRefresh).toContain("questionVisualIntegritySql('q')");
+    expect(visualReadinessRefresh).toContain("questionHasVisualSql('q')");
+    expect(service).toContain('live_question_visual_readiness_state state');
+    expect(service).toContain('from live_question_visual_readiness cached_visual');
+    expect(service).toContain("questionVisualIntegritySql('q')");
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
