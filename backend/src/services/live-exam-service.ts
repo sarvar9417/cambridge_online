@@ -598,8 +598,6 @@ export class LiveExamService {
          join users student_user
            on student_user.id=$2
           and student_user.role='student'
-          and student_user.status='active'
-          and student_user.is_active=true
           and student_user.school_id=c.school_id
          where les.join_code=$1
            and les.archived_at is null
