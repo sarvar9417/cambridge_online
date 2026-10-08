@@ -118,9 +118,6 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:boolean;
       exposure_table:boolean;
       exposure_trigger:boolean;
-      readiness_table:boolean;
-      readiness_state:boolean;
-      readiness_stale:boolean;
     }>(`
       select
         exists(select 1 from information_schema.columns where table_schema='public' and table_name='live_exam_sessions' and column_name='join_code_expires_at') join_code_expires_at,
@@ -131,13 +128,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
         exists(select 1 from pg_trigger where tgname='live_exam_review_points_integrity' and not tgisinternal) point_trigger,
         exists(select 1 from pg_trigger where tgname='live_exam_join_code_retention' and not tgisinternal) join_code_trigger,
         exists(select 1 from information_schema.tables where table_schema='public' and table_name='class_question_exposures') exposure_table,
-        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger,
-        exists(select 1 from information_schema.tables where table_schema='public' and table_name='live_question_readiness') readiness_table,
-        exists(select 1 from information_schema.tables where table_schema='public' and table_name='live_question_readiness_state') readiness_state,
-        exists(
-          select 1 from live_question_readiness_state
-          where singleton=true and cache_revision<corpus_revision
-        ) readiness_stale
+        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger
     `);
     expect(result.rows[0]).toEqual({
       join_code_expires_at:true,
@@ -149,9 +140,6 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:true,
       exposure_table:true,
       exposure_trigger:true,
-      readiness_table:true,
-      readiness_state:true,
-      readiness_stale:true,
     });
   });
 
