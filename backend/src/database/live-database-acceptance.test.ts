@@ -116,6 +116,8 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       review_trigger:boolean;
       point_trigger:boolean;
       join_code_trigger:boolean;
+      exposure_table:boolean;
+      exposure_trigger:boolean;
     }>(`
       select
         exists(select 1 from information_schema.columns where table_schema='public' and table_name='live_exam_sessions' and column_name='join_code_expires_at') join_code_expires_at,
@@ -124,7 +126,9 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
         exists(select 1 from pg_trigger where tgname='live_exam_answers_integrity' and not tgisinternal) answer_trigger,
         exists(select 1 from pg_trigger where tgname='live_exam_reviews_integrity' and not tgisinternal) review_trigger,
         exists(select 1 from pg_trigger where tgname='live_exam_review_points_integrity' and not tgisinternal) point_trigger,
-        exists(select 1 from pg_trigger where tgname='live_exam_join_code_retention' and not tgisinternal) join_code_trigger
+        exists(select 1 from pg_trigger where tgname='live_exam_join_code_retention' and not tgisinternal) join_code_trigger,
+        exists(select 1 from information_schema.tables where table_schema='public' and table_name='class_question_exposures') exposure_table,
+        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger
     `);
     expect(result.rows[0]).toEqual({
       join_code_expires_at:true,
@@ -134,6 +138,39 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       review_trigger:true,
       point_trigger:true,
       join_code_trigger:true,
+      exposure_table:true,
+      exposure_trigger:true,
+    });
+  });
+
+  it('records Live exposure only when the question is actually opened', async () => {
+    expect((await client.query<{count:number}>(
+      'select count(*)::int count from class_question_exposures where live_session_question_id=$1',
+      [sessionQuestionA],
+    )).rows[0]?.count).toBe(0);
+
+    await client.query(
+      `insert into live_exam_events (session_id,actor_id,event_type,session_version,payload)
+       values ($1,$2,'question.opened',71,'{"position":0}'::jsonb)`,
+      [sessionA,ownerId],
+    );
+
+    const exposure = (await client.query<{
+      class_id:string;
+      question_id:string;
+      source_type:string;
+      live_session_question_id:string;
+    }>(
+      `select class_id,question_id,source_type,live_session_question_id
+       from class_question_exposures
+       where live_session_question_id=$1`,
+      [sessionQuestionA],
+    )).rows[0];
+    expect(exposure).toEqual({
+      class_id:classId,
+      question_id:questionId,
+      source_type:'live',
+      live_session_question_id:sessionQuestionA,
     });
   });
 
@@ -213,6 +250,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       'enforce_live_exam_peer_review_integrity',
       'audit_live_exam_teacher_override',
       'persist_live_exam_learning_evidence',
+      'record_live_question_exposure_from_event',
     ];
     const result = await client.query<{proname:string;proconfig:string[]|null}>(
       `select proname,proconfig from pg_proc join pg_namespace n on n.oid=pronamespace

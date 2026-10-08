@@ -22,6 +22,7 @@ const files = [
   '0193_durable_rate_limits.sql',
   '0204_live_peer_teacher_fallback.sql',
   '0205_live_session_history_archive.sql',
+  '0206_live_question_exposure_read_model.sql',
 ];
 
 const pool = new Pool({ connectionString });
