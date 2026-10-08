@@ -1,3 +1,5 @@
+export const LIVE_VISUAL_READINESS_VERSION='source-visual-readiness-v1';
+
 const IDENTIFIER=/^[a-z_][a-z0-9_]*$/i;
 
 function identifier(value:string){
