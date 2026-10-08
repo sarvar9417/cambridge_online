@@ -16,6 +16,7 @@ const unifiedControls=source('src/database/migrations/0172_unified_live_challeng
 const integrityHardening=source('src/database/migrations/0191_live_challenge_integrity_and_deadline_hardening.sql');
 const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join_code_lifecycle.sql');
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
+const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -133,6 +134,15 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
+  });
+
+  it('treats a Live question as seen only after the round actually opens it',()=>{
+    expect(questionExposure).toContain('CREATE TABLE public.class_question_exposures');
+    expect(questionExposure).toContain("WHEN (NEW.event_type='question.opened')");
+    expect(questionExposure).toContain("WHERE e.event_type='question.opened'");
+    expect(questionExposure).not.toContain('started_at is not null');
+    expect(service).toContain('from class_question_exposures exposure');
+    expect(service).toContain("exposure.source_type='live'");
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
