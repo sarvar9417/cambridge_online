@@ -48,7 +48,7 @@ describe('Live Exam release security and recovery contract',()=>{
   it('keeps the school boundary while allowing code-based Live participation without class enrolment',()=>{
     expect(service).toContain('join classes c on c.id=les.class_id and c.archived_at is null');
     expect(service).toContain("student_user.school_id=c.school_id");
-    expect(service).toContain("student_user.status='active'");
+    expect(service).toContain("student_user.role='student'");
     expect(service).not.toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
     expect(service).toContain("(to_jsonb(les)->>'join_code_expires_at')::timestamptz");
     expect(service).toContain("les.status='lobby'");
