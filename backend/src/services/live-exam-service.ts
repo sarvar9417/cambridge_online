@@ -268,14 +268,72 @@ export class LiveExamService {
   }
 
   private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
-    // Keep the random ordering seed first and bind the class ID for both
-    // syllabus-safe LO resolution and optional seen-question filtering.
-    // Every value is referenced in the SQL so PostgreSQL can infer its type.
+    // Materialize the cheap, highly selective taxonomy/reuse filters before
+    // resolving the canonical Mark Scheme. The global canonical_mark_schemes
+    // view is intentionally general-purpose; joining it before topic filtering
+    // makes PostgreSQL resolve canonical schemes across the whole corpus.
     const values: unknown[] = [randomUUID(), input.classId];
     const classParameter = '$2';
-    const filters = [
+    const prefilters = [
       `q.status='approved'`,
       `q.marks>0`,
+    ];
+
+    if (input.topicIds.length) {
+      values.push(input.topicIds);
+      const parameter = `$${values.length}`;
+      prefilters.push(`exists(
+        select 1 from question_subtopics qst
+        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+        where qst.question_id=q.id and exists(
+          select 1 from topics selected_topic
+          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+          where selected_topic.id=any(${parameter}::uuid[])
+            and selected_syllabus.code=mapped_syllabus.code
+            and selected_topic.number=mapped_topic.number
+        )
+      )`);
+    }
+    if (input.subtopicIds.length) {
+      values.push(input.subtopicIds);
+      const parameter = `$${values.length}`;
+      prefilters.push(`exists(
+        select 1 from question_subtopics qst
+        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+        where qst.question_id=q.id and exists(
+          select 1 from subtopics selected_subtopic
+          join topics selected_topic on selected_topic.id=selected_subtopic.topic_id
+          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+          where selected_subtopic.id=any(${parameter}::uuid[])
+            and selected_syllabus.code=mapped_syllabus.code
+            and selected_topic.number=mapped_topic.number
+            and selected_subtopic.code=mapped_subtopic.code
+        )
+      )`);
+    }
+    if (input.questionIds?.length) {
+      values.push(input.questionIds);
+      prefilters.push(`q.id=any($${values.length}::uuid[])`);
+    }
+    if (input.excludeSeen) {
+      prefilters.push(`not exists(
+        select 1 from assignment_questions aq
+        join assignments a on a.id=aq.assignment_id
+        where aq.question_id=q.id and a.class_id=${classParameter}
+      )`);
+      prefilters.push(`not exists(
+        select 1 from class_question_exposures exposure
+        where exposure.class_id=${classParameter}
+          and exposure.question_id=q.id
+          and exposure.source_type='live'
+      )`);
+    }
+
+    const eligibilityFilters = [
       `ms.status='approved'`,
       questionVisualIntegritySql('q'),
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
@@ -285,9 +343,7 @@ export class LiveExamService {
       // or explicitly reviewed LO compatibility, but do not discard a valid
       // Cambridge question solely because an older syllabus split its LOs
       // differently. A high-confidence primary subtopic may fall back to the
-      // same stable topic-number + subtopic-code in the class syllabus; the
-      // learning-evidence trigger records that fallback as subtopic evidence,
-      // never as an invented learning-objective match.
+      // same stable topic-number + subtopic-code in the class syllabus.
       `exists(
         select 1
         from classes live_class
@@ -332,44 +388,8 @@ export class LiveExamService {
           )
       )`,
     ];
-    if (input.topicIds.length) {
-      values.push(input.topicIds);
-      const parameter = `$${values.length}`;
-      filters.push(`exists(
-        select 1 from question_subtopics qst
-        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
-        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
-        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
-        where qst.question_id=q.id and exists(
-          select 1 from topics selected_topic
-          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
-          where selected_topic.id=any(${parameter}::uuid[])
-            and selected_syllabus.code=mapped_syllabus.code
-            and selected_topic.number=mapped_topic.number
-        )
-      )`);
-    }
-    if (input.subtopicIds.length) {
-      values.push(input.subtopicIds);
-      const parameter = `$${values.length}`;
-      filters.push(`exists(
-        select 1 from question_subtopics qst
-        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
-        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
-        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
-        where qst.question_id=q.id and exists(
-          select 1 from subtopics selected_subtopic
-          join topics selected_topic on selected_topic.id=selected_subtopic.topic_id
-          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
-          where selected_subtopic.id=any(${parameter}::uuid[])
-            and selected_syllabus.code=mapped_syllabus.code
-            and selected_topic.number=mapped_topic.number
-            and selected_subtopic.code=mapped_subtopic.code
-        )
-      )`);
-    }
     if (!input.includeDiagrams) {
-      filters.push(`not exists(
+      eligibilityFilters.push(`not exists(
         with recursive ancestry as (
           select q.id,q.parent_id
           union all
@@ -380,32 +400,22 @@ export class LiveExamService {
         where qa.kind in ('diagram','image')
       )`);
     }
-    if (input.questionIds?.length) {
-      values.push(input.questionIds);
-      filters.push(`q.id=any($${values.length}::uuid[])`);
-    }
-    if (input.excludeSeen) {
-      filters.push(`not exists(
-        select 1 from assignment_questions aq
-        join assignments a on a.id=aq.assignment_id
-        where aq.question_id=q.id and a.class_id=${classParameter}
-      )`);
-      filters.push(`not exists(
-        select 1 from class_question_exposures exposure
-        where exposure.class_id=${classParameter}
-          and exposure.question_id=q.id
-          and exposure.source_type='live'
-      )`);
-    }
+
     values.push(input.questionCount);
     const limitParameter='$'+values.length;
     const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (
+      `with matching_questions as materialized (
          select distinct q.id
          from questions q
-         join canonical_mark_schemes ms on ms.question_id=q.id
-         where ${filters.join(' and ')}
+         where ${prefilters.join(' and ')}
+       )
+       select candidate.id,count(*) over()::int total_count
+       from (
+         select q.id
+         from matching_questions matching
+         join questions q on q.id=matching.id
+         join lateral public.canonical_mark_scheme_for_question_v1(q.id) ms on true
+         where ${eligibilityFilters.join(' and ')}
        ) candidate
        order by md5(candidate.id::text || $1::text)
        limit ${limitParameter}`,
