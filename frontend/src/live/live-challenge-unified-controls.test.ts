@@ -55,7 +55,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).not.toContain('if(current.length>=20)return current');
     expect(page).not.toContain('selectedQuestionIds.length}/20 ta savol');
     expect(page).toContain("const createAttempt=useRef<{body:string;key:string}|null>(null)");
-    expect(page).toContain('createAttempt.current?.body===body?createAttempt.current.key:crypto.randomUUID()');
+    expect(page).toContain('createAttempt.current?.body===body?createAttempt.current.key:randomId()');
     expect(page).toContain("headers:{'Idempotency-Key':key},body");
   });
 });
