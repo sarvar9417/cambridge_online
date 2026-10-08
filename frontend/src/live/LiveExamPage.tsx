@@ -263,6 +263,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [excludeSeen,setExcludeSeen]=useState(true);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
+  const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
+  const [eligibleLoading,setEligibleLoading]=useState(false);
+  const [questionCount,setQuestionCount]=useState(5);
   const createAttempt=useRef<{body:string;key:string}|null>(null);
 
   useEffect(()=>{
@@ -277,26 +280,57 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const visibleSubtopics=syllabusTopics.filter((item)=>!topicIds.length||topicIds.includes(item.topic_id));
   const toggle=(value:string,current:string[],set:(value:string[])=>void)=>set(current.includes(value)?current.filter((id)=>id!==value):[...current,value]);
   const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])};
-  const toggleSelectedQuestion=(questionId:string)=>setSelectedQuestionIds((current)=>{
-    if(current.includes(questionId))return current.filter((id)=>id!==questionId);
-    if(current.length>=20)return current;
-    return [...current,questionId];
-  });
+  const toggleSelectedQuestion=(questionId:string)=>setSelectedQuestionIds((current)=>
+    current.includes(questionId)?current.filter((id)=>id!==questionId):[...current,questionId]
+  );
   const moveSelectedQuestion=(index:number,direction:-1|1)=>setSelectedQuestionIds((current)=>{
     const target=index+direction;
     if(target<0||target>=current.length)return current;
     const next=[...current];[next[index],next[target]]=[next[target]!,next[index]!];return next;
   });
 
+  const eligibleParams=(limit:number)=>new URLSearchParams({
+    classId:selectedClassId,
+    topicIds:topicIds.join(','),
+    subtopicIds:subtopicIds.join(','),
+    includeDiagrams:String(includeDiagrams),
+    excludeSeen:String(excludeSeen),
+    limit:String(Math.max(1,limit)),
+  });
+
+  useEffect(()=>{
+    if(!selectedClassId||(!topicIds.length&&!subtopicIds.length)){
+      setEligibleTotal(null);setEligibleLoading(false);return;
+    }
+    let cancelled=false;
+    setEligibleLoading(true);
+    setEligibleTotal(null);
+    const timer=window.setTimeout(()=>{
+      void api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(1)}`)
+        .then((result)=>{
+          if(cancelled)return;
+          setEligibleTotal(result.total);
+          setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total):1);
+        })
+        .catch((cause)=>{if(!cancelled)setError(message(cause,'Mos savollar soni aniqlanmadi.'))})
+        .finally(()=>{if(!cancelled)setEligibleLoading(false)});
+    },350);
+    return()=>{cancelled=true;window.clearTimeout(timer)};
+  },[selectedClassId,topicIds,subtopicIds,includeDiagrams,excludeSeen]);
+
   const loadQuestionPool=async()=>{
     setBusy(true);setError('');
     try{
-      const params=new URLSearchParams({
-        classId:selectedClassId,
-        topicIds:topicIds.join(','),subtopicIds:subtopicIds.join(','),includeDiagrams:String(includeDiagrams),excludeSeen:String(excludeSeen),limit:'30',
-      });
-      const result=await api<{data:EligibleQuestion[]}>(`/live-exams/eligible-questions?${params}`);
-      setQuestionPool(result.data);setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
+      let total=eligibleTotal;
+      if(total===null){
+        const summary=await api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(1)}`);
+        total=summary.total;setEligibleTotal(total);
+      }
+      if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);return}
+      const result=await api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(total)}`);
+      setEligibleTotal(result.total);
+      setQuestionPool(result.data);
+      setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
   };
 
@@ -306,7 +340,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const body=JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds,subtopicIds,
-        questionCount:selectionMode==='manual'?selectedQuestionIds.length:Number(data.get('questionCount')),questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
+        questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
@@ -348,12 +382,12 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder="Chapter 14 revision"/></label>
         <div className="live-topic-grid"><fieldset><legend>Topic</legend>{topics.map((topic)=><label key={topic.topic_id}><input type="checkbox" checked={topicIds.includes(topic.topic_id)} onChange={()=>{toggle(topic.topic_id,topicIds,setTopicIds);setSubtopicIds((current)=>current.filter((id)=>syllabusTopics.some((row)=>row.subtopic_id===id&&row.topic_id!==topic.topic_id)));clearManualPool()}}/><span>{topic.topic_number}. {topic.topic_title}</span></label>)}</fieldset>
           <fieldset><legend>Subtopic</legend>{visibleSubtopics.map((subtopic)=><label key={subtopic.subtopic_id}><input type="checkbox" checked={subtopicIds.includes(subtopic.subtopic_id)} onChange={()=>{toggle(subtopic.subtopic_id,subtopicIds,setSubtopicIds);clearManualPool()}}/><span>{subtopic.code} {subtopic.subtopic_title}</span></label>)}</fieldset></div>
-        <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'shuffled')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
-          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||!selectedClassId||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length}/20 ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} disabled={!selectedQuestionIds.includes(question.id)&&selectedQuestionIds.length>=20} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
+        <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleTotal!==null?`Tanlangan filtrlarda ${eligibleTotal} ta eligible savol mavjud`:'Topic yoki Subtopic tanlang'}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'shuffled')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
+          {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||!selectedClassId||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length}/{eligibleTotal??questionPool.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
         </section>
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
-        <label>Savollar soni<input name="questionCount" type="number" min={1} max={20} defaultValue={5} disabled={selectionMode==='manual'}/></label>
+        <label>Savollar soni<input name="questionCount" type="number" min={1} max={eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled')}><option value="shuffled">Aralashtirilgan</option><option value="fixed">Tanlangan tartib</option></select></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
@@ -363,7 +397,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
-        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
         {!classes.length?<small className="live-warning">Avval kamida bitta sinf yarating.</small>:null}
       </aside>
     </form>}

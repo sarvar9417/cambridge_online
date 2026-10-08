@@ -47,6 +47,45 @@ describe('live exam routes', () => {
     expect(snapshot).toHaveBeenCalledWith(student,'22222222-2222-4222-8222-222222222222',true);
   });
 
+  it('allows Live sessions larger than the old 20-question ceiling', async () => {
+    const create=vi.fn().mockResolvedValue({id:'session-large'});
+    const questionId='33333333-3333-4333-8333-333333333333';
+    const body={
+      classId:'22222222-2222-4222-8222-222222222222',
+      title:'Large revision set',
+      topicIds:['44444444-4444-4444-8444-444444444444'],
+      subtopicIds:[],
+      questionCount:75,
+      markingMode:'teacher',
+      includeDiagrams:true,
+      excludeSeen:false,
+      questionIds:Array.from({length:75},()=>questionId),
+      questionOrder:'fixed',
+    };
+    await request(appFor({create})).post('/live-exams').send(body).expect(201);
+    expect(create).toHaveBeenCalledWith(student,expect.objectContaining({
+      questionCount:75,
+      questionIds:expect.arrayContaining([questionId]),
+    }));
+  });
+
+  it('returns the full eligible total even when only a limited preview is requested', async () => {
+    const eligibleQuestions=vi.fn().mockResolvedValue({data:[],total:137});
+    const response=await request(appFor({eligibleQuestions}))
+      .get('/live-exams/eligible-questions')
+      .query({
+        classId:'22222222-2222-4222-8222-222222222222',
+        topicIds:'44444444-4444-4444-8444-444444444444',
+        subtopicIds:'',
+        includeDiagrams:'true',
+        excludeSeen:'false',
+        limit:'137',
+      })
+      .expect(200);
+    expect(response.body).toEqual({data:[],total:137});
+    expect(eligibleQuestions).toHaveBeenCalledWith(student,expect.objectContaining({limit:137}));
+  });
+
   it('keeps /join above the UUID session route', async () => {
     const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
     const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);

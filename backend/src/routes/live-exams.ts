@@ -14,12 +14,12 @@ const createInput = z.object({
   title: z.string().trim().min(3).max(120),
   topicIds: z.array(uuid).max(30).default([]),
   subtopicIds: z.array(uuid).max(100).default([]),
-  questionCount: z.number().int().min(1).max(20),
+  questionCount: z.number().int().min(1),
   questionTimeLimitS: z.number().int().min(30).max(7200).optional(),
   markingMode: z.enum(['teacher', 'peer', 'self']),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
-  questionIds: z.array(uuid).min(1).max(20).optional(),
+  questionIds: z.array(uuid).min(1).optional(),
   questionOrder: z.enum(['fixed', 'shuffled']).default('shuffled'),
   allowLateJoin: z.boolean().default(false),
   autoCloseWhenAllSubmitted: z.boolean().default(false),
@@ -81,9 +81,9 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       subtopicIds:csvUuids,
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
-      limit:z.coerce.number().int().min(1).max(50).default(30),
+      limit:z.coerce.number().int().min(1).default(30),
     }).parse(req.query);
-    res.json({data:await service.eligibleQuestions(req.actor!,{
+    res.json(await service.eligibleQuestions(req.actor!,{
       classId:query.classId,
       topicIds:query.topicIds ?? [],
       subtopicIds:query.subtopicIds ?? [],
@@ -95,7 +95,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       teacherOverrideEnabled:true,
       leaderboardMode:'marks',
       questionOrder:'fixed',
-    })});
+    }));
   });
 
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
