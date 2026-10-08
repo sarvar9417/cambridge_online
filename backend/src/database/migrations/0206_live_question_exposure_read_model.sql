@@ -11,18 +11,11 @@ CREATE TABLE public.class_question_exposures (
   id bigserial PRIMARY KEY,
   class_id uuid NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
   question_id uuid NOT NULL REFERENCES public.questions(id),
-  source_type text NOT NULL CHECK (source_type IN ('live','assignment')),
-  live_session_question_id uuid UNIQUE
+  source_type text NOT NULL DEFAULT 'live' CHECK (source_type='live'),
+  live_session_question_id uuid NOT NULL UNIQUE
     REFERENCES public.live_exam_questions(id) ON DELETE CASCADE,
-  assignment_question_id uuid UNIQUE
-    REFERENCES public.assignment_questions(id) ON DELETE CASCADE,
   exposed_at timestamptz NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (
-    (source_type='live' AND live_session_question_id IS NOT NULL AND assignment_question_id IS NULL)
-    OR
-    (source_type='assignment' AND assignment_question_id IS NOT NULL AND live_session_question_id IS NULL)
-  )
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX class_question_exposures_class_question_idx
