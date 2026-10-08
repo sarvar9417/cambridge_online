@@ -5,12 +5,6 @@ import {
   CHAPTER_3_PROJECT_PPTX_URL,
   CHAPTER_3_REAL_PPTX_DRIVE_URL,
   CHAPTER_3_REAL_SLIDE_COUNT,
-  CHAPTER_4_PROJECT_PPTX_URL,
-  CHAPTER_4_REAL_PPTX_DRIVE_URL,
-  CHAPTER_4_REAL_SLIDE_COUNT,
-  CHAPTER_5_PROJECT_PPTX_URL,
-  CHAPTER_5_REAL_PPTX_DRIVE_URL,
-  CHAPTER_5_REAL_SLIDE_COUNT,
   REAL_SLIDE_IMAGE_FORMAT,
   REAL_SLIDE_IMAGE_HEIGHT,
   REAL_SLIDE_IMAGE_WIDTH,
@@ -36,43 +30,21 @@ function expectProjectDeck(course:string,chapter:number,topicCode:string,slideCo
   return deck!;
 }
 
-describe('real PowerPoint lesson presentation routes',()=>{
+describe('approved real PowerPoint lesson presentation route',()=>{
   it('uses high-resolution WebP slide assets for large displays',()=>{
     expect(REAL_SLIDE_IMAGE_WIDTH).toBe(2560);
     expect(REAL_SLIDE_IMAGE_HEIGHT).toBe(1440);
     expect(REAL_SLIDE_IMAGE_FORMAT).toBe('webp');
   });
 
-  it('keeps Chapter 3 as the approved 22-slide real Hardware deck',()=>{
+  it('keeps only Chapter 3 as the approved real Hardware deck',()=>{
     expect(CHAPTER_3_REAL_SLIDE_COUNT).toBe(22);
     expectProjectDeck('9618',3,'3.1',22);
     expectProjectDeck('9618',3,'3.2',22);
     expect(CHAPTER_3_REAL_PPTX_DRIVE_URL).toContain('1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM');
     expect(CHAPTER_3_PROJECT_PPTX_URL).toContain('Project_Mirror.pptx');
-  });
-
-  it('registers Chapter 4 as a 29-slide real Processor Fundamentals deck',()=>{
-    expect(CHAPTER_4_REAL_SLIDE_COUNT).toBe(29);
-    const cpu=expectProjectDeck('9618',4,'4.1',29);
-    const assembly=expectProjectDeck('9618',4,'4.2',29);
-    const bits=expectProjectDeck('9618',4,'4.3',29);
-    expect(cpu.title).toContain('CPU');
-    expect(assembly.title).toBe('Assembly Language');
-    expect(bits.title).toBe('Bit Manipulation');
-    expect(bits.slides[27]?.sourceLabel).toContain('Cambridge 2026');
-    expect(CHAPTER_4_REAL_PPTX_DRIVE_URL).toContain('19BNaVlBMDda967NYqRUIyAjAEkF6elYI');
-    expect(CHAPTER_4_PROJECT_PPTX_URL).toContain('Chapter_04_Processor_Fundamentals_Project_Mirror.pptx');
-  });
-
-  it('registers Chapter 5 as a 24-slide real System Software deck',()=>{
-    expect(CHAPTER_5_REAL_SLIDE_COUNT).toBe(24);
-    const os=expectProjectDeck('9618',5,'5.1',24);
-    const translators=expectProjectDeck('9618',5,'5.2',24);
-    expect(os.title).toBe('Operating Systems');
-    expect(translators.title).toBe('Language Translators');
-    expect(translators.slides[22]?.sourceLabel).toContain('Cambridge 2026');
-    expect(CHAPTER_5_REAL_PPTX_DRIVE_URL).toContain('1rfHQbyArf0CnPfMrAJ0hezWflWY__i5k');
-    expect(CHAPTER_5_PROJECT_PPTX_URL).toContain('Chapter_05_System_Software_Project_Mirror.pptx');
+    expect(realSlideDeckFor('9618',4,'4.1')).toBeNull();
+    expect(realSlideDeckFor('9618',5,'5.1')).toBeNull();
     expect(realSlideDeckFor('9618',6,'6.1')).toBeNull();
   });
 
@@ -93,20 +65,20 @@ describe('real PowerPoint lesson presentation routes',()=>{
     expect(css).toContain('image-rendering:auto');
   });
 
-  it('records high-resolution Drive source and project storage for migrated chapters',()=>{
-    for(const chapter of ['03','04','05']){
-      const manifest=JSON.parse(source(`public/9618/presentations/chapter-${chapter}/manifest.json`));
-      expect(manifest.delivery).toBe('project-slide-images');
-      expect(manifest.slideFormat).toBe('webp');
-      expect(manifest.imageWidth).toBe(2560);
-      expect(manifest.imageHeight).toBe(1440);
-      expect(manifest.sourcePptx.shared).toBe(true);
-      expect(manifest.projectMirror.pptx).toContain('Project_Mirror.pptx');
-      expect(manifest.runtime.htmlCssReconstruction).toBe(false);
-      expect(manifest.runtime.sourceOfTruth).toBe('Drive PPTX');
-      expect(manifest.runtime.projectDelivery).toContain('high-resolution');
-      expect(manifest.slides).toHaveLength(manifest.slideCount);
-      for(const slide of manifest.slides)expect(slide.image).toMatch(/\.webp$/);
-    }
+  it('records high-resolution Drive source and project storage only for approved Chapter 3',()=>{
+    const manifest=JSON.parse(source('public/9618/presentations/chapter-03/manifest.json'));
+    expect(manifest.delivery).toBe('project-slide-images');
+    expect(manifest.slideFormat).toBe('webp');
+    expect(manifest.imageWidth).toBe(2560);
+    expect(manifest.imageHeight).toBe(1440);
+    expect(manifest.sourcePptx.shared).toBe(true);
+    expect(manifest.projectMirror.pptx).toContain('Project_Mirror.pptx');
+    expect(manifest.runtime.htmlCssReconstruction).toBe(false);
+    expect(manifest.runtime.sourceOfTruth).toBe('Drive PPTX');
+    expect(manifest.runtime.projectDelivery).toContain('high-resolution');
+    expect(manifest.slides).toHaveLength(22);
+    for(const slide of manifest.slides)expect(slide.image).toMatch(/\.webp$/);
+    expect(existsSync(publicPath('/9618/presentations/chapter-04/manifest.json'))).toBe(false);
+    expect(existsSync(publicPath('/9618/presentations/chapter-05/manifest.json'))).toBe(false);
   });
 });
