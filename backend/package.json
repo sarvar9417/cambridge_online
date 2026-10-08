@@ -30,7 +30,10 @@
     "db:migrate:live-test": "tsx src/database/live-test-migrate.ts",
     "test:live-browser": "tsx src/live-browser-smoke.ts",
     "test:live-browser-lifecycle": "tsx src/live-browser-lifecycle.ts",
-    "test:live-browser-modes": "tsx src/live-browser-mode-matrix.ts"
+    "test:live-browser-modes": "tsx src/live-browser-mode-matrix.ts",
+    "db:migrate:live-e2e": "tsx src/database/migrate-live-e2e.ts",
+    "db:bootstrap:live-e2e": "tsx src/database/bootstrap-local-e2e.ts",
+    "db:seed:live-e2e": "tsx src/database/seed-live-e2e.ts"
   },
   "dependencies": {
     "@sparticuz/chromium-min": "^149.0.0",
