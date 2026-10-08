@@ -366,13 +366,7 @@ export class LiveExamService {
       )`);
     }
 
-    const filters = [
-      `(
-        (${readinessCacheFresh} and ${cachedReadiness})
-        or
-        (not ${readinessCacheFresh} and (${dynamicReadinessFilters.join(' and ')}))
-      )`,
-    ];
+    const filters: string[] = [];
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
@@ -433,8 +427,16 @@ export class LiveExamService {
        from (
          select distinct q.id
          from questions q
+         where ${readinessCacheFresh}
+           and ${cachedReadiness}
+           ${filters.length ? `and ${filters.join(' and ')}` : ''}
+         union all
+         select distinct q.id
+         from questions q
          join canonical_mark_schemes ms on ms.question_id=q.id
-         where ${filters.join(' and ')}
+         where not ${readinessCacheFresh}
+           and ${dynamicReadinessFilters.join(' and ')}
+           ${filters.length ? `and ${filters.join(' and ')}` : ''}
        ) candidate
        order by md5(candidate.id::text || $1::text)
        limit ${limitParameter}`,
