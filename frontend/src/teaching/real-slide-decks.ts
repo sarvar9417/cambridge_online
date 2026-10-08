@@ -59,75 +59,10 @@ const CHAPTER_3_SLIDE_META:readonly SlideMeta[]=[
   {number:22,title:'Chapter 3 complete review and exam practice',sourcePages:[104,105,106]},
 ];
 
-const CHAPTER_4_SLIDE_META:readonly SlideMeta[]=[
-  {number:1,title:'4 Processor Fundamentals',sourcePages:[107]},
-  {number:2,title:'Von Neumann architecture and the stored program concept',sourcePages:[107,108]},
-  {number:3,title:'CPU components: ALU, CU, clock and IAS',sourcePages:[108]},
-  {number:4,title:'Registers: PC, MAR, MDR, CIR, ACC, IX and status register',sourcePages:[109]},
-  {number:5,title:'Status register flags: C, N, V and Z',sourcePages:[110,111]},
-  {number:6,title:'System buses: address, data and control',sourcePages:[111]},
-  {number:7,title:'Processor performance factors',sourcePages:[112,113]},
-  {number:8,title:'Cache memory and multi-core processors',sourcePages:[113]},
-  {number:9,title:'Ports: USB, HDMI and VGA',sourcePages:[114]},
-  {number:10,title:'USB: serial transfer and plug-and-play',sourcePages:[114,115]},
-  {number:11,title:'HDMI compared with VGA',sourcePages:[115]},
-  {number:12,title:'Fetch-execute cycle overview',sourcePages:[116]},
-  {number:13,title:'Fetch stage in Register Transfer Notation',sourcePages:[117]},
-  {number:14,title:'Decode and execute stages',sourcePages:[117]},
-  {number:15,title:'Interrupt handling and the ISR',sourcePages:[118]},
-  {number:16,title:'4.2 Assembly Language',sourcePages:[119]},
-  {number:17,title:'Assembly language and machine code',sourcePages:[119,120]},
-  {number:18,title:'Two-pass assembler',sourcePages:[120,121]},
-  {number:19,title:'Assembly instruction groups',sourcePages:[122,123]},
-  {number:20,title:'Addressing modes',sourcePages:[123,124]},
-  {number:21,title:'Worked assembly trace',sourcePages:[125,126]},
-  {number:22,title:'Indexed addressing and loops',sourcePages:[126,127,128]},
-  {number:23,title:'4.3 Bit Manipulation',sourcePages:[129]},
-  {number:24,title:'Logical, arithmetic and cyclic shifts',sourcePages:[129,130]},
-  {number:25,title:'Logical shift instructions: LSL and LSR',sourcePages:[130]},
-  {number:26,title:'Bit masks with AND, OR and XOR',sourcePages:[130,131]},
-  {number:27,title:'Monitoring and control with a sensor bit',sourcePages:[131,132]},
-  {number:28,title:'2026 exam focus and mark-scheme habits',sourceLabel:'Cambridge 2026 Paper 11 Q3 and Paper 13 Q7 mark schemes'},
-  {number:29,title:'Chapter 4 complete review and exam practice',sourcePages:[133,134,135]},
-];
-
-const CHAPTER_5_SLIDE_META:readonly SlideMeta[]=[
-  {number:1,title:'5 System Software',sourcePages:[136]},
-  {number:2,title:'Operating system: the essential bridge',sourcePages:[138,139]},
-  {number:3,title:'Start-up: from BIOS to OS in RAM',sourcePages:[138,139]},
-  {number:4,title:'GUI, CLI and post-WIMP interfaces',sourcePages:[139,140,141]},
-  {number:5,title:'Memory management',sourcePages:[141,142]},
-  {number:6,title:'Security management',sourcePages:[142]},
-  {number:7,title:'Process, hardware and file management',sourcePages:[142]},
-  {number:8,title:'Printer management scenario',sourcePages:[142]},
-  {number:9,title:'Utility software overview',sourcePages:[143,144,145,146]},
-  {number:10,title:'Disk formatter and bad sectors',sourcePages:[143]},
-  {number:11,title:'Antivirus workflow',sourcePages:[144]},
-  {number:12,title:'Defragmentation: before and after',sourcePages:[144,145]},
-  {number:13,title:'Disk analysis, compression and backup',sourcePages:[145,146]},
-  {number:14,title:'Program libraries',sourcePages:[147]},
-  {number:15,title:'Static libraries and DLL files',sourcePages:[148]},
-  {number:16,title:'Language translators: precise meanings',sourcePages:[150]},
-  {number:17,title:'Assembler and loader',sourcePages:[150]},
-  {number:18,title:'Compiler vs interpreter',sourcePages:[151,152]},
-  {number:19,title:'Partial compilation and bytecode',sourcePages:[152,153]},
-  {number:20,title:'IDE overview',sourcePages:[153,154]},
-  {number:21,title:'Source-code editor features',sourcePages:[154,155]},
-  {number:22,title:'Debugger workflow',sourcePages:[155]},
-  {number:23,title:'2026 exam focus: system software',sourceLabel:'Cambridge 2026 system-software mark-scheme habits'},
-  {number:24,title:'Chapter 5 complete review',sourcePages:[157,158]},
-];
-
 const CHAPTER_3_SLIDES=slidesFor(3,CHAPTER_3_SLIDE_META);
-const CHAPTER_4_SLIDES=slidesFor(4,CHAPTER_4_SLIDE_META);
-const CHAPTER_5_SLIDES=slidesFor(5,CHAPTER_5_SLIDE_META);
 
 const CHAPTER_3_DRIVE_PPTX='https://docs.google.com/presentation/d/1hvWdQBlwXbwTJcX0TaofL39ogTxWbCoM/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
 const CHAPTER_3_PROJECT_PPTX='/9618/presentations/chapter-03/9618_Chapter_03_Hardware_Project_Mirror.pptx';
-const CHAPTER_4_DRIVE_PPTX='https://docs.google.com/presentation/d/19BNaVlBMDda967NYqRUIyAjAEkF6elYI/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
-const CHAPTER_4_PROJECT_PPTX='/9618/presentations/chapter-04/9618_Chapter_04_Processor_Fundamentals_Project_Mirror.pptx';
-const CHAPTER_5_DRIVE_PPTX='https://docs.google.com/presentation/d/1rfHQbyArf0CnPfMrAJ0hezWflWY__i5k/edit?usp=drivesdk&ouid=111028846541723094078&rtpof=true&sd=true';
-const CHAPTER_5_PROJECT_PPTX='/9618/presentations/chapter-05/9618_Chapter_05_System_Software_Project_Mirror.pptx';
 
 function chapter3Deck(topicCode:string):RealSlideDeck{
   const logic=topicCode==='3.2'||topicCode.startsWith('3.2.');
@@ -146,55 +81,12 @@ function chapter3Deck(topicCode:string):RealSlideDeck{
   };
 }
 
-function chapter4Deck(topicCode:string):RealSlideDeck{
-  const code=topicCode.startsWith('4.3')?'4.3':topicCode.startsWith('4.2')?'4.2':'4.1';
-  const title=code==='4.3'?'Bit Manipulation':code==='4.2'?'Assembly Language':'Central Processing Unit (CPU) Architecture';
-  return {
-    id:`9618-ch4-${code.replace('.','')}-real`,
-    course:'9618',
-    chapter:4,
-    topicCode:code,
-    title,
-    subtitle:'Chapter 4 Processor Fundamentals · real slide deck',
-    pptxDriveUrl:CHAPTER_4_DRIVE_PPTX,
-    pptxFileName:'9618_Chapter_04_Processor_Fundamentals_Real_Deck.pptx',
-    projectPptxUrl:CHAPTER_4_PROJECT_PPTX,
-    projectPptxFileName:'9618_Chapter_04_Processor_Fundamentals_Project_Mirror.pptx',
-    slides:CHAPTER_4_SLIDES.map(slide=>({...slide,sourcePages:slide.sourcePages?[...slide.sourcePages]:undefined})),
-  };
-}
-
-function chapter5Deck(topicCode:string):RealSlideDeck{
-  const code=topicCode.startsWith('5.2')?'5.2':'5.1';
-  return {
-    id:`9618-ch5-${code.replace('.','')}-real`,
-    course:'9618',
-    chapter:5,
-    topicCode:code,
-    title:code==='5.2'?'Language Translators':'Operating Systems',
-    subtitle:'Chapter 5 System Software · real slide deck',
-    pptxDriveUrl:CHAPTER_5_DRIVE_PPTX,
-    pptxFileName:'9618_Chapter_05_System_Software_Real_Deck.pptx',
-    projectPptxUrl:CHAPTER_5_PROJECT_PPTX,
-    projectPptxFileName:'9618_Chapter_05_System_Software_Project_Mirror.pptx',
-    slides:CHAPTER_5_SLIDES.map(slide=>({...slide,sourcePages:slide.sourcePages?[...slide.sourcePages]:undefined})),
-  };
-}
-
 export function realSlideDeckFor(course:string,chapter:number,topicCode:string):RealSlideDeck|null{
   if(course!=='9618')return null;
   if(chapter===3)return chapter3Deck(topicCode);
-  if(chapter===4)return chapter4Deck(topicCode);
-  if(chapter===5)return chapter5Deck(topicCode);
   return null;
 }
 
 export const CHAPTER_3_REAL_SLIDE_COUNT=CHAPTER_3_SLIDES.length;
 export const CHAPTER_3_REAL_PPTX_DRIVE_URL=CHAPTER_3_DRIVE_PPTX;
 export const CHAPTER_3_PROJECT_PPTX_URL=CHAPTER_3_PROJECT_PPTX;
-export const CHAPTER_4_REAL_SLIDE_COUNT=CHAPTER_4_SLIDES.length;
-export const CHAPTER_4_REAL_PPTX_DRIVE_URL=CHAPTER_4_DRIVE_PPTX;
-export const CHAPTER_4_PROJECT_PPTX_URL=CHAPTER_4_PROJECT_PPTX;
-export const CHAPTER_5_REAL_SLIDE_COUNT=CHAPTER_5_SLIDES.length;
-export const CHAPTER_5_REAL_PPTX_DRIVE_URL=CHAPTER_5_DRIVE_PPTX;
-export const CHAPTER_5_PROJECT_PPTX_URL=CHAPTER_5_PROJECT_PPTX;
