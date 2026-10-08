@@ -15,6 +15,7 @@ describe('Live visual readiness cache',()=>{
     expect(migration).toContain('CREATE TABLE public.live_question_visual_readiness');
     expect(migration).toContain('CREATE TABLE public.live_question_visual_readiness_state');
     expect(migration).toContain('dirty boolean NOT NULL DEFAULT true');
+    expect(migration).toContain('algorithm_version text');
     expect(migration).toContain('ENABLE ROW LEVEL SECURITY');
     expect(migration).toContain('REVOKE ALL ON public.live_question_visual_readiness');
   });
@@ -31,6 +32,8 @@ describe('Live visual readiness cache',()=>{
     expect(refresh).toContain("questionHasVisualSql('q')");
     expect(refresh).toContain('LOCK TABLE public.questions IN SHARE MODE');
     expect(refresh).toContain('LOCK TABLE public.question_assets IN SHARE MODE');
+    expect(refresh).toContain('LIVE_VISUAL_READINESS_VERSION');
+    expect(refresh).toContain('algorithm_version=$2');
     expect(refresh).toContain('SET dirty=false');
   });
 });
