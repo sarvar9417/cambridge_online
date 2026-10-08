@@ -387,7 +387,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         </section>
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
-        <label>Savollar soni<input name="questionCount" type="number" min={1} max={eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
+        <label>Savollar soni<input name="questionCount" type="number" min={1} max={eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled')}><option value="shuffled">Aralashtirilgan</option><option value="fixed">Tanlangan tartib</option></select></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
@@ -397,7 +397,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
-        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
         {!classes.length?<small className="live-warning">Avval kamida bitta sinf yarating.</small>:null}
       </aside>
     </form>}
