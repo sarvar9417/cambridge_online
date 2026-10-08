@@ -9,7 +9,7 @@ const sql=readFileSync(
 describe('Live question exposure read model migration',()=>{
   it('records exposure only from an actually opened Live round',()=>{
     expect(sql).toContain('CREATE TABLE public.class_question_exposures');
-    expect(sql).toContain("source_type IN ('live','assignment')");
+    expect(sql).toContain("source_type text NOT NULL DEFAULT 'live' CHECK (source_type='live')");
     expect(sql).toContain("WHEN (NEW.event_type='question.opened')");
     expect(sql).toContain('record_live_question_exposure_from_event');
     expect(sql).toContain("MESSAGE = 'live_question_opened_target_missing'");
