@@ -216,6 +216,57 @@ export class LiveExamService {
     return result.rows[0].scheme as MarkSchemeSnapshot;
   }
 
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds'>) {
+    const values: unknown[] = [];
+    const filters = [
+      `q.status='approved'`,
+      `q.marks>0`,
+    ];
+    if (input.topicIds.length) {
+      values.push(input.topicIds);
+      const parameter = '$'+values.length;
+      filters.push(`exists(
+        select 1 from question_subtopics qst
+        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+        where qst.question_id=q.id and exists(
+          select 1 from topics selected_topic
+          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+          where selected_topic.id=any(${parameter}::uuid[])
+            and selected_syllabus.code=mapped_syllabus.code
+            and selected_topic.number=mapped_topic.number
+        )
+      )`);
+    }
+    if (input.subtopicIds.length) {
+      values.push(input.subtopicIds);
+      const parameter = '$'+values.length;
+      filters.push(`exists(
+        select 1 from question_subtopics qst
+        join subtopics mapped_subtopic on mapped_subtopic.id=qst.subtopic_id
+        join topics mapped_topic on mapped_topic.id=mapped_subtopic.topic_id
+        join syllabi mapped_syllabus on mapped_syllabus.id=mapped_topic.syllabus_id
+        where qst.question_id=q.id and exists(
+          select 1 from subtopics selected_subtopic
+          join topics selected_topic on selected_topic.id=selected_subtopic.topic_id
+          join syllabi selected_syllabus on selected_syllabus.id=selected_topic.syllabus_id
+          where selected_subtopic.id=any(${parameter}::uuid[])
+            and selected_syllabus.code=mapped_syllabus.code
+            and selected_topic.number=mapped_topic.number
+            and selected_subtopic.code=mapped_subtopic.code
+        )
+      )`);
+    }
+    const result = await this.pool.query(
+      `select count(distinct q.id)::int total
+       from questions q
+       where ${filters.join(' and ')}`,
+      values,
+    );
+    return Number(result.rows[0]?.total ?? 0);
+  }
+
   private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
     // Keep the random ordering seed first and bind the class ID for both
     // syllabus-safe LO resolution and optional seen-question filtering.
@@ -444,6 +495,18 @@ export class LiveExamService {
       questionCount: input.limit,
       questionIds: undefined,
     }, false);
+    const databaseTotal = await this.countDatabaseQuestions(input);
+    const liveReadyTotal = input.includeDiagrams && !input.excludeSeen
+      ? selection.total
+      : (await this.chooseQuestionIds(actor, {
+          ...input,
+          title: 'Question availability',
+          markingMode: 'teacher',
+          questionCount: 1,
+          includeDiagrams: true,
+          excludeSeen: false,
+          questionIds: undefined,
+        }, false)).total;
     const rows = await Promise.all(selection.ids.map(async (questionId) => {
       const portable = await this.questions.portable(actor, questionId);
       if (!portable) return null;
@@ -460,6 +523,11 @@ export class LiveExamService {
     return {
       data:rows.filter((row): row is NonNullable<typeof row> => row !== null),
       total:selection.total,
+      counts:{
+        database:databaseTotal,
+        liveReady:liveReadyTotal,
+        available:selection.total,
+      },
     };
   }
 

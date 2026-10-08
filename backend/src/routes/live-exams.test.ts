@@ -69,8 +69,12 @@ describe('live exam routes', () => {
     }));
   });
 
-  it('returns the full eligible total even when only a limited preview is requested', async () => {
-    const eligibleQuestions=vi.fn().mockResolvedValue({data:[],total:137});
+  it('returns the full eligible total and availability breakdown even when only a limited preview is requested', async () => {
+    const eligibleQuestions=vi.fn().mockResolvedValue({
+      data:[],
+      total:137,
+      counts:{database:142,liveReady:140,available:137},
+    });
     const response=await request(appFor({eligibleQuestions}))
       .get('/live-exams/eligible-questions')
       .query({
@@ -82,7 +86,11 @@ describe('live exam routes', () => {
         limit:'137',
       })
       .expect(200);
-    expect(response.body).toEqual({data:[],total:137});
+    expect(response.body).toEqual({
+      data:[],
+      total:137,
+      counts:{database:142,liveReady:140,available:137},
+    });
     expect(eligibleQuestions).toHaveBeenCalledWith(student,expect.objectContaining({limit:137}));
   });
 

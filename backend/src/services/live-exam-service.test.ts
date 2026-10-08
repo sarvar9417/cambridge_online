@@ -153,6 +153,7 @@ describe('LiveExamService eligible pool totals', () => {
     const query=vi.fn(async (sql:string) => {
       if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
       if(sql.includes('select distinct q.id'))return{rowCount:1,rows:[{id:'q1',total_count:137}]};
+      if(sql.includes('count(distinct q.id)::int total'))return{rowCount:1,rows:[{total:142}]};
       throw new Error(`unexpected query: ${sql}`);
     });
     const questions={portable:vi.fn().mockResolvedValue({
@@ -176,6 +177,7 @@ describe('LiveExamService eligible pool totals', () => {
       questionOrder:'fixed',
     })).resolves.toMatchObject({
       total:137,
+      counts:{database:142,liveReady:137,available:137},
       data:[{id:'q1',displayRef:'9618/11/M/J/26 Q1(a)'}],
     });
     expect(questions.portable).toHaveBeenCalledTimes(1);
