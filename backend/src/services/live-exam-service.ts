@@ -208,8 +208,8 @@ export class LiveExamService {
            'marksPerPoint',msg.marks_per_point,'maxMarks',msg.max_marks,'awardMode',msg.award_mode
          ) order by msg.sort_order,msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
        ) scheme
-       from canonical_mark_schemes ms
-       where ms.question_id=$1 and ms.status='approved'`,
+       from public.canonical_mark_scheme_for_question_v1($1) ms
+       where ms.status='approved'`,
       [questionId],
     );
     if (!result.rows[0]?.scheme) throw new DomainError('live_question_not_ready', 409);
@@ -434,8 +434,9 @@ export class LiveExamService {
        )
        select c.question_id,q.status::text status,q.marks,
          exists(
-           select 1 from canonical_mark_schemes ms
-           where ms.question_id=c.question_id and ms.status='approved'
+           select 1
+           from public.canonical_mark_scheme_for_question_v1(c.question_id) ms
+           where ms.status='approved'
          ) mark_scheme_ready,
          coalesce(
            array_agg(qd.depends_on_id order by target.sort_order,target.id)
