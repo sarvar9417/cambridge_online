@@ -37,12 +37,13 @@ class MissingQpSourceIngestTests(unittest.TestCase):
         self.assertIn('PARSER["build_repair"]', script)
         self.assertIn('databaseWritesAttempted', script)
 
-    def test_v2_accepts_only_numbers_aligned_to_printed_marks_column(self) -> None:
+    def test_v2_accepts_only_source_evidenced_mark_positions(self) -> None:
         script = (ROOT / "backend/scripts/qp-source-missing-ingest-v2.py").read_text(encoding="utf-8")
         self.assertIn('"Question" in line and "Answer" in line and "Marks" in line', script)
-        self.assertIn('mark_position < marks_column', script)
-        self.assertIn('mark_position > marks_column + 20', script)
-        self.assertIn('marks_column is None', script)
+        self.assertIn('marks_column <= mark_position <= marks_column + 20', script)
+        self.assertIn('HEADERLESS_MARK_ZONE_MIN = 80', script)
+        self.assertIn('re.search(r"\\bmarks?\\b", answer_fragment, re.IGNORECASE)', script)
+        self.assertIn('not _is_trusted_mark_position', script)
         self.assertIn('BASE["build_manifest"].__globals__["extract_ms_leaves"] = extract_ms_leaves', script)
 
     def test_edge_runner_exposes_only_guarded_manifest_actions(self) -> None:
