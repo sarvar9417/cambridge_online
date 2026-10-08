@@ -53,6 +53,7 @@ const selected=[
   '0204_live_peer_teacher_fallback.sql',
   '0205_live_session_history_archive.sql',
   '0206_live_question_exposure_read_model.sql',
+  '0207_live_question_visual_readiness_cache.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');
