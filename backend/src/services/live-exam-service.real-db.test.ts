@@ -389,6 +389,22 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
   });
 
+  it('allows the teacher to turn late joining on during the challenge, including review stage', async () => {
+    const {sessionId}=await makeSession({
+      code:'820008',markingMode:'teacher',participants:[0],
+      settings:{allowLateJoin:false},
+    });
+    await service.start(owner(),sessionId,1);
+    await expect(service.join(student(1),'820008'))
+      .rejects.toMatchObject({code:'live_code_not_found'});
+    const opened=await service.setLateJoin(owner(),sessionId,true,2);
+    expect(opened.allowLateJoin).toBe(true);
+    await service.join(student(1),'820008');
+    await service.revealMarkScheme(owner(),sessionId);
+    const lateMarkingJoin=await service.join(student(2),'820008');
+    expect(lateMarkingJoin.sessionId).toBe(sessionId);
+  });
+
   it('removes only terminal sessions from history without deleting their evidence', async () => {
     const active=await makeSession({code:'820006',markingMode:'teacher'});
     await expect(service.archiveHistory(owner(),active.sessionId))
@@ -426,6 +442,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       participants:[2],
     });
     await service.start(owner(),sessionId,1);
+    await service.saveAnswer(student(2),sessionId,'The draft already written before timeout.');
     await client.query(
       "update live_exam_sessions set question_started_at=now()-interval '45 seconds' where id=$1",
       [sessionId],
@@ -436,6 +453,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       'select status::text status from live_exam_sessions where id=$1',
       [sessionId],
     )).rows[0]?.status).toBe('marking');
+    const submittedDraft=await client.query<{answer_text:string;submitted_at:Date|null}>(
+      `select a.answer_text,a.submitted_at from live_exam_answers a
+       join live_exam_participants p on p.id=a.participant_id
+       where p.session_id=$1 and p.student_id=$2`,
+      [sessionId,studentIds[2]],
+    );
+    expect(submittedDraft.rows[0]?.answer_text).toBe('The draft already written before timeout.');
+    expect(submittedDraft.rows[0]?.submitted_at).not.toBeNull();
     expect(await service.closeExpired(20)).toBe(0);
   });
 });
