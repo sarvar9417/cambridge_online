@@ -273,11 +273,39 @@ export class LiveExamService {
     // Every value is referenced in the SQL so PostgreSQL can infer its type.
     const values: unknown[] = [randomUUID(), input.classId];
     const classParameter = '$2';
+    const uncachedNoVisual = `not exists(
+      with recursive ancestry as (
+        select q.id,q.parent_id
+        union all
+        select parent.id,parent.parent_id
+        from ancestry child join questions parent on parent.id=child.parent_id
+      )
+      select 1 from ancestry join question_assets qa on qa.question_id=ancestry.id
+      where qa.kind in ('diagram','image')
+    )`;
+    const visualReadinessFilter = `case
+      when coalesce((
+        select not state.dirty
+        from live_question_visual_readiness_state state
+        where state.singleton=true
+      ),false)
+      then exists(
+        select 1
+        from live_question_visual_readiness cached_visual
+        where cached_visual.question_id=q.id
+          and cached_visual.visual_ready
+          ${input.includeDiagrams ? '' : 'and not cached_visual.has_visual'}
+      )
+      else (
+        ${questionVisualIntegritySql('q')}
+        ${input.includeDiagrams ? '' : `and ${uncachedNoVisual}`}
+      )
+    end`;
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
       `ms.status='approved'`,
-      questionVisualIntegritySql('q'),
+      visualReadinessFilter,
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
         select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
       ))`,
@@ -366,18 +394,6 @@ export class LiveExamService {
             and selected_topic.number=mapped_topic.number
             and selected_subtopic.code=mapped_subtopic.code
         )
-      )`);
-    }
-    if (!input.includeDiagrams) {
-      filters.push(`not exists(
-        with recursive ancestry as (
-          select q.id,q.parent_id
-          union all
-          select parent.id,parent.parent_id
-          from ancestry child join questions parent on parent.id=child.parent_id
-        )
-        select 1 from ancestry join question_assets qa on qa.question_id=ancestry.id
-        where qa.kind in ('diagram','image')
       )`);
     }
     if (input.questionIds?.length) {
