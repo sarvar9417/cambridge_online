@@ -92,7 +92,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
   const lateJoinCheckbox=teacher.page.locator('input[name="allowLateJoin"]');
-  const lateJoinChecked=await lateJoinCheckbox.evaluate((input)=>input.checked);
+  const lateJoinChecked=await teacher.page.$eval('input[name="allowLateJoin"]',(input)=>input.checked);
   if(lateJoinChecked!==allowLateJoin)await lateJoinCheckbox.click();
   if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
