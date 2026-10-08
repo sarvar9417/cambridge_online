@@ -17,7 +17,7 @@ describe('Live question exposure read model migration',()=>{
 
   it('backfills historical exposure from question.opened events rather than session preload membership',()=>{
     expect(sql).toContain("WHERE e.event_type='question.opened'");
-    expect(sql).toContain("leq.position=(e.payload->>'position')::int");
+    expect(sql).toContain("THEN (e.payload->>'position')::int");
     expect(sql).not.toContain('started_at is not null');
   });
 
