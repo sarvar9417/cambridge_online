@@ -55,7 +55,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   "implemented": {
     "teacher_builder": true,
     "six_digit_lobby": true,
-    "student_join_school_guard": true,
+    "student_join_code_only_guard": true,
     "server_authoritative_state": true,
     "question_and_mark_scheme_snapshots": true,
     "teacher_peer_self_marking": true,
@@ -127,7 +127,7 @@ Live Challenge demo emas: asosiy end-to-end oqim ishlab turibdi va production’
 | Qism | Holat | Qisqa xulosa |
 |---|---|---|
 | Teacher builder | Ishlaydi | Topic/subtopic, auto/manual questions, timing, marking, late join, auto close, override va leaderboard sozlanadi |
-| Lobby/join | Ishlaydi | 6 xonali kod, authenticated same-school guard, presence va removal bor; Live join uchun oldindan class enrolment shart emas |
+| Lobby/join | Ishlaydi | 6 xonali kod, authenticated student guard, presence va removal bor; Live join class yoki school membershipga bog‘liq emas |
 | Question delivery | Ishlaydi | Canonical source, parent context, dependency work, diagram, structured content va LaTeX ko‘rsatiladi |
 | Answering | Ishlaydi, hardening kerak | 700 ms autosave, submit lock va reconnect snapshot bor; offline retry yo‘q |
 | Timer | Qisman | Server save/submitni deadline + 10 s grace bilan bloklaydi, ammo round o‘zi yopilmaydi |

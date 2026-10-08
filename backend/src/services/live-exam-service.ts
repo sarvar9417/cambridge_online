@@ -594,11 +594,6 @@ export class LiveExamService {
       const room = await client.query(
         `select les.*
          from live_exam_sessions les
-         join classes c on c.id=les.class_id and c.archived_at is null
-         join users student_user
-           on student_user.id=$2
-          and student_user.role='student'
-          and student_user.school_id=c.school_id
          where les.join_code=$1
            and les.archived_at is null
            and coalesce(
@@ -609,7 +604,7 @@ export class LiveExamService {
            or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
          for update of les`,
-        [code, actor.id],
+        [code],
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
       const session = room.rows[0];

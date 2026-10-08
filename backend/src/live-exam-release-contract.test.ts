@@ -45,15 +45,16 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("new DomainError('score_outside_level', 400)");
   });
 
-  it('keeps the school boundary while allowing code-based Live participation without class enrolment',()=>{
-    expect(service).toContain('join classes c on c.id=les.class_id and c.archived_at is null');
-    expect(service).toContain("student_user.school_id=c.school_id");
-    expect(service).toContain("student_user.role='student'");
-    expect(service).not.toContain('join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null');
-    expect(service).toContain("(to_jsonb(les)->>'join_code_expires_at')::timestamptz");
-    expect(service).toContain("les.status='lobby'");
-    expect(service).toContain("les.settings->>'allowLateJoin'");
-    expect(service).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
+  it('uses the authenticated student and room code only at the Live join boundary',()=>{
+    const joinBlock=service.slice(service.indexOf('async join(actor'),service.indexOf('async heartbeat(actor'));
+    expect(joinBlock).not.toContain('join classes');
+    expect(joinBlock).not.toContain('join enrollments');
+    expect(joinBlock).not.toContain('join users');
+    expect(joinBlock).toContain('where les.join_code=$1');
+    expect(joinBlock).toContain("(to_jsonb(les)->>'join_code_expires_at')::timestamptz");
+    expect(joinBlock).toContain("les.status='lobby'");
+    expect(joinBlock).toContain("les.settings->>'allowLateJoin'");
+    expect(joinBlock).toContain("if (actor.role !== 'student') throw new DomainError('students_only', 403)");
   });
 
   it('keeps internal dependency evidence out of learner snapshots',()=>{
