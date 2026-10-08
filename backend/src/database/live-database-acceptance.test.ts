@@ -165,7 +165,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       'select dirty from live_question_visual_readiness_state where singleton=true',
     )).rows[0]?.dirty).toBe(false);
 
-    await client.query('update questions set updated_at=now() where id=$1',[questionId]);
+    await client.query('update questions set created_at=created_at where id=$1',[questionId]);
 
     expect((await client.query<{dirty:boolean}>(
       'select dirty from live_question_visual_readiness_state where singleton=true',
