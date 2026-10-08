@@ -347,28 +347,8 @@ export class LiveExamService {
       )`);
     }
     values.push(input.questionCount);
-    const limitParameter='$'+values.length;
-    const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (
-         select distinct q.id
-         from questions q
-         join canonical_mark_schemes ms on ms.question_id=q.id
-         where ${filters.join(' and ')}
-       ) candidate
-       order by md5(candidate.id::text || $1::text)
-       limit ${limitParameter}`,
-      values,
-    );
-    const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
-    if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    const selected = result.rows.map((row) => String(row.id));
-    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
-      const available = new Set(selected);
-      return { ids:input.questionIds.filter((id) => available.has(id)), total };
-    }
-    return { ids:selected, total };
-  }
+    const limitParameter='
+
   private async expandRequiredDependencies(questionIds: string[]) {
     if (!questionIds.length) return [];
     const result = await this.pool.query(
@@ -1817,6 +1797,7 @@ export class LiveExamService {
       ordered.push(questionId);
     };
     for (const questionId of questionIds) visit(questionId);
+    if (ordered.length > 60) throw new DomainError('live_dependency_bundle_too_large', 409);
     return ordered;
   }
 
@@ -1826,14 +1807,14 @@ export class LiveExamService {
   ) {
     await this.requireClassControl(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
-    const selection = await this.chooseQuestionIds(actor, {
+    const ids = await this.chooseQuestionIds(actor, {
       ...input,
       title: 'Question preview',
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
     }, false);
-    const rows = await Promise.all(selection.ids.map(async (questionId) => {
+    const rows = await Promise.all(ids.map(async (questionId) => {
       const portable = await this.questions.portable(actor, questionId);
       if (!portable) return null;
       return {
@@ -1846,10 +1827,7 @@ export class LiveExamService {
         dependencyCount: portable.dependencies.filter((dependency) => dependency.strength === 'required').length,
       };
     }));
-    return {
-      data:rows.filter((row): row is NonNullable<typeof row> => row !== null),
-      total:selection.total,
-    };
+    return rows.filter((row): row is NonNullable<typeof row> => row !== null);
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
@@ -1859,8 +1837,7 @@ export class LiveExamService {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
 
-    const selection = await this.chooseQuestionIds(actor, input);
-    const questionIds = selection.ids;
+    const questionIds = await this.chooseQuestionIds(actor, input);
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
     const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
       const [portable, markScheme] = await Promise.all([
