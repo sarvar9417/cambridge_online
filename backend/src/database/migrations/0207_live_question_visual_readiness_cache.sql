@@ -21,6 +21,7 @@ CREATE TABLE public.live_question_visual_readiness_state (
   dirty boolean NOT NULL DEFAULT true,
   dirty_at timestamptz NOT NULL DEFAULT now(),
   refreshed_at timestamptz,
+  algorithm_version text,
   row_count integer NOT NULL DEFAULT 0 CHECK (row_count >= 0)
 );
 
