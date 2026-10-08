@@ -106,6 +106,7 @@ function snapshot(actor:ActorKey){
             blocks:[
               {type:'text',style:'task',text:'Complete the table, study the circuit and state the output.',source:{page:9}},
               {type:'table',kind:'truth_table',headers:['A','B','C','D','E','F','G','Q'],rows:tableRows,editableCells:[[5,7]],source:{page:9}},
+              {type:'math',semantics:'boolean_expression',latex:'\\overline{A} \\land B',display:true,source:{page:9}},
               {type:'asset',kind:'logic_circuit',assetId:ASSET_ID,altText:'Logic circuit',source:{page:9}},
               {type:'code',language:'pseudocode',text:'IF Q = 1 THEN\n    OUTPUT "ON"\nENDIF',source:{page:9}},
               {type:'answer_area',kind:'lines',lines:4,source:{page:9}},
@@ -171,6 +172,10 @@ async function openSurface(browser:Browser,base:string,actor:ActorKey,viewport:V
       tableColumns:table?.querySelectorAll('tbody tr:first-child td').length??0,
       image:Boolean(image),
       code:Boolean(document.querySelector('.structured-question-code')),
+      katex:Boolean(document.querySelector('.structured-question-math .katex')),
+      mathml:Boolean(document.querySelector('.structured-question-math math')),
+      mathAria:document.querySelector('.structured-question-math')?.getAttribute('aria-label')??'',
+      invalidMath:Boolean(document.querySelector('.structured-question-math-invalid')),
       invalid:Boolean(document.querySelector('.structured-question-invalid')),
       internalOverflow:host?host.scrollWidth>=host.clientWidth:true,
       bodyOverflow:document.documentElement.scrollWidth-window.innerWidth,
@@ -203,14 +208,15 @@ try{
   for(const [index,surface] of surfaces.entries()){
     const {result,consoleErrors}=surface;
     if(consoleErrors.length)throw new Error(`surface ${index} console errors: ${consoleErrors.join(' | ')}`);
-    if(!result.sourceRef||result.tableRows!==6||result.tableColumns!==8||!result.image||!result.code||result.invalid){
+    if(!result.sourceRef||result.tableRows!==6||result.tableColumns!==8||!result.image||!result.code
+      ||!result.katex||!result.mathml||result.invalidMath||result.mathAria!=='A̅ ∧ B'||result.invalid){
       throw new Error(`surface ${index} fidelity failure: ${JSON.stringify(result)}`);
     }
     if(result.bodyOverflow>2)throw new Error(`surface ${index} page overflowed by ${result.bodyOverflow}px`);
   }
   if(!surfaces[1].result.projector)throw new Error('projector context did not render projector overlay');
   if(surfaces[0].result.projector)throw new Error('teacher context unexpectedly rendered projector overlay');
-  console.log('Live multi-context browser smoke passed: teacher + projector + 3 students');
+  console.log('Live multi-context browser smoke passed: teacher + projector + 3 students with table/diagram/pseudocode/KaTeX+MathML fidelity');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));
