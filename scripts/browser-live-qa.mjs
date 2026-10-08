@@ -27,16 +27,21 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   if (mode === 'teacher') {
     for (let i = 1; i <= students.length; i++) {
       await markVisibleAnswer(qa, teacher.page, '.live-teacher-marker', `QA teacher review ${i}`);
-      await qa.waitText(teacher.page, `${i}/${students.length} ta tugadi`);
+      await qa.waitText(teacher.page, i===students.length?'SAVOL YAKUNI':`${i}/${students.length} ta tugadi`);
     }
   } else {
     for (const [i, student] of students.entries()) {
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
-      await qa.waitText(student.page, 'Baholash yuborildi');
+      await qa.waitText(student.page, i===students.length?'SAVOL NATIJASI':'Baholash yuborildi');
     }
   }
-  await qa.waitText(teacher.page, `${students.length}/${students.length} ta tugadi`);
-  await qa.clickText(teacher.page, 'Natijalarni ochish');
+  // Automatic release happens when the final review is submitted. Older
+  // deployments still need a staff click, so the harness supports both.
+  const phase=(await snapshot(teacher.page,id)).session.status;
+  if(phase==='marking'){
+    await qa.waitText(teacher.page, `${students.length}/${students.length} ta tugadi`);
+    await qa.clickText(teacher.page, 'Natijalarni ochish');
+  }
   await qa.waitText(teacher.page, 'SAVOL YAKUNI');
   await Promise.all(students.map(s => qa.waitText(s.page, 'SAVOL NATIJASI')));
   const marked = await snapshot(teacher.page, id);
@@ -81,7 +86,9 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   if (!displayRef) await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
-  if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
+  const lateJoinCheckbox=teacher.page.locator('input[name="allowLateJoin"]');
+  const lateJoinChecked=await lateJoinCheckbox.evaluate((input)=>input.checked);
+  if(lateJoinChecked!==allowLateJoin)await lateJoinCheckbox.click();
   if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
   await qa.waitText(teacher.page, 'JOIN CODE');
