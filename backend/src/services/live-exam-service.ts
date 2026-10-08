@@ -700,7 +700,7 @@ export class LiveExamService {
              'infinity'::timestamptz
            ) > now() and (
            les.status='lobby'
-           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+           or (les.status in ('question_open','marking','review') and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
          for update of les`,
         [code],
@@ -1001,7 +1001,7 @@ export class LiveExamService {
       const reportRows = await this.pool.query(
         `select leq.position,leq.marks,
            coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
-           coalesce(a.answer_text,'') answer_text,a.final_score,a.score_source::text,lep.student_id,u.full_name student_name
+           coalesce(a.answer_text,'') answer_text,a.final_score,a.final_feedback_md,a.score_source::text,lep.student_id,u.full_name student_name
          from live_exam_questions leq
          join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
          join users u on u.id=lep.student_id
@@ -1017,6 +1017,7 @@ export class LiveExamService {
         answerText: row.answer_text,
         score: row.final_score === null ? null : Number(row.final_score),
         scoreSource: row.score_source,
+        feedback: row.final_feedback_md,
         ...(isStaff ? { studentId: row.student_id, studentName: row.student_name } : {}),
       }));
       report = {
@@ -1181,6 +1182,30 @@ export class LiveExamService {
       await client.query('rollback');
       throw error;
     } finally { client.release(); }
+  }
+
+  async setLateJoin(actor: Actor, sessionId: string, allowLateJoin: boolean, expectedVersion?: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      if (!['lobby','question_open','marking','review'].includes(String(session.status))) {
+        throw new DomainError('live_invalid_state', 409);
+      }
+      await client.query(
+        `update live_exam_sessions set settings=jsonb_set(
+           coalesce(settings,'{}'::jsonb),'{allowLateJoin}',to_jsonb($2::boolean),true
+         ) where id=$1`,
+        [sessionId, allowLateJoin],
+      );
+      const version = await this.bump(client, sessionId, actor.id, 'session.late_join_changed', {allowLateJoin});
+      await client.query('commit');
+      return {sessionId,allowLateJoin,version};
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {client.release();}
   }
 
   async saveAnswer(actor: Actor, sessionId: string, text: string) {
@@ -1450,12 +1475,41 @@ export class LiveExamService {
           [row.answer_id, score, input.feedback ?? null],
         );
       }
-      const version = await this.bump(client, sessionId, actor.id, 'review.submitted', {
+      let version = await this.bump(client, sessionId, actor.id, 'review.submitted', {
         reviewId,
         kind: row.kind,
       });
+      // Finalize only when every assigned review is submitted. The session row is
+      // locked above, so the last reviewer releases a single atomic result.
+      const remaining = await client.query(
+        `select count(*)::int count
+         from live_exam_reviews r
+         join live_exam_questions leq on leq.id=r.session_question_id
+         join live_exam_sessions les on les.id=leq.session_id
+         where les.id=$1 and leq.position=les.current_question_index and r.status='assigned'`,
+        [sessionId],
+      );
+      let resultsReleased = false;
+      if (Number(remaining.rows[0].count) === 0) {
+        await client.query(
+          `update live_exam_answers a set final_score=r.awarded_marks,
+              final_feedback_md=r.feedback_md,score_source=r.kind
+           from live_exam_reviews r
+           join live_exam_questions leq on leq.id=r.session_question_id
+           join live_exam_sessions les on les.id=leq.session_id
+           where r.answer_id=a.id and les.id=$1
+             and leq.position=les.current_question_index
+             and r.status in ('submitted','moderated')
+             and r.awarded_marks is not null
+             and a.moderated_at is null and a.final_score is null`,
+          [sessionId],
+        );
+        await client.query(`update live_exam_sessions set status='review' where id=$1`, [sessionId]);
+        version = await this.bump(client, sessionId, actor.id, 'marking.completed', {automatic:true,pending:0});
+        resultsReleased = true;
+      }
       await client.query('commit');
-      return { reviewId, score, version };
+      return { reviewId, score, version, resultsReleased };
     } catch (error) {
       await client.query('rollback');
       throw error;

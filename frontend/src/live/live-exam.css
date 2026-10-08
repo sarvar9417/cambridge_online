@@ -57,3 +57,21 @@
   .live-student-workspace>header time{grid-column:1/-1;justify-self:start;font-size:18px;overflow-wrap:anywhere}
   .live-question-card>header>div{min-width:0;flex-wrap:wrap}
 }
+
+
+/* Keep the join code and late-join permission accessible throughout an active session. */
+.live-active-join{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:13px 18px;margin:0 0 18px;border:1px solid var(--border-strong);border-radius:var(--radius-xl);background:var(--surface)}
+.live-active-join>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-right:auto}
+.live-active-join>div>span{color:var(--text-muted);font-size:11px;font-weight:800;letter-spacing:.07em}
+.live-active-join>div>strong{font:850 26px/1.1 var(--font-mono);letter-spacing:.09em;color:var(--text)}
+.live-active-join>div>small{font-size:12px;color:var(--text-muted)}
+.live-active-join>button{display:flex;align-items:center;gap:6px}
+.live-active-join-toggle{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650}
+.live-projector-join{display:flex;justify-content:center;gap:12px;align-items:center;margin:10px auto;padding:10px 18px;border:1px solid var(--border-strong);border-radius:var(--radius);font-size:16px;font-weight:750}
+.live-projector-join>strong{font:850 30px/1 var(--font-mono);letter-spacing:.12em}
+.live-projector-join>small{color:var(--text-muted);font-size:12px}
+.live-personal-answer{grid-column:1/-1;display:grid;gap:5px;padding-top:8px;border-top:1px solid var(--border)}
+.live-personal-answer>strong{font-size:12px}
+.live-personal-answer>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;text-align:left}
+.live-personal-answer>small{text-align:left;color:var(--text-muted);white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:640px){.live-active-join{align-items:flex-start}.live-active-join>div{width:100%}.live-projector-join{flex-wrap:wrap}}

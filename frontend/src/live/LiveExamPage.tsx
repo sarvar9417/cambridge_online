@@ -402,7 +402,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
         <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);clearManualPool()}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
         <label className="live-check"><input name="excludeSeen" type="checkbox" checked={excludeSeen} onChange={(event)=>{setExcludeSeen(event.target.checked);clearManualPool()}}/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
-        <label className="live-check"><input name="allowLateJoin" type="checkbox"/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
+        <label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
         <button disabled={busy||(!topicIds.length&&!subtopicIds.length)||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
@@ -431,6 +431,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
     </main>
+    {['question_open','marking','review'].includes(session.status)?<div className="live-projector-join">JOIN CODE <strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikib kirish ochiq':'Kechikib kirish yopiq'}</small></div>:null}
     {session.status!=='lobby'?<SessionProgress snapshot={snapshot}/>:null}
   </div>;
 }
@@ -454,6 +455,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const latestAnswer=useRef('');
   const answerKey=useRef('');
   const deadlineFlushSecond=useRef<number|null>(null);
+  const autoSubmittedKey=useRef('');
+  const autoSubmitAttempts=useRef(0);
   const [hydratedKey,setHydratedKey]=useState('');
   const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const remaining=useCountdown(session.deadline,session.serverNow);
@@ -468,6 +471,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     if(key===answerKey.current)return;
     answerKey.current=key;
     deadlineFlushSecond.current=null;
+    autoSubmittedKey.current='';
+    autoSubmitAttempts.current=0;
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
@@ -560,16 +565,34 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     return()=>{window.removeEventListener('online',retry);window.removeEventListener('visibilitychange',flush);window.removeEventListener('pagehide',flush);window.clearTimeout(retryTimer.current)};
   },[dirty]);
 
-  const submitAnswer=async()=>{
+  const submitAnswer=async(automatic=false)=>{
+    if(submitting.current||snapshot.ownAnswer?.submittedAt)return;
+    if(automatic)autoSubmitAttempts.current+=1;
     setBusy(true);setError('');
     submitting.current=true;
     window.clearTimeout(saveTimer.current);
     window.clearTimeout(retryTimer.current);
     pendingSave.current=null;
     try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
-    catch(cause){pendingSave.current=latestAnswer.current;setError(message(cause,'Javob topshirilmadi.'))}
+    catch(cause){
+      pendingSave.current=latestAnswer.current;
+      setError(message(cause,automatic?'Vaqt tugadi. Avtomatik yuborish tekshirilmoqda; serverdagi oxirgi saqlangan javob himoyalangan.':'Javob topshirilmadi.'));
+      if(automatic&&autoSubmitAttempts.current<4&&answerKey.current===draftKey){
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current=window.setTimeout(()=>{
+          if(answerKey.current===draftKey&&!submitting.current)void submitAnswer(true);
+        },2000);
+      }
+    }
     finally{submitting.current=false;setBusy(false)}
   };
+  useEffect(()=>{
+    if(remaining!==0||session.status!=='question_open'||session.pausedAt
+      ||snapshot.ownAnswer?.submittedAt||!draftKey||hydratedKey!==draftKey
+      ||autoSubmittedKey.current===draftKey)return;
+    autoSubmittedKey.current=draftKey;
+    void submitAnswer(true);
+  },[remaining,session.status,session.pausedAt,snapshot.ownAnswer?.submittedAt,draftKey,hydratedKey]);
   const submitReview=async()=>{
     if(!snapshot.review)return;setBusy(true);setError('');
     try{await api(`/live-exams/${session.id}/reviews/${snapshot.review.id}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score:manualScore,levelNumber,feedback:feedback||undefined})});await refresh()}
@@ -581,7 +604,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={submitAnswer}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':'Javobni topshirish'}</button></section>
+    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
     <ReviewQuestionContext question={snapshot.question}/>
@@ -589,8 +612,9 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
       {!snapshot.review?<><h2>Baholash kutilmoqda</h2><p>{session.markingMode==='peer'?'Anonim tekshiruv yakunlanmoqda. Agar peer tekshiruvni tugata olmasa, o‘qituvchi davom ettiradi.':'O‘qituvchi sizga javob biriktirmoqda.'}</p></>:snapshot.review.status!=='assigned'?<><CheckCircle size={54} weight="fill"/><h2>Baholash yuborildi</h2><p>{snapshot.review.kind==='peer'?'Anonim javobga bergan bahoingiz yuborildi. Bu sizning natijangiz emas.':snapshot.review.kind==='self'?'O‘z-o‘zini baholash yuborildi. Yakuniy natija o‘qituvchi natijalarni ochganda ko‘rinadi.':'Baholash yuborildi. Natijalar ochilishi kutilmoqda.'}</p></>:<><span className="live-eyebrow">{snapshot.review.kind==='peer'?'ANONIM JAVOB':snapshot.review.kind==='self'?'O‘Z JAVOBINGIZ':'JAVOB'}</span><h2>Mark scheme asosida tekshiring</h2><blockquote>{snapshot.review.answerText||'Javob yozilmagan'}</blockquote><MarkSchemeView scheme={{...snapshot.markScheme,points:snapshot.review.points}} interactive selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>{snapshot.markScheme.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=snapshot.markScheme?.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setManualScore(level.minMarks)}}><option value="">Bandni tanlang</option>{snapshot.markScheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}{schemeNeedsManualScore(snapshot.markScheme)?<label>Ball<input type="number" min={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={manualScore} onChange={(e)=>setManualScore(Number(e.target.value))}/></label>:null}<label>Qisqa izoh<textarea value={feedback} maxLength={5000} onChange={(e)=>setFeedback(e.target.value)} placeholder="Nima uchun shu ballni berdingiz?"/></label>{error?<p className="live-error" role="alert">{error}</p>:null}<button disabled={busy} onClick={submitReview}>{busy?'Yuborilmoqda…':'Baholashni yuborish'}</button></>}
     </aside></div>
   </div>;
+  if(session.status==='review'&&!snapshot.ownAnswer)return <section className="live-wait"><h2>Joriy savol yakunlangan</h2><p>Siz ushbu savolning baholash bosqichida qo‘shildingiz. Keyingi savol ochilishini kuting.</p></section>;
   if(session.status==='review')return <section className="live-student-result"><ReviewQuestionContext question={snapshot.question}/><span className="live-eyebrow">SAVOL NATIJASI</span><h1>{snapshot.ownAnswer?.score??'—'} <small>/ {snapshot.question?.marks}</small></h1><p>{snapshot.ownAnswer?.feedback||'Mark scheme pointlari asosida baholandi.'}</p><div><h2>Sizning javobingiz</h2><blockquote>{snapshot.ownAnswer?.text||'Javob yozilmagan'}</blockquote></div>{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}<p className="live-wait-note">O‘qituvchi keyingi savolni ochishi kutilmoqda.</p></section>;
-  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
+  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b><div className="live-personal-answer"><strong>Sizning javobingiz</strong><p>{row.answerText||'Javob yozilmagan'}</p>{row.feedback?<small>Izoh: {row.feedback}</small>:null}</div></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
@@ -641,6 +665,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
+    {['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Nusxalash</button><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
     {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
     {session.status==='question_open'&&snapshot.question?<><SessionProgress snapshot={snapshot}/><div className="live-teacher-question"><div><LiveQuestionView question={snapshot.question}/></div><aside><div className="live-timer-card"><span>QOLGAN VAQT</span><strong className={remaining!==null&&remaining<30?'is-urgent':''}>{session.pausedAt?formatClock(session.pauseRemainingS):formatClock(remaining)}</strong></div><div className="live-submit-stat"><strong>{session.submittedCount}</strong><span>/ {session.participantCount} topshirdi</span><progress max={Math.max(1,session.participantCount)} value={session.submittedCount}/></div><ul className="live-submit-list">{snapshot.participants.map((person)=><li key={person.id}><span>{person.fullName}</span><b className={person.submitted?'is-done':''}>{person.submitted?'Topshirdi':'Yozmoqda'}</b></li>)}</ul><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/reveal')}>Javoblarni yopish va MSni ochish</button><small>Topshirmagan javoblar bo‘sh holatda avtomatik yopiladi.</small></aside></div></>:null}
