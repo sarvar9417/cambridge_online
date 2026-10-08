@@ -1,3 +1,4 @@
+import { randomId } from './lib/random-id';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
@@ -679,7 +680,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     try {
       const generated = await api<GeneratorResponse>('/selections/generate', {
         method: 'POST',
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': randomId() },
         body: JSON.stringify({
           name: generatorDialog.name.trim(),
           syllabusCode: '9618',
@@ -899,7 +900,7 @@ function ReviewScreen({ review, selectionName, selectionId, forClass, generatedM
     setExporting(format);
     setExportError('');
     try {
-      const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: `${documentLabel} practice` }) });
+      const exp = await api<ExportItem>('/exports', { method: 'POST', headers: { 'Idempotency-Key': randomId() }, body: JSON.stringify({ kind: 'question_paper', refTable: 'selections', refId: selectionId, format, title: `${documentLabel} practice` }) });
       await api('/jobs/run-once', { method: 'POST', body: JSON.stringify({ exportId: exp.id }) }).catch(() => null);
       let complete: ExportItem | null = null;
       for (let attempt = 0; attempt < 25; attempt++) {

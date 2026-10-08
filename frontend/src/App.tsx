@@ -1,3 +1,4 @@
+import { randomId } from './lib/random-id';
 import { Fragment, FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import {
   api,
@@ -95,7 +96,36 @@ export function App() {
   });
   useStaffExportPolling(user?.role, exports, setExports);
 
+  const clearSessionData = () => {
+    for (const timer of Object.values(saveTimers.current)) window.clearTimeout(timer);
+    saveTimers.current = {};
+    setClasses([]);
+    setAssignments([]);
+    setGrading([]);
+    setResults([]);
+    setAttempt(null);
+    setAttemptIndex(0);
+    setSubmitConfirm(false);
+    setAnswers({});
+    setResultDetail(null);
+    setOpenResultId(null);
+    setMastery([]);
+    setPracticing(null);
+    setCommandWords([]);
+    setFlashcards([]);
+    setGames({ termMatch: [], sequence: [], spotTheGap: [] });
+    setCardRevealed(false);
+    setGenerating(false);
+    setAppeals([]);
+    setExports([]);
+    setAppealDraft({});
+    setGradingClass('');
+    setGradingView('by_question');
+    setBadges({ pendingUsers: 0, reviewQueue: 0, openAppeals: 0 });
+  };
+
   const loadData = async (session: { accessToken: string; user: User }) => {
+    clearSessionData();
     setError('');
     setAccessToken(session.accessToken);
     setUser(session.user);
@@ -127,7 +157,7 @@ export function App() {
 
   const loading = useSessionLifecycle(loadData, () => {
     setUser(null);
-    setAttempt(null);
+    clearSessionData();
     setError('Sessiya muddati tugadi. Qayta kiring.');
   });
 
@@ -196,6 +226,7 @@ export function App() {
     await api("/auth/logout", { method: "POST" });
     setAccessToken(null);
     setUser(null);
+    clearSessionData();
   };
   const downloadOwnData = async () => {
     setError('');
@@ -212,7 +243,7 @@ export function App() {
     }
   };
   const start = async (id: string) => {
-    const requestId = crypto.randomUUID();
+    const requestId = randomId();
     const next = await api<Attempt>(`/assignments/${id}/attempt`, {
       method: "POST",
       headers: { "Idempotency-Key": requestId },
@@ -234,7 +265,7 @@ export function App() {
     setPracticing(item.subtopic_id);setError('');
     try{
       const created=await api<{id:string}>('/assignments/practice',{
-        method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},
+        method:'POST',headers:{'Idempotency-Key':randomId()},
         body:JSON.stringify({subtopicId:item.subtopic_id}),
       });
       await start(created.id);
@@ -381,7 +412,7 @@ export function App() {
     try {
       const created = await api<ExportItem>("/exports", {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": randomId() },
         body: JSON.stringify({ kind, refTable: "assignments", refId: id }),
       });
       setExports((current) => [created, ...current]);

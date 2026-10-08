@@ -1,3 +1,4 @@
+import { randomId } from '../lib/random-id';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowsClockwise, Broadcast, CaretDown, CaretUp, CheckCircle, Copy, Monitor, Trash, UsersThree } from '@phosphor-icons/react';
 import {
@@ -353,7 +354,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
       });
-      const key=createAttempt.current?.body===body?createAttempt.current.key:crypto.randomUUID();
+      const key=createAttempt.current?.body===body?createAttempt.current.key:randomId();
       createAttempt.current={body,key};
       const created=await api<{id:string}>('/live-exams',{method:'POST',headers:{'Idempotency-Key':key},body});
       navigate(`oqitish/live?id=${created.id}`);

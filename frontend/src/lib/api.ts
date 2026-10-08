@@ -1,7 +1,8 @@
 import type { StructuredQuestionContent } from './structured-question-content';
 import type { PortableSourceAsset } from './portable-source-assets';
+import { randomId } from './random-id';
 
-const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
+const API_URL = import.meta.env.DEV ? '/api/v1' : (import.meta.env.VITE_API_URL ?? '/api/v1');
 const LIVE_SNAPSHOT_PATH = /^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/projector)?$/i;
 const LIVE_FULL_REFRESH_MS = 15_000;
 
@@ -10,13 +11,66 @@ type LiveCursor = { currentVersion:number; changed:boolean };
 const liveSnapshotCache = new Map<string, LiveSnapshotCacheEntry>();
 
 let accessToken: string | null = null;
+let sessionGeneration = 0;
 export const setAccessToken = (token: string | null) => {
-  if (token !== accessToken) liveSnapshotCache.clear();
+  if (token !== accessToken) {
+    liveSnapshotCache.clear();
+    sessionGeneration += 1;
+    refreshPromise = null;
+    refreshRequest = null;
+  }
   accessToken = token;
 };
 export const AUTH_EXPIRED_EVENT = 'campath:auth-expired';
+export const SESSION_CHANGED_KEY = 'campath:session-changed';
 let refreshPromise: Promise<string> | null = null;
 let refreshRequest: Promise<Response> | null = null;
+// A successful login/logout intentionally advances the request's generation.
+const responseGenerations = new WeakMap<Response, number>();
+
+function readSessionMarker() {
+  try { return localStorage.getItem(SESSION_CHANGED_KEY); } catch { return null; }
+}
+let sessionMarker = readSessionMarker();
+
+// Only a random change marker is shared. Credentials stay in memory/httpOnly cookies.
+export function synchronizeSession() {
+  const marker = readSessionMarker();
+  if (marker === sessionMarker) return false;
+  sessionMarker = marker;
+  expireSession();
+  return true;
+}
+
+function sessionChangedError() {
+  return new ApiError('Akkaunt o‘zgardi. Qayta kiring.', 'session_changed', undefined, 409);
+}
+
+function assertCurrentSession(generation: number) {
+  synchronizeSession();
+  if (generation !== sessionGeneration) throw sessionChangedError();
+}
+
+function publishSessionChange() {
+  setAccessToken(null);
+  // Invalidate anonymous startup requests too.
+  sessionGeneration += 1;
+  sessionMarker = randomId();
+  try { localStorage.setItem(SESSION_CHANGED_KEY, sessionMarker); }
+  catch { sessionMarker = null; }
+}
+
+async function withSessionLock<T>(action: () => Promise<T>): Promise<T> {
+  // Single-use refresh cookies belong to the browser context, not to one tab.
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request('campath:auth-cookie', action);
+  }
+  return action();
+}
+
+function changesSession(path: string, init: RequestInit) {
+  return init.method?.toUpperCase() === 'POST' && ['/auth/login', '/auth/logout', '/auth/redeem-invite', '/auth/change-password'].includes(path);
+}
 
 export class ApiError extends Error {
   constructor(message: string, readonly code: string, readonly detail?: string, readonly status?: number) {
@@ -30,54 +84,88 @@ async function parseBody(response: Response) {
 }
 
 function expireSession() {
-  accessToken = null;
-  liveSnapshotCache.clear();
+  setAccessToken(null);
+  sessionGeneration += 1;
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 }
 
 async function refreshAccessToken() {
   if (!refreshPromise) {
-    refreshPromise = (async () => {
+    const generation = sessionGeneration;
+    const pending = (async () => {
       const response = await send('/auth/refresh', { method: 'POST' }, null);
       const body = await parseBody(response);
-      if (!response.ok || typeof body?.accessToken !== 'string') throw new Error(body?.error?.message ?? 'Sessiya muddati tugagan.');
+      assertCurrentSession(generation);
+      if (!response.ok || typeof body?.accessToken !== 'string') {
+        throw new ApiError(body?.error?.message ?? 'Sessiyani yangilab bo‘lmadi.', body?.error?.code ?? 'refresh_failed', body?.error?.detail, response.status);
+      }
       accessToken = body.accessToken;
       return body.accessToken;
-    })().finally(() => { refreshPromise = null; });
+    })().finally(() => { if (refreshPromise === pending) refreshPromise = null; });
+    refreshPromise = pending;
   }
   return refreshPromise;
 }
 
 function send(path: string, init: RequestInit, token: string | null) {
+  const generation = sessionGeneration;
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body) headers.set('Content-Type', 'application/json');
   if (path === '/auth/refresh' && init.method?.toUpperCase() === 'POST') {
     // Refresh cookies are single-use. Share the request across startup effects
     // (including StrictMode's replay) and automatic access-token refreshes.
-    refreshRequest ??= fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' })
-      .finally(() => { refreshRequest = null; });
+    if (!refreshRequest) {
+      const pending = withSessionLock(async () => {
+        assertCurrentSession(generation);
+        return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
+      }).finally(() => { if (refreshRequest === pending) refreshRequest = null; });
+      refreshRequest = pending;
+    }
     // Each caller parses its own body; a Response stream can only be read once.
     return refreshRequest.then((response) => response.clone());
+  }
+  if (changesSession(path, init)) {
+    return withSessionLock(async () => {
+      assertCurrentSession(generation);
+      const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
+      assertCurrentSession(generation);
+      if (response.ok) publishSessionChange();
+      responseGenerations.set(response, sessionGeneration);
+      return response;
+    });
   }
   return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' });
 }
 
-async function requestJson<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+async function authenticatedResponse(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<Response> {
+  if (synchronizeSession()) throw sessionChangedError();
+  const generation = sessionGeneration;
   const tokenUsed = accessToken;
   let response = await send(path, init, tokenUsed);
+  assertCurrentSession(responseGenerations.get(response) ?? generation);
   const canRefresh = response.status === 401 && Boolean(tokenUsed) && path !== '/auth/refresh' && path !== '/auth/login';
   if (canRefresh) {
     try {
       if (accessToken === tokenUsed) await refreshAccessToken();
-      response = await send(path, init, accessToken);
     } catch (error) {
-      expireSession();
+      assertCurrentSession(generation);
+      // A network failure or server outage does not invalidate the session.
+      if (error instanceof ApiError && [401, 403, 410].includes(error.status ?? 0) && !options.suppressAuthExpired) expireSession();
       throw error;
     }
+    response = await send(path, init, accessToken);
+    assertCurrentSession(responseGenerations.get(response) ?? generation);
   }
-  const body = await parseBody(response);
   if (response.status === 401 && (canRefresh || path === '/auth/refresh') && !options.suppressAuthExpired) expireSession();
+  return response;
+}
+
+async function requestJson<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
+  const generation = sessionGeneration;
+  const response = await authenticatedResponse(path, init, options);
+  const body = await parseBody(response);
+  if (response.ok) assertCurrentSession(responseGenerations.get(response) ?? generation);
   if (!response.ok) {
     throw new ApiError(body?.error?.message ?? 'So‘rov bajarilmadi.', body?.error?.code ?? 'request_failed', body?.error?.detail, response.status);
   }
@@ -120,7 +208,8 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
     try{
       const cursor=await requestJson<LiveCursor>(`${cursorPath}?afterVersion=${cached.version}&limit=1`,{},options);
       if(!cursor.changed&&cursor.currentVersion===cached.version)return cached.body as T;
-    }catch{
+    }catch(error){
+      if (error instanceof ApiError && error.code === 'session_changed') throw error;
       // During a rolling deployment the cursor route may briefly be absent or
       // unreachable. Fall back to the authoritative snapshot instead of
       // making Live Exam depend on the notification optimisation.
@@ -133,7 +222,17 @@ export async function api<T>(path: string, init: RequestInit = {}, options:{supp
   return body;
 }
 
-export async function apiBlob(path:string){const tokenUsed=accessToken;let response=await send(path,{},tokenUsed);if(response.status===401&&tokenUsed){if(accessToken===tokenUsed)await refreshAccessToken();response=await send(path,{},accessToken)}if(!response.ok){const body=await parseBody(response);throw new Error(body?.error?.message??'Fayl yuklanmadi.')}return response.blob()}
+export async function apiBlob(path: string) {
+  const generation = sessionGeneration;
+  const response = await authenticatedResponse(path);
+  if (!response.ok) {
+    const body = await parseBody(response);
+    throw new ApiError(body?.error?.message ?? 'Fayl yuklanmadi.', body?.error?.code ?? 'request_failed', body?.error?.detail, response.status);
+  }
+  const blob = await response.blob();
+  assertCurrentSession(generation);
+  return blob;
+}
 
 export interface User { id: string; fullName: string; role: 'owner'|'teacher'|'student'; schoolId: string|null }
 export interface ClassItem { id:string; name:string; grade:number|null; level:'AS'|'A2'; academicYear:string; studentCount:number }

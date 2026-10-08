@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, setAccessToken } from './api';
+import { api, apiBlob, setAccessToken } from './api';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), {
   status,
@@ -12,6 +12,68 @@ afterEach(() => {
 });
 
 describe('API access token refresh', () => {
+  for (const [name, request] of [
+    ['JSON', () => api('/classes')],
+    ['download', () => apiBlob('/exports/example/file')],
+  ] as const) {
+    it.each(['network', 'server', 'retry-network'])(`${name} retains its session after a temporary %s failure`, async (failure) => {
+      const browserWindow = new EventTarget();
+      const expired = vi.fn();
+      browserWindow.addEventListener('campath:auth-expired', expired);
+      vi.stubGlobal('window', browserWindow);
+      const fetchMock = vi.fn().mockResolvedValueOnce(json(401, {}));
+      if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      else if (failure === 'server') fetchMock.mockResolvedValueOnce(json(503, { error: { message: 'Unavailable' } }));
+      else fetchMock.mockResolvedValueOnce(json(200, { accessToken: 'new-token' })).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      fetchMock.mockResolvedValue(json(200, { data: [] }));
+      vi.stubGlobal('fetch', fetchMock);
+      setAccessToken('old-token');
+
+      await expect(request()).rejects.toThrow();
+      expect(expired).not.toHaveBeenCalled();
+      await request();
+      const headers = fetchMock.mock.calls.at(-1)![1].headers as Headers;
+      expect(headers.get('Authorization')).toBe(`Bearer ${failure === 'retry-network' ? 'new-token' : 'old-token'}`);
+    });
+
+    it.each([401, 403, 410])(`${name} clears the session when refresh definitively fails with %s`, async (status) => {
+      const browserWindow = new EventTarget();
+      const expired = vi.fn();
+      browserWindow.addEventListener('campath:auth-expired', expired);
+      vi.stubGlobal('window', browserWindow);
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(json(401, {}))
+        .mockResolvedValueOnce(json(status, { error: { message: 'Session rejected' } }))
+        .mockResolvedValueOnce(json(200, {}));
+      vi.stubGlobal('fetch', fetchMock);
+      setAccessToken('old-token');
+
+      await expect(request()).rejects.toThrow('Session rejected');
+      expect(expired).toHaveBeenCalledOnce();
+      await request();
+      expect((fetchMock.mock.calls.at(-1)![1].headers as Headers).has('Authorization')).toBe(false);
+    });
+
+    it(`${name} clears the session when the refreshed token is also rejected`, async () => {
+      const browserWindow = new EventTarget();
+      const expired = vi.fn();
+      browserWindow.addEventListener('campath:auth-expired', expired);
+      vi.stubGlobal('window', browserWindow);
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(json(401, {}))
+        .mockResolvedValueOnce(json(200, { accessToken: 'new-token' }))
+        .mockResolvedValueOnce(json(401, { error: { message: 'Access rejected' } }))
+        .mockResolvedValueOnce(json(200, {}));
+      vi.stubGlobal('fetch', fetchMock);
+      setAccessToken('old-token');
+
+      await expect(request()).rejects.toThrow('Access rejected');
+      expect(expired).toHaveBeenCalledOnce();
+      await request();
+      expect((fetchMock.mock.calls.at(-1)![1].headers as Headers).has('Authorization')).toBe(false);
+    });
+  }
+
   it('shares one refresh when startup effects request the same session concurrently', async () => {
     const session = { accessToken: 'restored-token', user: { id: 'student' } };
     const fetchMock = vi.fn(async () => {
@@ -61,6 +123,79 @@ describe('API access token refresh', () => {
     const headers = fetchMock.mock.calls[0]![1]!.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer access-token');
     expect(fetchMock.mock.calls[0]![1]!.credentials).toBe('include');
+  });
+
+  it.each([200, 401])('does not reuse a previous account response (%s) after an account switch', async (status) => {
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }))
+      .mockResolvedValue(json(200, { data: ['new-account'] }));
+    vi.stubGlobal('fetch', fetchMock);
+    setAccessToken('previous-account');
+    const previous = api('/classes');
+    const rejected = expect(previous).rejects.toMatchObject({ code: 'session_changed' });
+    setAccessToken('current-account');
+    release(json(status, { data: ['previous-account'] }));
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await expect(api('/classes')).resolves.toEqual({ data: ['new-account'] });
+    expect((fetchMock.mock.calls.at(-1)![1].headers as Headers).get('Authorization')).toBe('Bearer current-account');
+  });
+
+  it.each([200, 401, 410])('an old pending refresh (%s) cannot overwrite or expire a new account', async (status) => {
+    const browserWindow = new EventTarget();
+    const expired = vi.fn();
+    browserWindow.addEventListener('campath:auth-expired', expired);
+    vi.stubGlobal('window', browserWindow);
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json(401, {}))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }))
+      .mockResolvedValue(json(200, { data: ['current-account'] }));
+    vi.stubGlobal('fetch', fetchMock);
+    setAccessToken('previous-account');
+    const previous = api('/classes');
+    const rejected = expect(previous).rejects.toMatchObject({ code: 'session_changed' });
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    setAccessToken('current-account');
+    release(json(status, { accessToken: 'previous-refreshed-token', error: { message: 'Previous session ended' } }));
+    await rejected;
+    expect(expired).not.toHaveBeenCalled();
+    await api('/classes');
+    expect((fetchMock.mock.calls.at(-1)![1].headers as Headers).get('Authorization')).toBe('Bearer current-account');
+  });
+
+  it('waits for another tab to release the cookie lock before sending a refresh', async () => {
+    let unlock!: () => void;
+    const heldLock = new Promise<void>(resolve => { unlock = resolve; });
+    vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<Response>) => {
+      await heldLock;
+      return action();
+    } } });
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { accessToken: 'restored-token' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const pending = api('/auth/refresh', { method: 'POST' });
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+    unlock();
+    await expect(pending).resolves.toEqual({ accessToken: 'restored-token' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('discards a login response whose body arrives after another account has signed in', async () => {
+    let release!: (body: unknown) => void;
+    const response = json(200, {});
+    vi.spyOn(response, 'json').mockImplementation(() => new Promise(resolve => { release = resolve; }));
+    const fetchMock = vi.fn().mockResolvedValueOnce(response).mockResolvedValue(json(200, { data: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+    const login = api('/auth/login', { method: 'POST' });
+    const rejected = expect(login).rejects.toMatchObject({ code: 'session_changed' });
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    setAccessToken('new-account');
+    release({ accessToken: 'old-account' });
+    await rejected;
+    await api('/classes');
+    expect((fetchMock.mock.calls.at(-1)![1].headers as Headers).get('Authorization')).toBe('Bearer new-account');
   });
 
   it('refreshes once and retries a 401 request with the new token', async () => {

@@ -237,7 +237,10 @@ export class AuthService {
         session.refreshToken,
         session.refreshExpiresAt,
       );
-    } catch {
+    } catch (error) {
+      // A failed transaction is not evidence of token replay. The repository
+      // rolls it back so the existing session can retry after recovery.
+      if (!(error instanceof Error) || error.message !== 'refresh_already_used') throw error;
       await this.repository.revokeAllSessions(record.userId);
       throw new AuthError('refresh_reused', 410);
     }

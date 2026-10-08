@@ -2,7 +2,7 @@ import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
-import { AUTH_EXPIRED_EVENT, setAccessToken } from './lib/api';
+import { AUTH_EXPIRED_EVENT, SESSION_CHANGED_KEY, setAccessToken, synchronizeSession } from './lib/api';
 
 const session = {
   accessToken: 'valid-access-token',
@@ -24,6 +24,7 @@ describe('App session restoration', () => {
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     localStorage.clear();
+    synchronizeSession();
     window.history.replaceState(null, '', '/#oquvchi/uy');
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -91,6 +92,24 @@ describe('App session restoration', () => {
 
     expect(container.querySelector('.shell')).not.toBeNull();
     expect(container.textContent).not.toContain('Sessiya muddati tugadi. Qayta kiring.');
+  });
+
+  it('clears the mounted account when another tab changes the shared session', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return url.endsWith('/auth/refresh') ? json(200, session) : dataResponse(url);
+    }));
+    await act(async () => root.render(<App />));
+    await act(async () => { await flush(); });
+    expect(container.querySelector('.shell')).not.toBeNull();
+
+    await act(async () => {
+      localStorage.setItem(SESSION_CHANGED_KEY, 'another-tab-session');
+      window.dispatchEvent(new StorageEvent('storage', { key: SESSION_CHANGED_KEY, newValue: 'another-tab-session' }));
+    });
+    expect(container.querySelector('.shell')).toBeNull();
+    expect(container.querySelector('.auth')).not.toBeNull();
+    expect(container.textContent).not.toContain('Session Test');
   });
 
   it.each(['teacher', 'student'] as const)('redirects a %s away from a direct administrator URL without mounting its requests', async (role) => {

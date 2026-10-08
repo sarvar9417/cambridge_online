@@ -74,7 +74,9 @@ export function createAuthRouter(auth: AuthService) {
       setRefreshCookie(res, session);
       res.json({ accessToken: session.accessToken, user: session.user });
     } catch (error) {
-      res.clearCookie(COOKIE, { path: '/api/v1/auth' });
+      if (error instanceof AuthError && [401, 403, 410].includes(error.status)) {
+        res.clearCookie(COOKIE, { path: '/api/v1/auth' });
+      }
       sendAuthError(res, error);
     }
   });

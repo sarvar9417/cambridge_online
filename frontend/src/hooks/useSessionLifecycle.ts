@@ -3,6 +3,8 @@ import {
   api,
   AUTH_EXPIRED_EVENT,
   setAccessToken,
+  SESSION_CHANGED_KEY,
+  synchronizeSession,
   type User,
 } from '../lib/api';
 
@@ -39,6 +41,14 @@ export function useSessionLifecycle(
     () => installAuthExpiryListener(window, () => onExpiredRef.current()),
     [],
   );
+
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === SESSION_CHANGED_KEY || event.key === null) synchronizeSession();
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
 
   useEffect(() => {
     let active = true;

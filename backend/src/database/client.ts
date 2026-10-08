@@ -44,3 +44,9 @@ export const pool = connectionString
       allowExitOnIdle: true,
     })
   : null;
+
+// pg removes a failed idle client itself. Listen so its background error cannot
+// terminate the API process; never log the client object (it contains credentials).
+pool?.on('error', (error: NodeJS.ErrnoException) => {
+  console.error('Idle database connection failed', { message: error.message, code: error.code });
+});

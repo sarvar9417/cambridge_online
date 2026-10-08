@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import request from 'supertest';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from './app.js';
 import { MemoryAuthRepository } from './repositories/auth-repository.memory.js';
 import type { ClassesRepository } from './repositories/classes-repository.js';
@@ -97,6 +97,31 @@ describe('authentication flow', () => {
     expect(refresh.status).toBe(401);
     expect(refresh.body.error.code).toBe('invalid_refresh');
     expect(repository.revokedAll).toBe(0);
+  });
+
+  it.each(['findRefreshToken', 'rotateRefreshToken'] as const)('keeps the refresh cookie and sessions after a temporary %s failure', async (method) => {
+    const login = await request(app).post('/api/v1/auth/login').send({ identifier: 'sarvar', password: 'secure-password' });
+    const cookie = cookieValue(login.headers['set-cookie']);
+    vi.spyOn(repository, method).mockRejectedValueOnce(new Error('Temporary database outage'));
+
+    const unavailable = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);
+    expect(unavailable.status).toBe(500);
+    expect(unavailable.headers['set-cookie']).toBeUndefined();
+    expect(repository.revokedAll).toBe(0);
+
+    const retry = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);
+    expect(retry.status).toBe(200);
+    expect(cookieValue(retry.headers['set-cookie'])).not.toBe(cookie);
+  });
+
+  it('still revokes sessions when rotation detects a concurrent replay', async () => {
+    const login = await request(app).post('/api/v1/auth/login').send({ identifier: 'sarvar', password: 'secure-password' });
+    vi.spyOn(repository, 'rotateRefreshToken').mockRejectedValueOnce(new Error('refresh_already_used'));
+    const response = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookieValue(login.headers['set-cookie']));
+    expect(response.status).toBe(410);
+    expect(response.body.error.code).toBe('refresh_reused');
+    expect(repository.revokedAll).toBe(1);
+    expect(cookieValue(response.headers['set-cookie'])).toBe('campath_refresh=');
   });
 
   it('rejects role elevation in the strict profile DTO',async()=>{
