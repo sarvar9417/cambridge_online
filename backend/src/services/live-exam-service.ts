@@ -359,7 +359,7 @@ export class LiveExamService {
        limit ${values.length}`,
       values,
     );
-    const total = Number(result.rows[0]?.total_count ?? 0);
+    const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
     const selected = result.rows.map((row) => String(row.id));
     if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
