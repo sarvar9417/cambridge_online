@@ -7,7 +7,13 @@ import puppeteer from 'puppeteer-core';
 // evidence. Each role receives a separate cookie/storage context.
 export async function createBrowserQA({ baseUrl = 'http://localhost:5173', executablePath = process.env.CHROME_EXECUTABLE_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', outputDir = `output/qa-${new Date().toISOString().slice(0, 10)}` } = {}) {
   mkdirSync(outputDir, { recursive: true });
-  const browser = await puppeteer.launch({ executablePath, headless: true, defaultViewport: { width: 1440, height: 1000 }, args: ['--disable-gpu'] });
+  const browser = await puppeteer.launch({
+    executablePath,
+    headless: true,
+    defaultViewport: { width: 1440, height: 1000 },
+    protocolTimeout: 120_000,
+    args: ['--disable-gpu'],
+  });
   const report = { startedAt: new Date().toISOString(), baseUrl, checks: [], pageErrors: [], httpErrors: [], fixtures: [] };
   const save = () => writeFileSync(path.join(outputDir, 'browser-report.json'), JSON.stringify(report, null, 2));
   async function check(name, passed, details) {
@@ -60,13 +66,26 @@ export async function createBrowserQA({ baseUrl = 'http://localhost:5173', execu
     await page.waitForFunction(route => location.hash === '#' + route, {}, route);
   }
   async function screenshot(page, name) {
+    await page.bringToFront();
     await page.evaluate(async () => {
       await document.fonts.ready;
       const transitions = document.getAnimations().filter(animation =>
         Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
       await Promise.allSettled(transitions.map(animation => animation.finished));
     });
-    await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage: false });
+    try {
+      await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage: false });
+    } catch (error) {
+      // Screenshots are diagnostic artifacts. A transient Chrome capture timeout
+      // must not turn a functionally passing multi-actor E2E into a false failure.
+      report.fixtures.push({
+        type: 'screenshot-warning',
+        name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      save();
+      console.warn(`WARN screenshot ${name} was not captured: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   async function enableDownloads(context) {
     const downloadPath = path.resolve(outputDir, 'downloads');
