@@ -6,7 +6,11 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
-import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import {
+  LIVE_VISUAL_READINESS_VERSION,
+  portableQuestionVisualReady,
+  questionVisualIntegritySql,
+} from '../lib/source-visual-readiness.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -286,6 +290,7 @@ export class LiveExamService {
     const visualReadinessFilter = `case
       when coalesce((
         select not state.dirty
+          and state.algorithm_version='${LIVE_VISUAL_READINESS_VERSION}'
         from live_question_visual_readiness_state state
         where state.singleton=true
       ),false)
