@@ -86,6 +86,8 @@ describe('LiveExamService source fidelity', () => {
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).toContain('live_question_visual_readiness_state');
+    expect(selectionSql).toContain('from live_question_visual_readiness cached_visual');
     expect(selectionSql).toContain('with recursive source_visual_chain');
     expect(selectionSql).toContain("coalesce(qa.svg_markup,'')");
     expect(selectionSql).toContain("qa.kind in ('diagram','image')");
@@ -102,6 +104,7 @@ describe('LiveExamService source fidelity', () => {
     await expect(service.create(actor,{ ...input,excludeSeen:true })).rejects.toMatchObject({ code:'live_question_pool_small' });
     const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
     const selectionSql = selectionCall?.[0];
+    expect(selectionSql).toContain('not cached_visual.has_visual');
     expect(selectionSql).toContain('with recursive ancestry');
     expect(selectionSql).toContain('join question_assets qa on qa.question_id=ancestry.id');
     expect(selectionSql).toContain('from question_learning_objectives qlo');
