@@ -145,6 +145,10 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(questionReadiness).toContain('mark_live_question_readiness_stale_v1');
     expect(questionReadiness).toContain('FOR EACH STATEMENT');
     expect(questionReadiness).toContain('refresh_live_question_readiness_v1');
+    expect(service).toContain('from live_question_readiness_state state');
+    expect(service).toContain('state.cache_revision=state.corpus_revision');
+    expect(service).toContain('join live_question_readiness readiness');
+    expect(service).toContain('not ${readinessCacheFresh}');
   });
 
   it('treats a Live question as seen only after the round actually opens it',()=>{
