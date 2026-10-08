@@ -65,6 +65,20 @@ await client.connect();
 try{
   await client.query('create table if not exists schema_migrations(name text primary key,applied_at timestamptz not null default now())');
   for(const name of selected){
+    // The production database has these compatibility columns from historical
+    // migrations that the compact Live E2E schema intentionally omits. 0207
+    // reads svg_markup while building visual readiness, so mirror the runtime
+    // shape immediately before that migration.
+    if(name==='0207_live_question_readiness_cache.sql'){
+      await client.query(`
+        alter table public.questions
+          add column if not exists stem_latex text,
+          add column if not exists context_latex text,
+          add column if not exists body_format text not null default 'markdown';
+        alter table public.question_assets
+          add column if not exists svg_markup text;
+      `);
+    }
     const exists=await client.query('select 1 from schema_migrations where name=$1',[name]);
     if(exists.rowCount)continue;
     const sql=await readFile(join(migrationsDir,name),'utf8');
