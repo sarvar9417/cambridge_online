@@ -84,8 +84,9 @@ describe('LiveExamService source fidelity', () => {
     await expect(service.create(actor,input)).rejects.toMatchObject({ code:'live_question_pool_small' });
     const selectionCall = query.mock.calls.find(([sql])=>String(sql).includes('select distinct q.id'));
     const selectionSql = selectionCall?.[0];
-    expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
-    expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(selectionSql).toContain('with matching_questions as materialized');
+    expect(selectionSql).toContain('join lateral public.canonical_mark_scheme_for_question_v1(q.id) ms on true');
+    expect(selectionSql).not.toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).toContain('with recursive source_visual_chain');
     expect(selectionSql).toContain("coalesce(qa.svg_markup,'')");
     expect(selectionSql).toContain("qa.kind in ('diagram','image')");
@@ -130,7 +131,7 @@ describe('LiveExamService source fidelity', () => {
       if (sql.includes('with recursive closure(question_id)')) return { rowCount:1,rows:[{
         question_id:'q1',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[],
       }] };
-      if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
+      if (sql.includes('canonical_mark_scheme_for_question_v1')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
       throw new Error(`unexpected query: ${sql}`);
     });
     const questions = { portable:vi.fn().mockResolvedValue({
@@ -142,7 +143,7 @@ describe('LiveExamService source fidelity', () => {
     }) } as unknown as PgQuestionsRepository;
     const service = new LiveExamService({ query } as unknown as Pool, questions);
     await expect(service.create(actor,{ ...input,includeDiagrams:true })).rejects.toMatchObject({ code:'live_assets_unavailable' });
-    const schemeCall = query.mock.calls.find(([sql])=>String(sql).includes('from canonical_mark_schemes ms'));
+    const schemeCall = query.mock.calls.find(([sql])=>String(sql).includes('canonical_mark_scheme_for_question_v1'));
     expect(schemeCall).toBeTruthy();
   });
 });
