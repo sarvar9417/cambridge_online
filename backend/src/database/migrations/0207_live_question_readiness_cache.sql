@@ -342,6 +342,15 @@ BEGIN
   INSERT INTO public.live_question_readiness
   SELECT * FROM _live_question_readiness_v1;
 
+  WITH dependency_gate AS (
+    SELECT
+      r.question_id,
+      r.target_syllabus_id,
+      public.live_question_dependency_ready_v1(
+        r.question_id,r.target_syllabus_id
+      ) ready
+    FROM public.live_question_readiness r
+  )
   UPDATE public.live_question_readiness r
   SET dependency_ready=dep.ready,
       live_ready=r.base_ready AND dep.ready,
@@ -349,11 +358,9 @@ BEGIN
         WHEN dep.ready THEN r.blocker_codes
         ELSE array_append(r.blocker_codes,'required_dependency_not_ready')
       END
-  FROM LATERAL (
-    SELECT public.live_question_dependency_ready_v1(
-      r.question_id,r.target_syllabus_id
-    ) ready
-  ) dep;
+  FROM dependency_gate dep
+  WHERE dep.question_id=r.question_id
+    AND dep.target_syllabus_id=r.target_syllabus_id;
 
   SELECT count(*)::int
     INTO ready_rows
