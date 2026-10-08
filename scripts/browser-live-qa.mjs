@@ -53,6 +53,11 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   await Promise.all([teacher, ...students].map(s => qa.waitText(s.page, 'SESSIYA YAKUNLANDI')));
   const final = await snapshot(teacher.page, id);
   const learnerReports = await Promise.all(students.map(s => snapshot(s.page, id)));
+  await qa.check(`Live ${mode}: student report includes only personal answers and scores`,
+    learnerReports.every(s=>s.report.rows.length===1
+      && typeof s.report.rows[0].answerText==='string'
+      && s.report.rows[0].answerText.length>0
+      && typeof s.report.rows[0].score==='number'));
   await qa.check(`Live ${mode}: final class total equals learner totals`,
     final.report.earned === learnerReports.reduce((sum, s) => sum + s.report.earned, 0)
       && final.report.possible === learnerReports.reduce((sum, s) => sum + s.report.possible, 0));
