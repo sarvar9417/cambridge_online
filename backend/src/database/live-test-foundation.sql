@@ -76,6 +76,15 @@ CREATE TABLE questions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE question_assets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  question_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
+  kind text NOT NULL DEFAULT 'image',
+  storage_path text,
+  content_md text,
+  svg_markup text
+);
+
 CREATE TABLE question_learning_objectives (
   question_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
   lo_id uuid NOT NULL REFERENCES learning_objectives ON DELETE CASCADE,
