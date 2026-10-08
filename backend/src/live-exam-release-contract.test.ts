@@ -17,6 +17,7 @@ const integrityHardening=source('src/database/migrations/0191_live_challenge_int
 const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join_code_lifecycle.sql');
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
+const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -134,6 +135,16 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('session_version bigint NOT NULL');
     expect(schema).toContain('live_exam_events_session_version_idx');
     expect(service).toContain('set version=version+1,updated_at=now()');
+  });
+
+  it('keeps expensive Live readiness checks behind a revision-guarded cache',()=>{
+    expect(questionReadiness).toContain('CREATE TABLE public.live_question_readiness');
+    expect(questionReadiness).toContain('CREATE TABLE public.live_question_readiness_state');
+    expect(questionReadiness).toContain('cache_revision=corpus_revision');
+    expect(questionReadiness).toContain('required_dependency_not_ready');
+    expect(questionReadiness).toContain('mark_live_question_readiness_stale_v1');
+    expect(questionReadiness).toContain('FOR EACH STATEMENT');
+    expect(questionReadiness).toContain('refresh_live_question_readiness_v1');
   });
 
   it('treats a Live question as seen only after the round actually opens it',()=>{
