@@ -33,6 +33,8 @@ type FilterOptions = {
   }>;
 };
 type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
+type EligibleQuestionCounts = {database:number;liveReady:number;available:number};
+type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:EligibleQuestionCounts};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[] };
 const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0]);
@@ -264,6 +266,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
   const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
+  const [eligibleCounts,setEligibleCounts]=useState<EligibleQuestionCounts|null>(null);
   const [eligibleLoading,setEligibleLoading]=useState(false);
   const [questionCount,setQuestionCount]=useState(5);
   const createAttempt=useRef<{body:string;key:string}|null>(null);
@@ -300,16 +303,18 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
 
   useEffect(()=>{
     if(!selectedClassId||(!topicIds.length&&!subtopicIds.length)){
-      setEligibleTotal(null);setEligibleLoading(false);return;
+      setEligibleTotal(null);setEligibleCounts(null);setEligibleLoading(false);return;
     }
     let cancelled=false;
     setEligibleLoading(true);
     setEligibleTotal(null);
+    setEligibleCounts(null);
     const timer=window.setTimeout(()=>{
-      void api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(1)}`)
+      void api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1)}`)
         .then((result)=>{
           if(cancelled)return;
           setEligibleTotal(result.total);
+          setEligibleCounts(result.counts??{database:result.total,liveReady:result.total,available:result.total});
           setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total):1);
         })
         .catch((cause)=>{if(!cancelled)setError(message(cause,'Mos savollar soni aniqlanmadi.'))})
@@ -323,12 +328,14 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       let total=eligibleTotal;
       if(total===null){
-        const summary=await api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(1)}`);
+        const summary=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1)}`);
         total=summary.total;setEligibleTotal(total);
+        setEligibleCounts(summary.counts??{database:summary.total,liveReady:summary.total,available:summary.total});
       }
       if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);return}
-      const result=await api<{data:EligibleQuestion[];total:number}>(`/live-exams/eligible-questions?${eligibleParams(total)}`);
+      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(total)}`);
       setEligibleTotal(result.total);
+      setEligibleCounts(result.counts??{database:result.total,liveReady:result.total,available:result.total});
       setQuestionPool(result.data);
       setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
@@ -382,7 +389,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder="Chapter 14 revision"/></label>
         <div className="live-topic-grid"><fieldset><legend>Topic</legend>{topics.map((topic)=><label key={topic.topic_id}><input type="checkbox" checked={topicIds.includes(topic.topic_id)} onChange={()=>{toggle(topic.topic_id,topicIds,setTopicIds);setSubtopicIds((current)=>current.filter((id)=>syllabusTopics.some((row)=>row.subtopic_id===id&&row.topic_id!==topic.topic_id)));clearManualPool()}}/><span>{topic.topic_number}. {topic.topic_title}</span></label>)}</fieldset>
           <fieldset><legend>Subtopic</legend>{visibleSubtopics.map((subtopic)=><label key={subtopic.subtopic_id}><input type="checkbox" checked={subtopicIds.includes(subtopic.subtopic_id)} onChange={()=>{toggle(subtopic.subtopic_id,subtopicIds,setSubtopicIds);clearManualPool()}}/><span>{subtopic.code} {subtopic.subtopic_title}</span></label>)}</fieldset></div>
-        <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleTotal!==null?`Tanlangan filtrlarda ${eligibleTotal} ta eligible savol mavjud`:'Topic yoki Subtopic tanlang'}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'shuffled')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
+        <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleCounts?`Jami bazada: ${eligibleCounts.database} · Live-ready: ${eligibleCounts.liveReady} · Hozir tanlash mumkin: ${eligibleCounts.available}`:eligibleTotal!==null?`Hozir tanlash mumkin: ${eligibleTotal}`:'Topic yoki Subtopic tanlang'}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'shuffled')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
           {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||!selectedClassId||(!topicIds.length&&!subtopicIds.length)} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length}/{eligibleTotal??questionPool.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
         </section>
       </section>
