@@ -186,6 +186,23 @@ export function sourceVisualBlockerSql(questionAlias='source_node'){
   )`;
 }
 
+export function questionHasVisualSql(questionAlias='q'){
+  const q=identifier(questionAlias);
+  return `exists(
+    with recursive source_visual_chain as (
+      select ${q}.id,${q}.parent_id
+      union all
+      select parent.id,parent.parent_id
+      from source_visual_chain child
+      join questions parent on parent.id=child.parent_id
+    )
+    select 1
+    from source_visual_chain svc
+    join question_assets qa on qa.question_id=svc.id
+    where qa.kind in ('diagram','image')
+  )`;
+}
+
 /**
  * Candidate-level integrity guard. It walks the question ancestry because
  * Cambridge subparts routinely depend on a diagram/table owned by a parent.
