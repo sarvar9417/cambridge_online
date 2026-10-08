@@ -187,34 +187,36 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (pool) await pool.end();
   });
 
-  it('lets an active same-school student join by code without class enrolment and blocks another school', async () => {
+  it('lets authenticated students join by valid code without checking class or school membership', async () => {
     const {sessionId}=await makeSession({
       code:'829901',
       settings:{allowLateJoin:true},
     });
 
-    const guestEnrollment=await client.query(
-      'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
-      [classId,sameSchoolGuestId],
-    );
-    expect(guestEnrollment.rowCount).toBe(0);
+    for (const guest of [
+      {actor:sameSchoolGuest(),id:sameSchoolGuestId},
+      {actor:otherSchoolStudent(),id:otherSchoolStudentId},
+    ]) {
+      const before=await client.query(
+        'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
+        [classId,guest.id],
+      );
+      expect(before.rowCount).toBe(0);
 
-    await expect(service.join(sameSchoolGuest(),'829901')).resolves.toMatchObject({sessionId});
+      await expect(service.join(guest.actor,'829901')).resolves.toMatchObject({sessionId});
 
-    const participant=await client.query(
-      'select 1 from live_exam_participants where session_id=$1 and student_id=$2 and left_at is null',
-      [sessionId,sameSchoolGuestId],
-    );
-    expect(participant.rowCount).toBe(1);
+      const participant=await client.query(
+        'select 1 from live_exam_participants where session_id=$1 and student_id=$2 and left_at is null',
+        [sessionId,guest.id],
+      );
+      expect(participant.rowCount).toBe(1);
 
-    const stillNotEnrolled=await client.query(
-      'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
-      [classId,sameSchoolGuestId],
-    );
-    expect(stillNotEnrolled.rowCount).toBe(0);
-
-    await expect(service.join(otherSchoolStudent(),'829901'))
-      .rejects.toMatchObject({code:'live_code_not_found',status:404});
+      const after=await client.query(
+        'select 1 from enrollments where class_id=$1 and student_id=$2 and left_at is null',
+        [classId,guest.id],
+      );
+      expect(after.rowCount).toBe(0);
+    }
   });
 
   it('keeps peer marks provisional until the teacher releases the round', async () => {
