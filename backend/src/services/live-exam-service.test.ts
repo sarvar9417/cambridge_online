@@ -146,6 +146,42 @@ describe('LiveExamService source fidelity', () => {
 });
 
 
+describe('LiveExamService eligible pool totals', () => {
+  it('reports the whole eligible pool while hydrating only the requested preview rows', async () => {
+    const actor={id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
+    const classId='00000000-0000-4000-8000-000000000001';
+    const query=vi.fn(async (sql:string) => {
+      if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
+      if(sql.includes('select distinct q.id'))return{rowCount:1,rows:[{id:'q1',total_count:137}]};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const questions={portable:vi.fn().mockResolvedValue({
+      leaf:{id:'q1',marks:2,commandWord:'State',stem:'State one fact.'},
+      sourceRef:'9618/11/M/J/26 Q1(a)',
+      contextBlocks:[],
+      dependencies:[],
+    })} as unknown as PgQuestionsRepository;
+    const service=new LiveExamService({query} as unknown as Pool,questions);
+    await expect(service.eligibleQuestions(actor,{
+      classId,
+      topicIds:['00000000-0000-4000-8000-000000000002'],
+      subtopicIds:[],
+      includeDiagrams:true,
+      excludeSeen:false,
+      limit:1,
+      allowLateJoin:false,
+      autoCloseWhenAllSubmitted:false,
+      teacherOverrideEnabled:true,
+      leaderboardMode:'marks',
+      questionOrder:'fixed',
+    })).resolves.toMatchObject({
+      total:137,
+      data:[{id:'q1',displayRef:'9618/11/M/J/26 Q1(a)'}],
+    });
+    expect(questions.portable).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('LiveExamService dependency closure', () => {
   it('orders every required prerequisite before the selected dependent question', async () => {
     const query = vi.fn(async (sql:string) => {
@@ -168,6 +204,21 @@ describe('LiveExamService dependency closure', () => {
       expandRequiredDependencies(ids:string[]):Promise<string[]>
     }).expandRequiredDependencies(['q-dependent']);
     expect(expanded).toEqual(['q-prerequisite','q-dependent']);
+  });
+
+  it('does not impose the old 60-question dependency bundle ceiling', async () => {
+    const rows=Array.from({length:75},(_,index)=>({
+      question_id:`q-${index}`,status:'approved',marks:1,mark_scheme_ready:true,dependencies:[],
+    }));
+    const query=vi.fn(async (sql:string)=>{
+      if(sql.includes('with recursive closure(question_id)'))return{rowCount:rows.length,rows};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    const ids=rows.map((row)=>row.question_id);
+    await expect((service as unknown as {
+      expandRequiredDependencies(ids:string[]):Promise<string[]>
+    }).expandRequiredDependencies(ids)).resolves.toHaveLength(75);
   });
 
   it('fails closed when a required dependency cycle exists', async () => {
