@@ -594,7 +594,11 @@ export class LiveExamService {
       const room = await client.query(
         `select les.*
          from live_exam_sessions les
-         join enrollments e on e.class_id=les.class_id and e.student_id=$2 and e.left_at is null
+         join classes c on c.id=les.class_id and c.archived_at is null
+         join users student_user
+           on student_user.id=$2
+          and student_user.role='student'
+          and student_user.school_id=c.school_id
          where les.join_code=$1
            and les.archived_at is null
            and coalesce(
