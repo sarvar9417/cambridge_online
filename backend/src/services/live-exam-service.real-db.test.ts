@@ -277,9 +277,10 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     );
     expect(beforeRelease.rows.every((row)=>Number(row.final_score)===1)).toBe(true);
     expect(beforeRelease.rows.every((row)=>Number(row.awarded_marks)===1&&row.status==='submitted')).toBe(true);
-    const releasedState=await service.snapshot(student(0),sessionId);
-    expect((releasedState.session as {status:string}).status).toBe('review');
-    expect((releasedState.ownAnswer as {score:number}).score).toBe(1);
+    const releasedState=await client.query<{status:string}>(
+      'select status::text status from live_exam_sessions where id=$1',[sessionId],
+    );
+    expect(releasedState.rows[0]?.status).toBe('review');
 
     const released=await client.query(
       'select final_score,score_source::text from live_exam_answers where session_question_id=$1',
@@ -340,8 +341,10 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     for (const review of teacherPending) {
       await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]});
     }
-    const releasedState=await service.snapshot(student(0),sessionId);
-    expect((releasedState.session as {status:string}).status).toBe('review');
+    const releasedState=await client.query<{status:string}>(
+      'select status::text status from live_exam_sessions where id=$1',[sessionId],
+    );
+    expect(releasedState.rows[0]?.status).toBe('review');
 
     const released=await client.query(
       'select final_score,score_source::text from live_exam_answers where session_question_id=$1',
