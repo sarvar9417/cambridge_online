@@ -120,32 +120,12 @@ JOIN public.live_exam_sessions les ON les.id=e.session_id
 JOIN public.live_exam_questions leq
   ON leq.session_id=les.id
  AND leq.position=CASE
-   WHEN coalesce(e.payload->>'position','') ~ '^[0-9]+
-GROUP BY les.class_id,leq.question_id,leq.id
-ON CONFLICT (live_session_question_id) DO UPDATE
-  SET exposed_at=least(
-    public.class_question_exposures.exposed_at,
-    excluded.exposed_at
-  );
-
-COMMENT ON TABLE public.class_question_exposures IS
-  'Server-only question exposure ledger. Live rows are created only when question.opened is committed, so preloaded but unopened Live questions remain reusable.';
-
+   WHEN coalesce(e.payload->>'position','') ~ '^[0-9]+$'
      THEN (e.payload->>'position')::int
    ELSE NULL
  END
 WHERE e.event_type='question.opened'
-  AND coalesce(e.payload->>'position','') ~ '^[0-9]+
-GROUP BY les.class_id,leq.question_id,leq.id
-ON CONFLICT (live_session_question_id) DO UPDATE
-  SET exposed_at=least(
-    public.class_question_exposures.exposed_at,
-    excluded.exposed_at
-  );
-
-COMMENT ON TABLE public.class_question_exposures IS
-  'Server-only question exposure ledger. Live rows are created only when question.opened is committed, so preloaded but unopened Live questions remain reusable.';
-
+  AND coalesce(e.payload->>'position','') ~ '^[0-9]+$'
 GROUP BY les.class_id,leq.question_id,leq.id
 ON CONFLICT (live_session_question_id) DO UPDATE
   SET exposed_at=least(
