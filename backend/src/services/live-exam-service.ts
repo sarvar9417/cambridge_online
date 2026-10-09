@@ -1427,8 +1427,8 @@ export class LiveExamService {
     // trip per review and per point.
     await client.query(
       `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
-       select $1,input.answer_id::uuid,input.reviewer_id::uuid,input.kind::live_exam_marking_mode
-       from jsonb_to_recordset($2::jsonb) input(answer_id text,reviewer_id text,kind text)
+       select $1,input."answerId"::uuid,input."reviewerId"::uuid,input.kind::live_exam_marking_mode
+       from jsonb_to_recordset($2::jsonb) input("answerId" text,"reviewerId" text,kind text)
        on conflict(session_question_id,answer_id,kind) do update
          set reviewer_id=excluded.reviewer_id`,
       [sessionQuestionId, JSON.stringify(assignments)],
