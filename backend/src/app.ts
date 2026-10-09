@@ -135,8 +135,8 @@ export function createApp(
   if (pool && selectionsRepository) mountPrivate('/api/v1/selections', createSelectionsRouter(selectionsRepository,new SelectionAssignmentService(pool,selectionsRepository),pool,new SelectionGeneratorService(pool,selectionsRepository)));
   if (assignmentsService) mountPrivate('/api/v1/assignments', createAssignmentsRouter(assignmentsService,pool!));
   if (assignmentsService) mountPrivate('/api/v1/submissions', createSubmissionsRouter(assignmentsService));
-  if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool)));
-  if (pool) mountPrivate('/api/v1/gradings', createGradingsRouter(new GradingService(pool)));
+  if (pool) mountPrivate('/api/v1/grading', createGradingRouter(new GradingService(pool,assetUrlSigner)));
+  if (pool) mountPrivate('/api/v1/gradings', createGradingsRouter(new GradingService(pool,assetUrlSigner)));
   if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool,assetUrlSigner)));
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
