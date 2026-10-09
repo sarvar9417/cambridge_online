@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { Actor } from '../lib/actor.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
+import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
 
 const listOf = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(
   (value) => value === undefined ? [] : Array.isArray(value) ? value : [value],
@@ -9,6 +10,10 @@ const listOf = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(
 ) as z.ZodType<Array<z.infer<T>>>;
 const stringList = listOf(z.string().trim().min(1).max(100));
 const uuidList = listOf(z.string().uuid());
+const coursebookSectionList = listOf(
+  z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
+    .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section'),
+);
 const booleanQuery = z.preprocess((value) => {
   if (value === undefined || value === '') return undefined;
   if (value === true || value === 'true') return true;
@@ -31,6 +36,7 @@ const querySchema = z.object({
   aos: listOf(z.enum(['AO1', 'AO2', 'AO3'])),
   topicIds: uuidList,
   subtopicIds: uuidList,
+  coursebookSectionCodes: coursebookSectionList,
   hasDiagram: booleanQuery,
   status: z.enum(['draft', 'needs_review', 'approved', 'rejected', 'archived']).optional(),
   dependency: z.enum(['any', 'independent']).default('any'),

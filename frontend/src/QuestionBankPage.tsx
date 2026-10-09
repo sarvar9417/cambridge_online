@@ -84,7 +84,8 @@ type Part = {
   status: string;
   hasDiagram: boolean;
   hasDependency: boolean;
-  subtopics: Array<{ id: string; code: string; title: string }>;
+  subtopics: Array<{ id: string; code: string; title: string; topicNumber?: number }>;
+  coursebookSections?: Array<{ code: string; title: string; chapterNumber: number }>;
   matches?: boolean;
 };
 
@@ -127,6 +128,14 @@ type FilterOptions = {
     code: string;
     subtopic_title: string;
     component: number | null;
+  }>;
+  coursebookSections: Array<{
+    syllabus_code: string;
+    chapter_number: number;
+    chapter_title: string;
+    section_code: string;
+    section_title: string;
+    mapping_kind: 'direct_subtopic' | 'learning_objective_bridge';
   }>;
   classes: Array<{ id: string; name: string }>;
 };
@@ -238,7 +247,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [error, setError] = useState('');
   const [view, setView] = useState<BankView>('parts');
   const [questions, setQuestions] = useState<QuestionResponse>({ data: [], view: 'parts', unavailableFilters: [], nextCursor: null });
-  const [options, setOptions] = useState<FilterOptions>({ syllabi: [], components: [], topics: [], classes: [] });
+  const [options, setOptions] = useState<FilterOptions>({ syllabi: [], components: [], topics: [], coursebookSections: [], classes: [] });
   const [selections, setSelections] = useState<SelectionSummary[]>([]);
   const [selectionId, setSelectionId] = useState('');
   const [review, setReview] = useState<SelectionReview | null>(null);
@@ -273,6 +282,7 @@ export function QuestionBankPage({ user }: { user: User }) {
   const [aos, setAos] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<string[]>([]);
   const [subtopicIds, setSubtopicIds] = useState<string[]>([]);
+  const [coursebookSectionCodes, setCoursebookSectionCodes] = useState<string[]>([]);
   const [commandWords, setCommandWords] = useState<string[]>([]);
   const [hasDiagram, setHasDiagram] = useState('');
   const [dependency, setDependency] = useState<'any' | 'independent'>('any');
@@ -292,6 +302,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     || aos.length
     || topicIds.length
     || subtopicIds.length
+    || coursebookSectionCodes.length
     || commandWords.length
   );
 
@@ -342,9 +353,10 @@ export function QuestionBankPage({ user }: { user: User }) {
     aos.forEach((item) => value.append('aos', item));
     topicIds.forEach((item) => value.append('topicIds', item));
     subtopicIds.forEach((item) => value.append('subtopicIds', item));
+    coursebookSectionCodes.forEach((item) => value.append('coursebookSectionCodes', item));
     commandWords.forEach((item) => value.append('commandWords', item));
     return value.toString();
-  }, [view, dependency, syllabusCode, query, component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, status, series, aos, topicIds, subtopicIds, commandWords]);
+  }, [view, dependency, syllabusCode, query, component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, status, series, aos, topicIds, subtopicIds, coursebookSectionCodes, commandWords]);
 
   useEffect(() => {
     if (!user || user.role === 'student' || !syllabusCode) return;
@@ -619,15 +631,53 @@ export function QuestionBankPage({ user }: { user: User }) {
   const scopedTopics = options.topics.filter((item) => item.syllabus_code === syllabusCode);
   const topicChoices = [...new Map(scopedTopics.map((item) => [item.topic_id, item])).values()];
   const visibleSubtopics = scopedTopics.filter((item) => !topicIds.length || topicIds.includes(item.topic_id));
+  const coursebookSections=(options.coursebookSections??[]).filter((item)=>item.syllabus_code===syllabusCode);
+  const coursebookChapters=[...new Map(coursebookSections.map((item)=>[
+    String(item.chapter_number),
+    {chapterNumber:item.chapter_number,chapterTitle:item.chapter_title},
+  ])).values()];
+  const selectedCoursebookChapterNumbers=[...new Set(
+    coursebookSections
+      .filter((item)=>coursebookSectionCodes.includes(item.section_code))
+      .map((item)=>item.chapter_number),
+  )];
+  const fullySelectedCoursebookChapters=coursebookChapters
+    .filter((chapter)=>{
+      const codes=coursebookSections
+        .filter((item)=>item.chapter_number===chapter.chapterNumber)
+        .map((item)=>item.section_code);
+      return codes.length>0&&codes.every((code)=>coursebookSectionCodes.includes(code));
+    })
+    .map((chapter)=>String(chapter.chapterNumber));
+  const visibleCoursebookSections=coursebookSections.filter((item)=>
+    !selectedCoursebookChapterNumbers.length||selectedCoursebookChapterNumbers.includes(item.chapter_number)
+  );
+  const setCoursebookChapters=(next:string[])=>{
+    const added=next.find((chapter)=>!fullySelectedCoursebookChapters.includes(chapter));
+    const removed=fullySelectedCoursebookChapters.find((chapter)=>!next.includes(chapter));
+    if(added){
+      const codes=coursebookSections
+        .filter((item)=>String(item.chapter_number)===added)
+        .map((item)=>item.section_code);
+      setCoursebookSectionCodes((current)=>[...new Set([...current,...codes])]);
+    }else if(removed){
+      const codes=new Set(coursebookSections
+        .filter((item)=>String(item.chapter_number)===removed)
+        .map((item)=>item.section_code));
+      setCoursebookSectionCodes((current)=>current.filter((code)=>!codes.has(code)));
+    }
+  };
   const componentChoices = options.components.filter((item) => item.syllabus_code === syllabusCode);
   const activeSyllabus = options.syllabi.find((item) => item.code === syllabusCode);
-  const activeFilterCount = [component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, dependency !== 'any' ? dependency : '', user.role === 'owner' && status !== 'approved' ? status : '', ...series, ...aos, ...topicIds, ...subtopicIds, ...commandWords].filter(Boolean).length;
+  const taxonomyFilters=syllabusCode==='9618'?[...coursebookSectionCodes]:[...topicIds,...subtopicIds];
+  const activeFilterCount = [component, marksMin, marksMax, yearFrom, yearTo, hasDiagram, dependency !== 'any' ? dependency : '', user.role === 'owner' && status !== 'approved' ? status : '', ...series, ...aos, ...taxonomyFilters, ...commandWords].filter(Boolean).length;
 
   const changeSyllabus = (next: string) => {
     setSyllabusCode(next);
     setComponent('');
     setTopicIds([]);
     setSubtopicIds([]);
+    setCoursebookSectionCodes([]);
     setYearFrom('');
     setYearTo('');
   };
@@ -643,6 +693,7 @@ export function QuestionBankPage({ user }: { user: User }) {
     setAos([]);
     setTopicIds([]);
     setSubtopicIds([]);
+    setCoursebookSectionCodes([]);
     setCommandWords([]);
     setHasDiagram('');
     setDependency('any');
@@ -693,8 +744,9 @@ export function QuestionBankPage({ user }: { user: User }) {
           yearTo: yearTo ? Number(yearTo) : undefined,
           series: series.length ? series : undefined,
           aos: aos.length ? aos : undefined,
-          topicIds: topicIds.length ? topicIds : undefined,
-          subtopicIds: subtopicIds.length ? subtopicIds : undefined,
+          topicIds: syllabusCode==='9618' ? undefined : (topicIds.length ? topicIds : undefined),
+          subtopicIds: syllabusCode==='9618' ? undefined : (subtopicIds.length ? subtopicIds : undefined),
+          coursebookSectionCodes: syllabusCode==='9618'&&coursebookSectionCodes.length ? coursebookSectionCodes : undefined,
           commandWords: commandWords.length ? commandWords : undefined,
           hasDiagram: hasDiagram ? hasDiagram === 'true' : undefined,
           dependency,
@@ -745,8 +797,13 @@ export function QuestionBankPage({ user }: { user: User }) {
           <div className="qb-panel-title"><div><strong>Filtrlar</strong><small>{activeFilterCount ? `${activeFilterCount} ta faol filtr` : 'Imtihon bankini toraytiring'}</small></div><div className="qb-filter-head-actions"><button className="qb-link-button" onClick={resetFilters} disabled={!activeFilterCount && !query}>Tozalash</button><button className="qb-icon-button qb-filter-close" aria-label="Filtrlarni yopish" onClick={() => setFilterOpen(false)}><X size={17} /></button></div></div>
           <Filter label="Syllabus"><select value={syllabusCode} onChange={(event) => changeSyllabus(event.target.value)}>{options.syllabi.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.subject} · {item.question_count} savol</option>)}</select></Filter>
           <Filter label="Komponent"><select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Barchasi</option>{componentChoices.map((item) => <option key={`${item.syllabus_code}-${item.number}`} value={item.number}>Paper {item.number} · {item.name}</option>)}</select></Filter>
-          <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => scopedTopics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
-          <CheckGroup label="Kichik mavzu" options={visibleSubtopics.map((item) => [item.subtopic_id, `${item.code} ${item.subtopic_title}`])} value={subtopicIds} onChange={setSubtopicIds} maxHeight />
+          {syllabusCode==='9618'?<>
+            <CheckGroup label="Chapter" options={coursebookChapters.map((item)=>[String(item.chapterNumber),`${item.chapterNumber}. ${item.chapterTitle}`])} value={fullySelectedCoursebookChapters} onChange={setCoursebookChapters} maxHeight />
+            <CheckGroup label="Chapter section" options={visibleCoursebookSections.map((item)=>[item.section_code,`${item.section_code} ${item.section_title}`])} value={coursebookSectionCodes} onChange={setCoursebookSectionCodes} maxHeight />
+          </>:<>
+            <CheckGroup label="Mavzu" options={topicChoices.map((item) => [item.topic_id, `${item.topic_number}. ${item.topic_title}`])} value={topicIds} onChange={(next) => { setTopicIds(next); setSubtopicIds((current) => current.filter((id) => scopedTopics.some((item) => item.subtopic_id === id && (!next.length || next.includes(item.topic_id))))); }} maxHeight />
+            <CheckGroup label="Kichik mavzu" options={visibleSubtopics.map((item) => [item.subtopic_id, `${item.code} ${item.subtopic_title}`])} value={subtopicIds} onChange={setSubtopicIds} maxHeight />
+          </>}
           <Filter label="Ball"><div className="qb-two-fields"><input type="number" min="0" placeholder="dan" value={marksMin} onChange={(event) => setMarksMin(event.target.value)} /><input type="number" min="0" placeholder="gacha" value={marksMax} onChange={(event) => setMarksMax(event.target.value)} /></div></Filter>
           <Filter label="Yil"><div className="qb-two-fields"><input type="number" min="2000" placeholder="dan" value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} /><input type="number" min="2000" placeholder="gacha" value={yearTo} onChange={(event) => setYearTo(event.target.value)} /></div></Filter>
           <CheckGroup label="Sessiya" options={Object.entries(seriesLabels)} value={series} onChange={setSeries} />
@@ -861,7 +918,9 @@ function useDialogClose(onClose: () => void) {
 }
 
 function PartCard({ part, focused, selected, pending, onAdd, onPreview }: { part: Part; focused: boolean; selected: boolean; pending: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{part.subtopics?.length > 0 && <div className="qb-topic-tags">{part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
+  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{(part.coursebookSections?.length||part.subtopics?.length) ? <div className="qb-topic-tags">{part.coursebookSections?.length
+  ? part.coursebookSections.map((section)=><span key={section.code} title={part.subtopics?.length?`Cambridge syllabus: ${part.subtopics.map((topic)=>`${topic.code} ${topic.title}`).join(' · ')}`:undefined}>{section.code} {section.title}</span>)
+  : part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>:null}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
 }
 
 function FamilyCard({ family, selectedIds, pendingIds, onAdd, onPreview }: { family: Family; selectedIds: Set<string>; pendingIds: Set<string>; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
