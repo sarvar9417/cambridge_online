@@ -8,6 +8,10 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { parseStructuredResponse, type StructuredResponse } from '../lib/structured-response.js';
+import {
+  portableResponseInteractionIntegrity,
+  questionResponseInteractionIntegritySql,
+} from '../lib/source-response-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -378,7 +382,7 @@ export class LiveExamService {
       )`);
     }
 
-    const filters: string[] = [];
+    const filters: string[] = [questionResponseInteractionIntegritySql('q')];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
     if (input.topicIds.length) {
@@ -645,6 +649,10 @@ export class LiveExamService {
       const sourceAssets=portable.contextBlocks.flatMap((block)=>block.assets);
       if (!portableQuestionVisualReady(portable.leaf.contentJson,sourceAssets)) {
         throw new DomainError('live_assets_unavailable', 409);
+      }
+      const responseAssets=portable.responseAssets?.length?portable.responseAssets:sourceAssets;
+      if(!portableResponseInteractionIntegrity(portable.leaf.contentJson,responseAssets)){
+        throw new DomainError('live_response_structure_unavailable',409);
       }
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
