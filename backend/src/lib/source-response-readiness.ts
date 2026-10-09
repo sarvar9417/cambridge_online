@@ -12,16 +12,16 @@ const RESPONSE_CUE_SQL=[
 ].join('|');
 
 const RESPONSE_CUE_RE=new RegExp([
-  String.raw\`\\b(?:complete|fill(?:\\s+in)?|populate|finish)\\b[\\s\\S]{0,180}\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map|map|box|cell)\\b\`,
-  String.raw\`\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map)\\b[\\s\\S]{0,180}\\b(?:complete|fill(?:\\s+in)?|missing)\\b\`,
-  String.raw\`\\b(?:place|put|write)\\b[\\s\\S]{0,100}\\b(?:tick|cross|answer|value|label)\\b[\\s\\S]{0,120}\\b(?:table|grid|box|cell|diagram)\\b\`,
-  String.raw\`\\b(?:draw|join|connect|match|label)\\b[\\s\\S]{0,180}\\b(?:line|diagram|figure|symbol|box|item|statement|node|gate)\\b\`,
-  String.raw\`\\b(?:show|give)\\b[\\s\\S]{0,120}\\b(?:changing\\s+)?contents\\b[\\s\\S]{0,80}\\b(?:stack|queue)\\b\`,
+  String.raw`\\b(?:complete|fill(?:\\s+in)?|populate|finish)\\b[\\s\\S]{0,180}\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map|map|box|cell)\\b`,
+  String.raw`\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map)\\b[\\s\\S]{0,180}\\b(?:complete|fill(?:\\s+in)?|missing)\\b`,
+  String.raw`\\b(?:place|put|write)\\b[\\s\\S]{0,100}\\b(?:tick|cross|answer|value|label)\\b[\\s\\S]{0,120}\\b(?:table|grid|box|cell|diagram)\\b`,
+  String.raw`\\b(?:draw|join|connect|match|label)\\b[\\s\\S]{0,180}\\b(?:line|diagram|figure|symbol|box|item|statement|node|gate)\\b`,
+  String.raw`\\b(?:show|give)\\b[\\s\\S]{0,120}\\b(?:changing\\s+)?contents\\b[\\s\\S]{0,80}\\b(?:stack|queue)\\b`,
 ].join('|'),'i');
 
 export function questionResponseInteractionRequiredSql(questionAlias='q'){
   const q=identifier(questionAlias);
-  return \`(
+  return `(
     ${q}.content_version=1
     and ${q}.content_json is not null
     and exists(
@@ -30,13 +30,13 @@ export function questionResponseInteractionRequiredSql(questionAlias='q'){
       where response_cue->>'type'='text'
         and lower(regexp_replace(coalesce(response_cue->>'text',''),'[[:space:]]+',' ','g')) ~ '${RESPONSE_CUE_SQL}'
     )
-  )\`;
+  )`;
 }
 
 export function questionResponseInteractionReadySql(questionAlias='q'){
   const q=identifier(questionAlias);
   const renderable=renderableVisualAssetSql('response_asset');
-  return \`(
+  return `(
     exists(
       select 1
       from jsonb_array_elements(coalesce(${q}.content_json->'blocks','[]'::jsonb)) response_block
@@ -67,11 +67,11 @@ export function questionResponseInteractionReadySql(questionAlias='q'){
         and response_asset.kind in ('table','diagram','image')
         and ${renderable}
     )
-  )\`;
+  )`;
 }
 
 export function questionResponseInteractionIntegritySql(questionAlias='q'){
-  return \`(not ${questionResponseInteractionRequiredSql(questionAlias)} or ${questionResponseInteractionReadySql(questionAlias)})\`;
+  return `(not ${questionResponseInteractionRequiredSql(questionAlias)} or ${questionResponseInteractionReadySql(questionAlias)})`;
 }
 
 type StructuredBlockLike=Record<string,unknown>;
