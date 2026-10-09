@@ -146,9 +146,12 @@ export class AssignmentsService {
         where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]);
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
       const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
-      const assetRows=assetIds.length
-        ? (await client.query(`select id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
-           from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+      const questionIds=qr.rows.map((row)=>String(row.id));
+      const assetRows=questionIds.length
+        ? (await client.query(`select id,question_id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
+           from question_assets
+           where id=any($1::uuid[]) or question_id=any($2::uuid[])
+           order by question_id,sort_order,id`,[assetIds,questionIds])).rows
         : [];
       await client.query('commit');
 
@@ -163,6 +166,7 @@ export class AssignmentsService {
       }));
       const sourceAssetsById=new Map(assetRows.map((row)=>[String(row.id),{
         id:String(row.id),
+        questionId:String(row.question_id),
         kind:String(row.kind),
         url:signedAssetUrls[row.id]??null,
         contentMd:row.content_md?String(row.content_md):null,
@@ -171,9 +175,14 @@ export class AssignmentsService {
       }] as const));
       const questions=qr.rows.map((row)=>{
         const question=serializeAttemptQuestion(row,signedAssetUrls);
-        const sourceAssets=attemptQuestionAssetIds(question.contentJson)
+        const ids=new Set([
+          ...attemptQuestionAssetIds(question.contentJson),
+          ...assetRows.filter((asset)=>String(asset.question_id)===String(row.id)).map((asset)=>String(asset.id)),
+        ]);
+        const sourceAssets=[...ids]
           .map((id)=>sourceAssetsById.get(id))
-          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
+          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset))
+          .map(({questionId:_,...asset})=>asset);
         return {...question,sourceAssets};
       });
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
