@@ -1,11 +1,15 @@
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import type { StructuredQuestionBlock,StructuredQuestionContent } from './structured-question-content';
+import { splitAnswerScaffoldText } from './structured-answer';
 
 export type StructuredAssetResolver=(assetId:string)=>string|null|undefined;
 
 export type StructuredQuestionRenderOptions={
   resolveAsset?:StructuredAssetResolver;
+  responseValues?:Record<string,string>;
+  responseDisabled?:boolean;
+  onResponseChange?:(key:string,value:string)=>void;
 };
 
 function text(className:string,value:string){
@@ -15,26 +19,11 @@ function text(className:string,value:string){
   return node;
 }
 
-type AnswerScaffoldSegment=
-  | {kind:'text';text:string}
-  | {kind:'answer';label:string;suffix:string};
-
-const ANSWER_SCAFFOLD=/^(.{1,80}?)\s+(?:_{3,}|\.{5,}|…{3,})(?:\s*(.*))?$/;
-
-export function splitAnswerScaffoldText(value:string):AnswerScaffoldSegment[]{
-  const sections=value
-    .split(/\r?\n\s*\r?\n/)
-    .map((section)=>section.trim())
-    .filter(Boolean);
-  return sections.map((section)=>{
-    const oneLine=section.replace(/\s*\r?\n\s*/g,' ').trim();
-    const match=oneLine.match(ANSWER_SCAFFOLD);
-    if(!match)return {kind:'text',text:oneLine};
-    return {kind:'answer',label:match[1]!.trim(),suffix:(match[2]??'').trim()};
-  });
-}
-
-function renderTextBlock(block:Extract<StructuredQuestionBlock,{type:'text'}>){
+function renderTextBlock(
+  block:Extract<StructuredQuestionBlock,{type:'text'}>,
+  blockIndex:number,
+  options:StructuredQuestionRenderOptions,
+){
   const segments=splitAnswerScaffoldText(block.text);
   const hasScaffold=segments.some((segment)=>segment.kind==='answer');
   if(!hasScaffold){
@@ -58,15 +47,29 @@ function renderTextBlock(block:Extract<StructuredQuestionBlock,{type:'text'}>){
       wrapper.append(paragraph);
       continue;
     }
-    const row=document.createElement('div');
+    const row=document.createElement('label');
     row.className='structured-question-scaffold-row';
     row.dataset.answerLabel=segment.label;
     const label=document.createElement('strong');
     label.textContent=segment.label;
-    const line=document.createElement('span');
-    line.className='structured-question-scaffold-line';
-    line.setAttribute('aria-hidden','true');
-    row.append(label,line);
+    const answerIndex=wrapper.querySelectorAll('[data-response-key]').length;
+    const key=`blank.${blockIndex}.${answerIndex}`;
+    if(options.onResponseChange){
+      const input=document.createElement('input');
+      input.type='text';
+      input.className='structured-question-inline-input';
+      input.dataset.responseKey=key;
+      input.value=options.responseValues?.[key]??'';
+      input.disabled=Boolean(options.responseDisabled);
+      input.setAttribute('aria-label',`Answer: ${segment.label}`);
+      input.addEventListener('input',()=>options.onResponseChange?.(key,input.value));
+      row.append(label,input);
+    }else{
+      const line=document.createElement('span');
+      line.className='structured-question-scaffold-line';
+      line.setAttribute('aria-hidden','true');
+      row.append(label,line);
+    }
     if(segment.suffix){
       const suffix=document.createElement('small');
       suffix.textContent=segment.suffix;
@@ -121,7 +124,11 @@ function renderMath(block:Extract<StructuredQuestionBlock,{type:'math'}>){
   return node;
 }
 
-function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
+function renderTable(
+  block:Extract<StructuredQuestionBlock,{type:'table'}>,
+  blockIndex:number,
+  options:StructuredQuestionRenderOptions,
+){
   const table=document.createElement('table');
   table.className=`structured-question-table structured-question-${block.kind.replaceAll('_','-')}`;
   table.dataset.questionBlock='table';
@@ -147,10 +154,25 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
     cells.forEach((value,columnIndex)=>{
       const cell=document.createElement('td');
       const key=`${rowIndex}:${columnIndex}`;
-      cell.textContent=value??'';
       if(editable.has(key)){
         cell.dataset.editable='true';
-        cell.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+        const responseKey=`table.${blockIndex}.${rowIndex}.${columnIndex}`;
+        if(options.onResponseChange){
+          const input=document.createElement('input');
+          input.type='text';
+          input.className='structured-question-cell-input';
+          input.dataset.responseKey=responseKey;
+          input.value=options.responseValues?.[responseKey]??value??'';
+          input.disabled=Boolean(options.responseDisabled);
+          input.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+          input.addEventListener('input',()=>options.onResponseChange?.(responseKey,input.value));
+          cell.append(input);
+        }else{
+          cell.textContent=value??'';
+          cell.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+        }
+      }else{
+        cell.textContent=value??'';
       }
       row.append(cell);
     });
@@ -160,7 +182,11 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
   return table;
 }
 
-function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>){
+function renderMatching(
+  block:Extract<StructuredQuestionBlock,{type:'matching'}>,
+  blockIndex:number,
+  options:StructuredQuestionRenderOptions,
+){
   const wrapper=document.createElement('div');
   wrapper.className='structured-question-matching';
   wrapper.dataset.questionBlock='matching';
@@ -170,7 +196,32 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   for(const item of block.left){
     const row=document.createElement('li');
     row.dataset.matchId=item.id;
-    row.textContent=item.text;
+    if(options.onResponseChange){
+      const label=document.createElement('label');
+      label.className='structured-question-match-row';
+      const prompt=document.createElement('span');
+      prompt.textContent=item.text;
+      const select=document.createElement('select');
+      const key=`match.${blockIndex}.${item.id}`;
+      select.dataset.responseKey=key;
+      select.disabled=Boolean(options.responseDisabled);
+      const empty=document.createElement('option');
+      empty.value='';
+      empty.textContent='Tanlang…';
+      select.append(empty);
+      for(const target of block.right){
+        const option=document.createElement('option');
+        option.value=target.id;
+        option.textContent=target.text;
+        select.append(option);
+      }
+      select.value=options.responseValues?.[key]??'';
+      select.addEventListener('change',()=>options.onResponseChange?.(key,select.value));
+      label.append(prompt,select);
+      row.append(label);
+    }else{
+      row.textContent=item.text;
+    }
     left.append(row);
   }
 
@@ -186,9 +237,9 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   return wrapper;
 }
 
-function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRenderOptions){
+function renderBlock(block:StructuredQuestionBlock,blockIndex:number,options:StructuredQuestionRenderOptions){
   switch(block.type){
-    case 'text': return renderTextBlock(block);
+    case 'text': return renderTextBlock(block,blockIndex,options);
     case 'math': return renderMath(block);
     case 'code': {
       const pre=document.createElement('pre');
@@ -211,8 +262,8 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
       }
       return list;
     }
-    case 'table': return renderTable(block);
-    case 'matching': return renderMatching(block);
+    case 'table': return renderTable(block,blockIndex,options);
+    case 'matching': return renderMatching(block,blockIndex,options);
     case 'asset': {
       const figure=document.createElement('figure');
       figure.className=`structured-question-asset structured-question-${block.kind.replaceAll('_','-')}`;
@@ -248,8 +299,8 @@ export function renderStructuredQuestionContent(
   options:StructuredQuestionRenderOptions={},
 ){
   const fragment=document.createDocumentFragment();
-  for(const block of content.blocks){
-    const node=renderBlock(block,options);
+  for(const [blockIndex,block] of content.blocks.entries()){
+    const node=renderBlock(block,blockIndex,options);
     node.dataset.sourcePage=String(block.source.page);
     if(block.source.bbox)node.dataset.sourceBbox=block.source.bbox.join(',');
     fragment.append(node);

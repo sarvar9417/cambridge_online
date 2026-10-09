@@ -2,6 +2,15 @@ import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
 import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
+import {
+  humanizeStoredAnswer,
+  parseStoredAnswer,
+  serializeStructuredAnswer,
+  setStructuredField,
+  structuredAnswerHasContent,
+  structuredResponsePlan,
+} from '../lib/structured-answer';
+import { StructuredResponseEditor } from './StructuredResponseEditor';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -15,8 +24,11 @@ export function formatRemainingTime(seconds: number | null) {
     : `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
-export const isAnswered = (value: string | undefined) => Boolean(value?.trim());
-export const answerWordCount = (value: string | undefined) => value?.trim() ? value.trim().split(/\s+/).length : 0;
+export const isAnswered = (value: string | undefined) => structuredAnswerHasContent(value);
+export const answerWordCount = (value: string | undefined) => {
+  const readable=humanizeStoredAnswer(value);
+  return readable.trim() ? readable.trim().split(/\s+/).length : 0;
+};
 
 export interface StudentAttemptWorkspaceProps {
   attempt: Attempt;
@@ -61,6 +73,13 @@ export function StudentAttemptWorkspace({
     && structuredQuestionAssetsReady(materializedContent!, effectiveAssetUrls);
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
+  const currentAnswer=answers[question.id]??'';
+  const decodedAnswer=parseStoredAnswer(currentAnswer);
+  const responsePlan=structuredResponsePlan(materializedContent??null,question.answerKind,question.stemMd,{hasSourceVisual:Object.keys(effectiveAssetUrls).length>0});
+  const structuredResponse=responsePlan.mode!=='text';
+  const updateStructuredField=(key:string,value:string)=>{
+    onAnswerChange(question.id,serializeStructuredAnswer(setStructuredField(decodedAnswer,key,value)));
+  };
 
   return (
     <main className="saw">
@@ -126,7 +145,13 @@ export function StudentAttemptWorkspace({
 
           <article className="saw-question">
             {structuredReady && materializedContent ? (
-              <StructuredQuestionView content={materializedContent} assetUrls={effectiveAssetUrls} />
+              <StructuredQuestionView
+                content={materializedContent}
+                assetUrls={effectiveAssetUrls}
+                responseValues={structuredResponse?decodedAnswer.fields:{}}
+                responseDisabled={answerDisabled}
+                onResponseChange={structuredResponse?updateStructuredField:undefined}
+              />
             ) : structuredPresent ? (
               <StructuredQuestionView content={materializedContent!} assetUrls={effectiveAssetUrls} />
             ) : (
@@ -139,17 +164,30 @@ export function StudentAttemptWorkspace({
 
           <section className="saw-answer">
             <div className="saw-answer-head">
-              <label htmlFor={`answer-${question.id}`}>Javobing</label>
-              <span>{answerWordCount(answers[question.id])} so‘z · avtomatik saqlanadi</span>
+              <label htmlFor={structuredResponse?undefined:`answer-${question.id}`}>Javobing</label>
+              <span>{structuredResponse?'Strukturali javob · avtomatik saqlanadi':`${answerWordCount(currentAnswer)} so‘z · avtomatik saqlanadi`}</span>
             </div>
-            <textarea
-              id={`answer-${question.id}`}
-              className={question.answerKind === 'code' || question.answerKind === 'pseudocode' ? 'is-code' : ''}
-              disabled={answerDisabled}
-              value={answers[question.id] ?? ''}
-              onChange={(event) => onAnswerChange(question.id, event.target.value)}
-              placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
-            />
+            {structuredResponse ? (
+              <StructuredResponseEditor
+                content={materializedContent??null}
+                answerKind={question.answerKind}
+                stem={question.stemMd}
+                marks={question.marks}
+                assetUrls={effectiveAssetUrls}
+                value={currentAnswer}
+                disabled={answerDisabled}
+                onChange={(value)=>onAnswerChange(question.id,value)}
+              />
+            ) : (
+              <textarea
+                id={`answer-${question.id}`}
+                className={question.answerKind === 'code' || question.answerKind === 'pseudocode' ? 'is-code' : ''}
+                disabled={answerDisabled}
+                value={currentAnswer}
+                onChange={(event) => onAnswerChange(question.id, event.target.value)}
+                placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
+              />
+            )}
           </section>
 
           <nav className="saw-bottom-nav" aria-label="Savollar orasida yurish">

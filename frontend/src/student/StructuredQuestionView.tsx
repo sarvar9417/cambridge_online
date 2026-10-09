@@ -25,9 +25,15 @@ export function structuredQuestionRenderSignature(
 export function StructuredQuestionView({
   content,
   assetUrls={},
+  responseValues={},
+  responseDisabled=false,
+  onResponseChange,
 }: {
   content:StructuredQuestionContent;
   assetUrls?:Record<string,string>;
+  responseValues?:Record<string,string>;
+  responseDisabled?:boolean;
+  onResponseChange?:(key:string,value:string)=>void;
 }) {
   const host=useRef<HTMLDivElement>(null);
   const valid=structuredQuestionUsable(content);
@@ -35,15 +41,33 @@ export function StructuredQuestionView({
   const presentationReady=valid&&findings.length===0;
   const assetsReady=presentationReady&&structuredQuestionAssetsReady(content,assetUrls);
   const renderSignature=structuredQuestionRenderSignature(content,assetUrls);
+  const responseSignature=JSON.stringify(Object.entries(responseValues).sort(([left],[right])=>left.localeCompare(right)));
+  const responseChangeRef=useRef(onResponseChange);
+  responseChangeRef.current=onResponseChange;
 
   useEffect(()=>{
     const node=host.current;
     if(!node||!presentationReady||!assetsReady)return;
     node.replaceChildren(renderStructuredQuestionContent(content,{
       resolveAsset:(assetId)=>assetUrls[assetId]??null,
+      responseValues,
+      responseDisabled,
+      onResponseChange:(key,value)=>responseChangeRef.current?.(key,value),
     }));
     return()=>node.replaceChildren();
   },[renderSignature,presentationReady,assetsReady]);
+
+  useEffect(()=>{
+    const node=host.current;
+    if(!node)return;
+    node.querySelectorAll<HTMLInputElement|HTMLSelectElement>('[data-response-key]').forEach((control)=>{
+      const key=control.dataset.responseKey;
+      if(!key)return;
+      const next=responseValues[key]??'';
+      if(document.activeElement!==control&&control.value!==next)control.value=next;
+      control.disabled=responseDisabled;
+    });
+  },[responseSignature,responseDisabled]);
 
   if(!valid){
     return (

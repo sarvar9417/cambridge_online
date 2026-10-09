@@ -24,6 +24,14 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor } from '../student/StructuredResponseEditor';
+import {
+  humanizeStoredAnswer,
+  parseStoredAnswer,
+  serializeStructuredAnswer,
+  setStructuredField,
+  structuredResponsePlan,
+} from '../lib/structured-answer';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -168,7 +176,14 @@ function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][
   </figure>;
 }
 
-function LiveQuestionView({question}:{question:LiveExamQuestion}) {
+function LiveQuestionView({
+  question,responseText='',responseDisabled=false,onResponseChange,
+}:{
+  question:LiveExamQuestion;
+  responseText?:string;
+  responseDisabled?:boolean;
+  onResponseChange?:(value:string)=>void;
+}) {
   const portable=question.portable;
   const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
   const content=useMemo(()=>portable.leaf.contentJson
@@ -176,6 +191,11 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
     :null,[assets,portable.leaf.contentJson]);
   const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
   const hasCanonicalContent=Boolean(portable.leaf.contentJson);
+  const decoded=parseStoredAnswer(responseText);
+  const responsePlan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem,{hasSourceVisual:Object.keys(assetUrls).length>0});
+  const updateField=onResponseChange&&responsePlan.mode!=='text'
+    ?(key:string,value:string)=>onResponseChange(serializeStructuredAnswer(setStructuredField(decoded,key,value)))
+    :undefined;
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
@@ -183,10 +203,10 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
       <header><strong>Oldingi ish kerak</strong><span>{question.dependencyWork.length} ta bog‘lanish</span></header>
       {question.dependencyWork.map((dependency)=><article key={dependency.questionId}>
         <div><b>{dependency.displayRef}</b><small>{dependency.kind==='answer_ref'?'Oldingi javobingizdan foydalaning':'Oldingi qismdagi ma’lumotdan foydalaning'}</small></div>
-        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
+        {dependency.ownAnswer!==null?<pre>{humanizeStoredAnswer(dependency.ownAnswer)||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
       </article>)}
     </section>:null}
-    {hasCanonicalContent&&content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
+    {hasCanonicalContent&&content?<StructuredQuestionView content={content} assetUrls={assetUrls} responseValues={responsePlan.mode!=='text'?decoded.fields:{}} responseDisabled={responseDisabled} onResponseChange={updateField}/>:<>
       {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
         {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
         {block.assets.map((asset)=><QuestionAsset key={asset.id} asset={asset}/>)}
@@ -524,6 +544,21 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setHydratedKey(key);
   },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
+  const updateDraft=(value:string)=>{
+    latestAnswer.current=value;
+    pendingSave.current=value;
+    setAnswer(value);
+    setDirty(true);
+  };
+  const responseContext=snapshot.question?(()=>{
+    const portable=snapshot.question!.portable;
+    const assets=portable.contextBlocks.flatMap((block)=>block.assets);
+    const content=portable.leaf.contentJson?materializePortableSourceAssets(portable.leaf.contentJson,assets):null;
+    const assetUrls=portableAssetsForContent(assets);
+    const plan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem,{hasSourceVisual:Object.keys(assetUrls).length>0});
+    return {content,assetUrls,plan};
+  })():null;
+  const responseLocked=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
@@ -641,18 +676,18 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
-    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
+    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question} responseText={answer} responseDisabled={responseLocked} onResponseChange={responseContext?.plan.mode==='inline'?updateDraft:undefined}/>
+    <section className="live-answer-box"><header><label htmlFor={responseContext?.plan.mode==='text'?'live-answer':undefined}>Javobingiz</label><span>{responseContext?.plan.mode==='text'?(humanizeStoredAnswer(answer).trim()?humanizeStoredAnswer(answer).trim().split(/\s+/).length:0)+' so‘z':'Strukturali javob'}</span></header>{responseContext&&responseContext.plan.mode!=='text'?<StructuredResponseEditor content={responseContext.content} answerKind={snapshot.question.portable.leaf.answerKind} stem={snapshot.question.portable.leaf.stem} marks={snapshot.question.marks} assetUrls={responseContext.assetUrls} value={answer} disabled={responseLocked} onChange={updateDraft}/>:<textarea id="live-answer" value={answer} disabled={responseLocked} onChange={(event)=>updateDraft(event.target.value)} placeholder="Javobingizni shu yerga yozing…"/>}<button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
     <ReviewQuestionContext question={snapshot.question}/>
     <div className="live-marking-layout"><div><MarkSchemeView scheme={snapshot.markScheme}/></div><aside className="live-review-card">
-      {!snapshot.review?<><h2>Baholash kutilmoqda</h2><p>{session.markingMode==='peer'?'Anonim tekshiruv yakunlanmoqda. Agar peer tekshiruvni tugata olmasa, o‘qituvchi davom ettiradi.':'O‘qituvchi sizga javob biriktirmoqda.'}</p></>:snapshot.review.status!=='assigned'?<><CheckCircle size={54} weight="fill"/><h2>Baholash yuborildi</h2><p>{snapshot.review.kind==='peer'?'Anonim javobga bergan bahoingiz yuborildi. Bu sizning natijangiz emas.':snapshot.review.kind==='self'?'O‘z-o‘zini baholash yuborildi. Yakuniy natija o‘qituvchi natijalarni ochganda ko‘rinadi.':'Baholash yuborildi. Natijalar ochilishi kutilmoqda.'}</p></>:<><span className="live-eyebrow">{snapshot.review.kind==='peer'?'ANONIM JAVOB':snapshot.review.kind==='self'?'O‘Z JAVOBINGIZ':'JAVOB'}</span><h2>Mark scheme asosida tekshiring</h2><blockquote>{snapshot.review.answerText||'Javob yozilmagan'}</blockquote><MarkSchemeView scheme={{...snapshot.markScheme,points:snapshot.review.points}} interactive selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>{snapshot.markScheme.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=snapshot.markScheme?.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setManualScore(level.minMarks)}}><option value="">Bandni tanlang</option>{snapshot.markScheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}{schemeNeedsManualScore(snapshot.markScheme)?<label>Ball<input type="number" min={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={manualScore} onChange={(e)=>setManualScore(Number(e.target.value))}/></label>:null}<label>Qisqa izoh<textarea value={feedback} maxLength={5000} onChange={(e)=>setFeedback(e.target.value)} placeholder="Nima uchun shu ballni berdingiz?"/></label>{error?<p className="live-error" role="alert">{error}</p>:null}<button disabled={busy} onClick={submitReview}>{busy?'Yuborilmoqda…':'Baholashni yuborish'}</button></>}
+      {!snapshot.review?<><h2>Baholash kutilmoqda</h2><p>{session.markingMode==='peer'?'Anonim tekshiruv yakunlanmoqda. Agar peer tekshiruvni tugata olmasa, o‘qituvchi davom ettiradi.':'O‘qituvchi sizga javob biriktirmoqda.'}</p></>:snapshot.review.status!=='assigned'?<><CheckCircle size={54} weight="fill"/><h2>Baholash yuborildi</h2><p>{snapshot.review.kind==='peer'?'Anonim javobga bergan bahoingiz yuborildi. Bu sizning natijangiz emas.':snapshot.review.kind==='self'?'O‘z-o‘zini baholash yuborildi. Yakuniy natija o‘qituvchi natijalarni ochganda ko‘rinadi.':'Baholash yuborildi. Natijalar ochilishi kutilmoqda.'}</p></>:<><span className="live-eyebrow">{snapshot.review.kind==='peer'?'ANONIM JAVOB':snapshot.review.kind==='self'?'O‘Z JAVOBINGIZ':'JAVOB'}</span><h2>Mark scheme asosida tekshiring</h2><blockquote>{humanizeStoredAnswer(snapshot.review.answerText)||'Javob yozilmagan'}</blockquote><MarkSchemeView scheme={{...snapshot.markScheme,points:snapshot.review.points}} interactive selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>{snapshot.markScheme.levels.length?<label>Rasmiy band<select value={levelNumber??''} onChange={(e)=>{const level=snapshot.markScheme?.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setManualScore(level.minMarks)}}><option value="">Bandni tanlang</option>{snapshot.markScheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}{schemeNeedsManualScore(snapshot.markScheme)?<label>Ball<input type="number" min={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={snapshot.markScheme.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={manualScore} onChange={(e)=>setManualScore(Number(e.target.value))}/></label>:null}<label>Qisqa izoh<textarea value={feedback} maxLength={5000} onChange={(e)=>setFeedback(e.target.value)} placeholder="Nima uchun shu ballni berdingiz?"/></label>{error?<p className="live-error" role="alert">{error}</p>:null}<button disabled={busy} onClick={submitReview}>{busy?'Yuborilmoqda…':'Baholashni yuborish'}</button></>}
     </aside></div>
   </div>;
   if(session.status==='review'&&!snapshot.ownAnswer)return <section className="live-wait"><h2>Joriy savol yakunlangan</h2><p>Siz ushbu savolning baholash bosqichida qo‘shildingiz. Keyingi savol ochilishini kuting.</p></section>;
-  if(session.status==='review')return <section className="live-student-result"><ReviewQuestionContext question={snapshot.question}/><span className="live-eyebrow">SAVOL NATIJASI</span><h1>{snapshot.ownAnswer?.score??'—'} <small>/ {snapshot.question?.marks}</small></h1><p>{snapshot.ownAnswer?.feedback||'Mark scheme pointlari asosida baholandi.'}</p><div><h2>Sizning javobingiz</h2><blockquote>{snapshot.ownAnswer?.text||'Javob yozilmagan'}</blockquote></div>{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}<p className="live-wait-note">O‘qituvchi keyingi savolni ochishi kutilmoqda.</p></section>;
-  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b><div className="live-personal-answer"><strong>Sizning javobingiz</strong><p>{row.answerText||'Javob yozilmagan'}</p>{row.feedback?<small>Izoh: {row.feedback}</small>:null}</div></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
+  if(session.status==='review')return <section className="live-student-result"><ReviewQuestionContext question={snapshot.question}/><span className="live-eyebrow">SAVOL NATIJASI</span><h1>{snapshot.ownAnswer?.score??'—'} <small>/ {snapshot.question?.marks}</small></h1><p>{snapshot.ownAnswer?.feedback||'Mark scheme pointlari asosida baholandi.'}</p><div><h2>Sizning javobingiz</h2><blockquote>{humanizeStoredAnswer(snapshot.ownAnswer?.text)||'Javob yozilmagan'}</blockquote></div>{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}<p className="live-wait-note">O‘qituvchi keyingi savolni ochishi kutilmoqda.</p></section>;
+  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b><div className="live-personal-answer"><strong>Sizning javobingiz</strong><p>{humanizeStoredAnswer(row.answerText)||'Javob yozilmagan'}</p>{row.feedback?<small>Izoh: {row.feedback}</small>:null}</div></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 
@@ -674,7 +709,7 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'))}finally{setBusy(false)}
   };
   const scheme=snapshot.markScheme;
-  return <article className="live-teacher-marker"><header><div><span>O‘QUVCHI JAVOBI</span><h2>{answer.studentName}</h2></div><strong>{answer.score??answer.provisionalScore??'—'}/{snapshot.question?.marks}</strong></header><blockquote>{answer.text||'Javob yozilmagan'}</blockquote>
+  return <article className="live-teacher-marker"><header><div><span>O‘QUVCHI JAVOBI</span><h2>{answer.studentName}</h2></div><strong>{answer.score??answer.provisionalScore??'—'}/{snapshot.question?.marks}</strong></header><blockquote>{humanizeStoredAnswer(answer.text)||'Javob yozilmagan'}</blockquote>
     {scheme?<MarkSchemeView scheme={scheme} interactive={teacherOwnsReview} selected={selected} onToggle={(id)=>setSelected((current)=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})}/>:null}
     {scheme?.levels.length?<label>Rasmiy band<select disabled={!teacherOwnsReview&&!canOverride} value={levelNumber??''} onChange={(e)=>{const level=scheme.levels.find((item)=>item.levelNumber===Number(e.target.value));setLevelNumber(level?.levelNumber);if(level)setScore(level.minMarks)}}><option value="">Bandni tanlang</option>{scheme.levels.map((level)=><option key={level.id} value={level.levelNumber}>Level {level.levelNumber}: {level.minMarks}–{level.maxMarks} ball</option>)}</select></label>:null}
     {(schemeNeedsManualScore(scheme)||!teacherOwnsReview)?<label>Ball<input disabled={!teacherOwnsReview&&!canOverride} type="number" min={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.minMarks??0} max={scheme?.levels.find((level)=>level.levelNumber===levelNumber)?.maxMarks??snapshot.question?.marks??0} value={score} onChange={(e)=>setScore(Number(e.target.value))}/></label>:null}

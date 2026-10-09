@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import { answerWordCount } from '../lib/structured-answer.js';
 import type { Actor } from '../lib/actor.js';
 import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
@@ -144,10 +145,18 @@ export class AssignmentsService {
         left join questions p on p.id=q.parent_id left join answers ans on ans.submission_id=$1 and ans.question_id=q.id
         where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]);
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
-      const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
-      const assetRows=assetIds.length
-        ? (await client.query(`select id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
-           from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+      const questionIds=qr.rows.map((row)=>String(row.id));
+      const referencedAssetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
+      // Structured response fallbacks may need a source table/diagram that was
+      // preserved on the leaf but not yet referenced by historical content_json.
+      // Ship those response assets with the attempt instead of claiming the
+      // question is response-ready while withholding its source surface.
+      const assetRows=questionIds.length
+        ? (await client.query(`select id,question_id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
+           from question_assets
+           where id=any($1::uuid[])
+              or (question_id=any($2::uuid[]) and kind in ('table','diagram','image'))
+           order by question_id,sort_order,id`,[referencedAssetIds,questionIds])).rows
         : [];
       await client.query('commit');
 
@@ -170,8 +179,10 @@ export class AssignmentsService {
       }] as const));
       const questions=qr.rows.map((row)=>{
         const question=serializeAttemptQuestion(row,signedAssetUrls);
-        const sourceAssets=attemptQuestionAssetIds(question.contentJson)
-          .map((id)=>sourceAssetsById.get(id))
+        const referenced=new Set(attemptQuestionAssetIds(question.contentJson));
+        const sourceAssets=assetRows
+          .filter((asset)=>referenced.has(String(asset.id))||String(asset.question_id)===String(row.id))
+          .map((asset)=>sourceAssetsById.get(String(asset.id)))
           .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
         return {...question,sourceAssets};
       });
@@ -187,7 +198,7 @@ export class AssignmentsService {
     if(deadline&&new Date(s.server_now).getTime()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
     const q=await this.pool.query(`select 1 from assignment_questions where assignment_id=$1 and question_id=$2`,[s.assignment_id,questionId]);if(!q.rowCount)throw new DomainError('not_found',404);
     await this.pool.query(`insert into answers(submission_id,question_id,text,word_count) values($1,$2,$3,$4)
-      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0]);
+      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,answerWordCount(text)]);
     return {savedAt:new Date()};
   }
   async submit(actor:Actor, submissionId:string) {
