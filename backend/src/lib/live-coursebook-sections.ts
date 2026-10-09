@@ -38,7 +38,7 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
   [7, [
     {
       code:'7.1',
-      title:'Legal, moral, ethical and cultural issues',
+      title:'Legal, moral, ethical and cultural implications',
       chapterNumber:7,
       chapterTitle:'Ethics and ownership',
       sourceTopicNumber:7,
