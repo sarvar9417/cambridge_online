@@ -20,7 +20,8 @@ export type StructuredResponseMode=
   | 'inline'
   | 'diagram'
   | 'stack'
-  | 'table_fallback';
+  | 'table_fallback'
+  | 'blocked';
 
 export type StructuredResponsePlan={
   mode:StructuredResponseMode;
@@ -167,6 +168,31 @@ function hasStackCue(stem:string){
   ].some((pattern)=>pattern.test(value));
 }
 
+export function requiresLiteralTableSurface(stem:string){
+  const value=stem.toLowerCase().replace(/\s+/g,' ');
+  return [
+    /complete (?:the |this |following )?table/,
+    /fill (?:in |out )?(?:the |this |following )?table/,
+    /write .*answers?.* in (?:the )?table/,
+    /write .* in (?:the )?table provided/,
+    /table provided/,
+    /table below/,
+    /following table/,
+    /parity block check.*circle the bit/,
+  ].some((pattern)=>pattern.test(value));
+}
+
+export function requiresExistingDiagramSurface(stem:string){
+  const value=stem.toLowerCase().replace(/\s+/g,' ');
+  return [
+    /complete (?:the |this |following )?(?:diagram|figure|chart)/,
+    /label (?:the |this |following )?(?:diagram|figure|chart)/,
+    /add .* to (?:the )?(?:diagram|figure|chart)/,
+    /circle .* bit/,
+    /mark .* on (?:the )?(?:diagram|figure|chart)/,
+  ].some((pattern)=>pattern.test(value));
+}
+
 function inlineKinds(content:StructuredQuestionContent|null){
   const kinds=new Set<'table'|'matching'|'scaffold'>();
   if(!content)return [];
@@ -188,6 +214,7 @@ export function structuredResponsePlan(
   content:StructuredQuestionContent|null,
   answerKind:string|undefined|null,
   stem:string,
+  options:{hasSourceVisual?:boolean}={},
 ):StructuredResponsePlan{
   const kinds=inlineKinds(content);
   const sourceAssetId=firstAssetId(content);
@@ -195,14 +222,21 @@ export function structuredResponsePlan(
     return {mode:'stack',inlineKinds:kinds,sourceAssetId,reason:'stack_sequence'};
   }
   const drawing=content?.blocks.some((block)=>block.type==='answer_area'&&block.kind==='drawing')??false;
+  const hasSourceVisual=Boolean(sourceAssetId||options.hasSourceVisual);
   if(answerKind==='diagram'||drawing){
+    if(requiresExistingDiagramSurface(stem)&&!hasSourceVisual&&!drawing){
+      return {mode:'blocked',inlineKinds:kinds,sourceAssetId,reason:'required_source_diagram_missing'};
+    }
     return {mode:'diagram',inlineKinds:kinds,sourceAssetId,reason:'diagram_response'};
   }
   if(kinds.length){
     return {mode:'inline',inlineKinds:kinds,sourceAssetId,reason:kinds.join('+')};
   }
-  if(answerKind==='table'){
-    return {mode:'table_fallback',inlineKinds:[],sourceAssetId,reason:sourceAssetId?'source_table_overlay':'table_structure_missing'};
+  if(answerKind==='table'&&requiresLiteralTableSurface(stem)){
+    if(!hasSourceVisual){
+      return {mode:'blocked',inlineKinds:[],sourceAssetId,reason:'required_source_table_missing'};
+    }
+    return {mode:'table_fallback',inlineKinds:[],sourceAssetId,reason:'source_table_overlay'};
   }
   return {mode:'text',inlineKinds:[],sourceAssetId,reason:'free_text'};
 }
