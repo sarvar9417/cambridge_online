@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import { answerWordCount } from '../lib/structured-answer.js';
 import type { Actor } from '../lib/actor.js';
 import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
@@ -187,7 +188,7 @@ export class AssignmentsService {
     if(deadline&&new Date(s.server_now).getTime()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
     const q=await this.pool.query(`select 1 from assignment_questions where assignment_id=$1 and question_id=$2`,[s.assignment_id,questionId]);if(!q.rowCount)throw new DomainError('not_found',404);
     await this.pool.query(`insert into answers(submission_id,question_id,text,word_count) values($1,$2,$3,$4)
-      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0]);
+      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,answerWordCount(text)]);
     return {savedAt:new Date()};
   }
   async submit(actor:Actor, submissionId:string) {
