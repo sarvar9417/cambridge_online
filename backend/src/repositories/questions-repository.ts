@@ -1,7 +1,11 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
-import { liveCoursebookSectionOptions } from '../lib/live-coursebook-sections.js';
+import {
+  coursebookSectionsForEvidence,
+  liveCoursebookQuestionFilter,
+  liveCoursebookSectionOptions,
+} from '../lib/live-coursebook-sections.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import type {
   DependencyKind,
@@ -30,6 +34,7 @@ export interface QuestionFilters {
   aos?: string[];
   topicIds?: string[];
   subtopicIds?: string[];
+  coursebookSectionCodes?: string[];
   hasDiagram?: boolean;
   status?: 'draft' | 'needs_review' | 'approved' | 'rejected' | 'archived';
   dependency?: 'any' | 'independent';
@@ -111,6 +116,8 @@ export class PgQuestionsRepository {
     if (filters.syllabusCode) {
       conditions.push(`syllabus.code=${add(values, filters.syllabusCode)}`);
     }
+    const coursebookFilter=liveCoursebookQuestionFilter(values,filters.coursebookSectionCodes??[],'q');
+    if(coursebookFilter)conditions.push(coursebookFilter);
     if (filters.component !== undefined) {
       conditions.push(`component.number=${add(values, filters.component)}`);
     }
@@ -242,13 +249,36 @@ export class PgQuestionsRepository {
        select m.*,r.root_id,r.root_ref,
          coalesce((
            select jsonb_agg(
-             jsonb_build_object('id',st.id,'code',st.code,'title',st.title)
-             order by st.sort_order
+             jsonb_build_object(
+               'id',st.id,
+               'code',st.code,
+               'title',st.title,
+               'topicNumber',topic.number
+             )
+             order by topic.number,st.sort_order
            )
            from question_subtopics qs
            join subtopics st on st.id=qs.subtopic_id
+           join topics topic on topic.id=st.topic_id
            where qs.question_id=m.id
          ),'[]'::jsonb) subtopics,
+         coalesce((
+           select jsonb_agg(
+             jsonb_build_object(
+               'topicNumber',topic.number,
+               'subtopicCode',st.code,
+               'text',lo.text
+             )
+             order by topic.number,st.sort_order,lo.sort_order,lo.code
+           )
+           from question_learning_objectives qlo
+           join learning_objectives lo on lo.id=qlo.lo_id
+           join subtopics st on st.id=lo.subtopic_id
+           join topics topic on topic.id=st.topic_id
+           join syllabi lo_syllabus on lo_syllabus.id=topic.syllabus_id
+           where qlo.question_id=m.id
+             and lo_syllabus.code='9618'
+         ),'[]'::jsonb) learning_objectives,
          exists(select 1 from question_dependencies qd where qd.question_id=m.id) has_dependency
        from matching m
        join roots r on r.leaf_id=m.id
@@ -256,7 +286,23 @@ export class PgQuestionsRepository {
       values,
     );
 
-    const parts = matching.rows.map(mapPart);
+    const parts = matching.rows.map((row)=>{
+      const part=mapPart(row);
+      const coursebookSections=part.syllabusCode==='9618'
+        ? coursebookSectionsForEvidence({
+            subtopics:(row.subtopics??[]).map((subtopic:{topicNumber?:number;code:string})=>({
+              topicNumber:Number(subtopic.topicNumber??0),
+              code:subtopic.code,
+            })),
+            learningObjectives:(row.learning_objectives??[]).map((lo:{topicNumber?:number;subtopicCode:string;text:string})=>({
+              topicNumber:Number(lo.topicNumber??0),
+              subtopicCode:lo.subtopicCode,
+              text:lo.text,
+            })),
+          }).map((section)=>({code:section.code,title:section.title,chapterNumber:section.chapterNumber}))
+        :[];
+      return {...part,coursebookSections};
+    });
     if ((filters.view ?? 'parts') === 'parts') {
       return {
         data: parts,
