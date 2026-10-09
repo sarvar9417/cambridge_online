@@ -270,6 +270,7 @@ export interface LiveExamAsset {id:string;kind:string;storagePath:string|null;ur
 export interface LiveExamPortableQuestion {
   leaf:{id:string;rootId:string;label:string;path:string;displayRef:string;stem:string;stemLatex?:string|null;bodyFormat?:'markdown'|'latex';contentJson?:StructuredQuestionContent|null;commandWord:string|null;marks:number;answerKind:string;answerLines:number|null};
   chain:Array<{id:string;label:string;depth:number}>;
+  responseAssets?:LiveExamAsset[];
   contextBlocks:Array<{id:string;label:string;displayRef:string;depth:number;context:string|null;contextLatex?:string|null;assets:LiveExamAsset[]}>;
   dependencies:Array<{id:string;questionId:string;dependsOnId:string;displayRef:string;stem:string|null;kind:string;strength:string;evidence?:string|null;confidence?:number|null}>;
   sourceRef:string;
@@ -280,12 +281,12 @@ export interface LiveMarkSchemePoint {id:string;code:string;text:string;marks:nu
 export interface LiveMarkSchemeLevel {id:string;levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd:string|null}
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;levels:LiveMarkSchemeLevel[];points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
 export interface LiveExamAnswer {id:string;text:string;structuredResponse?:StructuredResponse|null;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string;provisionalScore?:number|null;provisionalFeedback?:string|null}
-export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
+export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;structuredResponse?:StructuredResponse|null;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
-  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
+  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;structuredResponse?:StructuredResponse|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
