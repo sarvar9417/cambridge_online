@@ -312,7 +312,7 @@ export function liveCoursebookQuestionFilter(
       if(!terms.length)return null;
       const predicates=terms.map((term)=>{
         values.push(`%${term}%`);
-        return `coursebook_lo.text ilike ${values.length}`;
+        return `coursebook_lo.text ilike $${values.length}`;
       });
       return `${negated?'not ':''}exists(
         select 1
