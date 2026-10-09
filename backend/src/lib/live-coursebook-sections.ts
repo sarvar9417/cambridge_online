@@ -7,12 +7,66 @@ export type LiveCoursebookSection = {
   chapterTitle: string;
   sourceTopicNumber: number;
   sourceSubtopicCode: string;
-  includeLoText?: string[];
-  excludeLoText?: string[];
+  includeLoTextAny?: string[];
+  excludeLoTextAny?: string[];
   mappingKind: 'direct_subtopic' | 'learning_objective_bridge';
 };
 
 const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
+  [2, [
+    {
+      code:'2.1',
+      title:'Networking',
+      chapterNumber:2,
+      chapterTitle:'Communication',
+      sourceTopicNumber:2,
+      sourceSubtopicCode:'2.1',
+      excludeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'2.2',
+      title:'The internet',
+      chapterNumber:2,
+      chapterTitle:'Communication',
+      sourceTopicNumber:2,
+      sourceSubtopicCode:'2.1',
+      includeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service'],
+      mappingKind:'learning_objective_bridge',
+    },
+  ]],
+  [7, [
+    {
+      code:'7.1',
+      title:'Legal, moral, ethical and cultural issues',
+      chapterNumber:7,
+      chapterTitle:'Ethics and ownership',
+      sourceTopicNumber:7,
+      sourceSubtopicCode:'7.1',
+      includeLoTextAny:['ethic'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'7.2',
+      title:'Copyright issues',
+      chapterNumber:7,
+      chapterTitle:'Ethics and ownership',
+      sourceTopicNumber:7,
+      sourceSubtopicCode:'7.1',
+      includeLoTextAny:['copyright','licenc'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'7.3',
+      title:'Artificial intelligence (AI)',
+      chapterNumber:7,
+      chapterTitle:'Ethics and ownership',
+      sourceTopicNumber:7,
+      sourceSubtopicCode:'7.1',
+      includeLoTextAny:['Artificial Intelligence'],
+      mappingKind:'learning_objective_bridge',
+    },
+  ]],
   [15, [
     {
       code:'15.1',
@@ -21,7 +75,7 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
       chapterTitle:'Hardware',
       sourceTopicNumber:15,
       sourceSubtopicCode:'15.1',
-      excludeLoText:['virtual machine'],
+      excludeLoTextAny:['virtual machine'],
       mappingKind:'learning_objective_bridge',
     },
     {
@@ -51,7 +105,7 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
       chapterTitle:'System software and virtual machines',
       sourceTopicNumber:15,
       sourceSubtopicCode:'15.1',
-      includeLoText:['virtual machine'],
+      includeLoTextAny:['virtual machine'],
       mappingKind:'learning_objective_bridge',
     },
     {
@@ -64,6 +118,70 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
       mappingKind:'direct_subtopic',
     },
   ]],
+  [17, [
+    {
+      code:'17.1',
+      title:'Encryption',
+      chapterNumber:17,
+      chapterTitle:'Security',
+      sourceTopicNumber:17,
+      sourceSubtopicCode:'17.1',
+      includeLoTextAny:['encryption works','key terms associated with encryption','symmetric','asymmetric'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'17.2',
+      title:'Quantum cryptography',
+      chapterNumber:17,
+      chapterTitle:'Security',
+      sourceTopicNumber:17,
+      sourceSubtopicCode:'17.1',
+      includeLoTextAny:['quantum cryptography'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'17.3',
+      title:'Protocols',
+      chapterNumber:17,
+      chapterTitle:'Security',
+      sourceTopicNumber:17,
+      sourceSubtopicCode:'17.1',
+      includeLoTextAny:['Secure Socket Layer','Transport Layer Security','SSL','TLS'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'17.4',
+      title:'Digital signatures and digital certificates',
+      chapterNumber:17,
+      chapterTitle:'Security',
+      sourceTopicNumber:17,
+      sourceSubtopicCode:'17.1',
+      includeLoTextAny:['digital cert'],
+      mappingKind:'learning_objective_bridge',
+    },
+  ]],
+  [18, [
+    {
+      code:'18.1',
+      title:'Shortest path algorithms',
+      chapterNumber:18,
+      chapterTitle:'Artificial intelligence (AI)',
+      sourceTopicNumber:18,
+      sourceSubtopicCode:'18.1',
+      includeLoTextAny:['graphs can be used','Dijkstra','A*'],
+      mappingKind:'learning_objective_bridge',
+    },
+    {
+      code:'18.2',
+      title:'Artificial intelligence, machine learning and deep learning',
+      chapterNumber:18,
+      chapterTitle:'Artificial intelligence (AI)',
+      sourceTopicNumber:18,
+      sourceSubtopicCode:'18.1',
+      excludeLoTextAny:['graphs can be used','Dijkstra','A*'],
+      mappingKind:'learning_objective_bridge',
+    },
+  ]],
 ]);
 
 /**
@@ -74,9 +192,10 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
  * - The Hodder coursebook chapter taxonomy is what teachers see when they ask for
  *   "Chapter 16.2" or "Chapter 16.3".
  *
- * Most chapter sections align 1:1 with the syllabus. Chapters 15/16 do not:
- * virtual machines are Chapter 16.2 in the coursebook, but are assessed under
- * syllabus 15.1; coursebook 16.3 Translation software is syllabus 16.2.
+ * Most chapter sections align 1:1 with the syllabus. The uploaded Hodder
+ * chapters prove several deliberate splits/relocations (2, 7, 15/16, 17 and
+ * 18). Keep those classroom labels here while preserving the official syllabus
+ * rows used for assessment evidence.
  *
  * Keep this as a bridge. Never rename official syllabus rows to make the book fit.
  */
@@ -147,29 +266,45 @@ export function liveCoursebookQuestionFilter(
       )`;
     }
 
-    const loFilters:string[]=[];
-    for(const term of section.includeLoText??[]){
-      values.push(`%${term}%`);
-      loFilters.push(`coursebook_lo.text ilike $${values.length}`);
-    }
-    for(const term of section.excludeLoText??[]){
-      values.push(`%${term}%`);
-      loFilters.push(`coursebook_lo.text not ilike $${values.length}`);
-    }
-
-    return `exists(
+    const baseSubtopic=`exists(
       select 1
-      from question_learning_objectives coursebook_qlo
-      join learning_objectives coursebook_lo on coursebook_lo.id=coursebook_qlo.lo_id
-      join subtopics coursebook_st on coursebook_st.id=coursebook_lo.subtopic_id
+      from question_subtopics coursebook_qst
+      join subtopics coursebook_st on coursebook_st.id=coursebook_qst.subtopic_id
       join topics coursebook_t on coursebook_t.id=coursebook_st.topic_id
       join syllabi coursebook_sy on coursebook_sy.id=coursebook_t.syllabus_id
-      where coursebook_qlo.question_id=${questionAlias}.id
+      where coursebook_qst.question_id=${questionAlias}.id
         and coursebook_sy.code='9618'
         and coursebook_t.number=${topicParameter}
         and coursebook_st.code=${subtopicParameter}
-        ${loFilters.length?`and ${loFilters.join(' and ')}`:''}
     )`;
+
+    const loEvidence=(terms:string[],negated=false)=>{
+      if(!terms.length)return null;
+      const predicates=terms.map((term)=>{
+        values.push(`%${term}%`);
+        return `coursebook_lo.text ilike ${values.length}`;
+      });
+      return `${negated?'not ':''}exists(
+        select 1
+        from question_learning_objectives coursebook_qlo
+        join learning_objectives coursebook_lo on coursebook_lo.id=coursebook_qlo.lo_id
+        join subtopics coursebook_lo_st on coursebook_lo_st.id=coursebook_lo.subtopic_id
+        join topics coursebook_lo_t on coursebook_lo_t.id=coursebook_lo_st.topic_id
+        join syllabi coursebook_lo_sy on coursebook_lo_sy.id=coursebook_lo_t.syllabus_id
+        where coursebook_qlo.question_id=${questionAlias}.id
+          and coursebook_lo_sy.code='9618'
+          and coursebook_lo_t.number=${topicParameter}
+          and coursebook_lo_st.code=${subtopicParameter}
+          and (${predicates.join(' or ')})
+      )`;
+    };
+
+    const evidence=[baseSubtopic];
+    const include=loEvidence(section.includeLoTextAny??[]);
+    const exclude=loEvidence(section.excludeLoTextAny??[],true);
+    if(include)evidence.push(include);
+    if(exclude)evidence.push(exclude);
+    return `(${evidence.join(' and ')})`;
   });
 
   return `(${clauses.join(' or ')})`;
