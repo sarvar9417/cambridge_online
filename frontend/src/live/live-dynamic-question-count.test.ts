@@ -24,9 +24,10 @@ describe('Live dynamic question count',()=>{
     expect(page).not.toContain("limit:'30'");
   });
 
-  it('recalculates availability from class, topic, subtopic and Live filters',()=>{
+  it('recalculates availability from class, coursebook section and Live filters',()=>{
+    expect(page).toContain('coursebookSectionCodes:coursebookSectionCodes.join');
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('[selectedClassId,topicIds,subtopicIds,includeDiagrams,excludeSeen]');
+    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]');
   });
 });
