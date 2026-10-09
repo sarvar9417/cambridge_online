@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
+import { parseStructuredResponse, type StructuredResponse } from '../lib/structured-response.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
@@ -139,7 +140,7 @@ export class AssignmentsService {
         returning *`,[assignmentId,actor.id,sid]); const s=sr.rows[0];
       if(!['not_started','in_progress'].includes(s.status)) throw new DomainError('already_submitted',409);
       const qr=await client.query(`select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.answer_kind,
-        q.content_json,q.content_version,p.context_md parent_context,ans.text answer_text
+        q.content_json,q.content_version,p.context_md parent_context,ans.text answer_text,ans.response_json
         from assignment_questions aq join questions q on q.id=aq.question_id
         left join questions p on p.id=q.parent_id left join answers ans on ans.submission_id=$1 and ans.question_id=q.id
         where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]);
@@ -179,15 +180,18 @@ export class AssignmentsService {
       return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:now,questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
   }
-  async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string) {
+  async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string, structuredResponse?:StructuredResponse|null) {
     const r=await this.pool.query(`select s.*,a.time_limit_min,a.due_at,statement_timestamp() server_now from submissions s join assignments a on a.id=s.assignment_id where s.id=$1 and s.student_id=$2`,[submissionId,actor.id]);
     const s=r.rows[0]; if(!s)throw new DomainError('not_found',404); if(!['not_started','in_progress'].includes(s.status))throw new DomainError('submission_closed',409);
     if(sessionId&&s.active_session_id!==sessionId)throw new DomainError('session_replaced',409);
     const deadline=s.time_limit_min?new Date(new Date(s.started_at).getTime()+(s.time_limit_min+s.time_extension_min)*60000):latestDeadline(s.due_at,s.late_granted_until);
     if(deadline&&new Date(s.server_now).getTime()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
     const q=await this.pool.query(`select 1 from assignment_questions where assignment_id=$1 and question_id=$2`,[s.assignment_id,questionId]);if(!q.rowCount)throw new DomainError('not_found',404);
-    await this.pool.query(`insert into answers(submission_id,question_id,text,word_count) values($1,$2,$3,$4)
-      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0]);
+    const response=structuredResponse==null?null:parseStructuredResponse(structuredResponse);
+    await this.pool.query(`insert into answers(submission_id,question_id,text,word_count,response_json) values($1,$2,$3,$4,$5::jsonb)
+      on conflict(submission_id,question_id) do update set
+        text=excluded.text,word_count=excluded.word_count,response_json=excluded.response_json,updated_at=now()`,
+      [submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0,response?JSON.stringify(response):null]);
     return {savedAt:new Date()};
   }
   async submit(actor:Actor, submissionId:string) {
