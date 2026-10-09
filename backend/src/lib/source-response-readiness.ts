@@ -44,12 +44,18 @@ export function questionResponseIntegritySql(questionAlias='q') {
         or nullif(btrim(coalesce(response_asset.svg_markup,'')),'') is not null
       )
   )`;
-  const stackWorkspace=`lower(coalesce(${questionAlias}.stem_md,'')) ~
+  const normalizedStem=`lower(regexp_replace(coalesce(${questionAlias}.stem_md,''), E'\\\\s+', ' ', 'g'))`;
+  const stackWorkspace=`${normalizedStem} ~
     '(changing contents of (the )?stack|complete .*stack|state of .*stack|rpn expression.*stack|stack.*rpn expression)'`;
+  const literalTableRequired=`${normalizedStem} ~
+    '(complete (the |this |following )?table|fill (in |out )?(the |this |following )?table|write .*answers?.* in (the )?table|table provided|table below|following table|parity block check.*circle the bit)'`;
+  const existingDiagramRequired=`${normalizedStem} ~
+    '(complete (the |this |following )?(diagram|figure|chart)|label (the |this |following )?(diagram|figure|chart)|add .* to (the )?(diagram|figure|chart)|circle .* bit|mark .* on (the )?(diagram|figure|chart))'`;
+  const usableSourceSurface=`(${semanticTable} or ${drawingArea} or ${referencedAsset} or ${ownedAsset})`;
 
   return `(
-    (${questionAlias}.answer_kind::text<>'table' or (${semanticTable} or ${drawingArea} or ${referencedAsset} or ${ownedAsset} or ${stackWorkspace}))
+    (not (${literalTableRequired}) or ${stackWorkspace} or ${usableSourceSurface})
     and
-    (${questionAlias}.answer_kind::text<>'diagram' or (${drawingArea} or ${referencedAsset} or ${ownedAsset}))
+    (not (${existingDiagramRequired}) or ${drawingArea} or ${referencedAsset} or ${ownedAsset})
   )`;
 }
