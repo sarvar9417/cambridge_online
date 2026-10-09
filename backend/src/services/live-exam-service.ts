@@ -11,7 +11,7 @@ import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
-const QUESTION_DEADLINE_GRACE_S = 10;
+export const QUESTION_DEADLINE_GRACE_S = 10;
 
 export interface CreateLiveExamInput {
   classId: string;
@@ -272,12 +272,17 @@ export class LiveExamService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
-  private async chooseQuestionIds(actor: Actor, input: CreateLiveExamInput, requireExact = true) {
+  private async chooseQuestionIds(
+    actor: Actor,
+    input: CreateLiveExamInput,
+    requireExact = true,
+    countOnly = false,
+  ) {
     // Keep the random ordering seed first and bind the class ID for both
     // syllabus-safe readiness resolution and optional seen-question filtering.
     // Every value is referenced in the SQL so PostgreSQL can infer its type.
-    const values: unknown[] = [randomUUID(), input.classId];
-    const classParameter = '$2';
+    const values: unknown[] = countOnly ? [input.classId] : [randomUUID(), input.classId];
+    const classParameter = countOnly ? '$1' : '$2';
 
     // Prefer the precomputed readiness cache when its revision matches the
     // current corpus. Any source mutation marks the cache stale, at which point
@@ -427,11 +432,7 @@ export class LiveExamService {
           and exposure.source_type='live'
       )`);
     }
-    values.push(input.questionCount);
-    const limitParameter='$'+values.length;
-    const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (
+    const candidateSql = `
          select distinct q.id
          from questions q
          where ${readinessCacheFresh}
@@ -444,7 +445,19 @@ export class LiveExamService {
          where not ${readinessCacheFresh}
            and ${dynamicReadinessFilters.join(' and ')}
            ${filters.length ? `and ${filters.join(' and ')}` : ''}
-       ) candidate
+    `;
+    if (countOnly) {
+      const result = await this.pool.query(
+        `select count(*)::int total from (${candidateSql}) candidate`,
+        values,
+      );
+      return { ids:[] as string[],total:Number(result.rows[0]?.total ?? 0) };
+    }
+    values.push(input.questionCount);
+    const limitParameter='$'+values.length;
+    const result = await this.pool.query(
+      `select candidate.id,count(*) over()::int total_count
+       from (${candidateSql}) candidate
        order by md5(candidate.id::text || $1::text)
        limit ${limitParameter}`,
       values,
@@ -520,52 +533,94 @@ export class LiveExamService {
     return ordered;
   }
 
+  private async previewQuestions(questionIds:string[]) {
+    if (!questionIds.length) return [];
+    const result=await this.pool.query(
+      `with recursive selected(question_id,ordinality) as (
+         select question_id,ordinality
+         from unnest($1::uuid[]) with ordinality picked(question_id,ordinality)
+       ), ancestry(selected_id,ancestor_id,parent_id) as (
+         select selected.question_id,q.id,q.parent_id
+         from selected join questions q on q.id=selected.question_id
+         union all
+         select ancestry.selected_id,parent.id,parent.parent_id
+         from ancestry join questions parent on parent.id=ancestry.parent_id
+       )
+       select q.id,q.display_ref,q.marks,q.command_word,coalesce(q.stem_md,'') stem,
+         exists(
+           select 1 from ancestry
+           join question_assets asset on asset.question_id=ancestry.ancestor_id
+           where ancestry.selected_id=q.id
+         ) has_assets,
+         (select count(*)::int from question_dependencies dependency
+          where dependency.question_id=q.id and dependency.strength::text='required') dependency_count
+       from selected join questions q on q.id=selected.question_id
+       order by selected.ordinality`,
+      [questionIds],
+    );
+    return result.rows.map((row)=>({
+      id:String(row.id),
+      displayRef:String(row.display_ref),
+      marks:Number(row.marks),
+      commandWord:row.command_word == null ? null : String(row.command_word),
+      stem:String(row.stem),
+      hasAssets:Boolean(row.has_assets),
+      dependencyCount:Number(row.dependency_count),
+    }));
+  }
+
   async eligibleQuestions(
     actor: Actor,
-    input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { limit: number },
+    input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & {
+      limit: number;
+      includeData?: boolean;
+      includeCounts?: boolean;
+    },
   ) {
     await this.requireClassControl(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
-    const selection = await this.chooseQuestionIds(actor, {
+    const selectionPromise = this.chooseQuestionIds(actor, {
       ...input,
       title: 'Question preview',
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
     }, false);
-    const databaseTotal = await this.countDatabaseQuestions(input);
-    const liveReadyTotal = input.includeDiagrams && !input.excludeSeen
-      ? selection.total
-      : (await this.chooseQuestionIds(actor, {
-          ...input,
-          title: 'Question availability',
-          markingMode: 'teacher',
-          questionCount: 1,
-          includeDiagrams: true,
-          excludeSeen: false,
-          questionIds: undefined,
-        }, false)).total;
-    const rows = await Promise.all(selection.ids.map(async (questionId) => {
-      const portable = await this.questions.portable(actor, questionId);
-      if (!portable) return null;
-      return {
-        id: questionId,
-        displayRef: portable.sourceRef,
-        marks: portable.leaf.marks,
-        commandWord: portable.leaf.commandWord,
-        stem: portable.leaf.stem,
-        hasAssets: portable.contextBlocks.some((block) => block.assets.length > 0),
-        dependencyCount: portable.dependencies.filter((dependency) => dependency.strength === 'required').length,
-      };
-    }));
+    let selection;
+    let databaseTotal: number | undefined;
+    let liveReadyTotal: number | undefined;
+    if (input.includeCounts === false) {
+      selection = await selectionPromise;
+    } else {
+      // These counts are independent. Running them together removes two remote
+      // database round trips from the full question-picker wait without
+      // changing the authoritative selection rules.
+      const liveReadyPromise = input.includeDiagrams && !input.excludeSeen
+        ? selectionPromise.then((candidate) => candidate.total)
+        : this.chooseQuestionIds(actor, {
+            ...input,
+            title: 'Question availability',
+            markingMode: 'teacher',
+            questionCount: 1,
+            includeDiagrams: true,
+            excludeSeen: false,
+            questionIds: undefined,
+          }, false, true).then((candidate) => candidate.total);
+      [selection,databaseTotal,liveReadyTotal] = await Promise.all([
+        selectionPromise,
+        this.countDatabaseQuestions(input),
+        liveReadyPromise,
+      ]);
+    }
+    const rows = input.includeData === false ? [] : await this.previewQuestions(selection.ids);
     return {
-      data:rows.filter((row): row is NonNullable<typeof row> => row !== null),
+      data:rows,
       total:selection.total,
-      counts:{
+      ...(databaseTotal === undefined || liveReadyTotal === undefined ? {} : { counts:{
         database:databaseTotal,
         liveReady:liveReadyTotal,
         available:selection.total,
-      },
+      } }),
     };
   }
 
@@ -710,7 +765,10 @@ export class LiveExamService {
            les.status='lobby'
            or (les.status in ('question_open','marking','review') and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
-         for update of les`,
+         -- Concurrent learners may validate the same room together. Start,
+         -- cancel and other state transitions still wait for every join to
+         -- commit because they acquire FOR UPDATE on this session row.
+         for key share of les`,
         [code],
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
@@ -760,20 +818,23 @@ export class LiveExamService {
         [sessionId, actor.id, QUESTION_DEADLINE_GRACE_S],
       );
       if (!result.rowCount) throw new DomainError('not_found', 404);
-      if (result.rows[0].deadline_expired) await this.closeExpiredQuestion(sessionId);
+      if (result.rows[0].deadline_expired) await this.reconcileExpired(sessionId);
     } else {
       await this.requireClassControlForSession(actor, sessionId);
-      await this.closeExpiredQuestion(sessionId);
+      await this.reconcileExpired(sessionId);
     }
     return { serverNow: new Date() };
   }
 
-  private async closeExpiredQuestion(sessionId: string) {
+  async reconcileExpired(sessionId: string) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const result = await client.query(
-        `select * from live_exam_sessions where id=$1 for update`, [sessionId],
+        // At the deadline every browser can notice expiry together. Only one
+        // request should perform the transition; the others must not queue and
+        // exhaust the connection pool behind the same session-row lock.
+        `select * from live_exam_sessions where id=$1 for update skip locked`, [sessionId],
       );
       const session = result.rows[0];
       if (!session || session.status !== 'question_open' || session.paused_at
@@ -817,7 +878,7 @@ export class LiveExamService {
     );
     let closed = 0;
     for (const row of candidates.rows) {
-      if (await this.closeExpiredQuestion(String(row.id))) closed += 1;
+      if (await this.reconcileExpired(String(row.id))) closed += 1;
     }
     return closed;
   }
@@ -880,7 +941,7 @@ export class LiveExamService {
     );
     if (!access.rowCount) throw new DomainError('not_found', 404);
     const session = access.rows[0];
-    if (session.deadline_expired && await this.closeExpiredQuestion(sessionId)) {
+    if (session.deadline_expired && await this.reconcileExpired(sessionId)) {
       return this.snapshot(actor, sessionId, projector);
     }
     const isStaff = Boolean(session.is_staff);
@@ -1160,7 +1221,10 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      this.assertExpectedVersion(session, expectedVersion);
+      // Joining advances the roster version. Starting remains safe with an
+      // older lobby version because the row lock observes the final committed
+      // roster and the status check prevents duplicate transitions.
+      void expectedVersion;
       if (session.status !== 'lobby') throw new DomainError('live_invalid_state', 409);
       const count = await client.query(
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
@@ -1220,7 +1284,7 @@ export class LiveExamService {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
     // it cannot remain question_open merely because every browser went away.
-    await this.closeExpiredQuestion(sessionId);
+    await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -1253,7 +1317,7 @@ export class LiveExamService {
 
   async submitAnswer(actor: Actor, sessionId: string, text?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
-    await this.closeExpiredQuestion(sessionId);
+    await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -1338,21 +1402,27 @@ export class LiveExamService {
               answerId: String(row.answer_id), studentId: String(row.student_id),
             })), `${sessionId}:${sessionQuestionId}`);
     const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
-    for (const assignment of assignments) {
-      const review = await client.query(
-        `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
-         values($1,$2,$3,$4)
-         on conflict(session_question_id,answer_id,kind) do update set reviewer_id=excluded.reviewer_id
-         returning id`,
-        [sessionQuestionId, assignment.answerId, assignment.reviewerId, assignment.kind],
+    // One round can have dozens of learners and mark-scheme points. Insert the
+    // whole assignment matrix in two statements instead of one network round
+    // trip per review and per point.
+    await client.query(
+      `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
+       select $1,input.answer_id::uuid,input.reviewer_id::uuid,input.kind::live_exam_marking_mode
+       from jsonb_to_recordset($2::jsonb) input(answer_id text,reviewer_id text,kind text)
+       on conflict(session_question_id,answer_id,kind) do update
+         set reviewer_id=excluded.reviewer_id`,
+      [sessionQuestionId, JSON.stringify(assignments)],
+    );
+    if (scheme.points.length) {
+      await client.query(
+        `insert into live_exam_review_points(review_id,mark_scheme_point_id)
+         select review.id,point.value::uuid
+         from live_exam_reviews review
+         cross join jsonb_array_elements_text($2::jsonb) point(value)
+         where review.session_question_id=$1
+         on conflict do nothing`,
+        [sessionQuestionId, JSON.stringify(scheme.points.map((point) => point.id))],
       );
-      for (const point of scheme.points) {
-        await client.query(
-          `insert into live_exam_review_points(review_id,mark_scheme_point_id)
-           values($1,$2) on conflict do nothing`,
-          [review.rows[0].id, point.id],
-        );
-      }
     }
     await client.query(
       `update live_exam_sessions set status='marking',answers_locked_at=now(),mark_scheme_revealed_at=now()

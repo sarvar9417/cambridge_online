@@ -41,11 +41,18 @@ describe('Live Exam release security and recovery contract',()=>{
   it('freezes official response levels and validates the authoritative deadline grace',()=>{
     expect(service).toContain("'levels',coalesce((select jsonb_agg(jsonb_build_object(");
     expect(service).toContain("'levelNumber',msl.level_number");
-    expect(service).toContain('const QUESTION_DEADLINE_GRACE_S = 10;');
-    expect(service).toContain('closeExpiredQuestion(sessionId)');
+    expect(service).toContain('export const QUESTION_DEADLINE_GRACE_S = 10;');
+    expect(service).toContain('reconcileExpired(sessionId)');
+    expect(service).toContain('for update skip locked');
     expect(service).toContain("or now()<question_started_at+question_time_limit_s*interval '1 second'");
     expect(service).toContain("Number(session.pause_remaining_s) <= 0");
     expect(service).toContain("new DomainError('score_outside_level', 400)");
+  });
+
+  it('creates marking work in bounded bulk statements',()=>{
+    expect(service).toContain('from jsonb_to_recordset($2::jsonb)');
+    expect(service).toContain('cross join jsonb_array_elements_text($2::jsonb)');
+    expect(service).not.toContain('for (const assignment of assignments)');
   });
 
   it('uses the authenticated student and room code only at the Live join boundary',()=>{

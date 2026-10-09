@@ -321,7 +321,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     const next=[...current];[next[index],next[target]]=[next[target]!,next[index]!];return next;
   });
 
-  const eligibleParams=(limit:number)=>new URLSearchParams({
+  const eligibleParams=(limit:number,includeData=true,includeCounts=true)=>new URLSearchParams({
     classId:selectedClassId,
     topicIds:'',
     subtopicIds:'',
@@ -329,6 +329,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     includeDiagrams:String(includeDiagrams),
     excludeSeen:String(excludeSeen),
     limit:String(Math.max(1,limit)),
+    includeData:String(includeData),
+    includeCounts:String(includeCounts),
   });
 
   useEffect(()=>{
@@ -340,11 +342,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     setEligibleTotal(null);
     setEligibleCounts(null);
     const timer=window.setTimeout(()=>{
-      void api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1)}`)
+      void api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false)}`)
         .then((result)=>{
           if(cancelled)return;
           setEligibleTotal(result.total);
-          setEligibleCounts(result.counts??{database:result.total,liveReady:result.total,available:result.total});
+          setEligibleCounts(result.counts??null);
           setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total):1);
         })
         .catch((cause)=>{if(!cancelled)setError(message(cause,'Mos savollar soni aniqlanmadi.'))})
@@ -358,14 +360,14 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       let total=eligibleTotal;
       if(total===null){
-        const summary=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1)}`);
+        const summary=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false)}`);
         total=summary.total;setEligibleTotal(total);
-        setEligibleCounts(summary.counts??{database:summary.total,liveReady:summary.total,available:summary.total});
+        setEligibleCounts(summary.counts??null);
       }
       if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);return}
-      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(total)}`);
+      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(total,true,false)}`);
       setEligibleTotal(result.total);
-      setEligibleCounts(result.counts??{database:result.total,liveReady:result.total,available:result.total});
+      setEligibleCounts(result.counts??null);
       setQuestionPool(result.data);
       setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}

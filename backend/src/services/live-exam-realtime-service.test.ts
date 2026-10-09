@@ -4,8 +4,8 @@ import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
 
 const student = { id:'student-1',role:'student' as const,schoolId:'school-1',fullName:'Student' };
 
-function serviceFor(query: ReturnType<typeof vi.fn>) {
-  return new LiveExamRealtimeService({ query } as unknown as Pool);
+function serviceFor(query: ReturnType<typeof vi.fn>, reconcileExpired?: (sessionId:string)=>Promise<boolean>) {
+  return new LiveExamRealtimeService({ query } as unknown as Pool,reconcileExpired);
 }
 
 describe('LiveExamRealtimeService', () => {
@@ -37,6 +37,21 @@ describe('LiveExamRealtimeService', () => {
     ]);
     expect(result.events[0]).not.toHaveProperty('payload');
     expect(result.events[0]).not.toHaveProperty('actorId');
+  });
+
+  it('reconciles an elapsed round before reporting the current version', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{version:7,deadline_expired:true}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{version:8,deadline_expired:false}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{
+        session_version:8,event_type:'mark_scheme.revealed',created_at:new Date('2026-09-16T05:00:01Z'),
+      }]});
+    const reconcileExpired=vi.fn().mockResolvedValue(true);
+    const result=await serviceFor(query,reconcileExpired)
+      .events(student,'11111111-1111-4111-8111-111111111111',7);
+    expect(reconcileExpired).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
+    expect(result.currentVersion).toBe(8);
+    expect(result.changed).toBe(true);
   });
 
   it('fails closed when the actor cannot access the session', async () => {

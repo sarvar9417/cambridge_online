@@ -93,6 +93,8 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       limit:z.coerce.number().int().min(1).default(30),
+      includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
+      includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
     }).parse(req.query);
     res.json(await service.eligibleQuestions(req.actor!,{
       classId:query.classId,
@@ -102,6 +104,8 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
       limit:query.limit,
+      includeData:query.includeData,
+      includeCounts:query.includeCounts,
       allowLateJoin:false,
       autoCloseWhenAllSubmitted:false,
       teacherOverrideEnabled:true,

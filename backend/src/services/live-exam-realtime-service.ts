@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
+import { QUESTION_DEADLINE_GRACE_S } from './live-exam-service.js';
 
 export interface LiveExamRealtimeEvent {
   version: number;
@@ -25,11 +26,18 @@ export interface LiveExamRealtimeCursor {
  * the notification channel while still allowing fast classroom updates.
  */
 export class LiveExamRealtimeService {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly reconcileExpired?: (sessionId:string) => Promise<boolean>,
+  ) {}
 
   private async authorisedVersion(actor: Actor, sessionId: string) {
     const result = await this.pool.query(
-      `select les.version
+      `select les.version,
+         (les.status='question_open' and les.paused_at is null
+          and les.question_started_at is not null and les.question_time_limit_s is not null
+          and now() > les.question_started_at + les.question_time_limit_s * interval '1 second'
+            + $5::int * interval '1 second') deadline_expired
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        left join live_exam_participants lep
@@ -44,14 +52,22 @@ export class LiveExamRealtimeService {
            )
          ))
        )`,
-      [sessionId, actor.role, actor.id, actor.schoolId],
+      [sessionId, actor.role, actor.id, actor.schoolId, QUESTION_DEADLINE_GRACE_S],
     );
     if (!result.rowCount) throw new DomainError('not_found', 404);
-    return Number(result.rows[0].version);
+    return {
+      version:Number(result.rows[0].version),
+      deadlineExpired:Boolean(result.rows[0].deadline_expired),
+    };
   }
 
   async events(actor: Actor, sessionId: string, afterVersion: number, limit = 50): Promise<LiveExamRealtimeCursor> {
-    const currentVersion = await this.authorisedVersion(actor, sessionId);
+    let state = await this.authorisedVersion(actor, sessionId);
+    if (state.deadlineExpired && this.reconcileExpired) {
+      await this.reconcileExpired(sessionId);
+      state = await this.authorisedVersion(actor, sessionId);
+    }
+    const currentVersion = state.version;
     if (afterVersion >= currentVersion) {
       return { sessionId, currentVersion, changed: false, events: [] };
     }

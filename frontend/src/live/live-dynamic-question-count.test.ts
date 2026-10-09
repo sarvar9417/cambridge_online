@@ -17,7 +17,7 @@ describe('Live dynamic question count',()=>{
   });
 
   it('loads the complete eligible pool for manual selection instead of stopping at 20 or 30',()=>{
-    expect(page).toContain('eligibleParams(total)');
+    expect(page).toContain('eligibleParams(total,true,false)');
     expect(page).toContain('api<EligibleQuestionResponse>');
     expect(page).not.toContain('current.length>=20');
     expect(page).not.toContain('/20 ta savol');

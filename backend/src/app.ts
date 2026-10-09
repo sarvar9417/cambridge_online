@@ -166,7 +166,10 @@ export function createApp(
   // authoritative snapshot refresh after a classroom event.
   if (pool) mountPrivate(
     '/api/v1/live-exams',
-    createLiveExamRealtimeRouter(new LiveExamRealtimeService(pool)),
+    createLiveExamRealtimeRouter(new LiveExamRealtimeService(
+      pool,
+      (sessionId) => liveExamService?.reconcileExpired(sessionId) ?? Promise.resolve(false),
+    )),
   );
   if (pool && liveExamService) mountPrivate(
     '/api/v1/live-exams',

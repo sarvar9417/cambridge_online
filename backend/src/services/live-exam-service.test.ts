@@ -155,21 +155,20 @@ describe('LiveExamService source fidelity', () => {
 
 
 describe('LiveExamService eligible pool totals', () => {
-  it('reports the whole eligible pool while hydrating only the requested preview rows', async () => {
+  it('reports the whole eligible pool while loading preview rows in one batch', async () => {
     const actor={id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
     const classId='00000000-0000-4000-8000-000000000001';
     const query=vi.fn(async (sql:string) => {
       if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
       if(sql.includes('select distinct q.id'))return{rowCount:1,rows:[{id:'q1',total_count:137}]};
       if(sql.includes('count(distinct q.id)::int total'))return{rowCount:1,rows:[{total:142}]};
+      if(sql.includes('with recursive selected(question_id,ordinality)'))return{rowCount:1,rows:[{
+        id:'q1',display_ref:'9618/11/M/J/26 Q1(a)',marks:2,command_word:'State',
+        stem:'State one fact.',has_assets:false,dependency_count:0,
+      }]};
       throw new Error(`unexpected query: ${sql}`);
     });
-    const questions={portable:vi.fn().mockResolvedValue({
-      leaf:{id:'q1',marks:2,commandWord:'State',stem:'State one fact.'},
-      sourceRef:'9618/11/M/J/26 Q1(a)',
-      contextBlocks:[],
-      dependencies:[],
-    })} as unknown as PgQuestionsRepository;
+    const questions={portable:vi.fn()} as unknown as PgQuestionsRepository;
     const service=new LiveExamService({query} as unknown as Pool,questions);
     await expect(service.eligibleQuestions(actor,{
       classId,
@@ -188,7 +187,30 @@ describe('LiveExamService eligible pool totals', () => {
       counts:{database:142,liveReady:137,available:137},
       data:[{id:'q1',displayRef:'9618/11/M/J/26 Q1(a)'}],
     });
-    expect(questions.portable).toHaveBeenCalledTimes(1);
+    expect(questions.portable).not.toHaveBeenCalled();
+    expect(query.mock.calls.filter(([sql])=>String(sql).includes('with recursive selected(question_id,ordinality)'))).toHaveLength(1);
+  });
+
+  it('skips portable question hydration for count-only picker requests', async () => {
+    const actor={id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
+    const classId='00000000-0000-4000-8000-000000000001';
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
+      if(sql.includes('select candidate.id'))return{rowCount:1,rows:[{id:'q1',total_count:137}]};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const questions={portable:vi.fn()} as unknown as PgQuestionsRepository;
+    const service=new LiveExamService({query} as unknown as Pool,questions);
+    const result=await service.eligibleQuestions(actor,{
+      classId,topicIds:['00000000-0000-4000-8000-000000000002'],subtopicIds:[],
+      includeDiagrams:true,excludeSeen:false,limit:1,includeData:false,includeCounts:false,
+      allowLateJoin:false,autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:true,
+      leaderboardMode:'marks',questionOrder:'fixed',
+    });
+    expect(result.data).toEqual([]);
+    expect(result.total).toBe(137);
+    expect(result.counts).toBeUndefined();
+    expect(questions.portable).not.toHaveBeenCalled();
   });
 });
 
@@ -267,6 +289,22 @@ describe('LiveExamService deadline reconciliation', () => {
     expect(String(query.mock.calls[0]?.[0])).toContain('paused_at is null');
     expect(String(query.mock.calls[0]?.[0])).toContain("question_time_limit_s * interval '1 second'");
     expect(query.mock.calls[0]?.[1]).toEqual([10,25]);
+  });
+
+  it('does not queue multiple expiry reconcilers behind the same row lock', async () => {
+    const clientQuery=vi.fn(async(sql:string)=>{
+      if(sql==='begin'||sql==='commit'||sql==='rollback')return{rowCount:0,rows:[]};
+      if(sql.includes('for update skip locked'))return{rowCount:0,rows:[]};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const release=vi.fn();
+    const service=new LiveExamService(
+      {connect:vi.fn().mockResolvedValue({query:clientQuery,release})} as unknown as Pool,
+      {} as PgQuestionsRepository,
+    );
+    await expect(service.reconcileExpired('session-1')).resolves.toBe(false);
+    expect(clientQuery.mock.calls.some(([sql])=>String(sql).includes('for update skip locked'))).toBe(true);
+    expect(release).toHaveBeenCalledOnce();
   });
 
   it('does not lock the shared session row on a normal student heartbeat', async () => {
