@@ -43,3 +43,6 @@
   .structured-diagram-label{grid-template-columns:minmax(72px,130px) 26px}
   .structured-question-match-row{grid-template-columns:1fr}
 }
+.structured-response-blocked{display:grid;gap:5px;padding:12px 14px;border:1px solid var(--danger);border-radius:var(--radius);background:var(--danger-soft);color:var(--text)}
+.structured-response-blocked strong{color:var(--danger)}
+.structured-response-blocked span{color:var(--text-muted);font-size:.84rem;line-height:1.5}
