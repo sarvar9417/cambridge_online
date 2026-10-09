@@ -47,6 +47,7 @@ import { useRoute, navigate, HOME_BY_ROLE, canAccessRoute } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { LiveExamPage } from './live/LiveExamPage';
+import { normalizeStructuredResponse, type StructuredResponse } from './lib/structured-response';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +65,7 @@ export function App() {
   const [attemptIndex,setAttemptIndex]=useState(0);
   const [submitConfirm,setSubmitConfirm]=useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [structuredResponses,setStructuredResponses]=useState<Record<string,StructuredResponse|null>>({});
   const [error, setError] = useState("");
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [openResultId, setOpenResultId] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export function App() {
     setAttemptIndex(0);
     setSubmitConfirm(false);
     setAnswers({});
+    setStructuredResponses({});
     setResultDetail(null);
     setOpenResultId(null);
     setMastery([]);
@@ -260,6 +263,13 @@ export function App() {
         ]),
       ),
     );
+    setStructuredResponses(Object.fromEntries(next.questions.map((question)=>{
+      const stored=localStorage.getItem(`structured-answer:${next.submissionId}:${question.id}`);
+      if(stored){
+        try{return [question.id,normalizeStructuredResponse(JSON.parse(stored))] as const;}catch{/* ignore corrupt local draft */}
+      }
+      return [question.id,question.structuredResponse?normalizeStructuredResponse(question.structuredResponse):null] as const;
+    })));
   };
   const startPractice=async(item:MasteryItem)=>{
     setPracticing(item.subtopic_id);setError('');
@@ -271,21 +281,29 @@ export function App() {
       await start(created.id);
     }catch(cause){setError(cause instanceof Error?cause.message:'Mashq yaratilmadi.')}finally{setPracticing(null)}
   };
+  const queueAttemptDraft=(id:string,text:string,structuredResponse:StructuredResponse|null|undefined)=>{
+    if(!attempt)return;
+    queueAnswer(localStorage,{
+      submissionId:attempt.submissionId,
+      questionId:id,
+      text,
+      structuredResponse:structuredResponse??null,
+      activeSessionId:attempt.activeSessionId,
+    });
+    window.clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id]=window.setTimeout(()=>{void flushPending();},1000);
+  };
   const change = (id: string, value: string) => {
     if (!attempt) return;
     setAnswers((current) => ({ ...current, [id]: value }));
     localStorage.setItem(`answer:${attempt.submissionId}:${id}`, value);
-    queueAnswer(localStorage, {
-      submissionId: attempt.submissionId,
-      questionId: id,
-      text: value,
-      activeSessionId: attempt.activeSessionId,
-    });
-    window.clearTimeout(saveTimers.current[id]);
-    saveTimers.current[id] = window.setTimeout(
-      () => { void flushPending(); },
-      1000,
-    );
+    queueAttemptDraft(id,value,structuredResponses[id]);
+  };
+  const changeStructuredResponse=(id:string,value:StructuredResponse)=>{
+    if(!attempt)return;
+    setStructuredResponses((current)=>({...current,[id]:value}));
+    localStorage.setItem(`structured-answer:${attempt.submissionId}:${id}`,JSON.stringify(value));
+    queueAttemptDraft(id,answers[id]??'',value);
   };
   const submit = async () => {
     if (!attempt) return;
@@ -297,6 +315,7 @@ export function App() {
             method: "PUT",
             body: JSON.stringify({
               text: answers[question.id] ?? "",
+              structuredResponse: structuredResponses[question.id] ?? null,
               activeSessionId: attempt.activeSessionId,
             }),
           },
@@ -453,6 +472,7 @@ export function App() {
         attempt={attempt}
         index={attemptIndex}
         answers={answers}
+        structuredResponses={structuredResponses}
         remainingSeconds={remainingSeconds}
         online={online}
         error={error}
@@ -460,6 +480,7 @@ export function App() {
         onBack={() => { setAttempt(null); setSubmitConfirm(false); }}
         onSelect={setAttemptIndex}
         onAnswerChange={change}
+        onStructuredResponseChange={changeStructuredResponse}
         onPrevious={() => setAttemptIndex((value) => Math.max(0, value - 1))}
         onNext={() => setAttemptIndex((value) => Math.min(attempt.questions.length - 1, value + 1))}
         onRequestSubmit={() => setSubmitConfirm(true)}
