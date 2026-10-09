@@ -5,9 +5,11 @@ import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
+import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
 
 const uuid = z.string().uuid();
-const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/);
+const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
+  .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section');
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
 
 const createInput = z.object({
