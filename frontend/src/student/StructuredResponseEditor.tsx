@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { randomId } from '../lib/random-id';
 import type { StructuredQuestionContent } from '../lib/structured-question-content';
 import {
@@ -155,7 +155,7 @@ function DiagramResponseEditor({
   const [lineStart,setLineStart]=useState<{x:number;y:number}|null>(null);
   const activeStroke=useRef<DiagramStroke|null>(null);
 
-  const point=(event:ReactPointerEvent)=>{
+  const point=(event:{clientX:number;clientY:number})=>{
     const rect=host.current?.getBoundingClientRect();
     if(!rect)return{x:0,y:0};
     return {
@@ -166,7 +166,7 @@ function DiagramResponseEditor({
   const updateDiagram=(patch:Partial<StructuredAnswerEnvelope['diagram']>)=>
     onChange({...answer,diagram:{...answer.diagram,...patch}});
 
-  const click=(event:ReactPointerEvent)=>{
+  const click=(event:ReactMouseEvent<HTMLDivElement>)=>{
     if(disabled||mode==='draw')return;
     if((event.target as HTMLElement).closest('input,button'))return;
     const p=point(event);
