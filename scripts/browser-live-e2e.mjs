@@ -132,6 +132,10 @@ try {
     await qa.waitText(student.page, 'Define the term binary number system.');
   }
 
+  await qa.check('Live E2E: active join code remains visible to teacher',
+    await teacher.page.$eval('.live-active-join strong',el=>el.textContent?.trim())===code);
+  await qa.check('Live E2E: active join code remains visible on projector',
+    await projector.$eval('.live-projector-join strong',el=>el.textContent?.trim())===code);
   await qa.check(
     'Live E2E: projector question fits the page without document-level horizontal overflow',
     await projector.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1),

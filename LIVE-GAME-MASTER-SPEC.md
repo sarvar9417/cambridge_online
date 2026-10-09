@@ -41,7 +41,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0206_live_question_exposure_read_model.sql",
+    "latest_migration": "0207_live_question_readiness_cache.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
@@ -198,6 +198,12 @@ Bu transport “realtime-like polling”. Event payload studentga answer, mark s
 | `0173_live_challenge_database_hardening.sql` | Missing indexes va trigger function search paths |
 | `0190_live_challenge_subtopic_evidence_fallback.sql` | Current-LO mapping bo‘lmasa stable subtopic evidence fallback |
 | `0191_live_challenge_integrity_and_deadline_hardening.sql` | Cross-session row integrity, score caps, event-version uniqueness va trigger repin |
+| `0192_live_challenge_join_code_lifecycle.sql` | Join-code expiry va safe reuse lifecycle |
+| `0193_durable_rate_limits.sql` | Durable server-side abuse/rate-limit buckets |
+| `0204_live_peer_teacher_fallback.sql` | Peer marking uchun teacher fallback integrity |
+| `0205_live_session_history_archive.sql` | Completed/cancelled Live history soft archive |
+| `0206_live_question_exposure_read_model.sql` | Savol faqat `question.opened` bo‘lganda “seen” hisoblanadigan exposure ledger |
+| `0207_live_question_readiness_cache.sql` | Revision-guarded, target-syllabus-specific Live readiness cache va stale fallback contract |
 
 ## 6. Haqiqiy state-machine
 

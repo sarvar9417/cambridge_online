@@ -57,13 +57,28 @@
   .live-student-workspace>header time{grid-column:1/-1;justify-self:start;font-size:18px;overflow-wrap:anywhere}
   .live-question-card>header>div{min-width:0;flex-wrap:wrap}
 }
-.live-active-join-code{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:0 0 18px;padding:14px 20px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text)}
-.live-active-join-code>span{font-size:13px;font-weight:750}
-.live-active-join-code>strong{font:850 32px/1.15 var(--font-mono);letter-spacing:.12em;white-space:nowrap;user-select:all}
-.live-active-join-code>small{color:var(--text-muted)}
+
+
+/* Keep the join code and late-join permission accessible throughout an active session. */
+.live-active-join{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:13px 18px;margin:0 0 18px;border:1px solid var(--border-strong);border-radius:var(--radius-xl);background:var(--surface)}
+.live-active-join>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-right:auto}
+.live-active-join>div>span{color:var(--text-muted);font-size:11px;font-weight:800;letter-spacing:.07em}
+.live-active-join>div>strong{font:850 26px/1.1 var(--font-mono);letter-spacing:.09em;color:var(--text)}
+.live-active-join>div>small{font-size:12px;color:var(--text-muted)}
+.live-active-join>button{display:flex;align-items:center;gap:6px}
+.live-active-join-toggle{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650}
+.live-personal-answer{grid-column:1/-1;display:grid;gap:5px;padding-top:8px;border-top:1px solid var(--border)}
+.live-personal-answer>strong{font-size:12px}
+.live-personal-answer>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;text-align:left}
+.live-personal-answer>small{text-align:left;color:var(--text-muted);white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:640px){.live-active-join{align-items:flex-start}.live-active-join>div{width:100%}}
+.live-projector-join{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:0 0 18px;padding:14px 20px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text)}
+.live-projector-join>span{font-size:13px;font-weight:750}
+.live-projector-join>strong{font:850 32px/1.15 var(--font-mono);letter-spacing:.12em;white-space:nowrap;user-select:all}
+.live-projector-join>small{color:var(--text-muted)}
 .live-projector-overlay{grid-template-rows:auto minmax(0,1fr) auto}
 .live-projector-overlay>header{grid-template-columns:180px minmax(0,1fr) auto;min-height:84px;padding:10px 24px}
 .live-projector-session-info{display:flex;align-items:center;gap:24px}
-.live-projector-session-info>.live-active-join-code{display:grid;gap:2px;margin:0;padding:6px 16px;text-align:center;background:var(--accent-soft);color:var(--text)}
-.live-projector-session-info .live-active-join-code>strong{font-size:36px}
-@media(max-width:640px){.live-active-join-code>small{flex-basis:100%}.live-projector-overlay>header{grid-template-columns:minmax(0,1fr);gap:10px;padding:10px 12px}.live-projector-overlay>header>.live-projector-brand{display:none}.live-projector-overlay>header>div:nth-child(2){text-align:left;overflow-wrap:anywhere}.live-projector-session-info{gap:10px;flex-wrap:wrap;justify-content:space-between;min-width:0}.live-projector-session-info .live-active-join-code>strong{font-size:26px}.live-projector-overlay>header time{font-size:18px}}
+.live-projector-session-info>.live-projector-join{display:grid;gap:2px;margin:0;padding:6px 16px;text-align:center;background:var(--accent-soft);color:var(--text)}
+.live-projector-session-info .live-projector-join>strong{font-size:36px}
+@media(max-width:640px){.live-projector-join>small{flex-basis:100%}.live-projector-overlay>header{grid-template-columns:minmax(0,1fr);gap:10px;padding:10px 12px}.live-projector-overlay>header>.live-projector-brand{display:none}.live-projector-overlay>header>div:nth-child(2){text-align:left;overflow-wrap:anywhere}.live-projector-session-info{gap:10px;flex-wrap:wrap;justify-content:space-between;min-width:0}.live-projector-session-info .live-projector-join>strong{font-size:26px}.live-projector-overlay>header time{font-size:18px}}

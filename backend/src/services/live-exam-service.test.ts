@@ -119,6 +119,12 @@ describe('LiveExamService source fidelity', () => {
     expect(selectionSql).toContain('selected_topic.id=any($3::uuid[])');
     expect(selectionSql).toContain('from class_question_exposures exposure');
     expect(selectionSql).toContain("exposure.source_type='live'");
+    expect(selectionSql).toContain('from live_question_readiness_state state');
+    expect(selectionSql).toContain('state.cache_revision=state.corpus_revision');
+    expect(selectionSql).toContain('join live_question_readiness readiness');
+    expect(selectionSql).toContain('readiness.target_syllabus_id=readiness_class.syllabus_id');
+    expect(selectionSql).toContain('readiness.live_ready');
+    expect(selectionSql).toContain('and not readiness.has_visual');
     expect(selectionSql).not.toContain('previous.started_at is not null');
     expect(selectionCall?.[1]).toEqual([expect.any(String), input.classId, input.topicIds, input.questionCount]);
   });

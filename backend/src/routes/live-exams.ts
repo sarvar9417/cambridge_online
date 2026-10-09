@@ -127,6 +127,14 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     res.json(await service.heartbeat(req.actor!, id(req.params)));
   });
 
+  router.post('/:id/late-join', async (req, res) => {
+    const body = z.object({
+      allowLateJoin: z.boolean(),
+      expectedVersion: z.number().int().positive(),
+    }).strict().parse(req.body);
+    res.json(await service.setLateJoin(req.actor!, id(req.params), body.allowLateJoin, body.expectedVersion));
+  });
+
   router.post('/:id/start', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
     res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));

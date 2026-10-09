@@ -27,16 +27,21 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   if (mode === 'teacher') {
     for (let i = 1; i <= students.length; i++) {
       await markVisibleAnswer(qa, teacher.page, '.live-teacher-marker', `QA teacher review ${i}`);
-      await qa.waitText(teacher.page, `${i}/${students.length} ta tugadi`);
+      await qa.waitText(teacher.page, i===students.length?'SAVOL YAKUNI':`${i}/${students.length} ta tugadi`);
     }
   } else {
     for (const [i, student] of students.entries()) {
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
-      await qa.waitText(student.page, 'Baholash yuborildi');
+      await qa.waitText(student.page, i===students.length?'SAVOL NATIJASI':'Baholash yuborildi');
     }
   }
-  await qa.waitText(teacher.page, `${students.length}/${students.length} ta tugadi`);
-  await qa.clickText(teacher.page, 'Natijalarni ochish');
+  // Automatic release happens when the final review is submitted. Older
+  // deployments still need a staff click, so the harness supports both.
+  const phase=(await snapshot(teacher.page,id)).session.status;
+  if(phase==='marking'){
+    await qa.waitText(teacher.page, `${students.length}/${students.length} ta tugadi`);
+    await qa.clickText(teacher.page, 'Natijalarni ochish');
+  }
   await qa.waitText(teacher.page, 'SAVOL YAKUNI');
   await Promise.all(students.map(s => qa.waitText(s.page, 'SAVOL NATIJASI')));
   const marked = await snapshot(teacher.page, id);
@@ -48,6 +53,11 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   await Promise.all([teacher, ...students].map(s => qa.waitText(s.page, 'SESSIYA YAKUNLANDI')));
   const final = await snapshot(teacher.page, id);
   const learnerReports = await Promise.all(students.map(s => snapshot(s.page, id)));
+  await qa.check(`Live ${mode}: student report includes only personal answers and scores`,
+    learnerReports.every(s=>s.report.rows.length===1
+      && typeof s.report.rows[0].answerText==='string'
+      && s.report.rows[0].answerText.length>0
+      && typeof s.report.rows[0].score==='number'));
   await qa.check(`Live ${mode}: final class total equals learner totals`,
     final.report.earned === learnerReports.reduce((sum, s) => sum + s.report.earned, 0)
       && final.report.possible === learnerReports.reduce((sum, s) => sum + s.report.possible, 0));
@@ -81,7 +91,9 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   if (!displayRef) await qa.fill(teacher.page, 'input[name="questionCount"]', String(questionCount));
   await teacher.page.select('select[name="timeLimit"]', timeLimit);
   await teacher.page.select('select[name="markingMode"]', mode);
-  if (allowLateJoin) await teacher.page.locator('input[name="allowLateJoin"]').click();
+  const lateJoinCheckbox=teacher.page.locator('input[name="allowLateJoin"]');
+  const lateJoinChecked=await teacher.page.$eval('input[name="allowLateJoin"]',(input)=>input.checked);
+  if(lateJoinChecked!==allowLateJoin)await lateJoinCheckbox.click();
   if (autoClose) await teacher.page.locator('input[name="autoCloseWhenAllSubmitted"]').click();
   await qa.clickText(teacher.page, 'Xonani yaratish');
   await qa.waitText(teacher.page, 'JOIN CODE');
