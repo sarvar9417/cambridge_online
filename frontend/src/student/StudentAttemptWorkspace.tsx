@@ -75,7 +75,7 @@ export function StudentAttemptWorkspace({
   const answerDisabled = expired || sourceContentBlocked;
   const currentAnswer=answers[question.id]??'';
   const decodedAnswer=parseStoredAnswer(currentAnswer);
-  const responsePlan=structuredResponsePlan(materializedContent??null,question.answerKind,question.stemMd);
+  const responsePlan=structuredResponsePlan(materializedContent??null,question.answerKind,question.stemMd,{hasSourceVisual:Object.keys(effectiveAssetUrls).length>0});
   const structuredResponse=responsePlan.mode!=='text';
   const updateStructuredField=(key:string,value:string)=>{
     onAnswerChange(question.id,serializeStructuredAnswer(setStructuredField(decodedAnswer,key,value)));
