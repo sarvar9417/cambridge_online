@@ -39,11 +39,20 @@ export function StructuredResponseEditor({
   content,answerKind,stem,marks,assetUrls={},value,disabled=false,onChange,
 }:Props){
   const answer=useMemo(()=>parseStoredAnswer(value),[value]);
-  const plan=useMemo(()=>structuredResponsePlan(content,answerKind,stem),[content,answerKind,stem]);
-  const progress=useMemo(()=>structuredResponseProgress(content,answer),[content,answer]);
   const visual=sourceUrl(content,assetUrls);
+  const plan=useMemo(
+    ()=>structuredResponsePlan(content,answerKind,stem,{hasSourceVisual:Boolean(visual)}),
+    [content,answerKind,stem,visual],
+  );
+  const progress=useMemo(()=>structuredResponseProgress(content,answer),[content,answer]);
 
   if(plan.mode==='text')return null;
+  if(plan.mode==='blocked'){
+    return <div className="structured-response-blocked" role="alert" data-response-mode="blocked">
+      <strong>Javob berish strukturasi source bilan to‘liq tiklanmagan.</strong>
+      <span>Bu savol jadval/diagrammaning original response yuzasini talab qiladi. Source repair tugamaguncha oddiy input bilan javob berish bloklanadi.</span>
+    </div>;
+  }
   if(plan.mode==='inline'){
     return <div className="structured-response-hint" data-response-mode="inline">
       <strong>Javobni savolning o‘zida kiriting.</strong>
