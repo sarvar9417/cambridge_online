@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   LIVE_COURSEBOOK_SECTIONS,
+  coursebookSectionsForEvidence,
   liveCoursebookQuestionFilter,
   resolveLiveCoursebookSections,
 } from './live-coursebook-sections.js';
@@ -53,6 +54,33 @@ describe('9618 Live coursebook section bridge',()=>{
       .toEqual(['17.1','17.2','17.3','17.4']);
     expect(LIVE_COURSEBOOK_SECTIONS.filter((section)=>section.chapterNumber===18).map((section)=>section.code))
       .toEqual(['18.1','18.2']);
+  });
+
+  it('classifies source-backed Question Bank evidence into textbook sections',()=>{
+    const chapter2Internet=coursebookSectionsForEvidence({
+      subtopics:[{topicNumber:2,code:'2.1'}],
+      learningObjectives:[{topicNumber:2,subtopicCode:'2.1',text:'Explain the role of a DNS in converting a URL to IP.'}],
+    });
+    expect(chapter2Internet.map((section)=>section.code)).toContain('2.2');
+    expect(chapter2Internet.map((section)=>section.code)).not.toContain('2.1');
+
+    const chapter7Copyright=coursebookSectionsForEvidence({
+      subtopics:[{topicNumber:7,code:'7.1'}],
+      learningObjectives:[{topicNumber:7,subtopicCode:'7.1',text:'Show understanding of the need for copyright legislation'}],
+    });
+    expect(chapter7Copyright.map((section)=>section.code)).toEqual(['7.2']);
+
+    const chapter17Quantum=coursebookSectionsForEvidence({
+      subtopics:[{topicNumber:17,code:'17.1'}],
+      learningObjectives:[{topicNumber:17,subtopicCode:'17.1',text:'Explain the purpose, benefits and drawbacks of quantum cryptography.'}],
+    });
+    expect(chapter17Quantum.map((section)=>section.code)).toEqual(['17.2']);
+
+    const chapter18Graph=coursebookSectionsForEvidence({
+      subtopics:[{topicNumber:18,code:'18.1'}],
+      learningObjectives:[{topicNumber:18,subtopicCode:'18.1',text:'Use A* and Dijkstra’s algorithms to perform searches on a graph.'}],
+    });
+    expect(chapter18Graph.map((section)=>section.code)).toEqual(['18.1']);
   });
 
   it('keeps virtual-machine questions out of textbook Chapter 15.1',()=>{
