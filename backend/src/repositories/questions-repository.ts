@@ -6,6 +6,7 @@ import {
   liveCoursebookQuestionFilter,
   liveCoursebookSectionOptions,
 } from '../lib/live-coursebook-sections.js';
+import { questionResponseIntegritySql } from '../lib/source-response-readiness.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import type {
   DependencyKind,
@@ -92,6 +93,7 @@ const mapPart = (row: Record<string, unknown>) => ({
   status: row.status,
   hasDiagram: Boolean(row.has_diagram),
   hasDependency: Boolean(row.has_dependency),
+  responseReady: row.response_ready === undefined ? true : Boolean(row.response_ready),
   subtopics: Array.isArray(row.subtopics) ? row.subtopics : [],
 });
 
@@ -228,7 +230,8 @@ export class PgQuestionsRepository {
            exists(
              select 1 from question_assets qa
              where qa.question_id=q.id and qa.kind in ('diagram','image')
-           ) has_diagram
+           ) has_diagram,
+           ${questionResponseIntegritySql('q')} response_ready
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
          join syllabi syllabus on syllabus.id=sp.syllabus_id
