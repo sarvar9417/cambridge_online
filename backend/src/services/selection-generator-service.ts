@@ -6,6 +6,7 @@ import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { renderableVisualAssetSql, sourceVisualBlockerSql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { questionResponseInteractionIntegritySql } from '../lib/source-response-readiness.js';
 
 export interface SmartSelectionInput {
   name: string;
@@ -131,6 +132,7 @@ export class SelectionGeneratorService {
           and cms.status='approved'
           and cms.max_marks=q.marks
       )`,
+      questionResponseInteractionIntegritySql('q'),
     ];
 
     if (input.component !== undefined) {
