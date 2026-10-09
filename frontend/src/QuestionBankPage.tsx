@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
-import { portableAssetUrl } from './lib/portable-source-assets';
+import { materializePortableSourceAssets, portableAssetsForContent, portableAssetUrl } from './lib/portable-source-assets';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
+import { StructuredQuestionView } from './student/StructuredQuestionView';
+import { StructuredResponsePreview, structuredResponseInteractive } from './student/StructuredResponseEditor';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -44,12 +47,14 @@ type PortableQuestion = {
     stem: string;
     stemLatex?: string | null;
     bodyFormat?: 'markdown' | 'latex';
+    contentJson?:StructuredQuestionContent|null;
     commandWord: string | null;
     marks: number;
     answerKind: string;
     answerLines: number | null;
   };
   chain: Array<{ id: string; label: string; depth: number }>;
+  responseAssets?:PortableAsset[];
   contextBlocks: Array<{
     id: string;
     label: string;
@@ -84,6 +89,7 @@ type Part = {
   status: string;
   hasDiagram: boolean;
   hasDependency: boolean;
+  responseInteractionReady?:boolean;
   subtopics: Array<{ id: string; code: string; title: string; topicNumber?: number }>;
   coursebookSections?: Array<{ code: string; title: string; chapterNumber: number }>;
   matches?: boolean;
@@ -918,13 +924,13 @@ function useDialogClose(onClose: () => void) {
 }
 
 function PartCard({ part, focused, selected, pending, onAdd, onPreview }: { part: Part; focused: boolean; selected: boolean; pending: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{(part.coursebookSections?.length||part.subtopics?.length) ? <div className="qb-topic-tags">{part.coursebookSections?.length
+  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}{part.responseInteractionReady===false && <span className="qb-chip danger">Javob strukturasini tekshirish kerak</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{(part.coursebookSections?.length||part.subtopics?.length) ? <div className="qb-topic-tags">{part.coursebookSections?.length
   ? part.coursebookSections.map((section)=><span key={section.code} title={part.subtopics?.length?`Cambridge syllabus: ${part.subtopics.map((topic)=>`${topic.code} ${topic.title}`).join(' · ')}`:undefined}>{section.code} {section.title}</span>)
   : part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>:null}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
 }
 
 function FamilyCard({ family, selectedIds, pendingIds, onAdd, onPreview }: { family: Family; selectedIds: Set<string>; pendingIds: Set<string>; onAdd: (id: string) => void; onPreview: (id: string) => void }) {
-  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><CaretDown size={16} /></summary><div className="qb-family-parts">{family.parts.map((part) => { const selected = selectedIds.has(part.id); const pending = pendingIds.has(part.id); return <article className={`${part.matches ? 'match' : ''} ${selected ? 'selected' : ''}`} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} /></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={() => onAdd(part.id)}>{pending ? '…' : selected ? <Check size={16} weight="bold" /> : <Plus size={16} weight="bold" />}</button></article>; })}</div></details>;
+  return <details className="qb-family" open><summary><div><strong>{family.rootRef}</strong><span>{family.totalCount} qismdan {family.matchCount} tasi filtrga mos</span></div><CaretDown size={16} /></summary><div className="qb-family-parts">{family.parts.map((part) => { const selected = selectedIds.has(part.id); const pending = pendingIds.has(part.id); return <article className={`${part.matches ? 'match' : ''} ${selected ? 'selected' : ''}`} key={part.id}><div><strong>{part.displayRef}</strong>{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.responseInteractionReady===false && <span className="qb-chip danger">Javob strukturasini tekshirish kerak</span>}<LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} /></div><span>{part.marks} ball</span><button className="qb-link-button" onClick={() => onPreview(part.id)}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={() => onAdd(part.id)}>{pending ? '…' : selected ? <Check size={16} weight="bold" /> : <Plus size={16} weight="bold" />}</button></article>; })}</div></details>;
 }
 
 function QuestionAsset({ asset }: { asset: PortableAsset }) {
@@ -939,7 +945,31 @@ function ContextBlocks({ portable }: { portable: PortableQuestion }) {
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  const allAssets=useMemo(()=>{
+    const unique=new Map<string,PortableAsset>();
+    for(const asset of [...portable.contextBlocks.flatMap((block)=>block.assets),...(portable.responseAssets??[])])unique.set(asset.id,asset);
+    return [...unique.values()];
+  },[portable]);
+  const content=useMemo(()=>portable.leaf.contentJson
+    ?materializePortableSourceAssets(portable.leaf.contentJson,allAssets)
+    :null,[allAssets,portable.leaf.contentJson]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(allAssets),[allAssets]);
+  const responseAssets=portable.responseAssets?.length?portable.responseAssets:allAssets;
+  const interactive=structuredResponseInteractive(content,responseAssets,portable.leaf.answerKind);
+  const sharedContext={...portable,contextBlocks:portable.contextBlocks.filter((block)=>block.id!==portable.leaf.id)};
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title">
+      <header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header>
+      <div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div>
+      <ContextBlocks portable={sharedContext} />
+      <article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div>
+        {content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />}
+      </article>
+      {interactive?<div className="qb-response-preview"><span className="qb-chip">Interaktiv javob</span><StructuredResponsePreview content={content} sourceAssets={responseAssets} answerKind={portable.leaf.answerKind} disabled={false}/></div>:null}
+      {portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}
+      <footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer>
+    </section>
+  </div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {

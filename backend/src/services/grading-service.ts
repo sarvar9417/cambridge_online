@@ -1,10 +1,16 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
+import { parseStoredStructuredQuestionContent, type StructuredQuestionContent } from '../lib/structured-question-content.js';
+import { sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
 
 export interface GradingQueueItem {
   id: string;
   text: string;
+  structuredResponse:unknown|null;
+  contentJson:StructuredQuestionContent|null;
+  contentVersion:1|null;
+  sourceAssets:Array<{id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null}>;
   displayRef: string;
   stemMd: string;
   marks: number;
@@ -28,8 +34,43 @@ export interface AppealQueueItem {
 
 export interface GradingQueueFilters{classId?:string;mode?:'by_question'|'by_student';sort?:'confidence'}
 
+interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
+
 export class GradingService {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool,private readonly assetUrlSigner?:AssetUrlSigner) {}
+
+  private content(row:{id:string;content_json?:unknown|null;content_version?:number|null}) {
+    if(row.content_json==null)return null;
+    if(Number(row.content_version)!==1)throw new Error(`Unsupported structured content version for question ${row.id}`);
+    return parseStoredStructuredQuestionContent(row.content_json);
+  }
+
+  private async responseAssets(questionIds:string[]) {
+    const unique=[...new Set(questionIds)];
+    const map=new Map<string,Array<{id:string;kind:string;url:string|null;contentMd:string|null;altText:string;sourcePage:number|null}>>();
+    if(!unique.length)return map;
+    const result=await this.pool.query(
+      `select id,question_id,kind,storage_path,coalesce(svg_markup,content_md) source_markup,alt_text,source_page
+       from question_assets
+       where question_id=any($1::uuid[])
+       order by question_id,sort_order,id`,
+      [unique],
+    );
+    await Promise.all(result.rows.map(async(row)=>{
+      const inline=sourceVisualDataUrl(row.source_markup);
+      let url=inline;
+      if(!url&&row.storage_path&&this.assetUrlSigner)url=await this.assetUrlSigner.signStoragePath(row.storage_path,300);
+      const list=map.get(String(row.question_id))??[];
+      list.push({
+        id:String(row.id),kind:String(row.kind),url:url??null,
+        contentMd:row.source_markup?String(row.source_markup):null,
+        altText:row.alt_text?String(row.alt_text):'',
+        sourcePage:row.source_page==null?null:Number(row.source_page),
+      });
+      map.set(String(row.question_id),list);
+    }));
+    return map;
+  }
 
   private assertStaff(actor: Actor) {
     if (actor.role === 'student') throw new DomainError('staff_only', 403);
@@ -63,7 +104,7 @@ export class GradingService {
       :filters.mode==='by_student'?'u.full_name,q.sort_order'
         :filters.mode==='by_question'?'q.display_ref,s.submitted_at':'s.submitted_at';
     const result = await this.pool.query(
-      `select g.id,g.ai_confidence,ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,
+      `select g.id,g.ai_confidence,ans.text,ans.response_json,q.id question_id,q.content_json,q.content_version,q.display_ref,q.stem_md,q.marks,q.answer_kind,
               u.full_name as student_name,
               coalesce(json_agg(json_build_object(
                 'id', gp.id, 'code', msp.code, 'text', msp.text,
@@ -88,9 +129,14 @@ export class GradingService {
        order by ${order}`,
       values,
     );
+    const assets=await this.responseAssets(result.rows.map((row)=>String(row.question_id)));
     return result.rows.map((row) => ({
       id: row.id,
       text: row.text,
+      structuredResponse:row.response_json??null,
+      contentJson:this.content({id:String(row.question_id),content_json:row.content_json,content_version:row.content_version}),
+      contentVersion:row.content_json==null?null:1,
+      sourceAssets:assets.get(String(row.question_id))??[],
       displayRef: row.display_ref,
       stemMd: row.stem_md,
       marks: Number(row.marks),
@@ -103,7 +149,7 @@ export class GradingService {
   async detail(actor:Actor,gradingId:string) {
     const result=await this.pool.query(
       `select g.id,g.status,g.final_score,g.teacher_feedback_md,g.released_at,
-              ans.text,q.display_ref,q.stem_md,q.marks,q.answer_kind,u.full_name student_name,
+              ans.text,ans.response_json,q.content_json,q.content_version,q.display_ref,q.stem_md,q.marks,q.answer_kind,u.full_name student_name,
               coalesce(json_agg(json_build_object('id',gp.id,'code',msp.code,'text',msp.text,
                 'matched',gp.final_matched,'marks',gp.awarded_marks) order by msp.sort_order)
                 filter(where gp.id is not null),'[]')points
@@ -120,7 +166,9 @@ export class GradingService {
     if(!result.rowCount)throw new DomainError('not_found',404);
     const row=result.rows[0];
     return{id:row.id,status:row.status,finalScore:row.final_score===null?null:Number(row.final_score),feedback:row.teacher_feedback_md,
-      releasedAt:row.released_at,answerText:row.text,displayRef:row.display_ref,stemMd:row.stem_md,marks:row.marks,
+      releasedAt:row.released_at,answerText:row.text,structuredResponse:row.response_json??null,displayRef:row.display_ref,stemMd:row.stem_md,marks:row.marks,
+      contentJson:this.content({id:String(row.id),content_json:row.content_json,content_version:row.content_version}),
+      contentVersion:row.content_json==null?null:1,
       answerKind:row.answer_kind,studentName:row.student_name,points:row.points};
   }
 

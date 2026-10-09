@@ -23,6 +23,7 @@ const files = [
   '0204_live_peer_teacher_fallback.sql',
   '0205_live_session_history_archive.sql',
   '0206_live_question_exposure_read_model.sql',
+  '0208_structured_response_payloads.sql',
 ];
 
 const pool = new Pool({ connectionString });
@@ -31,6 +32,12 @@ try {
   const foundation = await readFile(join(here, 'live-test-foundation.sql'), 'utf8');
   await client.query(foundation);
   for (const file of files) {
+    if(file==='0208_structured_response_payloads.sql'){
+      // The compact Live acceptance foundation omits the assignment domain.
+      // Provide the minimum historical table shape so the real additive
+      // migration is still exercised for both response targets.
+      await client.query(`create table if not exists public.answers(id uuid primary key default gen_random_uuid())`);
+    }
     const sql = await readFile(join(migrationDir, file), 'utf8');
     await client.query('BEGIN');
     try {

@@ -2,6 +2,8 @@ import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
 import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
+import { StructuredResponseEditor, structuredResponseInteractive } from './StructuredResponseEditor';
+import { structuredResponseHasContent, structuredResponseTextCount, type StructuredResponse } from '../lib/structured-response';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -15,13 +17,14 @@ export function formatRemainingTime(seconds: number | null) {
     : `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
-export const isAnswered = (value: string | undefined) => Boolean(value?.trim());
+export const isAnswered = (value: string | undefined,response?:StructuredResponse|null) => Boolean(value?.trim())||structuredResponseHasContent(response);
 export const answerWordCount = (value: string | undefined) => value?.trim() ? value.trim().split(/\s+/).length : 0;
 
 export interface StudentAttemptWorkspaceProps {
   attempt: Attempt;
   index: number;
   answers: Record<string, string>;
+  structuredResponses:Record<string,StructuredResponse|null>;
   remainingSeconds: number | null;
   online: boolean;
   error: string;
@@ -29,6 +32,7 @@ export interface StudentAttemptWorkspaceProps {
   onBack: () => void;
   onSelect: (index: number) => void;
   onAnswerChange: (questionId: string, value: string) => void;
+  onStructuredResponseChange:(questionId:string,value:StructuredResponse)=>void;
   onPrevious: () => void;
   onNext: () => void;
   onRequestSubmit: () => void;
@@ -37,13 +41,13 @@ export interface StudentAttemptWorkspaceProps {
 }
 
 export function StudentAttemptWorkspace({
-  attempt, index, answers, remainingSeconds, online, error, submitConfirm,
-  onBack, onSelect, onAnswerChange, onPrevious, onNext, onRequestSubmit, onCancelSubmit, onSubmit,
+  attempt, index, answers, structuredResponses, remainingSeconds, online, error, submitConfirm,
+  onBack, onSelect, onAnswerChange, onStructuredResponseChange, onPrevious, onNext, onRequestSubmit, onCancelSubmit, onSubmit,
 }: StudentAttemptWorkspaceProps) {
   const question = attempt.questions[index];
   if (!question) return null;
 
-  const answeredCount = attempt.questions.filter((item) => isAnswered(answers[item.id])).length;
+  const answeredCount = attempt.questions.filter((item) => isAnswered(answers[item.id],structuredResponses[item.id])).length;
   const timer = formatRemainingTime(remainingSeconds);
   const expired = remainingSeconds === 0;
   const materializedContent = question.contentJson && question.contentVersion === 1
@@ -61,6 +65,11 @@ export function StudentAttemptWorkspace({
     && structuredQuestionAssetsReady(materializedContent!, effectiveAssetUrls);
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
+  const structuredInteractive=structuredResponseInteractive(
+    structuredValid?materializedContent:null,
+    question.sourceAssets??[],
+    question.answerKind,
+  );
 
   return (
     <main className="saw">
@@ -91,7 +100,7 @@ export function StudentAttemptWorkspace({
           </div>
           <div className="saw-nav-grid">
             {attempt.questions.map((item, itemIndex) => {
-              const answered = isAnswered(answers[item.id]);
+              const answered = isAnswered(answers[item.id],structuredResponses[item.id]);
               const active = itemIndex === index;
               return (
                 <button
@@ -137,7 +146,19 @@ export function StudentAttemptWorkspace({
             )}
           </article>
 
-          <section className="saw-answer">
+          {structuredInteractive?<section className="saw-answer saw-structured-answer">
+            <StructuredResponseEditor
+              content={structuredValid?materializedContent:null}
+              sourceAssets={question.sourceAssets??[]}
+              answerKind={question.answerKind}
+              value={structuredResponses[question.id]}
+              disabled={answerDisabled}
+              onChange={(value)=>onStructuredResponseChange(question.id,value)}
+            />
+            <div className="saw-structured-status">{structuredResponseHasContent(structuredResponses[question.id])
+              ? `✓ Strukturali javob kiritildi · ${structuredResponseTextCount(structuredResponses[question.id])} ta matn so‘zi`
+              : 'Jadval/diagrammaning kerakli joylarini to‘ldiring.'}</div>
+          </section>:<section className="saw-answer">
             <div className="saw-answer-head">
               <label htmlFor={`answer-${question.id}`}>Javobing</label>
               <span>{answerWordCount(answers[question.id])} so‘z · avtomatik saqlanadi</span>
@@ -150,7 +171,7 @@ export function StudentAttemptWorkspace({
               onChange={(event) => onAnswerChange(question.id, event.target.value)}
               placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
             />
-          </section>
+          </section>}
 
           <nav className="saw-bottom-nav" aria-label="Savollar orasida yurish">
             <button type="button" className="secondary" disabled={index === 0} onClick={onPrevious}>← Oldingi</button>
@@ -171,7 +192,7 @@ export function StudentAttemptWorkspace({
             </div>
             {answeredCount < attempt.questions.length && (
               <p className="saw-unanswered">
-                Javobsiz: {attempt.questions.filter((item) => !isAnswered(answers[item.id])).map((item) => item.displayRef).join(', ')}
+                Javobsiz: {attempt.questions.filter((item) => !isAnswered(answers[item.id],structuredResponses[item.id])).map((item) => item.displayRef).join(', ')}
               </p>
             )}
             <p>Topshirgandan keyin javoblarni o‘zgartira olmaysan.</p>

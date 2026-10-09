@@ -10,6 +10,7 @@ export interface AttemptQuestionRow {
   marks:number|null;
   answer_kind:string;
   answer_text:string|null;
+  response_json?:unknown|null;
   content_json?:unknown|null;
   content_version?:number|null;
 }
@@ -45,6 +46,7 @@ export function serializeAttemptQuestion(
     marks:Number(row.marks??0),
     answerKind:row.answer_kind,
     answerText:row.answer_text??'',
+    structuredResponse:row.response_json??null,
     contentJson,
     contentVersion:contentJson?1:null,
     assetUrls,

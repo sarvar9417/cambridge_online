@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { questionVisualIntegritySql, sourceVisualDataUrl } from '../lib/source-visual-readiness.js';
+import { questionResponseInteractionIntegritySql } from '../lib/source-response-readiness.js';
 import { attemptQuestionAssetIds, serializeAttemptQuestion } from './attempt-question-serializer.js';
+import { parseStructuredResponse, type StructuredResponse } from '../lib/structured-response.js';
 
 interface AssetUrlSigner { signStoragePath(storagePath:string,expiresInSeconds?:number):Promise<string|null> }
 
@@ -29,6 +31,7 @@ export class AssignmentsService {
          where qs.subtopic_id=$1 and q.status='approved' and q.parent_id is not null
            and q.marks is not null and q.answer_kind not in('diagram','image')
            and ${questionVisualIntegritySql('q')}
+           and ${questionResponseInteractionIntegritySql('q')}
            and($2::text is null or q.command_word::text=$2)
          order by md5(q.id::text||$3||current_date::text) limit 5`,
         [input.subtopicId,input.commandWord??null,actor.id],
@@ -58,7 +61,7 @@ export class AssignmentsService {
     const client=await this.pool.connect();try{await client.query('begin');
       const visible=await client.query(`select 1 from classes c where c.id=$1 and (($2='owner' and c.school_id=$3) or ($2='teacher' and(c.owner_id=$4 or exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4))))`,[input.classId,actor.role,actor.schoolId,actor.id]);
       if(!visible.rowCount)throw new DomainError('not_found',404);
-      const marks=await client.query(`select count(*)::int count,coalesce(sum(q.marks),0)::int total from questions q where q.id=any($1::uuid[]) and q.status in('approved','manual') and q.parent_id is not null and ${questionVisualIntegritySql('q')}`,[input.questionIds]);
+      const marks=await client.query(`select count(*)::int count,coalesce(sum(q.marks),0)::int total from questions q where q.id=any($1::uuid[]) and q.status in('approved','manual') and q.parent_id is not null and ${questionVisualIntegritySql('q')} and ${questionResponseInteractionIntegritySql('q')}`,[input.questionIds]);
       if(marks.rows[0].count!==input.questionIds.length)throw new DomainError('invalid_questions',400);
       const assignment=await client.query(`insert into assignments(class_id,created_by,title,instructions_md,total_marks,opens_at,due_at,time_limit_min,published_at) values($1,$2,$3,$4,$5,now(),$6,$7,now()) returning id,title,total_marks`,[input.classId,actor.id,input.title,input.instructions??null,marks.rows[0].total,input.dueAt??null,input.timeLimitMin??null]);
       for(const [index,id]of input.questionIds.entries())await client.query(`insert into assignment_questions(assignment_id,question_id,sort_order)values($1,$2,$3)`,[assignment.rows[0].id,id,index+1]);
@@ -139,15 +142,18 @@ export class AssignmentsService {
         returning *`,[assignmentId,actor.id,sid]); const s=sr.rows[0];
       if(!['not_started','in_progress'].includes(s.status)) throw new DomainError('already_submitted',409);
       const qr=await client.query(`select q.id,q.display_ref,q.stem_md,q.context_md,q.command_word,q.marks,q.answer_kind,
-        q.content_json,q.content_version,p.context_md parent_context,ans.text answer_text
+        q.content_json,q.content_version,p.context_md parent_context,ans.text answer_text,ans.response_json
         from assignment_questions aq join questions q on q.id=aq.question_id
         left join questions p on p.id=q.parent_id left join answers ans on ans.submission_id=$1 and ans.question_id=q.id
         where aq.assignment_id=$2 order by aq.sort_order`,[s.id,assignmentId]);
       const preliminary=qr.rows.map((row)=>serializeAttemptQuestion(row));
       const assetIds=[...new Set(preliminary.flatMap((question)=>attemptQuestionAssetIds(question.contentJson)))];
-      const assetRows=assetIds.length
-        ? (await client.query(`select id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
-           from question_assets where id=any($1::uuid[])`,[assetIds])).rows
+      const questionIds=qr.rows.map((row)=>String(row.id));
+      const assetRows=questionIds.length
+        ? (await client.query(`select id,question_id,kind,storage_path,coalesce(svg_markup,content_md) content_md,alt_text,source_page
+           from question_assets
+           where id=any($1::uuid[]) or question_id=any($2::uuid[])
+           order by question_id,sort_order,id`,[assetIds,questionIds])).rows
         : [];
       await client.query('commit');
 
@@ -162,6 +168,7 @@ export class AssignmentsService {
       }));
       const sourceAssetsById=new Map(assetRows.map((row)=>[String(row.id),{
         id:String(row.id),
+        questionId:String(row.question_id),
         kind:String(row.kind),
         url:signedAssetUrls[row.id]??null,
         contentMd:row.content_md?String(row.content_md):null,
@@ -170,24 +177,32 @@ export class AssignmentsService {
       }] as const));
       const questions=qr.rows.map((row)=>{
         const question=serializeAttemptQuestion(row,signedAssetUrls);
-        const sourceAssets=attemptQuestionAssetIds(question.contentJson)
+        const ids=new Set([
+          ...attemptQuestionAssetIds(question.contentJson),
+          ...assetRows.filter((asset)=>String(asset.question_id)===String(row.id)).map((asset)=>String(asset.id)),
+        ]);
+        const sourceAssets=[...ids]
           .map((id)=>sourceAssetsById.get(id))
-          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset));
+          .filter((asset):asset is NonNullable<typeof asset>=>Boolean(asset))
+          .map(({questionId:_,...asset})=>asset);
         return {...question,sourceAssets};
       });
       const deadline=a.time_limit_min?new Date(new Date(s.started_at).getTime()+(a.time_limit_min+s.time_extension_min)*60000):a.due_at;
       return {submissionId:s.id,activeSessionId:sid,startedAt:s.started_at,deadline,serverNow:now,questions};
     } catch(e){await client.query('rollback');throw e;} finally{client.release();}
   }
-  async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string) {
+  async saveAnswer(actor:Actor, submissionId:string, questionId:string, text:string, sessionId?:string, structuredResponse?:StructuredResponse|null) {
     const r=await this.pool.query(`select s.*,a.time_limit_min,a.due_at,statement_timestamp() server_now from submissions s join assignments a on a.id=s.assignment_id where s.id=$1 and s.student_id=$2`,[submissionId,actor.id]);
     const s=r.rows[0]; if(!s)throw new DomainError('not_found',404); if(!['not_started','in_progress'].includes(s.status))throw new DomainError('submission_closed',409);
     if(sessionId&&s.active_session_id!==sessionId)throw new DomainError('session_replaced',409);
     const deadline=s.time_limit_min?new Date(new Date(s.started_at).getTime()+(s.time_limit_min+s.time_extension_min)*60000):latestDeadline(s.due_at,s.late_granted_until);
     if(deadline&&new Date(s.server_now).getTime()>deadline.getTime()+10000)throw new DomainError('time_expired',409);
     const q=await this.pool.query(`select 1 from assignment_questions where assignment_id=$1 and question_id=$2`,[s.assignment_id,questionId]);if(!q.rowCount)throw new DomainError('not_found',404);
-    await this.pool.query(`insert into answers(submission_id,question_id,text,word_count) values($1,$2,$3,$4)
-      on conflict(submission_id,question_id) do update set text=excluded.text,word_count=excluded.word_count,updated_at=now()`,[submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0]);
+    const response=structuredResponse==null?null:parseStructuredResponse(structuredResponse);
+    await this.pool.query(`insert into answers(submission_id,question_id,text,word_count,response_json) values($1,$2,$3,$4,$5::jsonb)
+      on conflict(submission_id,question_id) do update set
+        text=excluded.text,word_count=excluded.word_count,response_json=excluded.response_json,updated_at=now()`,
+      [submissionId,questionId,text,text.trim()?text.trim().split(/\s+/).length:0,response?JSON.stringify(response):null]);
     return {savedAt:new Date()};
   }
   async submit(actor:Actor, submissionId:string) {

@@ -10,7 +10,7 @@ describe('Live Challenge deadline, result and late-join contracts',()=>{
   it('sends the latest typed answer when the server-aligned deadline reaches zero',()=>{
     expect(page).toContain("remaining!==0||session.status!=='question_open'");
     expect(page).toContain("void submitAnswer(true)");
-    expect(page).toContain("body:JSON.stringify({text:latestAnswer.current})");
+    expect(page).toContain("body:JSON.stringify({text:latestAnswer.current,structuredResponse:latestStructuredResponse.current})");
     expect(page).toContain("autoSubmitAttempts.current<4");
     expect(backend).toContain("submitted_at=coalesce(live_exam_answers.submitted_at,now())");
   });
@@ -20,7 +20,7 @@ describe('Live Challenge deadline, result and late-join contracts',()=>{
     expect(backend).toContain("Number(remaining.rows[0].count) === 0");
     expect(backend).toContain("marking.completed', {automatic:true,pending:0}");
     expect(page).toContain("Sizning javobingiz");
-    expect(page).toContain("row.answerText||'Javob yozilmagan'");
+    expect(page).toContain('structuredResponseHasContent');
     expect(page).toContain("row.feedback?<small>Izoh:");
   });
 
