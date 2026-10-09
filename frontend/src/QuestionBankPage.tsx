@@ -944,7 +944,31 @@ function ContextBlocks({ portable }: { portable: PortableQuestion }) {
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  const allAssets=useMemo(()=>{
+    const unique=new Map<string,PortableAsset>();
+    for(const asset of [...portable.contextBlocks.flatMap((block)=>block.assets),...(portable.responseAssets??[])])unique.set(asset.id,asset);
+    return [...unique.values()];
+  },[portable]);
+  const content=useMemo(()=>portable.leaf.contentJson
+    ?materializePortableSourceAssets(portable.leaf.contentJson,allAssets)
+    :null,[allAssets,portable.leaf.contentJson]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(allAssets),[allAssets]);
+  const responseAssets=portable.responseAssets?.length?portable.responseAssets:allAssets;
+  const interactive=structuredResponseInteractive(content,responseAssets,portable.leaf.answerKind);
+  const sharedContext={...portable,contextBlocks:portable.contextBlocks.filter((block)=>block.id!==portable.leaf.id)};
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title">
+      <header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header>
+      <div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div>
+      <ContextBlocks portable={sharedContext} />
+      <article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div>
+        {content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />}
+      </article>
+      {interactive?<div className="qb-response-preview"><span className="qb-chip">Interaktiv javob</span><StructuredResponsePreview content={content} sourceAssets={responseAssets} answerKind={portable.leaf.answerKind} disabled={false}/></div>:null}
+      {portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}
+      <footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer>
+    </section>
+  </div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
