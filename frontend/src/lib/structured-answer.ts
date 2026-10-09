@@ -223,8 +223,15 @@ export function structuredResponsePlan(
   }
   const drawing=content?.blocks.some((block)=>block.type==='answer_area'&&block.kind==='drawing')??false;
   const hasSourceVisual=Boolean(sourceAssetId||options.hasSourceVisual);
+  const needsExistingDiagram=requiresExistingDiagramSurface(stem);
+  if(needsExistingDiagram&&answerKind!=='diagram'&&!drawing){
+    if(!hasSourceVisual){
+      return {mode:'blocked',inlineKinds:kinds,sourceAssetId,reason:'required_source_diagram_missing'};
+    }
+    return {mode:'diagram',inlineKinds:kinds,sourceAssetId,reason:'source_diagram_interaction'};
+  }
   if(answerKind==='diagram'||drawing){
-    if(requiresExistingDiagramSurface(stem)&&!hasSourceVisual&&!drawing){
+    if(needsExistingDiagram&&!hasSourceVisual&&!drawing){
       return {mode:'blocked',inlineKinds:kinds,sourceAssetId,reason:'required_source_diagram_missing'};
     }
     return {mode:'diagram',inlineKinds:kinds,sourceAssetId,reason:'diagram_response'};
