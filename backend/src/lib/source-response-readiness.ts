@@ -1,24 +1,25 @@
-import { renderableVisualAssetSql, portableVisualReady, type PortableVisualLike } from './source-visual-readiness.js';
+import { completeInlineSvg, renderableVisualAssetSql, portableVisualReady, type PortableVisualLike } from './source-visual-readiness.js';
 
 const IDENTIFIER=/^[a-z_][a-z0-9_]*$/i;
 const identifier=(value:string)=>{if(!IDENTIFIER.test(value))throw new Error('unsafe_sql_identifier');return value};
 
 const RESPONSE_CUE_SQL=[
-  '(complete|fill([[:space:]]+in)?|populate|finish).{0,180}(table|truth[[:space:]]+table|diagram|figure|stack|queue|grid|k[- ]?map|map|box|cell)',
-  '(table|truth[[:space:]]+table|diagram|figure|stack|queue|grid|k[- ]?map).{0,180}(complete|fill([[:space:]]+in)?|missing)',
-  '(place|put|write).{0,100}(tick|cross|answer|value|label).{0,120}(table|grid|box|cell|diagram)',
-  '(draw|join|connect|match|label).{0,180}(line|diagram|figure|symbol|box|item|statement|node|gate)',
-  '(show|give).{0,120}(changing[[:space:]]+)?contents.{0,80}(stack|queue)',
+  '(copy[[:space:]]+and[[:space:]]+)?complete[[:space:]]+(the[[:space:]]+)?(following[[:space:]]+)?(table|truth[[:space:]]+table|diagram|figure|stack|queue|grid|k[- ]?map)',
+  'complete[[:space:]]+(the[[:space:]]+)?[^.]{0,80}(column|cells?)[[:space:]]+(in[[:space:]]+)?(the[[:space:]]+)?table',
+  'write[^.]{0,120}(answers?|values?|results?)[^.]*(in|into)[[:space:]]+(the[[:space:]]+)?table',
+  '(place|put)[^.]{0,100}(tick|cross)[^.]{0,100}(table|grid|boxes?)',
+  '(draw|join|connect|match|label)[^.]{0,180}(line|diagram|figure|symbol|boxes?|items?|statements?|nodes?|gate)',
+  '(show|give)[^.]{0,120}(changing[[:space:]]+)?contents[^.]{0,80}(stack|queue)',
 ].join('|');
 
 const RESPONSE_CUE_RE=new RegExp([
-  String.raw`\\b(?:complete|fill(?:\\s+in)?|populate|finish)\\b[\\s\\S]{0,180}\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map|map|box|cell)\\b`,
-  String.raw`\\b(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map)\\b[\\s\\S]{0,180}\\b(?:complete|fill(?:\\s+in)?|missing)\\b`,
-  String.raw`\\b(?:place|put|write)\\b[\\s\\S]{0,100}\\b(?:tick|cross|answer|value|label)\\b[\\s\\S]{0,120}\\b(?:table|grid|box|cell|diagram)\\b`,
-  String.raw`\\b(?:draw|join|connect|match|label)\\b[\\s\\S]{0,180}\\b(?:line|diagram|figure|symbol|box|item|statement|node|gate)\\b`,
-  String.raw`\\b(?:show|give)\\b[\\s\\S]{0,120}\\b(?:changing\\s+)?contents\\b[\\s\\S]{0,80}\\b(?:stack|queue)\\b`,
+  '\\b(?:(?:copy\\s+and\\s+)?complete)\\s+(?:the\\s+)?(?:following\\s+)?(?:table|truth\\s+table|diagram|figure|stack|queue|grid|k[- ]?map)\\b',
+  '\\bcomplete\\s+(?:the\\s+)?[^.]{0,80}\\b(?:column|cells?)\\b\\s+(?:in\\s+)?(?:the\\s+)?table\\b',
+  '\\bwrite\\b[^.]{0,120}\\b(?:answers?|values?|results?)\\b[^.]*\\b(?:in|into)\\s+(?:the\\s+)?table\\b',
+  '\\b(?:place|put)\\b[^.]{0,100}\\b(?:tick|cross)\\b[^.]{0,100}\\b(?:table|grid|boxes?)\\b',
+  '\\b(?:draw|join|connect|match|label)\\b[^.]{0,180}\\b(?:line|diagram|figure|symbol|boxes?|items?|statements?|nodes?|gate)\\b',
+  '\\b(?:show|give)\\b[^.]{0,120}\\b(?:changing\\s+)?contents\\b[^.]{0,80}\\b(?:stack|queue)\\b',
 ].join('|'),'i');
-
 export function questionResponseInteractionRequiredSql(questionAlias='q'){
   const q=identifier(questionAlias);
   return `(
@@ -105,11 +106,13 @@ export function portableResponseInteractionReady(
     const asset=byId.get(block.assetId);
     if(!asset)continue;
     const kind=String(asset.kind??'').toLowerCase();
-    if(['table','diagram','image'].includes(kind)&&portableVisualReady(asset))return true;
+    const ready=kind==='table'?Boolean(asset.url)||completeInlineSvg(asset.contentMd):portableVisualReady(asset);
+    if(['table','diagram','image'].includes(kind)&&ready)return true;
   }
   return assets.some((asset)=>{
     const kind=String(asset.kind??'').toLowerCase();
-    return ['table','diagram','image'].includes(kind)&&portableVisualReady(asset);
+    const ready=kind==='table'?Boolean(asset.url)||completeInlineSvg(asset.contentMd):portableVisualReady(asset);
+    return ['table','diagram','image'].includes(kind)&&ready;
   });
 }
 
