@@ -216,6 +216,36 @@ export const LIVE_COURSEBOOK_SECTIONS: LiveCoursebookSection[] = TOPICS.flatMap(
 const byCode = new Map(LIVE_COURSEBOOK_SECTIONS.map((section)=>[section.code,section]));
 export const LIVE_COURSEBOOK_SECTION_CODES = new Set(byCode.keys());
 
+export type CoursebookTaxonomyEvidence = {
+  subtopics: Array<{ topicNumber:number; code:string }>;
+  learningObjectives: Array<{ topicNumber:number; subtopicCode:string; text:string }>;
+};
+
+export function coursebookSectionsForEvidence(evidence:CoursebookTaxonomyEvidence) {
+  const normalizedLo=evidence.learningObjectives.map((lo)=>({
+    ...lo,
+    normalized:lo.text.toLocaleLowerCase(),
+  }));
+  return LIVE_COURSEBOOK_SECTIONS.filter((section)=>{
+    const inSourceSubtopic=evidence.subtopics.some((subtopic)=>
+      subtopic.topicNumber===section.sourceTopicNumber
+      && subtopic.code===section.sourceSubtopicCode
+    );
+    if(!inSourceSubtopic)return false;
+    if(section.mappingKind==='direct_subtopic')return true;
+
+    const sourceLos=normalizedLo.filter((lo)=>
+      lo.topicNumber===section.sourceTopicNumber
+      && lo.subtopicCode===section.sourceSubtopicCode
+    );
+    const includes=(section.includeLoTextAny??[]).map((term)=>term.toLocaleLowerCase());
+    const excludes=(section.excludeLoTextAny??[]).map((term)=>term.toLocaleLowerCase());
+    if(includes.length&&!sourceLos.some((lo)=>includes.some((term)=>lo.normalized.includes(term))))return false;
+    if(excludes.length&&sourceLos.some((lo)=>excludes.some((term)=>lo.normalized.includes(term))))return false;
+    return true;
+  });
+}
+
 export function liveCoursebookSectionOptions() {
   return LIVE_COURSEBOOK_SECTIONS.map((section)=>({
     syllabus_code:'9618',
