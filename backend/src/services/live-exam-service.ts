@@ -7,6 +7,7 @@ import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { questionResponseIntegritySql } from '../lib/source-response-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -376,7 +377,7 @@ export class LiveExamService {
       )`);
     }
 
-    const filters: string[] = [];
+    const filters: string[] = [questionResponseIntegritySql('q')];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
     if (input.topicIds.length) {
