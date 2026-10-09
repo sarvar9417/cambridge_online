@@ -21,7 +21,7 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
       chapterTitle:'Communication',
       sourceTopicNumber:2,
       sourceSubtopicCode:'2.1',
-      excludeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service'],
+      excludeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service','URL','DNS','IP address'],
       mappingKind:'learning_objective_bridge',
     },
     {
@@ -31,7 +31,7 @@ const chapterOverrides = new Map<number, LiveCoursebookSection[]>([
       chapterTitle:'Communication',
       sourceTopicNumber:2,
       sourceSubtopicCode:'2.1',
-      includeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service'],
+      includeLoTextAny:['World Wide Web','internet','Uniform Resource Locator','Domain Name Service','URL','DNS','IP address'],
       mappingKind:'learning_objective_bridge',
     },
   ]],
