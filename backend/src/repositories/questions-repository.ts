@@ -556,6 +556,7 @@ export class PgQuestionsRepository {
         answerLines: leaf.answer_lines,
       },
       chain: rows.map((row) => ({ id: row.id, label: row.label, depth: row.depth })),
+      responseAssets: await this.portableAssets(leaf.assets),
       contextBlocks,
       dependencies: dependencies.rows.map((row) => ({
         id: row.id,
