@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ClassItem, GradingItem } from '../lib/api';
+import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
+import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor } from '../student/StructuredResponseEditor';
+import { structuredResponseHasContent } from '../lib/structured-response';
 import './grading-queue.css';
 
 export type GradingView = 'by_question' | 'by_student' | 'confidence';
@@ -46,6 +50,11 @@ export function GradingQueue({
   const [index, setIndex] = useState(0);
   const position = Math.min(index, Math.max(0, items.length - 1));
   const item = items[position];
+  const content=useMemo(()=>item?.contentJson&&item.contentVersion===1
+    ?materializePortableSourceAssets(item.contentJson,item.sourceAssets??[])
+    :item?.contentJson??null,[item]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(item?.sourceAssets??[]),[item]);
+  const responseAssets=item?.sourceAssets??[];
 
   // Changing filter or view rebuilds the queue, so the cursor has to go back to
   // the start or it lands on an answer the teacher did not choose.
@@ -125,11 +134,20 @@ export function GradingQueue({
               </span>
             </div>
 
-            <p className="gq-stem">{item.stemMd}</p>
+            {content?<div className="gq-structured-question"><StructuredQuestionView content={content} assetUrls={assetUrls}/></div>:<p className="gq-stem">{item.stemMd}</p>}
 
             <div className="gq-answer">
               <span className="gq-label">O‘quvchining javobi</span>
-              <blockquote>{item.text || 'Javob yozilmagan'}</blockquote>
+              {item.text?<blockquote>{item.text}</blockquote>:null}
+              {structuredResponseHasContent(item.structuredResponse)&&content?<StructuredResponseEditor
+                content={content}
+                sourceAssets={responseAssets}
+                answerKind={item.answerKind}
+                value={item.structuredResponse}
+                disabled
+                onChange={()=>{}}
+              />:null}
+              {!item.text&&!structuredResponseHasContent(item.structuredResponse)?<blockquote>Javob yozilmagan</blockquote>:null}
             </div>
 
             {item.points.length > 0 ? (
