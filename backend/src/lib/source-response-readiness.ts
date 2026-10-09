@@ -29,6 +29,7 @@ export function questionResponseInteractionRequiredSql(questionAlias='q'){
       select 1
       from jsonb_array_elements(coalesce(${q}.content_json->'blocks','[]'::jsonb)) response_cue
       where response_cue->>'type'='text'
+        and response_cue->>'style'='task'
         and lower(regexp_replace(coalesce(response_cue->>'text',''),'[[:space:]]+',' ','g')) ~ '${RESPONSE_CUE_SQL}'
     )
   )`;
@@ -86,7 +87,7 @@ function blocks(value:unknown):StructuredBlockLike[]{
 }
 
 export function responseInteractionRequired(content:unknown){
-  return blocks(content).some((block)=>block.type==='text'&&RESPONSE_CUE_RE.test(String(block.text??'')));
+  return blocks(content).some((block)=>block.type==='text'&&block.style==='task'&&RESPONSE_CUE_RE.test(String(block.text??'')));
 }
 
 export function portableResponseInteractionReady(
