@@ -89,6 +89,7 @@ type Part = {
   status: string;
   hasDiagram: boolean;
   hasDependency: boolean;
+  responseReady: boolean;
   subtopics: Array<{ id: string; code: string; title: string; topicNumber?: number }>;
   coursebookSections?: Array<{ code: string; title: string; chapterNumber: number }>;
   matches?: boolean;
@@ -923,7 +924,7 @@ function useDialogClose(onClose: () => void) {
 }
 
 function PartCard({ part, focused, selected, pending, onAdd, onPreview }: { part: Part; focused: boolean; selected: boolean; pending: boolean; onAdd: () => void; onPreview: () => void }) {
-  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{(part.coursebookSections?.length||part.subtopics?.length) ? <div className="qb-topic-tags">{part.coursebookSections?.length
+  return <article className={`qb-question-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''}`}><div className="qb-question-main"><div className="qb-meta-line"><strong>{part.displayRef}</strong><span>{part.syllabusCode}</span><span>{part.year} {seriesLabel(part.series)}</span><span>Paper {part.component}{part.variant ? ` · V${part.variant}` : ''}</span>{part.ao && <span>{part.ao}</span>}{part.commandWord && <span>{part.commandWord}</span>}{part.status === 'needs_review' && <span className="qb-chip warning">Topic review</span>}{part.hasDiagram && <span className="qb-chip">Diagramma</span>}{!part.responseReady && <span className="qb-chip danger" title="Source javob strukturasi to‘liq tiklanmagan">Response review</span>}{part.hasDependency && <span className="qb-chip warning">Bog‘liq</span>}</div><LatexQuestionText latex={part.bodyFormat === 'latex' ? part.stemLatex : null} fallback={part.stem} />{(part.coursebookSections?.length||part.subtopics?.length) ? <div className="qb-topic-tags">{part.coursebookSections?.length
   ? part.coursebookSections.map((section)=><span key={section.code} title={part.subtopics?.length?`Cambridge syllabus: ${part.subtopics.map((topic)=>`${topic.code} ${topic.title}`).join(' · ')}`:undefined}>{section.code} {section.title}</span>)
   : part.subtopics.map((topic) => <span key={topic.id}>{topic.code} {topic.title}</span>)}</div>:null}</div><div className="qb-question-actions"><strong>{part.marks} ball</strong><button className="qb-secondary-button" onClick={onPreview}>Kontekst</button><button className={`qb-add-button ${selected ? 'selected' : ''}`} disabled={selected || pending} aria-label={selected ? `${part.displayRef} savatchaga qo‘shilgan` : `${part.displayRef} savatchaga qo‘shish`} onClick={onAdd}>{pending ? '…' : selected ? <Check size={18} weight="bold" /> : <Plus size={18} weight="bold" />}</button></div></article>;
 }
