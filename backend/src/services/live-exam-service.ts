@@ -105,6 +105,7 @@ function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
   return {
     ...portable,
     dependencies: portable.dependencies.map(({ evidence: _evidence, confidence: _confidence, ...dependency }) => dependency),
+    responseAssets: (portable.responseAssets??[]).map((asset)=>({...asset,url:null})),
     contextBlocks: portable.contextBlocks.map((block) => ({
       ...block,
       assets: block.assets.map((asset) => ({ ...asset, url: null })),
@@ -892,28 +893,29 @@ export class LiveExamService {
 
   private async hydratePortable(snapshot: StoredQuestionSnapshot) {
     if (!this.assetUrlSigner) return snapshot;
-    const contextBlocks = await Promise.all(snapshot.contextBlocks.map(async (block) => ({
-      ...block,
-      assets: await Promise.all(block.assets.map(async (asset) => {
-        if (!asset.storagePath) return asset;
-        const now = Date.now();
-        const cached = this.signedAssetCache.get(asset.storagePath);
-        let value = cached && cached.expiresAt > now ? cached.value : undefined;
-        if (!value) {
-          value = this.assetUrlSigner!.signStoragePath(asset.storagePath, 300);
-          this.signedAssetCache.set(asset.storagePath, { value, expiresAt: now + 240_000 });
-          value.catch(() => this.signedAssetCache.delete(asset.storagePath!));
-          if (this.signedAssetCache.size > 500) {
-            for (const [path, entry] of this.signedAssetCache) {
-              if (entry.expiresAt <= now) this.signedAssetCache.delete(path);
-            }
+    const hydrateAsset=async(asset:PortableQuestion['contextBlocks'][number]['assets'][number])=>{
+      if(!asset.storagePath)return asset;
+      const now=Date.now();
+      const cached=this.signedAssetCache.get(asset.storagePath);
+      let value=cached&&cached.expiresAt>now?cached.value:undefined;
+      if(!value){
+        value=this.assetUrlSigner!.signStoragePath(asset.storagePath,300);
+        this.signedAssetCache.set(asset.storagePath,{value,expiresAt:now+240_000});
+        value.catch(()=>this.signedAssetCache.delete(asset.storagePath!));
+        if(this.signedAssetCache.size>500){
+          for(const [path,entry] of this.signedAssetCache){
+            if(entry.expiresAt<=now)this.signedAssetCache.delete(path);
           }
         }
-        const url = await value;
-        return { ...asset, url };
-      })),
+      }
+      return {...asset,url:await value};
+    };
+    const contextBlocks = await Promise.all(snapshot.contextBlocks.map(async (block) => ({
+      ...block,
+      assets: await Promise.all(block.assets.map(hydrateAsset)),
     })));
-    return { ...snapshot, contextBlocks };
+    const responseAssets=await Promise.all((snapshot.responseAssets??[]).map(hydrateAsset));
+    return { ...snapshot, contextBlocks,responseAssets };
   }
 
   async snapshot(actor: Actor, sessionId: string, projector = false): Promise<Record<string, unknown>> {
