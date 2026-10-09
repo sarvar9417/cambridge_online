@@ -149,10 +149,17 @@ export function materializePortableSourceAssets(
     const asset = byId.get(block.assetId);
     if (!asset) return block;
 
-    // Prefer the exact source crop/SVG whenever it is available. Semantic
-    // materialisation is a compatibility fallback for historical rows that
-    // have no browser-renderable visual, not a reason to replace a faithful
-    // Cambridge source image with reconstructed text.
+    // Editable semantic tables are a response surface, not merely a visual.
+    // When the source-backed table text contains blank cells, materialise it
+    // even if a faithful crop/SVG also exists. Reference-only tables still
+    // prefer the exact source visual.
+    if (asset.kind === 'table') {
+      const table = portableTableBlock(asset, block.source);
+      if (table?.editableCells.length) { changed = true; return table; }
+    }
+
+    // Prefer the exact source crop/SVG whenever no interactive semantic table
+    // is required. This keeps non-answer visuals source-faithful.
     if (portableAssetUrl(asset)) return block;
 
     if (asset.kind === 'table') {
