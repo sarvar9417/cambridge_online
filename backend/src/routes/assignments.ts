@@ -7,6 +7,7 @@ import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import { overlayAssignmentAttempt } from '../lib/assignment-attempt-overlay.js';
 import { assertAssignmentOnlineRenderable } from '../lib/assignment-publish-guard.js';
+import { structuredResponseSchema } from '../lib/structured-response.js';
 
 const uuid = z.string().uuid();
 
@@ -48,8 +49,8 @@ export function createAssignmentsRouter(service: AssignmentsService, pool?:Pool)
   });
   router.put('/submissions/:id/answers/:questionId', async (req, res) => {
     try {
-      const body = z.object({ text: z.string().max(20000), activeSessionId: uuid.optional() }).parse(req.body);
-      res.json(await service.saveAnswer(req.actor!, uuid.parse(req.params.id), uuid.parse(req.params.questionId), body.text, body.activeSessionId));
+      const body = z.object({ text: z.string().max(20000), structuredResponse: structuredResponseSchema.nullable().optional(), activeSessionId: uuid.optional() }).strict().parse(req.body);
+      res.json(await service.saveAnswer(req.actor!, uuid.parse(req.params.id), uuid.parse(req.params.questionId), body.text, body.activeSessionId, body.structuredResponse));
     } catch (error) { send(res, error); }
   });
   router.post('/submissions/:id/submit', async (req, res) => {
