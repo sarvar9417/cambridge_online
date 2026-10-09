@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
+import { questionResponseInteractionIntegritySql } from '../lib/source-response-readiness.js';
 import {
   coursebookSectionsForEvidence,
   liveCoursebookQuestionFilter,
@@ -92,6 +93,7 @@ const mapPart = (row: Record<string, unknown>) => ({
   status: row.status,
   hasDiagram: Boolean(row.has_diagram),
   hasDependency: Boolean(row.has_dependency),
+  responseInteractionReady: row.response_interaction_ready === undefined ? true : Boolean(row.response_interaction_ready),
   subtopics: Array.isArray(row.subtopics) ? row.subtopics : [],
 });
 
@@ -228,7 +230,8 @@ export class PgQuestionsRepository {
            exists(
              select 1 from question_assets qa
              where qa.question_id=q.id and qa.kind in ('diagram','image')
-           ) has_diagram
+           ) has_diagram,
+           ${questionResponseInteractionIntegritySql('q')} response_interaction_ready
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
          join syllabi syllabus on syllabus.id=sp.syllabus_id
