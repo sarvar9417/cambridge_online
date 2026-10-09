@@ -192,7 +192,7 @@ function LiveQuestionView({
   const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
   const hasCanonicalContent=Boolean(portable.leaf.contentJson);
   const decoded=parseStoredAnswer(responseText);
-  const responsePlan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem);
+  const responsePlan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem,{hasSourceVisual:Object.keys(assetUrls).length>0});
   const updateField=onResponseChange&&responsePlan.mode!=='text'
     ?(key:string,value:string)=>onResponseChange(serializeStructuredAnswer(setStructuredField(decoded,key,value)))
     :undefined;
@@ -555,7 +555,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     const assets=portable.contextBlocks.flatMap((block)=>block.assets);
     const content=portable.leaf.contentJson?materializePortableSourceAssets(portable.leaf.contentJson,assets):null;
     const assetUrls=portableAssetsForContent(assets);
-    const plan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem);
+    const plan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem,{hasSourceVisual:Object.keys(assetUrls).length>0});
     return {content,assetUrls,plan};
   })():null;
   const responseLocked=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
