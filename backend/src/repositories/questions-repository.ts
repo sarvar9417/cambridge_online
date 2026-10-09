@@ -92,7 +92,7 @@ const mapPart = (row: Record<string, unknown>) => ({
   status: row.status,
   hasDiagram: Boolean(row.has_diagram),
   hasDependency: Boolean(row.has_dependency),
-  subtopics: row.subtopics ?? [],
+  subtopics: Array.isArray(row.subtopics) ? row.subtopics : [],
 });
 
 export class PgQuestionsRepository {
@@ -290,11 +290,11 @@ export class PgQuestionsRepository {
       const part=mapPart(row);
       const coursebookSections=part.syllabusCode==='9618'
         ? coursebookSectionsForEvidence({
-            subtopics:(row.subtopics??[]).map((subtopic:{topicNumber?:number;code:string})=>({
+            subtopics:(Array.isArray(row.subtopics)?row.subtopics:[]).map((subtopic:{topicNumber?:number;code:string})=>({
               topicNumber:Number(subtopic.topicNumber??0),
               code:subtopic.code,
             })),
-            learningObjectives:(row.learning_objectives??[]).map((lo:{topicNumber?:number;subtopicCode:string;text:string})=>({
+            learningObjectives:(Array.isArray(row.learning_objectives)?row.learning_objectives:[]).map((lo:{topicNumber?:number;subtopicCode:string;text:string})=>({
               topicNumber:Number(lo.topicNumber??0),
               subtopicCode:lo.subtopicCode,
               text:lo.text,
