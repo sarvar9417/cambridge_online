@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
+import { liveCoursebookSectionOptions } from '../lib/live-coursebook-sections.js';
 import { serializeQuestion } from '../services/question-serializer.js';
 import type {
   DependencyKind,
@@ -328,7 +329,7 @@ export class PgQuestionsRepository {
   }
 
   async filterOptions(actor: Actor) {
-    if (actor.role === 'student') return { syllabi: [], components: [], topics: [], classes: [] };
+    if (actor.role === 'student') return { syllabi: [], components: [], topics: [], coursebookSections: [], classes: [] };
 
     // The Cambridge corpus is global reference content, not class-owned data.
     // Pick one catalog version per syllabus code for filter labels while the
@@ -402,6 +403,7 @@ export class PgQuestionsRepository {
       syllabi: syllabi.rows,
       components: components.rows,
       topics: topics.rows,
+      coursebookSections: liveCoursebookSectionOptions(),
       classes: classes.rows,
     };
   }
