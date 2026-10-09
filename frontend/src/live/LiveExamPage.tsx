@@ -24,6 +24,14 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor } from '../student/StructuredResponseEditor';
+import {
+  humanizeStoredAnswer,
+  parseStoredAnswer,
+  serializeStructuredAnswer,
+  setStructuredField,
+  structuredResponsePlan,
+} from '../lib/structured-answer';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -168,7 +176,14 @@ function QuestionAsset({asset}:{asset:LiveExamPortableQuestion['contextBlocks'][
   </figure>;
 }
 
-function LiveQuestionView({question}:{question:LiveExamQuestion}) {
+function LiveQuestionView({
+  question,responseText='',responseDisabled=false,onResponseChange,
+}:{
+  question:LiveExamQuestion;
+  responseText?:string;
+  responseDisabled?:boolean;
+  onResponseChange?:(value:string)=>void;
+}) {
   const portable=question.portable;
   const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
   const content=useMemo(()=>portable.leaf.contentJson
@@ -176,6 +191,11 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
     :null,[assets,portable.leaf.contentJson]);
   const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
   const hasCanonicalContent=Boolean(portable.leaf.contentJson);
+  const decoded=parseStoredAnswer(responseText);
+  const responsePlan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem);
+  const updateField=onResponseChange&&responsePlan.mode!=='text'
+    ?(key:string,value:string)=>onResponseChange(serializeStructuredAnswer(setStructuredField(decoded,key,value)))
+    :undefined;
   return <article className="live-question-card">
     <header><div><span>Savol {question.position+1}</span><strong>{portable.sourceRef}</strong></div><b>{question.marks} ball</b></header>
     {portable.leaf.commandWord?<span className="live-command">{portable.leaf.commandWord}</span>:null}
@@ -183,10 +203,10 @@ function LiveQuestionView({question}:{question:LiveExamQuestion}) {
       <header><strong>Oldingi ish kerak</strong><span>{question.dependencyWork.length} ta bog‘lanish</span></header>
       {question.dependencyWork.map((dependency)=><article key={dependency.questionId}>
         <div><b>{dependency.displayRef}</b><small>{dependency.kind==='answer_ref'?'Oldingi javobingizdan foydalaning':'Oldingi qismdagi ma’lumotdan foydalaning'}</small></div>
-        {dependency.ownAnswer!==null?<pre>{dependency.ownAnswer||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
+        {dependency.ownAnswer!==null?<pre>{humanizeStoredAnswer(dependency.ownAnswer)||'Javob bo‘sh topshirilgan.'}</pre>:<p>{dependency.position===null?'Bu majburiy qism sessiyada topilmadi.':'Bu qism avval bajariladi.'}</p>}
       </article>)}
     </section>:null}
-    {hasCanonicalContent&&content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<>
+    {hasCanonicalContent&&content?<StructuredQuestionView content={content} assetUrls={assetUrls} responseValues={responsePlan.mode!=='text'?decoded.fields:{}} responseDisabled={responseDisabled} onResponseChange={updateField}/>:<>
       {portable.contextBlocks.map((block)=><section className="live-context" key={block.id}>
         {block.contextLatex||block.context?<LatexQuestionText latex={block.contextLatex} fallback={block.context}/>:null}
         {block.assets.map((asset)=><QuestionAsset key={asset.id} asset={asset}/>)}
@@ -524,6 +544,21 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setHydratedKey(key);
   },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
+  const updateDraft=(value:string)=>{
+    latestAnswer.current=value;
+    pendingSave.current=value;
+    setAnswer(value);
+    setDirty(true);
+  };
+  const responseContext=snapshot.question?(()=>{
+    const portable=snapshot.question!.portable;
+    const assets=portable.contextBlocks.flatMap((block)=>block.assets);
+    const content=portable.leaf.contentJson?materializePortableSourceAssets(portable.leaf.contentJson,assets):null;
+    const assetUrls=portableAssetsForContent(assets);
+    const plan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem);
+    return {content,assetUrls,plan};
+  })():null;
+  const responseLocked=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
@@ -641,7 +676,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
-    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
+    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question} responseText={answer} responseDisabled={responseLocked} onResponseChange={responseContext?.plan.mode==='inline'?updateDraft:undefined}/>
     <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
