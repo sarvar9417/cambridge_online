@@ -24,6 +24,8 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor, structuredResponseInteractive } from '../student/StructuredResponseEditor';
+import { normalizeStructuredResponse, structuredResponseHasContent, structuredResponseTextCount, type StructuredResponse } from '../lib/structured-response';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -64,14 +66,19 @@ function readLiveDraft(key:string) {
   try {
     const raw=localStorage.getItem(key);
     if(!raw)return null;
-    const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
+    const draft=JSON.parse(raw) as {text?:unknown;structuredResponse?:unknown;updatedAt?:unknown;tabId?:unknown};
     if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
-    return {text:draft.text,updatedAt:draft.updatedAt};
+    return {
+      text:draft.text,
+      structuredResponse:draft.structuredResponse?normalizeStructuredResponse(draft.structuredResponse):null,
+      updatedAt:draft.updatedAt,
+      tabId:typeof draft.tabId==='string'?draft.tabId:'',
+    };
   }catch{return null}
 }
 
-function writeLiveDraft(key:string,text:string,tabId:string) {
-  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
+function writeLiveDraft(key:string,text:string,structuredResponse:StructuredResponse|null,tabId:string) {
+  try{localStorage.setItem(key,JSON.stringify({text,structuredResponse,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
 }
 
 function removeLiveDraft(key:string) {
