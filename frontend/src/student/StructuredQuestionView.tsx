@@ -58,7 +58,7 @@ export function StructuredQuestionView({
   },[renderSignature,presentationReady,assetsReady]);
 
   useEffect(()=>{
-    const node=root.current;
+    const node=host.current;
     if(!node)return;
     node.querySelectorAll<HTMLInputElement|HTMLSelectElement>('[data-response-key]').forEach((control)=>{
       const key=control.dataset.responseKey;
