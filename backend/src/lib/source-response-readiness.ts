@@ -44,9 +44,11 @@ export function questionResponseIntegritySql(questionAlias='q') {
         or nullif(btrim(coalesce(response_asset.svg_markup,'')),'') is not null
       )
   )`;
+  const stackWorkspace=`lower(coalesce(${questionAlias}.stem_md,'')) ~
+    '(changing contents of (the )?stack|complete .*stack|state of .*stack|rpn expression.*stack|stack.*rpn expression)'`;
 
   return `(
-    (${questionAlias}.answer_kind::text<>'table' or (${semanticTable} or ${drawingArea} or ${referencedAsset} or ${ownedAsset}))
+    (${questionAlias}.answer_kind::text<>'table' or (${semanticTable} or ${drawingArea} or ${referencedAsset} or ${ownedAsset} or ${stackWorkspace}))
     and
     (${questionAlias}.answer_kind::text<>'diagram' or (${drawingArea} or ${referencedAsset} or ${ownedAsset}))
   )`;
