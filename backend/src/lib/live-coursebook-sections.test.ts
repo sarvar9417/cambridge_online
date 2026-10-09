@@ -20,7 +20,7 @@ describe('9618 Live coursebook section bridge',()=>{
     expect(section).toMatchObject({
       sourceTopicNumber:15,
       sourceSubtopicCode:'15.1',
-      includeLoText:['virtual machine'],
+      includeLoTextAny:['virtual machine'],
       mappingKind:'learning_objective_bridge',
     });
     const values:unknown[]=[];
@@ -44,12 +44,24 @@ describe('9618 Live coursebook section bridge',()=>{
     expect(sql).not.toContain('coursebook_lo.text');
   });
 
+  it('preserves source-backed splits for Chapters 2, 7, 17 and 18',()=>{
+    expect(LIVE_COURSEBOOK_SECTIONS.filter((section)=>section.chapterNumber===2).map((section)=>section.code))
+      .toEqual(['2.1','2.2']);
+    expect(LIVE_COURSEBOOK_SECTIONS.filter((section)=>section.chapterNumber===7).map((section)=>section.code))
+      .toEqual(['7.1','7.2','7.3']);
+    expect(LIVE_COURSEBOOK_SECTIONS.filter((section)=>section.chapterNumber===17).map((section)=>section.code))
+      .toEqual(['17.1','17.2','17.3','17.4']);
+    expect(LIVE_COURSEBOOK_SECTIONS.filter((section)=>section.chapterNumber===18).map((section)=>section.code))
+      .toEqual(['18.1','18.2']);
+  });
+
   it('keeps virtual-machine questions out of textbook Chapter 15.1',()=>{
     const section=resolveLiveCoursebookSections(['15.1'])[0]!;
-    expect(section.excludeLoText).toEqual(['virtual machine']);
+    expect(section.excludeLoTextAny).toEqual(['virtual machine']);
     const values:unknown[]=[];
     const sql=liveCoursebookQuestionFilter(values,['15.1']);
     expect(values).toEqual([15,'15.1','%virtual machine%']);
-    expect(sql).toContain('coursebook_lo.text not ilike $3');
+    expect(sql).toContain('not exists(');
+    expect(sql).toContain('coursebook_lo.text ilike $3');
   });
 });
