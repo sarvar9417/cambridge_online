@@ -15,12 +15,10 @@ export function structuredQuestionAssetsReady(content:StructuredQuestionContent,
 export function structuredQuestionRenderSignature(
   content:StructuredQuestionContent,
   assetUrls:Record<string,string>={},
-  responseValues:Record<string,string>={},
 ) {
   return JSON.stringify([
     content,
     Object.entries(assetUrls).sort(([left],[right])=>left.localeCompare(right)),
-    Object.entries(responseValues).sort(([left],[right])=>left.localeCompare(right)),
   ]);
 }
 
@@ -42,7 +40,10 @@ export function StructuredQuestionView({
   const findings=useMemo(()=>valid?inspectStructuredQuestionIntegrity(content):[],[content,valid]);
   const presentationReady=valid&&findings.length===0;
   const assetsReady=presentationReady&&structuredQuestionAssetsReady(content,assetUrls);
-  const renderSignature=structuredQuestionRenderSignature(content,assetUrls,responseValues);
+  const renderSignature=structuredQuestionRenderSignature(content,assetUrls);
+  const responseSignature=JSON.stringify(Object.entries(responseValues).sort(([left],[right])=>left.localeCompare(right)));
+  const responseChangeRef=useRef(onResponseChange);
+  responseChangeRef.current=onResponseChange;
 
   useEffect(()=>{
     const node=host.current;
@@ -51,10 +52,22 @@ export function StructuredQuestionView({
       resolveAsset:(assetId)=>assetUrls[assetId]??null,
       responseValues,
       responseDisabled,
-      onResponseChange,
+      onResponseChange:(key,value)=>responseChangeRef.current?.(key,value),
     }));
     return()=>node.replaceChildren();
-  },[renderSignature,presentationReady,assetsReady,responseDisabled,onResponseChange]);
+  },[renderSignature,presentationReady,assetsReady]);
+
+  useEffect(()=>{
+    const node=root.current;
+    if(!node)return;
+    node.querySelectorAll<HTMLInputElement|HTMLSelectElement>('[data-response-key]').forEach((control)=>{
+      const key=control.dataset.responseKey;
+      if(!key)return;
+      const next=responseValues[key]??'';
+      if(document.activeElement!==control&&control.value!==next)control.value=next;
+      control.disabled=responseDisabled;
+    });
+  },[responseSignature,responseDisabled]);
 
   if(!valid){
     return (
