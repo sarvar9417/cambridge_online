@@ -5,6 +5,7 @@ import type { PgSelectionsRepository } from '../repositories/selections-reposito
 import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { renderableVisualAssetSql, sourceVisualBlockerSql } from '../lib/source-visual-readiness.js';
+import { questionResponseIntegritySql } from '../lib/source-response-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export interface SmartSelectionInput {
@@ -125,6 +126,7 @@ export class SelectionGeneratorService {
       `q.body_format='latex'`,
       `nullif(btrim(coalesce(q.stem_latex,'')),'') is not null`,
       `q.content_json is not null and q.content_version=1`,
+      questionResponseIntegritySql('q'),
       `exists(
         select 1 from canonical_mark_schemes cms
         where cms.question_id=q.id
