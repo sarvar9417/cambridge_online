@@ -95,6 +95,7 @@ export const LIVE_COURSEBOOK_SECTIONS: LiveCoursebookSection[] = TOPICS.flatMap(
 });
 
 const byCode = new Map(LIVE_COURSEBOOK_SECTIONS.map((section)=>[section.code,section]));
+export const LIVE_COURSEBOOK_SECTION_CODES = new Set(byCode.keys());
 
 export function liveCoursebookSectionOptions() {
   return LIVE_COURSEBOOK_SECTIONS.map((section)=>({
