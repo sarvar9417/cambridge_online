@@ -5,6 +5,7 @@ import type { PgSelectionsRepository } from '../repositories/selections-reposito
 import type { SelectionRole } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { renderableVisualAssetSql, sourceVisualBlockerSql } from '../lib/source-visual-readiness.js';
+import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export interface SmartSelectionInput {
   name: string;
@@ -20,6 +21,7 @@ export interface SmartSelectionInput {
   aos?: string[];
   topicIds?: string[];
   subtopicIds?: string[];
+  coursebookSectionCodes?: string[];
   commandWords?: string[];
   hasDiagram?: boolean;
   dependency?: 'any' | 'independent';
@@ -134,6 +136,8 @@ export class SelectionGeneratorService {
     if (input.component !== undefined) {
       conditions.push(`c.number=${push(values, input.component)}`);
     }
+    const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
+    if(coursebookFilter)conditions.push(coursebookFilter);
     if (input.marksMin !== undefined) {
       conditions.push(`q.marks>=${push(values, input.marksMin)}`);
     }
