@@ -69,6 +69,27 @@ describe('live exam routes', () => {
     }));
   });
 
+  it('accepts a coursebook-only Chapter 16 scope without inventing an official syllabus 16.3 row', async () => {
+    const create=vi.fn().mockResolvedValue({id:'session-coursebook'});
+    await request(appFor({create})).post('/live-exams').send({
+      classId:'22222222-2222-4222-8222-222222222222',
+      title:'Chapter 16 textbook revision',
+      topicIds:[],
+      subtopicIds:[],
+      coursebookSectionCodes:['16.2','16.3'],
+      questionCount:2,
+      markingMode:'teacher',
+      includeDiagrams:true,
+      excludeSeen:false,
+      questionOrder:'shuffled',
+    }).expect(201);
+    expect(create).toHaveBeenCalledWith(student,expect.objectContaining({
+      topicIds:[],
+      subtopicIds:[],
+      coursebookSectionCodes:['16.2','16.3'],
+    }));
+  });
+
   it('returns the full eligible total and availability breakdown even when only a limited preview is requested', async () => {
     const eligibleQuestions=vi.fn().mockResolvedValue({
       data:[],
@@ -81,6 +102,7 @@ describe('live exam routes', () => {
         classId:'22222222-2222-4222-8222-222222222222',
         topicIds:'44444444-4444-4444-8444-444444444444',
         subtopicIds:'',
+        coursebookSectionCodes:'16.2,16.3',
         includeDiagrams:'true',
         excludeSeen:'false',
         limit:'137',
@@ -91,7 +113,10 @@ describe('live exam routes', () => {
       total:137,
       counts:{database:142,liveReady:140,available:137},
     });
-    expect(eligibleQuestions).toHaveBeenCalledWith(student,expect.objectContaining({limit:137}));
+    expect(eligibleQuestions).toHaveBeenCalledWith(student,expect.objectContaining({
+      limit:137,
+      coursebookSectionCodes:['16.2','16.3'],
+    }));
   });
 
   it('keeps /join above the UUID session route', async () => {
