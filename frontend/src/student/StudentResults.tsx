@@ -1,4 +1,5 @@
 import type { PracticeTarget, ResultDetail, ResultItem, User } from '../lib/api';
+import { humanizeStoredAnswer } from '../lib/structured-answer';
 import { navigate } from '../lib/router';
 import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
@@ -79,7 +80,7 @@ export function StudentResults({
         return <li key={item.gradingId} className="sr-question">
           <div className="sr-question-head"><span className="sr-ref">{item.displayRef}</span>{structuredReady?<span className="sr-source-backed">Source-backed</span>:null}<span className={`sr-mark ${full?'is-full':zero?'is-zero':'is-part'}`}>{item.finalScore}/{item.marks}</span></div>
           {structuredPresent?<div className="sr-structured-question"><StructuredQuestionView content={materializedContent!} assetUrls={effectiveAssetUrls}/></div>:<p className="sr-stem">{item.stemMd}</p>}
-          <div className="sr-answer"><span className="sr-answer-label">Sening javobing</span><blockquote>{item.answerText||'Javob yozilmagan'}</blockquote></div>
+          <div className="sr-answer"><span className="sr-answer-label">Sening javobing</span><blockquote>{humanizeStoredAnswer(item.answerText)||'Javob yozilmagan'}</blockquote></div>
           {item.feedback?<div className="sr-feedback"><span className="sr-feedback-label">Izoh</span><p>{item.feedback}</p></div>:null}
           {item.points.length?<div className="sr-points"><span className="sr-points-label">Ball taqsimoti</span>{item.points.map((point)=><div className={`sr-point${point.matched?' is-awarded':''}`} key={point.code}><span className="sr-point-mark" aria-hidden="true">{point.matched?'✓':'×'}</span><span className="sr-point-text">{point.text}</span><span className="sr-point-marks">{point.matched?`+${point.marks}`:'0'}</span></div>)}</div>:null}
           {user.role==='student'&&!full&&targetsForQuestion.length?<div className="sr-question-practice"><span>Shu xato uchun:</span>{targetsForQuestion.slice(0,2).map((target)=><button type="button" key={target.subtopicId} onClick={()=>practise(target)}>{target.code} mashq →</button>)}</div>:null}
