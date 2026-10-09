@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
-import { portableAssetUrl } from './lib/portable-source-assets';
+import { materializePortableSourceAssets, portableAssetsForContent, portableAssetUrl } from './lib/portable-source-assets';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
+import { StructuredQuestionView } from './student/StructuredQuestionView';
+import { StructuredResponsePreview, structuredResponseInteractive } from './student/StructuredResponseEditor';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -44,12 +47,14 @@ type PortableQuestion = {
     stem: string;
     stemLatex?: string | null;
     bodyFormat?: 'markdown' | 'latex';
+    contentJson?:StructuredQuestionContent|null;
     commandWord: string | null;
     marks: number;
     answerKind: string;
     answerLines: number | null;
   };
   chain: Array<{ id: string; label: string; depth: number }>;
+  responseAssets?:PortableAsset[];
   contextBlocks: Array<{
     id: string;
     label: string;
