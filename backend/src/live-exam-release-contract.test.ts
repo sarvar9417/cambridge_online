@@ -18,6 +18,7 @@ const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
+const coursebookSections=source('src/lib/live-coursebook-sections.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
   it('keeps one canonical Cambridge question identity while snapshotting assessment evidence',()=>{
@@ -149,6 +150,20 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('state.cache_revision=state.corpus_revision');
     expect(service).toContain('join live_question_readiness readiness');
     expect(service).toContain('not ${readinessCacheFresh}');
+  });
+
+  it('keeps textbook chapter numbering separate from the official syllabus taxonomy',()=>{
+    expect(coursebookSections).toContain("code:'16.2'");
+    expect(coursebookSections).toContain("title:'Virtual machines (VMs)'");
+    expect(coursebookSections).toContain("sourceTopicNumber:15");
+    expect(coursebookSections).toContain("sourceSubtopicCode:'15.1'");
+    expect(coursebookSections).toContain("code:'16.3'");
+    expect(coursebookSections).toContain("title:'Translation software'");
+    expect(coursebookSections).toContain("sourceSubtopicCode:'16.2'");
+    expect(coursebookSections).toContain('question_learning_objectives coursebook_qlo');
+    expect(service).toContain('liveCoursebookQuestionFilter');
+    expect(service).toContain('coursebookSectionCodes');
+    expect(source('src/routes/live-exams.ts')).toContain('LIVE_COURSEBOOK_SECTION_CODES');
   });
 
   it('treats a Live question as seen only after the round actually opens it',()=>{

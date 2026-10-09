@@ -5,8 +5,11 @@ import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
+import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
 
 const uuid = z.string().uuid();
+const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
+  .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section');
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
 
 const createInput = z.object({
@@ -14,6 +17,7 @@ const createInput = z.object({
   title: z.string().trim().min(3).max(120),
   topicIds: z.array(uuid).max(30).default([]),
   subtopicIds: z.array(uuid).max(100).default([]),
+  coursebookSectionCodes: z.array(coursebookSectionCode).max(100).default([]),
   questionCount: z.number().int().min(1),
   questionTimeLimitS: z.number().int().min(30).max(7200).optional(),
   markingMode: z.enum(['teacher', 'peer', 'self']),
@@ -75,10 +79,17 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid UUID list'});return z.NEVER}
       return parsed.data;
     });
+    const csvCoursebookSections=z.string().default('').transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean):[];
+      const parsed=z.array(coursebookSectionCode).max(100).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid coursebook section list'});return z.NEVER}
+      return parsed.data;
+    });
     const query=z.object({
       classId:uuid,
       topicIds:csvUuids,
       subtopicIds:csvUuids,
+      coursebookSectionCodes:csvCoursebookSections,
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       limit:z.coerce.number().int().min(1).default(30),
@@ -87,6 +98,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       classId:query.classId,
       topicIds:query.topicIds ?? [],
       subtopicIds:query.subtopicIds ?? [],
+      coursebookSectionCodes:query.coursebookSectionCodes ?? [],
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
       limit:query.limit,

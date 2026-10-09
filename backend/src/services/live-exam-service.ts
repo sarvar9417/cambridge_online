@@ -7,6 +7,7 @@ import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -17,6 +18,8 @@ export interface CreateLiveExamInput {
   title: string;
   topicIds: string[];
   subtopicIds: string[];
+  /** Hodder/coursebook section codes. Kept separate from official syllabus subtopic IDs. */
+  coursebookSectionCodes?: string[];
   questionCount: number;
   questionTimeLimitS?: number;
   markingMode: LiveExamMarkingMode;
@@ -216,12 +219,14 @@ export class LiveExamService {
     return result.rows[0].scheme as MarkSchemeSnapshot;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
     ];
+    const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
+    if(coursebookFilter)filters.push(coursebookFilter);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = '$'+values.length;
@@ -367,6 +372,8 @@ export class LiveExamService {
     }
 
     const filters: string[] = [];
+    const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
+    if(coursebookFilter)filters.push(coursebookFilter);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
@@ -518,7 +525,7 @@ export class LiveExamService {
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { limit: number },
   ) {
     await this.requireClassControl(this.pool, actor, input.classId);
-    if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
+    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     const selection = await this.chooseQuestionIds(actor, {
       ...input,
       title: 'Question preview',
@@ -564,7 +571,7 @@ export class LiveExamService {
 
   async create(actor: Actor, input: CreateLiveExamInput) {
     await this.requireClassControl(this.pool, actor, input.classId);
-    if (!input.topicIds.length && !input.subtopicIds.length) throw new DomainError('live_topic_required', 400);
+    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
@@ -603,6 +610,7 @@ export class LiveExamService {
               JSON.stringify({
                 topicIds: input.topicIds,
                 subtopicIds: input.subtopicIds,
+                coursebookSectionCodes: input.coursebookSectionCodes ?? [],
                 includeDiagrams: input.includeDiagrams,
                 excludeSeen: input.excludeSeen,
                 questionOrder: input.questionOrder ?? 'shuffled',
