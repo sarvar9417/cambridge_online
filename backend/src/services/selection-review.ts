@@ -34,6 +34,8 @@ export interface PortableQuestion {
     answerLines: number | null;
   };
   chain: Array<{ id: string; label: string; depth: number }>;
+  /** Source-faithful assets that form or support the learner's response surface. */
+  responseAssets?: PortableAsset[];
   contextBlocks: Array<{
     id: string;
     label: string;
