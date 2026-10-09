@@ -445,15 +445,19 @@ try{
 
   for(const surface of surfaces)await surface.page.waitForSelector('.live-question-card',{timeout:15_000});
 
-  // Autosave + retry + reload recovery.
-  await student1.page.type('#live-answer','student one recovered answer');
+  // Autosave + retry + reload recovery. This fixture is deliberately a
+  // structured truth-table question, so exercise the in-question answer cell
+  // rather than assuming every Cambridge response is a textarea.
+  const structuredAnswerSelector='[data-response-key="table.1.3.7"]';
+  await student1.page.waitForSelector(structuredAnswerSelector,{timeout:12_000});
+  await student1.page.type(structuredAnswerSelector,'student one recovered answer');
   await waitText(student1.page,'Temporary browser network drop.',5_000);
   await student1.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
-  if(state.answers.student1.text!=='student one recovered answer')throw new Error('student1 autosave retry did not persist server state');
+  if(!state.answers.student1.text.includes('student one recovered answer'))throw new Error('student1 structured autosave retry did not persist server state');
   await student1.page.reload({waitUntil:'networkidle0'});
-  await student1.page.waitForSelector('#live-answer',{timeout:12_000});
-  const restored=await student1.page.$eval('#live-answer',(node)=>(node as HTMLTextAreaElement).value);
-  if(restored!=='student one recovered answer')throw new Error(`student1 reconnect recovery mismatch: ${restored}`);
+  await student1.page.waitForSelector(structuredAnswerSelector,{timeout:12_000});
+  const restored=await student1.page.$eval(structuredAnswerSelector,(node)=>(node as HTMLInputElement).value);
+  if(restored!=='student one recovered answer')throw new Error(`student1 structured reconnect recovery mismatch: ${restored}`);
 
   // Pause must propagate to every active role and block the student workspace.
   await clickButton(teacher.page,'Pauza');
