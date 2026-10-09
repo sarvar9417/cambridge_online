@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
-import { portableAssetUrl } from './lib/portable-source-assets';
+import { materializePortableSourceAssets, portableAssetsForContent, portableAssetUrl } from './lib/portable-source-assets';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
+import { StructuredQuestionView } from './student/StructuredQuestionView';
+import { StructuredResponseEditor } from './student/StructuredResponseEditor';
+import { parseStoredAnswer, serializeStructuredAnswer, setStructuredField, structuredResponsePlan } from './lib/structured-answer';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -44,6 +48,7 @@ type PortableQuestion = {
     stem: string;
     stemLatex?: string | null;
     bodyFormat?: 'markdown' | 'latex';
+    contentJson?: StructuredQuestionContent | null;
     commandWord: string | null;
     marks: number;
     answerKind: string;
@@ -939,7 +944,14 @@ function ContextBlocks({ portable }: { portable: PortableQuestion }) {
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  const [answer,setAnswer]=useState('');
+  const assets=useMemo(()=>portable.contextBlocks.flatMap((block)=>block.assets),[portable]);
+  const content=useMemo(()=>portable.leaf.contentJson?materializePortableSourceAssets(portable.leaf.contentJson,assets):null,[portable.leaf.contentJson,assets]);
+  const assetUrls=useMemo(()=>portableAssetsForContent(assets),[assets]);
+  const decoded=parseStoredAnswer(answer);
+  const plan=structuredResponsePlan(content,portable.leaf.answerKind,portable.leaf.stem);
+  const setField=(key:string,value:string)=>setAnswer(serializeStructuredAnswer(setStructuredField(decoded,key,value)));
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div>{content?<StructuredQuestionView content={content} assetUrls={assetUrls} responseValues={plan.mode!=='text'?decoded.fields:{}} onResponseChange={plan.mode==='inline'?setField:undefined}/>:<LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />}</article>{plan.mode!=='text'&&<div className="qb-response-preview"><span className="qb-eyebrow">JAVOB BERISH PREVIEW</span><StructuredResponseEditor content={content} answerKind={portable.leaf.answerKind} stem={portable.leaf.stem} marks={portable.leaf.marks} assetUrls={assetUrls} value={answer} onChange={setAnswer}/></div>}{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
