@@ -14,7 +14,9 @@ describe('source-faithful structured response workspace',()=>{
     expect(editor).toContain("type:'text'");
     expect(editor).toContain("type:'line'");
     expect(editor).toContain("type:'stroke'");
-    expect(editor).toContain('normalized');
+    expect(editor).toContain('getBoundingClientRect');
+    expect(editor).toContain('/rect.width');
+    expect(editor).toContain('/rect.height');
   });
 
   it('replaces ambiguous textareas only when a structured response surface is available',()=>{
