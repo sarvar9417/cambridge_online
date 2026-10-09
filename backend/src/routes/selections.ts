@@ -5,6 +5,7 @@ import type { SelectionAssignmentService } from '../services/selection-assignmen
 import { runIdempotent } from '../lib/idempotent-request.js';
 import type { Pool } from 'pg';
 import type { SelectionGeneratorService } from '../services/selection-generator-service.js';
+import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
 
 const roleSchema = z.enum(['graded', 'context_only']);
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
@@ -35,6 +36,10 @@ const generatorSchema = z.object({
   aos: z.array(z.enum(['AO1','AO2','AO3'])).max(3).optional(),
   topicIds: z.array(z.string().uuid()).max(20).optional(),
   subtopicIds: z.array(z.string().uuid()).max(80).optional(),
+  coursebookSectionCodes: z.array(
+    z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
+      .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section'),
+  ).max(100).optional(),
   commandWords: z.array(z.string().trim().min(1).max(80)).max(30).optional(),
   hasDiagram: z.boolean().optional(),
   dependency: z.enum(['any','independent']).default('any'),
