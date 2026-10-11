@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
+import { structuredResponsePayloadSchema } from '../lib/structured-question-response.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
@@ -181,13 +182,14 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.put('/:id/answer', durableAutosaveLimit, async (req, res) => {
-    const body = z.object({ text: z.string().max(20000) }).strict().parse(req.body);
-    res.json(await service.saveAnswer(req.actor!, id(req.params), body.text));
+    const body = z.object({ text: z.string().max(20000).optional(), responsePayload: structuredResponsePayloadSchema.optional() }).strict()
+      .refine((value)=>value.text!==undefined||value.responsePayload!==undefined,{message:'Answer is required'}).parse(req.body);
+    res.json(await service.saveAnswer(req.actor!, id(req.params), body.text??'', body.responsePayload));
   });
 
   router.post('/:id/answer/submit', async (req, res) => {
-    const body = z.object({ text: z.string().max(20000).optional() }).strict().parse(req.body ?? {});
-    res.json(await service.submitAnswer(req.actor!, id(req.params), body.text));
+    const body = z.object({ text: z.string().max(20000).optional(), responsePayload: structuredResponsePayloadSchema.optional() }).strict().parse(req.body ?? {});
+    res.json(await service.submitAnswer(req.actor!, id(req.params), body.text, body.responsePayload));
   });
 
   router.post('/:id/reveal', async (req, res) => {
