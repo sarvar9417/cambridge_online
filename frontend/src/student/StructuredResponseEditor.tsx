@@ -176,3 +176,9 @@ export function StructuredResponseEditor({
 export function StructuredResponsePreview({content,assetUrls={}}:{content:StructuredQuestionContent;assetUrls?:Record<string,string>}){
   return <StructuredResponseEditor content={content} value={emptyStructuredResponse()} onChange={()=>{}} assetUrls={assetUrls} previewOnly/>;
 }
+
+export function StructuredResponseViewer({
+  content,value,assetUrls={},
+}:{content:StructuredQuestionContent;value:StructuredResponsePayload|null|undefined;assetUrls?:Record<string,string>}){
+  return <StructuredResponseEditor content={content} value={value} onChange={()=>{}} assetUrls={assetUrls} disabled previewOnly/>;
+}
