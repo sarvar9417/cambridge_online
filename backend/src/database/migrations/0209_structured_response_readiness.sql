@@ -33,7 +33,9 @@ BEGIN
         lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
           '(complete|fill[[:space:]]+in|fill)([[:space:]]+(the|this|following|a))?[[:space:]]+(truth[[:space:]]+table|trace[[:space:]]+table|table|grid|karnaugh[[:space:]]+map|k-map)'
         OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
-          '(^|[[:space:]])(draw|join|connect|match)([[:space:]]+(one|two|the|this|each|appropriate|lines?|items?))'
+          '(^|[[:space:]])draw([[:space:]]+(one|two|the|this|each|appropriate))?[[:space:]]+lines?([[:space:]]|$)'
+        OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+          '(^|[[:space:]])(join|connect|match)[[:space:]]+each([[:space:]]|$)'
         OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
           'show[[:space:]]+the[[:space:]]+changing[[:space:]]+contents[[:space:]]+of[[:space:]]+the[[:space:]]+stack'
         OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
@@ -43,6 +45,8 @@ BEGIN
           AND lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
             '(^|[[:space:]])(complete|draw|show|label)([[:space:]]+(one|two|the|this|following|loops?|appropriate|lines?))[^.!?]{0,160}(diagram|flowchart|circuit|tree|graph|map|k-map|stack|queue)'
         )
+        OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+          '(^|[[:space:]])draw([[:space:]]+(a|the))?[[:space:]]+(structure[[:space:]]+chart|flowchart)([[:space:]]|[.!?]|$)'
       )
   LOOP
     v_changed:=false;
@@ -135,6 +139,28 @@ BEGIN
       v_has_interaction:=true;
     END IF;
 
+    IF NOT v_has_interaction
+       AND NOT v_has_source_asset
+       AND v_row.norm ~ '(^|[[:space:]])draw([[:space:]]+(a|the))?[[:space:]]+(structure[[:space:]]+chart|flowchart)([[:space:]]|[.!?]|$)' THEN
+      v_new_blocks:=v_new_blocks||jsonb_build_array(jsonb_build_object(
+        'type','answer_area',
+        'kind','drawing',
+        'lines',NULL,
+        'source',coalesce(
+          (
+            SELECT b->'source'
+            FROM jsonb_array_elements(v_new_blocks) b
+            WHERE b->>'type'='text'
+            ORDER BY (b->'source'->>'page')::int NULLS LAST
+            LIMIT 1
+          ),
+          jsonb_build_object('page',1)
+        )
+      ));
+      v_changed:=true;
+      v_has_interaction:=true;
+    END IF;
+
     IF NOT v_has_interaction AND v_has_source_asset THEN
       v_new_blocks:=v_new_blocks||jsonb_build_array(jsonb_build_object(
         'type','answer_area',
@@ -206,7 +232,9 @@ AS $function$
       lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
         '(complete|fill[[:space:]]+in|fill)([[:space:]]+(the|this|following|a))?[[:space:]]+(truth[[:space:]]+table|trace[[:space:]]+table|table|grid|karnaugh[[:space:]]+map|k-map)'
       OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
-        '(^|[[:space:]])(draw|join|connect|match)([[:space:]]+(one|two|the|this|each|appropriate|lines?|items?))'
+        '(^|[[:space:]])draw([[:space:]]+(one|two|the|this|each|appropriate))?[[:space:]]+lines?([[:space:]]|$)'
+      OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+        '(^|[[:space:]])(join|connect|match)[[:space:]]+each([[:space:]]|$)'
       OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
         'show[[:space:]]+the[[:space:]]+changing[[:space:]]+contents[[:space:]]+of[[:space:]]+the[[:space:]]+stack'
       OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
@@ -216,6 +244,8 @@ AS $function$
         AND lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
           '(^|[[:space:]])(complete|draw|show|label)([[:space:]]+(one|two|the|this|following|loops?|appropriate|lines?))[^.!?]{0,160}(diagram|flowchart|circuit|tree|graph|map|k-map|stack|queue)'
       )
+      OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+        '(^|[[:space:]])draw([[:space:]]+(a|the))?[[:space:]]+(structure[[:space:]]+chart|flowchart)([[:space:]]|[.!?]|$)'
     ) THEN true
     ELSE (
       q.content_version=1
