@@ -485,6 +485,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
 function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>}) {
   const {session}=snapshot;
   const [answer,setAnswer]=useState('');
+  const [structuredResponse,setStructuredResponse]=useState<StructuredResponseV1>(emptyStructuredResponse());
   const [dirty,setDirty]=useState(false);
   const [saving,setSaving]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -499,6 +500,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const saveInFlight=useRef(false);
   const submitting=useRef(false);
   const latestAnswer=useRef('');
+  const latestStructuredResponse=useRef<StructuredResponseV1>(emptyStructuredResponse());
   const answerKey=useRef('');
   const deadlineFlushSecond=useRef<number|null>(null);
   const autoSubmittedKey=useRef('');
