@@ -59,6 +59,18 @@ export function structuredResponseSummary(content:StructuredQuestionContent,resp
         for(const [source,target] of values)lines.push(`${left.get(source)??source} → ${right.get(target)??target}`);
       }
     }
+    if(block.type==='answer_area'&&block.kind==='table_cells'){
+      const cells=response.tables[key]??{};
+      const rowIndexes=[...new Set(Object.keys(cells).map((cell)=>Number(cell.split(':')[0])).filter(Number.isFinite))].sort((a,b)=>a-b);
+      const values=rowIndexes.map((row)=>({
+        step:(cells[`${row}:0`]??'').trim(),
+        state:(cells[`${row}:1`]??'').trim(),
+      })).filter((row)=>row.step||row.state);
+      if(values.length){
+        lines.push(`Stack/queue trace ${index+1}:`);
+        values.forEach((row,rowIndex)=>lines.push(`${rowIndex+1}. ${row.step||'—'} => ${row.state||'—'}`));
+      }
+    }
     if(block.type==='answer_area'&&block.kind==='drawing'){
       const notes=response.annotations[key]??[];
       const joins=response.lines[key]??[];
