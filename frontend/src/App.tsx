@@ -54,6 +54,15 @@ import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { LiveExamPage } from './live/LiveExamPage';
 
+function readStructuredAttemptDraft(key:string,fallback:unknown){
+  try{
+    const raw=localStorage.getItem(key);
+    return normalizeStructuredResponse(raw?JSON.parse(raw):fallback);
+  }catch{
+    return normalizeStructuredResponse(fallback);
+  }
+}
+
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -270,10 +279,9 @@ export function App() {
     );
     setStructuredAnswers(Object.fromEntries(next.questions.map((question)=>[
       question.id,
-      normalizeStructuredResponse(
-        JSON.parse(localStorage.getItem(`structured-answer:${next.submissionId}:${question.id}`)??'null')
-        ??question.responseJson
-        ??emptyStructuredResponse(),
+      readStructuredAttemptDraft(
+        `structured-answer:${next.submissionId}:${question.id}`,
+        question.responseJson??emptyStructuredResponse(),
       ),
     ])));
   };
