@@ -416,7 +416,8 @@ async function structuredAnswerInput(page:Page){
 }
 async function typeStructuredAnswer(page:Page,text:string){
   const selector=await structuredAnswerInput(page);
-  await page.click(selector,{clickCount:3});
+  await page.click(selector);
+  await page.keyboard.press('Control+A');
   await page.type(selector,text);
 }
 async function clickButton(page:Page,text:string){
