@@ -181,13 +181,19 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.put('/:id/answer', durableAutosaveLimit, async (req, res) => {
-    const body = z.object({ text: z.string().max(20000) }).strict().parse(req.body);
-    res.json(await service.saveAnswer(req.actor!, id(req.params), body.text));
+    const body = z.object({
+      text: z.string().max(20000),
+      response: structuredResponseSchema.nullable().optional(),
+    }).strict().parse(req.body);
+    res.json(await service.saveAnswer(req.actor!, id(req.params), body.text, body.response??null));
   });
 
   router.post('/:id/answer/submit', async (req, res) => {
-    const body = z.object({ text: z.string().max(20000).optional() }).strict().parse(req.body ?? {});
-    res.json(await service.submitAnswer(req.actor!, id(req.params), body.text));
+    const body = z.object({
+      text: z.string().max(20000).optional(),
+      response: structuredResponseSchema.nullable().optional(),
+    }).strict().parse(req.body ?? {});
+    res.json(await service.submitAnswer(req.actor!, id(req.params), body.text, body.response??null));
   });
 
   router.post('/:id/reveal', async (req, res) => {
