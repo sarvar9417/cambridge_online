@@ -523,16 +523,25 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     autoSubmitAttempts.current=0;
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
+    const serverResponse=normalizeStructuredResponse(snapshot.ownAnswer?.response??null);
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
     const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
     const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
     const initial=useLocal?localDraft!.text:serverText;
+    let localResponse:StructuredResponseV1|null=null;
+    try{
+      const raw=key?localStorage.getItem(`${liveDraftKey(session.id,key)}:response`):null;
+      localResponse=raw?normalizeStructuredResponse(JSON.parse(raw)):null;
+    }catch{/* Ignore malformed local structured drafts. */}
+    const initialResponse=localResponse??serverResponse;
     latestAnswer.current=initial;
+    latestStructuredResponse.current=initialResponse;
     pendingSave.current=useLocal?initial:null;
     setAnswer(initial);
-    setDirty(useLocal);
+    setStructuredResponse(initialResponse);
+    setDirty(useLocal||Boolean(localResponse));
     setHydratedKey(key);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
+  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.response,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
