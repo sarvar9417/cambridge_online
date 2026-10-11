@@ -7,6 +7,7 @@ import {
   liveCoursebookSectionOptions,
 } from '../lib/live-coursebook-sections.js';
 import { serializeQuestion } from '../services/question-serializer.js';
+import { parseStoredStructuredQuestionContent } from '../lib/structured-question-content.js';
 import type {
   DependencyKind,
   DependencyStrength,
@@ -511,7 +512,13 @@ export class PgQuestionsRepository {
          select parent.* from chain child join questions parent on parent.id=child.parent_id
        )
        select c.id,c.parent_id,c.label,c.path,c.display_ref,c.depth,c.marks,c.command_word,
-         c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.context_md context,c.context_latex,
+         c.answer_kind,c.answer_lines,coalesce(c.stem_md,'') stem,c.stem_latex,c.body_format,c.content_json,c.content_version,c.context_md context,c.context_latex,
+         exists(
+           select 1 from validation_findings vf
+           where vf.ref_table='questions' and vf.ref_id=c.id
+             and vf.resolved_at is null and vf.severity='error'
+             and vf.rule_code like 'STRUCTURED_RESPONSE_%'
+         ) structured_response_blocked,
          coalesce((
            select jsonb_agg(jsonb_build_object(
              'id',qa.id,'kind',qa.kind,'storagePath',qa.storage_path,'contentMd',${sourceAssetContentSql('qa')},
@@ -557,6 +564,8 @@ export class PgQuestionsRepository {
         stem: leaf.stem,
         stemLatex: leaf.stem_latex,
         bodyFormat: leaf.body_format ?? 'markdown',
+        contentJson: leaf.content_version===1&&leaf.content_json ? parseStoredStructuredQuestionContent(leaf.content_json) : null,
+        responseReady: !Boolean(leaf.structured_response_blocked),
         commandWord: leaf.command_word,
         marks: Number(leaf.marks),
         answerKind: leaf.answer_kind,
