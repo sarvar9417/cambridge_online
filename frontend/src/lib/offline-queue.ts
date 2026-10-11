@@ -1,4 +1,5 @@
-export interface PendingAnswer { submissionId:string; questionId:string; text:string; activeSessionId:string }
+import type { StructuredResponseV1 } from './structured-response';
+export interface PendingAnswer { submissionId:string; questionId:string; text:string; response?:StructuredResponseV1|null; activeSessionId:string }
 const PREFIX='campath:pending:';
 
 export function queueAnswer(storage:Storage,answer:PendingAnswer) {

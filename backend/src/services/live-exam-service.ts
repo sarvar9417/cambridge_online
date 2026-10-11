@@ -7,6 +7,7 @@ import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { questionStructuredResponseIntegritySql } from '../lib/structured-response-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -309,6 +310,7 @@ export class LiveExamService {
       `q.marks>0`,
       `ms.status='approved'`,
       questionVisualIntegritySql('q'),
+      questionStructuredResponseIntegritySql('q'),
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
         select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
       ))`,
@@ -986,6 +988,7 @@ export class LiveExamService {
       `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
          target.display_ref,leq.position,
          case when $4::uuid is null then null else a.answer_text end own_answer,
+         case when $4::uuid is null then null else a.response_json end own_response,
          a.submitted_at
        from question_dependencies qd
        join questions target on target.id=qd.depends_on_id
@@ -1013,6 +1016,7 @@ export class LiveExamService {
         strength: String(row.strength),
         position: row.position == null ? null : Number(row.position),
         ownAnswer: row.own_answer == null ? null : String(row.own_answer),
+        ownResponse: row.own_response ?? null,
         submittedAt: row.submitted_at ?? null,
       })),
     } : null;
@@ -1022,7 +1026,7 @@ export class LiveExamService {
     let teacherAnswers: Record<string, unknown>[] = [];
     if (currentRow && participantId) {
       const answerResult = await this.pool.query(
-        `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
+        `select id,answer_text,response_json,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
          from live_exam_answers where session_question_id=$1 and participant_id=$2`,
         [currentRow.id, participantId],
       );
@@ -1031,7 +1035,7 @@ export class LiveExamService {
     }
     if (currentRow && detailedStaff && reveal) {
       const answerResult = await this.pool.query(
-        `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
+        `select a.id,a.answer_text,a.response_json,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
            r.id review_id,r.status::text review_status,r.kind::text review_kind,
            r.awarded_marks review_awarded_marks,r.feedback_md review_feedback_md,
@@ -1280,7 +1284,7 @@ export class LiveExamService {
     } finally {client.release();}
   }
 
-  async saveAnswer(actor: Actor, sessionId: string, text: string) {
+  async saveAnswer(actor: Actor, sessionId: string, text: string, response:unknown|null=null) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
     // it cannot remain question_open merely because every browser went away.
@@ -1295,7 +1299,7 @@ export class LiveExamService {
         `select status::text,paused_at from live_exam_sessions where id=$1 for share`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
       const result = await client.query(
-        `update live_exam_answers a set answer_text=$3,word_count=$4,updated_at=now()
+        `update live_exam_answers a set answer_text=$3,word_count=$4,response_json=$6::jsonb,updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
            and leq.session_id=les.id and leq.position=les.current_question_index
@@ -1304,7 +1308,7 @@ export class LiveExamService {
              and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,a.updated_at`,
-           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S],
+           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S, response===null?null:JSON.stringify(response)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       await client.query('commit');
@@ -1315,7 +1319,7 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async submitAnswer(actor: Actor, sessionId: string, text?: string) {
+  async submitAnswer(actor: Actor, sessionId: string, text?: string, response:unknown|null=null) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
@@ -1328,6 +1332,7 @@ export class LiveExamService {
         `update live_exam_answers a set
            answer_text=coalesce($3,a.answer_text),
            word_count=case when $3::text is null then a.word_count else $4 end,
+           response_json=coalesce($6::jsonb,a.response_json),
            submitted_at=now(),updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
@@ -1337,7 +1342,7 @@ export class LiveExamService {
            and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,leq.id session_question_id`,
-        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S],
+        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S, response===null?null:JSON.stringify(response)],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
@@ -1957,6 +1962,7 @@ export class LiveExamService {
     return {
       id: row.id,
       text: row.answer_text,
+      response: row.response_json ?? null,
       wordCount: Number(row.word_count),
       submittedAt: row.submitted_at,
       score: row.final_score === null ? null : Number(row.final_score),

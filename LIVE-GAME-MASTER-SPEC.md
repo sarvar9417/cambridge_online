@@ -41,7 +41,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "implemented_with_blockers",
-    "latest_migration": "0207_live_question_readiness_cache.sql",
+    "latest_migration": "0209_structured_response_readiness.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
@@ -204,6 +204,8 @@ Bu transport “realtime-like polling”. Event payload studentga answer, mark s
 | `0205_live_session_history_archive.sql` | Completed/cancelled Live history soft archive |
 | `0206_live_question_exposure_read_model.sql` | Savol faqat `question.opened` bo‘lganda “seen” hisoblanadigan exposure ledger |
 | `0207_live_question_readiness_cache.sql` | Revision-guarded, target-syllabus-specific Live readiness cache va stale fallback contract |
+| `0208_structured_response_payload.sql` | Assignment va Live javoblari uchun versionlangan structured-response JSON payload |
+| `0209_structured_response_readiness.sql` | Table/diagram/matching/stack kabi in-place javoblar uchun source-backed response surface repair va fail-closed guard |
 
 ## 6. Haqiqiy state-machine
 

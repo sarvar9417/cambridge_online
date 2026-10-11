@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
-import { portableAssetUrl } from './lib/portable-source-assets';
+import { materializePortableSourceAssets, portableAssetsForContent, portableAssetUrl } from './lib/portable-source-assets';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
+import { StructuredQuestionView } from './student/StructuredQuestionView';
+import { StructuredResponseEditor } from './lib/StructuredResponseEditor';
+import { emptyStructuredResponse, structuredResponseRequired } from './lib/structured-response';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -48,6 +52,7 @@ type PortableQuestion = {
     marks: number;
     answerKind: string;
     answerLines: number | null;
+    contentJson?: StructuredQuestionContent | null;
   };
   chain: Array<{ id: string; label: string; depth: number }>;
   contextBlocks: Array<{
@@ -939,9 +944,13 @@ function ContextBlocks({ portable }: { portable: PortableQuestion }) {
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  const assets=portable.contextBlocks.flatMap((block)=>block.assets);
+  const content=portable.leaf.contentJson?materializePortableSourceAssets(portable.leaf.contentJson,assets):null;
+  const assetUrls=portableAssetsForContent(assets);
+  const [response,setResponse]=useState(emptyStructuredResponse);
+  const interactive=Boolean(content&&structuredResponseRequired(content));
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Source-backed preview</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div>{content?<><article className="qb-leaf-preview qb-structured-preview"><StructuredQuestionView content={content} assetUrls={assetUrls}/></article>{interactive?<StructuredResponseEditor content={content} sourceAssets={assets} response={response} onChange={setResponse}/>:null}</>:<><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article></>}{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
 }
-
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
   useDialogClose(onClose);
   return <div className="qb-modal-backdrop" role="presentation"><section className="qb-modal qb-dependency-modal" role="dialog" aria-modal="true" aria-labelledby="dependency-title"><header><div><span className="qb-eyebrow">Dependency check</span><h2 id="dependency-title">Oldingi qism kerak</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><p className="qb-modal-intro">Tanlangan subpart boshqa qismdagi material yoki candidate javobiga tayanadi. To‘g‘ri prerequisite’ni qo‘shing.</p><div className="qb-dependency-list">{dependencies.map((item) => <article key={item.id}><div className="qb-meta-line"><strong>{item.displayRef}</strong><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><span>{item.strength}</span></div><p>{item.stem || item.evidence || 'Referenced part'}</p>{item.evidence && <blockquote>{item.evidence}</blockquote>}<div className="qb-modal-actions"><button onClick={() => onAdd(item.dependsOnId, 'graded')}>Baholanadigan qilib qo‘shish</button><button className="qb-secondary-button" disabled={item.kind === 'answer_ref'} title={item.kind === 'answer_ref' ? 'Candidate javobi kerak: prerequisite baholanadigan bo‘lishi shart.' : ''} onClick={() => onAdd(item.dependsOnId, 'context_only')}>Faqat kontekst</button></div></article>)}</div><footer><small>`answer_ref` faqat graded prerequisite bilan qondiriladi.</small><button className="qb-secondary-button" onClick={onClose}>Keyin hal qilaman</button></footer></section></div>;

@@ -24,6 +24,14 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor } from '../lib/StructuredResponseEditor';
+import {
+  emptyStructuredResponse,
+  normalizeStructuredResponse,
+  structuredResponseRequired,
+  structuredResponseSummary,
+  type StructuredResponseV1,
+} from '../lib/structured-response';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -477,6 +485,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
 function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>}) {
   const {session}=snapshot;
   const [answer,setAnswer]=useState('');
+  const [structuredResponse,setStructuredResponse]=useState<StructuredResponseV1>(emptyStructuredResponse());
   const [dirty,setDirty]=useState(false);
   const [saving,setSaving]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -491,6 +500,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const saveInFlight=useRef(false);
   const submitting=useRef(false);
   const latestAnswer=useRef('');
+  const latestStructuredResponse=useRef<StructuredResponseV1>(emptyStructuredResponse());
   const answerKey=useRef('');
   const deadlineFlushSecond=useRef<number|null>(null);
   const autoSubmittedKey=useRef('');
@@ -513,21 +523,31 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     autoSubmitAttempts.current=0;
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
+    const serverResponse=normalizeStructuredResponse(snapshot.ownAnswer?.response??null);
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
     const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
     const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
     const initial=useLocal?localDraft!.text:serverText;
+    let localResponse:StructuredResponseV1|null=null;
+    try{
+      const raw=key?localStorage.getItem(`${liveDraftKey(session.id,key)}:response`):null;
+      localResponse=raw?normalizeStructuredResponse(JSON.parse(raw)):null;
+    }catch{/* Ignore malformed local structured drafts. */}
+    const initialResponse=localResponse??serverResponse;
     latestAnswer.current=initial;
+    latestStructuredResponse.current=initialResponse;
     pendingSave.current=useLocal?initial:null;
     setAnswer(initial);
-    setDirty(useLocal);
+    setStructuredResponse(initialResponse);
+    setDirty(useLocal||Boolean(localResponse));
     setHydratedKey(key);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
+  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.response,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
     writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
-  },[answer,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
+    try{localStorage.setItem(`${liveDraftKey(session.id,draftKey)}:response`,JSON.stringify(structuredResponse))}catch{/* Storage may be disabled or full. */}
+  },[answer,structuredResponse,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
     const key=liveDraftKey(session.id,draftKey);
@@ -556,7 +576,10 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setSaving(true);
     let retryScheduled=false;
     try{
-      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:outgoing})});
+      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({
+        text:liveAnswerPayloadText(outgoing),
+        response:latestStructuredResponse.current,
+      })});
       if(latestAnswer.current===outgoing){setDirty(false);setError('')}
       else pendingSave.current=latestAnswer.current;
     }catch(cause){
@@ -611,7 +634,10 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     window.clearTimeout(saveTimer.current);
     window.clearTimeout(retryTimer.current);
     pendingSave.current=null;
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({
+      text:liveAnswerPayloadText(latestAnswer.current),
+      response:latestStructuredResponse.current,
+    })});if(draftKey){removeLiveDraft(liveDraftKey(session.id,draftKey));try{localStorage.removeItem(`${liveDraftKey(session.id,draftKey)}:response`)}catch{}}setDirty(false);await refresh()}
     catch(cause){
       pendingSave.current=latestAnswer.current;
       setError(message(cause,automatic?'Vaqt tugadi. Avtomatik yuborish tekshirilmoqda; serverdagi oxirgi saqlangan javob himoyalangan.':'Javob topshirilmadi.'));
@@ -637,12 +663,40 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     catch(cause){setError(message(cause,'Baholash yuborilmadi.'))}finally{setBusy(false)}
   };
 
+  const responseAssets=snapshot.question?.portable.contextBlocks.flatMap((block)=>block.assets)??[];
+  const responseContent=snapshot.question?.portable.leaf.contentJson
+    ?materializePortableSourceAssets(snapshot.question.portable.leaf.contentJson,responseAssets)
+    :null;
+  const structuredInteractive=Boolean(responseContent&&structuredResponseRequired(responseContent));
+  const responseDisabled=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
+  const liveAnswerPayloadText=(note:string)=>{
+    if(!responseContent)return note;
+    const summary=structuredResponseSummary(responseContent,latestStructuredResponse.current);
+    return [summary,note.trim()].filter(Boolean).join('\n\n');
+  };
+
   if(session.status==='lobby')return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>XONAGA QO‘SHILDINGIZ</span><h1>{session.title}</h1><p>O‘qituvchi o‘yinni boshlashi kutilmoqda.</p><strong>{session.participantCount} o‘quvchi tayyor</strong>{error?<p className="live-error" role="alert">{error}</p>:null}<button className="live-secondary" disabled={busy} onClick={()=>void leave()}>Xonadan chiqish</button></section>;
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
+    <section className="live-answer-box">
+      {structuredInteractive&&responseContent?<StructuredResponseEditor
+        content={responseContent}
+        sourceAssets={responseAssets}
+        response={structuredResponse}
+        disabled={responseDisabled}
+        onChange={(value)=>{
+          latestStructuredResponse.current=value;
+          setStructuredResponse(value);
+          pendingSave.current=latestAnswer.current;
+          setDirty(true);
+        }}
+      />:null}
+      <header><label htmlFor="live-answer">{structuredInteractive?'Qo‘shimcha izoh (ixtiyoriy)':'Javobingiz'}</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header>
+      <textarea id="live-answer" value={answer} disabled={responseDisabled} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder={structuredInteractive?'Kerak bo‘lsa qo‘shimcha izoh yozing…':'Javobingizni shu yerga yozing…'}/>
+      <button disabled={busy||responseDisabled} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button>
+    </section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
     <ReviewQuestionContext question={snapshot.question}/>

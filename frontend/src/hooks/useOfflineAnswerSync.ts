@@ -35,6 +35,7 @@ export async function sendPendingAnswer(answer: PendingAnswer) {
       method: 'PUT',
       body: JSON.stringify({
         text: answer.text,
+        response: answer.response??null,
         activeSessionId: answer.activeSessionId,
       }),
     },
