@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { StructuredQuestionContent } from '../lib/structured-question-content';
+import './structured-response-editor.css';
 import {
   drawingKey,
   emptyStructuredResponse,
