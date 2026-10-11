@@ -13,7 +13,7 @@ const drawing=z.object({
 export const structuredResponsePayloadSchema=z.object({
   version:z.literal(1),
   values:z.record(responseKey,responseValue).default({}),
-  matches:z.record(responseKey,responseKey).default({}),
+  matches:z.record(responseKey,z.array(responseKey).max(40)).default({}),
   drawings:z.record(responseKey,drawing).default({}),
 }).strict().superRefine((value,ctx)=>{
   const controlCount=Object.keys(value.values).length+Object.keys(value.matches).length+Object.keys(value.drawings).length;
@@ -33,7 +33,7 @@ export function structuredResponseSummary(payload:StructuredResponsePayload|null
     if(value.trim())lines.push(`${key}: ${value.trim()}`);
   }
   for(const [key,value] of Object.entries(payload.matches).sort(([a],[b])=>a.localeCompare(b))){
-    if(value.trim())lines.push(`${key}: ${value.trim()}`);
+    if(value.length)lines.push(`${key}: ${value.join(', ')}`);
   }
   for(const [key,drawing] of Object.entries(payload.drawings).sort(([a],[b])=>a.localeCompare(b))){
     const points=drawing.strokes.reduce((sum,stroke)=>sum+stroke.length,0);
@@ -45,7 +45,7 @@ export function structuredResponseSummary(payload:StructuredResponsePayload|null
 export function structuredResponseHasContent(payload:StructuredResponsePayload|null|undefined) {
   return Boolean(payload&&(
     Object.values(payload.values).some((value)=>value.trim())
-    ||Object.values(payload.matches).some((value)=>value.trim())
+    ||Object.values(payload.matches).some((value)=>value.length)
     ||Object.values(payload.drawings).some((drawing)=>drawing.strokes.some((stroke)=>stroke.length))
   ));
 }
