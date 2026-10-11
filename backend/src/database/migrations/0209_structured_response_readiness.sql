@@ -147,6 +147,78 @@ BEGIN
 END
 $repair$;
 
+CREATE OR REPLACE FUNCTION public.live_question_interaction_ready_v1(p_question_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = public, pg_temp
+AS $function$
+  SELECT CASE
+    WHEN NOT (
+      lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+        '(^|[[:space:]])(complete|fill in|fill)[^.!?]{0,140}(table|grid|truth table|trace table|karnaugh map|k-map)'
+      OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+        '(draw|join|connect|match)[^.!?]{0,140}(line|arrow|box|item|statement|description|term|layer|method)'
+      OR lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+        '(complete|show)[^.!?]{0,140}(state of (the )?(stack|queue)|stack|queue)'
+      OR (
+        q.answer_kind='diagram'
+        AND lower(regexp_replace(coalesce(q.stem_md,''),'[[:space:]]+',' ','g')) ~
+          '(complete|draw|show|label)[^.!?]{0,160}(diagram|flowchart|circuit|tree|graph|map|stack|queue)'
+      )
+    ) THEN true
+    ELSE (
+      q.content_version=1
+      AND q.content_json IS NOT NULL
+      AND EXISTS(
+        SELECT 1
+        FROM jsonb_array_elements(coalesce(q.content_json->'blocks','[]'::jsonb)) response_block
+        WHERE (
+          response_block->>'type'='table'
+          AND jsonb_array_length(coalesce(response_block->'editableCells','[]'::jsonb))>0
+        )
+        OR response_block->>'type'='matching'
+        OR (
+          response_block->>'type'='answer_area'
+          AND response_block->>'kind' IN ('table_cells','drawing')
+        )
+      )
+    )
+  END
+  FROM public.questions q
+  WHERE q.id=p_question_id
+$function$;
+
+CREATE OR REPLACE FUNCTION public.live_question_has_blocking_finding_v1(p_question_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = public, pg_temp
+AS $function$
+  WITH RECURSIVE source_chain(id,parent_id) AS (
+    SELECT q.id,q.parent_id
+    FROM public.questions q
+    WHERE q.id=p_question_id
+    UNION
+    SELECT parent.id,parent.parent_id
+    FROM source_chain child
+    JOIN public.questions parent ON parent.id=child.parent_id
+  )
+  SELECT
+    EXISTS(
+      SELECT 1
+      FROM source_chain chain
+      JOIN public.validation_findings vf
+        ON vf.ref_table='questions'
+       AND vf.ref_id=chain.id
+       AND vf.resolved_at IS NULL
+       AND vf.severity='error'
+    )
+    OR NOT coalesce(public.live_question_interaction_ready_v1(p_question_id),false)
+$function$;
+
+REVOKE ALL ON FUNCTION public.live_question_interaction_ready_v1(uuid) FROM PUBLIC,anon,authenticated;
+
 -- The readiness cache is revision guarded. Rebuild it after this source repair
 -- when the helper exists; otherwise runtime safely falls back to the dynamic gate.
 DO $refresh$
