@@ -308,7 +308,6 @@ export function App() {
     const question=attempt.questions.find((item)=>item.id===id);
     const summary=question?.contentJson?structuredResponseSummary(question.contentJson,response):'';
     setStructuredAnswers((current)=>({...current,[id]:response}));
-    if(summary)setAnswers((current)=>({...current,[id]:current[id]?.trim()?current[id]:summary}));
     localStorage.setItem(`structured-answer:${attempt.submissionId}:${id}`,JSON.stringify(response));
     queueAnswer(localStorage,{
       submissionId:attempt.submissionId,
