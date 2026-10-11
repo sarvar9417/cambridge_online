@@ -6,6 +6,7 @@ import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
+import { structuredResponseSchema } from '../lib/structured-response.js';
 
 const uuid = z.string().uuid();
 const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
