@@ -40,9 +40,9 @@ WHERE q.display_ref='9618/11/M/J/25 Q1(b)'
     WHERE b->>'type'='table'
   );
 
--- 9618/31/M/J/21 Q3(a): official QP says “Draw one line to connect each ...”.
--- Preserve the original visual while adding a keyboard/touch-accessible
--- equivalent matching model.
+-- 9618/31-33/M/J/21 Q3(a): all three official QP variants use the same
+-- “Draw one line to connect each ...” workspace. Preserve the original visual
+-- while adding a keyboard/touch-accessible equivalent matching model.
 UPDATE public.questions q
 SET content_json=jsonb_set(
   q.content_json,'{blocks}',
@@ -68,7 +68,11 @@ SET content_json=jsonb_set(
     )
   )
 )
-WHERE q.display_ref='9618/31/M/J/21 Q3(a)'
+WHERE q.display_ref=ANY(ARRAY[
+    '9618/31/M/J/21 Q3(a)',
+    '9618/32/M/J/21 Q3(a)',
+    '9618/33/M/J/21 Q3(a)'
+  ])
   AND q.content_version=1
   AND NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(coalesce(q.content_json->'blocks','[]'::jsonb)) b
