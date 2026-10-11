@@ -32,7 +32,9 @@ describe('structured Cambridge response persistence',()=>{
   it('repairs verified truth-table, matching and stack source scaffolds',()=>{
     expect(fidelityMigration).toContain("q.display_ref='9618/11/M/J/25 Q1(b)'");
     expect(fidelityMigration).toContain("'kind','truth_table'");
-    expect(fidelityMigration).toContain("q.display_ref='9618/31/M/J/21 Q3(a)'");
+    expect(fidelityMigration).toContain("'9618/31/M/J/21 Q3(a)'");
+    expect(fidelityMigration).toContain("'9618/32/M/J/21 Q3(a)'");
+    expect(fidelityMigration).toContain("'9618/33/M/J/21 Q3(a)'");
     expect(fidelityMigration).toContain("'type','matching','mode','single'");
     expect(fidelityMigration).toContain("q.display_ref='9618/12/M/J/23 Q3(a)'");
     expect(fidelityMigration).toContain("'type','matching','mode','multiple'");
