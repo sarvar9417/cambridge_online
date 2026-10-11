@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { StructuredQuestionContent } from '../lib/structured-question-content';
+import type { StructuredQuestionBlock, StructuredQuestionContent } from '../lib/structured-question-content';
 import './structured-response-editor.css';
 import {
   drawingKey,
@@ -92,12 +92,10 @@ export function StructuredResponseEditor({
   content,value,onChange,disabled=false,assetUrls={},previewOnly=false,
 }:Props){
   const response=useMemo(()=>normalizeStructuredResponse(value),[value]);
-  const controls=content.blocks.flatMap((block,index)=>{
-    if(block.type==='table'&&block.editableCells.length)return [{block,index}];
-    if(block.type==='matching')return [{block,index}];
-    if(block.type==='stack')return [{block,index}];
-    if(block.type==='answer_area'&&block.kind==='drawing')return [{block,index}];
-    return [];
+  const controls:Array<{block:StructuredQuestionBlock;index:number}>=[];
+  content.blocks.forEach((block,index)=>{
+    if(block.type==='table'&&block.editableCells.length)controls.push({block,index});
+    else if(block.type==='matching'||block.type==='stack'||(block.type==='answer_area'&&block.kind==='drawing'))controls.push({block,index});
   });
   if(!controls.length)return null;
 
