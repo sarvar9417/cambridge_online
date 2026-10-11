@@ -10,7 +10,7 @@ describe('Live Challenge deadline, result and late-join contracts',()=>{
   it('sends the latest typed answer when the server-aligned deadline reaches zero',()=>{
     expect(page).toContain("remaining!==0||session.status!=='question_open'");
     expect(page).toContain("void submitAnswer(true)");
-    expect(page).toContain("body:JSON.stringify({text:latestAnswer.current})");
+    expect(page).toContain("body:JSON.stringify({text:latestAnswer.current,responsePayload:latestStructuredAnswer.current??undefined})");
     expect(page).toContain("autoSubmitAttempts.current<4");
     expect(backend).toContain("submitted_at=coalesce(live_exam_answers.submitted_at,now())");
   });
