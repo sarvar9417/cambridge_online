@@ -7,6 +7,7 @@ import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
+import { questionStructuredResponseIntegritySql } from '../lib/structured-response-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -309,6 +310,7 @@ export class LiveExamService {
       `q.marks>0`,
       `ms.status='approved'`,
       questionVisualIntegritySql('q'),
+      questionStructuredResponseIntegritySql('q'),
       `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
         select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
       ))`,
