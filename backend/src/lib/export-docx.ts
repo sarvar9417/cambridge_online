@@ -107,6 +107,13 @@ function structuredStemXml(question:ExportQuestion,ctx:BuildContext){
     if(block.type==='list')return block.items.map(item=>para(`•  ${item}`)).join('');
     if(block.type==='table')return structuredTableXml(block);
     if(block.type==='matching')return matchingXml(block);
+    if(block.type==='stack'){
+      const labels=block.labels.length?block.labels:Array.from({length:block.snapshots},(_,index)=>`Step ${index+1}`);
+      return wordTable([
+        labels,
+        ...Array.from({length:block.depth},()=>labels.map(()=>'')),
+      ],true);
+    }
     if(block.type==='asset')return structuredAssetXml(question,block,ctx);
     const count=block.lines??(block.kind==='lines'?3:1);
     return Array.from({length:Math.max(1,Math.min(12,count))},()=>para('________________________________________________________________________________')).join('');

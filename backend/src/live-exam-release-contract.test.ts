@@ -18,6 +18,8 @@ const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
+const structuredResponses=source('src/database/migrations/0208_structured_response_payload.sql');
+const structuredFidelity=source('src/database/migrations/0209_structured_response_fidelity_v1.sql');
 const coursebookSections=source('src/lib/live-coursebook-sections.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
@@ -157,6 +159,18 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('state.cache_revision=state.corpus_revision');
     expect(service).toContain('join live_question_readiness readiness');
     expect(service).toContain('not ${readinessCacheFresh}');
+  });
+
+  it('preserves structured learner responses and blocks unresolved response-fidelity gaps',()=>{
+    expect(structuredResponses).toContain('response_payload jsonb');
+    expect(structuredResponses).toContain('pg_column_size(response_payload) <= 262144');
+    expect(structuredFidelity).toContain('STRUCTURED_RESPONSE_TABLE_MISSING');
+    expect(structuredFidelity).toContain('STRUCTURED_RESPONSE_MATCHING_MISSING');
+    expect(structuredFidelity).toContain('STRUCTURED_RESPONSE_STACK_MISSING');
+    expect(structuredFidelity).toContain('STRUCTURED_RESPONSE_DRAWING_MISSING');
+    expect(service).toContain('response_payload');
+    expect(service).toContain('structuredResponseSummary');
+    expect(source('../frontend/src/live/LiveExamPage.tsx')).toContain('<StructuredResponseEditor');
   });
 
   it('keeps textbook chapter numbering separate from the official syllabus taxonomy',()=>{

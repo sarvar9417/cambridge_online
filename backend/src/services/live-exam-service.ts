@@ -8,6 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { structuredResponseSummary, type StructuredResponsePayload } from '../lib/structured-question-response.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -1022,7 +1023,7 @@ export class LiveExamService {
     let teacherAnswers: Record<string, unknown>[] = [];
     if (currentRow && participantId) {
       const answerResult = await this.pool.query(
-        `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
+        `select id,answer_text,response_payload,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
          from live_exam_answers where session_question_id=$1 and participant_id=$2`,
         [currentRow.id, participantId],
       );
@@ -1031,7 +1032,7 @@ export class LiveExamService {
     }
     if (currentRow && detailedStaff && reveal) {
       const answerResult = await this.pool.query(
-        `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
+        `select a.id,a.answer_text,a.response_payload,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
            r.id review_id,r.status::text review_status,r.kind::text review_kind,
            r.awarded_marks review_awarded_marks,r.feedback_md review_feedback_md,
@@ -1070,7 +1071,7 @@ export class LiveExamService {
       const reportRows = await this.pool.query(
         `select leq.position,leq.marks,
            coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
-           coalesce(a.answer_text,'') answer_text,a.final_score,a.final_feedback_md,a.score_source::text,lep.student_id,u.full_name student_name
+           coalesce(a.answer_text,'') answer_text,a.response_payload,a.final_score,a.final_feedback_md,a.score_source::text,lep.student_id,u.full_name student_name
          from live_exam_questions leq
          join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
          join users u on u.id=lep.student_id
@@ -1084,6 +1085,7 @@ export class LiveExamService {
         displayRef: row.display_ref,
         marks: Number(row.marks),
         answerText: row.answer_text,
+        responsePayload: row.response_payload ?? null,
         score: row.final_score === null ? null : Number(row.final_score),
         scoreSource: row.score_source,
         feedback: row.final_feedback_md,
@@ -1176,7 +1178,7 @@ export class LiveExamService {
   private async reviewFor(actor: Actor, sessionId: string, sessionQuestionId: string) {
     const result = await this.pool.query(
       `select r.id,r.answer_id,r.kind::text,r.status::text,r.awarded_marks,r.feedback_md,r.submitted_at,
-         a.answer_text,
+         a.answer_text,a.response_payload,
          coalesce((
            select jsonb_agg(point.value || jsonb_build_object('matched',coalesce(lrp.matched,false))
              order by point.ordinality)
@@ -1209,6 +1211,7 @@ export class LiveExamService {
       kind: row.kind,
       status: row.status,
       answerText: row.answer_text,
+      responsePayload: row.response_payload ?? null,
       awardedMarks: row.awarded_marks === null ? null : Number(row.awarded_marks),
       feedback: row.feedback_md,
       submittedAt: row.submitted_at,
@@ -1280,7 +1283,7 @@ export class LiveExamService {
     } finally {client.release();}
   }
 
-  async saveAnswer(actor: Actor, sessionId: string, text: string) {
+  async saveAnswer(actor: Actor, sessionId: string, text: string, responsePayload?: StructuredResponsePayload) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
     // it cannot remain question_open merely because every browser went away.
@@ -1294,17 +1297,18 @@ export class LiveExamService {
       const state = await client.query(
         `select status::text,paused_at from live_exam_sessions where id=$1 for share`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
+      const readable=responsePayload?(text.trim()||structuredResponseSummary(responsePayload)):text;
       const result = await client.query(
-        `update live_exam_answers a set answer_text=$3,word_count=$4,updated_at=now()
+        `update live_exam_answers a set answer_text=$3,response_payload=$4::jsonb,word_count=$5,updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
              and (les.question_time_limit_s is null or now() <= les.question_started_at
-             + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
+             + les.question_time_limit_s * interval '1 second' + $6::int * interval '1 second')
          returning a.id,a.updated_at`,
-           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S],
+           [sessionId, actor.id, readable, responsePayload?JSON.stringify(responsePayload):null, words(readable), QUESTION_DEADLINE_GRACE_S],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       await client.query('commit');
@@ -1315,7 +1319,7 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async submitAnswer(actor: Actor, sessionId: string, text?: string) {
+  async submitAnswer(actor: Actor, sessionId: string, text?: string, responsePayload?: StructuredResponsePayload) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
@@ -1324,10 +1328,13 @@ export class LiveExamService {
       const state = await client.query(
         `select * from live_exam_sessions where id=$1 for update`, [sessionId]);
       if (state.rows[0]?.status !== 'question_open' || state.rows[0]?.paused_at) throw new DomainError('live_answer_locked', 409);
+      const updating=text!==undefined||responsePayload!==undefined;
+      const readable=responsePayload?((text??'').trim()||structuredResponseSummary(responsePayload)):(text??'');
       const result = await client.query(
         `update live_exam_answers a set
-           answer_text=coalesce($3,a.answer_text),
-           word_count=case when $3::text is null then a.word_count else $4 end,
+           answer_text=case when $3::boolean then $4 else a.answer_text end,
+           response_payload=case when $3::boolean then $5::jsonb else a.response_payload end,
+           word_count=case when $3::boolean then $6 else a.word_count end,
            submitted_at=now(),updated_at=now()
          from live_exam_participants lep,live_exam_questions leq,live_exam_sessions les
          where les.id=$1 and les.status='question_open' and les.paused_at is null
@@ -1335,9 +1342,9 @@ export class LiveExamService {
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
            and (les.question_time_limit_s is null or now() <= les.question_started_at
-             + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
+             + les.question_time_limit_s * interval '1 second' + $7::int * interval '1 second')
          returning a.id,leq.id session_question_id`,
-        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S],
+        [sessionId, actor.id, updating, readable, responsePayload?JSON.stringify(responsePayload):null, words(readable), QUESTION_DEADLINE_GRACE_S],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
@@ -1407,8 +1414,8 @@ export class LiveExamService {
     // trip per review and per point.
     await client.query(
       `insert into live_exam_reviews(session_question_id,answer_id,reviewer_id,kind)
-       select $1,input.answer_id::uuid,input.reviewer_id::uuid,input.kind::live_exam_marking_mode
-       from jsonb_to_recordset($2::jsonb) input(answer_id text,reviewer_id text,kind text)
+       select $1,input."answerId"::uuid,input."reviewerId"::uuid,input.kind::live_exam_marking_mode
+       from jsonb_to_recordset($2::jsonb) input("answerId" text,"reviewerId" text,kind text)
        on conflict(session_question_id,answer_id,kind) do update
          set reviewer_id=excluded.reviewer_id`,
       [sessionQuestionId, JSON.stringify(assignments)],
@@ -1957,6 +1964,7 @@ export class LiveExamService {
     return {
       id: row.id,
       text: row.answer_text,
+      responsePayload: row.response_payload ?? null,
       wordCount: Number(row.word_count),
       submittedAt: row.submitted_at,
       score: row.final_score === null ? null : Number(row.final_score),

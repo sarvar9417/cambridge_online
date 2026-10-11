@@ -7,7 +7,7 @@ import puppeteer, { type Browser, type BrowserContext, type ConsoleMessage, type
 type ActorKey='teacher'|'projector'|'student1'|'student2'|'student3'|'outsider';
 type StudentKey='student1'|'student2'|'student3';
 type ViewportSize={width:number;height:number};
-type AnswerState={text:string;submitted:boolean;score:number|null;feedback:string|null;updatedAt:string};
+type AnswerState={text:string;responsePayload:unknown|null;submitted:boolean;score:number|null;feedback:string|null;updatedAt:string};
 type ReviewState={id:string;reviewer:StudentKey|'teacher';target:StudentKey;status:'assigned'|'submitted';score:number|null;feedback:string|null};
 type LifecycleStatus='question_open'|'marking'|'review'|'finished';
 type LifecycleState={
@@ -38,9 +38,9 @@ const state:LifecycleState={
   autosaveFailures:1,
   student3Disconnected:false,
   answers:{
-    student1:{text:'',submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
-    student2:{text:'',submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
-    student3:{text:'',submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
+    student1:{text:'',responsePayload:null,submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
+    student2:{text:'',responsePayload:null,submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
+    student3:{text:'',responsePayload:null,submitted:false,score:null,feedback:null,updatedAt:iso()} as AnswerState,
   },
   reviews:{
     student1:{id:'61000000-0000-4000-8000-000000000001',reviewer:'student1',target:'student2',status:'assigned',score:null,feedback:null},
@@ -175,7 +175,7 @@ function teacherAnswers(){
     const answer=state.answers[owner];
     return{
       id:answerId(owner),
-      text:answer.text,
+      text:answer.text,responsePayload:answer.responsePayload,
       wordCount:answer.text.trim()?answer.text.trim().split(/\s+/).length:0,
       submittedAt:answer.submitted?iso(20_000):null,
       score:answer.score,
@@ -198,7 +198,7 @@ function teacherAnswers(){
 function ownAnswer(actor:StudentKey){
   const answer=state.answers[actor];
   return{
-    id:answerId(actor),text:answer.text,
+    id:answerId(actor),text:answer.text,responsePayload:answer.responsePayload,
     wordCount:answer.text.trim()?answer.text.trim().split(/\s+/).length:0,
     submittedAt:answer.submitted?iso(20_000):null,
     score:answer.score,feedback:answer.feedback,scoreSource:answer.score===null?null:'peer',
@@ -216,7 +216,7 @@ function reviewFor(actor:StudentKey){
     answerId:answerId(review.target),
     kind:'peer',
     status:review.status,
-    answerText:target.text,
+    answerText:target.text,responsePayload:target.responsePayload,
     awardedMarks:review.score,
     feedback:review.feedback,
     submittedAt:review.status==='submitted'?iso(30_000):null,
@@ -346,6 +346,7 @@ async function handleApi(request:HTTPRequest,actor:ActorKey){
     }
     const body=parseBody(request);
     state.answers[actor].text=typeof body.text==='string'?body.text:state.answers[actor].text;
+    if(body.responsePayload!==undefined)state.answers[actor].responsePayload=body.responsePayload;
     touch(state.answers[actor]);
     return respondJson(request,{savedAt:state.answers[actor].updatedAt});
   }
@@ -353,6 +354,7 @@ async function handleApi(request:HTTPRequest,actor:ActorKey){
     if(state.paused||state.status!=='question_open')return respondError(request,'Javob yopilgan.','live_answer_locked',409);
     const body=parseBody(request);
     if(typeof body.text==='string')state.answers[actor].text=body.text;
+    if(body.responsePayload!==undefined)state.answers[actor].responsePayload=body.responsePayload;
     state.answers[actor].submitted=true;touch(state.answers[actor]);bump();
     return respondJson(request,{submittedAt:iso(20_000),version:state.version,autoRevealed:false});
   }
@@ -407,6 +409,19 @@ async function waitText(page:Page,text:string,timeout=12_000){
 async function waitNotText(page:Page,text:string,timeout=12_000){
   await page.waitForFunction((needle)=>!document.body.textContent?.includes(String(needle)),{timeout},text);
 }
+async function structuredAnswerInput(page:Page){
+  const selector='.structured-response-table td[data-editable="true"] input';
+  await page.waitForSelector(selector,{timeout:12_000});
+  return selector;
+}
+async function typeStructuredAnswer(page:Page,text:string){
+  const selector=await structuredAnswerInput(page);
+  await page.click(selector);
+  await page.keyboard.down('Control');
+  await page.keyboard.press('A');
+  await page.keyboard.up('Control');
+  await page.type(selector,text);
+}
 async function clickButton(page:Page,text:string){
   await page.waitForFunction((needle)=>[...document.querySelectorAll('button')].some((button)=>button.textContent?.includes(String(needle))),{timeout:12_000},text);
   const clicked=await page.evaluate((needle)=>{
@@ -446,14 +461,14 @@ try{
   for(const surface of surfaces)await surface.page.waitForSelector('.live-question-card',{timeout:15_000});
 
   // Autosave + retry + reload recovery.
-  await student1.page.type('#live-answer','student one recovered answer');
+  await typeStructuredAnswer(student1.page,'student one recovered answer');
   await waitText(student1.page,'Temporary browser network drop.',5_000);
   await student1.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
-  if(state.answers.student1.text!=='student one recovered answer')throw new Error('student1 autosave retry did not persist server state');
+  if(!state.answers.student1.text.includes('student one recovered answer')||!state.answers.student1.responsePayload)throw new Error('student1 structured autosave retry did not persist server state');
   await student1.page.reload({waitUntil:'networkidle0'});
-  await student1.page.waitForSelector('#live-answer',{timeout:12_000});
-  const restored=await student1.page.$eval('#live-answer',(node)=>(node as HTMLTextAreaElement).value);
-  if(restored!=='student one recovered answer')throw new Error(`student1 reconnect recovery mismatch: ${restored}`);
+  const restoredSelector=await structuredAnswerInput(student1.page);
+  const restored=await student1.page.$eval(restoredSelector,(node)=>(node as HTMLInputElement).value);
+  if(restored!=='student one recovered answer')throw new Error(`student1 structured reconnect recovery mismatch: ${restored}`);
 
   // Pause must propagate to every active role and block the student workspace.
   await clickButton(teacher.page,'Pauza');
@@ -468,15 +483,15 @@ try{
 
   await clickButton(teacher.page,'Davom ettirish');
   await Promise.all([
-    student1.page.waitForSelector('#live-answer',{timeout:12_000}),
-    student2.page.waitForSelector('#live-answer',{timeout:12_000}),
-    student3.page.waitForSelector('#live-answer',{timeout:12_000}),
+    structuredAnswerInput(student1.page),
+    structuredAnswerInput(student2.page),
+    structuredAnswerInput(student3.page),
     waitNotText(projector.page,'CHALLENGE PAUZADA'),
   ]);
 
   // Three students submit through the real UI.
-  await student2.page.type('#live-answer','student two answer');
-  await student3.page.type('#live-answer','student three answer');
+  await typeStructuredAnswer(student2.page,'student two answer');
+  await typeStructuredAnswer(student3.page,'student three answer');
   await clickButton(student1.page,'Javobni topshirish');
   await clickButton(student2.page,'Javobni topshirish');
   await clickButton(student3.page,'Javobni topshirish');

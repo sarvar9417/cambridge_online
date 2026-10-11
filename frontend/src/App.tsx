@@ -19,6 +19,7 @@ import {
   type User,
 } from "./lib/api";
 import { queueAnswer } from "./lib/offline-queue";
+import { normalizeStructuredResponse, type StructuredResponsePayload } from './lib/structured-question-response';
 import { useOfflineAnswerSync } from './hooks/useOfflineAnswerSync';
 import { useAttemptTiming } from './hooks/useAttemptTiming';
 import { useFlashcardReview } from './hooks/useFlashcardReview';
@@ -64,6 +65,7 @@ export function App() {
   const [attemptIndex,setAttemptIndex]=useState(0);
   const [submitConfirm,setSubmitConfirm]=useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [structuredAnswers,setStructuredAnswers]=useState<Record<string,StructuredResponsePayload>>({});
   const [error, setError] = useState("");
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [openResultId, setOpenResultId] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export function App() {
     setAttemptIndex(0);
     setSubmitConfirm(false);
     setAnswers({});
+    setStructuredAnswers({});
     setResultDetail(null);
     setOpenResultId(null);
     setMastery([]);
@@ -260,6 +263,12 @@ export function App() {
         ]),
       ),
     );
+    setStructuredAnswers(Object.fromEntries(next.questions.map((question)=>{
+      const stored=localStorage.getItem(`structured-answer:${next.submissionId}:${question.id}`);
+      let candidate:unknown=question.responsePayload;
+      if(stored){try{candidate=JSON.parse(stored);}catch{/* Ignore a corrupt local draft. */}}
+      return [question.id,normalizeStructuredResponse(candidate)];
+    })));
   };
   const startPractice=async(item:MasteryItem)=>{
     setPracticing(item.subtopic_id);setError('');
@@ -287,6 +296,22 @@ export function App() {
       1000,
     );
   };
+  const changeStructured=(id:string,value:StructuredResponsePayload,summary:string)=>{
+    if(!attempt)return;
+    setStructuredAnswers((current)=>({...current,[id]:value}));
+    setAnswers((current)=>({...current,[id]:summary}));
+    localStorage.setItem(`structured-answer:${attempt.submissionId}:${id}`,JSON.stringify(value));
+    localStorage.setItem(`answer:${attempt.submissionId}:${id}`,summary);
+    queueAnswer(localStorage,{
+      submissionId:attempt.submissionId,
+      questionId:id,
+      text:summary,
+      responsePayload:value,
+      activeSessionId:attempt.activeSessionId,
+    });
+    window.clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id]=window.setTimeout(()=>{void flushPending();},1000);
+  };
   const submit = async () => {
     if (!attempt) return;
     await Promise.all(
@@ -297,6 +322,7 @@ export function App() {
             method: "PUT",
             body: JSON.stringify({
               text: answers[question.id] ?? "",
+              responsePayload: structuredAnswers[question.id],
               activeSessionId: attempt.activeSessionId,
             }),
           },
@@ -453,6 +479,7 @@ export function App() {
         attempt={attempt}
         index={attemptIndex}
         answers={answers}
+        structuredAnswers={structuredAnswers}
         remainingSeconds={remainingSeconds}
         online={online}
         error={error}
@@ -460,6 +487,7 @@ export function App() {
         onBack={() => { setAttempt(null); setSubmitConfirm(false); }}
         onSelect={setAttemptIndex}
         onAnswerChange={change}
+        onStructuredAnswerChange={changeStructured}
         onPrevious={() => setAttemptIndex((value) => Math.max(0, value - 1))}
         onNext={() => setAttemptIndex((value) => Math.min(attempt.questions.length - 1, value + 1))}
         onRequestSubmit={() => setSubmitConfirm(true)}

@@ -2,6 +2,8 @@ import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
 import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
+import { StructuredResponseEditor } from './StructuredResponseEditor';
+import { hasStructuredResponseControls, structuredResponseHasContent, structuredResponseSummary, type StructuredResponsePayload } from '../lib/structured-question-response';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -22,6 +24,7 @@ export interface StudentAttemptWorkspaceProps {
   attempt: Attempt;
   index: number;
   answers: Record<string, string>;
+  structuredAnswers: Record<string, StructuredResponsePayload>;
   remainingSeconds: number | null;
   online: boolean;
   error: string;
@@ -29,6 +32,7 @@ export interface StudentAttemptWorkspaceProps {
   onBack: () => void;
   onSelect: (index: number) => void;
   onAnswerChange: (questionId: string, value: string) => void;
+  onStructuredAnswerChange: (questionId: string, value: StructuredResponsePayload, summary: string) => void;
   onPrevious: () => void;
   onNext: () => void;
   onRequestSubmit: () => void;
@@ -37,13 +41,15 @@ export interface StudentAttemptWorkspaceProps {
 }
 
 export function StudentAttemptWorkspace({
-  attempt, index, answers, remainingSeconds, online, error, submitConfirm,
-  onBack, onSelect, onAnswerChange, onPrevious, onNext, onRequestSubmit, onCancelSubmit, onSubmit,
+  attempt, index, answers, structuredAnswers, remainingSeconds, online, error, submitConfirm,
+  onBack, onSelect, onAnswerChange, onStructuredAnswerChange, onPrevious, onNext, onRequestSubmit, onCancelSubmit, onSubmit,
 }: StudentAttemptWorkspaceProps) {
   const question = attempt.questions[index];
   if (!question) return null;
 
-  const answeredCount = attempt.questions.filter((item) => isAnswered(answers[item.id])).length;
+  const answeredQuestion=(item:Attempt['questions'][number])=>
+    isAnswered(answers[item.id])||structuredResponseHasContent(structuredAnswers[item.id]);
+  const answeredCount = attempt.questions.filter(answeredQuestion).length;
   const timer = formatRemainingTime(remainingSeconds);
   const expired = remainingSeconds === 0;
   const materializedContent = question.contentJson && question.contentVersion === 1
@@ -61,6 +67,9 @@ export function StudentAttemptWorkspace({
     && structuredQuestionAssetsReady(materializedContent!, effectiveAssetUrls);
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
+  const hasStructuredControls=structuredReady&&materializedContent
+    ?hasStructuredResponseControls(materializedContent)
+    :false;
 
   return (
     <main className="saw">
@@ -91,7 +100,7 @@ export function StudentAttemptWorkspace({
           </div>
           <div className="saw-nav-grid">
             {attempt.questions.map((item, itemIndex) => {
-              const answered = isAnswered(answers[item.id]);
+              const answered = answeredQuestion(item);
               const active = itemIndex === index;
               return (
                 <button
@@ -140,16 +149,24 @@ export function StudentAttemptWorkspace({
           <section className="saw-answer">
             <div className="saw-answer-head">
               <label htmlFor={`answer-${question.id}`}>Javobing</label>
-              <span>{answerWordCount(answers[question.id])} so‘z · avtomatik saqlanadi</span>
+              <span>{hasStructuredControls?'Structured javob · avtomatik saqlanadi':`${answerWordCount(answers[question.id])} so‘z · avtomatik saqlanadi`}</span>
             </div>
-            <textarea
-              id={`answer-${question.id}`}
-              className={question.answerKind === 'code' || question.answerKind === 'pseudocode' ? 'is-code' : ''}
-              disabled={answerDisabled}
-              value={answers[question.id] ?? ''}
-              onChange={(event) => onAnswerChange(question.id, event.target.value)}
-              placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
-            />
+            {hasStructuredControls&&materializedContent
+              ?<StructuredResponseEditor
+                content={materializedContent}
+                assetUrls={effectiveAssetUrls}
+                disabled={answerDisabled}
+                value={structuredAnswers[question.id]}
+                onChange={(value)=>onStructuredAnswerChange(question.id,value,structuredResponseSummary(materializedContent,value))}
+              />
+              :<textarea
+                id={`answer-${question.id}`}
+                className={question.answerKind === 'code' || question.answerKind === 'pseudocode' ? 'is-code' : ''}
+                disabled={answerDisabled}
+                value={answers[question.id] ?? ''}
+                onChange={(event) => onAnswerChange(question.id, event.target.value)}
+                placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
+              />}
           </section>
 
           <nav className="saw-bottom-nav" aria-label="Savollar orasida yurish">
@@ -171,7 +188,7 @@ export function StudentAttemptWorkspace({
             </div>
             {answeredCount < attempt.questions.length && (
               <p className="saw-unanswered">
-                Javobsiz: {attempt.questions.filter((item) => !isAnswered(answers[item.id])).map((item) => item.displayRef).join(', ')}
+                Javobsiz: {attempt.questions.filter((item) => !answeredQuestion(item)).map((item) => item.displayRef).join(', ')}
               </p>
             )}
             <p>Topshirgandan keyin javoblarni o‘zgartira olmaysan.</p>

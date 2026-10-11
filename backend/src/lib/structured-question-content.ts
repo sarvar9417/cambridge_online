@@ -52,10 +52,23 @@ const matchingItemSchema = z.object({
 
 const matchingBlockSchema = z.object({
   type: z.literal('matching'),
+  mode: z.enum(['single','multiple']).default('single'),
   left: z.array(matchingItemSchema).min(1),
   right: z.array(matchingItemSchema).min(1),
   source: sourceLocationSchema,
 }).strict();
+
+const stackBlockSchema = z.object({
+  type: z.literal('stack'),
+  snapshots: z.number().int().min(1).max(40),
+  depth: z.number().int().min(1).max(20),
+  labels: z.array(z.string().max(80)).max(40).default([]),
+  source: sourceLocationSchema,
+}).strict().superRefine((block,ctx)=>{
+  if(block.labels.length&&block.labels.length!==block.snapshots){
+    ctx.addIssue({code:'custom',path:['labels'],message:'stack labels must match snapshot count'});
+  }
+});
 
 const assetBlockSchema = z.object({
   type: z.literal('asset'),
@@ -79,6 +92,7 @@ export const structuredQuestionBlockSchema = z.discriminatedUnion('type', [
   listBlockSchema,
   tableBlockSchema,
   matchingBlockSchema,
+  stackBlockSchema,
   assetBlockSchema,
   answerAreaBlockSchema,
 ]);
