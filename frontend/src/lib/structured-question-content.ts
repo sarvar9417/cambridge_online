@@ -18,8 +18,16 @@ export type StructuredQuestionBlock =
     }
   | {
       type:'matching';
+      mode?:'single'|'multiple';
       left:Array<{id:string;text:string}>;
       right:Array<{id:string;text:string}>;
+      source:SourceLocation;
+    }
+  | {
+      type:'stack';
+      snapshots:number;
+      depth:number;
+      labels?:string[];
       source:SourceLocation;
     }
   | {
@@ -44,7 +52,7 @@ export type StructuredQuestionContent = {
 
 const SHA256=/^[0-9a-f]{64}$/i;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const BLOCK_TYPES=new Set(['text','math','code','list','table','matching','asset','answer_area']);
+const BLOCK_TYPES=new Set(['text','math','code','list','table','matching','stack','asset','answer_area']);
 
 function object(value:unknown):value is Record<string,unknown> {
   return value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -76,7 +84,8 @@ export function isStructuredQuestionContent(value:unknown):value is StructuredQu
         if(!width||!candidate.rows.every((row)=>Array.isArray(row)&&row.length===width&&row.every((cell)=>cell===null||typeof cell==='string')))return false;
         return Array.isArray(candidate.editableCells)&&candidate.editableCells.every((cell)=>Array.isArray(cell)&&cell.length===2&&cell.every((index)=>Number.isInteger(index)&&Number(index)>=0));
       }
-      case 'matching': return ['left','right'].every((side)=>Array.isArray(candidate[side])&&candidate[side].length>0&&candidate[side].every((item)=>object(item)&&typeof item.id==='string'&&item.id.length>0&&typeof item.text==='string'&&item.text.length>0));
+      case 'matching': return (candidate.mode===undefined||candidate.mode==='single'||candidate.mode==='multiple')&&['left','right'].every((side)=>Array.isArray(candidate[side])&&candidate[side].length>0&&candidate[side].every((item)=>object(item)&&typeof item.id==='string'&&item.id.length>0&&typeof item.text==='string'&&item.text.length>0));
+      case 'stack': return Number.isInteger(candidate.snapshots)&&Number(candidate.snapshots)>0&&Number(candidate.snapshots)<=40&&Number.isInteger(candidate.depth)&&Number(candidate.depth)>0&&Number(candidate.depth)<=20&&(candidate.labels===undefined||(Array.isArray(candidate.labels)&&candidate.labels.every((item)=>typeof item==='string')&&(!candidate.labels.length||candidate.labels.length===candidate.snapshots)));
       case 'asset': return ['diagram','image','flowchart','logic_circuit'].includes(String(candidate.kind))&&typeof candidate.assetId==='string'&&UUID.test(candidate.assetId)&&typeof candidate.altText==='string';
       case 'answer_area': return ['lines','box','table_cells','drawing'].includes(String(candidate.kind))&&(candidate.lines===null||(Number.isInteger(candidate.lines)&&Number(candidate.lines)>0));
       default: return false;
