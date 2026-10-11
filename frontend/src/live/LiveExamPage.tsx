@@ -657,12 +657,37 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     catch(cause){setError(message(cause,'Baholash yuborilmadi.'))}finally{setBusy(false)}
   };
 
+  const responseAssets=snapshot.question?.portable.contextBlocks.flatMap((block)=>block.assets)??[];
+  const responseContent=snapshot.question?.portable.leaf.contentJson
+    ?materializePortableSourceAssets(snapshot.question.portable.leaf.contentJson,responseAssets)
+    :null;
+  const structuredInteractive=Boolean(responseContent&&structuredResponseRequired(responseContent));
+  const responseDisabled=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
+
   if(session.status==='lobby')return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>XONAGA QO‘SHILDINGIZ</span><h1>{session.title}</h1><p>O‘qituvchi o‘yinni boshlashi kutilmoqda.</p><strong>{session.participantCount} o‘quvchi tayyor</strong>{error?<p className="live-error" role="alert">{error}</p>:null}<button className="live-secondary" disabled={busy} onClick={()=>void leave()}>Xonadan chiqish</button></section>;
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
+    <section className="live-answer-box">
+      {structuredInteractive&&responseContent?<StructuredResponseEditor
+        content={responseContent}
+        sourceAssets={responseAssets}
+        response={structuredResponse}
+        disabled={responseDisabled}
+        onChange={(value)=>{
+          latestStructuredResponse.current=value;
+          setStructuredResponse(value);
+          const summary=structuredResponseSummary(responseContent,value);
+          if(summary&&!latestAnswer.current.trim()){latestAnswer.current=summary;setAnswer(summary)}
+          pendingSave.current=latestAnswer.current;
+          setDirty(true);
+        }}
+      />:null}
+      <header><label htmlFor="live-answer">{structuredInteractive?'Qo‘shimcha izoh (ixtiyoriy)':'Javobingiz'}</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header>
+      <textarea id="live-answer" value={answer} disabled={responseDisabled} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder={structuredInteractive?'Kerak bo‘lsa qo‘shimcha izoh yozing…':'Javobingizni shu yerga yozing…'}/>
+      <button disabled={busy||responseDisabled} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button>
+    </section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
     <ReviewQuestionContext question={snapshot.question}/>
