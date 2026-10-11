@@ -279,13 +279,13 @@ export interface LiveExamQuestion {id:string;sourceQuestionId:string;position:nu
 export interface LiveMarkSchemePoint {id:string;code:string;text:string;marks:number;accept?:unknown;reject?:unknown;requires?:unknown;isBod?:boolean;groupId?:string|null;matched?:boolean}
 export interface LiveMarkSchemeLevel {id:string;levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd:string|null}
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;levels:LiveMarkSchemeLevel[];points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
-export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string;provisionalScore?:number|null;provisionalFeedback?:string|null}
-export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
+export interface LiveExamAnswer {id:string;text:string;responsePayload?:StructuredResponsePayload|null;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string;provisionalScore?:number|null;provisionalFeedback?:string|null}
+export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;responsePayload?:StructuredResponsePayload|null;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
-  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
+  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;responsePayload?:StructuredResponsePayload|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
