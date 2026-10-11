@@ -18,6 +18,8 @@ const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
+const structuredResponsePayload=source('src/database/migrations/0208_structured_response_payload.sql');
+const structuredResponseReadiness=source('src/database/migrations/0209_structured_response_readiness.sql');
 const coursebookSections=source('src/lib/live-coursebook-sections.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
@@ -171,6 +173,23 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('liveCoursebookQuestionFilter');
     expect(service).toContain('coursebookSectionCodes');
     expect(source('src/routes/live-exams.ts')).toContain('LIVE_COURSEBOOK_SECTION_CODES');
+  });
+
+  it('persists source-faithful structured answers without replacing grading text',()=>{
+    expect(structuredResponsePayload).toContain('ADD COLUMN IF NOT EXISTS response_json jsonb');
+    expect(structuredResponsePayload).toContain('live_exam_answers_response_json_shape_check');
+    expect(service).toContain('response_json=$6::jsonb');
+    expect(service).toContain('response: row.response_json ?? null');
+    expect(source('src/routes/live-exams.ts')).toContain('structuredResponseSchema');
+    expect(source('../frontend/src/live/LiveExamPage.tsx')).toContain('StructuredResponseEditor');
+  });
+
+  it('fails closed when an interactive Cambridge task has no response surface',()=>{
+    expect(structuredResponseReadiness).toContain('structured_response_required_but_missing');
+    expect(structuredResponseReadiness).toContain("'answer_area'");
+    expect(structuredResponseReadiness).toContain("'drawing'");
+    expect(structuredResponseReadiness).toContain("status='approved'");
+    expect(structuredResponseReadiness).toContain("'needs_review'::review_status");
   });
 
   it('treats a Live question as seen only after the round actually opens it',()=>{
