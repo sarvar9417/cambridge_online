@@ -13,15 +13,17 @@ function identifier(value:string){
 export function questionStructuredResponseIntegritySql(questionAlias='q'){
   const q=identifier(questionAlias);
   const normalized=`lower(regexp_replace(coalesce(${q}.stem_md,''),'[[:space:]]+',' ','g'))`;
-  const cue=`(
-    ${normalized} ~ '(^|[[:space:]])(complete|fill in|fill)[^.!?]{0,140}(table|grid|truth table|trace table|karnaugh map|k-map)'
-    or ${normalized} ~ '(draw|join|connect|match)[^.!?]{0,140}(line|arrow|box|item|statement|description|term|layer|method)'
-    or ${normalized} ~ '(complete|show)[^.!?]{0,140}(state of (the )?(stack|queue)|stack|queue)'
-    or (
-      ${q}.answer_kind='diagram'
-      and ${normalized} ~ '(complete|draw|show|label)[^.!?]{0,160}(diagram|flowchart|circuit|tree|graph|map|stack|queue)'
-    )
+  const tableCue=`${normalized} ~ '(complete|fill[[:space:]]+in|fill)([[:space:]]+(the|this|following|a))?[[:space:]]+(truth[[:space:]]+table|trace[[:space:]]+table|table|grid|karnaugh[[:space:]]+map|k-map)'`;
+  const matchingCue=`${normalized} ~ '(^|[[:space:]])(draw|join|connect|match)([[:space:]]+(one|two|the|this|each|appropriate|lines?|items?))'`;
+  const stackCue=`(
+    ${normalized} ~ 'show[[:space:]]+the[[:space:]]+changing[[:space:]]+contents[[:space:]]+of[[:space:]]+the[[:space:]]+stack'
+    or ${normalized} ~ '(complete|show)([[:space:]]+the)?[[:space:]]+state[[:space:]]+of[[:space:]]+[^[:space:]]*(stack|queue)'
   )`;
+  const diagramCue=`(
+    ${q}.answer_kind='diagram'
+    and ${normalized} ~ '(^|[[:space:]])(complete|draw|show|label)([[:space:]]+(one|two|the|this|following|loops?|appropriate|lines?))[^.!?]{0,160}(diagram|flowchart|circuit|tree|graph|map|k-map|stack|queue)'
+  )`;
+  const cue=`(${tableCue} or ${matchingCue} or ${stackCue} or ${diagramCue})`;
   const surface=`(
     ${q}.content_version=1
     and ${q}.content_json is not null
