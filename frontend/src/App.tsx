@@ -37,6 +37,12 @@ import { SelectionHandoffPage } from './SelectionHandoffPage';
 import { StudentHome } from './student/StudentHome';
 import { StudentAssignments } from './student/StudentAssignments';
 import { StudentAttemptWorkspace } from './student/StudentAttemptWorkspace';
+import {
+  emptyStructuredResponse,
+  normalizeStructuredResponse,
+  structuredResponseSummary,
+  type StructuredResponseV1,
+} from './lib/structured-response';
 import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
 import { StudentGames } from './student/StudentGames';
@@ -64,6 +70,7 @@ export function App() {
   const [attemptIndex,setAttemptIndex]=useState(0);
   const [submitConfirm,setSubmitConfirm]=useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [structuredAnswers,setStructuredAnswers]=useState<Record<string,StructuredResponseV1>>({});
   const [error, setError] = useState("");
   const [resultDetail, setResultDetail] = useState<ResultDetail[] | null>(null);
   const [openResultId, setOpenResultId] = useState<string | null>(null);
@@ -107,6 +114,7 @@ export function App() {
     setAttemptIndex(0);
     setSubmitConfirm(false);
     setAnswers({});
+    setStructuredAnswers({});
     setResultDetail(null);
     setOpenResultId(null);
     setMastery([]);
@@ -260,6 +268,14 @@ export function App() {
         ]),
       ),
     );
+    setStructuredAnswers(Object.fromEntries(next.questions.map((question)=>[
+      question.id,
+      normalizeStructuredResponse(
+        JSON.parse(localStorage.getItem(`structured-answer:${next.submissionId}:${question.id}`)??'null')
+        ??question.responseJson
+        ??emptyStructuredResponse(),
+      ),
+    ])));
   };
   const startPractice=async(item:MasteryItem)=>{
     setPracticing(item.subtopic_id);setError('');
@@ -287,6 +303,23 @@ export function App() {
       1000,
     );
   };
+  const changeStructured=(id:string,response:StructuredResponseV1)=>{
+    if(!attempt)return;
+    const question=attempt.questions.find((item)=>item.id===id);
+    const summary=question?.contentJson?structuredResponseSummary(question.contentJson,response):'';
+    setStructuredAnswers((current)=>({...current,[id]:response}));
+    if(summary)setAnswers((current)=>({...current,[id]:current[id]?.trim()?current[id]:summary}));
+    localStorage.setItem(`structured-answer:${attempt.submissionId}:${id}`,JSON.stringify(response));
+    queueAnswer(localStorage,{
+      submissionId:attempt.submissionId,
+      questionId:id,
+      text:summary||answers[id]||'',
+      response,
+      activeSessionId:attempt.activeSessionId,
+    });
+    window.clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id]=window.setTimeout(()=>{void flushPending()},700);
+  };
   const submit = async () => {
     if (!attempt) return;
     await Promise.all(
@@ -296,7 +329,10 @@ export function App() {
           {
             method: "PUT",
             body: JSON.stringify({
-              text: answers[question.id] ?? "",
+              text: question.contentJson
+                ? structuredResponseSummary(question.contentJson,structuredAnswers[question.id]??emptyStructuredResponse()) || (answers[question.id] ?? "")
+                : (answers[question.id] ?? ""),
+              response: structuredAnswers[question.id]??null,
               activeSessionId: attempt.activeSessionId,
             }),
           },
@@ -453,6 +489,7 @@ export function App() {
         attempt={attempt}
         index={attemptIndex}
         answers={answers}
+        structuredAnswers={structuredAnswers}
         remainingSeconds={remainingSeconds}
         online={online}
         error={error}
@@ -460,6 +497,7 @@ export function App() {
         onBack={() => { setAttempt(null); setSubmitConfirm(false); }}
         onSelect={setAttemptIndex}
         onAnswerChange={change}
+        onStructuredAnswerChange={changeStructured}
         onPrevious={() => setAttemptIndex((value) => Math.max(0, value - 1))}
         onNext={() => setAttemptIndex((value) => Math.min(attempt.questions.length - 1, value + 1))}
         onRequestSubmit={() => setSubmitConfirm(true)}
