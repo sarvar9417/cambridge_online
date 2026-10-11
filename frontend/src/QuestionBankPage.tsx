@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaretDown, CaretUp, Check, Funnel, MagnifyingGlass, PencilSimple, Plus, ShoppingCart, Trash, X } from '@phosphor-icons/react';
 import { api, apiBlob, type User } from './lib/api';
 import { LatexQuestionText } from './lib/latex-question-text';
-import { portableAssetUrl } from './lib/portable-source-assets';
+import { materializePortableSourceAssets, portableAssetUrl, portableAssetsForContent } from './lib/portable-source-assets';
+import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './student/StructuredQuestionView';
+import { StructuredResponsePreview } from './student/StructuredResponseEditor';
 import { navigate, useRoute } from './lib/router';
 import './question-bank.css';
 
@@ -939,7 +941,13 @@ function ContextBlocks({ portable }: { portable: PortableQuestion }) {
 
 function PortableModal({ portable, onClose }: { portable: PortableQuestion; onClose: () => void }) {
   useDialogClose(onClose);
-  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div><LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} /></article>{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
+  const sourceAssets=portable.contextBlocks.flatMap((block)=>block.assets);
+  const content=portable.leaf.contentJson
+    ?materializePortableSourceAssets(portable.leaf.contentJson,sourceAssets)
+    :null;
+  const assetUrls={...portableAssetsForContent(sourceAssets)};
+  const sourceReady=Boolean(content&&structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls));
+  return <div className="qb-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="qb-modal qb-portable-modal" role="dialog" aria-modal="true" aria-labelledby="portable-title"><header><div><span className="qb-eyebrow">Portable question</span><h2 id="portable-title">{portable.sourceRef}</h2></div><button className="qb-icon-button" aria-label="Oynani yopish" onClick={onClose}><X size={18} /></button></header><div className="qb-chain">{portable.chain.map((node, index) => <span key={node.id}>{index ? '→' : ''} {node.label}</span>)}</div><ContextBlocks portable={portable} /><article className="qb-leaf-preview"><div><strong>{portable.leaf.displayRef}</strong><span>{portable.leaf.commandWord ?? '—'} · {portable.leaf.marks} ball</span></div>{sourceReady&&content?<StructuredQuestionView content={content} assetUrls={assetUrls}/>:<LatexQuestionText latex={portable.leaf.bodyFormat === 'latex' ? portable.leaf.stemLatex : null} fallback={portable.leaf.stem} />}</article>{sourceReady&&content?<section className="qb-response-preview"><div className="qb-response-preview-head"><strong>Student javob shakli</strong><span>Question Bank va Live Challenge bir xil structured response modelidan foydalanadi.</span></div><StructuredResponsePreview content={content} assetUrls={assetUrls}/></section>:null}{portable.dependencies.length > 0 && <div className="qb-dependency-preview"><strong>Bog‘liqliklar</strong>{portable.dependencies.map((item) => <div key={item.id}><span className={`qb-chip ${item.kind === 'answer_ref' ? 'danger' : 'warning'}`}>{item.kind}</span><b>{item.displayRef}</b><span>{item.evidence ?? item.stem}</span></div>)}</div>}<footer><small>Original manba: {portable.sourceRef}</small><button onClick={onClose}>Yopish</button></footer></section></div>;
 }
 
 function DependencyModal({ dependencies, onClose, onAdd }: { dependencies: Dependency[]; onClose: () => void; onAdd: (id: string, role: SelectionRole) => void }) {
