@@ -164,6 +164,7 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   const wrapper=document.createElement('div');
   wrapper.className='structured-question-matching';
   wrapper.dataset.questionBlock='matching';
+  wrapper.dataset.matchingMode=block.mode??'single';
 
   const left=document.createElement('ol');
   left.className='structured-question-matching-left';
@@ -213,6 +214,30 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
     }
     case 'table': return renderTable(block);
     case 'matching': return renderMatching(block);
+    case 'stack': {
+      const wrapper=document.createElement('div');
+      wrapper.className='structured-question-stack';
+      wrapper.dataset.questionBlock='stack';
+      const labels=block.labels?.length?block.labels:Array.from({length:block.snapshots},(_,index)=>`Step ${index+1}`);
+      labels.forEach((label,snapshotIndex)=>{
+        const snapshot=document.createElement('section');
+        snapshot.className='structured-question-stack-snapshot';
+        const title=document.createElement('strong');
+        title.textContent=label;
+        snapshot.append(title);
+        const cells=document.createElement('div');
+        cells.className='structured-question-stack-cells';
+        for(let cellIndex=0;cellIndex<block.depth;cellIndex+=1){
+          const cell=document.createElement('span');
+          cell.dataset.stackCell=`${snapshotIndex}:${cellIndex}`;
+          cell.setAttribute('aria-label',`Stack ${snapshotIndex+1}, cell ${cellIndex+1}`);
+          cells.append(cell);
+        }
+        snapshot.append(cells);
+        wrapper.append(snapshot);
+      });
+      return wrapper;
+    }
     case 'asset': {
       const figure=document.createElement('figure');
       figure.className=`structured-question-asset structured-question-${block.kind.replaceAll('_','-')}`;
