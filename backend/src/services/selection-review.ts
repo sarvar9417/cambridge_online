@@ -28,6 +28,7 @@ export interface PortableQuestion {
     bodyFormat?: 'markdown' | 'latex';
     /** Source-backed v1 content frozen with the selection/assignment snapshot. */
     contentJson?: StructuredQuestionContent | null;
+    responseReady?: boolean;
     commandWord: string | null;
     marks: number;
     answerKind: string;
@@ -68,7 +69,8 @@ export interface SelectionItemPortable {
 export type SelectionDependencyIssueCode =
   | 'answer_dependency_requires_graded'
   | 'required_text_dependency_missing'
-  | 'optional_text_dependency_missing';
+  | 'optional_text_dependency_missing'
+  | 'structured_response_not_ready';
 
 export interface SelectionDependencyIssue {
   code: SelectionDependencyIssueCode;
@@ -136,8 +138,21 @@ export function buildSelectionReview(items: SelectionItemPortable[]): SelectionR
   const dependencyIssues: SelectionDependencyIssue[] = [];
 
   for (const item of reviewItems) {
-    // Dependencies matter when the candidate is expected to answer this item.
+    // Dependencies and response fidelity matter when the candidate is expected
+    // to answer this item.
     if (item.role !== 'graded') continue;
+
+    if(item.portable.leaf.responseReady===false){
+      dependencyIssues.push({
+        code:'structured_response_not_ready',
+        severity:'error',
+        questionId:item.portable.leaf.id,
+        questionRef:item.sourceRef,
+        dependsOnId:item.portable.leaf.id,
+        dependsOnRef:item.sourceRef,
+        evidence:'Original Cambridge answer workspace has not been reconstructed safely yet.',
+      });
+    }
 
     for (const dependency of item.portable.dependencies) {
       const target = byQuestionId.get(dependency.dependsOnId);
