@@ -92,6 +92,7 @@ const mapPart = (row: Record<string, unknown>) => ({
   status: row.status,
   hasDiagram: Boolean(row.has_diagram),
   hasDependency: Boolean(row.has_dependency),
+  structuredResponseBlocked: Boolean(row.structured_response_blocked),
   subtopics: Array.isArray(row.subtopics) ? row.subtopics : [],
 });
 
@@ -228,7 +229,13 @@ export class PgQuestionsRepository {
            exists(
              select 1 from question_assets qa
              where qa.question_id=q.id and qa.kind in ('diagram','image')
-           ) has_diagram
+           ) has_diagram,
+           exists(
+             select 1 from validation_findings vf
+             where vf.ref_table='questions' and vf.ref_id=q.id
+               and vf.resolved_at is null and vf.severity='error'
+               and vf.rule_code like 'STRUCTURED_RESPONSE_%'
+           ) structured_response_blocked
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
          join syllabi syllabus on syllabus.id=sp.syllabus_id
