@@ -576,7 +576,10 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setSaving(true);
     let retryScheduled=false;
     try{
-      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({text:outgoing,response:latestStructuredResponse.current})});
+      await api(`/live-exams/${session.id}/answer`,{method:'PUT',body:JSON.stringify({
+        text:liveAnswerPayloadText(outgoing),
+        response:latestStructuredResponse.current,
+      })});
       if(latestAnswer.current===outgoing){setDirty(false);setError('')}
       else pendingSave.current=latestAnswer.current;
     }catch(cause){
@@ -631,7 +634,10 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     window.clearTimeout(saveTimer.current);
     window.clearTimeout(retryTimer.current);
     pendingSave.current=null;
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current,response:latestStructuredResponse.current})});if(draftKey){removeLiveDraft(liveDraftKey(session.id,draftKey));try{localStorage.removeItem(`${liveDraftKey(session.id,draftKey)}:response`)}catch{}}setDirty(false);await refresh()}
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({
+      text:liveAnswerPayloadText(latestAnswer.current),
+      response:latestStructuredResponse.current,
+    })});if(draftKey){removeLiveDraft(liveDraftKey(session.id,draftKey));try{localStorage.removeItem(`${liveDraftKey(session.id,draftKey)}:response`)}catch{}}setDirty(false);await refresh()}
     catch(cause){
       pendingSave.current=latestAnswer.current;
       setError(message(cause,automatic?'Vaqt tugadi. Avtomatik yuborish tekshirilmoqda; serverdagi oxirgi saqlangan javob himoyalangan.':'Javob topshirilmadi.'));
@@ -663,6 +669,11 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     :null;
   const structuredInteractive=Boolean(responseContent&&structuredResponseRequired(responseContent));
   const responseDisabled=Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt);
+  const liveAnswerPayloadText=(note:string)=>{
+    if(!responseContent)return note;
+    const summary=structuredResponseSummary(responseContent,latestStructuredResponse.current);
+    return [summary,note.trim()].filter(Boolean).join('\n\n');
+  };
 
   if(session.status==='lobby')return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>XONAGA QO‘SHILDINGIZ</span><h1>{session.title}</h1><p>O‘qituvchi o‘yinni boshlashi kutilmoqda.</p><strong>{session.participantCount} o‘quvchi tayyor</strong>{error?<p className="live-error" role="alert">{error}</p>:null}<button className="live-secondary" disabled={busy} onClick={()=>void leave()}>Xonadan chiqish</button></section>;
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
@@ -678,8 +689,6 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
         onChange={(value)=>{
           latestStructuredResponse.current=value;
           setStructuredResponse(value);
-          const summary=structuredResponseSummary(responseContent,value);
-          if(summary&&!latestAnswer.current.trim()){latestAnswer.current=summary;setAnswer(summary)}
           pendingSave.current=latestAnswer.current;
           setDirty(true);
         }}
