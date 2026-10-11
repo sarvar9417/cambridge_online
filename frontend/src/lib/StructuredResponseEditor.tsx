@@ -27,6 +27,7 @@ export function StructuredResponseEditor({
 }){
   const byId=useMemo(()=>new Map(sourceAssets.map((asset)=>[asset.id,asset] as const)),[sourceAssets]);
   let lastVisualUrl:string|null=null;
+  let lastTable:Extract<StructuredQuestionContent['blocks'][number],{type:'table'}>|null=null;
   let hasInteractive=false;
   const rendered=content.blocks.map((block,index)=>{
     const blockKey=String(index);
@@ -34,6 +35,9 @@ export function StructuredResponseEditor({
       const url=portableAssetUrl(byId.get(block.assetId));
       if(url)lastVisualUrl=url;
       return null;
+    }
+    if(block.type==='table'){
+      lastTable=block;
     }
     if(block.type==='table'&&block.editableCells.length){
       hasInteractive=true;
@@ -90,6 +94,7 @@ export function StructuredResponseEditor({
         key={`table-cells-${index}`}
         blockKey={blockKey}
         initialRows={initialRows}
+        sourceTable={lastTable}
         response={response}
         onChange={onChange}
         disabled={disabled}
@@ -175,10 +180,11 @@ function DrawingResponse({
 }
 
 function StackTraceResponse({
-  blockKey,initialRows,response,onChange,disabled,
+  blockKey,initialRows,sourceTable,response,onChange,disabled,
 }:{
   blockKey:string;
   initialRows:number;
+  sourceTable:Extract<StructuredQuestionContent['blocks'][number],{type:'table'}>|null;
   response:StructuredResponseV1;
   onChange:(response:StructuredResponseV1)=>void;
   disabled:boolean;
@@ -189,13 +195,25 @@ function StackTraceResponse({
     ...response,
     tables:{...response.tables,[blockKey]:{...values,[`${row}:${column}`]:value}},
   });
+  if(sourceTable){
+    return <section className="sre-block">
+      <header><strong>Jadvalni to‘ldirish</strong><span>Har bir qator uchun yetishmayotgan javobni yozing.</span></header>
+      <div className="sre-table-wrap"><table className="sre-table">
+        <thead><tr>{sourceTable.headers.map((header,index)=><th key={index}>{header}</th>)}<th>Javob</th></tr></thead>
+        <tbody>{sourceTable.rows.map((row,rowIndex)=><tr key={rowIndex}>
+          {row.map((cell,columnIndex)=><td key={columnIndex}>{cell??''}</td>)}
+          <td><input disabled={disabled} value={values[`${rowIndex}:0`]??''} onChange={(event)=>setValue(rowIndex,0,event.target.value)} aria-label={`${rowIndex+1}-qator javobi`}/></td>
+        </tr>)}</tbody>
+      </table></div>
+    </section>;
+  }
   return <section className="sre-block">
-    <header><strong>Stack / queue holati</strong><span>Har bir bosqichdan keyingi holatni yozing. Kerak bo‘lsa qator qo‘shing.</span></header>
+    <header><strong>Ketma-ket holat / stack / queue</strong><span>Har bir bosqichdan keyingi holatni yozing. Kerak bo‘lsa qator qo‘shing.</span></header>
     <div className="sre-table-wrap"><table className="sre-table sre-stack-table">
-      <thead><tr><th>Bosqich / amal</th><th>Holat (pastdan tepaga yoki frontdan rear’ga)</th></tr></thead>
+      <thead><tr><th>Bosqich / amal</th><th>Javob / holat</th></tr></thead>
       <tbody>{Array.from({length:rowCount},(_,row)=><tr key={row}>
         <td><input disabled={disabled} value={values[`${row}:0`]??''} onChange={(event)=>setValue(row,0,event.target.value)} aria-label={`${row+1}-bosqich`}/></td>
-        <td><input disabled={disabled} value={values[`${row}:1`]??''} onChange={(event)=>setValue(row,1,event.target.value)} aria-label={`${row+1}-bosqichdagi stack yoki queue holati`}/></td>
+        <td><input disabled={disabled} value={values[`${row}:1`]??''} onChange={(event)=>setValue(row,1,event.target.value)} aria-label={`${row+1}-bosqich javobi`}/></td>
       </tr>)}</tbody>
     </table></div>
     <div className="sre-row-tools">
