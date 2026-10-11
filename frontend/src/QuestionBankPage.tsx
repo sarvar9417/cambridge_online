@@ -7,6 +7,7 @@ import { materializePortableSourceAssets, portableAssetUrl, portableAssetsForCon
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './student/StructuredQuestionView';
 import { StructuredResponsePreview } from './student/StructuredResponseEditor';
 import { navigate, useRoute } from './lib/router';
+import type { StructuredQuestionContent } from './lib/structured-question-content';
 import './question-bank.css';
 
 type SelectionRole = 'graded' | 'context_only';
@@ -46,6 +47,8 @@ type PortableQuestion = {
     stem: string;
     stemLatex?: string | null;
     bodyFormat?: 'markdown' | 'latex';
+    contentJson?: StructuredQuestionContent | null;
+    responseReady?: boolean;
     commandWord: string | null;
     marks: number;
     answerKind: string;
