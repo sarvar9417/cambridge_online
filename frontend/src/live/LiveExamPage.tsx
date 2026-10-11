@@ -24,6 +24,14 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { StructuredResponseEditor } from '../lib/StructuredResponseEditor';
+import {
+  emptyStructuredResponse,
+  normalizeStructuredResponse,
+  structuredResponseRequired,
+  structuredResponseSummary,
+  type StructuredResponseV1,
+} from '../lib/structured-response';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
