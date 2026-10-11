@@ -81,6 +81,20 @@ export function StructuredResponseEditor({
         </label>)}</div>
       </section>;
     }
+    if(block.type==='answer_area'&&block.kind==='table_cells'){
+      hasInteractive=true;
+      const values=response.tables[blockKey]??{};
+      const populatedRows=Object.keys(values).map((key)=>Number(key.split(':')[0])).filter(Number.isFinite);
+      const initialRows=Math.max(block.lines??0,populatedRows.length?Math.max(...populatedRows)+1:0,4);
+      return <StackTraceResponse
+        key={`table-cells-${index}`}
+        blockKey={blockKey}
+        initialRows={initialRows}
+        response={response}
+        onChange={onChange}
+        disabled={disabled}
+      />;
+    }
     if(block.type==='answer_area'&&block.kind==='drawing'){
       hasInteractive=true;
       return <DrawingResponse
@@ -157,5 +171,36 @@ function DrawingResponse({
       />)}
     </div>
     <small>Maslahat: matn uchun rasm ustiga bosing. Chiziq rejimida boshlanish va tugash nuqtalarini ketma-ket bosing. Yozuvni ikki marta bosib o‘chirish mumkin.</small>
+  </section>;
+}
+
+function StackTraceResponse({
+  blockKey,initialRows,response,onChange,disabled,
+}:{
+  blockKey:string;
+  initialRows:number;
+  response:StructuredResponseV1;
+  onChange:(response:StructuredResponseV1)=>void;
+  disabled:boolean;
+}){
+  const values=response.tables[blockKey]??{};
+  const [rowCount,setRowCount]=useState(initialRows);
+  const setValue=(row:number,column:number,value:string)=>onChange({
+    ...response,
+    tables:{...response.tables,[blockKey]:{...values,[`${row}:${column}`]:value}},
+  });
+  return <section className="sre-block">
+    <header><strong>Stack / queue holati</strong><span>Har bir bosqichdan keyingi holatni yozing. Kerak bo‘lsa qator qo‘shing.</span></header>
+    <div className="sre-table-wrap"><table className="sre-table sre-stack-table">
+      <thead><tr><th>Bosqich / amal</th><th>Holat (pastdan tepaga yoki frontdan rear’ga)</th></tr></thead>
+      <tbody>{Array.from({length:rowCount},(_,row)=><tr key={row}>
+        <td><input disabled={disabled} value={values[`${row}:0`]??''} onChange={(event)=>setValue(row,0,event.target.value)} aria-label={`${row+1}-bosqich`}/></td>
+        <td><input disabled={disabled} value={values[`${row}:1`]??''} onChange={(event)=>setValue(row,1,event.target.value)} aria-label={`${row+1}-bosqichdagi stack yoki queue holati`}/></td>
+      </tr>)}</tbody>
+    </table></div>
+    <div className="sre-row-tools">
+      <button type="button" disabled={disabled||rowCount>=30} onClick={()=>setRowCount((value)=>Math.min(30,value+1))}>+ Qator</button>
+      <button type="button" disabled={disabled||rowCount<=1} onClick={()=>setRowCount((value)=>Math.max(1,value-1))}>− Qator</button>
+    </div>
   </section>;
 }
