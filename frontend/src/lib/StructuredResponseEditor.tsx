@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import type { StructuredQuestionContent } from './structured-question-content';
 import type { StructuredResponseV1 } from './structured-response';
 import { emptyStructuredResponse } from './structured-response';
@@ -116,7 +116,7 @@ function DrawingResponse({
   const lines=response.lines[blockKey]??[];
   const setAnnotations=(next:typeof annotations)=>onChange({...response,annotations:{...response.annotations,[blockKey]:next}});
   const setLines=(next:typeof lines)=>onChange({...response,lines:{...response.lines,[blockKey]:next}});
-  const click=(event:React.MouseEvent<HTMLDivElement>)=>{
+  const click=(event:ReactMouseEvent<HTMLDivElement>)=>{
     if(disabled)return;
     const rect=event.currentTarget.getBoundingClientRect();
     const x=Math.min(1,Math.max(0,(event.clientX-rect.left)/rect.width));
