@@ -412,14 +412,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   it('removes only terminal sessions from history without deleting their evidence', async () => {
     const active=await makeSession({code:'820006',markingMode:'teacher'});
-    await expect(service.archiveHistory(owner(),active.sessionId))
+    await expect(service.archiveHistory(owner(),active.sessionId,1))
       .rejects.toMatchObject({code:'live_archive_active_session',status:409});
 
     const terminal=await makeSession({code:'820007',markingMode:'teacher'});
     const cancelled=await service.cancel(owner(),terminal.sessionId,1);
     expect(cancelled.status).toBe('cancelled');
 
-    const archived=await service.archiveHistory(owner(),terminal.sessionId);
+    const archived=await service.archiveHistory(owner(),terminal.sessionId,cancelled.version);
     expect(archived).toMatchObject({sessionId:terminal.sessionId,archived:true});
 
     const row=await client.query<{archived_at:Date|null;question_count:number;event_count:number}>(
