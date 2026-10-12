@@ -70,6 +70,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install pinned axe accessibility engine for browser acceptance
+        run: npm install --no-save --package-lock=false axe-core@4.14.0
       - name: Build frontend bundle
         run: npm run build -w frontend
       - name: Resolve Chrome executable

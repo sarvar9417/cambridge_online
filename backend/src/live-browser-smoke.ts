@@ -2,10 +2,15 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import puppeteer, { type Browser, type ConsoleMessage, type HTTPRequest, type Page } from 'puppeteer-core';
 
 type ActorKey='teacher'|'projector'|'student1'|'student2'|'student3';
 type ViewportSize={width:number;height:number};
+type SnapshotStatus='lobby'|'question_open';
+type AxeViolation={id:string;impact:string|null;help:string;nodes:Array<{target:string[]}>};
+const require=createRequire(import.meta.url);
+const axeCore=require('axe-core') as {source:string};
 
 const SESSION_ID='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CLASS_ID='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -74,13 +79,13 @@ function user(actor:ActorKey){
 const sourceSvg='<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180"><rect x="10" y="10" width="620" height="160" rx="8" fill="white" stroke="black"/><text x="40" y="60" font-size="24">A</text><path d="M70 52 H220" stroke="black" stroke-width="3"/><rect x="220" y="30" width="120" height="70" fill="none" stroke="black" stroke-width="3"/><text x="250" y="72" font-size="24">AND</text><path d="M340 65 H520" stroke="black" stroke-width="3"/><text x="530" y="72" font-size="24">Q</text><text x="40" y="130" font-size="20">Cambridge source-backed logic circuit</text></svg>';
 const assetUrl=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sourceSvg)}`;
 
-function snapshot(actor:ActorKey){
+function snapshot(actor:ActorKey,status:SnapshotStatus='question_open'){
   const isStaff=actor==='teacher'||actor==='projector';
   const tableRows=Array.from({length:6},(_,r)=>Array.from({length:8},(_,c)=>`${r}:${c}`));
   return{
     session:{
       id:SESSION_ID,classId:CLASS_ID,className:'AS Computer Science',title:'Browser acceptance',
-      joinCode:'654321',status:'question_open',markingMode:'peer',questionTimeLimitS:300,version:7,
+      joinCode:'654321',status,markingMode:'peer',questionTimeLimitS:300,version:7,
       pausedAt:null,pauseRemainingS:null,
       settings:{allowLateJoin:true,autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:true,leaderboardMode:'marks'},
       questionCount:1,participantCount:3,currentQuestionIndex:0,createdAt:now,updatedAt:now,
@@ -133,7 +138,7 @@ function snapshot(actor:ActorKey){
   };
 }
 
-async function installApi(page:Page,actor:ActorKey){
+async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open'){
   await page.setRequestInterception(true);
   page.on('request',(request:HTTPRequest)=>{
     const url=new URL(request.url());
@@ -144,7 +149,7 @@ async function installApi(page:Page,actor:ActorKey){
     if(path==='/assignments'||path==='/results'||path==='/exports'){void json(request,{data:[]});return;}
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
-    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor));return;}
+    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor,status));return;}
     if(path===`/live-exams/${SESSION_ID}/events`){void json(request,{sessionId:SESSION_ID,currentVersion:7,changed:false,events:[]});return;}
     if(path===`/live-exams/${SESSION_ID}/heartbeat`){void json(request,{serverNow:now});return;}
     void json(request,{data:[]});
@@ -185,6 +190,38 @@ async function openSurface(browser:Browser,base:string,actor:ActorKey,viewport:V
   return{context,page,result,consoleErrors};
 }
 
+async function assertAxe(page:Page,label:string){
+  await page.addScriptTag({content:axeCore.source});
+  const violations=await page.evaluate(async()=>{
+    const axe=(window as unknown as {axe:{run:(root:Document,options:unknown)=>Promise<{violations:AxeViolation[]}>}}).axe;
+    const result=await axe.run(document,{
+      runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']},
+    });
+    return result.violations;
+  });
+  if(violations.length){
+    throw new Error(`${label} axe violations: ${violations.map((v)=>`${v.id}(${v.impact}): ${v.nodes.map((n)=>n.target.join(' ')).join(', ')}`).join(' | ')}`);
+  }
+}
+
+async function assertReducedMotion(browser:Browser,base:string){
+  const context=await browser.createBrowserContext();
+  const page=await context.newPage();
+  await page.setViewport({width:390,height:844});
+  await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
+  await installApi(page,'student1','lobby');
+  await page.goto(`${base}/#oquvchi/live?id=${SESSION_ID}`,{waitUntil:'networkidle0',timeout:30_000});
+  await page.waitForSelector('.live-pulse',{timeout:15_000});
+  const result=await page.$eval('.live-pulse',(node)=>({
+    animationName:getComputedStyle(node).animationName,
+    liveText:node.parentElement?.querySelector('[role="status"]')?.textContent??'',
+  }));
+  if(result.animationName!=='none')throw new Error(`reduced-motion lobby still animates: ${result.animationName}`);
+  if(!result.liveText.includes('O‘qituvchi'))throw new Error('lobby status is not exposed as a screen-reader status');
+  await assertAxe(page,'student lobby reduced-motion');
+  await context.close();
+}
+
 const address=await listen();
 const base=`http://127.0.0.1:${address.port}`;
 const chrome=process.env.CHROME_PATH;
@@ -200,6 +237,7 @@ try{
   const surfaces=await Promise.all([
     openSurface(browser,base,'teacher',{width:1440,height:1000},`oqitish/live?id=${SESSION_ID}`),
     openSurface(browser,base,'projector',{width:1920,height:1080},`oqitish/live?id=${SESSION_ID}&projector=1`),
+    openSurface(browser,base,'projector',{width:3840,height:2160},`oqitish/live?id=${SESSION_ID}&projector=1`),
     openSurface(browser,base,'student1',{width:390,height:844},`oquvchi/live?id=${SESSION_ID}`),
     openSurface(browser,base,'student2',{width:768,height:1024},`oquvchi/live?id=${SESSION_ID}`),
     openSurface(browser,base,'student3',{width:1366,height:768},`oquvchi/live?id=${SESSION_ID}`),
@@ -214,9 +252,27 @@ try{
     }
     if(result.bodyOverflow>2)throw new Error(`surface ${index} page overflowed by ${result.bodyOverflow}px`);
   }
-  if(!surfaces[1].result.projector)throw new Error('projector context did not render projector overlay');
+  if(!surfaces[1].result.projector||!surfaces[2].result.projector)throw new Error('projector context did not render projector overlay');
   if(surfaces[0].result.projector)throw new Error('teacher context unexpectedly rendered projector overlay');
-  console.log('Live multi-context browser smoke passed: teacher + projector + 3 students with table/diagram/pseudocode/KaTeX+MathML fidelity');
+  const mobile=surfaces[3]!;
+  const mobileA11y=await mobile.page.evaluate(()=>{
+    const textarea=document.querySelector<HTMLTextAreaElement>('#live-answer');
+    const status=document.querySelector('.live-save-status');
+    return{
+      textareaFont:textarea?Number.parseFloat(getComputedStyle(textarea).fontSize):0,
+      textareaHeight:textarea?.getBoundingClientRect().height??0,
+      describedBy:textarea?.getAttribute('aria-describedby')??'',
+      saveRole:status?.getAttribute('role')??'',
+      saveLive:status?.getAttribute('aria-live')??'',
+    };
+  });
+  if(mobileA11y.textareaFont<16||mobileA11y.textareaHeight<200||mobileA11y.describedBy!=='live-answer-help'
+    ||mobileA11y.saveRole!=='status'||mobileA11y.saveLive!=='polite'){
+    throw new Error(`mobile student accessibility failure: ${JSON.stringify(mobileA11y)}`);
+  }
+  for(const [index,surface] of surfaces.entries())await assertAxe(surface.page,`live surface ${index}`);
+  await assertReducedMotion(browser,base);
+  console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, 1080p/4K projector, mobile answer UX, and source fidelity');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));
