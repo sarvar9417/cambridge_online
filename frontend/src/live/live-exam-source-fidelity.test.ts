@@ -13,7 +13,9 @@ describe('live exam source fidelity contract', () => {
 
   it('never falls back to legacy text when canonical content exists but an asset is unavailable', () => {
     expect(source).toContain('const hasCanonicalContent=Boolean(portable.leaf.contentJson);');
-    expect(source).toContain('hasCanonicalContent&&content?<StructuredQuestionView');
+    expect(source).toContain('hasCanonicalContent&&content?');
+    expect(source).toContain('StructuredResponseWorkspace');
+    expect(source).toContain('StructuredQuestionView');
     expect(source).not.toContain('structuredQuestionUsable(content)&&structuredQuestionAssetsReady(content,assetUrls)');
   });
 

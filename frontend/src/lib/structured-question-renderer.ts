@@ -6,6 +6,9 @@ export type StructuredAssetResolver=(assetId:string)=>string|null|undefined;
 
 export type StructuredQuestionRenderOptions={
   resolveAsset?:StructuredAssetResolver;
+  responseValues?:Record<string,string>;
+  onResponseChange?:(key:string,value:string)=>void;
+  readOnly?:boolean;
 };
 
 function text(className:string,value:string){
@@ -121,7 +124,7 @@ function renderMath(block:Extract<StructuredQuestionBlock,{type:'math'}>){
   return node;
 }
 
-function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
+function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>,options:StructuredQuestionRenderOptions,blockIndex:number){
   const table=document.createElement('table');
   table.className=`structured-question-table structured-question-${block.kind.replaceAll('_','-')}`;
   table.dataset.questionBlock='table';
@@ -147,10 +150,23 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
     cells.forEach((value,columnIndex)=>{
       const cell=document.createElement('td');
       const key=`${rowIndex}:${columnIndex}`;
-      cell.textContent=value??'';
       if(editable.has(key)){
+        const responseKey=`table:${blockIndex}:${rowIndex}:${columnIndex}`;
         cell.dataset.editable='true';
-        cell.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+        if(options.onResponseChange){
+          const input=document.createElement('input');
+          input.type='text';
+          input.className='structured-question-cell-input';
+          input.value=options.responseValues?.[responseKey]??'';
+          input.disabled=Boolean(options.readOnly);
+          input.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+          input.addEventListener('input',()=>options.onResponseChange?.(responseKey,input.value));
+          cell.append(input);
+        }else{
+          cell.textContent=options.responseValues?.[responseKey]??'';
+        }
+      }else{
+        cell.textContent=value??'';
       }
       row.append(cell);
     });
@@ -160,7 +176,7 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>){
   return table;
 }
 
-function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>){
+function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>,options:StructuredQuestionRenderOptions,blockIndex:number){
   const wrapper=document.createElement('div');
   wrapper.className='structured-question-matching';
   wrapper.dataset.questionBlock='matching';
@@ -170,7 +186,35 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   for(const item of block.left){
     const row=document.createElement('li');
     row.dataset.matchId=item.id;
-    row.textContent=item.text;
+    const prompt=document.createElement('span');
+    prompt.textContent=item.text;
+    const responseKey=`match:${blockIndex}:${item.id}`;
+    if(options.onResponseChange){
+      const select=document.createElement('select');
+      select.className='structured-question-match-select';
+      select.disabled=Boolean(options.readOnly);
+      const blank=document.createElement('option');
+      blank.value='';
+      blank.textContent='Mos javobni tanlang';
+      select.append(blank);
+      for(const candidate of block.right){
+        const option=document.createElement('option');
+        option.value=candidate.id;
+        option.textContent=candidate.text;
+        select.append(option);
+      }
+      select.value=options.responseValues?.[responseKey]??'';
+      select.addEventListener('change',()=>options.onResponseChange?.(responseKey,select.value));
+      row.append(prompt,select);
+    }else{
+      const selected=block.right.find((candidate)=>candidate.id===options.responseValues?.[responseKey]);
+      row.append(prompt);
+      if(selected){
+        const answer=document.createElement('strong');
+        answer.textContent=` → ${selected.text}`;
+        row.append(answer);
+      }
+    }
     left.append(row);
   }
 
@@ -186,7 +230,7 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
   return wrapper;
 }
 
-function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRenderOptions){
+function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRenderOptions,blockIndex:number){
   switch(block.type){
     case 'text': return renderTextBlock(block);
     case 'math': return renderMath(block);
@@ -211,8 +255,8 @@ function renderBlock(block:StructuredQuestionBlock,options:StructuredQuestionRen
       }
       return list;
     }
-    case 'table': return renderTable(block);
-    case 'matching': return renderMatching(block);
+    case 'table': return renderTable(block,options,blockIndex);
+    case 'matching': return renderMatching(block,options,blockIndex);
     case 'asset': {
       const figure=document.createElement('figure');
       figure.className=`structured-question-asset structured-question-${block.kind.replaceAll('_','-')}`;
@@ -248,11 +292,11 @@ export function renderStructuredQuestionContent(
   options:StructuredQuestionRenderOptions={},
 ){
   const fragment=document.createDocumentFragment();
-  for(const block of content.blocks){
-    const node=renderBlock(block,options);
+  content.blocks.forEach((block,blockIndex)=>{
+    const node=renderBlock(block,options,blockIndex);
     node.dataset.sourcePage=String(block.source.page);
     if(block.source.bbox)node.dataset.sourceBbox=block.source.bbox.join(',');
     fragment.append(node);
-  }
+  });
   return fragment;
 }

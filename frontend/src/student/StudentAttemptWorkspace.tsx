@@ -2,6 +2,13 @@ import type { Attempt } from '../lib/api';
 import { AttemptContext } from '../AttemptContext';
 import { materializePortableSourceAssets, portableAssetsForContent } from '../lib/portable-source-assets';
 import { StructuredQuestionView, structuredQuestionAssetsReady, structuredQuestionUsable } from './StructuredQuestionView';
+import { StructuredResponseWorkspace } from './StructuredResponseWorkspace';
+import {
+  isStructuredResponseText,
+  parseStructuredResponse,
+  structuredResponseHasValue,
+  structuredResponseMode,
+} from '../lib/structured-response';
 import './student-attempt-workspace.css';
 
 export function formatRemainingTime(seconds: number | null) {
@@ -15,8 +22,12 @@ export function formatRemainingTime(seconds: number | null) {
     : `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
-export const isAnswered = (value: string | undefined) => Boolean(value?.trim());
-export const answerWordCount = (value: string | undefined) => value?.trim() ? value.trim().split(/\s+/).length : 0;
+export const isAnswered = (value: string | undefined) => isStructuredResponseText(value)
+  ? structuredResponseHasValue(parseStructuredResponse(value))
+  : Boolean(value?.trim());
+export const answerWordCount = (value: string | undefined) => isStructuredResponseText(value)
+  ? 0
+  : value?.trim() ? value.trim().split(/\s+/).length : 0;
 
 export interface StudentAttemptWorkspaceProps {
   attempt: Attempt;
@@ -61,6 +72,9 @@ export function StudentAttemptWorkspace({
     && structuredQuestionAssetsReady(materializedContent!, effectiveAssetUrls);
   const sourceContentBlocked = structuredPresent && !structuredReady;
   const answerDisabled = expired || sourceContentBlocked;
+  const responseMode=structuredValid&&materializedContent
+    ?structuredResponseMode(materializedContent,question.answerKind,question.stemMd)
+    :'text';
 
   return (
     <main className="saw">
@@ -125,7 +139,17 @@ export function StudentAttemptWorkspace({
           </div>
 
           <article className="saw-question">
-            {structuredReady && materializedContent ? (
+            {structuredReady && materializedContent && responseMode!=='text' ? (
+              <StructuredResponseWorkspace
+                content={materializedContent}
+                assetUrls={effectiveAssetUrls}
+                answerKind={question.answerKind}
+                stem={question.stemMd}
+                value={answers[question.id]??''}
+                disabled={answerDisabled}
+                onChange={(value)=>onAnswerChange(question.id,value)}
+              />
+            ) : structuredReady && materializedContent ? (
               <StructuredQuestionView content={materializedContent} assetUrls={effectiveAssetUrls} />
             ) : structuredPresent ? (
               <StructuredQuestionView content={materializedContent!} assetUrls={effectiveAssetUrls} />
@@ -137,7 +161,7 @@ export function StudentAttemptWorkspace({
             )}
           </article>
 
-          <section className="saw-answer">
+          {responseMode==='text'&&<section className="saw-answer">
             <div className="saw-answer-head">
               <label htmlFor={`answer-${question.id}`}>Javobing</label>
               <span>{answerWordCount(answers[question.id])} so‘z · avtomatik saqlanadi</span>
@@ -150,7 +174,7 @@ export function StudentAttemptWorkspace({
               onChange={(event) => onAnswerChange(question.id, event.target.value)}
               placeholder={sourceContentBlocked ? 'Savol to‘liq yuklanmaguncha javob berib bo‘lmaydi.' : expired ? 'Vaqt tugagan.' : 'Javobingni shu yerga yoz...'}
             />
-          </section>
+          </section>}
 
           <nav className="saw-bottom-nav" aria-label="Savollar orasida yurish">
             <button type="button" className="secondary" disabled={index === 0} onClick={onPrevious}>← Oldingi</button>

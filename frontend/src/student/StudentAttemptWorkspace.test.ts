@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { StructuredQuestionContent } from '../lib/structured-question-content';
 import { answerWordCount, formatRemainingTime, isAnswered } from './StudentAttemptWorkspace';
 import { structuredQuestionAssetsReady } from './StructuredQuestionView';
+import { emptyStructuredResponse,serializeStructuredResponse } from '../lib/structured-response';
 
 const assetId='22222222-2222-4222-8222-222222222222';
 const structured:StructuredQuestionContent={
@@ -25,6 +26,16 @@ describe('student attempt workspace helpers', () => {
     expect(isAnswered(undefined)).toBe(false);
     expect(isAnswered('   ')).toBe(false);
     expect(isAnswered('answer')).toBe(true);
+  });
+
+  it('treats an empty structured workspace as unanswered and a filled cell as answered',()=>{
+    const empty=serializeStructuredResponse(emptyStructuredResponse());
+    expect(isAnswered(empty)).toBe(false);
+    const response=emptyStructuredResponse();
+    response.tables['table:0:0:1']='42';
+    const filled=serializeStructuredResponse(response);
+    expect(isAnswered(filled)).toBe(true);
+    expect(answerWordCount(filled)).toBe(0);
   });
 
   it('counts words without inflating repeated whitespace', () => {
