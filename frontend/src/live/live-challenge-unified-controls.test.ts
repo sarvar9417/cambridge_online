@@ -31,6 +31,7 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('/answers/${answer.id}/moderate');
     expect(page).toContain('expectedVersion:snapshot.session.version');
     expect(page).toContain('levelNumber,expectedVersion:snapshot.session.version');
+    expect(page).toContain('feedback:feedback||undefined,expectedVersion:snapshot.session.version');
   });
 
   it('never submits peer/self reviews as if the teacher were the assigned reviewer',()=>{
