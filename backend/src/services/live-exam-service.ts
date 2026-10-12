@@ -660,6 +660,8 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & {
       limit: number;
+      offset?: number;
+      search?: string;
       includeData?: boolean;
       includeCounts?: boolean;
     },
@@ -672,7 +674,12 @@ export class LiveExamService {
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
-    }, false);
+    }, false, false, {
+      offset:input.offset ?? 0,
+      search:input.search,
+      sort:'source',
+      seed:'live-builder-pool',
+    });
     let selection;
     let databaseTotal: number | undefined;
     let liveReadyTotal: number | undefined;
