@@ -36,7 +36,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   "document": "LIVE-GAME-MASTER-SPEC.md",
   "audit": {
     "date": "2026-10-12",
-    "base_sha": "9066876a1acfc95454dcbbe9befa55b66e05b19b",
+    "base_sha": "6ae276b9cba2b39adb236a51371e43753a84f3bd",
     "scope": "backend, database migrations, frontend, realtime cursor, scoring, evidence, tests and release history"
   },
   "release": {
@@ -75,12 +75,12 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "real_database_multi_client_acceptance": true,
     "teacher_transition_idempotency": true,
     "classroom_scale_acceptance": true,
-    "late_join_fairness": true
+    "late_join_fairness": true,
+    "builder_completeness": true
   },
   "gaps": {
     "p0": [],
     "p1": [
-      { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
       { "id": "LG-P1-09", "title": "Detailed reports and exports" },
       { "id": "LG-P1-10", "title": "Observability, retention and archive policy" },
       { "id": "LG-P1-11", "title": "Accessibility and responsive browser coverage" },
@@ -103,6 +103,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-04": "versioned per-user/session/question local drafts; exponential and online retry plus page lifecycle flush; real browser E2E verifies failed autosave, reload recovery, visible two-tab conflict blocking and explicit conflict resolution before server persistence; PR #330",
       "LG-P1-05": "real PostgreSQL 30/60 learner bursts measure cursor, heartbeat and full snapshot paths with poolMax=10 and explicit p95/wall budgets; PR #327 CI observed 60-learner p95 cursor 25.6ms, heartbeat 14.7ms and snapshot 88.5ms, while 90 snapshot hydrations reused one signed-asset operation",
       "LG-P1-06": "teacher-authorized read-only projector endpoint; anonymous alias is the privacy-preserving default with configurable initials/first/full-name modes; projector standings omit student IDs and real browser E2E asserts projector snapshot omits learner roster, answers, reviews and report payloads; PR #332",
+      "LG-P1-07": "create-immediately-opens-lobby semantics; source-ready manual picker with deterministic pagination/search; difficulty, marks, year, session, paper and diagram filters; dependency-expanded count/marks preview; selected-question reorder and replace; merged PR #337 as 6ae276b9cba2b39adb236a51371e43753a84f3bd after CI verify, real PostgreSQL, Live browser matrix and teacher/projector/3-student E2E all passed",
       "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328"
     },
     "p0_closure_evidence": {
@@ -618,13 +619,14 @@ Majburiy E2E matrix:
 - Projector uchun minimal response DTO/token yoki teacher-authorised read-only view.
 - Student answer va internal IDs projector payloadiga kirmasligi contract test.
 
-### LG-P1-07 — Builder completeness
+### LG-P1-07 — Builder completeness — CLOSED 2026-10-12
 
-- Draft/publish yoki clear “create immediately opens lobby” semantics.
-- Selected questions preview, drag reorder, replace.
-- Difficulty, total marks, source session/year/paper va diagram filters.
-- Dependency-expanded count/marks oldindan ko‘rsatish.
-- Pool pagination/search; hozir manual picker random 30 bilan cheklangan.
+- Canonical semantics: create darhol lobby ochadi; alohida draft/publish holati yo‘q.
+- Selected-question preview, drag/up-down reorder va replace ishlaydi.
+- Difficulty, marks range, source year/session/paper va diagram filters builder va server eligibilityda bir xil qo‘llanadi.
+- Dependency-expanded savol soni va jami marks room yaratilishidan oldin preview qilinadi.
+- Manual pool source-order pagination va ref/stem search bilan ishlaydi; eski random-30 cheklovi olib tashlangan.
+- Acceptance: PR #337 merged as `6ae276b9cba2b39adb236a51371e43753a84f3bd`; exact pre-merge head `ef83a866d97c39dc313af8f490363fc67dca764f` da `npm run verify`, real PostgreSQL suite, Live browser matrix va teacher + projector + 3 learner E2E green.
 
 ### LG-P1-08 — Late join fairness
 
