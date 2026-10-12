@@ -540,20 +540,17 @@ export class LiveExamService {
       return { ids:[] as string[],total:Number(result.rows[0]?.total ?? 0) };
     }
     values.push(input.questionCount);
-    const limitParameter = `${values.length}`;
-    let offsetClause = '';
+    const limitParameter='$'+values.length;
+    let offsetClause='';
     if ((options.offset ?? 0) > 0) {
       values.push(options.offset);
-      offsetClause = ` offset ${values.length}`;
+      offsetClause=' offset $'+values.length;
     }
-    const orderClause = options.sort === 'source'
+    const orderClause=options.sort==='source'
       ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
       : 'md5(candidate.id::text || $1::text)';
     const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (${candidateSql}) candidate
-       order by ${orderClause}
-       limit ${limitParameter}${offsetClause}`,
+      'select candidate.id,count(*) over()::int total_count from ('+candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause,
       values,
     );
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
