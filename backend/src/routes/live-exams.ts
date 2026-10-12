@@ -30,6 +30,13 @@ const createInput = z.object({
   teacherOverrideEnabled: z.boolean().default(true),
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
   displayNameMode: z.enum(['full', 'first_name', 'initials', 'anonymous_alias']).default('anonymous_alias'),
+  sourceYear: z.number().int().min(2000).max(2100).optional(),
+  sourceSeries: z.enum(['MJ','ON','FM']).optional(),
+  sourceComponent: z.number().int().min(1).max(9).optional(),
+  sourceVariant: z.number().int().min(0).max(9).optional(),
+  minMarks: z.number().int().min(1).max(100).optional(),
+  maxMarks: z.number().int().min(1).max(100).optional(),
+  search: z.string().trim().max(120).optional(),
 }).strict();
 
 const versionInput = z.object({
@@ -103,6 +110,13 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       limit:z.coerce.number().int().min(1).default(30),
       includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
+      sourceYear:z.coerce.number().int().min(2000).max(2100).optional(),
+      sourceSeries:z.enum(['MJ','ON','FM']).optional(),
+      sourceComponent:z.coerce.number().int().min(1).max(9).optional(),
+      sourceVariant:z.coerce.number().int().min(0).max(9).optional(),
+      minMarks:z.coerce.number().int().min(1).max(100).optional(),
+      maxMarks:z.coerce.number().int().min(1).max(100).optional(),
+      search:z.string().trim().max(120).optional(),
     }).parse(req.query);
     res.json(await service.eligibleQuestions(req.actor!,{
       classId:query.classId,
@@ -114,12 +128,28 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       limit:query.limit,
       includeData:query.includeData,
       includeCounts:query.includeCounts,
+      sourceYear:query.sourceYear,
+      sourceSeries:query.sourceSeries,
+      sourceComponent:query.sourceComponent,
+      sourceVariant:query.sourceVariant,
+      minMarks:query.minMarks,
+      maxMarks:query.maxMarks,
+      search:query.search,
       allowLateJoin:false,
       autoCloseWhenAllSubmitted:false,
       teacherOverrideEnabled:true,
       leaderboardMode:'marks',
       questionOrder:'fixed',
     }));
+  });
+
+  router.post('/selection-preview', durableStaffLimit, async (req,res)=>{
+    privateNoStore(res);
+    const body=z.object({
+      classId:uuid,
+      questionIds:z.array(uuid).max(100),
+    }).strict().parse(req.body);
+    res.json(await service.previewSelection(req.actor!,body));
   });
 
   // Named routes stay above '/:id' so an ordinary word can never be parsed as

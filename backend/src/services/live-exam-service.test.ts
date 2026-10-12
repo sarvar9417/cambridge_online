@@ -214,6 +214,58 @@ describe('LiveExamService eligible pool totals', () => {
   });
 });
 
+describe('LiveExamService builder completeness',()=>{
+  const actor={id:'t1',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
+  const classId='00000000-0000-4000-8000-000000000001';
+
+  it('applies source paper, mark range and text filters to the authoritative pool',async()=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
+      if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
+      if(sql.includes('select candidate.id'))return{rowCount:0,rows:[]};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    await service.eligibleQuestions(actor,{
+      classId,topicIds:['00000000-0000-4000-8000-000000000002'],subtopicIds:[],
+      includeDiagrams:true,excludeSeen:false,limit:10,includeData:false,includeCounts:false,
+      sourceYear:2025,sourceSeries:'MJ',sourceComponent:2,sourceVariant:1,minMarks:2,maxMarks:6,search:'binary',
+      allowLateJoin:false,autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:true,
+      leaderboardMode:'marks',questionOrder:'fixed',
+    });
+    const call=query.mock.calls.find(([sql])=>String(sql).includes('select candidate.id'));
+    const sql=String(call?.[0]??'');
+    expect(sql).toContain('from source_papers live_source');
+    expect(sql).toContain('join components live_component');
+    expect(sql).toContain('live_source.year=');
+    expect(sql).toContain('live_source.series::text=');
+    expect(sql).toContain('live_source.variant=');
+    expect(sql).toContain('q.marks >=');
+    expect(sql).toContain('q.marks <=');
+    expect(sql).toContain('q.display_ref ilike');
+    expect(call?.[1]).toEqual(expect.arrayContaining([2025,'MJ',2,1,2,6,'%binary%']));
+  });
+
+  it('previews dependency-expanded count and marks before room creation',async()=>{
+    const selected='11111111-1111-4111-8111-111111111111';
+    const dependency='22222222-2222-4222-8222-222222222222';
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
+      if(sql.includes('with recursive closure(question_id)'))return{rowCount:2,rows:[
+        {question_id:selected,status:'approved',marks:3,mark_scheme_ready:true,dependencies:[dependency]},
+        {question_id:dependency,status:'approved',marks:2,mark_scheme_ready:true,dependencies:[]},
+      ]};
+      if(sql.includes('with recursive selected(question_id,ordinality)'))return{rowCount:2,rows:[
+        {id:dependency,display_ref:'Q1',marks:2,command_word:'State',stem:'Dependency',has_assets:false,dependency_count:0},
+        {id:selected,display_ref:'Q2',marks:3,command_word:'Explain',stem:'Selected',has_assets:false,dependency_count:1},
+      ]};
+      throw new Error(`unexpected query: ${sql}`);
+    });
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    await expect(service.previewSelection(actor,{classId,questionIds:[selected]})).resolves.toEqual({
+      selectedCount:1,selectedMarks:3,expandedCount:2,expandedMarks:5,dependencyCount:1,
+    });
+  });
+});
 describe('LiveExamService dependency closure', () => {
   it('orders every required prerequisite before the selected dependent question', async () => {
     const query = vi.fn(async (sql:string) => {

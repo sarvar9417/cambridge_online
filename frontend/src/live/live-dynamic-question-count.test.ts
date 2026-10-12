@@ -28,6 +28,8 @@ describe('Live dynamic question count',()=>{
     expect(page).toContain('coursebookSectionCodes:coursebookSectionCodes.join');
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]');
+    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,sourceYear,sourceSeries,sourceComponent,sourceVariant,minMarks,maxMarks,questionSearch]');
+    expect(page).toContain('sourceYear?{sourceYear}:{}');
+    expect(page).toContain('sourceSeries?{sourceSeries}:{}');
   });
 });
