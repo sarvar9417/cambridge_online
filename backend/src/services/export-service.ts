@@ -7,7 +7,7 @@ import { PgSelectionsRepository } from '../repositories/selections-repository.js
 
 interface ExportInput {
   kind: 'question_paper'|'mark_scheme'|'combined'|'feedback';
-  refTable: 'assignments'|'submissions'|'selections';
+  refTable: 'assignments'|'submissions'|'selections'|'live_exam_sessions';
   refId: string;
   format?: 'pdf'|'docx';
   title?: string;
@@ -17,11 +17,33 @@ export class ExportService {
   constructor(private readonly pool: Pool) {}
 
   async create(actor: Actor, input: ExportInput) {
-    if((input.refTable==='assignments'&&input.kind==='feedback')||(input.refTable==='submissions'&&input.kind!=='feedback')||(input.refTable==='selections'&&input.kind==='feedback'))throw new DomainError('invalid_export_kind',400);
+    if(
+      (input.refTable==='assignments'&&input.kind==='feedback')
+      ||(input.refTable==='submissions'&&input.kind!=='feedback')
+      ||(input.refTable==='selections'&&input.kind==='feedback')
+      ||(input.refTable==='live_exam_sessions'&&(input.kind!=='feedback'||(input.format??'pdf')!=='pdf'))
+    ) throw new DomainError('invalid_export_kind',400);
 
     let requestPayload: Record<string, unknown> | null = null;
 
-    if (input.refTable === 'selections') {
+    if (input.refTable === 'live_exam_sessions') {
+      if (actor.role === 'student') throw new DomainError('staff_only',403);
+      const visible = await this.pool.query(
+        `select les.id,les.title,les.status::text
+         from live_exam_sessions les
+         join classes c on c.id=les.class_id
+         where les.id=$1 and les.archived_at is null and (
+           ($2='owner' and c.school_id=$3)
+           or ($2='teacher' and (c.owner_id=$4 or exists(
+             select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
+           )))
+         )`,
+        [input.refId,actor.role,actor.schoolId,actor.id],
+      );
+      if (!visible.rowCount) throw new DomainError('not_found',404);
+      if (visible.rows[0].status !== 'finished') throw new DomainError('live_report_not_ready',409);
+      requestPayload={version:1,title:input.title?.trim()||visible.rows[0].title||'Live Challenge report'};
+    } else if (input.refTable === 'selections') {
       if (actor.role === 'student') throw new DomainError('staff_only', 403);
       const questions = new PgQuestionsRepository(this.pool);
       const selections = new PgSelectionsRepository(this.pool, questions);
