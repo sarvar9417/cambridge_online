@@ -2,6 +2,18 @@ import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 
+export type LiveProjectorDisplayNameMode = 'full'|'first'|'initials'|'anonymous';
+
+export function liveProjectorDisplayName(fullName:string,aliasNo:number,mode:LiveProjectorDisplayNameMode) {
+  const clean=fullName.trim().replace(/\s+/g,' ');
+  if(mode==='full')return clean||`Ishtirokchi ${aliasNo}`;
+  if(mode==='first')return clean.split(' ')[0]||`Ishtirokchi ${aliasNo}`;
+  if(mode==='initials'){
+    const initials=clean.split(' ').filter(Boolean).map((part)=>part[0]?.toLocaleUpperCase()).filter(Boolean).join('. ');
+    return initials?`${initials}.`:`Ishtirokchi ${aliasNo}`;
+  }
+  return `Ishtirokchi ${aliasNo}`;
+}
 export interface LiveExamStanding {
   rank: number;
   studentId?: string;
@@ -58,6 +70,10 @@ export class LiveExamRoundSummaryService {
 
     const currentPosition = Number(session.current_question_index);
     const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
+    const rawDisplayNameMode=session.settings?.displayNameMode;
+    const displayNameMode:LiveProjectorDisplayNameMode=rawDisplayNameMode==='full'||rawDisplayNameMode==='first'||rawDisplayNameMode==='initials'
+      ? rawDisplayNameMode
+      : 'anonymous';
     const [roundResult, overallResult, possibleResult] = await Promise.all([
       this.pool.query(
         `select lep.student_id,u.full_name,coalesce(a.final_score,0)::float8 score,leq.marks,
@@ -105,14 +121,14 @@ export class LiveExamRoundSummaryService {
     const round: LiveExamStanding[] = roundResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
+      studentName: projector ? liveProjectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode) : String(row.full_name),
       score: Number(row.score),
       possible: roundPossible,
     }));
     const overall: LiveExamStanding[] = overallResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
+      studentName: projector ? liveProjectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode) : String(row.full_name),
       score: Number(row.score),
       possible: overallPossible,
     }));
@@ -131,6 +147,7 @@ export class LiveExamRoundSummaryService {
       questionPosition: currentPosition,
       marksFirst: true,
       leaderboardMode: speedTieBreak ? 'marks_speed_tiebreak' : 'marks',
+      displayNameMode,
       round: {
         possible: roundPossible,
         average,
