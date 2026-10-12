@@ -268,5 +268,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
     expect(service).toContain('participants: detailedStaff ? participants.map');
     expect(service).toContain('if (currentRow && detailedStaff && reveal)');
+    expect(service).toContain('sanitizeLiveProjectorSnapshot(response)');
+    expect(source('src/lib/live-projector-privacy.ts')).toContain('sanitized.teacherAnswers=[]');
+    expect(source('src/lib/live-projector-privacy.ts')).toContain("if(key==='storagePath')");
   });
 });
