@@ -522,9 +522,10 @@ export class LiveExamService {
         values.push(offset);
         offsetParameter=String.fromCharCode(36)+values.length;
       }
+      const seedParameter=String.fromCharCode(36)+'1::text';
       const orderSql=sourceOrder
-        ? 'source_q.display_ref,source_q.id'
-        : 'md5(candidate.id::text || ' + String.fromCharCode(36) + '1::text)';
+        ? 'source_q.display_ref,source_q.id,md5(candidate.id::text || '+seedParameter+')'
+        : 'md5(candidate.id::text || '+seedParameter+')';
       result = await this.pool.query(
         `with candidate as (${candidateSql}),
          total as (select count(*)::int total_count from candidate),
