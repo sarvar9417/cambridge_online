@@ -139,6 +139,21 @@ describe('structured question DOM renderer', () => {
     expect(changes).toEqual([['match:0:compiler','whole']]);
   });
 
+  it('keeps teacher previews static when no response callback is supplied', () => {
+    const content:StructuredQuestionContent={
+      version:1,
+      source,
+      blocks:[{
+        type:'table',kind:'table',headers:['Item','Answer'],
+        rows:[['A',null]],editableCells:[[0,1]],source:{page:1},
+      }],
+    };
+    const host=document.createElement('div');
+    host.append(renderStructuredQuestionContent(content));
+    expect(host.querySelector('.structured-question-cell-input')).toBeNull();
+    expect(host.querySelector('td[data-editable="true"]')?.textContent).toBe('');
+  });
+
   it('renders verified assets by stable id and fails visibly when unresolved', () => {
     const assetId = '22222222-2222-4222-8222-222222222222';
     const content: StructuredQuestionContent = {
