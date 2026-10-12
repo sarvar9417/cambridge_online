@@ -153,3 +153,18 @@
     animation-iteration-count:1!important;
   }
 }
+
+/* Self-contained QR join surface: no third-party image/API request. */
+.live-join-qr{display:grid;justify-items:center;gap:6px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:#111}
+.live-join-qr-image{line-height:0;max-width:188px;width:100%}
+.live-join-qr-image svg{display:block;width:100%;height:auto;aspect-ratio:1}
+.live-join-qr>strong{font-size:13px}.live-join-qr>small{font-size:11px;color:#4b5563;text-align:center}
+.live-join-qr.is-compact{padding:5px;min-width:72px;width:72px}
+.live-code-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.live-active-join>.live-join-qr{flex:0 0 72px}
+.live-projector-join>.live-join-qr{margin-right:10px}
+@media(max-width:640px){
+  .live-code-actions{display:grid;grid-template-columns:1fr}
+  .live-active-join>.live-join-qr{display:none}
+}
+
