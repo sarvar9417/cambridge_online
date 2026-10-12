@@ -231,7 +231,10 @@ export class LiveExamService {
     return scheme;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
+    'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
+    'yearFrom' | 'yearTo' | 'series' | 'components'
+  >) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
@@ -275,9 +278,38 @@ export class LiveExamService {
         )
       )`);
     }
+    if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
+    if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
+    if (input.difficulty === 'hard') filters.push('q.marks>=5');
+    if (input.marksMin !== undefined) {
+      values.push(input.marksMin);
+      filters.push(`q.marks>=${values.length}`);
+    }
+    if (input.marksMax !== undefined) {
+      values.push(input.marksMax);
+      filters.push(`q.marks<=${values.length}`);
+    }
+    if (input.yearFrom !== undefined) {
+      values.push(input.yearFrom);
+      filters.push(`sp.year>=${values.length}`);
+    }
+    if (input.yearTo !== undefined) {
+      values.push(input.yearTo);
+      filters.push(`sp.year<=${values.length}`);
+    }
+    if (input.series?.length) {
+      values.push(input.series);
+      filters.push(`sp.series::text=any(${values.length}::text[])`);
+    }
+    if (input.components?.length) {
+      values.push(input.components);
+      filters.push(`source_component.number=any(${values.length}::int[])`);
+    }
     const result = await this.pool.query(
       `select count(distinct q.id)::int total
        from questions q
+       join source_papers sp on sp.id=q.source_paper_id
+       join components source_component on source_component.id=sp.component_id
        where ${filters.join(' and ')}`,
       values,
     );
