@@ -15,6 +15,19 @@ export interface LiveExamScoreBucket {
   count: number;
 }
 
+type ProjectorDisplayNameMode = 'full' | 'first_name' | 'initials' | 'anonymous_alias';
+
+function projectorDisplayName(fullName:string,aliasNo:number,mode:ProjectorDisplayNameMode) {
+  const parts=fullName.trim().split(/\s+/).filter(Boolean);
+  if(mode==='full')return fullName.trim() || `Ishtirokchi ${aliasNo}`;
+  if(mode==='first_name')return parts[0] ?? `Ishtirokchi ${aliasNo}`;
+  if(mode==='initials'){
+    const initials=parts.map((part)=>part[0]?.toLocaleUpperCase()).filter(Boolean).join('.');
+    return initials ? `${initials}.` : `Ishtirokchi ${aliasNo}`;
+  }
+  return `Ishtirokchi ${aliasNo}`;
+}
+
 /**
  * Teacher-facing marks-first standings for a Live Exam.
  *
@@ -58,6 +71,11 @@ export class LiveExamRoundSummaryService {
 
     const currentPosition = Number(session.current_question_index);
     const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
+    const displayNameMode:ProjectorDisplayNameMode = session.settings?.displayNameMode === 'full'
+      || session.settings?.displayNameMode === 'first_name'
+      || session.settings?.displayNameMode === 'initials'
+      ? session.settings.displayNameMode
+      : 'anonymous_alias';
     const [roundResult, overallResult, possibleResult] = await Promise.all([
       this.pool.query(
         `select lep.student_id,u.full_name,coalesce(a.final_score,0)::float8 score,leq.marks,
@@ -105,14 +123,18 @@ export class LiveExamRoundSummaryService {
     const round: LiveExamStanding[] = roundResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
+      studentName: projector
+        ? projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)
+        : String(row.full_name),
       score: Number(row.score),
       possible: roundPossible,
     }));
     const overall: LiveExamStanding[] = overallResult.rows.map((row) => ({
       rank: Number(row.rank),
       ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}` : String(row.full_name),
+      studentName: projector
+        ? projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)
+        : String(row.full_name),
       score: Number(row.score),
       possible: overallPossible,
     }));
