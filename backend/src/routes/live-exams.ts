@@ -218,10 +218,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       levelNumber:z.number().int().positive().optional(),
       feedback:z.string().trim().max(5000).optional(),
     }).strict();
+    let expectedVersion:number|undefined;
     const body=req.actor!.role==='student'
       ? reviewInput.parse(req.body)
-      : reviewInput.extend({expectedVersion:z.number().int().positive()}).parse(req.body);
-    const expectedVersion='expectedVersion' in body?body.expectedVersion:undefined;
+      : (()=>{const parsed=reviewInput.extend({expectedVersion:z.number().int().positive()}).parse(req.body);expectedVersion=parsed.expectedVersion;return parsed})();
     return mutation(req,res,()=>service.submitReview(
       req.actor!,id(req.params),id(req.params,'reviewId'),
       {matchedPointIds:body.matchedPointIds,score:body.score,levelNumber:body.levelNumber,feedback:body.feedback},
