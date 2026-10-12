@@ -341,7 +341,11 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     )).rows[0].count)).toBe(0);
 
     for (const review of teacherPending) {
-      await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]});
+      const version=Number((await client.query<{version:number}>(
+        'select version::int version from live_exam_sessions where id=$1',
+        [sessionId],
+      )).rows[0]!.version);
+      await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]},version);
     }
     const releasedState=await client.query<{status:string}>(
       'select status::text status from live_exam_sessions where id=$1',[sessionId],
