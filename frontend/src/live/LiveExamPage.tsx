@@ -403,7 +403,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     if(!window.confirm(`"${session.title}" sessiyasi tarixdan o‘chirilsinmi? Natija va mastery evidence xavfsizlik uchun saqlanadi.`))return;
     setDeletingSessionId(session.id);setError('');
     try{
-      await api(`/live-exams/${session.id}`,{method:'DELETE'});
+      await api(`/live-exams/${session.id}`,{method:'DELETE',body:JSON.stringify({expectedVersion:session.version})});
       setSessions((current)=>current.filter((item)=>item.id!==session.id));
     }catch(cause){setError(message(cause,'Sessiyani tarixdan o‘chirib bo‘lmadi.'))}
     finally{setDeletingSessionId('')}
@@ -668,7 +668,7 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
   const submit=async()=>{
     setBusy(true);setError('');
     try{
-      if(teacherOwnsReview)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
+      if(teacherOwnsReview)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined,expectedVersion:snapshot.session.version})});
       else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined,levelNumber,expectedVersion:snapshot.session.version})});
       await onDone();
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'))}finally{setBusy(false)}
