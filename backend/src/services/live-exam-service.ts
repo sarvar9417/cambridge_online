@@ -283,27 +283,27 @@ export class LiveExamService {
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
     if (input.marksMin !== undefined) {
       values.push(input.marksMin);
-      filters.push(`q.marks>=${values.length}`);
+      filters.push(`q.marks>=$${values.length}`);
     }
     if (input.marksMax !== undefined) {
       values.push(input.marksMax);
-      filters.push(`q.marks<=${values.length}`);
+      filters.push(`q.marks<=$${values.length}`);
     }
     if (input.yearFrom !== undefined) {
       values.push(input.yearFrom);
-      filters.push(`sp.year>=${values.length}`);
+      filters.push(`sp.year>=$${values.length}`);
     }
     if (input.yearTo !== undefined) {
       values.push(input.yearTo);
-      filters.push(`sp.year<=${values.length}`);
+      filters.push(`sp.year<=$${values.length}`);
     }
     if (input.series?.length) {
       values.push(input.series);
-      filters.push(`sp.series::text=any(${values.length}::text[])`);
+      filters.push(`sp.series::text=any($${values.length}::text[])`);
     }
     if (input.components?.length) {
       values.push(input.components);
-      filters.push(`source_component.number=any(${values.length}::int[])`);
+      filters.push(`source_component.number=any($${values.length}::int[])`);
     }
     const result = await this.pool.query(
       `select count(distinct q.id)::int total
@@ -467,38 +467,38 @@ export class LiveExamService {
     }
     if (input.questionIds?.length) {
       values.push(input.questionIds);
-      filters.push(`q.id=any(${values.length}::uuid[])`);
+      filters.push(`q.id=any($${values.length}::uuid[])`);
     }
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
     if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
     if (input.marksMin !== undefined) {
       values.push(input.marksMin);
-      filters.push(`q.marks>=${values.length}`);
+      filters.push(`q.marks>=$${values.length}`);
     }
     if (input.marksMax !== undefined) {
       values.push(input.marksMax);
-      filters.push(`q.marks<=${values.length}`);
+      filters.push(`q.marks<=$${values.length}`);
     }
     if (input.yearFrom !== undefined) {
       values.push(input.yearFrom);
-      filters.push(`sp.year>=${values.length}`);
+      filters.push(`sp.year>=$${values.length}`);
     }
     if (input.yearTo !== undefined) {
       values.push(input.yearTo);
-      filters.push(`sp.year<=${values.length}`);
+      filters.push(`sp.year<=$${values.length}`);
     }
     if (input.series?.length) {
       values.push(input.series);
-      filters.push(`sp.series::text=any(${values.length}::text[])`);
+      filters.push(`sp.series::text=any($${values.length}::text[])`);
     }
     if (input.components?.length) {
       values.push(input.components);
-      filters.push(`source_component.number=any(${values.length}::int[])`);
+      filters.push(`source_component.number=any($${values.length}::int[])`);
     }
     if (options.search?.trim()) {
       values.push(options.search.trim());
-      const parameter=`${values.length}`;
+      const parameter=`$${values.length}`;
       filters.push(`(q.display_ref ilike '%'||${parameter}||'%' or coalesce(q.stem_md,'') ilike '%'||${parameter}||'%')`);
     }
     if (input.excludeSeen) {
@@ -540,7 +540,23 @@ export class LiveExamService {
       return { ids:[] as string[],total:Number(result.rows[0]?.total ?? 0) };
     }
     values.push(input.questionCount);
-    const limitParameter='
+    const limitParameter = `${values.length}`;
+    let offsetClause = '';
+    if ((options.offset ?? 0) > 0) {
+      values.push(options.offset);
+      offsetClause = ` offset ${values.length}`;
+    }
+    const orderClause = options.sort === 'source'
+      ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
+      : 'md5(candidate.id::text || $1::text)';
+    const result = await this.pool.query(
+      `select candidate.id,count(*) over()::int total_count
+       from (${candidateSql}) candidate
+       order by ${orderClause}
+       limit ${limitParameter}${offsetClause}`,
+      values,
+    );
+    const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
     const selected = result.rows.map((row) => String(row.id));
     if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
