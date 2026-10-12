@@ -195,7 +195,9 @@ describe('Live Exam release security and recovery contract',()=>{
   it('snapshots official response levels and fails closed when they are absent',()=>{
     expect(service).toContain("'levels',coalesce((select jsonb_agg");
     expect(service).toContain("'levelNumber',msl.level_number");
-    expect(service).toContain("ms.scheme_type <> 'levels_of_response'::scheme_type");
+    expect(service).toContain("liveMarkSchemeCapabilitySql('ms')");
+    expect(service).toContain('liveMarkSchemeCapabilityReady(scheme)');
+    expect(source('./lib/live-mark-scheme-capability.ts')).toContain("case 'levels_of_response'");
     expect(source('../frontend/src/lib/api.ts')).toContain('LiveMarkSchemeLevel');
     expect(source('../frontend/src/live/LiveExamPage.tsx')).toContain('scheme.levels.map');
   });
