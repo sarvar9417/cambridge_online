@@ -506,15 +506,7 @@ export class LiveExamService {
       return { ids:[] as string[],total:Number(result.rows[0]?.total ?? 0) };
     }
     values.push(input.questionCount);
-    const limitParameter='
-    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
-      const available = new Set(selected);
-      return { ids:input.questionIds.filter((id) => available.has(id)), total };
-    }
-    return { ids:selected, total };
-  }
-
-+values.length;
+    const limitParameter=String.fromCharCode(36)+values.length;
     let result;
     if (!sourceOrder && offset === 0) {
       result = await this.pool.query(
@@ -532,7 +524,7 @@ export class LiveExamService {
       }
       const orderSql=sourceOrder
         ? 'source_q.display_ref,source_q.id'
-        : 'md5(candidate.id::text || $1::text)';
+        : 'md5(candidate.id::text || ' + String.fromCharCode(36) + '1::text)';
       result = await this.pool.query(
         `with candidate as (${candidateSql}),
          total as (select count(*)::int total_count from candidate),
@@ -557,7 +549,6 @@ export class LiveExamService {
     }
     return { ids:selected, total };
   }
-
   private async expandRequiredDependencies(questionIds: string[]) {
     if (!questionIds.length) return [];
     const result = await this.pool.query(
