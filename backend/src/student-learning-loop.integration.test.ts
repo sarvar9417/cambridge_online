@@ -21,8 +21,8 @@ describe('student closed learning-loop HTTP contract',()=>{
       practiceTargets:[{subtopicId,code:'7.4',title:'Standard methods'}],
     }]);
     const createPractice=vi.fn().mockResolvedValue({id:practiceId,title:'Mashq · 7.4 Standard methods',totalMarks:10,questionCount:5});
-    const touchLesson=vi.fn().mockResolvedValue({chapterNo:7,slideId:'ch7-book-074',visitedAt:'2026-09-04T11:00:00Z',completedAt:'2026-09-04T11:00:00Z'});
-    const lessonProgress=vi.fn().mockResolvedValue([{chapterNo:7,slideId:'ch7-book-074',visitedAt:'2026-09-04T11:00:00Z',completedAt:'2026-09-04T11:00:00Z'}]);
+    const touchLesson=vi.fn().mockResolvedValue({courseCode:'0478',chapterNo:7,slideId:'ch7-book-074',visitedAt:'2026-09-04T11:00:00Z',completedAt:'2026-09-04T11:00:00Z'});
+    const lessonProgress=vi.fn().mockResolvedValue([{courseCode:'0478',chapterNo:7,slideId:'ch7-book-074',visitedAt:'2026-09-04T11:00:00Z',completedAt:'2026-09-04T11:00:00Z'}]);
 
     const resultsService={detail,list:vi.fn()} as unknown as ResultsService;
     const assignmentsService={createPractice} as unknown as AssignmentsService;
@@ -48,9 +48,9 @@ describe('student closed learning-loop HTTP contract',()=>{
 
     await request(app)
       .put('/content/lessons/progress')
-      .send({chapterNo:7,slideId:'ch7-book-074',completed:true})
+      .send({courseCode:'0478',chapterNo:7,slideId:'ch7-book-074',completed:true})
       .expect(200);
-    expect(touchLesson).toHaveBeenCalledWith(student,{chapterNo:7,slideId:'ch7-book-074',completed:true});
+    expect(touchLesson).toHaveBeenCalledWith(student,{courseCode:'0478',chapterNo:7,slideId:'ch7-book-074',completed:true});
 
     const progress=await request(app).get('/content/lessons/progress').expect(200);
     expect(progress.body.data).toHaveLength(1);

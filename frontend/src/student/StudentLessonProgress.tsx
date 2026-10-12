@@ -11,10 +11,10 @@ import {
 } from './student-lesson-topic-model';
 import './student-lesson-progress.css';
 
-export function completedForChapter(progress: LessonProgress[], chapterNo: number, validSlideIds?: Set<string>) {
+export function completedForChapter(progress: LessonProgress[], chapterNo: number, validSlideIds?: Set<string>, courseCode:'9618'|'0478'='9618') {
   return new Set(
     progress
-      .filter((item) => item.chapterNo === chapterNo && item.completedAt && (!validSlideIds || validSlideIds.has(item.slideId)))
+      .filter((item) => item.courseCode === courseCode && item.chapterNo === chapterNo && item.completedAt && (!validSlideIds || validSlideIds.has(item.slideId)))
       .map((item) => item.slideId),
   );
 }
@@ -33,8 +33,8 @@ export function completedPagesForChapter(progress: LessonProgress[], chapter: St
 }
 
 function mergeProgress(current:LessonProgress[], saved:LessonProgress[]) {
-  const keys=new Set(saved.map(item=>`${item.chapterNo}:${item.slideId}`));
-  return [...saved,...current.filter(item=>!keys.has(`${item.chapterNo}:${item.slideId}`))];
+  const keys=new Set(saved.map(item=>`${item.courseCode}:${item.chapterNo}:${item.slideId}`));
+  return [...saved,...current.filter(item=>!keys.has(`${item.courseCode}:${item.chapterNo}:${item.slideId}`))];
 }
 
 export function StudentLessonProgress() {
@@ -65,7 +65,7 @@ export function StudentLessonProgress() {
     let cancelled=false;
     void Promise.all(currentSlideIds.map(slideId=>api<LessonProgress>('/content/lessons/progress', {
       method: 'PUT',
-      body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:false }),
+      body: JSON.stringify({ courseCode:'9618', chapterNo: chapter.number, slideId, completed:false }),
     }))).then(saved=>{if(!cancelled)setProgress(current=>mergeProgress(current,saved));}).catch(()=>{});
     return()=>{cancelled=true;};
   }, [chapterNo, currentPageKey]);
@@ -91,7 +91,7 @@ export function StudentLessonProgress() {
     try {
       const saved=await Promise.all(currentSlideIds.map(slideId=>api<LessonProgress>('/content/lessons/progress', {
         method: 'PUT',
-        body: JSON.stringify({ chapterNo: chapter.number, slideId, completed:true }),
+        body: JSON.stringify({ courseCode:'9618', chapterNo: chapter.number, slideId, completed:true }),
       })));
       setProgress(current=>mergeProgress(current,saved));
     } finally {

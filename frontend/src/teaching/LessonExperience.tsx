@@ -30,7 +30,7 @@ import {
   presentationBeatsForCatalogTopic,
 } from './lesson-course-catalog';
 import { LessonPresentationScreen, LessonStudySlide, revealCountForBeat } from './LessonContent';
-import { LessonPastPaper } from './LessonPastPaper';
+import { LessonPastPaper, type LessonSelfAssessment } from './LessonPastPaper';
 import { RealSlideDeckPresentation } from './RealSlideDeckPresentation';
 import { realSlideDeckFor } from './real-slide-decks';
 import './lesson-experience.css';
@@ -47,18 +47,23 @@ function lessonUrl(audience:LessonAudience,course:LessonCourseCode,chapter:numbe
   return `${audience==='student'?'oquvchi':'oqitish'}/darslar?${params}`;
 }
 
-function safeStorageGet(key:string){try{return window.localStorage.getItem(key);}catch{return null;}}
+function chapterUrl(audience:LessonAudience,course:LessonCourseCode,chapter:number){
+  const params=new URLSearchParams({course,chapter:String(chapter)});
+  return (audience==='student'?'oquvchi':'oqitish')+'/darslar?'+params.toString();
+}
+
+
 function safeStorageSet(key:string,value:string){try{window.localStorage.setItem(key,value);}catch{/* Persistence is optional. */}}
 
 function mergeProgress(current:LessonProgress[],saved:LessonProgress[]){
-  const keys=new Set(saved.map(item=>`${item.chapterNo}:${item.slideId}`));
-  return [...saved,...current.filter(item=>!keys.has(`${item.chapterNo}:${item.slideId}`))];
+  const keys=new Set(saved.map(item=>item.courseCode+':'+item.chapterNo+':'+item.slideId));
+  return [...saved,...current.filter(item=>!keys.has(item.courseCode+':'+item.chapterNo+':'+item.slideId))];
 }
 
 function pageSlideIds(page:TopicPage){return [...new Set(page.slides.map(slide=>slide.id))];}
 
 function completedPageIds(progress:LessonProgress[],chapter:LessonExperienceChapter){
-  const complete=new Set(progress.filter(item=>item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
+  const complete=new Set(progress.filter(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
   const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
   return new Set(topics.flatMap(topic=>topic.pages).filter(page=>page.kind==='study'&&pageSlideIds(page).every(id=>complete.has(id))).map(page=>page.id));
 }
@@ -88,13 +93,22 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
     const topic=mode==='exam'?firstTopicWithPractice(topics):topics[0];
     if(!topic)return;
     const syllabus=courseCode(chapter);
-    const remembered=mode==='study'?safeStorageGet(`campath:lesson:last:${audience}:${syllabus}:${chapter.number}`):null;
-    if(remembered){navigate(remembered);return;}
+    if(mode==='study'){navigate(chapterUrl(audience,syllabus,chapter.number));return;}
     const page=firstStudyPage(topic);
     navigate(lessonUrl(audience,syllabus,chapter.number,topic.code,Math.max(0,topic.pages.indexOf(page!)),mode));
   };
+  const totalSections=LESSON_COURSE_CATALOG.reduce((sum,chapter)=>sum+chapterStats(chapter).studyPages.length,0);
+  const completedSections=LESSON_COURSE_CATALOG.reduce((sum,chapter)=>sum+completedPageIds(progress,chapter).size,0);
+  const startedChapters=LESSON_COURSE_CATALOG.filter(chapter=>progress.some(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number)).length;
+  const overallPercent=totalSections?Math.round((completedSections/totalSections)*100):0;
+
   return <section className="lx-library" aria-labelledby="lx-library-title">
     <header className="lx-library-head"><div><span>LESSONS</span><h1 id="lx-library-title">A clear route through the course</h1><p>Choose a chapter, study the complete content or open the classroom presentation.</p></div><div className="lx-library-tools"><label><MagnifyingGlass size={19} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search chapters or topics" aria-label="Search chapters or topics"/></label><div role="group" aria-label="Course filter"><button type="button" className={course==='all'?'is-active':''} onClick={()=>setCourse('all')}>All</button><button type="button" className={course==='9618'?'is-active':''} onClick={()=>setCourse('9618')}>9618</button><button type="button" className={course==='0478'?'is-active':''} onClick={()=>setCourse('0478')}>0478</button></div></div></header>
+    {audience==='student'?<section className="lx-learning-stats" aria-label="Darslar progressi">
+      <article><strong>{completedSections} / {totalSections}</strong><span>Tugallangan bo‘lim</span></article>
+      <article><strong>{overallPercent}%</strong><span>Umumiy progress</span></article>
+      <article><strong>{startedChapters} / {LESSON_COURSE_CATALOG.length}</strong><span>Boshlangan chapter</span></article>
+    </section>:null}
     {groups.map(group=>{
       const chapters=filtered.filter(chapter=>courseCode(chapter)===group.code);
       if(!chapters.length)return null;
@@ -107,6 +121,56 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
     })}
     {!filtered.length?<div className="lx-empty"><strong>No lessons found.</strong><p>Change the search term or course filter.</p></div>:null}
   </section>;
+}
+
+function ChapterOverview({audience,chapter,progress}:{audience:LessonAudience;chapter:LessonExperienceChapter;progress:LessonProgress[]}) {
+  const syllabus=courseCode(chapter);
+  const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
+  const completedPages=completedPageIds(progress,chapter);
+  const studyPages=topics.flatMap(topic=>topic.pages.filter(page=>page.kind==='study'));
+  const percent=studyPages.length?Math.round((completedPages.size/studyPages.length)*100):0;
+  const openTopic=(topic:LessonTopic)=>{
+    const pages=topic.pages.filter(page=>page.kind==='study');
+    const page=pages.find(item=>!completedPages.has(item.id))??pages[0];
+    if(page)navigate(lessonUrl(audience,syllabus,chapter.number,topic.code,pages.indexOf(page),'study'));
+  };
+  const practiceTopic=firstTopicWithPractice(topics);
+  const firstTopic=topics.find(topic=>firstStudyPage(topic))??null;
+  return <section className="lx-module-overview">
+    <button type="button" className="lx-module-back" onClick={()=>navigate((audience==='student'?'oquvchi':'oqitish')+'/darslar')}><ArrowLeft size={18}/>Darslarga qaytish</button>
+    <header className="lx-module-hero">
+      <div><span>{syllabus} · {chapter.level} · CHAPTER {String(chapter.number).padStart(2,'0')}</span><h1>{chapter.title}</h1><p>{chapter.subtitle}</p><div className="lx-module-track" aria-label={'Chapter progressi '+percent+'%'}><i style={{width:percent+'%'}}/></div></div>
+      <aside>{audience==='student'?<><strong>{percent}%</strong><span>{completedPages.size} / {studyPages.length} bo‘lim</span></>:<><strong>{studyPages.length}</strong><span>study bo‘lim</span></>}{practiceTopic?<button type="button" onClick={()=>{const page=practicePage(practiceTopic);if(page)navigate(lessonUrl(audience,syllabus,chapter.number,practiceTopic.code,0,'exam'))}}><FileText size={18}/>Bilimni tekshirish</button>:null}{audience==='teacher'&&firstTopic?<button type="button" onClick={()=>{const page=firstStudyPage(firstTopic);if(page)navigate(lessonUrl(audience,syllabus,chapter.number,firstTopic.code,0,'present'))}}><ChalkboardTeacher size={18}/>Present chapter</button>:null}</aside>
+    </header>
+    <section className="lx-module-topics"><header><div><h2>Mavzular</h2><p>Nazariya → bilimni tekshirish → natija</p></div><span>{topics.length} mavzu</span></header>
+      <div>{topics.map((topic,index)=>{
+        const pages=topic.pages.filter(page=>page.kind==='study');
+        if(!pages.length)return null;
+        const done=pages.filter(page=>completedPages.has(page.id)).length;
+        const topicPercent=Math.round((done/pages.length)*100);
+        const complete=done===pages.length;
+        return <article key={topic.code}><div className={complete?'is-complete':''}>{complete?<CheckCircle size={19}/>:<span>{String(index+1).padStart(2,'0')}</span>}</div><div><span>{topicLabel(topic)}</span><h3>{topic.title}</h3><p>{done} / {pages.length} bo‘lim · {topicPercent}%</p><div className="lx-topic-track"><i style={{width:topicPercent+'%'}}/></div></div><button type="button" onClick={()=>openTopic(topic)}>{complete?'Ko‘rish':done?'Davom ettirish':'O‘rganish'}<ArrowRight size={17}/></button></article>;
+      })}</div>
+    </section>
+  </section>;
+}
+
+function LearnerStageBar({phase,checkReady,resultReady,onStudy,onCheck,onResult}:{phase:'study'|'check'|'result';checkReady:boolean;resultReady:boolean;onStudy:()=>void;onCheck:()=>void;onResult:()=>void}) {
+  const stages=[
+    {key:'study' as const,label:'O‘rganish',ready:true,action:onStudy},
+    {key:'check' as const,label:'Bilimni tekshirish',ready:checkReady,action:onCheck},
+    {key:'result' as const,label:'Natija',ready:resultReady,action:onResult},
+  ];
+  const current=stages.findIndex(stage=>stage.key===phase);
+  return <nav className="lx-learning-stages" aria-label="Dars bosqichlari">{stages.map((stage,index)=>{
+    const active=stage.key===phase;
+    const complete=index<current||(stage.key==='study'&&phase!=='study');
+    return <button type="button" disabled={!stage.ready} aria-current={active?'step':undefined} className={active?'is-active':complete?'is-complete':''} onClick={stage.action} key={stage.key}><span>{complete?<CheckCircle size={17}/>:index+1}</span><strong>{stage.label}</strong></button>;
+  })}</nav>;
+}
+
+function LearnerResult({result,onRetry,onStudy}:{result:LessonSelfAssessment;onRetry:()=>void;onStudy:()=>void}) {
+  return <main className="lx-learner-result"><section><span>SELF-ASSESSMENT RESULT</span><h1>{result.percentage}%</h1><p>{result.earned} / {result.possible} ball · {result.assessedQuestions} ta Past Paper savoli baholandi</p><div className="lx-result-track"><i style={{width:result.percentage+'%'}}/></div><aside>Bu natija official mark scheme bo‘yicha o‘zingiz belgilagan mark pointlardan hisoblandi. Bu teacher grade yoki yakuniy mastery bahosi emas.</aside><div><button type="button" onClick={onRetry}><FileText size={18}/>Past Paperga qaytish</button><button type="button" onClick={onStudy}><BookOpenText size={18}/>Nazariyani qayta ko‘rish</button></div></section></main>;
 }
 
 function ModeTabs({audience,mode,onChange}:{audience:LessonAudience;mode:LessonMode;onChange:(mode:LessonMode)=>void}){
@@ -138,7 +202,8 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
   const course:LessonCourseCode=requestedCourse==='0478'?'0478':'9618';
   const chapter=lessonCatalogChapter(course,chapterNumber);
   const topics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[],[chapter]);
-  const activeTopic=topics.find(topic=>topic.code===(route.params.get('topic')??''))??topics[0]??null;
+  const topicParam=route.params.get('topic')??'';
+  const activeTopic=topics.find(topic=>topic.code===topicParam)??topics[0]??null;
   const requestedMode=route.params.get('mode');
   const mode:LessonMode=requestedMode==='exam'||(requestedMode==='present'&&audience==='teacher')?requestedMode:'study';
   const studyPages=useMemo(()=>activeTopic?.pages.filter(page=>page.kind==='study')??[],[activeTopic]);
@@ -154,6 +219,13 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
   const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,presentationLength-1));
   const activeBeat=realDeck?null:beats[beatIndex]??null;
   const [reveal,setReveal]=useState(0);
+  const [assessment,setAssessment]=useState<LessonSelfAssessment>({assessedQuestions:0,earned:0,possible:0,percentage:0});
+  const [showResult,setShowResult]=useState(false);
+
+  useEffect(()=>{
+    setAssessment({assessedQuestions:0,earned:0,possible:0,percentage:0});
+    setShowResult(false);
+  },[course,chapterNumber,topicParam]);
 
   const navigateTo=useCallback((targetTopic:LessonTopic,targetPage:TopicPage,targetMode:LessonMode=mode,targetBeat=0)=>{
     if(!chapter)return;
@@ -176,7 +248,7 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
     if(audience!=='student')return;
     let cancelled=false;
     const ids=pageSlideIds(activePage);
-    void Promise.all(ids.map(slideId=>api<LessonProgress>('/content/lessons/progress',{method:'PUT',body:JSON.stringify({chapterNo:chapter.number,slideId,completed:false})}))).then(saved=>{if(!cancelled)setProgress(current=>mergeProgress(current,saved))}).catch(()=>{});
+    void Promise.all(ids.map(slideId=>api<LessonProgress>('/content/lessons/progress',{method:'PUT',body:JSON.stringify({courseCode:syllabus,chapterNo:chapter.number,slideId,completed:false})}))).then(saved=>{if(!cancelled)setProgress(current=>mergeProgress(current,saved))}).catch(()=>{});
     return()=>{cancelled=true};
   },[audience,chapter,activeTopic?.code,activePage?.id,mode,studyPages]);
 
@@ -189,6 +261,7 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
 
   const setMode=useCallback((nextMode:LessonMode)=>{
     if(!chapter||!activeTopic)return;
+    setShowResult(false);
     if(nextMode==='exam'){
       const topic=practicePage(activeTopic)?activeTopic:firstTopicWithPractice(topics);
       const page=topic?practicePage(topic):null;
@@ -227,6 +300,7 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
   },[mode,activeBeat,realDeck,beatIndex,presentationLength,reveal,exitPresentation,openBeat]);
 
   if(!chapter)return <LessonLibrary audience={audience} progress={progress}/>;
+  if(!topicParam&&mode==='study')return <ChapterOverview audience={audience} chapter={chapter} progress={progress}/>;
   if(!activeTopic)return <section className="lx-empty"><strong>No lesson is available for this chapter.</strong><button type="button" onClick={()=>navigate(`${audience==='student'?'oquvchi':'oqitish'}/darslar`)}>Back to lessons</button></section>;
 
   if(mode==='present'){
@@ -249,10 +323,15 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
 
   const flatStudy=topics.flatMap(topic=>topic.pages.filter(page=>page.kind==='study').map(page=>({topic,page})));
   const flatIndex=activePage?flatStudy.findIndex(item=>item.page.id===activePage.id):-1;
-  const previous=flatIndex>0?flatStudy[flatIndex-1]:null;
-  const next=flatIndex>=0&&flatIndex<flatStudy.length-1?flatStudy[flatIndex+1]:null;
+  const topicPageIndex=activePage?studyPages.findIndex(page=>page.id===activePage.id):-1;
+  const previous=audience==='student'
+    ?(topicPageIndex>0?{topic:activeTopic,page:studyPages[topicPageIndex-1]!}:null)
+    :(flatIndex>0?flatStudy[flatIndex-1]:null);
+  const next=audience==='student'
+    ?(topicPageIndex>=0&&topicPageIndex<studyPages.length-1?{topic:activeTopic,page:studyPages[topicPageIndex+1]!}:null)
+    :(flatIndex>=0&&flatIndex<flatStudy.length-1?flatStudy[flatIndex+1]:null);
   const currentIds=activePage?pageSlideIds(activePage):[];
-  const completedSlides=new Set(progress.filter(item=>item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
+  const completedSlides=new Set(progress.filter(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
   const pageComplete=Boolean(currentIds.length&&currentIds.every(id=>completedSlides.has(id)));
   const completedInChapter=completedPageIds(progress,chapter).size;
   const totalInChapter=flatStudy.length;
@@ -260,23 +339,27 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
     if(audience!=='student'||!activePage||saving||pageComplete)return;
     setSaving(true);
     try{
-      const saved=await Promise.all(currentIds.map(slideId=>api<LessonProgress>('/content/lessons/progress',{method:'PUT',body:JSON.stringify({chapterNo:chapter.number,slideId,completed:true})})));
+      const saved=await Promise.all(currentIds.map(slideId=>api<LessonProgress>('/content/lessons/progress',{method:'PUT',body:JSON.stringify({courseCode:courseCode(chapter),chapterNo:chapter.number,slideId,completed:true})})));
       setProgress(current=>mergeProgress(current,saved));
     }finally{setSaving(false);}
   };
   const openOutlinePage=(topic:LessonTopic,page:TopicPage)=>navigateTo(topic,page,mode);
   const examPage=practicePage(activeTopic);
 
-  return <section ref={rootRef} className={`lesson-experience lx-reader${mode==='exam'?' lx-reader--exam':''}`}>
-    <header className="lx-chapter-bar"><button type="button" className="lx-back" onClick={()=>navigate(`${audience==='student'?'oquvchi':'oqitish'}/darslar`)}><ArrowLeft size={20}/><span>Lessons</span></button><div className="lx-chapter-title"><span>{courseCode(chapter)} · {chapter.level} · Chapter {chapter.number}</span><strong>{chapter.title}</strong></div><ModeTabs audience={audience} mode={mode} onChange={setMode}/><button type="button" className="lx-mobile-outline" aria-expanded={outlineOpen} onClick={()=>setOutlineOpen(open=>!open)}><List size={21}/><span>Contents</span></button></header>
-    <div className="lx-reading-progress" aria-label={`Chapter progressi ${completedInChapter}/${totalInChapter}`}><span style={{width:`${totalInChapter?(completedInChapter/totalInChapter)*100:0}%`}}/></div>
-    <div className={`lx-layout${outlineOpen?' is-outline-open':''}`}>
+  const learnerPhase:'study'|'check'|'result'=showResult?'result':mode==='exam'?'check':'study';
+  const openResult=()=>{if(assessment.assessedQuestions>0)setShowResult(true)};
+
+  return <section ref={rootRef} className={'lesson-experience lx-reader'+(mode==='exam'?' lx-reader--exam':'')}>
+    <header className="lx-chapter-bar"><button type="button" className="lx-back" onClick={()=>navigate(chapterUrl(audience,courseCode(chapter),chapter.number))}><ArrowLeft size={20}/><span>Chapter</span></button><div className="lx-chapter-title"><span>{courseCode(chapter)} · {chapter.level} · Chapter {chapter.number}</span><strong>{chapter.title}</strong></div>{audience==='teacher'?<ModeTabs audience={audience} mode={mode} onChange={setMode}/>:null}<button type="button" className="lx-mobile-outline" aria-expanded={outlineOpen} onClick={()=>setOutlineOpen(open=>!open)}><List size={21}/><span>Contents</span></button></header>
+    <div className="lx-reading-progress" aria-label={'Chapter progressi '+completedInChapter+'/'+totalInChapter}><span style={{width:(totalInChapter?(completedInChapter/totalInChapter)*100:0)+'%'}}/></div>
+    {audience==='student'?<LearnerStageBar phase={learnerPhase} checkReady={Boolean(examPage)} resultReady={assessment.assessedQuestions>0} onStudy={()=>setMode('study')} onCheck={()=>setMode('exam')} onResult={openResult}/>:null}
+    <div className={'lx-layout'+(outlineOpen?' is-outline-open':'')}>
       <TopicOutline topics={topics} activeTopic={activeTopic} activePage={mode==='study'?activePage:examPage} mode={mode} onOpen={openOutlinePage} onClose={()=>setOutlineOpen(false)}/>
       {outlineOpen?<button type="button" className="lx-outline-scrim" aria-label="Close contents" onClick={()=>setOutlineOpen(false)}/>:null}
       {mode==='study'?<main className="lx-reader-main">
-        {activePage?<><header className="lx-page-head"><div><span>{topicLabel(activeTopic)} · {studyPages.indexOf(activePage)+1}/{studyPages.length}</span><h1>{displayPageTitle(activePage,activeTopic)}</h1><p>{activeTopic.title}</p></div>{audience==='student'?<button type="button" className={pageComplete?'is-complete':''} disabled={pageComplete||saving} onClick={markComplete}><CheckCircle size={21}/>{pageComplete?'Completed':saving?'Saving…':'Mark lesson complete'}</button>:null}</header><div className="lx-study-content">{learnerSlidesForPage(activePage).map(slide=><LessonStudySlide sourceSlide={slide} pageTitle={displayPageTitle(activePage,activeTopic)} key={slide.id}/>)}</div>{audience==='teacher'?<SourceAudit page={activePage}/>:null}</>:<div className="lx-empty"><strong>No study section is available for this topic.</strong></div>}
-        <footer className="lx-reader-nav"><button type="button" disabled={!previous} onClick={()=>previous&&navigateTo(previous.topic,previous.page,'study')}><ArrowLeft size={20}/><span>Previous lesson</span></button><div><span>{Math.max(0,flatIndex+1)} / {flatStudy.length}</span><small>Chapter progress</small></div><button type="button" disabled={!next} onClick={()=>next&&navigateTo(next.topic,next.page,'study')}><span>Next lesson</span><ArrowRight size={20}/></button></footer>
-      </main>:<main className="lx-exam-shell"><header className="lx-exam-topic-head"><div><span>{courseCode(chapter)} · CHAPTER {chapter.number} · PAST PAPERS</span><h1>{chapter.title}</h1><p>Approved Cambridge questions mapped to this chapter's learning objectives. Focus on one question, write an answer and then check it against the mark scheme.</p></div>{audience==='teacher'?<button type="button" onClick={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}><ArrowsOut size={20}/>Full screen</button>:null}</header><LessonPastPaper page={examPage} topic={activeTopic} audience={audience} userId={userId}/></main>}
+        {activePage?<><header className="lx-page-head"><div><span>{topicLabel(activeTopic)} · {studyPages.indexOf(activePage)+1}/{studyPages.length}</span><h1>{displayPageTitle(activePage,activeTopic)}</h1><p>{activeTopic.title}</p></div>{audience==='student'?<button type="button" className={pageComplete?'is-complete':''} disabled={pageComplete||saving} onClick={markComplete}><CheckCircle size={21}/>{pageComplete?'Tugallangan':saving?'Saqlanmoqda…':'Darsni tugallash'}</button>:null}</header><div className="lx-study-content">{learnerSlidesForPage(activePage).map(slide=><LessonStudySlide sourceSlide={slide} pageTitle={displayPageTitle(activePage,activeTopic)} key={slide.id}/>)}</div>{audience==='teacher'?<SourceAudit page={activePage}/>:null}</>:<div className="lx-empty"><strong>No study section is available for this topic.</strong></div>}
+        <footer className="lx-reader-nav"><button type="button" disabled={!previous} onClick={()=>previous&&navigateTo(previous.topic,previous.page,'study')}><ArrowLeft size={20}/><span>Oldingi bo‘lim</span></button><div><span>{Math.max(0,topicPageIndex+1)} / {studyPages.length}</span><small>{activeTopic.title}</small></div>{next?<button type="button" onClick={()=>navigateTo(next.topic,next.page,'study')}><span>Keyingi bo‘lim</span><ArrowRight size={20}/></button>:audience==='student'&&examPage?<button type="button" className="lx-check-cta" onClick={()=>setMode('exam')}><span>Bilimni tekshirish</span><ArrowRight size={20}/></button>:<button type="button" disabled><span>Mavzu tugadi</span><CheckCircle size={20}/></button>}</footer>
+      </main>:showResult&&audience==='student'?<LearnerResult result={assessment} onRetry={()=>setShowResult(false)} onStudy={()=>setMode('study')}/>:<main className="lx-exam-shell"><header className="lx-exam-topic-head"><div><span>{courseCode(chapter)} · {topicLabel(activeTopic)} · CAMBRIDGE PAST PAPERS</span><h1>{activeTopic.title}</h1><p>Avval savolga mustaqil javob yozing. Keyin official mark scheme’ni ochib, faqat javobingizda mavjud mark pointlarni belgilang.</p></div>{audience==='teacher'?<button type="button" onClick={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}><ArrowsOut size={20}/>Full screen</button>:null}</header><LessonPastPaper page={examPage} topic={activeTopic} audience={audience} userId={userId} onAssessmentChange={audience==='student'?setAssessment:undefined}/></main>}
     </div>
   </section>;
 }

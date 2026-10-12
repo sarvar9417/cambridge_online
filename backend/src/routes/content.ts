@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { ContentService } from '../services/content-service.js';
 
-const chapterNo = z.union([z.literal(1), z.literal(7), z.literal(13)]);
+const courseCode = z.enum(['9618', '0478']);
+const chapterNo = z.number().int().min(1).max(20);
 
 export function createContentRouter(service: ContentService) {
   const router = Router();
@@ -15,12 +16,14 @@ export function createContentRouter(service: ContentService) {
   });
   router.put('/lessons/progress', async (req, res) => {
     const body = z.object({
+      courseCode: courseCode.default('9618'),
       chapterNo,
       slideId: z.string().trim().min(1).max(160),
       completed: z.boolean().default(false),
     }).strict().parse(req.body);
     res.json(await service.touchLesson(req.actor!, {
-      chapterNo: body.chapterNo!,
+      courseCode: body.courseCode,
+      chapterNo: body.chapterNo,
       slideId: body.slideId,
       completed: body.completed,
     }));

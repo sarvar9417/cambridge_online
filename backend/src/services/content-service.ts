@@ -13,13 +13,14 @@ export class ContentService {
   async lessonProgress(actor: Actor) {
     this.student(actor);
     const result = await this.pool.query(
-      `select chapter_no,slide_id,visited_at,completed_at
+      `select course_code,chapter_no,slide_id,visited_at,completed_at
        from student_lesson_progress
        where student_id=$1
-       order by chapter_no,visited_at`,
+       order by course_code,chapter_no,visited_at`,
       [actor.id],
     );
     return result.rows.map((row) => ({
+      courseCode: String(row.course_code) as '9618'|'0478',
       chapterNo: Number(row.chapter_no),
       slideId: row.slide_id,
       visitedAt: row.visited_at,
@@ -27,19 +28,20 @@ export class ContentService {
     }));
   }
 
-  async touchLesson(actor: Actor, input: { chapterNo: number; slideId: string; completed: boolean }) {
+  async touchLesson(actor: Actor, input: { courseCode: '9618'|'0478'; chapterNo: number; slideId: string; completed: boolean }) {
     this.student(actor);
     const result = await this.pool.query(
-      `insert into student_lesson_progress(student_id,chapter_no,slide_id,visited_at,completed_at)
-       values($1,$2,$3,now(),case when $4 then now() else null end)
-       on conflict(student_id,chapter_no,slide_id) do update set
+      `insert into student_lesson_progress(student_id,course_code,chapter_no,slide_id,visited_at,completed_at)
+       values($1,$2,$3,$4,now(),case when $5 then now() else null end)
+       on conflict(student_id,course_code,chapter_no,slide_id) do update set
          visited_at=now(),
-         completed_at=case when $4 then coalesce(student_lesson_progress.completed_at,now()) else student_lesson_progress.completed_at end
-       returning chapter_no,slide_id,visited_at,completed_at`,
-      [actor.id, input.chapterNo, input.slideId, input.completed],
+         completed_at=case when $5 then coalesce(student_lesson_progress.completed_at,now()) else student_lesson_progress.completed_at end
+       returning course_code,chapter_no,slide_id,visited_at,completed_at`,
+      [actor.id, input.courseCode, input.chapterNo, input.slideId, input.completed],
     );
     const row = result.rows[0];
     return {
+      courseCode: String(row.course_code) as '9618'|'0478',
       chapterNo: Number(row.chapter_no),
       slideId: row.slide_id,
       visitedAt: row.visited_at,

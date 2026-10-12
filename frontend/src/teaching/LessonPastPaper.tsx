@@ -41,6 +41,15 @@ type ExamQuestion = {
 };
 type CheckpointResponse = {data:ExamQuestion[];yearFrom:number;yearTo:number;syllabusCode:string};
 
+export type LessonSelfAssessment = {
+  assessedQuestions:number;
+  earned:number;
+  possible:number;
+  percentage:number;
+};
+
+function markPointKey(point:MarkPoint,index:number){return String(index)+':'+(point.code||'MP');}
+
 function isVisualAsset(asset:ExamAsset){return ['diagram','image','flowchart','logic_circuit'].includes(asset.kind.toLowerCase());}
 function assetComplete(asset:ExamAsset){return isVisualAsset(asset)?Boolean(portableAssetUrl(asset)):Boolean(asset.url||asset.contentMd);}
 function questionComplete(question:ExamQuestion){
@@ -88,11 +97,21 @@ function QuestionContext({question,dependencyContent,includeSource=true}:{questi
 
 function answerStorageKey(userId:string,questionId:string){return `campath:past-paper-answer:${userId}:${questionId}`;}
 
-function ExamQuestionView({question,audience,userId}:{question:ExamQuestion;audience:LessonAudience;userId:string}) {
+function ExamQuestionView({
+  question,audience,userId,selectedPointIds,onTogglePoint,onAssessed,
+}:{
+  question:ExamQuestion;
+  audience:LessonAudience;
+  userId:string;
+  selectedPointIds:string[];
+  onTogglePoint:(pointId:string)=>void;
+  onAssessed:()=>void;
+}) {
   const [answer,setAnswer]=useState(()=>{
     try{return window.localStorage.getItem(answerStorageKey(userId,question.id))??'';}catch{return '';}
   });
   const [schemeOpen,setSchemeOpen]=useState(false);
+  const selected=new Set(selectedPointIds);
   const seenCanonicalContexts=new Set<string>();
   const dependencyContent=new Map<string,StructuredQuestionContent>();
   question.dependencies.forEach(dependency=>{
@@ -101,19 +120,31 @@ function ExamQuestionView({question,audience,userId}:{question:ExamQuestion;audi
   const rawCanonical=structuredQuestionUsable(question.contentJson)?question.contentJson:null;
   const canonical=rawCanonical?withoutRepeatedCanonicalContext(rawCanonical,seenCanonicalContexts):null;
   const sourceAssets=question.contextBlocks.flatMap(block=>block.assets);
+  const canReveal=audience==='teacher'||answer.trim().length>0;
+
   useEffect(()=>{
     try{window.localStorage.setItem(answerStorageKey(userId,question.id),answer);}catch{/* Local persistence is optional. */}
   },[answer,question.id,userId]);
+
+  const toggleScheme=()=>{
+    if(!canReveal)return;
+    setSchemeOpen(open=>{
+      const next=!open;
+      if(next&&audience==='student'&&question.markSchemePoints.length>0)onAssessed();
+      return next;
+    });
+  };
+
   return <article className="lx-question-paper">
     <header className="lx-question-meta"><div><span>{question.displayRef}</span><small>{question.year} · {question.series} · Paper {question.component} · Variant {question.variant}</small></div><strong>{question.marks} mark</strong></header>
     <div className="lx-question-body"><QuestionContext question={question} dependencyContent={dependencyContent} includeSource={!canonical}/>{canonical?<CanonicalContent content={canonical} assets={sourceAssets}/>:<p className="lx-question-stem">{question.stem}</p>}{question.commandWord?<span className="lx-command-word">Command word · {question.commandWord}</span>:null}</div>
     <label className="lx-answer"><span>{audience==='teacher'?'Class answer or teacher notes':'Your answer'}</span><textarea value={answer} rows={Math.max(5,Math.min(12,question.marks*2))} onChange={event=>setAnswer(event.target.value)} placeholder="Write your answer here…"/></label>
-    <div className="lx-scheme-actions"><button type="button" aria-expanded={schemeOpen} onClick={()=>setSchemeOpen(open=>!open)}><CheckCircle size={20} aria-hidden="true"/>{schemeOpen?'Hide mark scheme':'Reveal mark scheme'}</button></div>
-    {schemeOpen?<section className="lx-mark-scheme"><header><span>MARK SCHEME</span><strong>{question.marks} marks available</strong></header>{question.markSchemePoints?.length?<ol>{question.markSchemePoints.map((point,index)=><li key={`${point.code}-${index}`}><span>{point.code||`MP${index+1}`}</span><p>{point.text}</p><strong>+{point.marks}</strong></li>)}</ol>:<p className="lx-no-scheme">Approved mark points for this question are not yet available in the checkpoint database.</p>}</section>:null}
+    <div className="lx-scheme-actions"><button type="button" disabled={!canReveal} aria-expanded={schemeOpen} onClick={toggleScheme}><CheckCircle size={20} aria-hidden="true"/>{schemeOpen?'Hide mark scheme':'Reveal mark scheme'}</button>{audience==='student'&&!canReveal?<span className="lx-scheme-hint">Avval mustaqil javob yozing.</span>:null}</div>
+    {schemeOpen?<section className="lx-mark-scheme"><header><span>MARK SCHEME</span><strong>{question.marks} marks available</strong></header>{question.markSchemePoints?.length?<ol>{question.markSchemePoints.map((point,index)=>{const id=markPointKey(point,index);return <li className={(audience==='student'?'is-self-mark ':'')+(selected.has(id)?'is-selected':'')} key={id}>{audience==='student'?<input type="checkbox" aria-label={(point.code||('MP'+(index+1)))+' bajarildi'} checked={selected.has(id)} onChange={()=>onTogglePoint(id)}/>:null}<span>{point.code||('MP'+(index+1))}</span><p>{point.text}</p><strong>+{point.marks}</strong></li>})}</ol>:<p className="lx-no-scheme">Approved mark points for this question are not yet available in the checkpoint database.</p>}{audience==='student'&&question.markSchemePoints?.length?<p className="lx-self-mark-note">Faqat javobingizda aniq mavjud bo‘lgan mark pointlarni belgilang. Bu o‘z-o‘zini baholash — teacher grade emas.</p>:null}</section>:null}
   </article>;
 }
 
-export function LessonPastPaper({page,topic,audience,userId}:{page:TopicPage|null;topic:LessonTopic;audience:LessonAudience;userId:string}) {
+export function LessonPastPaper({page,topic,audience,userId,onAssessmentChange}:{page:TopicPage|null;topic:LessonTopic;audience:LessonAudience;userId:string;onAssessmentChange?:(result:LessonSelfAssessment)=>void}) {
   const scopeTopicCode=page?.topicCode??topic.code;
   const chapterNumber=Number(scopeTopicCode.split('.')[0]||0);
   const checkpointSyllabus=page?.slides.map(slide=>slide.checkpointSyllabusCode).find((value):value is '9618'|'0478'=>value==='9618'||value==='0478');
@@ -136,6 +167,8 @@ export function LessonPastPaper({page,topic,audience,userId}:{page:TopicPage|nul
   const [selectedId,setSelectedId]=useState('');
   const [query,setQuery]=useState('');
   const [year,setYear]=useState('all');
+  const [selectedPoints,setSelectedPoints]=useState<Record<string,string[]>>({});
+  const [assessedIds,setAssessedIds]=useState<string[]>([]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -159,6 +192,32 @@ export function LessonPastPaper({page,topic,audience,userId}:{page:TopicPage|nul
   const selected=filtered.find(question=>question.id===selectedId)??filtered[0]??null;
   const selectedIndex=selected?filtered.findIndex(question=>question.id===selected.id):-1;
 
+  const assessment=useMemo<LessonSelfAssessment>(()=>{
+    const assessed=new Set(assessedIds);
+    let earned=0,possible=0;
+    questions.forEach(question=>{
+      if(!assessed.has(question.id))return;
+      possible+=question.marks;
+      const chosen=new Set(selectedPoints[question.id]??[]);
+      const raw=question.markSchemePoints.reduce((sum,point,index)=>sum+(chosen.has(markPointKey(point,index))?point.marks:0),0);
+      earned+=Math.min(question.marks,raw);
+    });
+    return {assessedQuestions:assessed.size,earned,possible,percentage:possible?Math.round((earned/possible)*100):0};
+  },[assessedIds,questions,selectedPoints]);
+
+  useEffect(()=>{
+    onAssessmentChange?.(assessment);
+  },[assessment.assessedQuestions,assessment.earned,assessment.possible,assessment.percentage,onAssessmentChange]);
+
+  const togglePoint=(questionId:string,pointId:string)=>{
+    setSelectedPoints(current=>{
+      const values=new Set(current[questionId]??[]);
+      if(values.has(pointId))values.delete(pointId);else values.add(pointId);
+      return {...current,[questionId]:[...values]};
+    });
+  };
+  const markAssessed=(questionId:string)=>setAssessedIds(current=>current.includes(questionId)?current:[...current,questionId]);
+
   if(!codes.length)return <div className="lx-exam-state"><strong>Past Paper practice is not yet available for this chapter.</strong><p>The chapter does not yet have a live Cambridge learning-objective checkpoint map.</p></div>;
   if(loading)return <div className="lx-exam-state" aria-live="polite"><strong>Loading Past Paper questions…</strong><p>Preparing approved Cambridge questions for {chapterTitle}.</p></div>;
   if(error)return <div className="lx-exam-state lx-exam-state--error" role="alert"><strong>Questions could not be loaded</strong><p>{error}</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button></div>;
@@ -166,6 +225,6 @@ export function LessonPastPaper({page,topic,audience,userId}:{page:TopicPage|nul
 
   return <div className="lx-exam-workspace">
     <aside className="lx-exam-list"><header><span>{catalogSyllabus} · CHAPTER {chapterNumber} · PAST PAPERS</span><strong>{questions.length} approved questions</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
-    <main className="lx-exam-main">{selected?<><div className="lx-exam-main-actions"><span>{selectedIndex+1}/{filtered.length}</span><button type="button" aria-label="Previous question" disabled={selectedIndex<=0} onClick={()=>setSelectedId(filtered[selectedIndex-1]!.id)}><ArrowLeft size={20}/></button><button type="button" aria-label="Next question" disabled={selectedIndex<0||selectedIndex>=filtered.length-1} onClick={()=>setSelectedId(filtered[selectedIndex+1]!.id)}><ArrowRight size={20}/></button><button type="button" onClick={()=>window.print()}><Printer size={20}/> Print</button></div><ExamQuestionView key={`${userId}:${selected.id}`} question={selected} audience={audience} userId={userId}/></>:<div className="lx-exam-state"><strong>No question matches the current filters.</strong><p>Change the search term or year filter.</p></div>}</main>
+    <main className="lx-exam-main">{selected?<><div className="lx-exam-main-actions"><span>{selectedIndex+1}/{filtered.length}</span><button type="button" aria-label="Previous question" disabled={selectedIndex<=0} onClick={()=>setSelectedId(filtered[selectedIndex-1]!.id)}><ArrowLeft size={20}/></button><button type="button" aria-label="Next question" disabled={selectedIndex<0||selectedIndex>=filtered.length-1} onClick={()=>setSelectedId(filtered[selectedIndex+1]!.id)}><ArrowRight size={20}/></button><button type="button" onClick={()=>window.print()}><Printer size={20}/> Print</button></div><ExamQuestionView key={userId+':'+selected.id} question={selected} audience={audience} userId={userId} selectedPointIds={selectedPoints[selected.id]??[]} onTogglePoint={pointId=>togglePoint(selected.id,pointId)} onAssessed={()=>markAssessed(selected.id)}/></>:<div className="lx-exam-state"><strong>No question matches the current filters.</strong><p>Change the search term or year filter.</p></div>}</main>
   </div>;
 }

@@ -251,7 +251,7 @@ export interface CommandWordProgress {commandWord:string;percentage:number;sampl
 export interface ReviewQuestion {id:string;display_ref:string;stem_md:string;context_md:string|null;marks:number|null;command_word:string|null;answer_kind:string;answer_lines:number;extract_confidence:number;storage_path:string;findings:Array<{id?:string;code:string;severity:string;message:string}>}
 export interface Flashcard {flashcard_id:string;front_md:string;back_md:string;hint_md:string|null}
 export interface ContentGames {termMatch:Array<{id:string;term:string;definition:string}>;sequence:Array<{id:string;code:string;text:string}>;spotTheGap:Array<{id:string;prompt:string;answer:string}>}
-export interface LessonProgress {chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
+export interface LessonProgress {courseCode:'9618'|'0478';chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
 export interface ExportItem {id:string;file_format?:'pdf'|'docx';kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
 export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
