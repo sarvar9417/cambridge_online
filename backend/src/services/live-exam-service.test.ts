@@ -219,7 +219,7 @@ describe('LiveExamService builder completeness',()=>{
   const classId='00000000-0000-4000-8000-000000000001';
 
   it('applies source paper, mark range and text filters to the authoritative pool',async()=>{
-    const query=vi.fn(async(sql:string)=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
       if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
       if(sql.includes('select candidate.id'))return{rowCount:0,rows:[]};
       throw new Error(`unexpected query: ${sql}`);
