@@ -1,8 +1,8 @@
 # CamPath Live Game / Live Challenge — yagona master specification
 
-Status: `implemented_with_blockers`  
-Audit sanasi: 2026-09-22  
-Audit qilingan `origin/main`: `3507e59839fb509b2c644dee1cf5326389e48577`  
+Status: `release_candidate`  
+Audit sanasi: 2026-10-12  
+Audit qilingan `origin/main`: `9066876a1acfc95454dcbbe9befa55b66e05b19b`  
 Repository: `sarvar9417/cambridge_online`  
 Canonical hujjat: faqat shu fayl
 
@@ -35,12 +35,12 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   "schema_version": 1,
   "document": "LIVE-GAME-MASTER-SPEC.md",
   "audit": {
-    "date": "2026-09-22",
-    "base_sha": "3507e59839fb509b2c644dee1cf5326389e48577",
+    "date": "2026-10-12",
+    "base_sha": "9066876a1acfc95454dcbbe9befa55b66e05b19b",
     "scope": "backend, database migrations, frontend, realtime cursor, scoring, evidence, tests and release history"
   },
   "release": {
-    "maturity": "implemented_with_blockers",
+    "maturity": "release_candidate",
     "latest_migration": "0207_live_question_readiness_cache.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
@@ -66,17 +66,16 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "teacher_override_audit": true,
     "learning_evidence_and_mastery": true,
     "safe_event_cursor_and_snapshot_recovery": true,
-    "offline_draft_resilience": true
+    "offline_draft_resilience": true,
+    "mid_session_leave_guard": true,
+    "mark_scheme_capability_gate": true,
+    "database_integrity_hardening": true,
+    "database_clock_deadline_reconciliation": true,
+    "trigger_search_path_pinning": true,
+    "real_database_multi_client_acceptance": true
   },
   "gaps": {
-    "p0": [
-      { "id": "LG-P0-01", "title": "Mid-session leave can strand ungraded answers" },
-      { "id": "LG-P0-02", "title": "Mark-scheme level and manual rubric fidelity is incomplete" },
-      { "id": "LG-P0-03", "title": "Cross-session answer integrity and score caps need database enforcement" },
-      { "id": "LG-P0-04", "title": "Question deadline does not autonomously close the round" },
-      { "id": "LG-P0-05", "title": "Trigger-function security must be re-pinned after migration 0190" },
-      { "id": "LG-P0-06", "title": "Real-database multi-client automated acceptance suite is missing" }
-    ],
+    "p0": [],
     "p1": [
       { "id": "LG-P1-01", "title": "Join-code retry, expiry and rotation" },
       { "id": "LG-P1-02", "title": "Live endpoint rate limits and abuse controls" },
@@ -99,6 +98,14 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "acceptance": {
     "verify_command": "npm run verify",
+    "p0_closure_evidence": {
+      "LG-P0-01": "real PostgreSQL lifecycle: mid-round leave is rejected; unfinished peer work is reassigned to teacher fallback",
+      "LG-P0-02": "six-family mark-scheme capability gate plus levels/manual/code-output/group/prerequisite tests; PR #321",
+      "LG-P0-03": "real PostgreSQL cross-session answer/review guards, score caps and event-version uniqueness",
+      "LG-P0-04": "database-clock expiry reconciliation verified in real PostgreSQL and browser mode matrix",
+      "LG-P0-05": "real PostgreSQL acceptance verifies Live trigger search_path=public, pg_temp",
+      "LG-P0-06": "CI real PostgreSQL suite plus teacher/projector/3-student real-app browser E2E and browser lifecycle/mode matrices"
+    },
     "local_audit_verify": {
       "date": "2026-09-22",
       "backend_tests": "920/920",
@@ -122,21 +129,21 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
 
 ## 3. Hozirgi yakuniy baho
 
-Live Challenge demo emas: asosiy end-to-end oqim ishlab turibdi va production’da oldin teacher/student API smoke’dan o‘tgan. Biroq hozirgi kodni “mukammal” yoki “yakuniy production-ready” deb bo‘lmaydi. Eng muhim sabablar — mid-round participant lifecycle, mark-scheme type fidelity, deadline authority, database cross-row integrity va real PostgreSQL/multi-browser avtomatlashtirilgan testlarning yetishmasligi.
+Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation va mark-scheme capability gate yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’lari, xususan classroom-scale load/realtime evidence, observability va yakuniy preview/production smoke alohida yopilishi kerak.
 
 | Qism | Holat | Qisqa xulosa |
 |---|---|---|
 | Teacher builder | Ishlaydi | Topic/subtopic, auto/manual questions, timing, marking, late join, auto close, override va leaderboard sozlanadi |
 | Lobby/join | Ishlaydi | 6 xonali kod, authenticated student guard, presence va removal bor; Live join class yoki school membershipga bog‘liq emas |
 | Question delivery | Ishlaydi | Canonical source, parent context, dependency work, diagram, structured content va LaTeX ko‘rsatiladi |
-| Answering | Ishlaydi, hardening kerak | 700 ms autosave, submit lock va reconnect snapshot bor; offline retry yo‘q |
-| Timer | Qisman | Server save/submitni deadline + 10 s grace bilan bloklaydi, ammo round o‘zi yopilmaydi |
+| Answering | P0 yopilgan | Autosave/reconnect retry, submit lock, mid-round leave guard va reconnect restoration browser lifecycle’da tekshiriladi |
+| Timer | P0 yopilgan | PostgreSQL clock authoritative; expiry maintenance/read/write reconciliation roundni yopadi va real DB test bilan tekshiriladi |
 | Mark scheme secrecy | Ishlaydi | `question_open` paytida API mark scheme qaytarmaydi |
-| Marking | Asosiy rejimlar ishlaydi | Teacher/peer/self, point scoring, force-complete va override bor; LoR/manual fidelity to‘liq emas |
+| Marking | P0 yopilgan | Teacher/peer/self, teacher fallback, response levels va olti scheme-family capability gate fail-closed ishlaydi |
 | Projector | Ishlaydi | Lobby/question/mark scheme/leaderboard/finish ko‘rinishlari bor |
 | Realtime | Ishlaydi, polling | Safe event cursor + authoritative snapshot; WebSocket/SSE emas |
 | Results/evidence | Ishlaydi | Per-round/overall marks, audit, LO/subtopic evidence va mastery update bor |
-| Automated acceptance | Yetarli emas | Ko‘p contract/unit test bor, lekin real DB va multi-browser lifecycle suite yo‘q |
+| Automated acceptance | P0 yopilgan | Real PostgreSQL acceptance, browser lifecycle/mode matrix va real app + PostgreSQL teacher/projector/3-student E2E CI’da ishlaydi |
 
 ## 4. Haqiqiy arxitektura
 
