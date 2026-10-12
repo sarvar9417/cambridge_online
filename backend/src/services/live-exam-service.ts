@@ -626,6 +626,25 @@ export class LiveExamService {
     }));
   }
 
+  async previewSelection(actor:Actor,input:{classId:string;questionIds:string[]}) {
+    await this.requireClassControl(this.pool,actor,input.classId);
+    if(!input.questionIds.length)return{
+      selectedCount:0,selectedMarks:0,expandedCount:0,expandedMarks:0,dependencyCount:0,
+    };
+    const expandedIds=await this.expandRequiredDependencies(input.questionIds);
+    const rows=await this.previewQuestions(expandedIds);
+    const marksById=new Map(rows.map((row)=>[row.id,row.marks]));
+    const selectedMarks=input.questionIds.reduce((sum,id)=>sum+(marksById.get(id)??0),0);
+    const expandedMarks=expandedIds.reduce((sum,id)=>sum+(marksById.get(id)??0),0);
+    return{
+      selectedCount:input.questionIds.length,
+      selectedMarks,
+      expandedCount:expandedIds.length,
+      expandedMarks,
+      dependencyCount:Math.max(0,expandedIds.length-input.questionIds.length),
+    };
+  }
+
   async eligibleQuestions(
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & {
