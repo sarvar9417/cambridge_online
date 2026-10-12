@@ -27,6 +27,14 @@ export interface CreateLiveExamInput {
   markingMode: LiveExamMarkingMode;
   includeDiagrams: boolean;
   excludeSeen: boolean;
+  /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
+  difficulty?: 'easy' | 'medium' | 'hard';
+  marksMin?: number;
+  marksMax?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  series?: Array<'FM' | 'MJ' | 'ON'>;
+  components?: number[];
   questionIds?: string[];
   questionOrder?: 'fixed' | 'shuffled';
   allowLateJoin?: boolean;
