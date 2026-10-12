@@ -34,6 +34,13 @@ export interface CreateLiveExamInput {
   teacherOverrideEnabled?: boolean;
   leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
   displayNameMode?: 'full' | 'first_name' | 'initials' | 'anonymous_alias';
+  sourceYear?: number;
+  sourceSeries?: 'MJ' | 'ON' | 'FM';
+  sourceComponent?: number;
+  sourceVariant?: number;
+  minMarks?: number;
+  maxMarks?: number;
+  search?: string;
 }
 
 type MarkSchemePointSnapshot = {
@@ -77,6 +84,46 @@ type StoredQuestionSnapshot = Omit<PortableQuestion, 'dependencies'> & {
 };
 
 type PeerAnswer = { answerId: string; studentId: string };
+
+type LiveBuilderFilterInput = Pick<CreateLiveExamInput,
+  'sourceYear'|'sourceSeries'|'sourceComponent'|'sourceVariant'|'minMarks'|'maxMarks'|'search'>;
+
+function appendLiveBuilderFilters(filters:string[],values:unknown[],input:LiveBuilderFilterInput,qAlias='q') {
+  if(input.sourceYear!==undefined){
+    values.push(input.sourceYear);
+    filters.push(`exists(select 1 from source_papers live_source where live_source.id=${qAlias}.source_paper_id and live_source.year=${values.length})`);
+  }
+  if(input.sourceSeries){
+    values.push(input.sourceSeries);
+    filters.push(`exists(select 1 from source_papers live_source where live_source.id=${qAlias}.source_paper_id and live_source.series::text=${values.length})`);
+  }
+  if(input.sourceVariant!==undefined){
+    values.push(input.sourceVariant);
+    filters.push(`exists(select 1 from source_papers live_source where live_source.id=${qAlias}.source_paper_id and live_source.variant=${values.length})`);
+  }
+  if(input.sourceComponent!==undefined){
+    values.push(input.sourceComponent);
+    filters.push(`exists(
+      select 1 from source_papers live_source
+      join components live_component on live_component.id=live_source.component_id
+      where live_source.id=${qAlias}.source_paper_id and live_component.number=${values.length}
+    )`);
+  }
+  if(input.minMarks!==undefined){
+    values.push(input.minMarks);
+    filters.push(`${qAlias}.marks >= ${values.length}`);
+  }
+  if(input.maxMarks!==undefined){
+    values.push(input.maxMarks);
+    filters.push(`${qAlias}.marks <= ${values.length}`);
+  }
+  const search=input.search?.trim();
+  if(search){
+    values.push(`%${search}%`);
+    filters.push(`(${qAlias}.display_ref ilike ${values.length} or coalesce(${qAlias}.stem_md,'') ilike ${values.length})`);
+  }
+}
+
 
 /**
  * A deterministic derangement for peer marking.
@@ -223,7 +270,7 @@ export class LiveExamService {
     return scheme;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'sourceYear' | 'sourceSeries' | 'sourceComponent' | 'sourceVariant' | 'minMarks' | 'maxMarks' | 'search'>) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
@@ -231,6 +278,7 @@ export class LiveExamService {
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    appendLiveBuilderFilters(filters,values,input);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = '$'+values.length;
@@ -387,6 +435,7 @@ export class LiveExamService {
     const filters: string[] = [];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    appendLiveBuilderFilters(filters,values,input);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
@@ -682,6 +731,13 @@ export class LiveExamService {
                 teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
                 leaderboardMode: input.leaderboardMode ?? 'marks',
                 displayNameMode: input.displayNameMode ?? 'anonymous_alias',
+                sourceYear: input.sourceYear ?? null,
+                sourceSeries: input.sourceSeries ?? null,
+                sourceComponent: input.sourceComponent ?? null,
+                sourceVariant: input.sourceVariant ?? null,
+                minMarks: input.minMarks ?? null,
+                maxMarks: input.maxMarks ?? null,
+                search: input.search?.trim() || null,
                 requestedQuestionCount: questionIds.length,
                 dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
               })],
