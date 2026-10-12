@@ -23,6 +23,13 @@ const createInput = z.object({
   markingMode: z.enum(['teacher', 'peer', 'self']),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
+  difficulty: z.enum(['easy','medium','hard']).optional(),
+  marksMin: z.number().int().min(1).max(100).optional(),
+  marksMax: z.number().int().min(1).max(100).optional(),
+  yearFrom: z.number().int().min(2000).max(2100).optional(),
+  yearTo: z.number().int().min(2000).max(2100).optional(),
+  series: z.array(z.enum(['FM','MJ','ON'])).max(3).default([]),
+  components: z.array(z.number().int().min(1).max(9)).max(9).default([]),
   questionIds: z.array(uuid).min(1).optional(),
   questionOrder: z.enum(['fixed', 'shuffled']).default('shuffled'),
   allowLateJoin: z.boolean().default(false),
@@ -100,7 +107,26 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       coursebookSectionCodes:csvCoursebookSections,
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
-      limit:z.coerce.number().int().min(1).default(30),
+      difficulty:z.enum(['easy','medium','hard']).optional(),
+      marksMin:z.coerce.number().int().min(1).max(100).optional(),
+      marksMax:z.coerce.number().int().min(1).max(100).optional(),
+      yearFrom:z.coerce.number().int().min(2000).max(2100).optional(),
+      yearTo:z.coerce.number().int().min(2000).max(2100).optional(),
+      series:z.string().default('').transform((value,ctx)=>{
+        const values=value?value.split(',').filter(Boolean):[];
+        const parsed=z.array(z.enum(['FM','MJ','ON'])).max(3).safeParse(values);
+        if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid series list'});return z.NEVER}
+        return parsed.data;
+      }),
+      components:z.string().default('').transform((value,ctx)=>{
+        const values=value?value.split(',').filter(Boolean).map(Number):[];
+        const parsed=z.array(z.number().int().min(1).max(9)).max(9).safeParse(values);
+        if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid component list'});return z.NEVER}
+        return parsed.data;
+      }),
+      q:z.string().trim().max(120).default(''),
+      offset:z.coerce.number().int().min(0).default(0),
+      limit:z.coerce.number().int().min(1).max(100).default(30),
       includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
     }).parse(req.query);
@@ -111,6 +137,15 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       coursebookSectionCodes:query.coursebookSectionCodes ?? [],
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
+      difficulty:query.difficulty,
+      marksMin:query.marksMin,
+      marksMax:query.marksMax,
+      yearFrom:query.yearFrom,
+      yearTo:query.yearTo,
+      series:query.series,
+      components:query.components,
+      search:query.q,
+      offset:query.offset,
       limit:query.limit,
       includeData:query.includeData,
       includeCounts:query.includeCounts,
