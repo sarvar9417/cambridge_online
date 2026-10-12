@@ -328,7 +328,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       [sessionId],
     );
     expect(state.rows[0]?.status).toBe('review');
-    await service.nextQuestion(owner(),sessionId,state.rows[0]!.version);
+    await service.nextQuestion(owner(),sessionId,Number(state.rows[0]!.version));
 
     const report=await service.detailedReport(owner(),sessionId);
     expect(report.aggregate).toMatchObject({
