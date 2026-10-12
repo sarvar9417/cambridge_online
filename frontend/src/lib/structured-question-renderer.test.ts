@@ -93,6 +93,52 @@ describe('structured question DOM renderer', () => {
     expect(row?.querySelector('small')?.textContent).toBe('mebibytes');
   });
 
+  it('renders editable Cambridge table cells as answer controls and emits stable response keys', () => {
+    const changes:Array<[string,string]>=[];
+    const content:StructuredQuestionContent={
+      version:1,
+      source,
+      blocks:[{
+        type:'table',kind:'truth_table',headers:['A','B','X'],
+        rows:[['0','0',null],['0','1',null]],
+        editableCells:[[0,2],[1,2]],
+        source:{page:2},
+      }],
+    };
+    const host=document.createElement('div');
+    host.append(renderStructuredQuestionContent(content,{
+      responseValues:{'table:0:0:2':'1'},
+      onResponseChange:(key,value)=>changes.push([key,value]),
+    }));
+    const inputs=[...host.querySelectorAll<HTMLInputElement>('.structured-question-cell-input')];
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0]?.value).toBe('1');
+    inputs[1]!.value='0';
+    inputs[1]!.dispatchEvent(new Event('input',{bubbles:true}));
+    expect(changes).toEqual([['table:0:1:2','0']]);
+  });
+
+  it('renders matching tasks as explicit selectable relationships', () => {
+    const changes:Array<[string,string]>=[];
+    const content:StructuredQuestionContent={
+      version:1,
+      source,
+      blocks:[{
+        type:'matching',
+        left:[{id:'compiler',text:'Compiler'}],
+        right:[{id:'whole',text:'Translates the whole program'},{id:'line',text:'Translates line by line'}],
+        source:{page:3},
+      }],
+    };
+    const host=document.createElement('div');
+    host.append(renderStructuredQuestionContent(content,{onResponseChange:(key,value)=>changes.push([key,value])}));
+    const select=host.querySelector<HTMLSelectElement>('.structured-question-match-select')!;
+    expect(select.options).toHaveLength(3);
+    select.value='whole';
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    expect(changes).toEqual([['match:0:compiler','whole']]);
+  });
+
   it('renders verified assets by stable id and fails visibly when unresolved', () => {
     const assetId = '22222222-2222-4222-8222-222222222222';
     const content: StructuredQuestionContent = {
