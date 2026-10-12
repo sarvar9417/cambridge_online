@@ -178,6 +178,21 @@ function report(state:HarnessState,actor:ActorKey){
   const answer=state.answers[actor];
   return{rows:[{questionPosition:0,displayRef:'9618/31/M/J/21 Q4',marks:1,answerText:answer.text,score:answer.score,scoreSource:state.mode}],earned:answer.score??0,possible:1};
 }
+function detailedReport(state:HarnessState){
+  const joined=[...state.joined];
+  const earned=joined.reduce((sum,student)=>sum+(state.answers[student].score??0),0);
+  const possible=joined.length;
+  return{
+    session:{id:state.sessionId,title:state.mode==='teacher'?'Teacher-mode acceptance':'Self-mode late-join acceptance',className:'AS Computer Science',status:'finished'},
+    aggregate:{studentCount:joined.length,totalEarned:earned,totalPossible:possible,averageScore:joined.length?earned/joined.length:0,averagePossible:1,averagePercentage:possible?earned/possible:0},
+    students:joined.map((student)=>({studentId:studentId(student),studentName:`Acceptance student ${studentNumber(student)}`,earned:state.answers[student].score??0,possible:1,percentage:state.answers[student].score??0})),
+    questions:[{sessionQuestionId:SESSION_QUESTION_ID,questionPosition:0,displayRef:'9618/31/M/J/21 Q4',marks:1,earned,possible,attempts:joined.length,percentage:possible?earned/possible:0,subtopics:[]}],
+    subtopics:[],
+    mostMissedPoints:[],
+    reteachRecommendations:[],
+  };
+}
+
 function snapshot(state:HarnessState,actor:ActorKey){
   const detailed=actor==='teacher';
   const submitted=[...state.joined].filter(student=>state.answers[student].submitted).length;
@@ -259,6 +274,11 @@ async function handleApi(request:HTTPRequest,actor:ActorKey,state:HarnessState){
       bump(state);
     }
     return respondJson(request,{serverNow:iso(5_000)});
+  }
+  if(path===`/live-exams/${state.sessionId}/report`){
+    if(actor!=='teacher')return respondError(request,'staff_only','staff_only',403);
+    if(state.status!=='finished')return respondError(request,'not ready','live_report_not_ready',409);
+    return respondJson(request,detailedReport(state));
   }
   if(path===`/live-exams/${state.sessionId}/round-summary`)return respondJson(request,roundSummary(state));
 
