@@ -301,3 +301,17 @@ export interface LiveExamSnapshot {
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
+export interface LiveExamReportAggregate {
+  key:string;label:string;learnerCount:number;answerCount:number;earned:number;possible:number;percentage:number;
+}
+export interface LiveExamDetailedReport {
+  session:{id:string;title:string;className:string;finishedAt:string|null;participantCount:number;questionCount:number};
+  classAggregate:{totalEarned:number;totalPossible:number;averageEarnedPerStudent:number;averagePossiblePerStudent:number;averagePercentage:number};
+  students:Array<{studentId:string;studentName:string;earned:number;possible:number;percentage:number}>;
+  questions:Array<{questionPosition:number;displayRef:string;learnerCount:number;earned:number;possible:number;averageScore:number;averagePercentage:number}>;
+  topics:LiveExamReportAggregate[];
+  subtopics:LiveExamReportAggregate[];
+  mostMissedMarkPoints:Array<{questionPosition:number;displayRef:string;code:string;text:string;marks:number;attempts:number;matched:number;missed:number;missRate:number}>;
+  reteachCandidates:Array<{subtopicCode:string;subtopicTitle:string;percentage:number;earned:number;possible:number;learnerCount:number;answerCount:number;basis:'lowest_observed_mark_rate'}>;
+  rows:Array<{studentId:string;studentName:string;questionPosition:number;displayRef:string;marks:number;score:number;percentage:number;scoreSource:string|null;teacherOverridden:boolean;feedback:string|null;topics:Array<{number:number;title:string}>;subtopics:Array<{code:string;title:string}>}>;
+}
