@@ -255,7 +255,8 @@ describe('Live Exam release security and recovery contract',()=>{
     const liveRoute=source('src/routes/live-exams.ts');
     expect(route).toContain("req.query.projector");
     expect(summary).toContain('summary(actor: Actor, sessionId: string, projector = false)');
-    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}`');
+    expect(summary).toContain('liveProjectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)');
+    expect(summary).toContain("displayNameMode:LiveProjectorDisplayNameMode");
     expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
     expect(summary).toContain('lep.left_at is null');
     expect(liveRoute).toContain("router.get('/:id/projector'");
@@ -264,5 +265,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain('questions: detailedStaff ? questionRows.rows.map');
     expect(service).toContain('participants: detailedStaff ? participants.map');
     expect(service).toContain('if (currentRow && detailedStaff && reveal)');
+    expect(service).toContain('sanitizeLiveProjectorSnapshot(response)');
+    expect(source('src/lib/live-projector-privacy.ts')).toContain('sanitized.teacherAnswers=[]');
+    expect(source('src/lib/live-projector-privacy.ts')).toContain("if(key==='storagePath')");
   });
 });
