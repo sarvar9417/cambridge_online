@@ -153,14 +153,18 @@ function renderTable(block:Extract<StructuredQuestionBlock,{type:'table'}>,optio
       if(editable.has(key)){
         const responseKey=`table:${blockIndex}:${rowIndex}:${columnIndex}`;
         cell.dataset.editable='true';
-        const input=document.createElement('input');
-        input.type='text';
-        input.className='structured-question-cell-input';
-        input.value=options.responseValues?.[responseKey]??'';
-        input.disabled=Boolean(options.readOnly);
-        input.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
-        input.addEventListener('input',()=>options.onResponseChange?.(responseKey,input.value));
-        cell.append(input);
+        if(options.onResponseChange){
+          const input=document.createElement('input');
+          input.type='text';
+          input.className='structured-question-cell-input';
+          input.value=options.responseValues?.[responseKey]??'';
+          input.disabled=Boolean(options.readOnly);
+          input.setAttribute('aria-label',`Answer cell row ${rowIndex+1}, column ${columnIndex+1}`);
+          input.addEventListener('input',()=>options.onResponseChange?.(responseKey,input.value));
+          cell.append(input);
+        }else{
+          cell.textContent=options.responseValues?.[responseKey]??'';
+        }
       }else{
         cell.textContent=value??'';
       }
@@ -184,23 +188,33 @@ function renderMatching(block:Extract<StructuredQuestionBlock,{type:'matching'}>
     row.dataset.matchId=item.id;
     const prompt=document.createElement('span');
     prompt.textContent=item.text;
-    const select=document.createElement('select');
-    select.className='structured-question-match-select';
-    select.disabled=Boolean(options.readOnly);
-    const blank=document.createElement('option');
-    blank.value='';
-    blank.textContent='Mos javobni tanlang';
-    select.append(blank);
-    for(const candidate of block.right){
-      const option=document.createElement('option');
-      option.value=candidate.id;
-      option.textContent=candidate.text;
-      select.append(option);
-    }
     const responseKey=`match:${blockIndex}:${item.id}`;
-    select.value=options.responseValues?.[responseKey]??'';
-    select.addEventListener('change',()=>options.onResponseChange?.(responseKey,select.value));
-    row.append(prompt,select);
+    if(options.onResponseChange){
+      const select=document.createElement('select');
+      select.className='structured-question-match-select';
+      select.disabled=Boolean(options.readOnly);
+      const blank=document.createElement('option');
+      blank.value='';
+      blank.textContent='Mos javobni tanlang';
+      select.append(blank);
+      for(const candidate of block.right){
+        const option=document.createElement('option');
+        option.value=candidate.id;
+        option.textContent=candidate.text;
+        select.append(option);
+      }
+      select.value=options.responseValues?.[responseKey]??'';
+      select.addEventListener('change',()=>options.onResponseChange?.(responseKey,select.value));
+      row.append(prompt,select);
+    }else{
+      const selected=block.right.find((candidate)=>candidate.id===options.responseValues?.[responseKey]);
+      row.append(prompt);
+      if(selected){
+        const answer=document.createElement('strong');
+        answer.textContent=` → ${selected.text}`;
+        row.append(answer);
+      }
+    }
     left.append(row);
   }
 
