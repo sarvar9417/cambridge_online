@@ -8,6 +8,10 @@ import { toAssignmentExportQuestion } from '../../lib/assignment-export.js';
 import { buildDocx } from '../../lib/export-docx.js';
 import { assertPaperTotal, renderPaperHtml, type ExportMode, type ExportQuestion } from '../../lib/export-html.js';
 import type { StructuredQuestionContent } from '../../lib/structured-question-content.js';
+import { renderLiveReportHtml } from '../../lib/live-report-html.js';
+import type { Actor } from '../../lib/actor.js';
+import { PgQuestionsRepository } from '../../repositories/questions-repository.js';
+import { LiveExamService } from '../../services/live-exam-service.js';
 import { SupabaseAssetStore } from '../asset-store.js';
 import type { Job } from '../job-queue.js';
 
@@ -34,10 +38,47 @@ export function createExportPdfProcessor(pool:Pool){
     :undefined;
   return async(job:Job)=>{
     const exportId=String((job.payload as{exportId?:unknown}).exportId);
-    const exportResult=await pool.query(`select e.*,coalesce(s.name,'CamPath') school_name from exports e join users u on u.id=e.requested_by left join schools s on s.id=u.school_id where e.id=$1`,[exportId]);
+    const exportResult=await pool.query(`select e.*,coalesce(s.name,'CamPath') school_name,u.role::text requester_role,u.school_id requester_school_id,u.full_name requester_full_name from exports e join users u on u.id=e.requested_by left join schools s on s.id=u.school_id where e.id=$1`,[exportId]);
     if(!exportResult.rowCount)throw Error('export_not_found');
     const exp=exportResult.rows[0],format=(exp.file_format??'pdf') as 'pdf'|'docx';
     if(format!=='pdf'&&format!=='docx')throw Error(`unsupported_export_format:${format}`);
+
+    if(exp.ref_table==='live_exam_sessions'){
+      if(exp.kind!=='feedback'||format!=='pdf')throw Error('unsupported_live_report_export');
+      await pool.query(`update exports set status='running',error=null where id=$1`,[exportId]);
+      try{
+        const actor:Actor={
+          id:String(exp.requested_by),
+          role:String(exp.requester_role) as Actor['role'],
+          schoolId:exp.requester_school_id==null?null:String(exp.requester_school_id),
+          fullName:String(exp.requester_full_name??''),
+        };
+        const report=await new LiveExamService(pool,new PgQuestionsRepository(pool)).detailedReport(actor,String(exp.ref_id));
+        const dir=process.env.VERCEL?'/tmp/campath-exports':resolve(config.EXPORT_DIR);
+        await mkdir(dir,{recursive:true});
+        let executable=config.CHROME_EXECUTABLE_PATH??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',launchArgs=['--no-sandbox'];
+        if(process.env.VERCEL){
+          const chromium=(await import('@sparticuz/chromium-min')).default;
+          executable=await chromium.executablePath(config.CHROMIUM_PACK_URL??'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar');
+          launchArgs=chromium.args;
+        }
+        const browser=await puppeteer.launch({executablePath:executable,headless:true,args:launchArgs});
+        try{
+          const page=await browser.newPage();
+          await page.setContent(renderLiveReportHtml(report,String(exp.school_name)),{waitUntil:'load'});
+          const pdf=await page.pdf({format:'A4',printBackground:true});
+          const path=resolve(dir,`${exportId}.pdf`);
+          await writeFile(path,pdf);
+          await pool.query(`update exports set status='succeeded',storage_path=$2,file_data=$3,expires_at=now()+interval '24 hours',finished_at=now() where id=$1`,[exportId,path,pdf]);
+          return{path,size:pdf.length};
+        }finally{await browser.close()}
+      }catch(error){
+        const message=error instanceof Error?error.message.slice(0,1000):'Live report export failed';
+        await pool.query(`update exports set status='failed',error=$2,finished_at=now() where id=$1`,[exportId,message]);
+        throw error;
+      }
+    }
+
     let title='',questions:ExportQuestion[]=[];
 
     if(exp.ref_table==='assignments'){
