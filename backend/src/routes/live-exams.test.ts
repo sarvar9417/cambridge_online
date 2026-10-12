@@ -120,6 +120,53 @@ describe('live exam routes', () => {
     }));
   });
 
+  it('passes advanced builder filters, pagination and selected-question preview to the service', async () => {
+    const eligibleQuestions=vi.fn().mockResolvedValue({
+      data:[],
+      total:84,
+      selectionSummary:{requestedCount:2,requestedMarks:5,expandedCount:3,expandedMarks:7,dependencyCount:1},
+    });
+    const response=await request(appFor({eligibleQuestions},owner))
+      .get('/live-exams/eligible-questions')
+      .query({
+        classId:'22222222-2222-4222-8222-222222222222',
+        topicIds:'',
+        subtopicIds:'',
+        coursebookSectionCodes:'14.1',
+        q:'9618/31',
+        marksMin:'2',
+        marksMax:'8',
+        yearFrom:'2022',
+        yearTo:'2025',
+        series:'MJ,ON',
+        components:'3,4',
+        variants:'1,2',
+        selectedQuestionIds:'33333333-3333-4333-8333-333333333333,44444444-4444-4444-8444-444444444444',
+        offset:'30',
+        limit:'30',
+        includeData:'true',
+        includeCounts:'false',
+      })
+      .expect(200);
+    expect(response.body.selectionSummary.expandedMarks).toBe(7);
+    expect(eligibleQuestions).toHaveBeenCalledWith(owner,expect.objectContaining({
+      search:'9618/31',
+      marksMin:2,
+      marksMax:8,
+      yearFrom:2022,
+      yearTo:2025,
+      series:['MJ','ON'],
+      components:[3,4],
+      variants:[1,2],
+      offset:30,
+      limit:30,
+      selectedQuestionIds:[
+        '33333333-3333-4333-8333-333333333333',
+        '44444444-4444-4444-8444-444444444444',
+      ],
+    }));
+  });
+
   it('keeps /join above the UUID session route', async () => {
     const join=vi.fn().mockResolvedValue({sessionId:'session-1'});
     const response=await request(appFor({join})).post('/live-exams/join').send({code:'123456'}).expect(201);
