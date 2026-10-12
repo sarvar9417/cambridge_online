@@ -395,9 +395,9 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
   });
 
-  it('allows the teacher to turn late joining on during the challenge, including review stage', async () => {
+  it('allows late join only while the question is open and exposes the shared-time fairness policy', async () => {
     const {sessionId}=await makeSession({
-      code:'820008',markingMode:'teacher',participants:[0],
+      code:'820008',markingMode:'teacher',participants:[0],timeLimit:120,
       settings:{allowLateJoin:false},
     });
     await service.start(owner(),sessionId,1);
@@ -406,9 +406,19 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     const opened=await service.setLateJoin(owner(),sessionId,true,2);
     expect(opened.allowLateJoin).toBe(true);
     await service.join(student(1),'820008');
+
+    const lateSnapshot=await service.snapshot(student(1),sessionId) as {
+      session:{joinedLate:boolean;deadline:Date|null;questionStartedAt:Date|null};
+      ownAnswer:{submittedAt:Date|null}|null;
+    };
+    expect(lateSnapshot.session.joinedLate).toBe(true);
+    expect(lateSnapshot.session.deadline).not.toBeNull();
+    expect(lateSnapshot.session.questionStartedAt).not.toBeNull();
+    expect(lateSnapshot.ownAnswer?.submittedAt).toBeNull();
+
     await service.revealMarkScheme(owner(),sessionId);
-    const lateMarkingJoin=await service.join(student(2),'820008');
-    expect(lateMarkingJoin.sessionId).toBe(sessionId);
+    await expect(service.join(student(2),'820008'))
+      .rejects.toMatchObject({code:'live_code_not_found'});
   });
 
   it('removes only terminal sessions from history without deleting their evidence', async () => {
