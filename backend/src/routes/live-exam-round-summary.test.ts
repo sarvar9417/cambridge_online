@@ -28,6 +28,14 @@ describe('live exam round summary route',()=>{
     expect(summary).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222',false);
   });
 
+  it('passes projector privacy mode through the staff-only summary route',async()=>{
+    const summary=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',marksFirst:true,round:{standings:[]}});
+    await request(appFor({summary}))
+      .get('/live-exams/22222222-2222-4222-8222-222222222222/round-summary?projector=true')
+      .expect(200);
+    expect(summary).toHaveBeenCalledWith(teacher,'22222222-2222-4222-8222-222222222222',true);
+  });
+
   it('rejects a malformed session id before querying the service',async()=>{
     const summary=vi.fn();
     await request(appFor({summary})).get('/live-exams/not-a-uuid/round-summary').expect(400);
