@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 
 const sql=readFileSync(
-  new URL('./migrations/0208_structured_response_readiness_audit.sql',import.meta.url),
+  new URL('./migrations/0209_structured_response_readiness_audit.sql',import.meta.url),
   'utf8',
 );
 
-describe('structured response readiness audit migration',()=>{
+describe('0209 structured response readiness audit migration',()=>{
   it('creates a server-only source-backed response audit view',()=>{
     expect(sql).toContain('CREATE OR REPLACE VIEW public.question_response_readiness_audit_v1');
     expect(sql).toContain('WITH (security_invoker=true)');
