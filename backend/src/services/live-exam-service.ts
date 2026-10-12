@@ -1169,6 +1169,7 @@ export class LiveExamService {
     let ownAnswer: Record<string, unknown> | null = null;
     let review: Record<string, unknown> | null = null;
     let teacherAnswers: Record<string, unknown>[] = [];
+    let peerQualityQueue: Array<Record<string, unknown>> = [];
     if (currentRow && participantId) {
       const answerResult = await this.pool.query(
         `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
@@ -1208,6 +1209,42 @@ export class LiveExamService {
         provisionalFeedback: row.review_feedback_md,
         reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
       }));
+      if (String(session.marking_mode)==='peer') {
+        const qualitySettings=this.settings(session.settings);
+        const qualityRows=await this.pool.query(
+          `select
+             a.id answer_id,u.full_name student_name,
+             peer.awarded_marks peer_score,teacher.awarded_marks teacher_score
+           from live_exam_answers a
+           join live_exam_participants lep on lep.id=a.participant_id
+           join users u on u.id=lep.student_id
+           join live_exam_reviews peer on peer.answer_id=a.id
+             and peer.session_question_id=a.session_question_id
+             and peer.kind='peer' and peer.status in ('submitted','moderated')
+           join live_exam_reviews teacher on teacher.answer_id=a.id
+             and teacher.session_question_id=a.session_question_id
+             and teacher.kind='teacher' and teacher.status in ('submitted','moderated')
+           where a.session_question_id=$1
+             and peer.awarded_marks is not null
+             and teacher.awarded_marks is not null
+           order by u.full_name,a.id`,
+          [currentRow.id],
+        );
+        peerQualityQueue=qualityRows.rows
+          .map((row)=>{
+            const disagreement=peerScoreDisagreement(Number(row.peer_score),Number(row.teacher_score));
+            return {
+              answerId:String(row.answer_id),
+              studentName:String(row.student_name),
+              peerScore:Number(row.peer_score),
+              teacherScore:Number(row.teacher_score),
+              disagreement,
+              threshold:qualitySettings.peerDisagreementThreshold,
+              needsTeacherReview:disagreement>qualitySettings.peerDisagreementThreshold,
+            };
+          })
+          .filter((row)=>row.needsTeacherReview);
+      }
     }
 
     let report: {
@@ -1322,6 +1359,7 @@ export class LiveExamService {
       ownAnswer,
       review,
       teacherAnswers,
+      peerQualityQueue,
       report,
     };
     return projector ? sanitizeLiveProjectorSnapshot(response) : response;
