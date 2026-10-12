@@ -14,6 +14,21 @@ export interface SystemSummary {
   spendByPurpose: Array<{ purpose: string; calls: number; usd: number; failed: number; unpriced: number }>;
   recentFailures: Array<{ purpose: string; model: string; error: string; createdAt: string }>;
   audit: Array<{ id: string; action: string; refTable: string | null; createdAt: string; actor: string | null }>;
+  liveOperations: {
+    activeSessions: number;
+    expiredOpenRounds: number;
+    terminalUnarchived: number;
+    archivedSessions: number;
+    eventsLastHour: number;
+    staleParticipants: number;
+    oldestActiveUpdatedAt: string | null;
+  };
+  liveRetention: {
+    archiveMode: 'manual_soft_archive_terminal_only';
+    evidenceDeletion: 'disabled';
+    joinCodeRetentionHours: 24;
+    preserves: string[];
+  };
 }
 
 /**
@@ -45,7 +60,7 @@ export class SystemService {
   async summary(actor: Actor): Promise<SystemSummary> {
     this.owner(actor);
 
-    const [settings, spend, failures, audit] = await Promise.all([
+    const [settings, spend, failures, audit, liveOperations, liveEvents, staleParticipants] = await Promise.all([
       this.pool.query(`select key, value, updated_at from app_settings order by key`),
 
       this.pool.query(`
@@ -70,6 +85,36 @@ export class SystemService {
         from audit_log a
         left join users u on u.id = a.actor_id
         order by a.created_at desc limit 50`),
+
+      this.pool.query(`
+        select
+          count(*) filter(where archived_at is null and status not in ('finished','cancelled'))::int active_sessions,
+          count(*) filter(
+            where archived_at is null
+              and status='question_open'
+              and paused_at is null
+              and question_started_at is not null
+              and question_time_limit_s is not null
+              and now() > question_started_at + question_time_limit_s * interval '1 second' + interval '10 seconds'
+          )::int expired_open_rounds,
+          count(*) filter(where archived_at is null and status in ('finished','cancelled'))::int terminal_unarchived,
+          count(*) filter(where archived_at is not null)::int archived_sessions,
+          min(updated_at) filter(where archived_at is null and status not in ('finished','cancelled')) oldest_active_updated_at
+        from live_exam_sessions`),
+
+      this.pool.query(`
+        select count(*)::int count
+        from live_exam_events
+        where created_at >= now() - interval '1 hour'`),
+
+      this.pool.query(`
+        select count(*)::int count
+        from live_exam_participants p
+        join live_exam_sessions s on s.id=p.session_id
+        where p.left_at is null
+          and s.archived_at is null
+          and s.status not in ('finished','cancelled')
+          and p.last_seen_at < now() - interval '2 minutes'`),
     ]);
 
     const budgetRow = settings.rows.find((row) => row.key === 'ai.monthly_budget_usd');
@@ -108,6 +153,23 @@ export class SystemService {
         createdAt: String(row.created_at),
         actor: row.actor ? String(row.actor) : null,
       })),
+      liveOperations: {
+        activeSessions: Number(liveOperations.rows[0]?.active_sessions ?? 0),
+        expiredOpenRounds: Number(liveOperations.rows[0]?.expired_open_rounds ?? 0),
+        terminalUnarchived: Number(liveOperations.rows[0]?.terminal_unarchived ?? 0),
+        archivedSessions: Number(liveOperations.rows[0]?.archived_sessions ?? 0),
+        eventsLastHour: Number(liveEvents.rows[0]?.count ?? 0),
+        staleParticipants: Number(staleParticipants.rows[0]?.count ?? 0),
+        oldestActiveUpdatedAt: liveOperations.rows[0]?.oldest_active_updated_at
+          ? String(liveOperations.rows[0].oldest_active_updated_at)
+          : null,
+      },
+      liveRetention: {
+        archiveMode: 'manual_soft_archive_terminal_only',
+        evidenceDeletion: 'disabled',
+        joinCodeRetentionHours: 24,
+        preserves: ['questions','answers','reviews','events','score_overrides','learning_evidence'],
+      },
     };
   }
 
