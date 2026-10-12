@@ -463,7 +463,7 @@ function SessionJoinCode({session}:{session:LiveExamSnapshot['session']}) {
   </section>;
 }
 
-function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
+function ProjectorView({snapshot,sessionId}:{snapshot:LiveExamSnapshot;sessionId:string}) {
   const {session}=snapshot;
   const remaining=useCountdown(session.deadline,session.serverNow);
   return <div className="live-projector-overlay">
@@ -474,7 +474,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
       {session.status==='lobby'?<section className="live-projector-lobby"><span>JOIN CODE</span><strong>{session.joinCode}</strong><p>{session.participantCount} o‘quvchi qo‘shildi</p></section>:null}
       {session.status==='question_open'&&snapshot.question?<><LiveQuestionView question={snapshot.question}/><div className="live-projector-count"><UsersThree size={32}/><strong>{session.submittedCount}/{session.participantCount}</strong><span>javob topshirdi</span></div></>:null}
       {session.status==='marking'&&snapshot.markScheme?<><MarkSchemeView scheme={snapshot.markScheme}/><div className="live-projector-count"><CheckCircle size={32}/><strong>{session.reviewedCount}/{session.reviewCount}</strong><span>baholash tugadi</span></div></>:null}
-      {session.status==='review'?<LiveExamLeaderboard sessionId={session.id} version={session.version} variant="projector"/>:null}
+      {session.status==='review'?<LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/>:null}
       {session.status==='finished'?<section className="live-projector-result"><CheckCircle size={72} weight="fill"/><h1>Sessiya yakunlandi</h1><p>{session.questionCount} ta Cambridge savoli bajarildi.</p></section>:null}
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
@@ -799,7 +799,7 @@ function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;project
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error" role="alert">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
-  if(projectorView)return <ProjectorView snapshot={snapshot}/>;
+  if(projectorView)return <ProjectorView snapshot={snapshot} sessionId={sessionId}/>;
   return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()} userId={user.id}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
 }
 
