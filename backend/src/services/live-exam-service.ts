@@ -1193,7 +1193,14 @@ export class LiveExamService {
          from live_exam_answers a
          join live_exam_participants lep on lep.id=a.participant_id
          join users u on u.id=lep.student_id
-         left join live_exam_reviews r on r.answer_id=a.id and r.session_question_id=a.session_question_id
+         left join lateral (
+           select candidate.*
+           from live_exam_reviews candidate
+           where candidate.answer_id=a.id and candidate.session_question_id=a.session_question_id
+           order by case candidate.kind when 'teacher' then 0 when 'peer' then 1 else 2 end,
+             candidate.created_at,candidate.id
+           limit 1
+         ) r on true
          where a.session_question_id=$1
          order by u.full_name`,
         [currentRow.id],
