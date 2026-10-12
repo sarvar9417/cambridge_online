@@ -68,5 +68,5 @@ export function StructuredQuestionView({
     );
   }
 
-  return <div ref={host} className="structured-question-view" data-content-version="1" />;
+  return <div ref={host} className="structured-question-view" data-content-version="1" tabIndex={0} role="region" aria-label="Savol mazmuni" />;
 }
