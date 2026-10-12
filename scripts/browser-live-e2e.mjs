@@ -148,6 +148,25 @@ try {
     'Live E2E: canonical source failure banner is absent for ready fixture',
     await projector.evaluate(() => !document.querySelector('.structured-question-invalid')),
   );
+  const projectorPayload = await teacher.page.evaluate(async (sessionId) => {
+    const { api } = await import('/src/lib/api.ts');
+    return api(`/live-exams/${sessionId}/projector`);
+  }, id);
+  await qa.check(
+    'Live E2E: projector snapshot omits learner roster, answers, reviews and report payloads',
+    Array.isArray(projectorPayload.participants) && projectorPayload.participants.length === 0
+      && Array.isArray(projectorPayload.teacherAnswers) && projectorPayload.teacherAnswers.length === 0
+      && projectorPayload.ownAnswer === null
+      && projectorPayload.review === null
+      && projectorPayload.report === null,
+    {
+      participants: projectorPayload.participants?.length,
+      teacherAnswers: projectorPayload.teacherAnswers?.length,
+      hasOwnAnswer: projectorPayload.ownAnswer !== null,
+      hasReview: projectorPayload.review !== null,
+      hasReport: projectorPayload.report !== null,
+    },
+  );
   await qa.screenshot(projector, '02-projector-question');
   await qa.screenshot(students[0].page, '03-student-mobile-question');
 

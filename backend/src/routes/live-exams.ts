@@ -29,6 +29,7 @@ const createInput = z.object({
   autoCloseWhenAllSubmitted: z.boolean().default(false),
   teacherOverrideEnabled: z.boolean().default(true),
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
+  displayNameMode: z.enum(['full', 'first_name', 'initials', 'anonymous_alias']).default('anonymous_alias'),
 }).strict();
 
 const versionInput = z.object({

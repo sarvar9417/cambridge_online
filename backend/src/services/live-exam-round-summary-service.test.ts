@@ -78,6 +78,47 @@ describe('LiveExamRoundSummaryService', () => {
     expect(String(query.mock.calls[2]?.[0])).toContain('lep.left_at is null');
   });
 
+  it('applies the configured projector display-name privacy mode without student IDs', async () => {
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{
+        id:'session-1',status:'review',current_question_index:0,
+        settings:{displayNameMode:'initials'},
+      }]})
+      .mockResolvedValueOnce({rowCount:2,rows:[
+        {student_id:'s1',full_name:'Ali Valiyev',score:4,marks:5,rank:1,alias_no:1},
+        {student_id:'s2',full_name:'Malika Karimova',score:3,marks:5,rank:2,alias_no:2},
+      ]})
+      .mockResolvedValueOnce({rowCount:2,rows:[
+        {student_id:'s1',full_name:'Ali Valiyev',score:4,rank:1,alias_no:1},
+        {student_id:'s2',full_name:'Malika Karimova',score:3,rank:2,alias_no:2},
+      ]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:5}]});
+
+    const result=await serviceFor(query).summary(teacher,'session-1',true);
+    expect(result.round.standings.map((item)=>item.studentName)).toEqual(['A.V.','M.K.']);
+    expect(result.overall.standings.map((item)=>item.studentName)).toEqual(['A.V.','M.K.']);
+    expect(result.round.standings.every((item)=>!('studentId' in item))).toBe(true);
+  });
+
+  it('supports first-name and full-name projector modes only when explicitly configured', async () => {
+    const run=async(displayNameMode:'first_name'|'full')=>{
+      const query=vi.fn()
+        .mockResolvedValueOnce({rowCount:1,rows:[{
+          id:'session-1',status:'review',current_question_index:0,settings:{displayNameMode},
+        }]})
+        .mockResolvedValueOnce({rowCount:1,rows:[
+          {student_id:'s1',full_name:'Ali Valiyev',score:4,marks:5,rank:1,alias_no:1},
+        ]})
+        .mockResolvedValueOnce({rowCount:1,rows:[
+          {student_id:'s1',full_name:'Ali Valiyev',score:4,rank:1,alias_no:1},
+        ]})
+        .mockResolvedValueOnce({rowCount:1,rows:[{possible:5}]});
+      return serviceFor(query).summary(teacher,'session-1',true);
+    };
+    expect((await run('first_name')).round.standings[0]?.studentName).toBe('Ali');
+    expect((await run('full')).round.standings[0]?.studentName).toBe('Ali Valiyev');
+  });
+
   it('keeps speed disabled unless the room explicitly enables a tie-break', async () => {
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'finished',current_question_index:0}]})

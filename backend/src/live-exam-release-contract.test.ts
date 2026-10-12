@@ -255,7 +255,11 @@ describe('Live Exam release security and recovery contract',()=>{
     const liveRoute=source('src/routes/live-exams.ts');
     expect(route).toContain("req.query.projector");
     expect(summary).toContain('summary(actor: Actor, sessionId: string, projector = false)');
-    expect(summary).toContain('studentName: projector ? `Ishtirokchi ${Number(row.alias_no)}`');
+    expect(summary).toContain('function projectorDisplayName');
+    expect(summary).toContain("displayNameMode === 'first_name'");
+    expect(summary).toContain("displayNameMode === 'initials'");
+    expect(summary).toContain("'anonymous_alias'");
+    expect(summary).toContain('projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)');
     expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
     expect(summary).toContain('lep.left_at is null');
     expect(liveRoute).toContain("router.get('/:id/projector'");
