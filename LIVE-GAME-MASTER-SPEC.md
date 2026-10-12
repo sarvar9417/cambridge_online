@@ -2,7 +2,7 @@
 
 Status: `release_candidate`  
 Audit sanasi: 2026-10-12  
-Audit qilingan `origin/main`: `9066876a1acfc95454dcbbe9befa55b66e05b19b`  
+Audit qilingan `origin/main`: `4e9e45cbfbbd77b26672050cfcd8c17a75042909`  
 Repository: `sarvar9417/cambridge_online`  
 Canonical hujjat: faqat shu fayl
 
@@ -36,7 +36,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   "document": "LIVE-GAME-MASTER-SPEC.md",
   "audit": {
     "date": "2026-10-12",
-    "base_sha": "9066876a1acfc95454dcbbe9befa55b66e05b19b",
+    "base_sha": "4e9e45cbfbbd77b26672050cfcd8c17a75042909",
     "scope": "backend, database migrations, frontend, realtime cursor, scoring, evidence, tests and release history"
   },
   "release": {
@@ -75,12 +75,12 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "real_database_multi_client_acceptance": true,
     "teacher_transition_idempotency": true,
     "classroom_scale_acceptance": true,
-    "late_join_fairness": true
+    "late_join_fairness": true,
+    "builder_preview_reorder_advanced_filters": true
   },
   "gaps": {
     "p0": [],
     "p1": [
-      { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
       { "id": "LG-P1-09", "title": "Detailed reports and exports" },
       { "id": "LG-P1-10", "title": "Observability, retention and archive policy" },
       { "id": "LG-P1-11", "title": "Accessibility and responsive browser coverage" },
@@ -103,6 +103,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-04": "versioned per-user/session/question local drafts; exponential and online retry plus page lifecycle flush; real browser E2E verifies failed autosave, reload recovery, visible two-tab conflict blocking and explicit conflict resolution before server persistence; PR #330",
       "LG-P1-05": "real PostgreSQL 30/60 learner bursts measure cursor, heartbeat and full snapshot paths with poolMax=10 and explicit p95/wall budgets; PR #327 CI observed 60-learner p95 cursor 25.6ms, heartbeat 14.7ms and snapshot 88.5ms, while 90 snapshot hydrations reused one signed-asset operation",
       "LG-P1-06": "teacher-authorized read-only projector endpoint; anonymous alias is the privacy-preserving default with configurable initials/first/full-name modes; projector standings omit student IDs and real browser E2E asserts projector snapshot omits learner roster, answers, reviews and report payloads; PR #332",
+      "LG-P1-07": "builder explicitly states room creation immediately opens a lobby; manual pool supports source-order pagination and ref/stem search, marks-band difficulty plus marks/year/session/paper filters, source metadata, server-authoritative required-dependency expanded count/marks preview, replace and drag/keyboard reorder; filter provenance is persisted in session settings; full verify, real PostgreSQL, Live browser matrices and teacher/projector/3-student E2E green on PR #337",
       "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328"
     },
     "p0_closure_evidence": {
