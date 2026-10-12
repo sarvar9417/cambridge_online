@@ -137,7 +137,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       variants:csvInts(1,9),
       selectedQuestionIds:csvUuids,
       offset:z.coerce.number().int().min(0).default(0),
-      limit:z.coerce.number().int().min(1).max(100).default(30),
+      limit:z.coerce.number().int().min(1).max(500).default(30),
       includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
     }).superRefine((value,ctx)=>{
