@@ -15,13 +15,11 @@ export function structuredQuestionAssetsReady(content:StructuredQuestionContent,
 export function structuredQuestionRenderSignature(
   content:StructuredQuestionContent,
   assetUrls:Record<string,string>={},
-  responseValues:Record<string,string>={},
   readOnly=false,
 ) {
   return JSON.stringify([
     content,
     Object.entries(assetUrls).sort(([left],[right])=>left.localeCompare(right)),
-    Object.entries(responseValues).sort(([left],[right])=>left.localeCompare(right)),
     readOnly,
   ]);
 }
@@ -40,23 +38,27 @@ export function StructuredQuestionView({
   readOnly?:boolean;
 }) {
   const host=useRef<HTMLDivElement>(null);
+  const responseValuesRef=useRef(responseValues);
+  const responseChangeRef=useRef(onResponseChange);
+  responseValuesRef.current=responseValues;
+  responseChangeRef.current=onResponseChange;
   const valid=structuredQuestionUsable(content);
   const findings=useMemo(()=>valid?inspectStructuredQuestionIntegrity(content):[],[content,valid]);
   const presentationReady=valid&&findings.length===0;
   const assetsReady=presentationReady&&structuredQuestionAssetsReady(content,assetUrls);
-  const renderSignature=structuredQuestionRenderSignature(content,assetUrls,responseValues,readOnly);
+  const renderSignature=structuredQuestionRenderSignature(content,assetUrls,readOnly);
 
   useEffect(()=>{
     const node=host.current;
     if(!node||!presentationReady||!assetsReady)return;
     node.replaceChildren(renderStructuredQuestionContent(content,{
       resolveAsset:(assetId)=>assetUrls[assetId]??null,
-      responseValues,
-      onResponseChange,
+      responseValues:responseValuesRef.current,
+      onResponseChange:(key,value)=>responseChangeRef.current?.(key,value),
       readOnly,
     }));
     return()=>node.replaceChildren();
-  },[renderSignature,presentationReady,assetsReady,onResponseChange]);
+  },[renderSignature,presentationReady,assetsReady]);
 
   if(!valid){
     return (
