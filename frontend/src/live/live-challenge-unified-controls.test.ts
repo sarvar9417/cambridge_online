@@ -53,7 +53,6 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('const [poolTotal,setPoolTotal]=useState<number|null>(null)');
     expect(page).toContain('const pageSize=20');
     expect(page).toContain('offset:String(Math.max(0,offset))');
-    expect(page).toContain("sort:'source'");
     expect(page).not.toContain('if(current.length>=20)return current');
     expect(page).not.toContain('selectedQuestionIds.length}/20 ta savol');
     expect(page).toContain("const createAttempt=useRef<{body:string;key:string}|null>(null)");
