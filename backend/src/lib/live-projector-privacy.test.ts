@@ -34,8 +34,8 @@ describe('Live projector privacy',()=>{
     expect(sanitized.review).toBeNull();
     expect(sanitized.teacherAnswers).toEqual([]);
     expect(sanitized.report).toBeNull();
-    expect(sanitized.question.dependencyWork[0]).toMatchObject({ownAnswer:null,submittedAt:null});
-    expect(sanitized.question.portable.contextBlocks[0].assets[0].storagePath).toBeNull();
+    expect(sanitized.question.dependencyWork[0]!).toMatchObject({ownAnswer:null,submittedAt:null});
+    expect(sanitized.question.portable.contextBlocks[0]!.assets[0]!.storagePath).toBeNull();
 
     const body=JSON.stringify(sanitized);
     for(const raw of [sessionId,questionId,assetId,'44444444-4444-4444-8444-444444444444']){
@@ -43,8 +43,8 @@ describe('Live projector privacy',()=>{
     }
     expect(sanitized.question.id).toBe(sanitized.question.sourceQuestionId);
     expect(sanitized.question.portable.leaf.id).toBe(sanitized.question.id);
-    expect(sanitized.question.portable.contextBlocks[0].assets[0].id)
-      .toBe(sanitized.question.portable.leaf.contentJson.blocks[0].assetId);
+    expect(sanitized.question.portable.contextBlocks[0]!.assets[0]!.id)
+      .toBe(sanitized.question.portable.leaf.contentJson.blocks[0]!.assetId);
     expect(sanitized.question.portable.contextBlocks[0].assets[0].url).toBe('https://signed.example/asset.png');
   });
 });
