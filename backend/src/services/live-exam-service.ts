@@ -327,8 +327,11 @@ export class LiveExamService {
     // syllabus-safe readiness resolution and optional seen-question filtering.
     // Manual pool browsing uses deterministic source order while room creation
     // keeps the existing seeded random selection behavior.
-    const values: unknown[] = countOnly ? [input.classId] : [options.seed ?? randomUUID(), input.classId];
-    const classParameter = countOnly ? '$1' : '$2';
+    const sourceOrdered = !countOnly && options.sort === 'source';
+    const values: unknown[] = countOnly || sourceOrdered
+      ? [input.classId]
+      : [options.seed ?? randomUUID(), input.classId];
+    const classParameter = countOnly || sourceOrdered ? '$1' : '$2';
 
     // Prefer the precomputed readiness cache when its revision matches the
     // current corpus. Any source mutation marks the cache stale, at which point
