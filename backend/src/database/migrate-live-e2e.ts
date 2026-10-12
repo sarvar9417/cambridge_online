@@ -55,6 +55,7 @@ const selected=[
   '0206_live_question_exposure_read_model.sql',
   '0207_live_question_readiness_cache.sql',
   '0208_structured_response_readiness_audit.sql',
+  '0209_source_markdown_response_table_repair.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');
