@@ -403,7 +403,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     if(!window.confirm(`"${session.title}" sessiyasi tarixdan o‘chirilsinmi? Natija va mastery evidence xavfsizlik uchun saqlanadi.`))return;
     setDeletingSessionId(session.id);setError('');
     try{
-      await api(`/live-exams/${session.id}`,{method:'DELETE'});
+      await api(`/live-exams/${session.id}`,{
+        method:'DELETE',
+        headers:{'Idempotency-Key':`live-archive-${session.id}-v${session.version}`},
+        body:JSON.stringify({expectedVersion:session.version}),
+      });
       setSessions((current)=>current.filter((item)=>item.id!==session.id));
     }catch(cause){setError(message(cause,'Sessiyani tarixdan o‘chirib bo‘lmadi.'))}
     finally{setDeletingSessionId('')}
@@ -663,13 +667,23 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
   const [feedback,setFeedback]=useState(answer.feedback??answer.provisionalFeedback??'');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const mutationAttempt=useRef<{fingerprint:string;key:string}|null>(null);
   const teacherOwnsReview=answer.reviewStatus==='assigned'&&Boolean(answer.reviewId)&&answer.reviewKind==='teacher';
   const canOverride=snapshot.session.markingMode==='teacher'||snapshot.session.settings.teacherOverrideEnabled;
   const submit=async()=>{
     setBusy(true);setError('');
     try{
-      if(teacherOwnsReview)await api(`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`,{method:'POST',body:JSON.stringify({matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined})});
-      else await api(`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`,{method:'PUT',body:JSON.stringify({score,feedback:feedback||undefined,levelNumber,expectedVersion:snapshot.session.version})});
+      const path=teacherOwnsReview
+        ?`/live-exams/${snapshot.session.id}/reviews/${answer.reviewId}/submit`
+        :`/live-exams/${snapshot.session.id}/answers/${answer.id}/moderate`;
+      const method=teacherOwnsReview?'POST':'PUT';
+      const payload=teacherOwnsReview
+        ?{matchedPointIds:[...selected],score,levelNumber,feedback:feedback||undefined,expectedVersion:snapshot.session.version}
+        :{score,feedback:feedback||undefined,levelNumber,expectedVersion:snapshot.session.version};
+      const fingerprint=`${method}:${path}:${JSON.stringify(payload)}`;
+      const key=mutationAttempt.current?.fingerprint===fingerprint?mutationAttempt.current.key:randomId();
+      mutationAttempt.current={fingerprint,key};
+      await api(path,{method,headers:{'Idempotency-Key':key},body:JSON.stringify(payload)});
       await onDone();
     }catch(cause){setError(message(cause,'Baho saqlanmadi.'))}finally{setBusy(false)}
   };
@@ -687,13 +701,26 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [activeAnswerId,setActiveAnswerId]=useState('');
+  const mutationAttempt=useRef<{fingerprint:string;key:string}|null>(null);
   const remaining=useCountdown(session.deadline,session.serverNow);
   const teacherFallbackAnswers=snapshot.teacherAnswers.filter((item)=>item.reviewStatus==='assigned'&&item.reviewKind==='teacher');
   const activeAnswer=snapshot.teacherAnswers.find((item)=>item.id===activeAnswerId)
     ??teacherFallbackAnswers[0]
     ??snapshot.teacherAnswers.find((item)=>item.reviewStatus==='assigned')
     ??snapshot.teacherAnswers[0];
-  const act=async(path:string,body?:Record<string, unknown>)=>{setBusy(true);setError('');try{const payload=body??{};if(!('expectedVersion' in payload)&&['/start','/reveal','/marking/complete','/next','/cancel'].includes(path))payload.expectedVersion=session.version;await api(`/live-exams/${session.id}${path}`,{method:'POST',body:JSON.stringify(payload)});await refresh()}catch(cause){setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}};
+  const act=async(path:string,body?:Record<string, unknown>)=>{
+    setBusy(true);setError('');
+    try{
+      const payload={...(body??{})};
+      if(!('expectedVersion' in payload))payload.expectedVersion=session.version;
+      const requestPath=`/live-exams/${session.id}${path}`;
+      const fingerprint=`POST:${requestPath}:${JSON.stringify(payload)}`;
+      const key=mutationAttempt.current?.fingerprint===fingerprint?mutationAttempt.current.key:randomId();
+      mutationAttempt.current={fingerprint,key};
+      await api(requestPath,{method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify(payload)});
+      await refresh();
+    }catch(cause){setError(message(cause,'Amal bajarilmadi.'))}finally{setBusy(false)}
+  };
   const removeParticipant=async(studentId:string,fullName:string)=>{
     if(!window.confirm(`${fullName} xonadan chiqarilsinmi?`))return;
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});

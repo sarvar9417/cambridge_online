@@ -5,11 +5,12 @@ import { createLiveExamsRouter } from './live-exams.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
 
 const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
+const owner = { id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'owner' as const,schoolId:'school',fullName:'Owner' };
 
-function appFor(service:Partial<LiveExamService>) {
+function appFor(service:Partial<LiveExamService>,actor:{id:string;role:'owner'|'teacher'|'student';schoolId:string|null;fullName:string}=student) {
   const app=express();
   app.use(express.json());
-  app.use((req,_res,next)=>{req.actor=student;next()});
+  app.use((req,_res,next)=>{req.actor=actor;next()});
   app.use('/live-exams',createLiveExamsRouter(service as LiveExamService));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return}
@@ -171,6 +172,30 @@ describe('live exam routes', () => {
     expect(moderateAnswer).not.toHaveBeenCalled();
   });
 
+  it('requires a session version when staff submit an assigned teacher review', async () => {
+    const submitReview=vi.fn();
+    await request(appFor({submitReview},owner))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit')
+      .send({matchedPointIds:[],score:1})
+      .expect(400);
+    expect(submitReview).not.toHaveBeenCalled();
+  });
+
+  it('passes the staff review session version to the service', async () => {
+    const submitReview=vi.fn().mockResolvedValue({version:9});
+    await request(appFor({submitReview},owner))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit')
+      .send({matchedPointIds:[],score:1,expectedVersion:8})
+      .expect(200);
+    expect(submitReview).toHaveBeenCalledWith(
+      owner,
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+      {matchedPointIds:[],score:1,levelNumber:undefined,feedback:undefined},
+      8,
+    );
+  });
+
   it('rejects teacher transitions that omit the authoritative session version', async () => {
     const start=vi.fn();
     await request(appFor({start}))
@@ -212,13 +237,22 @@ describe('live exam routes', () => {
     expect(cancel).toHaveBeenCalledWith(student,sessionId,5);
   });
 
+  it('rejects history archive without the authoritative session version', async () => {
+    const archiveHistory=vi.fn();
+    await request(appFor({archiveHistory}))
+      .delete('/live-exams/22222222-2222-4222-8222-222222222222')
+      .send({})
+      .expect(400);
+    expect(archiveHistory).not.toHaveBeenCalled();
+  });
+
   it('routes terminal history deletion through the archive service', async () => {
     const archiveHistory=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',archived:true,version:7});
     const app=appFor({archiveHistory});
     const sessionId='22222222-2222-4222-8222-222222222222';
-    const response=await request(app).delete(`/live-exams/${sessionId}`).expect(200);
+    const response=await request(app).delete(`/live-exams/${sessionId}`).send({expectedVersion:6}).expect(200);
     expect(response.body.archived).toBe(true);
-    expect(archiveHistory).toHaveBeenCalledWith(student,sessionId);
+    expect(archiveHistory).toHaveBeenCalledWith(student,sessionId,6);
   });
 
   it('routes lobby removal and voluntary leave separately', async () => {
