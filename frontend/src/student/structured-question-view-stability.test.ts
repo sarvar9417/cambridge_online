@@ -8,8 +8,9 @@ describe('StructuredQuestionView render stability',()=>{
   it('uses a value-stable signature instead of snapshot object identity',()=>{
     expect(source).toContain('structuredQuestionRenderSignature');
     expect(source).toContain('Object.entries(assetUrls).sort');
-    expect(source).toContain('const renderSignature=structuredQuestionRenderSignature(content,assetUrls)');
-    expect(source).toContain('},[renderSignature,presentationReady,assetsReady]);');
+    expect(source).toContain('Object.entries(responseValues).sort');
+    expect(source).toContain('const renderSignature=structuredQuestionRenderSignature(content,assetUrls,responseValues,readOnly)');
+    expect(source).toContain('},[renderSignature,presentationReady,assetsReady,onResponseChange]);');
     expect(source).not.toContain('},[content,assetUrls,presentationReady,assetsReady]);');
   });
 });
