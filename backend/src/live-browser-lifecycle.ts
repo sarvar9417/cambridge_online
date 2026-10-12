@@ -574,6 +574,8 @@ try{
   await clickButton(teacher.page,'Sessiyani yakunlash');
   await Promise.all([
     waitText(teacher.page,'SESSIYA YAKUNLANDI'),
+    waitText(teacher.page,'BATAFSIL HISOBOT'),
+    waitText(teacher.page,'Sinf jami'),
     waitText(projector.page,'Sessiya yakunlandi'),
     waitText(student1.page,'SESSIYA YAKUNLANDI'),
     waitText(student2.page,'SESSIYA YAKUNLANDI'),
