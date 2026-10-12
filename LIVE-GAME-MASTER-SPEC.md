@@ -100,7 +100,9 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-01": "bounded five-attempt code collision retry, active-code partial uniqueness, 24-hour terminal retention/expiry and real PostgreSQL retention acceptance",
       "LG-P1-02": "durable PostgreSQL rate-limit buckets for join, staff create/eligible and autosave paths; RLS/revoke boundary plus middleware 429/fallback tests",
       "LG-P1-03": "all teacher Live mutations carry authoritative expectedVersion; retries reuse Idempotency-Key through the durable idempotency ledger; staff review submission and terminal history archive are version guarded; CI verify, real PostgreSQL and browser E2E green on PR #326",
+      "LG-P1-04": "versioned per-user/session/question local drafts; exponential and online retry plus page lifecycle flush; real browser E2E verifies failed autosave, reload recovery, visible two-tab conflict blocking and explicit conflict resolution before server persistence; PR #330",
       "LG-P1-05": "real PostgreSQL 30/60 learner bursts measure cursor, heartbeat and full snapshot paths with poolMax=10 and explicit p95/wall budgets; PR #327 CI observed 60-learner p95 cursor 25.6ms, heartbeat 14.7ms and snapshot 88.5ms, while 90 snapshot hydrations reused one signed-asset operation",
+      "LG-P1-06": "teacher-authorized read-only projector endpoint; anonymous alias is the privacy-preserving default with configurable initials/first/full-name modes; projector standings omit student IDs and real browser E2E asserts projector snapshot omits learner roster, answers, reviews and report payloads; PR #332",
       "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328"
     },
     "p0_closure_evidence": {
@@ -141,11 +143,11 @@ Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomati
 | Teacher builder | Ishlaydi | Topic/subtopic, auto/manual questions, timing, marking, late join, auto close, override va leaderboard sozlanadi |
 | Lobby/join | Ishlaydi | 6 xonali kod, authenticated student guard, presence va removal bor; Live join class yoki school membershipga bog‘liq emas |
 | Question delivery | Ishlaydi | Canonical source, parent context, dependency work, diagram, structured content va LaTeX ko‘rsatiladi |
-| Answering | P0 yopilgan | Autosave/reconnect retry, submit lock, mid-round leave guard va reconnect restoration browser lifecycle’da tekshiriladi |
+| Answering | P1 resilience yopilgan | Autosave/reconnect retry, versioned per-user/session/question draft, reload recovery va multi-tab conflict resolution real browser E2E’da tekshiriladi |
 | Timer | P0 yopilgan | PostgreSQL clock authoritative; expiry maintenance/read/write reconciliation roundni yopadi va real DB test bilan tekshiriladi |
 | Mark scheme secrecy | Ishlaydi | `question_open` paytida API mark scheme qaytarmaydi |
 | Marking | P0 yopilgan | Teacher/peer/self, teacher fallback, response levels va olti scheme-family capability gate fail-closed ishlaydi |
-| Projector | Ishlaydi | Lobby/question/mark scheme/leaderboard/finish ko‘rinishlari bor |
+| Projector | P1 privacy yopilgan | Staff-authorized read-only view; default anonim alias, initials/first/full-name policy, student IDs va private answer/review/report payloadlari chiqarilmaydi |
 | Realtime | Ishlaydi, polling | Safe event cursor + authoritative snapshot; WebSocket/SSE emas |
 | Results/evidence | Ishlaydi | Per-round/overall marks, audit, LO/subtopic evidence va mastery update bor |
 | Automated acceptance | P0 yopilgan | Real PostgreSQL acceptance, browser lifecycle/mode matrix va real app + PostgreSQL teacher/projector/3-student E2E CI’da ishlaydi |
