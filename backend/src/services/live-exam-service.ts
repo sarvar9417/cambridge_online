@@ -263,7 +263,7 @@ export class LiveExamService {
     return scheme;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'search' | 'marksMin' | 'marksMax' | 'yearFrom' | 'yearTo' | 'series' | 'components' | 'variants'>) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
@@ -271,6 +271,7 @@ export class LiveExamService {
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    filters.push(...liveBuilderSourceFilters(values,input,'q'));
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = '$'+values.length;
@@ -427,6 +428,7 @@ export class LiveExamService {
     const filters: string[] = [];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    filters.push(...liveBuilderSourceFilters(values,input,'q'));
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
