@@ -20,7 +20,7 @@ describe('Live Challenge deadline, result and late-join contracts',()=>{
     expect(backend).toContain("Number(remaining.rows[0].count) === 0");
     expect(backend).toContain("marking.completed', {automatic:true,pending:0}");
     expect(page).toContain("Sizning javobingiz");
-    expect(page).toContain("row.answerText||'Javob yozilmagan'");
+    expect(page).toContain("structuredResponseSummary(row.answerText)||'Javob yozilmagan'");
     expect(page).toContain("row.feedback?<small>Izoh:");
   });
 
