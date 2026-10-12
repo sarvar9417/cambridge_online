@@ -681,7 +681,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
-    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/><LiveQuestionView
+    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/>{session.joinedLate?<section className="live-late-join-notice" role="status"><strong>Kech qo‘shildingiz</strong><span>Bu savol uchun alohida vaqt qo‘shilmaydi: yuqoridagi qolgan vaqt siz uchun ham amal qiladi. Ball odatdagi Cambridge mark scheme bo‘yicha hisoblanadi.</span></section>:null}<LiveQuestionView
       question={snapshot.question}
       responseValue={answer}
       onResponseChange={studentResponseMode==='text'?undefined:changeStructuredAnswer}
