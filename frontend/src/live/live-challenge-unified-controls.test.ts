@@ -45,13 +45,17 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('markingMode:data.get(\'markingMode\'),includeDiagrams,excludeSeen');
     expect(page).toContain('setIncludeDiagrams(event.target.checked);clearManualPool()');
     expect(page).toContain('setExcludeSeen(event.target.checked);clearManualPool()');
+    expect(page).toContain('sourceYear:sourceYear?Number(sourceYear):undefined');
+    expect(page).toContain('sourceComponent:sourceComponent?Number(sourceComponent):undefined');
   });
 
   it('invalidates stale manual pools, uses the eligible database total, and reuses create idempotency on retry',()=>{
     expect(page).toContain('const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])}');
     expect(page).toContain('const [eligibleTotal,setEligibleTotal]=useState<number|null>(null)');
     expect(page).toContain('max={eligibleTotal??undefined}');
-    expect(page).toContain('selectedQuestionIds.length}/{eligibleTotal??questionPool.length}');
+    expect(page).toContain('const [selectionPreview,setSelectionPreview]=useState<LiveSelectionPreview|null>(null)');
+    expect(page).toContain("'/live-exams/selection-preview'");
+    expect(page).toContain('dependency bilan ${selectionPreview.expandedCount} savol / ${selectionPreview.expandedMarks} ball');
     expect(page).not.toContain('if(current.length>=20)return current');
     expect(page).not.toContain('selectedQuestionIds.length}/20 ta savol');
     expect(page).toContain("const createAttempt=useRef<{body:string;key:string}|null>(null)");
