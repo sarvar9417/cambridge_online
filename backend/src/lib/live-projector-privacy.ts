@@ -35,7 +35,7 @@ function redactValue(value:unknown, ids:Map<string,string>):unknown {
  * and forcing every learner-specific payload surface empty.
  */
 export function sanitizeLiveProjectorSnapshot<T extends Record<string,unknown>>(snapshot:T):T {
-  const sanitized=redactValue(snapshot,new Map()) as T & Record<string,unknown>;
+  const sanitized=redactValue(snapshot,new Map()) as Record<string,unknown>;
   sanitized.questions=[];
   sanitized.participants=[];
   sanitized.ownAnswer=null;
