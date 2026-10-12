@@ -26,7 +26,6 @@ import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { StructuredResponseWorkspace } from '../student/StructuredResponseWorkspace';
 import {
-  isStructuredResponseText,
   structuredResponseMode,
   structuredResponseSummary,
 } from '../lib/structured-response';
