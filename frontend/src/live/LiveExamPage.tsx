@@ -879,6 +879,7 @@ function LiveDetailedReportPanel({sessionId}:{sessionId:string}) {
   const [report,setReport]=useState<LiveDetailedReport|null>(null);
   const [error,setError]=useState('');
   const [downloading,setDownloading]=useState(false);
+  const [pdfBusy,setPdfBusy]=useState(false);
   useEffect(()=>{
     let active=true;
     setError('');
@@ -898,10 +899,34 @@ function LiveDetailedReportPanel({sessionId}:{sessionId:string}) {
     }catch(cause){setError(message(cause,'CSV hisobot yuklanmadi.'))}
     finally{setDownloading(false)}
   };
+  const downloadPdf=async()=>{
+    setPdfBusy(true);setError('');
+    try{
+      const exp=await api<{id:string;status:'queued'|'running'|'succeeded'|'failed';error:string|null}>('/exports',{
+        method:'POST',
+        headers:{'Idempotency-Key':randomId()},
+        body:JSON.stringify({kind:'feedback',refTable:'live_exam_sessions',refId:sessionId,format:'pdf',title:report?.session.title}),
+      });
+      await api('/jobs/run-once',{method:'POST',body:JSON.stringify({exportId:exp.id})}).catch(()=>null);
+      let complete=exp;
+      for(let attempt=0;attempt<30&&complete.status!=='succeeded';attempt+=1){
+        if(complete.status==='failed')throw new Error(complete.error??'PDF hisobot yaratilmadi.');
+        await new Promise(resolve=>window.setTimeout(resolve,1000));
+        complete=await api<typeof exp>(`/exports/${exp.id}`);
+      }
+      if(complete.status!=='succeeded')throw new Error('PDF hisobot navbatda qoldi. Exportlar bo‘limidan holatini tekshiring.');
+      const blob=await apiBlob(`/exports/${exp.id}/file`);
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement('a');
+      anchor.href=url;anchor.download=`live-report-${sessionId}.pdf`;anchor.click();
+      URL.revokeObjectURL(url);
+    }catch(cause){setError(message(cause,'PDF hisobot yaratilmadi.'))}
+    finally{setPdfBusy(false)}
+  };
   if(error&&!report)return <p className="live-error" role="alert">{error}</p>;
   if(!report)return <p className="live-empty">Batafsil hisobot tayyorlanmoqda…</p>;
   return <section className="live-detailed-report" aria-label="Batafsil Live Challenge hisoboti">
-    <header><div><span className="live-eyebrow">BATAFSIL HISOBOT</span><h2>{report.session.className}</h2><p>Class total, o‘rtacha natija, savol/subtopic kesimi va mark-point xatolari.</p></div><button type="button" className="live-secondary" disabled={downloading} onClick={()=>void downloadCsv()}>{downloading?'CSV tayyorlanmoqda…':'CSV yuklash'}</button></header>
+    <header><div><span className="live-eyebrow">BATAFSIL HISOBOT</span><h2>{report.session.className}</h2><p>Class total, o‘rtacha natija, savol/subtopic kesimi va mark-point xatolari.</p></div><div className="live-report-actions"><button type="button" className="live-secondary" disabled={downloading||pdfBusy} onClick={()=>void downloadCsv()}>{downloading?'CSV tayyorlanmoqda…':'CSV yuklash'}</button><button type="button" disabled={pdfBusy||downloading} onClick={()=>void downloadPdf()}>{pdfBusy?'PDF tayyorlanmoqda…':'PDF hisobot'}</button></div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     <div className="live-report-kpis">
       <article><span>O‘quvchi</span><strong>{report.aggregate.studentCount}</strong></article>
