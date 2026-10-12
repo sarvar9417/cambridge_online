@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { ArrowLeft, ArrowsClockwise, Broadcast, CaretDown, CaretUp, CheckCircle, Copy, Monitor, Trash, UsersThree } from '@phosphor-icons/react';
 import {
   api,
+  apiBlob,
   ApiError,
   type ClassItem,
   type LiveExamAnswer,
@@ -46,6 +47,15 @@ type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:El
 type SelectionPreview = {
   selected:EligibleQuestion[];dependencies:EligibleQuestion[];
   requestedCount:number;expandedCount:number;dependencyCount:number;requestedMarks:number;expandedMarks:number;
+};
+type LiveDetailedReport = {
+  session:{id:string;title:string;className:string;status:'finished'};
+  aggregate:{studentCount:number;totalEarned:number;totalPossible:number;averageScore:number;averagePossible:number;averagePercentage:number};
+  students:Array<{studentId:string;studentName:string;earned:number;possible:number;percentage:number}>;
+  questions:Array<{sessionQuestionId:string;questionPosition:number;displayRef:string;marks:number;earned:number;possible:number;attempts:number;percentage:number;subtopics:Array<{subtopicId:string;subtopicCode:string;subtopicTitle:string;topicNumber:number;topicTitle:string}>}>;
+  subtopics:Array<{subtopicId:string;subtopicCode:string;subtopicTitle:string;topicNumber:number;topicTitle:string;earned:number;possible:number;attempts:number;percentage:number}>;
+  mostMissedPoints:Array<{questionPosition:number;displayRef:string;pointId:string;code:string;text:string;marks:number;assessedCount:number;missedCount:number;missRate:number}>;
+  reteachRecommendations:Array<{subtopicId:string;code:string;title:string;topicNumber:number;topicTitle:string;percentage:number;attempts:number;marksEarned:number;marksPossible:number;reason:string}>;
 };
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[],coursebookSections:[] };
@@ -865,6 +875,51 @@ function TeacherAnswerMarker({snapshot,answer,onDone}:{snapshot:LiveExamSnapshot
   </article>;
 }
 
+function LiveDetailedReportPanel({sessionId}:{sessionId:string}) {
+  const [report,setReport]=useState<LiveDetailedReport|null>(null);
+  const [error,setError]=useState('');
+  const [downloading,setDownloading]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    setError('');
+    void api<LiveDetailedReport>(`/live-exams/${sessionId}/report`)
+      .then((value)=>{if(active)setReport(value)})
+      .catch((cause)=>{if(active)setError(message(cause,'Batafsil hisobot yuklanmadi.'))});
+    return()=>{active=false};
+  },[sessionId]);
+  const downloadCsv=async()=>{
+    setDownloading(true);setError('');
+    try{
+      const blob=await apiBlob(`/live-exams/${sessionId}/report.csv`);
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement('a');
+      anchor.href=url;anchor.download=`live-report-${sessionId}.csv`;anchor.click();
+      URL.revokeObjectURL(url);
+    }catch(cause){setError(message(cause,'CSV hisobot yuklanmadi.'))}
+    finally{setDownloading(false)}
+  };
+  if(error&&!report)return <p className="live-error" role="alert">{error}</p>;
+  if(!report)return <p className="live-empty">Batafsil hisobot tayyorlanmoqda…</p>;
+  return <section className="live-detailed-report" aria-label="Batafsil Live Challenge hisoboti">
+    <header><div><span className="live-eyebrow">BATAFSIL HISOBOT</span><h2>{report.session.className}</h2><p>Class total, o‘rtacha natija, savol/subtopic kesimi va mark-point xatolari.</p></div><button type="button" className="live-secondary" disabled={downloading} onClick={()=>void downloadCsv()}>{downloading?'CSV tayyorlanmoqda…':'CSV yuklash'}</button></header>
+    {error?<p className="live-error" role="alert">{error}</p>:null}
+    <div className="live-report-kpis">
+      <article><span>O‘quvchi</span><strong>{report.aggregate.studentCount}</strong></article>
+      <article><span>Sinf jami</span><strong>{report.aggregate.totalEarned} / {report.aggregate.totalPossible}</strong><small>Barcha o‘quvchilar ballari yig‘indisi</small></article>
+      <article><span>O‘rtacha</span><strong>{report.aggregate.averageScore.toFixed(1)} / {report.aggregate.averagePossible.toFixed(1)}</strong><small>{Math.round(report.aggregate.averagePercentage*100)}%</small></article>
+    </div>
+    <div className="live-report-grid">
+      <section><h3>O‘quvchilar</h3>{report.students.map((row)=><div className="live-report-metric-row" key={row.studentId}><span>{row.studentName}</span><strong>{row.earned}/{row.possible} · {Math.round(row.percentage*100)}%</strong></div>)}</section>
+      <section><h3>Savollar</h3>{report.questions.map((row)=><div className="live-report-metric-row" key={row.sessionQuestionId}><span>Q{row.questionPosition+1} · {row.displayRef}<small>{row.subtopics.map((item)=>item.subtopicCode).join(', ')||'Subtopic evidence yo‘q'}</small></span><strong>{row.earned}/{row.possible} · {Math.round(row.percentage*100)}%</strong></div>)}</section>
+    </div>
+    <div className="live-report-grid">
+      <section><h3>Subtopic natijalari</h3>{report.subtopics.length?report.subtopics.map((row)=><div className="live-report-metric-row" key={row.subtopicId}><span>{row.subtopicCode} · {row.subtopicTitle}<small>{row.attempts} evidence</small></span><strong>{row.earned}/{row.possible} · {Math.round(row.percentage*100)}%</strong></div>):<p className="live-empty">Subtopic evidence topilmadi.</p>}</section>
+      <section><h3>Eng ko‘p yo‘qotilgan mark pointlar</h3>{report.mostMissedPoints.length?report.mostMissedPoints.slice(0,10).map((row)=><div className="live-report-metric-row" key={row.pointId}><span>{row.displayRef} · {row.code}<small>{row.text}</small></span><strong>{row.missedCount}/{row.assessedCount} · {Math.round(row.missRate*100)}%</strong></div>):<p className="live-empty">Qayd etilgan mark-point xatosi yo‘q.</p>}</section>
+    </div>
+    <section className="live-reteach"><h3>Qayta o‘qitish tavsiyasi</h3>{report.reteachRecommendations.length?report.reteachRecommendations.map((row)=><article key={row.subtopicId}><strong>{row.code} · {row.title}</strong><p>{row.reason}</p></article>):<p>Sinfda 60% dan past evidence-backed subtopic topilmadi.</p>}</section>
+  </section>;
+}
+
 function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>}) {
   const {session}=snapshot;
   const [busy,setBusy]=useState(false);
@@ -908,7 +963,7 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
       {session.markingMode!=='teacher'?<><div className="live-peer-progress"><MarkSchemeView scheme={snapshot.markScheme!}/><section><h2>{MODE_LABEL[session.markingMode]}</h2><p>Peer/self bergan ball marking davomida vaqtinchalik hisoblanadi. Yakuniy ball faqat natijalar ochilganda release qilinadi.</p>{snapshot.teacherAnswers.map((answer)=><div key={answer.id}><span><strong>{answer.studentName}</strong><small>{answer.reviewStatus==='assigned'?(answer.reviewKind==='teacher'?'O‘qituvchi tekshiradi':'Baholamoqda'):'Tekshiruv tugadi'}</small></span><b>{answer.score!==null?`${answer.score}/${snapshot.question?.marks}`:answer.provisionalScore!==null&&answer.provisionalScore!==undefined?`${answer.provisionalScore}/${snapshot.question?.marks} · vaqtinchalik`:'—'}</b></div>)}</section></div>{teacherFallbackAnswers.length&&activeAnswer?.reviewKind==='teacher'&&activeAnswer.reviewStatus==='assigned'?<section className="live-review-override"><header><span className="live-eyebrow">TEACHER FALLBACK</span><h2>Tugallanmagan anonim tekshiruvlar</h2><p>Bu javoblar peer/self tomonidan yakunlanmagan. O‘qituvchi ularni tekshiradi; avtomatik 0 ball berilmaydi.</p></header><div className="live-teacher-marking"><nav>{teacherFallbackAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>O‘qituvchi</i></button>)}</nav><TeacherAnswerMarker key={`fallback:${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>{setActiveAnswerId('');return refresh()}}/></div></section>:null}</>:null}
     </>:null}
     {session.status==='review'?<><ReviewQuestionContext question={snapshot.question}/><section className="live-review-summary"><div><span className="live-eyebrow">SAVOL YAKUNI</span><h2>Natijalarni ko‘rib chiqing</h2><p>{session.markingMode==='teacher'||session.settings.teacherOverrideEnabled?'Baholarni keyingi savolga o‘tishdan oldin o‘qituvchi tuzatishi mumkin.':'Peer va self baholar final; teacher override o‘chirilgan.'}</p></div><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/next')}>{session.currentQuestionIndex+1<session.questionCount?'Keyingi savol →':'Sessiyani yakunlash'}</button></section><LiveExamLeaderboard sessionId={session.id} version={session.version}/><div className="live-result-table"><header><span>O‘quvchi</span><span>Baholash</span><span>Ball</span></header>{snapshot.teacherAnswers.map((answer)=><div key={answer.id}><strong>{answer.studentName}</strong><span>{answer.scoreSource?MODE_LABEL[answer.scoreSource]:'Baholanmagan'}</span><b>{answer.score??'—'} / {snapshot.question?.marks}</b></div>)}</div>{(session.markingMode==='teacher'||session.settings.teacherOverrideEnabled)&&activeAnswer?<section className="live-review-override"><header><span className="live-eyebrow">BAHONI TUZATISH</span><h2>Teacher override</h2></header><div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.score??0}/{snapshot.question?.marks}</i></button>)}</nav><TeacherAnswerMarker key={`review:${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>refresh()}/></div></section>:null}{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}</>:null}
-    {session.status==='finished'?<section className="live-finished live-teacher-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.questionCount} ta savol bajarildi</h1><p>Barcha javoblar, baholar va audit voqealari saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible} sinf ballari</strong><div className="live-report-list">{snapshot.report.rows.map((row,index)=><article key={`${row.studentId}-${row.questionPosition}-${index}`}><span>Savol {row.questionPosition+1}</span><strong>{row.studentName} · {row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b></article>)}</div></>:null}<button onClick={()=>navigate('oqitish/live')}>Sessiyalar ro‘yxati</button></section>:null}
+    {session.status==='finished'?<><section className="live-finished live-teacher-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.questionCount} ta savol bajarildi</h1><p>Barcha javoblar, baholar va audit voqealari saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible} sinf ballari</strong><div className="live-report-list">{snapshot.report.rows.map((row,index)=><article key={`${row.studentId}-${row.questionPosition}-${index}`}><span>Savol {row.questionPosition+1}</span><strong>{row.studentName} · {row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b></article>)}</div></>:null}<button onClick={()=>navigate('oqitish/live')}>Sessiyalar ro‘yxati</button></section><LiveDetailedReportPanel sessionId={session.id}/></>:null}
     {session.status==='cancelled'?<section className="live-finished"><h1>Sessiya bekor qilingan</h1><button onClick={()=>navigate('oqitish/live')}>Ortga</button></section>:null}
   </div>;
 }
