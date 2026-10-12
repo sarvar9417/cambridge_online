@@ -45,6 +45,6 @@ describe('Live projector privacy',()=>{
     expect(sanitized.question.portable.leaf.id).toBe(sanitized.question.id);
     expect(sanitized.question.portable.contextBlocks[0]!.assets[0]!.id)
       .toBe(sanitized.question.portable.leaf.contentJson.blocks[0]!.assetId);
-    expect(sanitized.question.portable.contextBlocks[0].assets[0].url).toBe('https://signed.example/asset.png');
+    expect(sanitized.question.portable.contextBlocks[0]!.assets[0]!.url).toBe('https://signed.example/asset.png');
   });
 });
