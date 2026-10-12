@@ -271,6 +271,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'>('shuffled');
   const [includeDiagrams,setIncludeDiagrams]=useState(true);
   const [excludeSeen,setExcludeSeen]=useState(true);
+  const [sourceYear,setSourceYear]=useState('');
+  const [sourceSeries,setSourceSeries]=useState('');
+  const [sourceComponent,setSourceComponent]=useState('');
+  const [sourceVariant,setSourceVariant]=useState('');
+  const [minMarks,setMinMarks]=useState('');
+  const [maxMarks,setMaxMarks]=useState('');
+  const [questionSearch,setQuestionSearch]=useState('');
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
   const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
@@ -335,6 +342,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     limit:String(Math.max(1,limit)),
     includeData:String(includeData),
     includeCounts:String(includeCounts),
+    ...(sourceYear?{sourceYear}:{}),
+    ...(sourceSeries?{sourceSeries}:{}),
+    ...(sourceComponent?{sourceComponent}:{}),
+    ...(sourceVariant?{sourceVariant}:{}),
+    ...(minMarks?{minMarks}:{}),
+    ...(maxMarks?{maxMarks}:{}),
+    ...(questionSearch.trim()?{search:questionSearch.trim()}:{}),
   });
 
   useEffect(()=>{
@@ -357,7 +371,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]);
+  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,sourceYear,sourceSeries,sourceComponent,sourceVariant,minMarks,maxMarks,questionSearch]);
 
   const loadQuestionPool=async()=>{
     setBusy(true);setError('');
@@ -389,6 +403,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
         displayNameMode:data.get('displayNameMode'),
+        sourceYear:sourceYear?Number(sourceYear):undefined,sourceSeries:sourceSeries||undefined,
+        sourceComponent:sourceComponent?Number(sourceComponent):undefined,sourceVariant:sourceVariant?Number(sourceVariant):undefined,
+        minMarks:minMarks?Number(minMarks):undefined,maxMarks:maxMarks?Number(maxMarks):undefined,search:questionSearch.trim()||undefined,
       });
       const key=createAttempt.current?.body===body?createAttempt.current.key:randomId();
       createAttempt.current={body,key};
@@ -431,6 +448,15 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <div className="live-topic-grid"><fieldset><legend>Chapter</legend>{chapters.map((chapter)=>{const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapter.chapter_number).map((item)=>item.section_code);const checked=chapterCodes.length>0&&chapterCodes.every((code)=>coursebookSectionCodes.includes(code));return <label key={chapter.chapter_number}><input type="checkbox" checked={checked} onChange={()=>toggleChapter(chapter.chapter_number)}/><span>{chapter.chapter_number}. {chapter.chapter_title}</span></label>})}</fieldset>
           <fieldset><legend>Chapter section</legend>{visibleCoursebookSections.map((section)=><label key={section.section_code}><input type="checkbox" checked={coursebookSectionCodes.includes(section.section_code)} onChange={()=>toggleCoursebookSection(section.section_code)}/><span>{section.section_code} {section.section_title}</span></label>)}</fieldset></div>
         <section className="live-question-picker"><header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleCounts?`Jami bazada: ${eligibleCounts.database} · Live-ready: ${eligibleCounts.liveReady} · Hozir tanlash mumkin: ${eligibleCounts.available}`:eligibleTotal!==null?`Hozir tanlash mumkin: ${eligibleTotal}`:'Chapter yoki Chapter section tanlang'}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'shuffled')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
+          <div className="live-builder-filters" aria-label="Savol manbasi va ball filtrlari">
+            <label>Qidirish<input value={questionSearch} onChange={(event)=>{setQuestionSearch(event.target.value);clearManualPool()}} placeholder="Ref yoki savol matni"/></label>
+            <label>Yil<input type="number" min="2000" max="2100" value={sourceYear} onChange={(event)=>{setSourceYear(event.target.value);clearManualPool()}} placeholder="Barchasi"/></label>
+            <label>Sessiya<select value={sourceSeries} onChange={(event)=>{setSourceSeries(event.target.value);clearManualPool()}}><option value="">Barchasi</option><option value="MJ">May/June</option><option value="ON">Oct/Nov</option><option value="FM">Feb/March</option></select></label>
+            <label>Paper<select value={sourceComponent} onChange={(event)=>{setSourceComponent(event.target.value);clearManualPool()}}><option value="">Barchasi</option><option value="1">Paper 1</option><option value="2">Paper 2</option><option value="3">Paper 3</option><option value="4">Paper 4</option></select></label>
+            <label>Variant<input type="number" min="0" max="9" value={sourceVariant} onChange={(event)=>{setSourceVariant(event.target.value);clearManualPool()}} placeholder="Barchasi"/></label>
+            <label>Min ball<input type="number" min="1" max="100" value={minMarks} onChange={(event)=>{setMinMarks(event.target.value);clearManualPool()}} placeholder="1"/></label>
+            <label>Max ball<input type="number" min="1" max="100" value={maxMarks} onChange={(event)=>{setMaxMarks(event.target.value);clearManualPool()}} placeholder="100"/></label>
+          </div>
           {selectionMode==='manual'?<><button type="button" className="live-secondary" disabled={busy||!selectedClassId||!coursebookSectionCodes.length} onClick={()=>void loadQuestionPool()}>Eligible savollarni ko‘rsatish</button><p>{selectedQuestionIds.length}/{eligibleTotal??questionPool.length} ta savol · {questionPool.filter((item)=>selectedQuestionIds.includes(item.id)).reduce((sum,item)=>sum+item.marks,0)} ball</p>{selectedQuestionIds.length?<div className="live-selected-preview"><header><strong>Tanlangan savollar tartibi</strong><small>Yuqoriga/pastga tugmalari sessiya tartibini belgilaydi.</small></header>{selectedQuestionIds.map((id,index)=>{const question=questionPool.find((item)=>item.id===id);return question?<article key={question.id}><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button></article>:null})}</div>:null}<div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.commandWord??'—'} · {question.marks} ball{question.hasAssets?' · diagramma':''}{question.dependencyCount?` · +${question.dependencyCount} majburiy oldingi qism`:''}</small><em>{question.stem}</em></span></label>)}</div></>:null}
         </section>
       </section>
