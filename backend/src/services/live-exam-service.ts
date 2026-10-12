@@ -8,6 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -215,8 +216,9 @@ export class LiveExamService {
        where ms.question_id=$1 and ms.status='approved'`,
       [questionId],
     );
-    if (!result.rows[0]?.scheme) throw new DomainError('live_question_not_ready', 409);
-    return result.rows[0].scheme as MarkSchemeSnapshot;
+    const scheme=result.rows[0]?.scheme as MarkSchemeSnapshot|undefined;
+    if (!scheme || !liveMarkSchemeCapabilityReady(scheme)) throw new DomainError('live_question_not_ready', 409);
+    return scheme;
   }
 
   private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
@@ -301,6 +303,12 @@ export class LiveExamService {
        and readiness.question_id=q.id
       where readiness_class.id=${classParameter}
         and readiness.live_ready
+        and exists(
+          select 1 from canonical_mark_schemes readiness_ms
+          where readiness_ms.question_id=q.id
+            and readiness_ms.status='approved'
+            and ${liveMarkSchemeCapabilitySql('readiness_ms')}
+        )
         ${input.includeDiagrams ? '' : 'and not readiness.has_visual'}
     )`;
 
@@ -308,10 +316,8 @@ export class LiveExamService {
       `q.status='approved'`,
       `q.marks>0`,
       `ms.status='approved'`,
+      liveMarkSchemeCapabilitySql('ms'),
       questionVisualIntegritySql('q'),
-      `(ms.scheme_type <> 'levels_of_response'::scheme_type or exists(
-        select 1 from mark_scheme_levels msl where msl.mark_scheme_id=ms.id
-      ))`,
       // Finished sessions publish mastery into the class syllabus. Prefer direct
       // or explicitly reviewed LO compatibility, but do not discard a valid
       // Cambridge question solely because an older syllabus split its LOs
