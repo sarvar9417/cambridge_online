@@ -30,7 +30,22 @@ const createInput = z.object({
   teacherOverrideEnabled: z.boolean().default(true),
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
   displayNameMode: z.enum(['full', 'first_name', 'initials', 'anonymous_alias']).default('anonymous_alias'),
-}).strict();
+  search: z.string().trim().max(200).optional(),
+  marksMin: z.number().int().min(1).max(100).optional(),
+  marksMax: z.number().int().min(1).max(100).optional(),
+  yearFrom: z.number().int().min(2000).max(2100).optional(),
+  yearTo: z.number().int().min(2000).max(2100).optional(),
+  series: z.array(z.enum(['FM','MJ','ON'])).max(3).default([]),
+  components: z.array(z.number().int().min(1).max(4)).max(4).default([]),
+  variants: z.array(z.number().int().min(1).max(9)).max(9).default([]),
+}).strict().superRefine((value,ctx)=>{
+  if(value.marksMin!==undefined&&value.marksMax!==undefined&&value.marksMin>value.marksMax){
+    ctx.addIssue({code:'custom',path:['marksMax'],message:'marksMax must be >= marksMin'});
+  }
+  if(value.yearFrom!==undefined&&value.yearTo!==undefined&&value.yearFrom>value.yearTo){
+    ctx.addIssue({code:'custom',path:['yearTo'],message:'yearTo must be >= yearFrom'});
+  }
+});
 
 const versionInput = z.object({
   expectedVersion: z.number().int().positive(),
@@ -93,6 +108,18 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid coursebook section list'});return z.NEVER}
       return parsed.data;
     });
+    const csvSeries=z.string().default('').transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean):[];
+      const parsed=z.array(z.enum(['FM','MJ','ON'])).max(3).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid series list'});return z.NEVER}
+      return parsed.data;
+    });
+    const csvInts=(min:number,max:number)=>z.string().default('').transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean).map(Number):[];
+      const parsed=z.array(z.number().int().min(min).max(max)).max(20).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid numeric list'});return z.NEVER}
+      return parsed.data;
+    });
     const query=z.object({
       classId:uuid,
       topicIds:csvUuids,
@@ -100,9 +127,26 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       coursebookSectionCodes:csvCoursebookSections,
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
-      limit:z.coerce.number().int().min(1).default(30),
+      q:z.string().trim().max(200).optional(),
+      marksMin:z.coerce.number().int().min(1).max(100).optional(),
+      marksMax:z.coerce.number().int().min(1).max(100).optional(),
+      yearFrom:z.coerce.number().int().min(2000).max(2100).optional(),
+      yearTo:z.coerce.number().int().min(2000).max(2100).optional(),
+      series:csvSeries,
+      components:csvInts(1,4),
+      variants:csvInts(1,9),
+      selectedQuestionIds:csvUuids,
+      offset:z.coerce.number().int().min(0).default(0),
+      limit:z.coerce.number().int().min(1).max(100).default(30),
       includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
+    }).superRefine((value,ctx)=>{
+      if(value.marksMin!==undefined&&value.marksMax!==undefined&&value.marksMin>value.marksMax){
+        ctx.addIssue({code:'custom',path:['marksMax'],message:'marksMax must be >= marksMin'});
+      }
+      if(value.yearFrom!==undefined&&value.yearTo!==undefined&&value.yearFrom>value.yearTo){
+        ctx.addIssue({code:'custom',path:['yearTo'],message:'yearTo must be >= yearFrom'});
+      }
     }).parse(req.query);
     res.json(await service.eligibleQuestions(req.actor!,{
       classId:query.classId,
@@ -111,6 +155,16 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       coursebookSectionCodes:query.coursebookSectionCodes ?? [],
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
+      search:query.q,
+      marksMin:query.marksMin,
+      marksMax:query.marksMax,
+      yearFrom:query.yearFrom,
+      yearTo:query.yearTo,
+      series:query.series,
+      components:query.components,
+      variants:query.variants,
+      selectedQuestionIds:query.selectedQuestionIds,
+      offset:query.offset,
       limit:query.limit,
       includeData:query.includeData,
       includeCounts:query.includeCounts,
