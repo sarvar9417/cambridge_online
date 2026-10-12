@@ -73,7 +73,23 @@ CREATE TABLE enrollments (
 
 CREATE TABLE questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  display_ref text NOT NULL DEFAULT '',
+  sort_order int NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE question_dependencies (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  question_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
+  depends_on_id uuid NOT NULL REFERENCES questions ON DELETE CASCADE,
+  kind text NOT NULL,
+  strength text NOT NULL DEFAULT 'required',
+  evidence text,
+  detected_by text NOT NULL DEFAULT 'ai',
+  confidence numeric(3,2),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (question_id, depends_on_id),
+  CHECK (question_id <> depends_on_id)
 );
 
 CREATE TABLE question_learning_objectives (
