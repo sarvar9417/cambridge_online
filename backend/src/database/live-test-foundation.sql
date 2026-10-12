@@ -28,13 +28,15 @@ CREATE TABLE syllabi (
 CREATE TABLE topics (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   syllabus_id uuid NOT NULL REFERENCES syllabi ON DELETE CASCADE,
-  number int NOT NULL
+  number int NOT NULL,
+  title text NOT NULL DEFAULT ''
 );
 
 CREATE TABLE subtopics (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   topic_id uuid NOT NULL REFERENCES topics ON DELETE CASCADE,
-  code text NOT NULL
+  code text NOT NULL,
+  title text NOT NULL DEFAULT ''
 );
 
 CREATE TABLE learning_objectives (
