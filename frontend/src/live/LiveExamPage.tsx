@@ -257,7 +257,7 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
 
 function SessionProgress({snapshot}:{snapshot:LiveExamSnapshot}) {
   const {session}=snapshot;
-  return <div className="live-progress" aria-label={`Savol ${session.currentQuestionIndex+1}, jami ${session.questionCount}`}>
+  return <div className="live-progress" role="progressbar" aria-label="Savollar bo‘yicha progress" aria-valuemin={1} aria-valuemax={Math.max(1,session.questionCount)} aria-valuenow={session.currentQuestionIndex+1} aria-valuetext={`Savol ${session.currentQuestionIndex+1}, jami ${session.questionCount}`}>
     {Array.from({length:session.questionCount},(_,index)=><i key={index} className={
       index<session.currentQuestionIndex?'is-done':index===session.currentQuestionIndex?'is-current':''}/>) }
   </div>;
