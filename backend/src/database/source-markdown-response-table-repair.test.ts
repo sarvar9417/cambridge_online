@@ -31,5 +31,6 @@ describe('0209 source-backed Markdown response-table repair',()=>{
     expect(sql).toContain("source-markdown-response-table-v1");
     expect(sql).toContain('structured_content_backfill_audits');
     expect(sql).toContain('set_question_structured_content_v1');
+    expect(sql).toContain('refresh_live_question_readiness_v1');
   });
 });
