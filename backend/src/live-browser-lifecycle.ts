@@ -445,15 +445,17 @@ try{
 
   for(const surface of surfaces)await surface.page.waitForSelector('.live-question-card',{timeout:15_000});
 
-  // Autosave + retry + reload recovery.
-  await student1.page.type('#live-answer','student one recovered answer');
+  // Autosave + retry + reload recovery for a canonical editable table cell.
+  await student1.page.type('.structured-question-cell-input','1');
   await waitText(student1.page,'Temporary browser network drop.',5_000);
   await student1.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
-  if(state.answers.student1.text!=='student one recovered answer')throw new Error('student1 autosave retry did not persist server state');
+  if(!state.answers.student1.text.startsWith('[[campath-response-v1]]')||!state.answers.student1.text.includes('"1"')){
+    throw new Error('student1 structured autosave retry did not persist server state');
+  }
   await student1.page.reload({waitUntil:'networkidle0'});
-  await student1.page.waitForSelector('#live-answer',{timeout:12_000});
-  const restored=await student1.page.$eval('#live-answer',(node)=>(node as HTMLTextAreaElement).value);
-  if(restored!=='student one recovered answer')throw new Error(`student1 reconnect recovery mismatch: ${restored}`);
+  await student1.page.waitForSelector('.structured-question-cell-input',{timeout:12_000});
+  const restored=await student1.page.$eval('.structured-question-cell-input',(node)=>(node as HTMLInputElement).value);
+  if(restored!=='1')throw new Error(`student1 structured reconnect recovery mismatch: ${restored}`);
 
   // Pause must propagate to every active role and block the student workspace.
   await clickButton(teacher.page,'Pauza');
@@ -468,15 +470,15 @@ try{
 
   await clickButton(teacher.page,'Davom ettirish');
   await Promise.all([
-    student1.page.waitForSelector('#live-answer',{timeout:12_000}),
-    student2.page.waitForSelector('#live-answer',{timeout:12_000}),
-    student3.page.waitForSelector('#live-answer',{timeout:12_000}),
+    student1.page.waitForSelector('.structured-question-cell-input',{timeout:12_000}),
+    student2.page.waitForSelector('.structured-question-cell-input',{timeout:12_000}),
+    student3.page.waitForSelector('.structured-question-cell-input',{timeout:12_000}),
     waitNotText(projector.page,'CHALLENGE PAUZADA'),
   ]);
 
   // Three students submit through the real UI.
-  await student2.page.type('#live-answer','student two answer');
-  await student3.page.type('#live-answer','student three answer');
+  await student2.page.type('.structured-question-cell-input','0');
+  await student3.page.type('.structured-question-cell-input','1');
   await clickButton(student1.page,'Javobni topshirish');
   await clickButton(student2.page,'Javobni topshirish');
   await clickButton(student3.page,'Javobni topshirish');
