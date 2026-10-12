@@ -136,7 +136,7 @@ describe('LiveExamService source fidelity', () => {
       if (sql.includes('with recursive closure(question_id)')) return { rowCount:1,rows:[{
         question_id:'q1',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[],
       }] };
-      if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,points:[],groups:[] } }] };
+      if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,levels:[],points:[{ id:'p1',code:'M1',text:'One mark',marks:1,accept:[],reject:[],requires:[],isBod:false,groupId:null }],groups:[] } }] };
       throw new Error(`unexpected query: ${sql}`);
     });
     const questions = { portable:vi.fn().mockResolvedValue({
