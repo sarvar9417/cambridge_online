@@ -322,6 +322,8 @@ export class LiveExamService {
     input: CreateLiveExamInput,
     requireExact = true,
     countOnly = false,
+    sourceOrder = false,
+    offset = 0,
   ) {
     // Keep the random ordering seed first and bind the class ID for both
     // syllabus-safe readiness resolution and optional seen-question filtering.
@@ -504,17 +506,51 @@ export class LiveExamService {
       return { ids:[] as string[],total:Number(result.rows[0]?.total ?? 0) };
     }
     values.push(input.questionCount);
-    const limitParameter='$'+values.length;
-    const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (${candidateSql}) candidate
-       order by md5(candidate.id::text || $1::text)
-       limit ${limitParameter}`,
-      values,
-    );
+    const limitParameter='
+    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
+      const available = new Set(selected);
+      return { ids:input.questionIds.filter((id) => available.has(id)), total };
+    }
+    return { ids:selected, total };
+  }
+
++values.length;
+    let result;
+    if (!sourceOrder && offset === 0) {
+      result = await this.pool.query(
+        `select candidate.id,count(*) over()::int total_count
+         from (${candidateSql}) candidate
+         order by md5(candidate.id::text || $1::text)
+         limit ${limitParameter}`,
+        values,
+      );
+    } else {
+      let offsetParameter='0';
+      if (offset > 0) {
+        values.push(offset);
+        offsetParameter=String.fromCharCode(36)+values.length;
+      }
+      const orderSql=sourceOrder
+        ? 'source_q.display_ref,source_q.id'
+        : 'md5(candidate.id::text || $1::text)';
+      result = await this.pool.query(
+        `with candidate as (${candidateSql}),
+         total as (select count(*)::int total_count from candidate),
+         page as (
+           select candidate.id
+           from candidate
+           join questions source_q on source_q.id=candidate.id
+           order by ${orderSql}
+           limit ${limitParameter} offset ${offsetParameter}
+         )
+         select page.id,total.total_count
+         from total left join page on true`,
+        values,
+      );
+    }
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    const selected = result.rows.map((row) => String(row.id));
+    const selected = result.rows.filter((row) => row.id).map((row) => String(row.id));
     if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
       const available = new Set(selected);
       return { ids:input.questionIds.filter((id) => available.has(id)), total };
