@@ -16,8 +16,15 @@ export function observablePath(path: string) {
     .replace(SIX_DIGIT_SEGMENT, '$1:code');
 }
 
+const defaultInfo = (line:string) => {
+  if (process.env.NODE_ENV !== 'test') console.log(line);
+};
+const defaultError = (line:string) => {
+  if (process.env.NODE_ENV !== 'test') console.error(line);
+};
+
 export function requestObservability(
-  write: (line: string) => void = (line) => console.log(line),
+  write: (line: string) => void = defaultInfo,
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
     const requestId = requestIdFromHeader(req.headers['x-request-id']);
@@ -48,7 +55,7 @@ export function logRequestFailure(
   res: Response,
   error: unknown,
   category: 'database_unavailable' | 'internal_error',
-  write: (line: string) => void = (line) => console.error(line),
+  write: (line: string) => void = defaultError,
 ) {
   const value = error as { name?: unknown; code?: unknown } | null;
   write(JSON.stringify({
