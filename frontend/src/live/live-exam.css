@@ -131,3 +131,5 @@
 .live-reteach article p{margin:4px 0 0;color:var(--text-muted)}
 @media(max-width:760px){.live-detailed-report>header{flex-direction:column}.live-report-kpis,.live-report-grid{grid-template-columns:1fr}}
 
+.live-report-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:760px){.live-report-actions{width:100%;justify-content:stretch}.live-report-actions button{flex:1}}
