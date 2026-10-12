@@ -265,7 +265,7 @@ export class LiveExamService {
     return scheme;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'search' | 'marksMin' | 'marksMax' | 'yearFrom' | 'yearTo' | 'series' | 'components' | 'variants'>) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
@@ -3611,7 +3611,7 @@ export class LiveExamService {
        from total left join page on true`,
       values,
     );
-    const total = Number(result.rows[0]?.total_count ?? 0);
+    const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
     const selected = result.rows.filter((row)=>row.id).map((row) => String(row.id));
     if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
