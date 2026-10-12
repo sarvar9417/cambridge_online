@@ -167,8 +167,11 @@ try {
   firstStudent.page.on('request', blockedAutosave);
   const firstTabAnswer = 'Uses base 2 and digits 0 and 1. QA learner 1 offline draft.';
   await qa.fill(firstStudent.page, '#live-answer', firstTabAnswer);
-  await firstStudent.page.waitForFunction(() =>
-    document.body.innerText.includes('Ulanish tiklanganda qayta uriniladi.'), { timeout: 10000 });
+  await firstStudent.page.waitForFunction((sessionId) =>
+    Object.entries(localStorage).some(([key, raw]) => {
+      if (!key.startsWith('campath:live-draft:v1:') || !key.includes(`:${sessionId}:`)) return false;
+      try { return JSON.parse(raw).text === 'Uses base 2 and digits 0 and 1. QA learner 1 offline draft.'; } catch { return false; }
+    }), { timeout: 10000 }, id);
   const localDraft = await firstStudent.page.evaluate((sessionId) => {
     const entries = Object.entries(localStorage)
       .filter(([key]) => key.startsWith('campath:live-draft:v1:') && key.includes(`:${sessionId}:`));
