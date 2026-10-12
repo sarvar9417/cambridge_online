@@ -407,9 +407,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]);
+  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]);
 
-  const loadQuestionPool=async()=>{
+  const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     setBusy(true);setError('');
     try{
       let total=eligibleTotal;
@@ -418,14 +418,40 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         total=summary.total;setEligibleTotal(total);
         setEligibleCounts(summary.counts??null);
       }
-      if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);return}
-      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(total,true,false)}`);
+      if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);return}
+      const pageSize=20;
+      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(pageSize,true,false,page*pageSize,search)}`);
+      const maxPage=Math.max(0,Math.ceil(result.total/pageSize)-1);
+      if(page>maxPage){setPoolPage(maxPage);return void loadQuestionPool(maxPage,search)}
+      setPoolPage(page);
       setEligibleTotal(result.total);
       setEligibleCounts(result.counts??null);
       setQuestionPool(result.data);
-      setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
   };
+
+  useEffect(()=>{
+    if(selectionMode!=='manual'||!selectedQuestionIds.length||!selectedClassId||!coursebookSectionCodes.length){
+      setSelectionPreview(null);return;
+    }
+    let cancelled=false;
+    const timer=window.setTimeout(()=>{
+      const body={
+        classId:selectedClassId,topicIds:[],subtopicIds:[],coursebookSectionCodes,
+        includeDiagrams,excludeSeen,difficulty:difficulty||undefined,
+        marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
+        yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,
+        series,components,questionIds:selectedQuestionIds,questionOrder:'fixed' as const,
+      };
+      void api<SelectionPreview>('/live-exams/selection-preview',{method:'POST',body:JSON.stringify(body)})
+        .then((result)=>{if(!cancelled)setSelectionPreview(result)})
+        .catch((cause)=>{if(!cancelled){setSelectionPreview(null);setError(message(cause,'Tanlangan savollar preview’i tayyorlanmadi.'))}});
+    },250);
+    return()=>{cancelled=true;window.clearTimeout(timer)};
+  },[
+    selectionMode,selectedQuestionIds,selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,
+    difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,
+  ]);
 
   const create=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();setBusy(true);setError('');
@@ -435,6 +461,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         classId:data.get('classId'),title:data.get('title'),topicIds:[],subtopicIds:[],coursebookSectionCodes,
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
+        difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
+        yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
