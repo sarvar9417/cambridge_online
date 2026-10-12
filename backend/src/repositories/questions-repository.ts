@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { sourceAssetContentSql } from '../lib/source-visual-readiness.js';
+import { inspectResponseReadiness } from '../lib/source-response-readiness.js';
 import {
   coursebookSectionsForEvidence,
   liveCoursebookQuestionFilter,
@@ -223,7 +224,7 @@ export class PgQuestionsRepository {
     const matching = await this.pool.query(
       `with recursive matching as (
          select q.id,q.parent_id,q.label,q.path,q.display_ref,q.depth,q.sort_order,
-           coalesce(q.stem_md,'') stem,q.stem_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,q.status,
+           coalesce(q.stem_md,'') stem,q.context_md,q.content_json,q.stem_latex,q.body_format,q.command_word,q.marks,q.ao,q.answer_kind,q.status,
            syllabus.code syllabus_code,component.number component,sp.year,sp.series,sp.variant,
            exists(
              select 1 from question_assets qa
@@ -301,7 +302,12 @@ export class PgQuestionsRepository {
             })),
           }).map((section)=>({code:section.code,title:section.title,chapterNumber:section.chapterNumber}))
         :[];
-      return {...part,coursebookSections};
+      const responseIssues=inspectResponseReadiness({
+        stem:row.stem,
+        context:row.context_md,
+        contentJson:row.content_json,
+      });
+      return {...part,coursebookSections,responseReady:responseIssues.length===0,responseIssues};
     });
     if ((filters.view ?? 'parts') === 'parts') {
       return {
