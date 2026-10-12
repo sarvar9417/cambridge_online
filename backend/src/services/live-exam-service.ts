@@ -626,6 +626,7 @@ export class LiveExamService {
          from ancestry join questions parent on parent.id=ancestry.parent_id
        )
        select q.id,q.display_ref,q.marks,q.command_word,coalesce(q.stem_md,'') stem,
+         sp.year,sp.series::text series,source_component.number component,
          exists(
            select 1 from ancestry
            join question_assets asset on asset.question_id=ancestry.ancestor_id
@@ -633,7 +634,10 @@ export class LiveExamService {
          ) has_assets,
          (select count(*)::int from question_dependencies dependency
           where dependency.question_id=q.id and dependency.strength::text='required') dependency_count
-       from selected join questions q on q.id=selected.question_id
+       from selected
+       join questions q on q.id=selected.question_id
+       join source_papers sp on sp.id=q.source_paper_id
+       join components source_component on source_component.id=sp.component_id
        order by selected.ordinality`,
       [questionIds],
     );
@@ -643,6 +647,10 @@ export class LiveExamService {
       marks:Number(row.marks),
       commandWord:row.command_word == null ? null : String(row.command_word),
       stem:String(row.stem),
+      year:Number(row.year),
+      series:String(row.series),
+      component:Number(row.component),
+      difficulty:Number(row.marks)<=2?'easy':Number(row.marks)<=4?'medium':'hard',
       hasAssets:Boolean(row.has_assets),
       dependencyCount:Number(row.dependency_count),
     }));
