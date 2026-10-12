@@ -1,4 +1,4 @@
--- 0209: source-backed semantic response tables from verified Markdown table assets.
+-- 0210: source-backed semantic response tables from verified Markdown table assets.
 --
 -- The repair is deliberately conservative:
 -- * only 9618 QP questions with a high-confidence table-completion instruction
@@ -238,7 +238,7 @@ BEGIN
     PERFORM public.refresh_live_question_readiness_v1();
   END IF;
 
-  RAISE NOTICE '0209 repaired % source-backed Markdown response tables',v_repaired;
+  RAISE NOTICE '0210 repaired % source-backed Markdown response tables',v_repaired;
 END
 $repair$;
 
