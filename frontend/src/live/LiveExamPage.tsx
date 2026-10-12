@@ -37,9 +37,16 @@ type FilterOptions = {
     section_code:string;section_title:string;mapping_kind:'direct_subtopic'|'learning_objective_bridge';
   }>;
 };
-type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
+type EligibleQuestion = {
+  id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number;
+  year:number;series:string;component:number;difficulty:'easy'|'medium'|'hard';
+};
 type EligibleQuestionCounts = {database:number;liveReady:number;available:number};
 type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:EligibleQuestionCounts};
+type SelectionPreview = {
+  selected:EligibleQuestion[];dependencies:EligibleQuestion[];
+  requestedCount:number;expandedCount:number;dependencyCount:number;requestedMarks:number;expandedMarks:number;
+};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[],coursebookSections:[] };
 const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0]);
@@ -271,8 +278,20 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'>('shuffled');
   const [includeDiagrams,setIncludeDiagrams]=useState(true);
   const [excludeSeen,setExcludeSeen]=useState(true);
+  const [difficulty,setDifficulty]=useState<''|'easy'|'medium'|'hard'>('');
+  const [marksMin,setMarksMin]=useState('');
+  const [marksMax,setMarksMax]=useState('');
+  const [yearFrom,setYearFrom]=useState('');
+  const [yearTo,setYearTo]=useState('');
+  const [series,setSeries]=useState<string[]>([]);
+  const [components,setComponents]=useState<number[]>([]);
+  const [poolSearch,setPoolSearch]=useState('');
+  const [poolPage,setPoolPage]=useState(0);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
+  const [selectionPreview,setSelectionPreview]=useState<SelectionPreview|null>(null);
+  const [replacingQuestionId,setReplacingQuestionId]=useState('');
+  const [draggedQuestionId,setDraggedQuestionId]=useState('');
   const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
   const [eligibleCounts,setEligibleCounts]=useState<EligibleQuestionCounts|null>(null);
   const [eligibleLoading,setEligibleLoading]=useState(false);
