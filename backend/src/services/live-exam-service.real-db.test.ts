@@ -5,6 +5,7 @@ import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import { LiveExamService } from './live-exam-service.js';
 import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
+import { LiveExamReportService, liveExamReportCsv } from './live-exam-report-service.js';
 
 const describeLive = process.env.LIVE_DB_ACCEPTANCE === '1' ? describe : describe.skip;
 
@@ -139,11 +140,11 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       "insert into syllabi (code) values ('9618') returning id",
     )).rows[0]!.id;
     const topicId = (await client.query<{id:string}>(
-      'insert into topics (syllabus_id,number) values ($1,1) returning id',
+      "insert into topics (syllabus_id,number,title) values ($1,1,'Information representation') returning id",
       [syllabusId],
     )).rows[0]!.id;
     const subtopicId = (await client.query<{id:string}>(
-      "insert into subtopics (topic_id,code) values ($1,'1.1') returning id",
+      "insert into subtopics (topic_id,code,title) values ($1,'1.1','Data representation') returning id",
       [topicId],
     )).rows[0]!.id;
     loId = (await client.query<{id:string}>(
@@ -302,6 +303,60 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       'select count(*) count from mastery where student_id=any($1::uuid[])',
       [studentIds],
     )).rows[0].count)).toBe(3);
+
+    const report=await new LiveExamReportService(pool).report(owner(),sessionId);
+    expect(report.session).toMatchObject({participantCount:3,questionCount:1});
+    expect(report.classAggregate).toMatchObject({
+      totalEarned:3,totalPossible:3,averageEarnedPerStudent:1,averagePossiblePerStudent:1,averagePercentage:100,
+    });
+    expect(report.students).toHaveLength(3);
+    expect(report.students.every((row)=>row.earned===1&&row.possible===1&&row.percentage===100)).toBe(true);
+    expect(report.questions[0]).toMatchObject({learnerCount:3,earned:3,possible:3,averageScore:1,averagePercentage:100});
+    expect(report.topics[0]).toMatchObject({label:'1. Information representation',earned:3,possible:3,percentage:100,learnerCount:3});
+    expect(report.subtopics[0]).toMatchObject({label:'1.1 Data representation',earned:3,possible:3,percentage:100,learnerCount:3});
+    expect(report.mostMissedMarkPoints[0]).toMatchObject({code:'M1',attempts:3,matched:3,missed:0,missRate:0});
+    expect(report.reteachCandidates).toEqual([]);
+    expect(liveExamReportCsv(report)).toContain('Acceptance student 1');
+  });
+
+  it('reports missed mark points and evidence-backed reteach priorities after finish', async () => {
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'820009',
+      markingMode:'peer',
+      participants:[0,1,2],
+    });
+    await service.start(owner(),sessionId,1);
+    for(let index=0;index<3;index+=1){
+      await service.submitAnswer(student(index),sessionId,`report answer ${index+1}`);
+    }
+    await service.revealMarkScheme(owner(),sessionId);
+    const reviews=await client.query<{id:string;reviewer_id:string}>(
+      'select id::text,reviewer_id::text from live_exam_reviews where session_question_id=$1 order by id',
+      [sessionQuestionId],
+    );
+    for(let index=0;index<reviews.rows.length;index+=1){
+      const row=reviews.rows[index]!;
+      const reviewerIndex=studentIds.indexOf(row.reviewer_id);
+      await service.submitReview(student(reviewerIndex),sessionId,row.id,{
+        matchedPointIds:index===0?[pointId]:[],
+        feedback:index===0?'met':'missed',
+      });
+    }
+    const state=await client.query<{status:string}>('select status::text status from live_exam_sessions where id=$1',[sessionId]);
+    expect(state.rows[0]?.status).toBe('review');
+    await service.nextQuestion(owner(),sessionId);
+
+    const report=await new LiveExamReportService(pool).report(owner(),sessionId);
+    expect(report.classAggregate).toMatchObject({
+      totalEarned:1,totalPossible:3,averagePercentage:33.3,
+    });
+    expect(report.mostMissedMarkPoints[0]).toMatchObject({
+      code:'M1',attempts:3,matched:1,missed:2,missRate:66.7,
+    });
+    expect(report.reteachCandidates[0]).toMatchObject({
+      subtopicCode:'1.1',subtopicTitle:'Data representation',earned:1,possible:3,percentage:33.3,
+      learnerCount:3,answerCount:3,basis:'lowest_observed_mark_rate',
+    });
   });
 
   it('reassigns unfinished peer reviews to the teacher instead of forcing zero marks', async () => {
