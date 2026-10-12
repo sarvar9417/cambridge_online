@@ -231,6 +231,13 @@ BEGIN
     v_repaired:=v_repaired+1;
   END LOOP;
 
+  IF v_repaired>0 THEN
+    -- Question writes invalidate the 0207 readiness cache by design. Refresh it
+    -- in the same migration so production does not fall back to the expensive
+    -- dynamic gate after these verified source repairs.
+    PERFORM public.refresh_live_question_readiness_v1();
+  END IF;
+
   RAISE NOTICE '0209 repaired % source-backed Markdown response tables',v_repaired;
 END
 $repair$;
