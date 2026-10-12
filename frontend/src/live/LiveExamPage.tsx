@@ -18,6 +18,14 @@ import {
 import { navigate, useRoute } from '../lib/router';
 import { LatexQuestionText } from '../lib/latex-question-text';
 import {
+  liveDraftKey,
+  migrateLegacyLiveDraft,
+  readLiveDraft,
+  removeLiveDraft,
+  writeLiveDraft,
+  type LiveDraftIdentity,
+} from '../lib/live-draft';
+import {
   materializePortableSourceAssets,
   portableAssetsForContent,
   portableAssetUrl,
@@ -54,28 +62,6 @@ const MODE_LABEL:Record<LiveExamMarkingMode,string> = {
 
 function message(error:unknown,fallback:string) {
   return error instanceof Error ? error.message : fallback;
-}
-
-function liveDraftKey(sessionId:string,answerId:string) {
-  return `campath:live-draft:${sessionId}:${answerId}`;
-}
-
-function readLiveDraft(key:string) {
-  try {
-    const raw=localStorage.getItem(key);
-    if(!raw)return null;
-    const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
-    if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
-    return {text:draft.text,updatedAt:draft.updatedAt};
-  }catch{return null}
-}
-
-function writeLiveDraft(key:string,text:string,tabId:string) {
-  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
-}
-
-function removeLiveDraft(key:string) {
-  try{localStorage.removeItem(key)}catch{/* Storage may be disabled. */}
 }
 
 function formatClock(seconds:number|null) {
@@ -478,7 +464,7 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
   </div>;
 }
 
-function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>}) {
+function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>;userId:string}) {
   const {session}=snapshot;
   const [answer,setAnswer]=useState('');
   const [dirty,setDirty]=useState(false);
@@ -518,7 +504,9 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
-    const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
+    const identity=snapshot.question?.id?{userId,sessionId:session.id,questionId:snapshot.question.id}:null;
+    let localDraft=identity?readLiveDraft(identity):null;
+    if(!localDraft&&identity&&key)localDraft=migrateLegacyLiveDraft(identity,key,snapshot.ownAnswer?.id??null,tabId.current);
     const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
     const initial=useLocal?localDraft!.text:serverText;
     latestAnswer.current=initial;
@@ -527,14 +515,17 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setDirty(useLocal);
     setHydratedKey(key);
   },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
-  const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
+  const draftQuestionId=snapshot.question?.id??'';
+  const draftIdentity:LiveDraftIdentity|null=draftQuestionId?{userId,sessionId:session.id,questionId:draftQuestionId}:null;
+  const draftKey=draftQuestionId;
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
-    writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
+    if(draftIdentity)writeLiveDraft(draftIdentity,{answerId:snapshot.ownAnswer?.id??null,text:answer,tabId:tabId.current});
   },[answer,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
-    const key=liveDraftKey(session.id,draftKey);
+    if(!draftIdentity)return;
+    const key=liveDraftKey(draftIdentity);
     const onStorage=(event:StorageEvent)=>{
       if(event.key!==key||!event.newValue)return;
       try{
@@ -615,7 +606,7 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     window.clearTimeout(saveTimer.current);
     window.clearTimeout(retryTimer.current);
     pendingSave.current=null;
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftIdentity)removeLiveDraft(draftIdentity);setDirty(false);await refresh()}
     catch(cause){
       pendingSave.current=latestAnswer.current;
       setError(message(cause,automatic?'Vaqt tugadi. Avtomatik yuborish tekshirilmoqda; serverdagi oxirgi saqlangan javob himoyalangan.':'Javob topshirilmadi.'));
@@ -751,7 +742,7 @@ function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;project
   if(error&&!snapshot)return <div className="live-page"><p className="live-error" role="alert">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
   if(projectorView)return <ProjectorView snapshot={snapshot}/>;
-  return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
+  return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()} userId={user.id}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
 }
 
 export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {
