@@ -76,7 +76,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (displayRef) {
     await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
-    await qa.clickText(teacher.page, 'Eligible savollarni ko‘rsatish');
+    await qa.clickText(teacher.page, 'Savollarni ko‘rsatish');
     await qa.waitText(teacher.page, displayRef);
     const selected = await teacher.page.evaluate((targetRef) => {
       const label = [...document.querySelectorAll('.live-question-pool label')]
