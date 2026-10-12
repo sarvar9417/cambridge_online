@@ -304,6 +304,66 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     )).rows[0].count)).toBe(3);
   });
 
+  it('builds evidence-backed detailed reports, missed mark points and CSV after finish', async () => {
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'820009',
+      markingMode:'teacher',
+      participants:[0],
+    });
+    await service.start(owner(),sessionId,1);
+    await service.submitAnswer(student(0),sessionId,'incorrect report answer');
+    await service.revealMarkScheme(owner(),sessionId);
+
+    const review=await client.query<{id:string}>(
+      'select id::text from live_exam_reviews where session_question_id=$1',
+      [sessionQuestionId],
+    );
+    expect(review.rowCount).toBe(1);
+    await service.submitReview(owner(),sessionId,review.rows[0]!.id,{
+      matchedPointIds:[],
+      feedback:'Needs reteaching',
+    });
+    const state=await client.query<{status:string;version:number}>(
+      'select status::text status,version from live_exam_sessions where id=$1',
+      [sessionId],
+    );
+    expect(state.rows[0]?.status).toBe('review');
+    await service.nextQuestion(owner(),sessionId,state.rows[0]!.version);
+
+    const report=await service.detailedReport(owner(),sessionId);
+    expect(report.aggregate).toMatchObject({
+      studentCount:1,
+      totalEarned:0,
+      totalPossible:1,
+      averageScore:0,
+      averagePossible:1,
+      averagePercentage:0,
+    });
+    expect(report.students).toHaveLength(1);
+    expect(report.questions).toHaveLength(1);
+    expect(report.questions[0]).toMatchObject({earned:0,possible:1,percentage:0});
+    expect(report.subtopics).toHaveLength(1);
+    expect(report.subtopics[0]).toMatchObject({earned:0,possible:1,attempts:1,percentage:0});
+    expect(report.mostMissedPoints).toHaveLength(1);
+    expect(report.mostMissedPoints[0]).toMatchObject({
+      code:'M1',
+      assessedCount:1,
+      missedCount:1,
+      missRate:1,
+    });
+    expect(report.reteachRecommendations).toHaveLength(1);
+    expect(report.reteachRecommendations[0]?.reason).toContain('0/1');
+
+    const csv=await service.detailedReportCsv(owner(),sessionId);
+    expect(csv).toContain('Student,Question,Source ref,Subtopics,Score,Possible,Percentage,Score source,Feedback');
+    expect(csv).toContain('Acceptance student 1');
+    expect(csv).toContain('0.0%');
+    expect(csv).toContain('Needs reteaching');
+
+    await expect(service.detailedReport(student(0),sessionId))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+  });
+
   it('reassigns unfinished peer reviews to the teacher instead of forcing zero marks', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
       code:'820004',
