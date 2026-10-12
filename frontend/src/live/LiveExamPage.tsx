@@ -551,6 +551,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
             {poolTotal!==null?<nav className="live-pool-pages" aria-label="Savol pool sahifalari"><button type="button" className="live-secondary" disabled={busy||poolPage===0} onClick={()=>void loadQuestionPool(Math.max(0,poolPage-1),poolSearch)}>← Oldingi</button><span>{poolTotal?poolPage+1:0} / {Math.max(1,Math.ceil(poolTotal/20))} · {poolTotal} natija</span><button type="button" className="live-secondary" disabled={busy||(poolPage+1)*20>=poolTotal} onClick={()=>void loadQuestionPool(poolPage+1,poolSearch)}>Keyingi →</button></nav>:null}
           </>:null}
         </section>
+      </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
         <label>Savollar soni<input name="questionCount" type="number" min={1} max={eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled')}><option value="shuffled">Aralashtirilgan</option><option value="fixed">Tanlangan tartib</option></select></label>
