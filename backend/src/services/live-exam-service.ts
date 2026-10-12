@@ -718,6 +718,45 @@ export class LiveExamService {
     };
   }
 
+  async previewSelection(
+    actor: Actor,
+    input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
+  ) {
+    await this.requireClassControl(this.pool, actor, input.classId);
+    if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
+    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
+      throw new DomainError('live_topic_required', 400);
+    }
+
+    const selection=await this.chooseQuestionIds(actor,{
+      ...input,
+      title:'Selection preview',
+      markingMode:'teacher',
+      questionCount:input.questionIds.length,
+      questionOrder:'fixed',
+    },true);
+    if(selection.ids.length!==input.questionIds.length) throw new DomainError('live_question_selection_mismatch',400);
+
+    const expandedIds=await this.expandRequiredDependencies(selection.ids);
+    const [selected,expanded]=await Promise.all([
+      this.previewQuestions(selection.ids),
+      this.previewQuestions(expandedIds),
+    ]);
+    const selectedSet=new Set(selection.ids);
+    const dependencies=expanded.filter((row)=>!selectedSet.has(row.id));
+    const selectedMarks=selected.reduce((sum,row)=>sum+row.marks,0);
+    const expandedMarks=expanded.reduce((sum,row)=>sum+row.marks,0);
+    return {
+      selected,
+      dependencies,
+      requestedCount:selected.length,
+      expandedCount:expanded.length,
+      dependencyCount:dependencies.length,
+      requestedMarks:selectedMarks,
+      expandedMarks,
+    };
+  }
+
   async create(actor: Actor, input: CreateLiveExamInput) {
     await this.requireClassControl(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
