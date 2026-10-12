@@ -320,7 +320,10 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const visibleCoursebookSections=coursebookSections.filter((item)=>
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
   );
-  const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])};
+  const clearManualPool=()=>{
+    setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);
+  };
+  const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
   const toggleCoursebookSection=(code:string)=>{
     setCoursebookSectionCodes((current)=>current.includes(code)?current.filter((item)=>item!==code):[...current,code]);
     clearManualPool();
@@ -335,26 +338,54 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     });
     clearManualPool();
   };
-  const toggleSelectedQuestion=(questionId:string)=>setSelectedQuestionIds((current)=>
-    current.includes(questionId)?current.filter((id)=>id!==questionId):[...current,questionId]
-  );
+  const toggleSelectedQuestion=(questionId:string)=>setSelectedQuestionIds((current)=>{
+    if(replacingQuestionId&&questionId!==replacingQuestionId){
+      const replaceIndex=current.indexOf(replacingQuestionId);
+      if(replaceIndex<0){setReplacingQuestionId('');return current}
+      const withoutCandidate=current.filter((id)=>id!==questionId);
+      const next=withoutCandidate.filter((id)=>id!==replacingQuestionId);
+      next.splice(Math.min(replaceIndex,next.length),0,questionId);
+      setReplacingQuestionId('');
+      return next;
+    }
+    return current.includes(questionId)?current.filter((id)=>id!==questionId):[...current,questionId];
+  });
   const moveSelectedQuestion=(index:number,direction:-1|1)=>setSelectedQuestionIds((current)=>{
     const target=index+direction;
     if(target<0||target>=current.length)return current;
     const next=[...current];[next[index],next[target]]=[next[target]!,next[index]!];return next;
   });
-
-  const eligibleParams=(limit:number,includeData=true,includeCounts=true)=>new URLSearchParams({
-    classId:selectedClassId,
-    topicIds:'',
-    subtopicIds:'',
-    coursebookSectionCodes:coursebookSectionCodes.join(','),
-    includeDiagrams:String(includeDiagrams),
-    excludeSeen:String(excludeSeen),
-    limit:String(Math.max(1,limit)),
-    includeData:String(includeData),
-    includeCounts:String(includeCounts),
+  const dropSelectedQuestion=(targetId:string)=>setSelectedQuestionIds((current)=>{
+    const sourceIndex=current.indexOf(draggedQuestionId),targetIndex=current.indexOf(targetId);
+    if(sourceIndex<0||targetIndex<0||sourceIndex===targetIndex)return current;
+    const next=[...current];const [moved]=next.splice(sourceIndex,1);next.splice(targetIndex,0,moved!);return next;
   });
+  const toggleSeries=(value:string)=>{setSeries((current)=>current.includes(value)?current.filter((item)=>item!==value):[...current,value]);clearManualPool()};
+  const toggleComponent=(value:number)=>{setComponents((current)=>current.includes(value)?current.filter((item)=>item!==value):[...current,value]);clearManualPool()};
+
+  const eligibleParams=(limit:number,includeData=true,includeCounts=true,offset=0,search='')=>{
+    const params=new URLSearchParams({
+      classId:selectedClassId,
+      topicIds:'',
+      subtopicIds:'',
+      coursebookSectionCodes:coursebookSectionCodes.join(','),
+      includeDiagrams:String(includeDiagrams),
+      excludeSeen:String(excludeSeen),
+      series:series.join(','),
+      components:components.join(','),
+      q:search,
+      offset:String(Math.max(0,offset)),
+      limit:String(Math.max(1,limit)),
+      includeData:String(includeData),
+      includeCounts:String(includeCounts),
+    });
+    if(difficulty)params.set('difficulty',difficulty);
+    if(marksMin)params.set('marksMin',marksMin);
+    if(marksMax)params.set('marksMax',marksMax);
+    if(yearFrom)params.set('yearFrom',yearFrom);
+    if(yearTo)params.set('yearTo',yearTo);
+    return params;
+  };
 
   useEffect(()=>{
     if(!selectedClassId||!coursebookSectionCodes.length){
