@@ -387,7 +387,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
-        teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
+        teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),displayNameMode:data.get('displayNameMode'),
       });
       const key=createAttempt.current?.body===body?createAttempt.current.key:randomId();
       createAttempt.current={body,key};
@@ -439,6 +439,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
+        <label>Proyektorda ism<select name="displayNameMode" defaultValue="anonymous"><option value="anonymous">Anonim: Ishtirokchi 1</option><option value="initials">Faqat bosh harflar</option><option value="first">Faqat ism</option><option value="full">To‘liq ism</option></select></label>
         <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);clearManualPool()}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
         <label className="live-check"><input name="excludeSeen" type="checkbox" checked={excludeSeen} onChange={(event)=>{setExcludeSeen(event.target.checked);clearManualPool()}}/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
         <label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
