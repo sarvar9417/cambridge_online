@@ -177,6 +177,15 @@ function liveSnapshotKey(path:string, init:RequestInit) {
   return method==='GET'&&!init.body&&LIVE_SNAPSHOT_PATH.test(path)?path:null;
 }
 
+function invalidateLiveSnapshotsAfterMutation(path:string,init:RequestInit) {
+  const method=(init.method??'GET').toUpperCase();
+  if(method==='GET')return;
+  const match=path.match(/^\/live-exams\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/|$)/i);
+  if(!match)return;
+  liveSnapshotCache.delete(`/live-exams/${match[1]}`);
+  liveSnapshotCache.delete(`/live-exams/${match[1]}/projector`);
+}
+
 function liveCursorPath(path:string) {
   const match=path.match(LIVE_SNAPSHOT_PATH);
   return match ? `/live-exams/${match[1]}/events` : null;
@@ -200,7 +209,11 @@ function rememberLiveSnapshot(key:string, body:unknown, version:number) {
 
 export async function api<T>(path: string, init: RequestInit = {}, options:{suppressAuthExpired?:boolean} = {}): Promise<T> {
   const cacheKey=liveSnapshotKey(path,init);
-  if(!cacheKey)return requestJson<T>(path,init,options);
+  if(!cacheKey){
+    const body=await requestJson<T>(path,init,options);
+    invalidateLiveSnapshotsAfterMutation(path,init);
+    return body;
+  }
 
   const cached=liveSnapshotCache.get(cacheKey);
   const cursorPath=liveCursorPath(path);
