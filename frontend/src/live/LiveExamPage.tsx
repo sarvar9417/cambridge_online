@@ -584,20 +584,24 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
       if(latestAnswer.current===outgoing){setDirty(false);setError('')}
       else pendingSave.current=latestAnswer.current;
     }catch(cause){
-      pendingSave.current=latestAnswer.current;
-      setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
-      if(attempt<4){
-        retryScheduled=true;
-        window.clearTimeout(retryTimer.current);
-        retryTimer.current=window.setTimeout(()=>{
-          const pending=pendingSave.current;
-          if(pending!==null)void flushAnswer(pending,attempt+1);
-        },2**attempt*1000);
+      if(draftConflictRef.current){
+        pendingSave.current=null;
+      }else{
+        pendingSave.current=latestAnswer.current;
+        setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
+        if(attempt<4){
+          retryScheduled=true;
+          window.clearTimeout(retryTimer.current);
+          retryTimer.current=window.setTimeout(()=>{
+            const pending=pendingSave.current;
+            if(!draftConflictRef.current&&pending!==null)void flushAnswer(pending,attempt+1);
+          },2**attempt*1000);
+        }
       }
     }finally{
       saveInFlight.current=false;
       setSaving(false);
-      if(!retryScheduled&&!submitting.current&&pendingSave.current!==null){
+      if(!draftConflictRef.current&&!retryScheduled&&!submitting.current&&pendingSave.current!==null){
         const pending=pendingSave.current;
         void flushAnswer(pending);
       }
@@ -629,6 +633,8 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
 
   const resolveDraftConflict=(useIncoming:boolean)=>{
     const next=useIncoming?(conflictingDraft.current??latestAnswer.current):latestAnswer.current;
+    window.clearTimeout(saveTimer.current);
+    window.clearTimeout(retryTimer.current);
     draftConflictRef.current=false;
     conflictingDraft.current=null;
     setDraftConflict(false);
@@ -638,7 +644,16 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
     setDirty(true);
     setError('');
     if(draftKey)writeLiveDraft(liveDraftKey(userId,session.id,draftKey),next,tabId.current);
-    window.setTimeout(()=>{if(pendingSave.current!==null)void flushAnswer(pendingSave.current)},0);
+    const flushChosenDraft=()=>{
+      if(draftConflictRef.current||submitting.current)return;
+      if(saveInFlight.current){
+        retryTimer.current=window.setTimeout(flushChosenDraft,50);
+        return;
+      }
+      const pending=pendingSave.current;
+      if(pending!==null)void flushAnswer(pending);
+    };
+    retryTimer.current=window.setTimeout(flushChosenDraft,0);
   };
   const submitAnswer=async(automatic=false)=>{
     if(draftConflictRef.current||submitting.current||snapshot.ownAnswer?.submittedAt)return;
