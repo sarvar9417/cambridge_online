@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Pool, type PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
+import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import { LiveExamService } from './live-exam-service.js';
 import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
@@ -469,7 +470,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(await service.closeExpired(20)).toBe(0);
   });
 
-  it('handles 30- and 60-learner heartbeat/cursor bursts within the classroom CI latency budget', async () => {
+  it('keeps 30- and 60-learner cursor, heartbeat and snapshot bursts inside the classroom budget', async () => {
     const created=await client.query<{id:string}>(
       `insert into users (school_id,role,full_name)
        select $1,'student','Load student '||n::text
@@ -479,15 +480,48 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     );
     loadStudentIds.push(...created.rows.map((row)=>row.id));
 
-    const {sessionId}=await makeSession({code:'829960',markingMode:'teacher'});
+    const {sessionId,sessionQuestionId}=await makeSession({code:'829960',markingMode:'teacher'});
     await client.query(
       `insert into live_exam_participants(session_id,student_id)
        select $1,student_id
        from unnest($2::uuid[]) student_id`,
       [sessionId,loadStudentIds],
     );
+    const assetId='77777777-7777-4777-8777-777777777777';
+    const storagePath='supabase://question-assets/load/classroom-visual.png';
+    const questionSnapshot={
+      leaf:{
+        id:questionId,rootId:questionId,label:'1',path:'1',displayRef:'Load Q1',
+        stem:'State the output.',stemLatex:null,bodyFormat:'markdown',contentJson:null,
+        commandWord:'State',marks:1,answerKind:'text',answerLines:2,
+      },
+      chain:[{id:questionId,label:'1',depth:0}],
+      contextBlocks:[{
+        id:questionId,label:'1',displayRef:'Load Q1',depth:0,context:null,contextLatex:null,
+        assets:[{
+          id:assetId,kind:'image',storagePath,url:null,contentMd:null,
+          altText:'Classroom load visual',sortOrder:0,sourcePage:1,
+        }],
+      }],
+      dependencies:[],
+      sourceRef:'Load Q1',
+    };
+    await client.query(
+      'update live_exam_questions set question_snapshot=$2::jsonb where id=$1',
+      [sessionQuestionId,JSON.stringify(questionSnapshot)],
+    );
     await service.start(owner(),sessionId,1);
 
+    let signCalls=0;
+    const signer:AssetUrlSigner={
+      signStoragePath:async(path)=>{
+        expect(path).toBe(storagePath);
+        signCalls+=1;
+        await new Promise((resolve)=>setTimeout(resolve,10));
+        return 'https://assets.example.test/classroom-visual.png';
+      },
+    };
+    const loadService=new LiveExamService(pool,{} as PgQuestionsRepository,signer);
     const realtime=new LiveExamRealtimeService(pool);
     const actors=loadStudentIds.map((id,index):Actor=>({
       id,
@@ -499,26 +533,53 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       const ordered=[...values].sort((left,right)=>left-right);
       return ordered[Math.max(0,Math.ceil(ordered.length*0.95)-1)]!;
     };
-
-    for(const size of [30,60] as const){
+    const runBurst=async(
+      size:number,
+      label:string,
+      operation:(actor:Actor)=>Promise<unknown>,
+      p95BudgetMs:number,
+    )=>{
+      const batchStarted=performance.now();
       const durations=await Promise.all(actors.slice(0,size).map(async(actor)=>{
         const started=performance.now();
-        const [heartbeat,cursor]=await Promise.all([
-          service.heartbeat(actor,sessionId),
-          realtime.events(actor,sessionId,0,5),
-        ]);
-        expect(heartbeat.serverNow).toBeInstanceOf(Date);
-        expect(cursor.currentVersion).toBeGreaterThanOrEqual(2);
-        expect(cursor.changed).toBe(true);
+        await operation(actor);
         return performance.now()-started;
       }));
+      const wallMs=performance.now()-batchStarted;
       const p95Ms=p95(durations);
       const maxMs=Math.max(...durations);
-      console.log(`Live classroom load ${size}: p95=${p95Ms.toFixed(1)}ms max=${maxMs.toFixed(1)}ms poolMax=${pool.options.max}`);
-      expect(p95Ms).toBeLessThan(5_000);
+      const qps=size/Math.max(wallMs/1000,0.001);
+      console.log(
+        `Live classroom ${label} ${size}: p95=${p95Ms.toFixed(1)}ms max=${maxMs.toFixed(1)}ms wall=${wallMs.toFixed(1)}ms qps=${qps.toFixed(1)} poolMax=${pool.options.max}`,
+      );
+      expect(p95Ms).toBeLessThan(p95BudgetMs);
       expect(maxMs).toBeLessThan(10_000);
+      expect(wallMs).toBeLessThan(10_000);
+    };
+
+    for(const size of [30,60] as const){
+      await runBurst(size,'cursor',async(actor)=>{
+        const cursor=await realtime.events(actor,sessionId,0,5);
+        expect(cursor.currentVersion).toBeGreaterThanOrEqual(2);
+        expect(cursor.changed).toBe(true);
+      },3_000);
+      await runBurst(size,'heartbeat',async(actor)=>{
+        const heartbeat=await loadService.heartbeat(actor,sessionId);
+        expect(heartbeat.serverNow).toBeInstanceOf(Date);
+      },3_000);
+      await runBurst(size,'snapshot',async(actor)=>{
+        const snapshot=await loadService.snapshot(actor,sessionId) as {
+          session?:{version?:number};
+          question?:{portable?:{contextBlocks?:Array<{assets?:Array<{url?:string|null}>}>}};
+        };
+        expect(snapshot.session?.version).toBeGreaterThanOrEqual(2);
+        expect(snapshot.question?.portable?.contextBlocks?.[0]?.assets?.[0]?.url)
+          .toBe('https://assets.example.test/classroom-visual.png');
+      },5_000);
     }
 
+    // All 90 snapshot calls share the same in-flight/cached signed asset URL.
+    expect(signCalls).toBe(1);
     const active=await client.query<{count:number}>(
       `select count(*)::int count
        from live_exam_participants
@@ -526,6 +587,6 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       [sessionId],
     );
     expect(active.rows[0]?.count).toBe(60);
-  },30_000);
+  },45_000);
 
 });
