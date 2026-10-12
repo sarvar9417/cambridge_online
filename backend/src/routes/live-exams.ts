@@ -157,6 +157,33 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     }));
   });
 
+  router.post('/selection-preview', durableStaffLimit, async (req,res)=>{
+    privateNoStore(res);
+    const body=z.object({
+      classId:uuid,
+      topicIds:z.array(uuid).max(30).default([]),
+      subtopicIds:z.array(uuid).max(100).default([]),
+      coursebookSectionCodes:z.array(coursebookSectionCode).max(100).default([]),
+      includeDiagrams:z.boolean().default(true),
+      excludeSeen:z.boolean().default(true),
+      difficulty:z.enum(['easy','medium','hard']).optional(),
+      marksMin:z.number().int().min(1).max(100).optional(),
+      marksMax:z.number().int().min(1).max(100).optional(),
+      yearFrom:z.number().int().min(2000).max(2100).optional(),
+      yearTo:z.number().int().min(2000).max(2100).optional(),
+      series:z.array(z.enum(['FM','MJ','ON'])).max(3).default([]),
+      components:z.array(z.number().int().min(1).max(9)).max(9).default([]),
+      questionIds:z.array(uuid).min(1).max(100),
+      questionOrder:z.literal('fixed').default('fixed'),
+      allowLateJoin:z.boolean().default(false),
+      autoCloseWhenAllSubmitted:z.boolean().default(false),
+      teacherOverrideEnabled:z.boolean().default(true),
+      leaderboardMode:z.enum(['marks','marks_speed_tiebreak']).default('marks'),
+      displayNameMode:z.enum(['full','first_name','initials','anonymous_alias']).default('anonymous_alias'),
+    }).strict().parse(req.body);
+    res.json(await service.previewSelection(req.actor!,body));
+  });
+
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
   // a UUID and turn a valid join request into a validation error.
   router.post('/join', durableJoinLimit, async (req, res) => {
