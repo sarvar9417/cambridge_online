@@ -100,6 +100,18 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid coursebook section list'});return z.NEVER}
       return parsed.data;
     });
+    const csvSeries=z.string().optional().transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean):[];
+      const parsed=z.array(z.enum(['FM','MJ','ON'])).max(3).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid series list'});return z.NEVER}
+      return parsed.data;
+    });
+    const csvComponents=z.string().optional().transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean).map(Number):[];
+      const parsed=z.array(z.number().int().min(1).max(9)).max(9).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid component list'});return z.NEVER}
+      return parsed.data;
+    });
     const query=z.object({
       classId:uuid,
       topicIds:csvUuids,
@@ -112,20 +124,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       marksMax:z.coerce.number().int().min(1).max(100).optional(),
       yearFrom:z.coerce.number().int().min(2000).max(2100).optional(),
       yearTo:z.coerce.number().int().min(2000).max(2100).optional(),
-      series:z.string().default('').transform((value,ctx)=>{
-        const values=value?value.split(',').filter(Boolean):[];
-        const parsed=z.array(z.enum(['FM','MJ','ON'])).max(3).safeParse(values);
-        if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid series list'});return z.NEVER}
-        return parsed.data;
-      }),
-      components:z.string().default('').transform((value,ctx)=>{
-        const values=value?value.split(',').filter(Boolean).map(Number):[];
-        const parsed=z.array(z.number().int().min(1).max(9)).max(9).safeParse(values);
-        if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid component list'});return z.NEVER}
-        return parsed.data;
-      }),
-      q:z.string().trim().max(120).default(''),
-      offset:z.coerce.number().int().min(0).default(0),
+      series:csvSeries,
+      components:csvComponents,
+      q:z.string().trim().max(120).optional().transform((value)=>value??''),
+      offset:z.coerce.number().int().min(0).optional().transform((value)=>value??0),
       limit:z.coerce.number().int().min(1).default(30),
       includeData:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       includeCounts:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
