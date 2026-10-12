@@ -7,7 +7,7 @@ import type { LiveExamService } from '../services/live-exam-service.js';
 const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
 const owner = { id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',role:'owner' as const,schoolId:'school',fullName:'Owner' };
 
-function appFor(service:Partial<LiveExamService>,actor=student) {
+function appFor(service:Partial<LiveExamService>,actor:{id:string;role:'owner'|'teacher'|'student';schoolId:string|null;fullName:string}=student) {
   const app=express();
   app.use(express.json());
   app.use((req,_res,next)=>{req.actor=actor;next()});
