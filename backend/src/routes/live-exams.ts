@@ -212,16 +212,16 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.post('/:id/reviews/:reviewId/submit', async (req, res) => {
-    const body = z.object({
-      matchedPointIds: z.array(uuid).max(100).default([]),
-      score: z.number().min(0).max(100).optional(),
-      levelNumber: z.number().int().positive().optional(),
-      feedback: z.string().trim().max(5000).optional(),
-      expectedVersion: z.number().int().positive().optional(),
-    }).strict().parse(req.body);
-    const expectedVersion=req.actor!.role==='student'
-      ? undefined
-      : z.number().int().positive().parse(body.expectedVersion);
+    const reviewInput=z.object({
+      matchedPointIds:z.array(uuid).max(100).default([]),
+      score:z.number().min(0).max(100).optional(),
+      levelNumber:z.number().int().positive().optional(),
+      feedback:z.string().trim().max(5000).optional(),
+    }).strict();
+    const body=req.actor!.role==='student'
+      ? reviewInput.parse(req.body)
+      : reviewInput.extend({expectedVersion:z.number().int().positive()}).parse(req.body);
+    const expectedVersion='expectedVersion' in body?body.expectedVersion:undefined;
     return mutation(req,res,()=>service.submitReview(
       req.actor!,id(req.params),id(req.params,'reviewId'),
       {matchedPointIds:body.matchedPointIds,score:body.score,levelNumber:body.levelNumber,feedback:body.feedback},
