@@ -565,6 +565,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
         <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
         <button disabled={busy||!coursebookSectionCodes.length||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi; o‘quvchilar faqat siz Start bosgandan keyin savolni ko‘radi.</small>
         {!classes.length?<small className="live-warning">Avval kamida bitta sinf yarating.</small>:null}
       </aside>
     </form>}
