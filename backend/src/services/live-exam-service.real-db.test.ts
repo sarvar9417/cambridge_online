@@ -305,6 +305,16 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
   });
 
   it('avoids recent peer pairs when a different derangement is available', async () => {
+    // Earlier acceptance cases intentionally share the same class. Age their
+    // peer history outside the allocator's 30-day window so this case compares
+    // two controlled consecutive rounds rather than unrelated test fixtures.
+    await client.query(
+      `update live_exam_reviews r set created_at=now()-interval '31 days'
+       from live_exam_questions q,live_exam_sessions s
+       where q.id=r.session_question_id and s.id=q.session_id
+         and s.class_id=$1 and r.kind='peer'`,
+      [classId],
+    );
     const first=await makeSession({
       code:'820101',
       markingMode:'peer',

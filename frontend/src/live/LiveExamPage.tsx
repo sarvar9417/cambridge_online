@@ -25,6 +25,7 @@ import {
 } from '../lib/portable-source-assets';
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
+import { liveJoinUrl, qrSvg } from '../lib/qr-code';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import './live-exam.css';
 
@@ -275,13 +276,15 @@ function LobbyParticipants({snapshot,busy,onRemove}:{snapshot:LiveExamSnapshot;b
 }
 
 function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
+  const route=useRoute();
+  const initialJoinCode=(route.params.get('code')??'').replace(/\D/g,'').slice(0,6);
   const [sessions,setSessions]=useState<LiveExamSummary[]>([]);
   const [options,setOptions]=useState<FilterOptions>(EMPTY_OPTIONS);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [deletingSessionId,setDeletingSessionId]=useState('');
-  const [code,setCode]=useState('');
+  const [code,setCode]=useState(initialJoinCode);
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [coursebookSectionCodes,setCoursebookSectionCodes]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
@@ -593,9 +596,19 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   </div>;
 }
 
+function LiveJoinQr({code,compact=false}:{code:string;compact?:boolean}) {
+  const link=useMemo(()=>liveJoinUrl(window.location.origin,code),[code]);
+  const svg=useMemo(()=>qrSvg(link,compact?3:4),[compact,link]);
+  return <div className={compact?'live-join-qr is-compact':'live-join-qr'}>
+    <div className="live-join-qr-image" dangerouslySetInnerHTML={{__html:svg}}/>
+    {!compact?<><strong>QR bilan qo‘shilish</strong><small>Scan → login → kod tayyor</small></>:null}
+  </div>;
+}
+
 function SessionJoinCode({session}:{session:LiveExamSnapshot['session']}) {
   if (!['question_open','marking','review'].includes(session.status)) return null;
   return <section className="live-projector-join" aria-label="Sessiyaga kirish kodi">
+    <LiveJoinQr code={session.joinCode} compact/>
     <span>Kirish kodi</span><strong>{session.joinCode}</strong>
     <small>{session.settings.allowLateJoin?'Kechikib qo‘shilish yoqilgan':'Kechikib qo‘shilish o‘chirilgan'}</small>
   </section>;
@@ -985,13 +998,14 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});
   };
   const copyCode=()=>void navigator.clipboard?.writeText(session.joinCode);
+  const copyJoinLink=()=>void navigator.clipboard?.writeText(liveJoinUrl(window.location.origin,session.joinCode));
   const openProjector=()=>window.open(`${window.location.href.split('#')[0]}#oqitish/live?id=${session.id}&projector=1`,'campath-projector','noopener,noreferrer');
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
-    {['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Nusxalash</button><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
+    {['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><LiveJoinQr code={session.joinCode} compact/><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Kod</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join link</button><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
-    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
+    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><LiveJoinQr code={session.joinCode}/><div className="live-code-actions"><button onClick={copyCode}><Copy/> Kodni nusxalash</button><button className="live-secondary" onClick={copyJoinLink}><Copy/> Join linkni nusxalash</button></div><p>O‘quvchilar QR’ni skan qiladi yoki akkauntiga kirib “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
     {session.status==='question_open'&&snapshot.question?<><SessionProgress snapshot={snapshot}/><div className="live-teacher-question"><div><LiveQuestionView question={snapshot.question}/></div><aside><div className="live-timer-card"><span>QOLGAN VAQT</span><strong className={remaining!==null&&remaining<30?'is-urgent':''}>{session.pausedAt?formatClock(session.pauseRemainingS):formatClock(remaining)}</strong></div><div className="live-submit-stat"><strong>{session.submittedCount}</strong><span>/ {session.participantCount} topshirdi</span><progress max={Math.max(1,session.participantCount)} value={session.submittedCount}/></div><ul className="live-submit-list">{snapshot.participants.map((person)=><li key={person.id}><span>{person.fullName}</span><b className={person.submitted?'is-done':''}>{person.submitted?'Topshirdi':'Yozmoqda'}</b></li>)}</ul><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/reveal')}>Javoblarni yopish va MSni ochish</button><small>Topshirmagan javoblar bo‘sh holatda avtomatik yopiladi.</small></aside></div></>:null}
     {session.status==='marking'?<><SessionProgress snapshot={snapshot}/><ReviewQuestionContext question={snapshot.question}/><div className="live-marking-head"><div><span className="live-eyebrow">BAHOLASH</span><h2>{session.reviewedCount}/{session.reviewCount} ta tugadi</h2></div><div className="live-marking-actions"><button disabled={busy||Boolean(session.pausedAt)||session.reviewedCount<session.reviewCount} onClick={()=>void act('/marking/complete')}>Natijalarni ochish</button>{session.markingMode!=='teacher'&&session.reviewedCount<session.reviewCount?<button className="live-secondary" disabled={busy||Boolean(session.pausedAt)} onClick={()=>{if(window.confirm('Tugallanmagan peer/self baholashlarni o‘qituvchiga biriktirishni xohlaysizmi? Hech kimga avtomatik 0 ball berilmaydi.'))void act('/marking/complete',{force:true})}}>Kutilayotganlarni o‘qituvchiga olish</button>:null}</div></div>
       {session.markingMode==='teacher'&&activeAnswer?<div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.reviewStatus==='assigned'?'Kutilmoqda':`${answer.score??0}/${snapshot.question?.marks}`}</i></button>)}</nav><TeacherAnswerMarker key={`${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>{setActiveAnswerId('');return refresh()}}/></div>:null}
