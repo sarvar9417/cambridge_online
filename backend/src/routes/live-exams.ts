@@ -1,4 +1,4 @@
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import type { LiveExamService } from '../services/live-exam-service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
@@ -54,6 +54,13 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   const durableJoinLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 20, key: userAndIp }) : joinLimit;
   const durableStaffLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 30, key: userAndIp }) : staffLimit;
   const durableAutosaveLimit = pool ? durableRateLimit(pool, { windowMs: 60_000, max: 120, key: userAndIp }) : autosaveLimit;
+
+  const mutation = async (req:Request, res:Response, operation:()=>Promise<unknown>) => {
+    const execute=async()=>({status:200,body:await operation()});
+    if(pool)return runIdempotent(req,res,pool,execute);
+    const result=await execute();
+    return res.status(result.status).json(result.body);
+  };
 
   router.get('/', async (req, res) => {
     // Session lists contain classroom membership state and room codes for
@@ -136,7 +143,8 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.delete('/:id', durableStaffLimit, async (req, res) => {
-    res.json(await service.archiveHistory(req.actor!, id(req.params)));
+    const body=versionInput.parse(req.body ?? {});
+    return mutation(req,res,()=>service.archiveHistory(req.actor!,id(req.params),body.expectedVersion));
   });
 
   router.post('/:id/heartbeat', async (req, res) => {
@@ -148,22 +156,22 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       allowLateJoin: z.boolean(),
       expectedVersion: z.number().int().positive(),
     }).strict().parse(req.body);
-    res.json(await service.setLateJoin(req.actor!, id(req.params), body.allowLateJoin, body.expectedVersion));
+    return mutation(req,res,()=>service.setLateJoin(req.actor!,id(req.params),body.allowLateJoin,body.expectedVersion));
   });
 
   router.post('/:id/start', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.start(req.actor!, id(req.params), body.expectedVersion));
+    return mutation(req,res,()=>service.start(req.actor!,id(req.params),body.expectedVersion));
   });
 
   router.post('/:id/pause', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.pause(req.actor!, id(req.params), body.expectedVersion));
+    return mutation(req,res,()=>service.pause(req.actor!,id(req.params),body.expectedVersion));
   });
 
   router.post('/:id/resume', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.resume(req.actor!, id(req.params), body.expectedVersion));
+    return mutation(req,res,()=>service.resume(req.actor!,id(req.params),body.expectedVersion));
   });
 
   router.post('/:id/leave', async (req, res) => {
@@ -172,10 +180,10 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
 
   router.post('/:id/participants/:studentId/remove', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.removeParticipant(
+    return mutation(req,res,()=>service.removeParticipant(
       req.actor!,
       id(req.params),
-      id(req.params, 'studentId'),
+      id(req.params,'studentId'),
       body.expectedVersion,
     ));
   });
@@ -193,7 +201,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   router.post('/:id/reveal', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
     try {
-      res.json(await service.revealMarkScheme(req.actor!, id(req.params), body.expectedVersion));
+      return await mutation(req,res,()=>service.revealMarkScheme(req.actor!,id(req.params),body.expectedVersion));
     } catch (error) {
       if (!isPeerIntegrityConflict(error)) throw error;
       res.status(409).json({ error: {
@@ -209,8 +217,16 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       score: z.number().min(0).max(100).optional(),
       levelNumber: z.number().int().positive().optional(),
       feedback: z.string().trim().max(5000).optional(),
+      expectedVersion: z.number().int().positive().optional(),
     }).strict().parse(req.body);
-    res.json(await service.submitReview(req.actor!, id(req.params), id(req.params, 'reviewId'), body));
+    const expectedVersion=req.actor!.role==='student'
+      ? undefined
+      : z.number().int().positive().parse(body.expectedVersion);
+    return mutation(req,res,()=>service.submitReview(
+      req.actor!,id(req.params),id(req.params,'reviewId'),
+      {matchedPointIds:body.matchedPointIds,score:body.score,levelNumber:body.levelNumber,feedback:body.feedback},
+      expectedVersion,
+    ));
   });
 
   router.put('/:id/answers/:answerId/moderate', async (req, res) => {
@@ -220,28 +236,28 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       levelNumber: z.number().int().positive().optional(),
       expectedVersion: z.number().int().positive(),
     }).strict().parse(req.body);
-    res.json(await service.moderateAnswer(
+    return mutation(req,res,()=>service.moderateAnswer(
       req.actor!,
       id(req.params),
-      id(req.params, 'answerId'),
-      { score:body.score,feedback:body.feedback,levelNumber:body.levelNumber },
+      id(req.params,'answerId'),
+      {score:body.score,feedback:body.feedback,levelNumber:body.levelNumber},
       body.expectedVersion,
     ));
   });
 
   router.post('/:id/marking/complete', async (req, res) => {
     const body = z.object({ force: z.boolean().default(false), expectedVersion: z.number().int().positive() }).strict().parse(req.body ?? {});
-    res.json(await service.completeMarking(req.actor!, id(req.params), body.force, body.expectedVersion));
+    return mutation(req,res,()=>service.completeMarking(req.actor!,id(req.params),body.force,body.expectedVersion));
   });
 
   router.post('/:id/next', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.nextQuestion(req.actor!, id(req.params), body.expectedVersion));
+    return mutation(req,res,()=>service.nextQuestion(req.actor!,id(req.params),body.expectedVersion));
   });
 
   router.post('/:id/cancel', async (req, res) => {
     const body = versionInput.parse(req.body ?? {});
-    res.json(await service.cancel(req.actor!, id(req.params), body.expectedVersion));
+    return mutation(req,res,()=>service.cancel(req.actor!,id(req.params),body.expectedVersion));
   });
 
   return router;
