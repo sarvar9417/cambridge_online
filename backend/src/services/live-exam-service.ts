@@ -27,6 +27,14 @@ export interface CreateLiveExamInput {
   markingMode: LiveExamMarkingMode;
   includeDiagrams: boolean;
   excludeSeen: boolean;
+  /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
+  difficulty?: 'easy' | 'medium' | 'hard';
+  marksMin?: number;
+  marksMax?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  series?: Array<'FM' | 'MJ' | 'ON'>;
+  components?: number[];
   questionIds?: string[];
   questionOrder?: 'fixed' | 'shuffled';
   allowLateJoin?: boolean;
@@ -223,7 +231,10 @@ export class LiveExamService {
     return scheme;
   }
 
-  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput, 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes'>) {
+  private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
+    'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
+    'yearFrom' | 'yearTo' | 'series' | 'components'
+  >) {
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
@@ -267,9 +278,38 @@ export class LiveExamService {
         )
       )`);
     }
+    if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
+    if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
+    if (input.difficulty === 'hard') filters.push('q.marks>=5');
+    if (input.marksMin !== undefined) {
+      values.push(input.marksMin);
+      filters.push(`q.marks>=$${values.length}`);
+    }
+    if (input.marksMax !== undefined) {
+      values.push(input.marksMax);
+      filters.push(`q.marks<=$${values.length}`);
+    }
+    if (input.yearFrom !== undefined) {
+      values.push(input.yearFrom);
+      filters.push(`sp.year>=$${values.length}`);
+    }
+    if (input.yearTo !== undefined) {
+      values.push(input.yearTo);
+      filters.push(`sp.year<=$${values.length}`);
+    }
+    if (input.series?.length) {
+      values.push(input.series);
+      filters.push(`sp.series::text=any($${values.length}::text[])`);
+    }
+    if (input.components?.length) {
+      values.push(input.components);
+      filters.push(`source_component.number=any($${values.length}::int[])`);
+    }
     const result = await this.pool.query(
       `select count(distinct q.id)::int total
        from questions q
+       join source_papers sp on sp.id=q.source_paper_id
+       join components source_component on source_component.id=sp.component_id
        where ${filters.join(' and ')}`,
       values,
     );
@@ -281,12 +321,17 @@ export class LiveExamService {
     input: CreateLiveExamInput,
     requireExact = true,
     countOnly = false,
+    options: { offset?: number; search?: string; sort?: 'random' | 'source'; seed?: string } = {},
   ) {
     // Keep the random ordering seed first and bind the class ID for both
     // syllabus-safe readiness resolution and optional seen-question filtering.
-    // Every value is referenced in the SQL so PostgreSQL can infer its type.
-    const values: unknown[] = countOnly ? [input.classId] : [randomUUID(), input.classId];
-    const classParameter = countOnly ? '$1' : '$2';
+    // Manual pool browsing uses deterministic source order while room creation
+    // keeps the existing seeded random selection behavior.
+    const sourceOrdered = !countOnly && options.sort === 'source';
+    const values: unknown[] = countOnly || sourceOrdered
+      ? [input.classId]
+      : [options.seed ?? randomUUID(), input.classId];
+    const classParameter = countOnly || sourceOrdered ? '$1' : '$2';
 
     // Prefer the precomputed readiness cache when its revision matches the
     // current corpus. Any source mutation marks the cache stale, at which point
@@ -427,6 +472,38 @@ export class LiveExamService {
       values.push(input.questionIds);
       filters.push(`q.id=any($${values.length}::uuid[])`);
     }
+    if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
+    if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
+    if (input.difficulty === 'hard') filters.push('q.marks>=5');
+    if (input.marksMin !== undefined) {
+      values.push(input.marksMin);
+      filters.push(`q.marks>=$${values.length}`);
+    }
+    if (input.marksMax !== undefined) {
+      values.push(input.marksMax);
+      filters.push(`q.marks<=$${values.length}`);
+    }
+    if (input.yearFrom !== undefined) {
+      values.push(input.yearFrom);
+      filters.push(`sp.year>=$${values.length}`);
+    }
+    if (input.yearTo !== undefined) {
+      values.push(input.yearTo);
+      filters.push(`sp.year<=$${values.length}`);
+    }
+    if (input.series?.length) {
+      values.push(input.series);
+      filters.push(`sp.series::text=any($${values.length}::text[])`);
+    }
+    if (input.components?.length) {
+      values.push(input.components);
+      filters.push(`source_component.number=any($${values.length}::int[])`);
+    }
+    if (options.search?.trim()) {
+      values.push(options.search.trim());
+      const parameter=`$${values.length}`;
+      filters.push(`(q.display_ref ilike '%'||${parameter}||'%' or coalesce(q.stem_md,'') ilike '%'||${parameter}||'%')`);
+    }
     if (input.excludeSeen) {
       filters.push(`not exists(
         select 1 from assignment_questions aq
@@ -441,14 +518,18 @@ export class LiveExamService {
       )`);
     }
     const candidateSql = `
-         select distinct q.id
+         select distinct q.id,q.display_ref,sp.year,sp.series::text series,source_component.number component,q.sort_order
          from questions q
+         join source_papers sp on sp.id=q.source_paper_id
+         join components source_component on source_component.id=sp.component_id
          where ${readinessCacheFresh}
            and ${cachedReadiness}
            ${filters.length ? `and ${filters.join(' and ')}` : ''}
          union all
-         select distinct q.id
+         select distinct q.id,q.display_ref,sp.year,sp.series::text series,source_component.number component,q.sort_order
          from questions q
+         join source_papers sp on sp.id=q.source_paper_id
+         join components source_component on source_component.id=sp.component_id
          join canonical_mark_schemes ms on ms.question_id=q.id
          where not ${readinessCacheFresh}
            and ${dynamicReadinessFilters.join(' and ')}
@@ -463,11 +544,16 @@ export class LiveExamService {
     }
     values.push(input.questionCount);
     const limitParameter='$'+values.length;
+    let offsetClause='';
+    if ((options.offset ?? 0) > 0) {
+      values.push(options.offset);
+      offsetClause=' offset $'+values.length;
+    }
+    const orderClause=options.sort==='source'
+      ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
+      : 'md5(candidate.id::text || $1::text)';
     const result = await this.pool.query(
-      `select candidate.id,count(*) over()::int total_count
-       from (${candidateSql}) candidate
-       order by md5(candidate.id::text || $1::text)
-       limit ${limitParameter}`,
+      'select candidate.id,count(*) over()::int total_count from ('+candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause,
       values,
     );
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
@@ -555,6 +641,7 @@ export class LiveExamService {
          from ancestry join questions parent on parent.id=ancestry.parent_id
        )
        select q.id,q.display_ref,q.marks,q.command_word,coalesce(q.stem_md,'') stem,
+         sp.year,sp.series::text series,source_component.number component,
          exists(
            select 1 from ancestry
            join question_assets asset on asset.question_id=ancestry.ancestor_id
@@ -562,7 +649,10 @@ export class LiveExamService {
          ) has_assets,
          (select count(*)::int from question_dependencies dependency
           where dependency.question_id=q.id and dependency.strength::text='required') dependency_count
-       from selected join questions q on q.id=selected.question_id
+       from selected
+       join questions q on q.id=selected.question_id
+       join source_papers sp on sp.id=q.source_paper_id
+       join components source_component on source_component.id=sp.component_id
        order by selected.ordinality`,
       [questionIds],
     );
@@ -572,6 +662,10 @@ export class LiveExamService {
       marks:Number(row.marks),
       commandWord:row.command_word == null ? null : String(row.command_word),
       stem:String(row.stem),
+      year:Number(row.year),
+      series:String(row.series),
+      component:Number(row.component),
+      difficulty:Number(row.marks)<=2?'easy':Number(row.marks)<=4?'medium':'hard',
       hasAssets:Boolean(row.has_assets),
       dependencyCount:Number(row.dependency_count),
     }));
@@ -581,6 +675,8 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & {
       limit: number;
+      offset?: number;
+      search?: string;
       includeData?: boolean;
       includeCounts?: boolean;
     },
@@ -593,7 +689,12 @@ export class LiveExamService {
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
-    }, false);
+    }, false, false, {
+      offset:input.offset ?? 0,
+      search:input.search,
+      sort:'source',
+      seed:'live-builder-pool',
+    });
     let selection;
     let databaseTotal: number | undefined;
     let liveReadyTotal: number | undefined;
@@ -629,6 +730,45 @@ export class LiveExamService {
         liveReady:liveReadyTotal,
         available:selection.total,
       } }),
+    };
+  }
+
+  async previewSelection(
+    actor: Actor,
+    input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
+  ) {
+    await this.requireClassControl(this.pool, actor, input.classId);
+    if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
+    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
+      throw new DomainError('live_topic_required', 400);
+    }
+
+    const selection=await this.chooseQuestionIds(actor,{
+      ...input,
+      title:'Selection preview',
+      markingMode:'teacher',
+      questionCount:input.questionIds.length,
+      questionOrder:'fixed',
+    },true);
+    if(selection.ids.length!==input.questionIds.length) throw new DomainError('live_question_selection_mismatch',400);
+
+    const expandedIds=await this.expandRequiredDependencies(selection.ids);
+    const [selected,expanded]=await Promise.all([
+      this.previewQuestions(selection.ids),
+      this.previewQuestions(expandedIds),
+    ]);
+    const selectedSet=new Set(selection.ids);
+    const dependencies=expanded.filter((row)=>!selectedSet.has(row.id));
+    const selectedMarks=selected.reduce((sum,row)=>sum+row.marks,0);
+    const expandedMarks=expanded.reduce((sum,row)=>sum+row.marks,0);
+    return {
+      selected,
+      dependencies,
+      requestedCount:selected.length,
+      expandedCount:expanded.length,
+      dependencyCount:dependencies.length,
+      requestedMarks:selectedMarks,
+      expandedMarks,
     };
   }
 
@@ -676,6 +816,13 @@ export class LiveExamService {
                 coursebookSectionCodes: input.coursebookSectionCodes ?? [],
                 includeDiagrams: input.includeDiagrams,
                 excludeSeen: input.excludeSeen,
+                difficulty: input.difficulty ?? null,
+                marksMin: input.marksMin ?? null,
+                marksMax: input.marksMax ?? null,
+                yearFrom: input.yearFrom ?? null,
+                yearTo: input.yearTo ?? null,
+                series: input.series ?? [],
+                components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
                 allowLateJoin: input.allowLateJoin ?? false,
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,

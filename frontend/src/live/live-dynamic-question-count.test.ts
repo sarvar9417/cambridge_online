@@ -16,18 +16,20 @@ describe('Live dynamic question count',()=>{
     expect(page).not.toContain('max={20}');
   });
 
-  it('loads the complete eligible pool for manual selection instead of stopping at 20 or 30',()=>{
-    expect(page).toContain('eligibleParams(total,true,false)');
+  it('pages and searches the full eligible pool without capping the selectable total',()=>{
+    expect(page).toContain('const pageSize=20');
+    expect(page).toContain('eligibleParams(pageSize,true,false,page*pageSize,search)');
     expect(page).toContain('api<EligibleQuestionResponse>');
+    expect(page).toContain('setPoolTotal(result.total)');
+    expect(page).toContain('Savollarni qidirish');
     expect(page).not.toContain('current.length>=20');
     expect(page).not.toContain('/20 ta savol');
-    expect(page).not.toContain("limit:'30'");
   });
 
   it('recalculates availability from class, coursebook section and Live filters',()=>{
     expect(page).toContain('coursebookSectionCodes:coursebookSectionCodes.join');
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]');
+    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]');
   });
 });
