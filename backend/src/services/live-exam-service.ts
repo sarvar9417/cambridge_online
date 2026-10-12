@@ -34,6 +34,14 @@ export interface CreateLiveExamInput {
   teacherOverrideEnabled?: boolean;
   leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
   displayNameMode?: 'full' | 'first_name' | 'initials' | 'anonymous_alias';
+  search?: string;
+  marksMin?: number;
+  marksMax?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  series?: Array<'FM' | 'MJ' | 'ON'>;
+  components?: number[];
+  variants?: number[];
 }
 
 type MarkSchemePointSnapshot = {
@@ -103,6 +111,38 @@ function words(value: string) {
   return value.trim() ? value.trim().split(/\s+/).length : 0;
 }
 
+function liveBuilderSourceFilters(
+  values: unknown[],
+  input: Pick<CreateLiveExamInput, 'search' | 'marksMin' | 'marksMax' | 'yearFrom' | 'yearTo' | 'series' | 'components' | 'variants'>,
+  questionAlias = 'q',
+) {
+  const filters: string[] = [];
+  const bind = (value: unknown) => {
+    values.push(value);
+    return String.fromCharCode(36) + values.length;
+  };
+  if (input.search?.trim()) {
+    const parameter = bind(input.search.trim());
+    filters.push(`(${questionAlias}.display_ref ilike '%' || ${parameter} || '%'
+      or coalesce(${questionAlias}.stem_md,'') ilike '%' || ${parameter} || '%')`);
+  }
+  if (input.marksMin !== undefined) filters.push(`${questionAlias}.marks>=${bind(input.marksMin)}`);
+  if (input.marksMax !== undefined) filters.push(`${questionAlias}.marks<=${bind(input.marksMax)}`);
+  const sourceFilters: string[] = [];
+  if (input.yearFrom !== undefined) sourceFilters.push(`sp.year>=${bind(input.yearFrom)}`);
+  if (input.yearTo !== undefined) sourceFilters.push(`sp.year<=${bind(input.yearTo)}`);
+  if (input.series?.length) sourceFilters.push(`sp.series::text=any(${bind(input.series)}::text[])`);
+  if (input.components?.length) sourceFilters.push(`component.number=any(${bind(input.components)}::int[])`);
+  if (input.variants?.length) sourceFilters.push(`sp.variant=any(${bind(input.variants)}::int[])`);
+  if (sourceFilters.length) {
+    filters.push(`exists(
+      select 1 from source_papers sp
+      join components component on component.id=sp.component_id
+      where sp.id=${questionAlias}.source_paper_id and ${sourceFilters.join(' and ')}
+    )`);
+  }
+  return filters;
+}
 function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {
   return {
     ...portable,
