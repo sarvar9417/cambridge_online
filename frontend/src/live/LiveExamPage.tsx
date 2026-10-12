@@ -37,9 +37,10 @@ type FilterOptions = {
     section_code:string;section_title:string;mapping_kind:'direct_subtopic'|'learning_objective_bridge';
   }>;
 };
-type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number};
+type EligibleQuestion = {id:string;displayRef:string;marks:number;commandWord:string|null;stem:string;hasAssets:boolean;dependencyCount:number;year:number|null;series:string|null;variant:number|null;component:number|null};
 type EligibleQuestionCounts = {database:number;liveReady:number;available:number};
-type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:EligibleQuestionCounts};
+type EligibleSelectionSummary = {requestedCount:number;requestedMarks:number;expandedCount:number;expandedMarks:number;dependencyCount:number};
+type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:EligibleQuestionCounts;selectionSummary?:EligibleSelectionSummary};
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[],coursebookSections:[] };
 const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0]);
@@ -277,6 +278,17 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [eligibleCounts,setEligibleCounts]=useState<EligibleQuestionCounts|null>(null);
   const [eligibleLoading,setEligibleLoading]=useState(false);
   const [questionCount,setQuestionCount]=useState(5);
+  const [builderSearch,setBuilderSearch]=useState('');
+  const [marksMin,setMarksMin]=useState('');
+  const [marksMax,setMarksMax]=useState('');
+  const [yearFrom,setYearFrom]=useState('');
+  const [yearTo,setYearTo]=useState('');
+  const [seriesFilter,setSeriesFilter]=useState<Array<'FM'|'MJ'|'ON'>>([]);
+  const [componentFilter,setComponentFilter]=useState<number[]>([]);
+  const [variantFilter,setVariantFilter]=useState<number[]>([]);
+  const [poolOffset,setPoolOffset]=useState(0);
+  const [selectionSummary,setSelectionSummary]=useState<EligibleSelectionSummary|null>(null);
+  const [draggedQuestionIndex,setDraggedQuestionIndex]=useState<number|null>(null);
   const createAttempt=useRef<{body:string;key:string}|null>(null);
 
   useEffect(()=>{
@@ -301,7 +313,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const visibleCoursebookSections=coursebookSections.filter((item)=>
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
   );
-  const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])};
+  const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([]);setPoolOffset(0);setSelectionSummary(null)};
   const toggleCoursebookSection=(code:string)=>{
     setCoursebookSectionCodes((current)=>current.includes(code)?current.filter((item)=>item!==code):[...current,code]);
     clearManualPool();
@@ -324,18 +336,25 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     if(target<0||target>=current.length)return current;
     const next=[...current];[next[index],next[target]]=[next[target]!,next[index]!];return next;
   });
-
-  const eligibleParams=(limit:number,includeData=true,includeCounts=true)=>new URLSearchParams({
-    classId:selectedClassId,
-    topicIds:'',
-    subtopicIds:'',
-    coursebookSectionCodes:coursebookSectionCodes.join(','),
-    includeDiagrams:String(includeDiagrams),
-    excludeSeen:String(excludeSeen),
-    limit:String(Math.max(1,limit)),
-    includeData:String(includeData),
-    includeCounts:String(includeCounts),
+  const dropSelectedQuestion=(targetIndex:number)=>setSelectedQuestionIds((current)=>{
+    if(draggedQuestionIndex===null||draggedQuestionIndex===targetIndex)return current;
+    const next=[...current];
+    const [moved]=next.splice(draggedQuestionIndex,1);
+    if(!moved)return current;
+    next.splice(targetIndex,0,moved);
+    return next;
   });
+
+  const eligibleParams=(limit:number,includeData=true,includeCounts=true,offset=0,selectedIds:string[]=[])=>{
+    const params=new URLSearchParams({
+      classId:selectedClassId,topicIds:'',subtopicIds:'',coursebookSectionCodes:coursebookSectionCodes.join(','),
+      includeDiagrams:String(includeDiagrams),excludeSeen:String(excludeSeen),q:builderSearch.trim(),marksMin,marksMax,yearFrom,yearTo,
+      series:seriesFilter.join(','),components:componentFilter.join(','),variants:variantFilter.join(','),selectedQuestionIds:selectedIds.join(','),
+      offset:String(Math.max(0,offset)),limit:String(Math.max(1,limit)),includeData:String(includeData),includeCounts:String(includeCounts),
+    });
+    for(const [key,value] of [...params.entries()])if(value==='')params.delete(key);
+    return params;
+  };
 
   useEffect(()=>{
     if(!selectedClassId||!coursebookSectionCodes.length){
@@ -357,25 +376,23 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen]);
+  },[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,builderSearch,marksMin,marksMax,yearFrom,yearTo,seriesFilter.join(','),componentFilter.join(','),variantFilter.join(',')]);
 
-  const loadQuestionPool=async()=>{
+  const loadQuestionPool=async(offset=poolOffset)=>{
     setBusy(true);setError('');
     try{
-      let total=eligibleTotal;
-      if(total===null){
-        const summary=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false)}`);
-        total=summary.total;setEligibleTotal(total);
-        setEligibleCounts(summary.counts??null);
-      }
-      if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);return}
-      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(total,true,false)}`);
-      setEligibleTotal(result.total);
-      setEligibleCounts(result.counts??null);
-      setQuestionPool(result.data);
-      setSelectedQuestionIds((current)=>current.filter((id)=>result.data.some((item)=>item.id===id)));
+      const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(30,true,false,offset)}`);
+      setEligibleTotal(result.total);setEligibleCounts(result.counts??null);setQuestionPool(result.data);setPoolOffset(offset);
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
   };
+  useEffect(()=>{
+    if(!selectedQuestionIds.length||!selectedClassId||!coursebookSectionCodes.length){setSelectionSummary(null);return}
+    let cancelled=false;
+    const timer=window.setTimeout(()=>void api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false,0,selectedQuestionIds)}`)
+      .then((result)=>{if(!cancelled)setSelectionSummary(result.selectionSummary??null)})
+      .catch(()=>{if(!cancelled)setSelectionSummary(null)}),200);
+    return()=>{cancelled=true;window.clearTimeout(timer)};
+  },[selectedQuestionIds.join(','),selectedClassId,coursebookSectionCodes.join(',')]);
 
   const create=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();setBusy(true);setError('');
@@ -386,6 +403,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
+        search:builderSearch.trim()||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
+        yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series:seriesFilter,components:componentFilter,variants:variantFilter,
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
         displayNameMode:data.get('displayNameMode'),
