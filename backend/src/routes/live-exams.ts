@@ -29,6 +29,7 @@ const createInput = z.object({
   autoCloseWhenAllSubmitted: z.boolean().default(false),
   teacherOverrideEnabled: z.boolean().default(true),
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
+  displayNameMode: z.enum(['full','first','initials','anonymous']).default('anonymous'),
 }).strict();
 
 const versionInput = z.object({
@@ -117,6 +118,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       autoCloseWhenAllSubmitted:false,
       teacherOverrideEnabled:true,
       leaderboardMode:'marks',
+      displayNameMode:'anonymous',
       questionOrder:'fixed',
     }));
   });
