@@ -21,6 +21,15 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain("answer.reviewPurpose==='calibration'");
   });
 
+  it('supports self-contained QR join links without third-party image services',()=>{
+    expect(page).toContain("liveJoinUrl(window.location.origin,code)");
+    expect(page).toContain("route.params.get('code')");
+    expect(page).toContain('<LiveJoinQr code={session.joinCode}');
+    expect(page).toContain('Join linkni nusxalash');
+    expect(page).not.toContain('api.qrserver');
+    expect(page).not.toContain('chart.googleapis.com');
+  });
+
   it('gives the teacher pause/resume and lobby removal controls',()=>{
     expect(page).toContain("session.pausedAt?'/resume':'/pause'");
     expect(page).toContain('expectedVersion:session.version');
