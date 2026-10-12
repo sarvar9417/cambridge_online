@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
-import { LiveExamRoundSummaryService } from './live-exam-round-summary-service.js';
+import { LiveExamRoundSummaryService, liveProjectorDisplayName } from './live-exam-round-summary-service.js';
 
 const teacher = { id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher' };
 const student = { id:'student-1',role:'student' as const,schoolId:'school-1',fullName:'Student' };
@@ -10,6 +10,14 @@ function serviceFor(query: ReturnType<typeof vi.fn>) {
 }
 
 describe('LiveExamRoundSummaryService', () => {
+
+  it('supports full, first-name, initials and anonymous projector labels',()=>{
+    expect(liveProjectorDisplayName('Ali Valiyev',1,'full')).toBe('Ali Valiyev');
+    expect(liveProjectorDisplayName('Ali Valiyev',1,'first')).toBe('Ali');
+    expect(liveProjectorDisplayName('Ali Valiyev',1,'initials')).toBe('A. V.');
+    expect(liveProjectorDisplayName('Ali Valiyev',1,'anonymous')).toBe('Ishtirokchi 1');
+  });
+
   it('is staff-only before querying the database', async () => {
     const query=vi.fn();
     await expect(serviceFor(query).summary(student,'session-1'))
