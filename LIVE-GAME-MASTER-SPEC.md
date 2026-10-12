@@ -75,13 +75,13 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "real_database_multi_client_acceptance": true,
     "teacher_transition_idempotency": true,
     "classroom_scale_acceptance": true,
-    "late_join_fairness": true
+    "late_join_fairness": true,
+    "builder_preview_reorder_filters": true,
+    "detailed_live_reporting_exports": true
   },
   "gaps": {
     "p0": [],
     "p1": [
-      { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
-      { "id": "LG-P1-09", "title": "Detailed reports and exports" },
       { "id": "LG-P1-10", "title": "Observability, retention and archive policy" },
       { "id": "LG-P1-11", "title": "Accessibility and responsive browser coverage" },
       { "id": "LG-P1-12", "title": "Peer-pair history and marking quality controls" }
@@ -103,7 +103,9 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-04": "versioned per-user/session/question local drafts; exponential and online retry plus page lifecycle flush; real browser E2E verifies failed autosave, reload recovery, visible two-tab conflict blocking and explicit conflict resolution before server persistence; PR #330",
       "LG-P1-05": "real PostgreSQL 30/60 learner bursts measure cursor, heartbeat and full snapshot paths with poolMax=10 and explicit p95/wall budgets; PR #327 CI observed 60-learner p95 cursor 25.6ms, heartbeat 14.7ms and snapshot 88.5ms, while 90 snapshot hydrations reused one signed-asset operation",
       "LG-P1-06": "teacher-authorized read-only projector endpoint; anonymous alias is the privacy-preserving default with configurable initials/first/full-name modes; projector standings omit student IDs and real browser E2E asserts projector snapshot omits learner roster, answers, reviews and report payloads; PR #332",
-      "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328"
+      "LG-P1-07": "filtered source-ready builder pool, pagination/search, selected-question preview, reorder/replace, difficulty/source/diagram filters and dependency-expanded count/marks are implemented and covered by browser/real-DB acceptance; PR #337",
+      "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328",
+      "LG-P1-09": "finished-session staff report separates class total from average, provides per-student/per-question/current-syllabus subtopic aggregates, most-missed mark points and evidence-backed reteach cues; CSV export and queued PDF export are implemented; real PostgreSQL, browser lifecycle, full verify and real-app browser E2E were green on PRs #343 and #344"
     },
     "p0_closure_evidence": {
       "LG-P0-01": "real PostgreSQL lifecycle: mid-round leave is rejected; unfinished peer work is reassigned to teacher fallback",
@@ -136,7 +138,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
 
 ## 3. Hozirgi yakuniy baho
 
-Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate, teacher mutationlari uchun authoritative version + idempotent retry hamda 60 learner classroom-scale cursor/heartbeat/snapshot budget hamda late-join fairness siyosati yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’lari, xususan observability, reporting/accessibility va yakuniy preview/production smoke alohida yopilishi kerak.
+Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate, teacher mutationlari uchun authoritative version + idempotent retry hamda 60 learner classroom-scale cursor/heartbeat/snapshot budget hamda late-join fairness siyosati yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’lari, xususan observability/retention, accessibility, peer-marking quality va yakuniy preview/production smoke alohida yopilishi kerak.
 
 | Qism | Holat | Qisqa xulosa |
 |---|---|---|
@@ -149,7 +151,7 @@ Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomati
 | Marking | P0 yopilgan | Teacher/peer/self, teacher fallback, response levels va olti scheme-family capability gate fail-closed ishlaydi |
 | Projector | P1 privacy yopilgan | Staff-authorized read-only view; default anonim alias, initials/first/full-name policy, student IDs va private answer/review/report payloadlari chiqarilmaydi |
 | Realtime | Ishlaydi, polling | Safe event cursor + authoritative snapshot; WebSocket/SSE emas |
-| Results/evidence | Ishlaydi | Per-round/overall marks, audit, LO/subtopic evidence va mastery update bor |
+| Results/evidence | P1 reporting yopilgan | Per-round/overall marks, audit, LO/subtopic evidence va mastery update; detailed per-student/per-question/subtopic report, missed mark points, reteach cues, CSV va queued PDF export bor |
 | Automated acceptance | P0 yopilgan | Real PostgreSQL acceptance, browser lifecycle/mode matrix va real app + PostgreSQL teacher/projector/3-student E2E CI’da ishlaydi |
 
 ## 4. Haqiqiy arxitektura
