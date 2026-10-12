@@ -5,11 +5,12 @@ import { createLiveExamsRouter } from './live-exams.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
 
 const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
+const teacher = { id:'99999999-9999-4999-8999-999999999999',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
 
-function appFor(service:Partial<LiveExamService>) {
+function appFor(service:Partial<LiveExamService>,actor:typeof student|typeof teacher=student) {
   const app=express();
   app.use(express.json());
-  app.use((req,_res,next)=>{req.actor=student;next()});
+  app.use((req,_res,next)=>{req.actor=actor;next()});
   app.use('/live-exams',createLiveExamsRouter(service as LiveExamService));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return}
