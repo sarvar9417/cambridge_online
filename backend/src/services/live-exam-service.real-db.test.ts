@@ -3,6 +3,7 @@ import { Pool, type PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import { LiveExamService } from './live-exam-service.js';
+import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
 
 const describeLive = process.env.LIVE_DB_ACCEPTANCE === '1' ? describe : describe.skip;
 
@@ -20,6 +21,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
   let otherSchoolId = '';
   let otherSchoolStudentId = '';
   const studentIds: string[] = [];
+  const loadStudentIds: string[] = [];
   const pointId = '22222222-2222-4222-8222-222222222222';
 
   const owner = (): Actor => ({
@@ -173,11 +175,11 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   afterAll(async () => {
     if (client) {
-      await client.query('delete from mastery where student_id=any($1::uuid[])',[[...studentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
+      await client.query('delete from mastery where student_id=any($1::uuid[])',[[...studentIds,...loadStudentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       if (classId) await client.query('delete from classes where id=$1',[classId]).catch(()=>{});
       if (questionId) await client.query('delete from questions where id=$1',[questionId]).catch(()=>{});
-      if (studentIds.length || ownerId || sameSchoolGuestId || otherSchoolStudentId) {
-        await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
+      if (studentIds.length || loadStudentIds.length || ownerId || sameSchoolGuestId || otherSchoolStudentId) {
+        await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds,...loadStudentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       }
       if (syllabusId) await client.query('delete from syllabi where id=$1',[syllabusId]).catch(()=>{});
       if (otherSchoolId) await client.query('delete from schools where id=$1',[otherSchoolId]).catch(()=>{});
@@ -466,4 +468,64 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(submittedDraft.rows[0]?.submitted_at).not.toBeNull();
     expect(await service.closeExpired(20)).toBe(0);
   });
+
+  it('handles 30- and 60-learner heartbeat/cursor bursts within the classroom CI latency budget', async () => {
+    const created=await client.query<{id:string}>(
+      `insert into users (school_id,role,full_name)
+       select $1,'student','Load student '||n::text
+       from generate_series(1,60) n
+       returning id`,
+      [schoolId],
+    );
+    loadStudentIds.push(...created.rows.map((row)=>row.id));
+
+    const {sessionId}=await makeSession({code:'829960',markingMode:'teacher'});
+    await client.query(
+      `insert into live_exam_participants(session_id,student_id)
+       select $1,student_id
+       from unnest($2::uuid[]) student_id`,
+      [sessionId,loadStudentIds],
+    );
+    await service.start(owner(),sessionId,1);
+
+    const realtime=new LiveExamRealtimeService(pool);
+    const actors=loadStudentIds.map((id,index):Actor=>({
+      id,
+      role:'student',
+      schoolId,
+      fullName:`Load student ${index+1}`,
+    }));
+    const p95=(values:number[])=>{
+      const ordered=[...values].sort((left,right)=>left-right);
+      return ordered[Math.max(0,Math.ceil(ordered.length*0.95)-1)]!;
+    };
+
+    for(const size of [30,60] as const){
+      const durations=await Promise.all(actors.slice(0,size).map(async(actor)=>{
+        const started=performance.now();
+        const [heartbeat,cursor]=await Promise.all([
+          service.heartbeat(actor,sessionId),
+          realtime.events(actor,sessionId,0,5),
+        ]);
+        expect(heartbeat.serverNow).toBeInstanceOf(Date);
+        expect(cursor.currentVersion).toBeGreaterThanOrEqual(2);
+        expect(cursor.changed).toBe(true);
+        return performance.now()-started;
+      }));
+      const p95Ms=p95(durations);
+      const maxMs=Math.max(...durations);
+      console.log(`Live classroom load ${size}: p95=${p95Ms.toFixed(1)}ms max=${maxMs.toFixed(1)}ms poolMax=${pool.options.max}`);
+      expect(p95Ms).toBeLessThan(5_000);
+      expect(maxMs).toBeLessThan(10_000);
+    }
+
+    const active=await client.query<{count:number}>(
+      `select count(*)::int count
+       from live_exam_participants
+       where session_id=$1 and left_at is null`,
+      [sessionId],
+    );
+    expect(active.rows[0]?.count).toBe(60);
+  },30_000);
+
 });
