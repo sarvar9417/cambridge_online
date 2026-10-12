@@ -9,6 +9,7 @@ import { computeScore, type Scheme } from '../lib/marking.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
+import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -1135,7 +1136,7 @@ export class LiveExamService {
       return this.snapshot(actor, sessionId, projector);
     }
 
-    return {
+    const response = {
       session: {
         ...this.mapSession(session),
         className: session.class_name,
@@ -1182,6 +1183,7 @@ export class LiveExamService {
       teacherAnswers,
       report,
     };
+    return projector ? sanitizeLiveProjectorSnapshot(response) : response;
   }
 
   private async reviewFor(actor: Actor, sessionId: string, sessionQuestionId: string) {
