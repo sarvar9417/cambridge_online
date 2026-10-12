@@ -769,7 +769,7 @@ export class LiveExamService {
              'infinity'::timestamptz
            ) > now() and (
            les.status='lobby'
-           or (les.status in ('question_open','marking','review') and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
          -- Concurrent learners may validate the same room together. Start,
          -- cancel and other state transitions still wait for every join to
@@ -926,6 +926,7 @@ export class LiveExamService {
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
          lep.id participant_id,
+         lep.joined_at participant_joined_at,
          (
            les.status='question_open' and les.paused_at is null
            and les.question_started_at is not null and les.question_time_limit_s is not null
@@ -1143,6 +1144,10 @@ export class LiveExamService {
         startedAt: session.started_at,
         finishedAt: session.finished_at,
         questionStartedAt: session.question_started_at,
+        joinedLate: actor.role==='student'
+          && Boolean(session.participant_joined_at)
+          && Boolean(session.question_started_at)
+          && new Date(session.participant_joined_at).getTime()>new Date(session.question_started_at).getTime(),
         pausedAt: session.paused_at,
         pauseRemainingS: session.pause_remaining_s === null ? null : Number(session.pause_remaining_s),
         deadline,
