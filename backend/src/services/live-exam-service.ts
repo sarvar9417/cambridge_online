@@ -1417,7 +1417,11 @@ export class LiveExamService {
        from jsonb_to_recordset($2::jsonb) input(answer_id text,reviewer_id text,kind text)
        on conflict(session_question_id,answer_id,kind) do update
          set reviewer_id=excluded.reviewer_id`,
-      [sessionQuestionId, JSON.stringify(assignments)],
+      [sessionQuestionId, JSON.stringify(assignments.map((assignment)=>({
+        answer_id:assignment.answerId,
+        reviewer_id:assignment.reviewerId,
+        kind:assignment.kind,
+      })))],
     );
     if (scheme.points.length) {
       await client.query(
