@@ -118,7 +118,7 @@ function liveBuilderSourceFilters(values: unknown[], input: Pick<CreateLiveExamI
   const filters: string[] = [];
   const add = (value: unknown) => {
     values.push(value);
-    return '
+    return String.fromCharCode(36)+values.length;
   };
   if (input.search?.trim()) {
     const parameter = add(input.search.trim());
