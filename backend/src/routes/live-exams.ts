@@ -193,6 +193,19 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     res.status(201).json(await service.join(req.actor!, body.code));
   });
 
+  router.get('/:id/report', async (req,res)=>{
+    privateNoStore(res);
+    res.json(await service.detailedReport(req.actor!,id(req.params)));
+  });
+
+  router.get('/:id/report.csv', async (req,res)=>{
+    privateNoStore(res);
+    const csv=await service.detailedReportCsv(req.actor!,id(req.params));
+    res.type('text/csv; charset=utf-8');
+    res.set('Content-Disposition',`attachment; filename="live-report-${id(req.params)}.csv"`);
+    res.send(csv);
+  });
+
   router.get('/:id/projector', async (req, res) => {
     // Projectors are a separate privacy surface: return only the classroom
     // presentation DTO, never the teacher's participant/answer payload.

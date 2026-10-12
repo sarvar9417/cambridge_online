@@ -1335,6 +1335,244 @@ export class LiveExamService {
     return projector ? sanitizeLiveProjectorSnapshot(response) : response;
   }
 
+
+  async detailedReport(actor: Actor, sessionId: string) {
+    if (actor.role === 'student') throw new DomainError('staff_only', 403);
+    await this.requireClassControlForSession(actor, sessionId);
+    const meta = await this.pool.query(
+      `select les.id,les.title,les.status::text,c.name class_name
+       from live_exam_sessions les
+       join classes c on c.id=les.class_id
+       where les.id=$1 and les.archived_at is null`,
+      [sessionId],
+    );
+    if (!meta.rowCount) throw new DomainError('not_found', 404);
+    if (meta.rows[0].status !== 'finished') throw new DomainError('live_report_not_ready', 409);
+
+    const [answerRows, subtopicRows, pointRows] = await Promise.all([
+      this.pool.query(
+        `select
+           leq.id session_question_id,leq.position,leq.marks,
+           coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
+           lep.student_id,u.full_name student_name,
+           coalesce(a.answer_text,'') answer_text,
+           a.final_score,a.score_source::text,a.final_feedback_md
+         from live_exam_questions leq
+         join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
+         join users u on u.id=lep.student_id
+         left join live_exam_answers a on a.session_question_id=leq.id and a.participant_id=lep.id
+         where leq.session_id=$1
+         order by u.full_name,leq.position`,
+        [sessionId],
+      ),
+      this.pool.query(
+        `select
+           e.student_id,u.full_name student_name,e.session_question_id,
+           st.id subtopic_id,st.code subtopic_code,st.title subtopic_title,
+           t.number topic_number,t.title topic_title,
+           sum(e.marks_earned)::numeric marks_earned,
+           sum(e.marks_possible)::numeric marks_possible,
+           count(distinct e.answer_id)::int attempts
+         from live_exam_learning_evidence e
+         join users u on u.id=e.student_id
+         join subtopics st on st.id=e.subtopic_id
+         join topics t on t.id=st.topic_id
+         where e.session_id=$1
+         group by e.student_id,u.full_name,e.session_question_id,st.id,st.code,st.title,t.number,t.title
+         order by t.number,st.code,u.full_name`,
+        [sessionId],
+      ),
+      this.pool.query(
+        `select
+           leq.position,
+           coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
+           point.value->>'id' point_id,
+           point.value->>'code' code,
+           point.value->>'text' text,
+           coalesce((point.value->>'marks')::numeric,0) marks,
+           count(*)::int assessed_count,
+           count(*) filter(where coalesce(rp.matched,false)=false)::int missed_count
+         from live_exam_questions leq
+         cross join lateral jsonb_array_elements(coalesce(leq.mark_scheme_snapshot->'points','[]'::jsonb)) point(value)
+         join live_exam_answers a on a.session_question_id=leq.id and a.final_score is not null
+         join live_exam_reviews r on r.answer_id=a.id and r.session_question_id=leq.id
+           and r.status in ('submitted','moderated')
+         left join live_exam_review_points rp
+           on rp.review_id=r.id and rp.mark_scheme_point_id=(point.value->>'id')::uuid
+         where leq.session_id=$1
+         group by leq.position,display_ref,point.value
+         order by missed_count desc,assessed_count desc,leq.position,code`,
+        [sessionId],
+      ),
+    ]);
+
+    const answerRowsMapped = answerRows.rows.map((row) => ({
+      sessionQuestionId:String(row.session_question_id),
+      questionPosition:Number(row.position),
+      displayRef:String(row.display_ref),
+      marks:Number(row.marks),
+      studentId:String(row.student_id),
+      studentName:String(row.student_name),
+      answerText:String(row.answer_text ?? ''),
+      score:row.final_score == null ? null : Number(row.final_score),
+      scoreSource:row.score_source == null ? null : String(row.score_source),
+      feedback:row.final_feedback_md == null ? null : String(row.final_feedback_md),
+    }));
+
+    const studentMap = new Map<string,{studentId:string;studentName:string;earned:number;possible:number}>();
+    for (const row of answerRowsMapped) {
+      const current=studentMap.get(row.studentId) ?? {studentId:row.studentId,studentName:row.studentName,earned:0,possible:0};
+      current.earned += Number(row.score ?? 0);
+      current.possible += row.marks;
+      studentMap.set(row.studentId,current);
+    }
+    const students=[...studentMap.values()].map((row)=>({
+      ...row,
+      percentage:row.possible>0?row.earned/row.possible:0,
+    })).sort((left,right)=>right.percentage-left.percentage||left.studentName.localeCompare(right.studentName));
+
+    const questionMap = new Map<string,{
+      sessionQuestionId:string;questionPosition:number;displayRef:string;marks:number;
+      earned:number;possible:number;attempts:number;
+    }>();
+    for (const row of answerRowsMapped) {
+      const current=questionMap.get(row.sessionQuestionId) ?? {
+        sessionQuestionId:row.sessionQuestionId,questionPosition:row.questionPosition,displayRef:row.displayRef,marks:row.marks,
+        earned:0,possible:0,attempts:0,
+      };
+      current.earned += Number(row.score ?? 0);
+      current.possible += row.marks;
+      current.attempts += 1;
+      questionMap.set(row.sessionQuestionId,current);
+    }
+
+    const evidenceRows=subtopicRows.rows.map((row)=>({
+      studentId:String(row.student_id),
+      studentName:String(row.student_name),
+      sessionQuestionId:String(row.session_question_id),
+      subtopicId:String(row.subtopic_id),
+      subtopicCode:String(row.subtopic_code),
+      subtopicTitle:String(row.subtopic_title),
+      topicNumber:Number(row.topic_number),
+      topicTitle:String(row.topic_title),
+      marksEarned:Number(row.marks_earned),
+      marksPossible:Number(row.marks_possible),
+      attempts:Number(row.attempts),
+    }));
+    const questionSubtopics=new Map<string,Array<{subtopicId:string;subtopicCode:string;subtopicTitle:string;topicNumber:number;topicTitle:string}>>();
+    for (const row of evidenceRows) {
+      const list=questionSubtopics.get(row.sessionQuestionId) ?? [];
+      if(!list.some((item)=>item.subtopicId===row.subtopicId)) list.push({
+        subtopicId:row.subtopicId,subtopicCode:row.subtopicCode,subtopicTitle:row.subtopicTitle,
+        topicNumber:row.topicNumber,topicTitle:row.topicTitle,
+      });
+      questionSubtopics.set(row.sessionQuestionId,list);
+    }
+    const questions=[...questionMap.values()].sort((a,b)=>a.questionPosition-b.questionPosition).map((row)=>({
+      ...row,
+      percentage:row.possible>0?row.earned/row.possible:0,
+      subtopics:questionSubtopics.get(row.sessionQuestionId) ?? [],
+    }));
+
+    const subtopicMap=new Map<string,{
+      subtopicId:string;subtopicCode:string;subtopicTitle:string;topicNumber:number;topicTitle:string;
+      earned:number;possible:number;attempts:number;
+    }>();
+    for (const row of evidenceRows) {
+      const current=subtopicMap.get(row.subtopicId) ?? {
+        subtopicId:row.subtopicId,subtopicCode:row.subtopicCode,subtopicTitle:row.subtopicTitle,
+        topicNumber:row.topicNumber,topicTitle:row.topicTitle,earned:0,possible:0,attempts:0,
+      };
+      current.earned+=row.marksEarned;
+      current.possible+=row.marksPossible;
+      current.attempts+=row.attempts;
+      subtopicMap.set(row.subtopicId,current);
+    }
+    const subtopics=[...subtopicMap.values()].map((row)=>({
+      ...row,
+      percentage:row.possible>0?row.earned/row.possible:0,
+    })).sort((a,b)=>a.percentage-b.percentage||a.topicNumber-b.topicNumber||a.subtopicCode.localeCompare(b.subtopicCode));
+
+    const mostMissedPoints=pointRows.rows.map((row)=>({
+      questionPosition:Number(row.position),
+      displayRef:String(row.display_ref),
+      pointId:String(row.point_id),
+      code:String(row.code ?? ''),
+      text:String(row.text ?? ''),
+      marks:Number(row.marks),
+      assessedCount:Number(row.assessed_count),
+      missedCount:Number(row.missed_count),
+      missRate:Number(row.assessed_count)>0?Number(row.missed_count)/Number(row.assessed_count):0,
+    })).filter((row)=>row.assessedCount>0&&row.missedCount>0);
+
+    const totalEarned=students.reduce((sum,row)=>sum+row.earned,0);
+    const totalPossible=students.reduce((sum,row)=>sum+row.possible,0);
+    const averageScore=students.length?students.reduce((sum,row)=>sum+row.earned,0)/students.length:0;
+    const averagePossible=students.length?students.reduce((sum,row)=>sum+row.possible,0)/students.length:0;
+    const reteachRecommendations=subtopics
+      .filter((row)=>row.attempts>0&&row.percentage<0.6)
+      .slice(0,5)
+      .map((row)=>({
+        subtopicId:row.subtopicId,
+        code:row.subtopicCode,
+        title:row.subtopicTitle,
+        topicNumber:row.topicNumber,
+        topicTitle:row.topicTitle,
+        percentage:row.percentage,
+        attempts:row.attempts,
+        marksEarned:row.earned,
+        marksPossible:row.possible,
+        reason:`${row.subtopicCode} bo‘yicha sinf ${row.earned}/${row.possible} ball oldi (${Math.round(row.percentage*100)}%).`,
+      }));
+
+    return {
+      session:{id:String(meta.rows[0].id),title:String(meta.rows[0].title),className:String(meta.rows[0].class_name),status:'finished' as const},
+      aggregate:{
+        studentCount:students.length,
+        totalEarned,
+        totalPossible,
+        averageScore,
+        averagePossible,
+        averagePercentage:averagePossible>0?averageScore/averagePossible:0,
+      },
+      students,
+      questions,
+      subtopics,
+      mostMissedPoints,
+      reteachRecommendations,
+      rows:answerRowsMapped,
+    };
+  }
+
+  async detailedReportCsv(actor: Actor, sessionId: string) {
+    const report=await this.detailedReport(actor,sessionId);
+    const evidenceByQuestion=new Map(report.questions.map((question)=>[
+      question.sessionQuestionId,
+      question.subtopics.map((subtopic)=>subtopic.subtopicCode).join(' | '),
+    ]));
+    const escape=(value:unknown)=>{
+      const text=value==null?'':String(value);
+      return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+    };
+    const header=['Student','Question','Source ref','Subtopics','Score','Possible','Percentage','Score source','Feedback'];
+    const lines=[header.map(escape).join(',')];
+    for(const row of report.rows){
+      const pct=row.marks>0?Number(row.score??0)/row.marks:0;
+      lines.push([
+        row.studentName,
+        row.questionPosition+1,
+        row.displayRef,
+        evidenceByQuestion.get(row.sessionQuestionId)??'',
+        row.score??'',
+        row.marks,
+        (pct*100).toFixed(1)+'%',
+        row.scoreSource??'',
+        row.feedback??'',
+      ].map(escape).join(','));
+    }
+    return lines.join('\r\n')+'\r\n';
+  }
+
   private async reviewFor(actor: Actor, sessionId: string, sessionQuestionId: string) {
     const result = await this.pool.query(
       `select r.id,r.answer_id,r.kind::text,r.status::text,r.awarded_marks,r.feedback_md,r.submitted_at,

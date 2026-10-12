@@ -242,6 +242,41 @@ function reportFor(actor:ActorKey){
   };
 }
 
+function detailedReport(){
+  const earned=students.reduce((sum,student)=>sum+(state.answers[student].score??0),0);
+  const possible=students.length;
+  return{
+    session:{id:SESSION_ID,title:'Lifecycle browser acceptance',className:'AS Computer Science',status:'finished'},
+    aggregate:{
+      studentCount:students.length,totalEarned:earned,totalPossible:possible,
+      averageScore:students.length?earned/students.length:0,averagePossible:1,
+      averagePercentage:possible?earned/possible:0,
+    },
+    students:students.map((student)=>({
+      studentId:studentId(student),studentName:`Acceptance student ${studentNumber(student)}`,
+      earned:state.answers[student].score??0,possible:1,percentage:state.answers[student].score??0,
+    })),
+    questions:[{
+      sessionQuestionId:SESSION_QUESTION_ID,questionPosition:0,displayRef:'9618/31/M/J/21 Q7',marks:1,
+      earned,possible,attempts:students.length,percentage:possible?earned/possible:0,
+      subtopics:[{subtopicId:'90000000-0000-4000-8000-000000000001',subtopicCode:'1.1',subtopicTitle:'Data representation',topicNumber:1,topicTitle:'Information representation'}],
+    }],
+    subtopics:[{
+      subtopicId:'90000000-0000-4000-8000-000000000001',subtopicCode:'1.1',subtopicTitle:'Data representation',
+      topicNumber:1,topicTitle:'Information representation',earned,possible,attempts:students.length,percentage:possible?earned/possible:0,
+    }],
+    mostMissedPoints:earned<possible?[{
+      questionPosition:0,displayRef:'9618/31/M/J/21 Q7',pointId:POINT_ID,code:'M1',text:'States the correct output.',
+      marks:1,assessedCount:possible,missedCount:possible-earned,missRate:(possible-earned)/possible,
+    }]:[],
+    reteachRecommendations:earned/possible<0.6?[{
+      subtopicId:'90000000-0000-4000-8000-000000000001',code:'1.1',title:'Data representation',topicNumber:1,
+      topicTitle:'Information representation',percentage:earned/possible,attempts:students.length,marksEarned:earned,marksPossible:possible,
+      reason:`1.1 bo‘yicha sinf ${earned}/${possible} ball oldi (${Math.round((earned/possible)*100)}%).`,
+    }]:[],
+  };
+}
+
 function snapshot(actor:ActorKey){
   const staff=actor==='teacher'||actor==='projector';
   const detailed=actor==='teacher';
@@ -304,6 +339,11 @@ async function handleApi(request:HTTPRequest,actor:ActorKey){
   if(path===`/live-exams/${SESSION_ID}/events`){
     const after=Number(url.searchParams.get('afterVersion')??0);
     return respondJson(request,{sessionId:SESSION_ID,currentVersion:state.version,changed:state.version!==after,events:state.version!==after?[{version:state.version,type:'acceptance.changed',createdAt:iso(tick*1000)}]:[]});
+  }
+  if(path===`/live-exams/${SESSION_ID}/report`){
+    if(actor!=='teacher')return respondError(request,'Faqat o‘qituvchi ko‘ra oladi.','staff_only',403);
+    if(state.status!=='finished')return respondError(request,'Hisobot hali tayyor emas.','live_report_not_ready',409);
+    return respondJson(request,detailedReport());
   }
   if(path===`/live-exams/${SESSION_ID}/heartbeat`)return respondJson(request,{serverNow:iso(15_000)});
   if(path===`/live-exams/${SESSION_ID}/round-summary`)return respondJson(request,roundSummary());
@@ -534,6 +574,8 @@ try{
   await clickButton(teacher.page,'Sessiyani yakunlash');
   await Promise.all([
     waitText(teacher.page,'SESSIYA YAKUNLANDI'),
+    waitText(teacher.page,'BATAFSIL HISOBOT'),
+    waitText(teacher.page,'Sinf jami'),
     waitText(projector.page,'Sessiya yakunlandi'),
     waitText(student1.page,'SESSIYA YAKUNLANDI'),
     waitText(student2.page,'SESSIYA YAKUNLANDI'),
