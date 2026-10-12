@@ -274,6 +274,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [excludeSeen,setExcludeSeen]=useState(true);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
+  const [questionCache,setQuestionCache]=useState<Record<string,EligibleQuestion>>({});
   const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
   const [eligibleCounts,setEligibleCounts]=useState<EligibleQuestionCounts|null>(null);
   const [eligibleLoading,setEligibleLoading]=useState(false);
@@ -313,7 +314,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const visibleCoursebookSections=coursebookSections.filter((item)=>
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
   );
-  const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([]);setPoolOffset(0);setSelectionSummary(null)};
+  const clearManualPool=()=>{setQuestionPool([]);setQuestionCache({});setSelectedQuestionIds([]);setPoolOffset(0);setSelectionSummary(null)};
   const toggleCoursebookSection=(code:string)=>{
     setCoursebookSectionCodes((current)=>current.includes(code)?current.filter((item)=>item!==code):[...current,code]);
     clearManualPool();
@@ -381,6 +382,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(30,true,false,offset)}`);
       setEligibleTotal(result.total);setEligibleCounts(result.counts??null);setQuestionPool(result.data);setPoolOffset(offset);
+      setQuestionCache((current)=>Object.fromEntries([...Object.values(current),...result.data].map((item)=>[item.id,item])));
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
   };
 
