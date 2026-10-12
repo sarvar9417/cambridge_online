@@ -82,3 +82,8 @@
 .live-projector-session-info>.live-projector-join{display:grid;gap:2px;margin:0;padding:6px 16px;text-align:center;background:var(--accent-soft);color:var(--text)}
 .live-projector-session-info .live-projector-join>strong{font-size:36px}
 @media(max-width:640px){.live-projector-join>small{flex-basis:100%}.live-projector-overlay>header{grid-template-columns:minmax(0,1fr);gap:10px;padding:10px 12px}.live-projector-overlay>header>.live-projector-brand{display:none}.live-projector-overlay>header>div:nth-child(2){text-align:left;overflow-wrap:anywhere}.live-projector-session-info{gap:10px;flex-wrap:wrap;justify-content:space-between;min-width:0}.live-projector-session-info .live-projector-join>strong{font-size:26px}.live-projector-overlay>header time{font-size:18px}}
+
+.live-draft-conflict{display:grid;gap:10px;margin:0 0 14px;padding:14px 16px;border:1px solid var(--uncertain);border-radius:var(--radius);background:var(--uncertain-bg);color:var(--text)}
+.live-draft-conflict>p{margin:0;color:var(--text-muted);line-height:1.45}
+.live-draft-conflict>div{display:flex;gap:8px;flex-wrap:wrap}
+.live-draft-conflict button{min-height:40px}

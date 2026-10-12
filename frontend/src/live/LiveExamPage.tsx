@@ -43,6 +43,7 @@ type EligibleQuestionResponse = {data:EligibleQuestion[];total:number;counts?:El
 
 const EMPTY_OPTIONS:FilterOptions = { topics:[],coursebookSections:[] };
 const DEADLINE_DRAFT_FLUSH_SECONDS=new Set([5,3,1,0]);
+const LIVE_DRAFT_VERSION=1;
 
 const STATUS_LABEL:Record<LiveExamStatus,string> = {
   lobby:'Kutilmoqda',question_open:'Savol ochiq',marking:'Baholash',review:'Natijani ko‘rish',
@@ -56,22 +57,25 @@ function message(error:unknown,fallback:string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function liveDraftKey(sessionId:string,answerId:string) {
-  return `campath:live-draft:${sessionId}:${answerId}`;
+function liveDraftKey(userId:string,sessionId:string,questionId:string) {
+  return `campath:live-draft:v${LIVE_DRAFT_VERSION}:${userId}:${sessionId}:${questionId}`;
 }
 
 function readLiveDraft(key:string) {
   try {
     const raw=localStorage.getItem(key);
     if(!raw)return null;
-    const draft=JSON.parse(raw) as {text?:unknown;updatedAt?:unknown};
-    if(typeof draft.text!=='string'||typeof draft.updatedAt!=='number'||Date.now()-draft.updatedAt>86_400_000){localStorage.removeItem(key);return null}
-    return {text:draft.text,updatedAt:draft.updatedAt};
+    const draft=JSON.parse(raw) as {version?:unknown;text?:unknown;updatedAt?:unknown;tabId?:unknown};
+    if(draft.version!==LIVE_DRAFT_VERSION||typeof draft.text!=='string'||typeof draft.updatedAt!=='number'
+      ||Date.now()-draft.updatedAt>86_400_000){
+      localStorage.removeItem(key);return null
+    }
+    return {text:draft.text,updatedAt:draft.updatedAt,tabId:typeof draft.tabId==='string'?draft.tabId:null};
   }catch{return null}
 }
 
 function writeLiveDraft(key:string,text:string,tabId:string) {
-  try{localStorage.setItem(key,JSON.stringify({text,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
+  try{localStorage.setItem(key,JSON.stringify({version:LIVE_DRAFT_VERSION,text,updatedAt:Date.now(),tabId}))}catch{/* Storage may be disabled or full. */}
 }
 
 function removeLiveDraft(key:string) {
@@ -478,13 +482,14 @@ function ProjectorView({snapshot}:{snapshot:LiveExamSnapshot}) {
   </div>;
 }
 
-function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>}) {
+function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refresh:()=>Promise<void>;userId:string}) {
   const {session}=snapshot;
   const [answer,setAnswer]=useState('');
   const [dirty,setDirty]=useState(false);
   const [saving,setSaving]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [draftConflict,setDraftConflict]=useState(false);
   const [selected,setSelected]=useState<Set<string>>(new Set());
   const [manualScore,setManualScore]=useState(0);
   const [levelNumber,setLevelNumber]=useState<number|undefined>();
@@ -501,6 +506,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const autoSubmitAttempts=useRef(0);
   const [hydratedKey,setHydratedKey]=useState('');
   const tabId=useRef(`tab-${Math.random().toString(36).slice(2)}`);
+  const draftConflictRef=useRef(false);
+  const conflictingDraft=useRef<string|null>(null);
   const remaining=useCountdown(session.deadline,session.serverNow);
   const leave=async()=>{
     setBusy(true);setError('');
@@ -509,16 +516,19 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   };
 
   useEffect(()=>{
-    const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
+    const key=snapshot.question?.id??snapshot.ownAnswer?.id??'';
     if(key===answerKey.current)return;
     answerKey.current=key;
     deadlineFlushSecond.current=null;
     autoSubmittedKey.current='';
     autoSubmitAttempts.current=0;
+    draftConflictRef.current=false;
+    conflictingDraft.current=null;
+    setDraftConflict(false);
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
-    const localDraft=key?readLiveDraft(liveDraftKey(session.id,key)):null;
+    const localDraft=key?readLiveDraft(liveDraftKey(userId,session.id,key)):null;
     const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
     const initial=useLocal?localDraft!.text:serverText;
     latestAnswer.current=initial;
@@ -526,21 +536,31 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     setAnswer(initial);
     setDirty(useLocal);
     setHydratedKey(key);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
-  const draftKey=snapshot.ownAnswer?.id?snapshot.ownAnswer.id:snapshot.question?.id??'';
+  },[session.id,userId,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
+  const draftKey=snapshot.question?.id??snapshot.ownAnswer?.id??'';
   useEffect(()=>{
     if(!draftKey||hydratedKey!==draftKey||snapshot.ownAnswer?.submittedAt)return;
-    writeLiveDraft(liveDraftKey(session.id,draftKey),answer,tabId.current);
-  },[answer,draftKey,hydratedKey,session.id,snapshot.ownAnswer?.submittedAt]);
+    writeLiveDraft(liveDraftKey(userId,session.id,draftKey),answer,tabId.current);
+  },[answer,draftKey,hydratedKey,session.id,userId,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(!draftKey||snapshot.ownAnswer?.submittedAt)return;
-    const key=liveDraftKey(session.id,draftKey);
+    const key=liveDraftKey(userId,session.id,draftKey);
     const onStorage=(event:StorageEvent)=>{
       if(event.key!==key||!event.newValue)return;
       try{
-        const incoming=JSON.parse(event.newValue) as {text?:unknown;updatedAt?:unknown;tabId?:unknown};
-        if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
-        if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
+        const incoming=JSON.parse(event.newValue) as {version?:unknown;text?:unknown;updatedAt?:unknown;tabId?:unknown};
+        if(incoming.version!==LIVE_DRAFT_VERSION||incoming.tabId===tabId.current
+          ||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
+        if(dirty&&incoming.text!==answer){
+          draftConflictRef.current=true;
+          conflictingDraft.current=incoming.text;
+          pendingSave.current=null;
+          window.clearTimeout(saveTimer.current);
+          window.clearTimeout(retryTimer.current);
+          setDraftConflict(true);
+          setError('Boshqa tabda shu javob o‘zgartirildi. Qaysi versiyani davom ettirishni tanlang; avtomatik saqlash vaqtincha to‘xtatildi.');
+          return
+        }
         latestAnswer.current=incoming.text;
         pendingSave.current=incoming.text;
         setAnswer(incoming.text);setDirty(true);
@@ -548,10 +568,10 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     };
     window.addEventListener('storage',onStorage);
     return()=>window.removeEventListener('storage',onStorage);
-  },[answer,dirty,draftKey,session.id,snapshot.ownAnswer?.submittedAt]);
+  },[answer,dirty,draftKey,session.id,userId,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{setSelected(new Set());setManualScore(0);setLevelNumber(undefined);setFeedback('')},[snapshot.review?.id]);
   const flushAnswer=async(text=latestAnswer.current,attempt=0)=>{
-    if(session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt||submitting.current)return;
+    if(draftConflictRef.current||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt||submitting.current)return;
     pendingSave.current=text;
     if(saveInFlight.current)return;
     const outgoing=pendingSave.current??'';
@@ -564,31 +584,35 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
       if(latestAnswer.current===outgoing){setDirty(false);setError('')}
       else pendingSave.current=latestAnswer.current;
     }catch(cause){
-      pendingSave.current=latestAnswer.current;
-      setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
-      if(attempt<4){
-        retryScheduled=true;
-        window.clearTimeout(retryTimer.current);
-        retryTimer.current=window.setTimeout(()=>{
-          const pending=pendingSave.current;
-          if(pending!==null)void flushAnswer(pending,attempt+1);
-        },2**attempt*1000);
+      if(draftConflictRef.current){
+        pendingSave.current=null;
+      }else{
+        pendingSave.current=latestAnswer.current;
+        setError(message(cause,'Javob saqlanmadi. Ulanish tiklanganda qayta uriniladi.'));
+        if(attempt<4){
+          retryScheduled=true;
+          window.clearTimeout(retryTimer.current);
+          retryTimer.current=window.setTimeout(()=>{
+            const pending=pendingSave.current;
+            if(!draftConflictRef.current&&pending!==null)void flushAnswer(pending,attempt+1);
+          },2**attempt*1000);
+        }
       }
     }finally{
       saveInFlight.current=false;
       setSaving(false);
-      if(!retryScheduled&&!submitting.current&&pendingSave.current!==null){
+      if(!draftConflictRef.current&&!retryScheduled&&!submitting.current&&pendingSave.current!==null){
         const pending=pendingSave.current;
         void flushAnswer(pending);
       }
     }
   };
   useEffect(()=>{
-    if(!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
+    if(draftConflict||!dirty||session.status!=='question_open'||session.pausedAt||snapshot.ownAnswer?.submittedAt)return;
     window.clearTimeout(saveTimer.current);
     saveTimer.current=window.setTimeout(()=>void flushAnswer(latestAnswer.current),700);
     return()=>window.clearTimeout(saveTimer.current);
-  },[answer,dirty,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
+  },[answer,dirty,draftConflict,session.id,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
     if(remaining===null||!DEADLINE_DRAFT_FLUSH_SECONDS.has(remaining)||deadlineFlushSecond.current===remaining)return;
     deadlineFlushSecond.current=remaining;
@@ -599,23 +623,47 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     void flushAnswer(pending);
   },[remaining,dirty,session.pausedAt,session.status,snapshot.ownAnswer?.submittedAt]);
   useEffect(()=>{
-    const retry=()=>{if(pendingSave.current!==null)void flushAnswer(pendingSave.current)};
-    const flush=()=>{if(dirty){const pending=pendingSave.current??latestAnswer.current;void flushAnswer(pending)}};
+    const retry=()=>{if(!draftConflictRef.current&&pendingSave.current!==null)void flushAnswer(pendingSave.current)};
+    const flush=()=>{if(!draftConflictRef.current&&dirty){const pending=pendingSave.current??latestAnswer.current;void flushAnswer(pending)}};
     window.addEventListener('online',retry);
     window.addEventListener('visibilitychange',flush);
     window.addEventListener('pagehide',flush);
     return()=>{window.removeEventListener('online',retry);window.removeEventListener('visibilitychange',flush);window.removeEventListener('pagehide',flush);window.clearTimeout(retryTimer.current)};
   },[dirty]);
 
+  const resolveDraftConflict=(useIncoming:boolean)=>{
+    const next=useIncoming?(conflictingDraft.current??latestAnswer.current):latestAnswer.current;
+    window.clearTimeout(saveTimer.current);
+    window.clearTimeout(retryTimer.current);
+    draftConflictRef.current=false;
+    conflictingDraft.current=null;
+    setDraftConflict(false);
+    latestAnswer.current=next;
+    pendingSave.current=next;
+    setAnswer(next);
+    setDirty(true);
+    setError('');
+    if(draftKey)writeLiveDraft(liveDraftKey(userId,session.id,draftKey),next,tabId.current);
+    const flushChosenDraft=()=>{
+      if(draftConflictRef.current||submitting.current)return;
+      if(saveInFlight.current){
+        retryTimer.current=window.setTimeout(flushChosenDraft,50);
+        return;
+      }
+      const pending=pendingSave.current;
+      if(pending!==null)void flushAnswer(pending);
+    };
+    retryTimer.current=window.setTimeout(flushChosenDraft,0);
+  };
   const submitAnswer=async(automatic=false)=>{
-    if(submitting.current||snapshot.ownAnswer?.submittedAt)return;
+    if(draftConflictRef.current||submitting.current||snapshot.ownAnswer?.submittedAt)return;
     if(automatic)autoSubmitAttempts.current+=1;
     setBusy(true);setError('');
     submitting.current=true;
     window.clearTimeout(saveTimer.current);
     window.clearTimeout(retryTimer.current);
     pendingSave.current=null;
-    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(session.id,draftKey));setDirty(false);await refresh()}
+    try{await api(`/live-exams/${session.id}/answer/submit`,{method:'POST',body:JSON.stringify({text:latestAnswer.current})});if(draftKey)removeLiveDraft(liveDraftKey(userId,session.id,draftKey));setDirty(false);await refresh()}
     catch(cause){
       pendingSave.current=latestAnswer.current;
       setError(message(cause,automatic?'Vaqt tugadi. Avtomatik yuborish tekshirilmoqda; serverdagi oxirgi saqlangan javob himoyalangan.':'Javob topshirilmadi.'));
@@ -645,8 +693,8 @@ function StudentRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   if(session.pausedAt)return <section className="live-wait"><div className="live-pulse"><Broadcast size={42}/></div><span>CHALLENGE PAUZADA</span><h1>{session.title}</h1><p>Javob va baholash vaqtincha to‘xtatildi. O‘qituvchi davom ettirishi kutilmoqda.</p></section>;
   if(session.status==='question_open'&&snapshot.question)return <div className="live-student-workspace">
     <header><button className="live-icon-button" onClick={()=>navigate('oquvchi/live')} aria-label="Sessiyalarga qaytish"><ArrowLeft/></button><div><strong>{session.title}</strong><small>{saving?'Saqlanmoqda…':dirty?'O‘zgarish bor':'✓ Sinxronlandi'}</small></div><time className={remaining!==null&&remaining<30?'is-urgent':''}>{formatClock(remaining)}</time></header>
-    {error?<p className="live-error" role="alert">{error}</p>:null}<SessionProgress snapshot={snapshot}/>{session.joinedLate?<section className="live-late-join-notice" role="status"><strong>Kech qo‘shildingiz</strong><span>Bu savol uchun alohida vaqt qo‘shilmaydi: yuqoridagi qolgan vaqt siz uchun ham amal qiladi. Ball odatdagi Cambridge mark scheme bo‘yicha hisoblanadi.</span></section>:null}<LiveQuestionView question={snapshot.question}/>
-    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
+    {error?<p className="live-error" role="alert">{error}</p>:null}{draftConflict?<section className="live-draft-conflict" role="alert"><strong>Ikki tabdagi javob farq qiladi</strong><p>Avtomatik saqlash to‘xtatildi. Bu tabdagi matnni saqlash yoki boshqa tabdagi so‘nggi matnni olishni tanlang.</p><div><button type="button" className="live-secondary" onClick={()=>resolveDraftConflict(false)}>Bu tabdagi javobni saqlash</button><button type="button" className="live-secondary" onClick={()=>resolveDraftConflict(true)}>Boshqa tabdagi javobni olish</button></div></section>:null}<SessionProgress snapshot={snapshot}/>{session.joinedLate?<section className="live-late-join-notice" role="status"><strong>Kech qo‘shildingiz</strong><span>Bu savol uchun alohida vaqt qo‘shilmaydi: yuqoridagi qolgan vaqt siz uchun ham amal qiladi. Ball odatdagi Cambridge mark scheme bo‘yicha hisoblanadi.</span></section>:null}<LiveQuestionView question={snapshot.question}/>
+    <section className="live-answer-box"><header><label htmlFor="live-answer">Javobingiz</label><span>{answer.trim()?answer.trim().split(/\s+/).length:0} so‘z</span></header><textarea id="live-answer" value={answer} disabled={Boolean(snapshot.ownAnswer?.submittedAt)||remaining===0||Boolean(session.pausedAt)} onChange={(event)=>{const value=event.target.value;latestAnswer.current=value;pendingSave.current=value;setAnswer(value);setDirty(true)}} placeholder="Javobingizni shu yerga yozing…"/><button disabled={draftConflict||busy||remaining===0||Boolean(snapshot.ownAnswer?.submittedAt)||Boolean(session.pausedAt)} onClick={()=>void submitAnswer()}>{snapshot.ownAnswer?.submittedAt?'Topshirildi ✓':draftConflict?'Tablar ziddiyatini hal qiling':busy?'Yuborilmoqda…':remaining===0?'Avtomatik topshirilmoqda…':'Javobni topshirish'}</button></section>
   </div>;
   if(session.status==='marking'&&snapshot.markScheme)return <div className="live-review-workspace">
     <ReviewQuestionContext question={snapshot.question}/>
@@ -751,7 +799,7 @@ function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;project
   if(error&&!snapshot)return <div className="live-page"><p className="live-error" role="alert">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
   if(projectorView)return <ProjectorView snapshot={snapshot}/>;
-  return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
+  return user.role==='student'?<StudentRoom snapshot={snapshot} refresh={()=>refresh()} userId={user.id}/>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
 }
 
 export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {

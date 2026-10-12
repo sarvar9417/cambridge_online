@@ -151,8 +151,87 @@ try {
   await qa.screenshot(projector, '02-projector-question');
   await qa.screenshot(students[0].page, '03-student-mobile-question');
 
-  for (const [index, student] of students.entries()) {
-    await qa.fill(student.page, '#live-answer', `Uses base 2 and digits 0 and 1. QA learner ${index + 1}.`);
+  // LG-P1-04: keep a learner's draft durable when answer autosave is
+  // temporarily unreachable, recover it after reload, and fail visibly when a
+  // second tab edits the same answer.
+  const firstStudent = students[0];
+  const blockedAutosave = (request) => {
+    const url = new URL(request.url());
+    if (request.method() === 'PUT' && url.pathname === `/api/v1/live-exams/${id}/answer`) {
+      void request.abort('failed');
+      return;
+    }
+    void request.continue();
+  };
+  await firstStudent.page.setRequestInterception(true);
+  firstStudent.page.on('request', blockedAutosave);
+  const firstTabAnswer = 'Uses base 2 and digits 0 and 1. QA learner 1 offline draft.';
+  await qa.fill(firstStudent.page, '#live-answer', firstTabAnswer);
+  await firstStudent.page.waitForFunction((sessionId) =>
+    Object.entries(localStorage).some(([key, raw]) => {
+      if (!key.startsWith('campath:live-draft:v1:') || !key.includes(`:${sessionId}:`)) return false;
+      try { return JSON.parse(raw).text === 'Uses base 2 and digits 0 and 1. QA learner 1 offline draft.'; } catch { return false; }
+    }), { timeout: 10000 }, id);
+  const localDraft = await firstStudent.page.evaluate((sessionId) => {
+    const entries = Object.entries(localStorage)
+      .filter(([key]) => key.startsWith('campath:live-draft:v1:') && key.includes(`:${sessionId}:`));
+    return entries.map(([key, raw]) => ({ key, value: JSON.parse(raw) }));
+  }, id);
+  await qa.check(
+    'Live E2E: failed autosave leaves one versioned per-user/session/question draft',
+    localDraft.length === 1 && localDraft[0]?.value?.version === 1 && localDraft[0]?.value?.text === firstTabAnswer,
+    localDraft,
+  );
+
+  await firstStudent.page.reload({ waitUntil: 'networkidle2' });
+  await firstStudent.page.waitForSelector('#live-answer', { timeout: 45000 });
+  await qa.check(
+    'Live E2E: local draft survives reload before server acknowledgement',
+    await firstStudent.page.$eval('#live-answer', (el) => el.value) === firstTabAnswer,
+  );
+
+  const secondTab = await firstStudent.context.newPage();
+  observe(secondTab, 'Student 1 second tab');
+  await secondTab.setRequestInterception(true);
+  secondTab.on('request', blockedAutosave);
+  await secondTab.goto(baseUrl, { waitUntil: 'networkidle2' });
+  await secondTab.waitForSelector('.shell', { timeout: 45000 });
+  await qa.go(secondTab, `oquvchi/live?id=${id}`);
+  await secondTab.waitForSelector('#live-answer', { timeout: 45000 });
+  await qa.check(
+    'Live E2E: second tab sees the same pending local draft',
+    await secondTab.$eval('#live-answer', (el) => el.value) === firstTabAnswer,
+  );
+  await qa.fill(secondTab, '#live-answer', `${firstTabAnswer} changed in tab B`);
+  await qa.waitText(firstStudent.page, 'Ikki tabdagi javob farq qiladi');
+  await qa.check(
+    'Live E2E: unresolved two-tab conflict blocks submit and preserves tab A text',
+    await firstStudent.page.$eval('#live-answer', (el) => el.value) === firstTabAnswer
+      && await firstStudent.page.$eval('.live-answer-box button', (el) => el.disabled),
+  );
+
+  secondTab.off('request', blockedAutosave);
+  await secondTab.setRequestInterception(false);
+  await secondTab.close();
+  firstStudent.page.off('request', blockedAutosave);
+  await firstStudent.page.setRequestInterception(false);
+  await qa.clickText(firstStudent.page, 'Bu tabdagi javobni saqlash');
+  await qa.waitText(firstStudent.page, '✓ Sinxronlandi');
+  const recoveredServerAnswer = await firstStudent.page.evaluate(async (sessionId) => {
+    const { api } = await import('/src/lib/api.ts');
+    const snap = await api(`/live-exams/${sessionId}`);
+    return snap.ownAnswer?.text ?? '';
+  }, id);
+  await qa.check(
+    'Live E2E: explicit conflict resolution persists the chosen tab A answer',
+    recoveredServerAnswer === firstTabAnswer,
+    { recoveredServerAnswer },
+  );
+
+  await qa.clickText(firstStudent.page, 'Javobni topshirish');
+  await qa.waitText(firstStudent.page, 'Topshirildi ✓');
+  for (const [index, student] of students.slice(1).entries()) {
+    await qa.fill(student.page, '#live-answer', `Uses base 2 and digits 0 and 1. QA learner ${index + 2}.`);
     await qa.clickText(student.page, 'Javobni topshirish');
     await qa.waitText(student.page, 'Topshirildi ✓');
   }
