@@ -77,8 +77,6 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   "gaps": {
     "p0": [],
     "p1": [
-      { "id": "LG-P1-01", "title": "Join-code retry, expiry and rotation" },
-      { "id": "LG-P1-02", "title": "Live endpoint rate limits and abuse controls" },
       { "id": "LG-P1-03", "title": "Idempotency and version checks on every teacher transition" },
       { "id": "LG-P1-05", "title": "Classroom-scale realtime and load evidence" },
       { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
@@ -98,6 +96,10 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "acceptance": {
     "verify_command": "npm run verify",
+    "p1_closure_evidence": {
+      "LG-P1-01": "bounded five-attempt code collision retry, active-code partial uniqueness, 24-hour terminal retention/expiry and real PostgreSQL retention acceptance",
+      "LG-P1-02": "durable PostgreSQL rate-limit buckets for join, staff create/eligible and autosave paths; RLS/revoke boundary plus middleware 429/fallback tests"
+    },
     "p0_closure_evidence": {
       "LG-P0-01": "real PostgreSQL lifecycle: mid-round leave is rejected; unfinished peer work is reassigned to teacher fallback",
       "LG-P0-02": "six-family mark-scheme capability gate plus levels/manual/code-output/group/prerequisite tests; PR #321",
