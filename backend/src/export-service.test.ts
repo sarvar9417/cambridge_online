@@ -32,6 +32,30 @@ describe("export authorization", () => {
     ).rejects.toMatchObject({ status: 404 });
     expect(query.mock.calls[0]![0]).toContain("released_at is not null");
   });
+  it("keeps Live report PDF exports staff-only and terminal-only", async () => {
+    const studentQuery=vi.fn();
+    await expect(new ExportService({query:studentQuery} as unknown as Pool).create(student,{
+      kind:'feedback',refTable:'live_exam_sessions',refId:'live-id',format:'pdf',
+    })).rejects.toMatchObject({code:'staff_only',status:403});
+    expect(studentQuery).not.toHaveBeenCalled();
+
+    const teacherQuery=vi.fn().mockResolvedValue({rowCount:1,rows:[{id:'live-id',title:'Live',status:'review'}]});
+    await expect(new ExportService({query:teacherQuery} as unknown as Pool).create(teacher,{
+      kind:'feedback',refTable:'live_exam_sessions',refId:'live-id',format:'pdf',
+    })).rejects.toMatchObject({code:'live_report_not_ready',status:409});
+    expect(String(teacherQuery.mock.calls[0]?.[0])).toContain('class_teachers');
+  });
+  it("rejects DOCX and paper kinds for Live report exports before querying", async () => {
+    for (const input of [
+      {kind:'feedback' as const,refTable:'live_exam_sessions' as const,refId:'live-id',format:'docx' as const},
+      {kind:'combined' as const,refTable:'live_exam_sessions' as const,refId:'live-id',format:'pdf' as const},
+    ]) {
+      const query=vi.fn();
+      await expect(new ExportService({query} as unknown as Pool).create(teacher,input))
+        .rejects.toMatchObject({code:'invalid_export_kind',status:400});
+      expect(query).not.toHaveBeenCalled();
+    }
+  });
   it("atomically rejects the twenty-first daily export", async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [{}] });
     const clientQuery = vi
