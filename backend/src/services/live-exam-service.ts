@@ -1467,12 +1467,13 @@ export class LiveExamService {
     sessionId: string,
     reviewId: string,
     input: { matchedPointIds: string[]; score?: number; levelNumber?: number; feedback?: string },
+    expectedVersion?: number,
   ) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const state = await client.query(
-        `select status::text,paused_at from live_exam_sessions where id=$1 for update`, [sessionId]);
+        `select status::text,paused_at,version from live_exam_sessions where id=$1 for update`, [sessionId]);
       if (state.rows[0]?.status !== 'marking' || state.rows[0]?.paused_at) throw new DomainError('live_invalid_state', 409);
       const target = await client.query(
         `select r.id,r.answer_id,r.reviewer_id,r.kind::text,r.status::text,leq.marks,leq.mark_scheme_snapshot,
@@ -1492,6 +1493,7 @@ export class LiveExamService {
         [reviewId, sessionId, actor.role, actor.id, actor.schoolId],
       );
       if (!target.rowCount) throw new DomainError('not_found', 404);
+      if (actor.role !== 'student') this.assertExpectedVersion(state.rows[0], expectedVersion);
       const row = target.rows[0];
       if (actor.role !== 'student' && row.kind !== 'teacher') {
         throw new DomainError('live_review_not_assigned_to_staff', 403);
@@ -1888,11 +1890,12 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async archiveHistory(actor: Actor, sessionId: string) {
+  async archiveHistory(actor: Actor, sessionId: string, expectedVersion?: number) {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
       if (session.archived_at) throw new DomainError('not_found', 404);
       if (!['finished','cancelled'].includes(String(session.status))) {
         throw new DomainError('live_archive_active_session', 409);

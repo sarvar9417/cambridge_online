@@ -341,7 +341,11 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     )).rows[0].count)).toBe(0);
 
     for (const review of teacherPending) {
-      await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]});
+      const version=Number((await client.query<{version:number}>(
+        'select version::int version from live_exam_sessions where id=$1',
+        [sessionId],
+      )).rows[0]!.version);
+      await service.submitReview(owner(),sessionId,review.id,{matchedPointIds:[pointId]},version);
     }
     const releasedState=await client.query<{status:string}>(
       'select status::text status from live_exam_sessions where id=$1',[sessionId],
@@ -412,14 +416,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   it('removes only terminal sessions from history without deleting their evidence', async () => {
     const active=await makeSession({code:'820006',markingMode:'teacher'});
-    await expect(service.archiveHistory(owner(),active.sessionId))
+    await expect(service.archiveHistory(owner(),active.sessionId,1))
       .rejects.toMatchObject({code:'live_archive_active_session',status:409});
 
     const terminal=await makeSession({code:'820007',markingMode:'teacher'});
     const cancelled=await service.cancel(owner(),terminal.sessionId,1);
     expect(cancelled.status).toBe('cancelled');
 
-    const archived=await service.archiveHistory(owner(),terminal.sessionId);
+    const archived=await service.archiveHistory(owner(),terminal.sessionId,cancelled.version);
     expect(archived).toMatchObject({sessionId:terminal.sessionId,archived:true});
 
     const row=await client.query<{archived_at:Date|null;question_count:number;event_count:number}>(

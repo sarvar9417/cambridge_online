@@ -12,7 +12,7 @@ describe('Live history delete control',()=>{
 
   it('requires confirmation and removes the archived session from local history after success',()=>{
     expect(page).toContain('Natija va mastery evidence xavfsizlik uchun saqlanadi.');
-    expect(page).toContain("method:'DELETE'");
+    expect(page).toContain("method:'DELETE',body:JSON.stringify({expectedVersion:session.version})");
     expect(page).toContain("setSessions((current)=>current.filter((item)=>item.id!==session.id))");
   });
 });

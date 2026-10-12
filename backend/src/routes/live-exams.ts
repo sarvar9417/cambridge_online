@@ -136,7 +136,8 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.delete('/:id', durableStaffLimit, async (req, res) => {
-    res.json(await service.archiveHistory(req.actor!, id(req.params)));
+    const body = versionInput.parse(req.body ?? {});
+    res.json(await service.archiveHistory(req.actor!, id(req.params), body.expectedVersion));
   });
 
   router.post('/:id/heartbeat', async (req, res) => {
@@ -204,13 +205,28 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   router.post('/:id/reviews/:reviewId/submit', async (req, res) => {
+    const expectedVersion = req.actor!.role === 'student'
+      ? z.number().int().positive().optional()
+      : z.number().int().positive();
     const body = z.object({
       matchedPointIds: z.array(uuid).max(100).default([]),
       score: z.number().min(0).max(100).optional(),
       levelNumber: z.number().int().positive().optional(),
       feedback: z.string().trim().max(5000).optional(),
+      expectedVersion,
     }).strict().parse(req.body);
-    res.json(await service.submitReview(req.actor!, id(req.params), id(req.params, 'reviewId'), body));
+    res.json(await service.submitReview(
+      req.actor!,
+      id(req.params),
+      id(req.params, 'reviewId'),
+      {
+        matchedPointIds:body.matchedPointIds,
+        score:body.score,
+        levelNumber:body.levelNumber,
+        feedback:body.feedback,
+      },
+      body.expectedVersion,
+    ));
   });
 
   router.put('/:id/answers/:answerId/moderate', async (req, res) => {

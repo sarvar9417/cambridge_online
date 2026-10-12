@@ -5,11 +5,12 @@ import { createLiveExamsRouter } from './live-exams.js';
 import type { LiveExamService } from '../services/live-exam-service.js';
 
 const student = { id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student' };
+const teacher = { id:'99999999-9999-4999-8999-999999999999',role:'teacher' as const,schoolId:'school',fullName:'Teacher' };
 
-function appFor(service:Partial<LiveExamService>) {
+function appFor(service:Partial<LiveExamService>,actor:typeof student|typeof teacher=student) {
   const app=express();
   app.use(express.json());
-  app.use((req,_res,next)=>{req.actor=student;next()});
+  app.use((req,_res,next)=>{req.actor=actor;next()});
   app.use('/live-exams',createLiveExamsRouter(service as LiveExamService));
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     if(error&&typeof error==='object'&&'issues'in error){res.status(400).json({error:{code:'validation_error'}});return}
@@ -141,6 +142,37 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
+  it('requires optimistic versioning when staff submits a teacher-owned review', async () => {
+    const submitReview=vi.fn().mockResolvedValue({reviewId:'33333333-3333-4333-8333-333333333333',version:8});
+    const app=appFor({submitReview},teacher);
+    const path='/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit';
+    await request(app).post(path).send({matchedPointIds:[]}).expect(400);
+    expect(submitReview).not.toHaveBeenCalled();
+    await request(app).post(path).send({matchedPointIds:[],score:1,expectedVersion:7}).expect(200);
+    expect(submitReview).toHaveBeenCalledWith(
+      teacher,
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+      {matchedPointIds:[],score:1,levelNumber:undefined,feedback:undefined},
+      7,
+    );
+  });
+
+  it('keeps student peer and self reviews concurrent without requiring a session version', async () => {
+    const submitReview=vi.fn().mockResolvedValue({reviewId:'33333333-3333-4333-8333-333333333333',version:8});
+    await request(appFor({submitReview}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit')
+      .send({matchedPointIds:[],score:1})
+      .expect(200);
+    expect(submitReview).toHaveBeenCalledWith(
+      student,
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+      {matchedPointIds:[],score:1,levelNumber:undefined,feedback:undefined},
+      undefined,
+    );
+  });
+
   it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
       new Error('live_peer_assignment_impossible'),
@@ -212,13 +244,14 @@ describe('live exam routes', () => {
     expect(cancel).toHaveBeenCalledWith(student,sessionId,5);
   });
 
-  it('routes terminal history deletion through the archive service', async () => {
+  it('routes terminal history deletion through a version-guarded archive service', async () => {
     const archiveHistory=vi.fn().mockResolvedValue({sessionId:'22222222-2222-4222-8222-222222222222',archived:true,version:7});
-    const app=appFor({archiveHistory});
+    const app=appFor({archiveHistory},teacher);
     const sessionId='22222222-2222-4222-8222-222222222222';
-    const response=await request(app).delete(`/live-exams/${sessionId}`).expect(200);
+    await request(app).delete(`/live-exams/${sessionId}`).send({}).expect(400);
+    const response=await request(app).delete(`/live-exams/${sessionId}`).send({expectedVersion:6}).expect(200);
     expect(response.body.archived).toBe(true);
-    expect(archiveHistory).toHaveBeenCalledWith(student,sessionId);
+    expect(archiveHistory).toHaveBeenCalledWith(teacher,sessionId,6);
   });
 
   it('routes lobby removal and voluntary leave separately', async () => {
