@@ -133,3 +133,23 @@
 
 .live-report-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:760px){.live-report-actions{width:100%;justify-content:stretch}.live-report-actions button{flex:1}}
+
+.live-save-status{min-height:1.25em}
+.live-answer-help{color:var(--text-muted);font-size:12px;line-height:1.4}
+.live-page :is(button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:3px solid color-mix(in srgb,var(--accent) 70%,white);
+  outline-offset:2px;
+}
+@media(max-width:640px){
+  .live-answer-box textarea{width:100%;min-height:220px;font-size:16px;line-height:1.6}
+  .live-answer-help{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  .live-pulse{animation:none!important}
+  .live-page *, .live-projector-overlay *{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+  }
+}
