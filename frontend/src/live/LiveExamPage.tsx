@@ -495,26 +495,27 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
   };
 
   useEffect(()=>{
-    const key=snapshot.ownAnswer?.id??snapshot.question?.id??'';
-    if(key===answerKey.current)return;
-    answerKey.current=key;
+    const questionKey=snapshot.question?.id??'';
+    if(questionKey===answerKey.current)return;
+    answerKey.current=questionKey;
     deadlineFlushSecond.current=null;
     autoSubmittedKey.current='';
     autoSubmitAttempts.current=0;
     setHydratedKey('');
     const serverText=snapshot.ownAnswer?.text??'';
     const serverUpdatedAt=snapshot.ownAnswer?.updatedAt?new Date(snapshot.ownAnswer.updatedAt).getTime():0;
-    const identity=snapshot.question?.id?{userId,sessionId:session.id,questionId:snapshot.question.id}:null;
+    const identity=questionKey?{userId,sessionId:session.id,questionId:questionKey}:null;
     let localDraft=identity?readLiveDraft(identity):null;
-    if(!localDraft&&identity&&key)localDraft=migrateLegacyLiveDraft(identity,key,snapshot.ownAnswer?.id??null,tabId.current);
+    const legacyKey=snapshot.ownAnswer?.id??questionKey;
+    if(!localDraft&&identity&&legacyKey)localDraft=migrateLegacyLiveDraft(identity,legacyKey,snapshot.ownAnswer?.id??null,tabId.current);
     const useLocal=Boolean(localDraft&&localDraft.updatedAt>serverUpdatedAt&&localDraft.text!==serverText);
     const initial=useLocal?localDraft!.text:serverText;
     latestAnswer.current=initial;
     pendingSave.current=useLocal?initial:null;
     setAnswer(initial);
     setDirty(useLocal);
-    setHydratedKey(key);
-  },[session.id,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
+    setHydratedKey(questionKey);
+  },[session.id,userId,snapshot.ownAnswer?.id,snapshot.ownAnswer?.text,snapshot.ownAnswer?.updatedAt,snapshot.question?.id]);
   const draftQuestionId=snapshot.question?.id??'';
   const draftIdentity:LiveDraftIdentity|null=draftQuestionId?{userId,sessionId:session.id,questionId:draftQuestionId}:null;
   const draftKey=draftQuestionId;
@@ -528,14 +529,12 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
     const key=liveDraftKey(draftIdentity);
     const onStorage=(event:StorageEvent)=>{
       if(event.key!==key||!event.newValue)return;
-      try{
-        const incoming=JSON.parse(event.newValue) as {text?:unknown;updatedAt?:unknown;tabId?:unknown};
-        if(incoming.tabId===tabId.current||typeof incoming.text!=='string'||typeof incoming.updatedAt!=='number')return;
-        if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
-        latestAnswer.current=incoming.text;
-        pendingSave.current=incoming.text;
-        setAnswer(incoming.text);setDirty(true);
-      }catch{/* Ignore malformed storage entries. */}
+      const incoming=readLiveDraft(draftIdentity);
+      if(!incoming||incoming.tabId===tabId.current)return;
+      if(dirty&&incoming.text!==answer){setError('Boshqa tabda shu javob o‘zgartirildi. Mahalliy javobingiz saqlandi; kerak bo‘lsa nusxalab birlashtiring.');return}
+      latestAnswer.current=incoming.text;
+      pendingSave.current=incoming.text;
+      setAnswer(incoming.text);setDirty(true);
     };
     window.addEventListener('storage',onStorage);
     return()=>window.removeEventListener('storage',onStorage);
