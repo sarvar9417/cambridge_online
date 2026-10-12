@@ -13,7 +13,7 @@ const makeSnapshot = (): LiveExamSnapshot => ({
     id: 'session', classId: 'class', className: 'QA class', title: 'Feedback correction', joinCode: '123456',
     status: 'review', markingMode: 'teacher', questionTimeLimitS: null, version: 4,
     pausedAt: null, pauseRemainingS: null,
-    settings: { allowLateJoin: false, autoCloseWhenAllSubmitted: false, teacherOverrideEnabled: true, leaderboardMode: 'marks' },
+    settings: { allowLateJoin: false, autoCloseWhenAllSubmitted: false, teacherOverrideEnabled: true, leaderboardMode: 'marks', displayNameMode: 'anonymous_alias' },
     questionCount: 1, participantCount: 1, currentQuestionIndex: 0, createdAt: timestamp, updatedAt: timestamp,
     hostName: 'Teacher', startedAt: timestamp, finishedAt: null, questionStartedAt: timestamp,
     deadline: null, serverNow: timestamp, submittedCount: 1, reviewCount: 1, reviewedCount: 1,
