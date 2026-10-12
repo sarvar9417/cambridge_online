@@ -33,6 +33,7 @@ export interface CreateLiveExamInput {
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
   leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
+  displayNameMode?: 'full' | 'first' | 'initials' | 'anonymous';
 }
 
 type MarkSchemePointSnapshot = {
@@ -680,6 +681,7 @@ export class LiveExamService {
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
                 teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
                 leaderboardMode: input.leaderboardMode ?? 'marks',
+                displayNameMode: input.displayNameMode ?? 'anonymous',
                 requestedQuestionCount: questionIds.length,
                 dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
               })],
@@ -1949,6 +1951,9 @@ export class LiveExamService {
       leaderboardMode: raw.leaderboardMode === 'marks_speed_tiebreak'
         ? 'marks_speed_tiebreak' as const
         : 'marks' as const,
+      displayNameMode: raw.displayNameMode === 'full' || raw.displayNameMode === 'first' || raw.displayNameMode === 'initials'
+        ? raw.displayNameMode
+        : 'anonymous' as const,
     };
   }
 
