@@ -91,5 +91,6 @@ function message(code: string) {
     student_scope_forbidden: 'Boshqa o‘quvchi nomidan attempt boshlab bo‘lmaydi.',
     assignment_not_open: 'Vazifa hali ochilmagan.', assignment_closed: 'Vazifa muddati tugagan.',
     online_asset_rendering_unavailable:'Bu vazifada hali student oynasida ko‘rsatilmaydigan diagramma yoki rasm bor.',
+    online_response_rendering_unavailable:'Bu vazifada jadval, moslashtirish yoki boshqa structured javob maydoni hali student oynasi uchun tayyor emas.',
   } as Record<string, string>)[code] ?? code;
 }
