@@ -273,7 +273,7 @@ export interface LiveExamSummary {
   id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   pausedAt:string|null;pauseRemainingS:number|null;
-  settings:{allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias'};
+  settings:{allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
 export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}
@@ -298,6 +298,7 @@ export interface LiveExamSnapshot {
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
-  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewMatchedPointIds:string[]}>;
+  teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewPurpose?:'primary'|'calibration';reviewMatchedPointIds:string[]}>;
+  peerQualityQueue?:Array<{answerId:string;studentName:string;peerScore:number;teacherScore:number;disagreement:number;threshold:number;needsTeacherReview:boolean}>;
   report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }

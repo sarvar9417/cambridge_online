@@ -79,13 +79,12 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "builder_preview_reorder_filters": true,
     "detailed_live_reporting_exports": true,
     "live_observability_and_retention": true,
-    "live_accessibility_browser_gate": true
+    "live_accessibility_browser_gate": true,
+    "peer_marking_quality_controls": true
   },
   "gaps": {
     "p0": [],
-    "p1": [
-      { "id": "LG-P1-12", "title": "Peer-pair history and marking quality controls" }
-    ],
+    "p1": [],
     "p2": [
       { "id": "LG-P2-01", "title": "QR join link" },
       { "id": "LG-P2-02", "title": "Per-question timing profiles" },
@@ -107,7 +106,8 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-08": "late join is allowed only in lobby/question_open when enabled; real PostgreSQL acceptance verifies current-round answer creation, shared authoritative deadline and rejection after reveal; student UI states no individual time extension and normal Cambridge mark-scheme scoring; voluntary leave stays lobby-only so disconnect is not treated as withdrawal; PR #328",
       "LG-P1-09": "finished-session staff report separates class total from average, provides per-student/per-question/current-syllabus subtopic aggregates, most-missed mark points and evidence-backed reteach cues; CSV export and queued PDF export are implemented; real PostgreSQL, browser lifecycle, full verify and real-app browser E2E were green on PRs #343 and #344",
       "LG-P1-10": "all API responses carry a correlation x-request-id; privacy-safe structured HTTP logs redact raw UUID/code path segments and never serialize request/answer bodies; owner System exposes aggregate active/expired/stale/event/archive Live health; terminal-only soft archive preserves assessment evidence, automatic evidence deletion is explicitly disabled, and the operational/retention runbook defines incident and release procedures",
-      "LG-P1-11": "real built Live frontend is checked with pinned axe-core WCAG A/AA rules across teacher, 1080p projector, 4K projector, mobile/tablet/desktop students and reduced-motion lobby; autosave/lobby/pause statuses use screen-reader live regions without answer text, structured horizontal scrolling is keyboard reachable, focus-visible treatment is explicit, and mobile answer textarea remains at least 16px and 200px high; PR #347"
+      "LG-P1-11": "real built Live frontend is checked with pinned axe-core WCAG A/AA rules across teacher, 1080p projector, 4K projector, mobile/tablet/desktop students and reduced-motion lobby; autosave/lobby/pause statuses use screen-reader live regions without answer text, structured horizontal scrolling is keyboard reachable, focus-visible treatment is explicit, and mobile answer textarea remains at least 16px and 200px high; PR #347",
+      "LG-P1-12": "recent 30-day directed peer-pair history biases deterministic derangement away from repeat reviewers when alternatives exist; builder exposes opt-in deterministic teacher calibration sampling and a Cambridge-mark disagreement threshold; staff snapshots surface calibration disagreements, teacher calibration is authoritative for sampled answers, manual peer scoring below full marks requires concise feedback, and force-complete safely handles calibration plus unfinished peer work; pure allocator tests, real PostgreSQL lifecycle acceptance, browser suites and full verify are green on PR #348"
     },
     "p0_closure_evidence": {
       "LG-P0-01": "real PostgreSQL lifecycle: mid-round leave is rejected; unfinished peer work is reassigned to teacher fallback",
@@ -140,7 +140,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
 
 ## 3. Hozirgi yakuniy baho
 
-Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate, teacher mutationlari uchun authoritative version + idempotent retry hamda 60 learner classroom-scale cursor/heartbeat/snapshot budget hamda late-join fairness siyosati yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’i peer-marking quality hamda yakuniy preview/production smoke alohida yopilishi kerak.
+Live Challenge’ning auditda aniqlangan barcha P0 va P1 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate, authoritative version + idempotent retry, 60 learner classroom-scale budget, late-join fairness, accessibility, reporting/operations va peer-marking quality nazoratlari yashil. Bu hali “production_ready” degani emas — yakuniy preview/production deployment, readiness va cleanup-verified smoke gate’lari alohida tekshirilishi kerak.
 
 | Qism | Holat | Qisqa xulosa |
 |---|---|---|

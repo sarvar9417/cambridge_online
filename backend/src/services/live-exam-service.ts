@@ -1,4 +1,4 @@
-import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
@@ -10,6 +10,7 @@ import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
+import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
@@ -42,6 +43,10 @@ export interface CreateLiveExamInput {
   teacherOverrideEnabled?: boolean;
   leaderboardMode?: 'marks' | 'marks_speed_tiebreak';
   displayNameMode?: 'full' | 'first_name' | 'initials' | 'anonymous_alias';
+  /** Percentage of peer answers also independently marked by the teacher for calibration. */
+  peerCalibrationPercent?: number;
+  /** Cambridge-mark difference that should surface as a peer-quality disagreement. */
+  peerDisagreementThreshold?: number;
 }
 
 type MarkSchemePointSnapshot = {
@@ -84,27 +89,12 @@ type StoredQuestionSnapshot = Omit<PortableQuestion, 'dependencies'> & {
   dependencies: Array<Omit<PortableQuestion['dependencies'][number], 'evidence' | 'confidence'>>;
 };
 
-type PeerAnswer = { answerId: string; studentId: string };
-
 /**
- * A deterministic derangement for peer marking.
- *
- * Sorting before rotating makes reconnects and retries produce exactly the same
- * assignments. With two students reciprocal marking is unavoidable; with one
- * student the caller falls back to genuine self-assessment.
+ * Backward-compatible pure helper used by existing tests. Runtime peer rounds
+ * additionally feed recent directed-pair history into the same allocator.
  */
 export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
-  const ordered = [...answers].sort((a, b) => {
-    const left = createHash('sha256').update(`${seed}:${a.studentId}`).digest('hex');
-    const right = createHash('sha256').update(`${seed}:${b.studentId}`).digest('hex');
-    return left.localeCompare(right);
-  });
-  if (ordered.length < 2) return ordered.map((answer) => ({ ...answer, reviewerId: answer.studentId, kind: 'self' as const }));
-  return ordered.map((answer, index) => ({
-    ...answer,
-    reviewerId: ordered[(index + 1) % ordered.length]!.studentId,
-    kind: 'peer' as const,
-  }));
+  return assignPeerReviewersWithHistory(answers, seed);
 }
 
 function words(value: string) {
@@ -829,6 +819,8 @@ export class LiveExamService {
                 teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
                 leaderboardMode: input.leaderboardMode ?? 'marks',
                 displayNameMode: input.displayNameMode ?? 'anonymous_alias',
+                peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
+                peerDisagreementThreshold: Math.max(0, Number(input.peerDisagreementThreshold ?? 1)),
                 requestedQuestionCount: questionIds.length,
                 dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
               })],
@@ -1177,6 +1169,7 @@ export class LiveExamService {
     let ownAnswer: Record<string, unknown> | null = null;
     let review: Record<string, unknown> | null = null;
     let teacherAnswers: Record<string, unknown>[] = [];
+    let peerQualityQueue: Array<Record<string, unknown>> = [];
     if (currentRow && participantId) {
       const answerResult = await this.pool.query(
         `select id,answer_text,word_count,submitted_at,final_score,final_feedback_md,score_source,moderated_at,updated_at
@@ -1192,6 +1185,12 @@ export class LiveExamService {
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
            r.id review_id,r.status::text review_status,r.kind::text review_kind,
            r.awarded_marks review_awarded_marks,r.feedback_md review_feedback_md,
+           exists(
+             select 1 from live_exam_reviews peer_review
+             where peer_review.answer_id=a.id
+               and peer_review.session_question_id=a.session_question_id
+               and peer_review.kind='peer'
+           ) review_is_calibration,
            coalesce((
              select array_agg(rp.mark_scheme_point_id order by rp.mark_scheme_point_id)
              from live_exam_review_points rp
@@ -1200,7 +1199,14 @@ export class LiveExamService {
          from live_exam_answers a
          join live_exam_participants lep on lep.id=a.participant_id
          join users u on u.id=lep.student_id
-         left join live_exam_reviews r on r.answer_id=a.id and r.session_question_id=a.session_question_id
+         left join lateral (
+           select candidate.*
+           from live_exam_reviews candidate
+           where candidate.answer_id=a.id and candidate.session_question_id=a.session_question_id
+           order by case candidate.kind when 'teacher' then 0 when 'peer' then 1 else 2 end,
+             candidate.created_at,candidate.id
+           limit 1
+         ) r on true
          where a.session_question_id=$1
          order by u.full_name`,
         [currentRow.id],
@@ -1212,10 +1218,47 @@ export class LiveExamService {
         reviewId: row.review_id,
         reviewStatus: row.review_status,
         reviewKind: row.review_kind,
+        reviewPurpose: row.review_kind==='teacher' && row.review_is_calibration ? 'calibration' : 'primary',
         provisionalScore: row.review_awarded_marks === null ? null : Number(row.review_awarded_marks),
         provisionalFeedback: row.review_feedback_md,
         reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
       }));
+      if (String(session.marking_mode)==='peer') {
+        const qualitySettings=this.settings(session.settings);
+        const qualityRows=await this.pool.query(
+          `select
+             a.id answer_id,u.full_name student_name,
+             peer.awarded_marks peer_score,teacher.awarded_marks teacher_score
+           from live_exam_answers a
+           join live_exam_participants lep on lep.id=a.participant_id
+           join users u on u.id=lep.student_id
+           join live_exam_reviews peer on peer.answer_id=a.id
+             and peer.session_question_id=a.session_question_id
+             and peer.kind='peer' and peer.status in ('submitted','moderated')
+           join live_exam_reviews teacher on teacher.answer_id=a.id
+             and teacher.session_question_id=a.session_question_id
+             and teacher.kind='teacher' and teacher.status in ('submitted','moderated')
+           where a.session_question_id=$1
+             and peer.awarded_marks is not null
+             and teacher.awarded_marks is not null
+           order by u.full_name,a.id`,
+          [currentRow.id],
+        );
+        peerQualityQueue=qualityRows.rows
+          .map((row)=>{
+            const disagreement=peerScoreDisagreement(Number(row.peer_score),Number(row.teacher_score));
+            return {
+              answerId:String(row.answer_id),
+              studentName:String(row.student_name),
+              peerScore:Number(row.peer_score),
+              teacherScore:Number(row.teacher_score),
+              disagreement,
+              threshold:qualitySettings.peerDisagreementThreshold,
+              needsTeacherReview:disagreement>qualitySettings.peerDisagreementThreshold,
+            };
+          })
+          .filter((row)=>row.needsTeacherReview);
+      }
     }
 
     let report: {
@@ -1330,6 +1373,7 @@ export class LiveExamService {
       ownAnswer,
       review,
       teacherAnswers,
+      peerQualityQueue,
       report,
     };
     return projector ? sanitizeLiveProjectorSnapshot(response) : response;
@@ -1792,15 +1836,55 @@ export class LiveExamService {
       [sessionQuestionId],
     );
     const mode = String(session.marking_mode) as LiveExamMarkingMode;
+    const peerAnswers = answers.rows.map((row) => ({
+      answerId: String(row.answer_id),
+      studentId: String(row.student_id),
+    }));
+    let peerHistory: Array<{answerStudentId:string;reviewerId:string;count:number}> = [];
+    if (mode === 'peer' && peerAnswers.length >= 3) {
+      const history = await client.query(
+        `select answer_owner.student_id::text answer_student_id,r.reviewer_id::text,count(*)::int pair_count
+         from live_exam_reviews r
+         join live_exam_answers prior_answer on prior_answer.id=r.answer_id
+         join live_exam_participants answer_owner on answer_owner.id=prior_answer.participant_id
+         join live_exam_questions prior_question on prior_question.id=r.session_question_id
+         join live_exam_sessions prior_session on prior_session.id=prior_question.session_id
+         where prior_session.class_id=$1
+           and prior_session.id<>$2
+           and r.kind='peer'
+           and r.reviewer_id is not null
+           and r.created_at>=now()-interval '30 days'
+           and answer_owner.student_id=any($3::uuid[])
+           and r.reviewer_id=any($3::uuid[])
+         group by answer_owner.student_id,r.reviewer_id`,
+        [session.class_id, sessionId, peerAnswers.map((item)=>item.studentId)],
+      );
+      peerHistory = history.rows.map((row)=>({
+        answerStudentId:String(row.answer_student_id),
+        reviewerId:String(row.reviewer_id),
+        count:Number(row.pair_count),
+      }));
+    }
+    const peerAssignments = mode === 'peer' && peerAnswers.length >= 2
+      ? assignPeerReviewersWithHistory(peerAnswers, `${sessionId}:${sessionQuestionId}`, peerHistory)
+      : [];
     const assignments = mode === 'teacher'
       ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
       : mode === 'self'
         ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(row.student_id), kind: 'self' as const }))
-        : answers.rows.length < 2
+        : peerAnswers.length < 2
           ? answers.rows.map((row) => ({ answerId: String(row.answer_id), reviewerId: String(session.host_id), kind: 'teacher' as const }))
-          : assignPeerReviewers(answers.rows.map((row) => ({
-              answerId: String(row.answer_id), studentId: String(row.student_id),
-            })), `${sessionId}:${sessionQuestionId}`);
+          : peerAssignments;
+    const settings=this.settings(session.settings);
+    const calibrationAnswerIds = mode==='peer'
+      ? selectPeerCalibrationAnswers(peerAssignments, `${sessionId}:${sessionQuestionId}`, settings.peerCalibrationPercent)
+      : [];
+    const calibrationAssignments = calibrationAnswerIds.map((answerId)=>({
+      answerId,
+      reviewerId:String(session.host_id),
+      kind:'teacher' as const,
+    }));
+    const reviewAssignments=[...assignments,...calibrationAssignments];
     const scheme = question.rows[0].mark_scheme_snapshot as MarkSchemeSnapshot;
     // One round can have dozens of learners and mark-scheme points. Insert the
     // whole assignment matrix in two statements instead of one network round
@@ -1811,7 +1895,7 @@ export class LiveExamService {
        from jsonb_to_recordset($2::jsonb) input(answer_id text,reviewer_id text,kind text)
        on conflict(session_question_id,answer_id,kind) do update
          set reviewer_id=excluded.reviewer_id`,
-      [sessionQuestionId, JSON.stringify(assignments.map((assignment)=>({
+      [sessionQuestionId, JSON.stringify(reviewAssignments.map((assignment)=>({
         answer_id:assignment.answerId,
         reviewer_id:assignment.reviewerId,
         kind:assignment.kind,
@@ -1835,7 +1919,9 @@ export class LiveExamService {
     session.status = 'marking';
     const version = await this.bump(client, sessionId, actorId, 'mark_scheme.revealed', {
       markingMode: mode,
-      reviewCount: assignments.length,
+      reviewCount: reviewAssignments.length,
+      peerHistoryPairs: peerHistory.length,
+      calibrationCount: calibrationAssignments.length,
     });
     return { sessionId, status: 'marking' as const, version };
   }
@@ -1947,16 +2033,20 @@ export class LiveExamService {
       if (selectedLevel && (score < selectedLevel.minMarks || score > selectedLevel.maxMarks)) {
         throw new DomainError('score_outside_level', 400);
       }
+      const feedback=(input.feedback ?? '').trim();
+      if (row.kind === 'peer' && snapshot.points.length === 0 && score < Number(row.marks) && feedback.length < 2) {
+        throw new DomainError('live_peer_feedback_required', 400);
+      }
       await client.query(
         `update live_exam_reviews set status='submitted',awarded_marks=$2,feedback_md=$3,
            reviewer_id=$4,submitted_at=now() where id=$1`,
-        [reviewId, score, input.feedback ?? null, actor.id],
+        [reviewId, score, feedback || null, actor.id],
       );
       if (row.kind === 'teacher') {
         await client.query(
           `update live_exam_answers set final_score=$2,final_feedback_md=$3,score_source='teacher'
            where id=$1`,
-          [row.answer_id, score, input.feedback ?? null],
+          [row.answer_id, score, feedback || null],
         );
       }
       let version = await this.bump(client, sessionId, actor.id, 'review.submitted', {
@@ -1976,15 +2066,30 @@ export class LiveExamService {
       let resultsReleased = false;
       if (Number(remaining.rows[0].count) === 0) {
         await client.query(
-          `update live_exam_answers a set final_score=r.awarded_marks,
-              final_feedback_md=r.feedback_md,score_source=r.kind
-           from live_exam_reviews r
-           join live_exam_questions leq on leq.id=r.session_question_id
-           join live_exam_sessions les on les.id=leq.session_id
-           where r.answer_id=a.id and les.id=$1
-             and leq.position=les.current_question_index
-             and r.status in ('submitted','moderated')
-             and r.awarded_marks is not null
+          `with candidates as (
+             select
+               r.answer_id,
+               r.awarded_marks,
+               r.feedback_md,
+               r.kind,
+               row_number() over(
+                 partition by r.answer_id
+                 order by case r.kind when 'teacher' then 0 when 'peer' then 1 else 2 end,r.created_at,r.id
+               ) priority
+             from live_exam_reviews r
+             join live_exam_questions leq on leq.id=r.session_question_id
+             join live_exam_sessions les on les.id=leq.session_id
+             where les.id=$1
+               and leq.position=les.current_question_index
+               and r.status in ('submitted','moderated')
+               and r.awarded_marks is not null
+           )
+           update live_exam_answers a set
+             final_score=c.awarded_marks,
+             final_feedback_md=c.feedback_md,
+             score_source=c.kind
+           from candidates c
+           where c.answer_id=a.id and c.priority=1
              and a.moderated_at is null and a.final_score is null`,
           [sessionId],
         );
@@ -2068,16 +2173,41 @@ export class LiveExamService {
         if (String(session.marking_mode) === 'teacher') {
           throw new DomainError('live_reviews_pending', 409);
         }
+        const superseded = await client.query(
+          `update live_exam_reviews r set
+             status='moderated',moderated_by=$3,moderated_at=now(),
+             feedback_md=coalesce(r.feedback_md,'Teacher calibration superseded unfinished peer review.')
+           from live_exam_questions leq
+           where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
+             and r.status='assigned' and r.kind<>'teacher'
+             and exists(
+               select 1 from live_exam_reviews teacher_review
+               where teacher_review.session_question_id=r.session_question_id
+                 and teacher_review.answer_id=r.answer_id
+                 and teacher_review.kind='teacher'
+             )
+           returning r.id`,
+          [sessionId, session.current_question_index, session.host_id],
+        );
         const fallback = await client.query(
           `update live_exam_reviews r set reviewer_id=$3,kind='teacher'
            from live_exam_questions leq
            where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
              and r.status='assigned'
+             and not exists(
+               select 1 from live_exam_reviews teacher_review
+               where teacher_review.session_question_id=r.session_question_id
+                 and teacher_review.answer_id=r.answer_id
+                 and teacher_review.kind='teacher'
+                 and teacher_review.id<>r.id
+             )
            returning r.id`,
           [sessionId, session.current_question_index, session.host_id],
         );
         const version = await this.bump(client, sessionId, actor.id, 'review.fallback_assigned', {
-          count: fallback.rowCount ?? 0,
+          count: (fallback.rowCount ?? 0)+(superseded.rowCount ?? 0),
+          reassigned: fallback.rowCount ?? 0,
+          calibrationSuperseded: superseded.rowCount ?? 0,
           fromMode: session.marking_mode,
         });
         await client.query('commit');
@@ -2093,18 +2223,29 @@ export class LiveExamService {
       // A moderated answer is already authoritative and must never be overwritten
       // by the provisional peer/self review that preceded it.
       await client.query(
-        `update live_exam_answers a set
-           final_score=r.awarded_marks,
-           final_feedback_md=r.feedback_md,
-           score_source=r.kind
-         from live_exam_reviews r
-         join live_exam_questions leq on leq.id=r.session_question_id
-         where r.answer_id=a.id
-           and leq.session_id=$1 and leq.position=$2
-           and r.status in ('submitted','moderated')
-           and r.awarded_marks is not null
-           and a.moderated_at is null
-           and a.final_score is null`,
+        `with candidates as (
+           select
+             r.answer_id,
+             r.awarded_marks,
+             r.feedback_md,
+             r.kind,
+             row_number() over(
+               partition by r.answer_id
+               order by case r.kind when 'teacher' then 0 when 'peer' then 1 else 2 end,r.created_at,r.id
+             ) priority
+           from live_exam_reviews r
+           join live_exam_questions leq on leq.id=r.session_question_id
+           where leq.session_id=$1 and leq.position=$2
+             and r.status in ('submitted','moderated')
+             and r.awarded_marks is not null
+         )
+         update live_exam_answers a set
+           final_score=c.awarded_marks,
+           final_feedback_md=c.feedback_md,
+           score_source=c.kind
+         from candidates c
+         where c.answer_id=a.id and c.priority=1
+           and a.moderated_at is null and a.final_score is null`,
         [sessionId, session.current_question_index],
       );
       await client.query(`update live_exam_sessions set status='review' where id=$1`, [sessionId]);
@@ -2341,6 +2482,12 @@ export class LiveExamService {
         || raw.displayNameMode === 'initials'
         ? raw.displayNameMode
         : 'anonymous_alias' as const,
+      peerCalibrationPercent: Number.isFinite(Number(raw.peerCalibrationPercent))
+        ? Math.max(0,Math.min(100,Math.round(Number(raw.peerCalibrationPercent))))
+        : 0,
+      peerDisagreementThreshold: Number.isFinite(Number(raw.peerDisagreementThreshold))
+        ? Math.max(0,Number(raw.peerDisagreementThreshold))
+        : 1,
     };
   }
 

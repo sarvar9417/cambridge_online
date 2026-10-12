@@ -10,6 +10,15 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('name="autoCloseWhenAllSubmitted"');
     expect(page).toContain('name="teacherOverrideEnabled"');
     expect(page).toContain('name="leaderboardMode"');
+    expect(page).toContain('name="peerCalibrationPercent"');
+    expect(page).toContain('name="peerDisagreementThreshold"');
+  });
+
+  it('surfaces opt-in peer calibration and disagreement quality review',()=>{
+    expect(page).toContain('Teacher calibration');
+    expect(page).toContain('PEER QUALITY');
+    expect(page).toContain('snapshot.peerQualityQueue');
+    expect(page).toContain("answer.reviewPurpose==='calibration'");
   });
 
   it('gives the teacher pause/resume and lobby removal controls',()=>{

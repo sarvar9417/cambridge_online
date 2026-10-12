@@ -37,6 +37,8 @@ const createInput = z.object({
   teacherOverrideEnabled: z.boolean().default(true),
   leaderboardMode: z.enum(['marks', 'marks_speed_tiebreak']).default('marks'),
   displayNameMode: z.enum(['full', 'first_name', 'initials', 'anonymous_alias']).default('anonymous_alias'),
+  peerCalibrationPercent: z.number().int().min(0).max(100).default(0),
+  peerDisagreementThreshold: z.number().min(0).max(100).default(1),
 }).strict();
 
 const versionInput = z.object({
@@ -182,6 +184,8 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       teacherOverrideEnabled:z.boolean().default(true),
       leaderboardMode:z.enum(['marks','marks_speed_tiebreak']).default('marks'),
       displayNameMode:z.enum(['full','first_name','initials','anonymous_alias']).default('anonymous_alias'),
+      peerCalibrationPercent:z.number().int().min(0).max(100).default(0),
+      peerDisagreementThreshold:z.number().min(0).max(100).default(1),
     }).strict().parse(req.body);
     res.json(await service.previewSelection(req.actor!,body));
   });

@@ -304,6 +304,107 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     )).rows[0].count)).toBe(3);
   });
 
+  it('avoids recent peer pairs when a different derangement is available', async () => {
+    const first=await makeSession({
+      code:'820101',
+      markingMode:'peer',
+      participants:[0,1,2],
+    });
+    await service.start(owner(),first.sessionId,1);
+    await service.revealMarkScheme(owner(),first.sessionId);
+    const firstPairs=await client.query<{answer_student:string;reviewer_id:string}>(
+      `select p.student_id::text answer_student,r.reviewer_id::text
+       from live_exam_reviews r
+       join live_exam_answers a on a.id=r.answer_id
+       join live_exam_participants p on p.id=a.participant_id
+       where r.session_question_id=$1 and r.kind='peer'
+       order by p.student_id`,
+      [first.sessionQuestionId],
+    );
+    expect(firstPairs.rowCount).toBe(3);
+
+    const second=await makeSession({
+      code:'820102',
+      markingMode:'peer',
+      participants:[0,1,2],
+    });
+    await service.start(owner(),second.sessionId,1);
+    await service.revealMarkScheme(owner(),second.sessionId);
+    const secondPairs=await client.query<{answer_student:string;reviewer_id:string}>(
+      `select p.student_id::text answer_student,r.reviewer_id::text
+       from live_exam_reviews r
+       join live_exam_answers a on a.id=r.answer_id
+       join live_exam_participants p on p.id=a.participant_id
+       where r.session_question_id=$1 and r.kind='peer'
+       order by p.student_id`,
+      [second.sessionQuestionId],
+    );
+    expect(secondPairs.rowCount).toBe(3);
+    for(const row of secondPairs.rows){
+      const previous=firstPairs.rows.find((item)=>item.answer_student===row.answer_student);
+      expect(previous?.reviewer_id).not.toBe(row.reviewer_id);
+    }
+  });
+
+  it('calibrates peer marking with teacher samples and surfaces score disagreements', async () => {
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'820103',
+      markingMode:'peer',
+      settings:{peerCalibrationPercent:100,peerDisagreementThreshold:0.5},
+      participants:[0,1,2],
+    });
+    await service.start(owner(),sessionId,1);
+    for(let index=0;index<3;index+=1){
+      await service.submitAnswer(student(index),sessionId,`calibration answer ${index+1}`);
+    }
+    await service.revealMarkScheme(owner(),sessionId);
+
+    const reviews=await client.query<{id:string;reviewer_id:string;kind:string}>(
+      `select id::text,reviewer_id::text,kind::text
+       from live_exam_reviews
+       where session_question_id=$1
+       order by kind,id`,
+      [sessionQuestionId],
+    );
+    expect(reviews.rows.filter((row)=>row.kind==='peer')).toHaveLength(3);
+    expect(reviews.rows.filter((row)=>row.kind==='teacher')).toHaveLength(3);
+
+    for(const review of reviews.rows.filter((row)=>row.kind==='peer')){
+      const reviewerIndex=studentIds.indexOf(review.reviewer_id);
+      expect(reviewerIndex).toBeGreaterThanOrEqual(0);
+      await service.submitReview(student(reviewerIndex),sessionId,review.id,{
+        matchedPointIds:[],
+        feedback:'Needs the mark point',
+      });
+    }
+    for(const review of reviews.rows.filter((row)=>row.kind==='teacher')){
+      const version=Number((await client.query('select version from live_exam_sessions where id=$1',[sessionId])).rows[0].version);
+      await service.submitReview(owner(),sessionId,review.id,{
+        matchedPointIds:[pointId],
+        feedback:'Calibration check',
+      },version);
+    }
+
+    const state=await client.query<{status:string}>(
+      'select status::text status from live_exam_sessions where id=$1',
+      [sessionId],
+    );
+    expect(state.rows[0]?.status).toBe('review');
+
+    const finalScores=await client.query<{score:number;source:string}>(
+      `select final_score::float score,score_source::text source
+       from live_exam_answers where session_question_id=$1 order by id`,
+      [sessionQuestionId],
+    );
+    expect(finalScores.rows).toHaveLength(3);
+    expect(finalScores.rows.every((row)=>Number(row.score)===1&&row.source==='teacher')).toBe(true);
+
+    const snapshot=await service.snapshot(owner(),sessionId);
+    const quality=snapshot.peerQualityQueue as Array<{disagreement:number;peerScore:number;teacherScore:number}>|undefined;
+    expect(quality).toHaveLength(3);
+    expect(quality?.every((row)=>row.peerScore===0&&row.teacherScore===1&&row.disagreement===1)).toBe(true);
+  });
+
   it('builds evidence-backed detailed reports, missed mark points and CSV after finish', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
       code:'820009',
