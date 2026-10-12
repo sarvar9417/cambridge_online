@@ -287,6 +287,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [components,setComponents]=useState<number[]>([]);
   const [poolSearch,setPoolSearch]=useState('');
   const [poolPage,setPoolPage]=useState(0);
+  const [poolTotal,setPoolTotal]=useState<number|null>(null);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
   const [selectionPreview,setSelectionPreview]=useState<SelectionPreview|null>(null);
@@ -321,7 +322,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
   );
   const clearManualPool=()=>{
-    setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);
+    setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
   const toggleCoursebookSection=(code:string)=>{
@@ -424,7 +425,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       const maxPage=Math.max(0,Math.ceil(result.total/pageSize)-1);
       if(page>maxPage){setPoolPage(maxPage);return void loadQuestionPool(maxPage,search)}
       setPoolPage(page);
-      setEligibleTotal(result.total);
+      setPoolTotal(result.total);
       setEligibleCounts(result.counts??null);
       setQuestionPool(result.data);
     }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
