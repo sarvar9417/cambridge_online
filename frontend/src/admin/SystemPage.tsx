@@ -10,6 +10,21 @@ interface SystemSummary {
   spendByPurpose: Array<{ purpose: string; calls: number; usd: number; failed: number; unpriced: number }>;
   recentFailures: Array<{ purpose: string; model: string; error: string; createdAt: string }>;
   audit: Array<{ id: string; action: string; refTable: string | null; createdAt: string; actor: string | null }>;
+  liveOperations: {
+    activeSessions: number;
+    expiredOpenRounds: number;
+    terminalUnarchived: number;
+    archivedSessions: number;
+    eventsLastHour: number;
+    staleParticipants: number;
+    oldestActiveUpdatedAt: string | null;
+  };
+  liveRetention: {
+    archiveMode: 'manual_soft_archive_terminal_only';
+    evidenceDeletion: 'disabled';
+    joinCodeRetentionHours: number;
+    preserves: string[];
+  };
 }
 
 /** What each key does, in the operator's terms rather than the column name. */
@@ -81,7 +96,7 @@ export function SystemPage() {
     <div className="sy">
       <header className="sy-head">
         <h1>Tizim</h1>
-        <p>Sozlamalar, AI xarajati va o‘zgarishlar tarixi.</p>
+        <p>Sozlamalar, Live Challenge operatsion holati, AI xarajati va o‘zgarishlar tarixi.</p>
       </header>
 
       {error ? <p className="sy-error" role="alert">{error}</p> : null}
@@ -112,6 +127,32 @@ export function SystemPage() {
             </p>
           </>
         )}
+      </section>
+
+      <section className={`sy-card${data.liveOperations.expiredOpenRounds || data.liveOperations.staleParticipants ? ' sy-card--alert' : ''}`}>
+        <div className="sy-section-head">
+          <div>
+            <h2>Live Challenge holati</h2>
+            <p>Shaxsiy javob matnlarini loglamasdan, classroom sessiyalarining operatsion holati.</p>
+          </div>
+          <span className="sy-live-badge">{data.liveOperations.activeSessions} faol</span>
+        </div>
+        <div className="sy-metrics">
+          <div><strong>{data.liveOperations.activeSessions}</strong><span>Faol sessiya</span></div>
+          <div className={data.liveOperations.expiredOpenRounds ? 'is-alert' : ''}><strong>{data.liveOperations.expiredOpenRounds}</strong><span>Muddati o‘tgan ochiq round</span></div>
+          <div className={data.liveOperations.staleParticipants ? 'is-alert' : ''}><strong>{data.liveOperations.staleParticipants}</strong><span>2+ daqiqa heartbeat yo‘q</span></div>
+          <div><strong>{data.liveOperations.eventsLastHour}</strong><span>So‘nggi 1 soat event</span></div>
+          <div><strong>{data.liveOperations.terminalUnarchived}</strong><span>Arxivlanmagan yakuniy sessiya</span></div>
+          <div><strong>{data.liveOperations.archivedSessions}</strong><span>Arxivlangan sessiya</span></div>
+        </div>
+        {data.liveOperations.oldestActiveUpdatedAt ? (
+          <p className="sy-note">Eng eski faol sessiya oxirgi o‘zgarishi: {when(data.liveOperations.oldestActiveUpdatedAt)}.</p>
+        ) : null}
+        <div className="sy-retention" aria-label="Live Challenge saqlash siyosati">
+          <strong>Saqlash va arxiv siyosati</strong>
+          <p>Faqat <code>finished</code> yoki <code>cancelled</code> sessiya qo‘lda soft-archive qilinadi. Arxiv savollar, javoblar, review, event, override va learning evidence tarixini o‘chirmaydi.</p>
+          <p>Assessment evidence avtomatik o‘chirilmaydi; join code yakuniy holatdan keyin {data.liveRetention.joinCodeRetentionHours} soat himoyalanadi. Dalilni butunlay o‘chirish alohida vakolatli privacy jarayoni bo‘lishi kerak.</p>
+        </div>
       </section>
 
       <section className="sy-card">
