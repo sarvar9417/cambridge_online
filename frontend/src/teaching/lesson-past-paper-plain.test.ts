@@ -84,13 +84,13 @@ describe('Darslar Past Paper plain display contract',()=>{
     expect(inlineCss).toContain('overflow: visible !important;');
   });
 
-  it('labels the Past Papers experience by chapter rather than the active topic',()=>{
+  it('keeps staff Past Papers chapter-wide while student checks stay on the active topic',()=>{
     const experience=source('LessonExperience.tsx');
     const workspace=source('LessonPastPaper.tsx');
-    expect(experience).toContain('{courseCode(chapter)} · CHAPTER {chapter.number} · PAST PAPERS');
-    expect(experience).toContain('<h1>{chapter.title}</h1>');
-    expect(experience).toContain("Approved Cambridge questions mapped to this chapter's learning objectives.");
-    expect(experience).not.toContain('{topicLabel(activeTopic)} · EXAM PRACTICE');
+    expect(experience).toContain('{courseCode(chapter)} · {topicLabel(activeTopic)} · CAMBRIDGE PAST PAPERS');
+    expect(experience).toContain('<h1>{activeTopic.title}</h1>');
+    expect(experience).toContain('Avval savolga mustaqil javob yozing.');
+    expect(workspace).toContain("chapterPastPaperScope(audience==='student'?[topic]:chapterTopics)");
     expect(workspace).toContain('CHAPTER {chapterNumber} · PAST PAPERS');
     expect(workspace).toContain('{questions.length} approved questions');
   });
