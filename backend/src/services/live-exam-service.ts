@@ -2173,16 +2173,41 @@ export class LiveExamService {
         if (String(session.marking_mode) === 'teacher') {
           throw new DomainError('live_reviews_pending', 409);
         }
+        const superseded = await client.query(
+          `update live_exam_reviews r set
+             status='moderated',moderated_by=$3,moderated_at=now(),
+             feedback_md=coalesce(r.feedback_md,'Teacher calibration superseded unfinished peer review.')
+           from live_exam_questions leq
+           where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
+             and r.status='assigned' and r.kind<>'teacher'
+             and exists(
+               select 1 from live_exam_reviews teacher_review
+               where teacher_review.session_question_id=r.session_question_id
+                 and teacher_review.answer_id=r.answer_id
+                 and teacher_review.kind='teacher'
+             )
+           returning r.id`,
+          [sessionId, session.current_question_index, session.host_id],
+        );
         const fallback = await client.query(
           `update live_exam_reviews r set reviewer_id=$3,kind='teacher'
            from live_exam_questions leq
            where leq.id=r.session_question_id and leq.session_id=$1 and leq.position=$2
              and r.status='assigned'
+             and not exists(
+               select 1 from live_exam_reviews teacher_review
+               where teacher_review.session_question_id=r.session_question_id
+                 and teacher_review.answer_id=r.answer_id
+                 and teacher_review.kind='teacher'
+                 and teacher_review.id<>r.id
+             )
            returning r.id`,
           [sessionId, session.current_question_index, session.host_id],
         );
         const version = await this.bump(client, sessionId, actor.id, 'review.fallback_assigned', {
-          count: fallback.rowCount ?? 0,
+          count: (fallback.rowCount ?? 0)+(superseded.rowCount ?? 0),
+          reassigned: fallback.rowCount ?? 0,
+          calibrationSuperseded: superseded.rowCount ?? 0,
           fromMode: session.marking_mode,
         });
         await client.query('commit');
