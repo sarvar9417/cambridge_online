@@ -73,12 +73,12 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "database_clock_deadline_reconciliation": true,
     "trigger_search_path_pinning": true,
     "real_database_multi_client_acceptance": true,
-    "teacher_transition_idempotency": true
+    "teacher_transition_idempotency": true,
+    "classroom_scale_acceptance": true
   },
   "gaps": {
     "p0": [],
     "p1": [
-      { "id": "LG-P1-05", "title": "Classroom-scale realtime and load evidence" },
       { "id": "LG-P1-07", "title": "Builder draft, preview, reorder and advanced filters" },
       { "id": "LG-P1-08", "title": "Late-join and withdrawal fairness policy" },
       { "id": "LG-P1-09", "title": "Detailed reports and exports" },
@@ -99,7 +99,8 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "p1_closure_evidence": {
       "LG-P1-01": "bounded five-attempt code collision retry, active-code partial uniqueness, 24-hour terminal retention/expiry and real PostgreSQL retention acceptance",
       "LG-P1-02": "durable PostgreSQL rate-limit buckets for join, staff create/eligible and autosave paths; RLS/revoke boundary plus middleware 429/fallback tests",
-      "LG-P1-03": "all teacher Live mutations carry authoritative expectedVersion; retries reuse Idempotency-Key through the durable idempotency ledger; staff review submission and terminal history archive are version guarded; CI verify, real PostgreSQL and browser E2E green on PR #326"
+      "LG-P1-03": "all teacher Live mutations carry authoritative expectedVersion; retries reuse Idempotency-Key through the durable idempotency ledger; staff review submission and terminal history archive are version guarded; CI verify, real PostgreSQL and browser E2E green on PR #326",
+      "LG-P1-05": "real PostgreSQL 30/60 learner bursts measure cursor, heartbeat and full snapshot paths with poolMax=10 and explicit p95/wall budgets; PR #327 CI observed 60-learner p95 cursor 25.6ms, heartbeat 14.7ms and snapshot 88.5ms, while 90 snapshot hydrations reused one signed-asset operation"
     },
     "p0_closure_evidence": {
       "LG-P0-01": "real PostgreSQL lifecycle: mid-round leave is rejected; unfinished peer work is reassigned to teacher fallback",
@@ -132,7 +133,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
 
 ## 3. Hozirgi yakuniy baho
 
-Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate hamda barcha teacher mutationlari uchun authoritative version + idempotent retry himoyasi yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’lari, xususan classroom-scale load/realtime evidence, observability va yakuniy preview/production smoke alohida yopilishi kerak.
+Live Challenge’ning auditda aniqlangan barcha P0 blockerlariga kod va avtomatik acceptance evidence qo‘shildi. Joriy holat **release candidate**: real PostgreSQL integrity/lifecycle suite, teacher–projector–3 student real-app browser E2E, deadline reconciliation, mark-scheme capability gate, teacher mutationlari uchun authoritative version + idempotent retry hamda 60 learner classroom-scale cursor/heartbeat/snapshot budget yashil. Bu hali “production_ready” degani emas — qolgan P1 release gate’lari, xususan observability, reporting/accessibility va yakuniy preview/production smoke alohida yopilishi kerak.
 
 | Qism | Holat | Qisqa xulosa |
 |---|---|---|
