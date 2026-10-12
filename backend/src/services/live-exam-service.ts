@@ -1185,6 +1185,12 @@ export class LiveExamService {
            a.score_source,a.moderated_at,a.updated_at,u.full_name student_name,lep.student_id,
            r.id review_id,r.status::text review_status,r.kind::text review_kind,
            r.awarded_marks review_awarded_marks,r.feedback_md review_feedback_md,
+           exists(
+             select 1 from live_exam_reviews peer_review
+             where peer_review.answer_id=a.id
+               and peer_review.session_question_id=a.session_question_id
+               and peer_review.kind='peer'
+           ) review_is_calibration,
            coalesce((
              select array_agg(rp.mark_scheme_point_id order by rp.mark_scheme_point_id)
              from live_exam_review_points rp
@@ -1212,6 +1218,7 @@ export class LiveExamService {
         reviewId: row.review_id,
         reviewStatus: row.review_status,
         reviewKind: row.review_kind,
+        reviewPurpose: row.review_kind==='teacher' && row.review_is_calibration ? 'calibration' : 'primary',
         provisionalScore: row.review_awarded_marks === null ? null : Number(row.review_awarded_marks),
         provisionalFeedback: row.review_feedback_md,
         reviewMatchedPointIds: (row.review_matched_point_ids ?? []).map(String),
