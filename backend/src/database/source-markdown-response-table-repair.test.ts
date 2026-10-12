@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 
 const sql=readFileSync(
-  new URL('./migrations/0209_source_markdown_response_table_repair.sql',import.meta.url),
+  new URL('./migrations/0210_source_markdown_response_table_repair.sql',import.meta.url),
   'utf8',
 );
 
-describe('0209 source-backed Markdown response-table repair',()=>{
+describe('0210 source-backed Markdown response-table repair',()=>{
   it('requires canonical provenance and a referenced table asset before repair',()=>{
     expect(sql).toContain("q.content_version=1");
     expect(sql).toContain("v_q.content_json->'source'->>'paperId'");
