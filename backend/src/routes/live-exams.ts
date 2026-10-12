@@ -143,6 +143,15 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     }));
   });
 
+  router.post('/selection-preview', durableStaffLimit, async (req,res)=>{
+    privateNoStore(res);
+    const body=z.object({
+      classId:uuid,
+      questionIds:z.array(uuid).max(100),
+    }).strict().parse(req.body);
+    res.json(await service.previewSelection(req.actor!,body));
+  });
+
   // Named routes stay above '/:id' so an ordinary word can never be parsed as
   // a UUID and turn a valid join request into a validation error.
   router.post('/join', durableJoinLimit, async (req, res) => {
