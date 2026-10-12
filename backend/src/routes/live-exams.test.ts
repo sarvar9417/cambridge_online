@@ -142,6 +142,37 @@ describe('live exam routes', () => {
     expect(submitReview).not.toHaveBeenCalled();
   });
 
+  it('requires optimistic versioning when staff submits a teacher-owned review', async () => {
+    const submitReview=vi.fn().mockResolvedValue({reviewId:'33333333-3333-4333-8333-333333333333',version:8});
+    const app=appFor({submitReview},teacher);
+    const path='/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit';
+    await request(app).post(path).send({matchedPointIds:[]}).expect(400);
+    expect(submitReview).not.toHaveBeenCalled();
+    await request(app).post(path).send({matchedPointIds:[],score:1,expectedVersion:7}).expect(200);
+    expect(submitReview).toHaveBeenCalledWith(
+      teacher,
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+      {matchedPointIds:[],score:1,levelNumber:undefined,feedback:undefined},
+      7,
+    );
+  });
+
+  it('keeps student peer and self reviews concurrent without requiring a session version', async () => {
+    const submitReview=vi.fn().mockResolvedValue({reviewId:'33333333-3333-4333-8333-333333333333',version:8});
+    await request(appFor({submitReview}))
+      .post('/live-exams/22222222-2222-4222-8222-222222222222/reviews/33333333-3333-4333-8333-333333333333/submit')
+      .send({matchedPointIds:[],score:1})
+      .expect(200);
+    expect(submitReview).toHaveBeenCalledWith(
+      student,
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333',
+      {matchedPointIds:[],score:1,levelNumber:undefined,feedback:undefined},
+      undefined,
+    );
+  });
+
   it('turns a database peer-integrity rejection into a recoverable conflict', async () => {
     const revealMarkScheme=vi.fn().mockRejectedValue(Object.assign(
       new Error('live_peer_assignment_impossible'),
