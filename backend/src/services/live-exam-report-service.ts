@@ -310,7 +310,7 @@ export class LiveExamReportService {
       const attempts=Number(row.attempts),matched=Number(row.matched),missed=Math.max(0,attempts-matched);
       return {questionPosition:Number(row.position),displayRef:String(row.display_ref),code:String(row.code),text:String(row.text),marks:Number(row.marks),attempts,matched,missed,missRate:percent(missed,attempts)};
     });
-    const reteachCandidates=subtopics.filter((item)=>item.possible>0)
+    const reteachCandidates=subtopics.filter((item)=>item.possible>0&&item.earned<item.possible)
       .sort((a,b)=>a.percentage-b.percentage||b.possible-a.possible||a.label.localeCompare(b.label))
       .slice(0,5)
       .map((item)=>{
