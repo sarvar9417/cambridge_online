@@ -167,6 +167,11 @@ try {
       hasReport: projectorPayload.report !== null,
     },
   );
+  await qa.check(
+    'Live E2E: projector snapshot does not expose the database session UUID',
+    projectorPayload.session?.id !== id && !JSON.stringify(projectorPayload).includes(id),
+    { projectorSessionId: projectorPayload.session?.id },
+  );
   await qa.screenshot(projector, '02-projector-question');
   await qa.screenshot(students[0].page, '03-student-mobile-question');
 
