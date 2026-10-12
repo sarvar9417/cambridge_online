@@ -152,7 +152,7 @@ export function LessonPastPaper({page,topic,audience,userId,onAssessmentChange}:
   const catalogSyllabus:'9618'|'0478'=checkpointSyllabus??(looksLike0478Chapter7?'0478':'9618');
   const chapter=useMemo(()=>lessonCatalogChapter(catalogSyllabus,chapterNumber),[catalogSyllabus,chapterNumber]);
   const chapterTopics=useMemo(()=>chapter?buildTopicPlan(chapter.slides,chapter.subtopics):[topic],[chapter,topic]);
-  const scope=useMemo(()=>chapterPastPaperScope(chapterTopics),[chapterTopics]);
+  const scope=useMemo(()=>chapterPastPaperScope(audience==='student'?[topic]:chapterTopics),[audience,chapterTopics,topic]);
   const codes=scope.learningObjectiveCodes;
   const codeKey=codes.join('|');
   const syllabuses=scope.syllabusCodes;
@@ -160,6 +160,7 @@ export function LessonPastPaper({page,topic,audience,userId,onAssessmentChange}:
   const yearFrom=scope.yearFrom;
   const yearTo=scope.yearTo;
   const chapterTitle=chapter?.title??topic.title;
+  const practiceTitle=audience==='student'?topic.title:chapterTitle;
   const [questions,setQuestions]=useState<ExamQuestion[]>([]);
   const [loading,setLoading]=useState(Boolean(codes.length));
   const [error,setError]=useState('');
@@ -218,10 +219,10 @@ export function LessonPastPaper({page,topic,audience,userId,onAssessmentChange}:
   };
   const markAssessed=(questionId:string)=>setAssessedIds(current=>current.includes(questionId)?current:[...current,questionId]);
 
-  if(!codes.length)return <div className="lx-exam-state"><strong>Past Paper practice is not yet available for this chapter.</strong><p>The chapter does not yet have a live Cambridge learning-objective checkpoint map.</p></div>;
-  if(loading)return <div className="lx-exam-state" aria-live="polite"><strong>Loading Past Paper questions…</strong><p>Preparing approved Cambridge questions for {chapterTitle}.</p></div>;
+  if(!codes.length)return <div className="lx-exam-state"><strong>Past Paper practice is not yet available for this chapter.</strong><p>{audience==='student'?'This topic does not yet have a live Cambridge learning-objective checkpoint map.':'The chapter does not yet have a live Cambridge learning-objective checkpoint map.'}</p></div>;
+  if(loading)return <div className="lx-exam-state" aria-live="polite"><strong>Loading Past Paper questions…</strong><p>Preparing approved Cambridge questions for {practiceTitle}.</p></div>;
   if(error)return <div className="lx-exam-state lx-exam-state--error" role="alert"><strong>Questions could not be loaded</strong><p>{error}</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button></div>;
-  if(!questions.length)return <div className="lx-exam-state"><strong>No exact question match was found.</strong><p>A weakly related question has not been inserted. The approved corpus for this chapter needs to be expanded.</p></div>;
+  if(!questions.length)return <div className="lx-exam-state"><strong>No exact question match was found.</strong><p>A weakly related question has not been inserted. {audience==='student'?'The approved corpus for this topic needs to be expanded.':'The approved corpus for this chapter needs to be expanded.'}</p></div>;
 
   return <div className="lx-exam-workspace">
     <aside className="lx-exam-list"><header><span>{catalogSyllabus} · CHAPTER {chapterNumber} · PAST PAPERS</span><strong>{questions.length} approved questions</strong></header><div className="lx-exam-filters"><label><MagnifyingGlass size={18} aria-hidden="true"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search questions" aria-label="Search questions"/></label><select value={year} onChange={event=>setYear(event.target.value)} aria-label="Year"><option value="all">All years</option>{years.map(item=><option value={item} key={item}>{item}</option>)}</select></div><div className="lx-exam-items">{filtered.map((question,index)=><button type="button" className={question.id===selected?.id?'is-active':''} aria-current={question.id===selected?.id?'true':undefined} onClick={()=>setSelectedId(question.id)} key={question.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{question.displayRef}</strong><small>{question.commandWord??'Question'} · {question.marks} mark</small></button>)}</div></aside>
