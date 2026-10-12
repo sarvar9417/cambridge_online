@@ -669,6 +669,8 @@ export class LiveExamService {
       limit: number;
       includeData?: boolean;
       includeCounts?: boolean;
+      offset?: number;
+      selectedQuestionIds?: string[];
     },
   ) {
     await this.requireClassControl(this.pool, actor, input.classId);
@@ -679,7 +681,7 @@ export class LiveExamService {
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
-    }, false);
+    }, false, false, input.offset !== undefined, input.offset ?? 0);
     let selection;
     let databaseTotal: number | undefined;
     let liveReadyTotal: number | undefined;
@@ -707,9 +709,30 @@ export class LiveExamService {
       ]);
     }
     const rows = input.includeData === false ? [] : await this.previewQuestions(selection.ids);
+    let selectionSummary: {
+      requestedCount:number;requestedMarks:number;expandedCount:number;expandedMarks:number;dependencyCount:number;
+    } | undefined;
+    if (input.selectedQuestionIds?.length) {
+      const expanded = await this.expandRequiredDependencies(input.selectedQuestionIds);
+      const marks = await this.pool.query(
+        `select
+           coalesce(sum(marks) filter(where id=any($1::uuid[])),0)::int requested_marks,
+           coalesce(sum(marks) filter(where id=any($2::uuid[])),0)::int expanded_marks
+         from questions where id=any($2::uuid[])`,
+        [input.selectedQuestionIds,expanded],
+      );
+      selectionSummary={
+        requestedCount:input.selectedQuestionIds.length,
+        requestedMarks:Number(marks.rows[0]?.requested_marks ?? 0),
+        expandedCount:expanded.length,
+        expandedMarks:Number(marks.rows[0]?.expanded_marks ?? 0),
+        dependencyCount:Math.max(0,expanded.length-input.selectedQuestionIds.length),
+      };
+    }
     return {
       data:rows,
       total:selection.total,
+      ...(selectionSummary ? { selectionSummary } : {}),
       ...(databaseTotal === undefined || liveReadyTotal === undefined ? {} : { counts:{
         database:databaseTotal,
         liveReady:liveReadyTotal,
