@@ -29,6 +29,22 @@ describe('Attestatsiya-style Cambridge lesson flow',()=>{
     expect(past).toContain('Bu o‘z-o‘zini baholash — teacher grade emas.');
   });
 
+  it('adds a BookReader-style topic section navigator with completion state',()=>{
+    const experience=source('LessonExperience.tsx');
+    expect(experience).toContain('function TopicSectionNav');
+    expect(experience).toContain('className="lx-topic-section-dots"');
+    expect(experience).toContain("completed.has(page.id)?'is-complete'");
+  });
+
+  it('shows per-question self-assessment evidence on the result stage',()=>{
+    const experience=source('LessonExperience.tsx');
+    const past=source('LessonPastPaper.tsx');
+    expect(past).toContain('questions:LessonSelfAssessmentQuestion[]');
+    expect(past).toContain('breakdown.push({');
+    expect(experience).toContain('lx-result-breakdown');
+    expect(experience).toContain('Qayta ko‘rish:');
+  });
+
   it('scopes progress by course and sends learners to a topic check after its final study section',()=>{
     const experience=source('LessonExperience.tsx');
     expect(experience).toContain('item.courseCode===courseCode(chapter)');

@@ -170,7 +170,11 @@ function LearnerStageBar({phase,checkReady,resultReady,onStudy,onCheck,onResult}
 }
 
 function LearnerResult({result,onRetry,onStudy}:{result:LessonSelfAssessment;onRetry:()=>void;onStudy:()=>void}) {
-  return <main className="lx-learner-result"><section><span>SELF-ASSESSMENT RESULT</span><h1>{result.percentage}%</h1><p>{result.earned} / {result.possible} ball · {result.assessedQuestions} ta Past Paper savoli baholandi</p><div className="lx-result-track"><i style={{width:result.percentage+'%'}}/></div><aside>Bu natija official mark scheme bo‘yicha o‘zingiz belgilagan mark pointlardan hisoblandi. Bu teacher grade yoki yakuniy mastery bahosi emas.</aside><div><button type="button" onClick={onRetry}><FileText size={18}/>Past Paperga qaytish</button><button type="button" onClick={onStudy}><BookOpenText size={18}/>Nazariyani qayta ko‘rish</button></div></section></main>;
+  const needsReview=result.questions.filter(item=>item.earned<item.possible);
+  return <main className="lx-learner-result"><section><span>SELF-ASSESSMENT RESULT</span><h1>{result.percentage}%</h1><p>{result.earned} / {result.possible} ball · {result.assessedQuestions} ta Past Paper savoli baholandi</p><div className="lx-result-track"><i style={{width:result.percentage+'%'}}/></div>
+    {result.questions.length?<div className="lx-result-breakdown" aria-label="Savollar bo‘yicha natija">{result.questions.map(item=><article className={item.earned===item.possible?'is-strong':'needs-review'} key={item.id}><div><strong>{item.displayRef}</strong>{item.commandWord?<span>{item.commandWord}</span>:null}</div><b>{item.earned}/{item.possible}</b></article>)}</div>:null}
+    {needsReview.length?<p className="lx-result-next"><strong>Qayta ko‘rish:</strong> {needsReview.map(item=>item.displayRef).join(', ')}. Nazariyaga qaytib shu savollarda yo‘qotilgan mark pointlarni mustahkamlang.</p>:<p className="lx-result-next is-strong"><strong>Yaxshi:</strong> baholangan savollarda barcha tanlangan mark pointlar to‘liq qoplandi.</p>}
+    <aside>Bu natija official mark scheme bo‘yicha o‘zingiz belgilagan mark pointlardan hisoblandi. Bu teacher grade yoki yakuniy mastery bahosi emas.</aside><div><button type="button" onClick={onRetry}><FileText size={18}/>Past Paperga qaytish</button><button type="button" onClick={onStudy}><BookOpenText size={18}/>Nazariyani qayta ko‘rish</button></div></section></main>;
 }
 
 function ModeTabs({audience,mode,onChange}:{audience:LessonAudience;mode:LessonMode;onChange:(mode:LessonMode)=>void}){
@@ -183,6 +187,16 @@ function TopicOutline({topics,activeTopic,activePage,mode,onOpen,onClose}:{topic
     const pages=mode==='exam'?(practicePage(topic)?[practicePage(topic)!]:[]):topic.pages.filter(page=>page.kind==='study');
     return <section className={topic.code===activeTopic.code?'is-active':''} key={topic.code}><button type="button" className="lx-topic-button" onClick={()=>pages[0]&&onOpen(topic,pages[0])}><span>{topicLabel(topic)}</span><strong>{topic.title}</strong><small>{pages.length}</small></button>{topic.code===activeTopic.code&&mode==='study'?<div className="lx-page-links">{pages.map((page,index)=><button type="button" aria-current={page.id===activePage?.id?'page':undefined} className={page.id===activePage?.id?'is-current':''} onClick={()=>onOpen(topic,page)} key={page.id}><span>{String(index+1).padStart(2,'0')}</span><strong>{displayPageTitle(page,topic)}</strong></button>)}</div>:null}</section>;
   })}</nav></aside>;
+}
+
+function TopicSectionNav({pages,activeIndex,completed,onOpen,onOutline}:{pages:TopicPage[];activeIndex:number;completed:Set<string>;onOpen:(page:TopicPage)=>void;onOutline:()=>void}) {
+  if(pages.length<=1)return null;
+  const current=pages[Math.max(0,activeIndex)]??pages[0];
+  return <nav className="lx-topic-section-nav" aria-label="Mavzu bo‘limlari">
+    <div className="lx-topic-section-dots" role="tablist">{pages.map((page,index)=><button type="button" role="tab" aria-selected={index===activeIndex} aria-label={(index+1)+'-bo‘lim: '+page.title} className={index===activeIndex?'is-current':completed.has(page.id)?'is-complete':''} onClick={()=>onOpen(page)} key={page.id}>{completed.has(page.id)&&index!==activeIndex?<CheckCircle size={13}/>:<span>{index+1}</span>}</button>)}</div>
+    <div><strong>{Math.max(1,activeIndex+1)} / {pages.length} bo‘lim</strong><span>{current?.title??''}</span></div>
+    <button type="button" onClick={onOutline}><List size={16}/>Mundarija</button>
+  </nav>;
 }
 
 function SourceAudit({page}:{page:TopicPage}){
@@ -219,11 +233,11 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
   const beatIndex=Math.min(Number.isFinite(requestedBeat)?requestedBeat:0,Math.max(0,presentationLength-1));
   const activeBeat=realDeck?null:beats[beatIndex]??null;
   const [reveal,setReveal]=useState(0);
-  const [assessment,setAssessment]=useState<LessonSelfAssessment>({assessedQuestions:0,earned:0,possible:0,percentage:0});
+  const [assessment,setAssessment]=useState<LessonSelfAssessment>({assessedQuestions:0,earned:0,possible:0,percentage:0,questions:[]});
   const [showResult,setShowResult]=useState(false);
 
   useEffect(()=>{
-    setAssessment({assessedQuestions:0,earned:0,possible:0,percentage:0});
+    setAssessment({assessedQuestions:0,earned:0,possible:0,percentage:0,questions:[]});
     setShowResult(false);
   },[course,chapterNumber,topicParam]);
 
@@ -333,7 +347,8 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
   const currentIds=activePage?pageSlideIds(activePage):[];
   const completedSlides=new Set(progress.filter(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
   const pageComplete=Boolean(currentIds.length&&currentIds.every(id=>completedSlides.has(id)));
-  const completedInChapter=completedPageIds(progress,chapter).size;
+  const completedPages=completedPageIds(progress,chapter);
+  const completedInChapter=completedPages.size;
   const totalInChapter=flatStudy.length;
   const markComplete=async()=>{
     if(audience!=='student'||!activePage||saving||pageComplete)return;
@@ -357,6 +372,7 @@ export function LessonExperience({audience,userId}:LessonExperienceProps){
       <TopicOutline topics={topics} activeTopic={activeTopic} activePage={mode==='study'?activePage:examPage} mode={mode} onOpen={openOutlinePage} onClose={()=>setOutlineOpen(false)}/>
       {outlineOpen?<button type="button" className="lx-outline-scrim" aria-label="Close contents" onClick={()=>setOutlineOpen(false)}/>:null}
       {mode==='study'?<main className="lx-reader-main">
+        {audience==='student'?<TopicSectionNav pages={studyPages} activeIndex={topicPageIndex} completed={completedPages} onOpen={page=>navigateTo(activeTopic,page,'study')} onOutline={()=>setOutlineOpen(true)}/>:null}
         {activePage?<><header className="lx-page-head"><div><span>{topicLabel(activeTopic)} · {studyPages.indexOf(activePage)+1}/{studyPages.length}</span><h1>{displayPageTitle(activePage,activeTopic)}</h1><p>{activeTopic.title}</p></div>{audience==='student'?<button type="button" className={pageComplete?'is-complete':''} disabled={pageComplete||saving} onClick={markComplete}><CheckCircle size={21}/>{pageComplete?'Tugallangan':saving?'Saqlanmoqda…':'Darsni tugallash'}</button>:null}</header><div className="lx-study-content">{learnerSlidesForPage(activePage).map(slide=><LessonStudySlide sourceSlide={slide} pageTitle={displayPageTitle(activePage,activeTopic)} key={slide.id}/>)}</div>{audience==='teacher'?<SourceAudit page={activePage}/>:null}</>:<div className="lx-empty"><strong>No study section is available for this topic.</strong></div>}
         <footer className="lx-reader-nav"><button type="button" disabled={!previous} onClick={()=>previous&&navigateTo(previous.topic,previous.page,'study')}><ArrowLeft size={20}/><span>Oldingi bo‘lim</span></button><div><span>{Math.max(0,topicPageIndex+1)} / {studyPages.length}</span><small>{activeTopic.title}</small></div>{next?<button type="button" onClick={()=>navigateTo(next.topic,next.page,'study')}><span>Keyingi bo‘lim</span><ArrowRight size={20}/></button>:audience==='student'&&examPage?<button type="button" className="lx-check-cta" onClick={()=>setMode('exam')}><span>Bilimni tekshirish</span><ArrowRight size={20}/></button>:<button type="button" disabled><span>Mavzu tugadi</span><CheckCircle size={20}/></button>}</footer>
       </main>:showResult&&audience==='student'?<LearnerResult result={assessment} onRetry={()=>setShowResult(false)} onStudy={()=>setMode('study')}/>:<main className="lx-exam-shell"><header className="lx-exam-topic-head"><div><span>{courseCode(chapter)} · {topicLabel(activeTopic)} · CAMBRIDGE PAST PAPERS</span><h1>{activeTopic.title}</h1><p>Avval savolga mustaqil javob yozing. Keyin official mark scheme’ni ochib, faqat javobingizda mavjud mark pointlarni belgilang.</p></div>{audience==='teacher'?<button type="button" onClick={()=>void rootRef.current?.requestFullscreen?.().catch(()=>{})}><ArrowsOut size={20}/>Full screen</button>:null}</header><LessonPastPaper page={examPage} topic={activeTopic} audience={audience} userId={userId} onAssessmentChange={audience==='student'?setAssessment:undefined}/></main>}

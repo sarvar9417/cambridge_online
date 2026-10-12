@@ -41,11 +41,20 @@ type ExamQuestion = {
 };
 type CheckpointResponse = {data:ExamQuestion[];yearFrom:number;yearTo:number;syllabusCode:string};
 
+export type LessonSelfAssessmentQuestion = {
+  id:string;
+  displayRef:string;
+  earned:number;
+  possible:number;
+  commandWord:string|null;
+};
+
 export type LessonSelfAssessment = {
   assessedQuestions:number;
   earned:number;
   possible:number;
   percentage:number;
+  questions:LessonSelfAssessmentQuestion[];
 };
 
 function markPointKey(point:MarkPoint,index:number){return String(index)+':'+(point.code||'MP');}
@@ -196,14 +205,29 @@ export function LessonPastPaper({page,topic,audience,userId,onAssessmentChange}:
   const assessment=useMemo<LessonSelfAssessment>(()=>{
     const assessed=new Set(assessedIds);
     let earned=0,possible=0;
+    const breakdown:LessonSelfAssessmentQuestion[]=[];
     questions.forEach(question=>{
       if(!assessed.has(question.id))return;
-      possible+=question.marks;
       const chosen=new Set(selectedPoints[question.id]??[]);
       const raw=question.markSchemePoints.reduce((sum,point,index)=>sum+(chosen.has(markPointKey(point,index))?point.marks:0),0);
-      earned+=Math.min(question.marks,raw);
+      const questionEarned=Math.min(question.marks,raw);
+      possible+=question.marks;
+      earned+=questionEarned;
+      breakdown.push({
+        id:question.id,
+        displayRef:question.displayRef,
+        earned:questionEarned,
+        possible:question.marks,
+        commandWord:question.commandWord,
+      });
     });
-    return {assessedQuestions:assessed.size,earned,possible,percentage:possible?Math.round((earned/possible)*100):0};
+    return {
+      assessedQuestions:breakdown.length,
+      earned,
+      possible,
+      percentage:possible?Math.round((earned/possible)*100):0,
+      questions:breakdown,
+    };
   },[assessedIds,questions,selectedPoints]);
 
   useEffect(()=>{
