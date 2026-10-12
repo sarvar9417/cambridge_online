@@ -47,11 +47,13 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain('setExcludeSeen(event.target.checked);clearManualPool()');
   });
 
-  it('invalidates stale manual pools, uses the eligible database total, and reuses create idempotency on retry',()=>{
-    expect(page).toContain('const clearManualPool=()=>{setQuestionPool([]);setSelectedQuestionIds([])}');
+  it('invalidates stale manual pools, pages the source-ready pool, and reuses create idempotency on retry',()=>{
+    expect(page).toContain('setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null)');
     expect(page).toContain('const [eligibleTotal,setEligibleTotal]=useState<number|null>(null)');
-    expect(page).toContain('max={eligibleTotal??undefined}');
-    expect(page).toContain('selectedQuestionIds.length}/{eligibleTotal??questionPool.length}');
+    expect(page).toContain('const [poolTotal,setPoolTotal]=useState<number|null>(null)');
+    expect(page).toContain('const pageSize=20');
+    expect(page).toContain('offset:String(Math.max(0,offset))');
+    expect(page).toContain("sort:'source'");
     expect(page).not.toContain('if(current.length>=20)return current');
     expect(page).not.toContain('selectedQuestionIds.length}/20 ta savol');
     expect(page).toContain("const createAttempt=useRef<{body:string;key:string}|null>(null)");
