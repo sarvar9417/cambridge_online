@@ -26,6 +26,12 @@ import {
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
+import {
+  moveLiveQuestionTimeOverride,
+  serializeLiveQuestionTimeOverrides,
+  setLiveQuestionTimeOverride,
+  type LiveQuestionTimeOverrides,
+} from './live-question-timing';
 import './live-exam.css';
 
 type FilterOptions = {
@@ -300,6 +306,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [poolTotal,setPoolTotal]=useState<number|null>(null);
   const [questionPool,setQuestionPool]=useState<EligibleQuestion[]>([]);
   const [selectedQuestionIds,setSelectedQuestionIds]=useState<string[]>([]);
+  const [questionTimeLimits,setQuestionTimeLimits]=useState<LiveQuestionTimeOverrides>({});
   const [selectionPreview,setSelectionPreview]=useState<SelectionPreview|null>(null);
   const [replacingQuestionId,setReplacingQuestionId]=useState('');
   const [draggedQuestionId,setDraggedQuestionId]=useState('');
@@ -332,7 +339,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
   );
   const clearManualPool=()=>{
-    setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
+    setQuestionPool([]);setSelectedQuestionIds([]);setQuestionTimeLimits({});setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
   const toggleCoursebookSection=(code:string)=>{
@@ -356,10 +363,15 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       const withoutCandidate=current.filter((id)=>id!==questionId);
       const next=withoutCandidate.filter((id)=>id!==replacingQuestionId);
       next.splice(Math.min(replaceIndex,next.length),0,questionId);
+      setQuestionTimeLimits((timings)=>moveLiveQuestionTimeOverride(timings,replacingQuestionId,questionId));
       setReplacingQuestionId('');
       return next;
     }
-    return current.includes(questionId)?current.filter((id)=>id!==questionId):[...current,questionId];
+    if(current.includes(questionId)){
+      setQuestionTimeLimits((timings)=>setLiveQuestionTimeOverride(timings,questionId,undefined));
+      return current.filter((id)=>id!==questionId);
+    }
+    return [...current,questionId];
   });
   const moveSelectedQuestion=(index:number,direction:-1|1)=>setSelectedQuestionIds((current)=>{
     const target=index+direction;
@@ -475,6 +487,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
+        questionTimeLimits:selectionMode==='manual'
+          ?serializeLiveQuestionTimeOverrides(selectedQuestionIds,questionTimeLimits)
+          :{},
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
         displayNameMode:data.get('displayNameMode'),
@@ -557,7 +572,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
               onDragOver={(event)=>event.preventDefault()}
               onDrop={()=>{dropSelectedQuestion(question.id);setDraggedQuestionId('')}}
               className={draggedQuestionId===question.id?'is-dragging':''}
-            ><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.year} {question.series} · Paper {question.component} · {question.marks} ball · {question.stem}</small></div><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button><button type="button" className="live-secondary" onClick={()=>setReplacingQuestionId(question.id)}>Almashtirish</button><button type="button" className="live-link-button" onClick={()=>toggleSelectedQuestion(question.id)}>Olib tashlash</button></article>)}</div>:null}
+            ><span>{index+1}</span><div><strong>{question.displayRef}</strong><small>{question.year} {question.series} · Paper {question.component} · {question.marks} ball · {question.stem}</small></div><label className="live-question-time-profile">Vaqt<select aria-label={`${question.displayRef} uchun vaqt`} value={Object.prototype.hasOwnProperty.call(questionTimeLimits,question.id)?questionTimeLimits[question.id]===null?'0':String(questionTimeLimits[question.id]):''} onChange={(event)=>{const value=event.target.value;setQuestionTimeLimits((current)=>setLiveQuestionTimeOverride(current,question.id,value===''?undefined:value==='0'?null:Number(value)))}}><option value="">Umumiy</option><option value="0">Cheklanmagan</option><option value="30">30 soniya</option><option value="60">1 daqiqa</option><option value="90">1.5 daqiqa</option><option value="120">2 daqiqa</option><option value="180">3 daqiqa</option><option value="300">5 daqiqa</option><option value="600">10 daqiqa</option></select></label><button type="button" aria-label={`${question.displayRef} yuqoriga`} title="Yuqoriga" disabled={index===0} onClick={()=>moveSelectedQuestion(index,-1)}><CaretUp/></button><button type="button" aria-label={`${question.displayRef} pastga`} title="Pastga" disabled={index===selectedQuestionIds.length-1} onClick={()=>moveSelectedQuestion(index,1)}><CaretDown/></button><button type="button" className="live-secondary" onClick={()=>setReplacingQuestionId(question.id)}>Almashtirish</button><button type="button" className="live-link-button" onClick={()=>toggleSelectedQuestion(question.id)}>Olib tashlash</button></article>)}</div>:null}
             {selectionPreview?.dependencies.length?<details className="live-dependency-preview"><summary>Majburiy oldingi qismlar ({selectionPreview.dependencies.length})</summary>{selectionPreview.dependencies.map((question)=><p key={question.id}><strong>{question.displayRef}</strong> · {question.marks} ball · {question.stem}</p>)}</details>:null}
             <div className="live-question-pool">{questionPool.map((question)=><label key={question.id} className={selectedQuestionIds.includes(question.id)?'is-selected':''}><input type="checkbox" checked={selectedQuestionIds.includes(question.id)} onChange={()=>toggleSelectedQuestion(question.id)}/><span><strong>{question.displayRef}</strong><small>{question.year} {question.series} · Paper {question.component} · {question.commandWord??'—'} · {question.marks} ball · {question.difficulty}{question.hasAssets?' · visual':''}{question.dependencyCount?` · +${question.dependencyCount} direct dependency`:''}</small><em>{question.stem}</em></span></label>)}</div>
             {poolTotal!==null?<nav className="live-pool-pages" aria-label="Savol pool sahifalari"><button type="button" className="live-secondary" disabled={busy||poolPage===0} onClick={()=>void loadQuestionPool(Math.max(0,poolPage-1),poolSearch)}>← Oldingi</button><span>{poolTotal?poolPage+1:0} / {Math.max(1,Math.ceil(poolTotal/20))} · {poolTotal} natija</span><button type="button" className="live-secondary" disabled={busy||(poolPage+1)*20>=poolTotal} onClick={()=>void loadQuestionPool(poolPage+1,poolSearch)}>Keyingi →</button></nav>:null}
