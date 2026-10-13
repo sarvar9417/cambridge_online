@@ -293,12 +293,15 @@ export interface LiveMarkSchemeLevel {id:string;levelNumber:number;minMarks:numb
 export interface LiveMarkScheme {id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;levels:LiveMarkSchemeLevel[];points:LiveMarkSchemePoint[];groups:Array<{id:string;label:string|null;nRequired:number;marksPerPoint:number;maxMarks:number;awardMode?:'fixed'|'point_marks'}>}
 export interface LiveExamAnswer {id:string;text:string;wordCount:number;submittedAt:string|null;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;moderatedAt:string|null;updatedAt:string;provisionalScore?:number|null;provisionalFeedback?:string|null}
 export interface LiveExamReview {id:string;answerId:string;kind:LiveExamMarkingMode;status:'assigned'|'submitted'|'moderated';answerText:string;awardedMarks:number|null;feedback:string|null;submittedAt:string|null;points:LiveMarkSchemePoint[]}
+export type LivePointFeedback =
+  | {status:'available';points:Array<{id:string;code:string;text:string;marks:number;matched:boolean;credited:boolean}>}
+  | {status:'unavailable';reason:'teacher_override'|'manual_scoring'|'not_recorded'};
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;joinedLate?:boolean;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
-  question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;review:LiveExamReview|null;
+  question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;ownPointFeedback?:LivePointFeedback|null;review:LiveExamReview|null;
   teacherAnswers:Array<LiveExamAnswer&{studentName:string;studentId:string;reviewId:string|null;reviewStatus:string|null;reviewKind:LiveExamMarkingMode|null;reviewPurpose?:'primary'|'calibration';reviewMatchedPointIds:string[]}>;
   peerQualityQueue?:Array<{answerId:string;studentName:string;peerScore:number;teacherScore:number;disagreement:number;threshold:number;needsTeacherReview:boolean}>;
-  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
+  report?:{rows:Array<{questionPosition:number;displayRef:string;marks:number;answerText:string;score:number|null;feedback:string|null;scoreSource:LiveExamMarkingMode|null;pointFeedback?:LivePointFeedback|null;studentId?:string;studentName?:string}>;earned:number;possible:number}|null;
 }
