@@ -20,6 +20,7 @@ const createInput = z.object({
   coursebookSectionCodes: z.array(coursebookSectionCode).max(100).default([]),
   questionCount: z.number().int().min(1),
   questionTimeLimitS: z.number().int().min(30).max(7200).optional(),
+  questionTimeLimits: z.record(uuid, z.number().int().min(30).max(7200).nullable()).default({}),
   markingMode: z.enum(['teacher', 'peer', 'self']),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
