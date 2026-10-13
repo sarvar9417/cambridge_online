@@ -16,6 +16,21 @@ export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
 export const QUESTION_DEADLINE_GRACE_S = 10;
 
+export function resolveLiveQuestionTimeLimit(
+  settings: unknown,
+  questionId: string,
+  fallback: number | null,
+) {
+  if (!settings || typeof settings !== 'object') return fallback;
+  const raw=(settings as Record<string, unknown>).questionTimeLimits;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback;
+  if (!Object.prototype.hasOwnProperty.call(raw,questionId)) return fallback;
+  const value=(raw as Record<string, unknown>)[questionId];
+  if (value===null) return null;
+  const numeric=Number(value);
+  return Number.isInteger(numeric)&&numeric>=30&&numeric<=7200?numeric:fallback;
+}
+
 export interface CreateLiveExamInput {
   classId: string;
   title: string;
@@ -25,6 +40,8 @@ export interface CreateLiveExamInput {
   coursebookSectionCodes?: string[];
   questionCount: number;
   questionTimeLimitS?: number;
+  /** Manual per-question overrides in seconds; null means unlimited for that question. */
+  questionTimeLimits?: Record<string, number | null>;
   markingMode: LiveExamMarkingMode;
   includeDiagrams: boolean;
   excludeSeen: boolean;
@@ -821,6 +838,12 @@ export class LiveExamService {
                 displayNameMode: input.displayNameMode ?? 'anonymous_alias',
                 peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
                 peerDisagreementThreshold: Math.max(0, Number(input.peerDisagreementThreshold ?? 1)),
+                defaultQuestionTimeLimitS: input.questionTimeLimitS ?? null,
+                questionTimeLimits: Object.fromEntries(
+                  Object.entries(input.questionTimeLimits ?? {})
+                    .filter(([questionId])=>questionIds.includes(questionId))
+                    .map(([questionId,value])=>[questionId,value]),
+                ),
                 requestedQuestionCount: questionIds.length,
                 dependencyQuestionCount: Math.max(0, expandedQuestionIds.length - questionIds.length),
               })],
@@ -1676,8 +1699,14 @@ export class LiveExamService {
       );
       if (Number(count.rows[0].count) < 1) throw new DomainError('live_no_participants', 409);
       const question = await client.query(
-        `select id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
+        `select id,question_id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
       if (!question.rowCount) throw new DomainError('live_no_questions', 409);
+      const settings=this.settings(session.settings);
+      const questionTimeLimitS=resolveLiveQuestionTimeLimit(
+        session.settings,
+        String(question.rows[0].question_id),
+        settings.defaultQuestionTimeLimitS,
+      );
       await client.query(
         `insert into live_exam_answers(session_question_id,participant_id)
          select $2,lep.id from live_exam_participants lep
@@ -1687,9 +1716,9 @@ export class LiveExamService {
       await client.query(
         `update live_exam_sessions set status='question_open',current_question_index=0,
            started_at=coalesce(started_at,now()),question_started_at=now(),answers_locked_at=null,
-           mark_scheme_revealed_at=null
+           mark_scheme_revealed_at=null,question_time_limit_s=$2
          where id=$1`,
-        [sessionId],
+        [sessionId,questionTimeLimitS],
       );
       const version = await this.bump(client, sessionId, actor.id, 'question.opened', { position: 0 });
       await client.query('commit');
@@ -2270,7 +2299,7 @@ export class LiveExamService {
       if (session.status !== 'review' || session.paused_at) throw new DomainError('live_invalid_state', 409);
       const nextPosition = Number(session.current_question_index) + 1;
       const next = await client.query(
-        `select id from live_exam_questions where session_id=$1 and position=$2`,
+        `select id,question_id from live_exam_questions where session_id=$1 and position=$2`,
         [sessionId, nextPosition],
       );
       if (!next.rowCount) {
@@ -2286,11 +2315,18 @@ export class LiveExamService {
          where lep.session_id=$1 and lep.left_at is null on conflict do nothing`,
         [sessionId, next.rows[0].id],
       );
+      const settings=this.settings(session.settings);
+      const questionTimeLimitS=resolveLiveQuestionTimeLimit(
+        session.settings,
+        String(next.rows[0].question_id),
+        settings.defaultQuestionTimeLimitS,
+      );
       await client.query(
         `update live_exam_sessions set status='question_open',current_question_index=$2,
-           question_started_at=now(),answers_locked_at=null,mark_scheme_revealed_at=null
+           question_started_at=now(),answers_locked_at=null,mark_scheme_revealed_at=null,
+           question_time_limit_s=$3
          where id=$1`,
-        [sessionId, nextPosition],
+        [sessionId, nextPosition, questionTimeLimitS],
       );
       const version = await this.bump(client, sessionId, actor.id, 'question.opened', { position: nextPosition });
       await client.query('commit');
@@ -2488,6 +2524,11 @@ export class LiveExamService {
       peerDisagreementThreshold: Number.isFinite(Number(raw.peerDisagreementThreshold))
         ? Math.max(0,Number(raw.peerDisagreementThreshold))
         : 1,
+      defaultQuestionTimeLimitS: raw.defaultQuestionTimeLimitS === null
+        ? null
+        : Number.isInteger(Number(raw.defaultQuestionTimeLimitS))
+          ? Math.max(30,Math.min(7200,Number(raw.defaultQuestionTimeLimitS)))
+          : null,
     };
   }
 
