@@ -6,6 +6,7 @@ import type { PgQuestionsRepository } from '../repositories/questions-repository
 import type { PortableQuestion } from './selection-review.js';
 import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
+import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-point-feedback.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
@@ -1086,6 +1087,50 @@ export class LiveExamService {
     return { ...snapshot, contextBlocks };
   }
 
+  private async releasedPointFeedbackForAnswers(answerIds:string[]):Promise<Map<string,ReleasedPointFeedback>> {
+    const byAnswer=new Map<string,ReleasedPointFeedback>();
+    if(!answerIds.length)return byAnswer;
+    // Only call this after the room enters review/finished. The caller must
+    // obtain answer IDs from a student-scoped snapshot or report query.
+    const result=await this.pool.query(
+      `select a.id::text answer_id,a.final_score,a.moderated_at,leq.mark_scheme_snapshot,
+         selected_review.id review_id,
+         coalesce((
+           select array_agg(rp.mark_scheme_point_id::text) filter(where rp.matched)
+           from live_exam_review_points rp where rp.review_id=selected_review.id
+         ),'{}'::text[]) matched_ids,
+         (select count(*)::int from live_exam_review_points rp
+          where rp.review_id=selected_review.id) recorded_count
+       from live_exam_answers a
+       join live_exam_questions leq on leq.id=a.session_question_id
+       left join lateral (
+         select r.id
+         from live_exam_reviews r
+         where r.answer_id=a.id and r.session_question_id=a.session_question_id
+           and r.status in ('submitted','moderated')
+           and r.kind::text=a.score_source::text
+           and r.awarded_marks=a.final_score
+         order by case r.kind when 'teacher' then 0 when 'peer' then 1 else 2 end,
+           r.created_at,r.id
+         limit 1
+       ) selected_review on true
+       where a.id=any($1::uuid[])`,
+      [answerIds],
+    );
+    for(const row of result.rows){
+      byAnswer.set(String(row.answer_id),releasedPointFeedback(
+        row.mark_scheme_snapshot as MarkSchemeSnapshot,
+        row.final_score===null?null:Number(row.final_score),
+        row.moderated_at!==null,
+        row.review_id?{
+          matchedPointIds:(row.matched_ids??[]).map(String),
+          recordedCount:Number(row.recorded_count),
+        }:null,
+      ));
+    }
+    return byAnswer;
+  }
+
   async snapshot(actor: Actor, sessionId: string, projector = false): Promise<Record<string, unknown>> {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
@@ -1202,6 +1247,9 @@ export class LiveExamService {
       if (answerResult.rows[0]) ownAnswer = this.mapAnswer(answerResult.rows[0]);
       if (reveal) review = await this.reviewFor(actor, sessionId, String(currentRow.id));
     }
+    const ownPointFeedback=actor.role==='student' && session.status==='review' && ownAnswer?.id
+      ? (await this.releasedPointFeedbackForAnswers([String(ownAnswer.id)])).get(String(ownAnswer.id))??null
+      : null;
     if (currentRow && detailedStaff && reveal) {
       const answerResult = await this.pool.query(
         `select a.id,a.answer_text,a.word_count,a.submitted_at,a.final_score,a.final_feedback_md,
@@ -1293,7 +1341,7 @@ export class LiveExamService {
       const reportRows = await this.pool.query(
         `select leq.position,leq.marks,
            coalesce(leq.question_snapshot->>'sourceRef',leq.question_snapshot->'leaf'->>'displayRef','') display_ref,
-           coalesce(a.answer_text,'') answer_text,a.final_score,a.final_feedback_md,a.score_source::text,lep.student_id,u.full_name student_name
+           a.id answer_id,coalesce(a.answer_text,'') answer_text,a.final_score,a.final_feedback_md,a.score_source::text,lep.student_id,u.full_name student_name
          from live_exam_questions leq
          join live_exam_participants lep on lep.session_id=leq.session_id and lep.left_at is null
          join users u on u.id=lep.student_id
@@ -1302,6 +1350,10 @@ export class LiveExamService {
          order by leq.position,u.full_name`,
         [sessionId, isStaff, actor.id],
       );
+      const reportPointFeedback=isStaff?new Map<string,ReleasedPointFeedback>():
+        await this.releasedPointFeedbackForAnswers(
+          reportRows.rows.filter((row)=>row.answer_id).map((row)=>String(row.answer_id)),
+        );
       const rows = reportRows.rows.map((row) => ({
         questionPosition: Number(row.position),
         displayRef: row.display_ref,
@@ -1310,6 +1362,7 @@ export class LiveExamService {
         score: row.final_score === null ? null : Number(row.final_score),
         scoreSource: row.score_source,
         feedback: row.final_feedback_md,
+        ...(!isStaff ? {pointFeedback:row.answer_id?reportPointFeedback.get(String(row.answer_id))??null:null}:{}),
         ...(isStaff ? { studentId: row.student_id, studentName: row.student_name } : {}),
       }));
       report = {
@@ -1394,6 +1447,7 @@ export class LiveExamService {
       question,
       markScheme: reveal && currentRow ? currentRow.mark_scheme_snapshot : null,
       ownAnswer,
+      ownPointFeedback,
       review,
       teacherAnswers,
       peerQualityQueue,
