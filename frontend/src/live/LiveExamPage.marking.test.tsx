@@ -115,6 +115,55 @@ describe('Live session updates', () => {
     expect(button().disabled).toBe(false);
   });
 
+
+  it('renders optional double marking calibration and peer disagreement review for staff', async () => {
+    const view = makeSnapshot();
+    view.session.status='marking';
+    view.session.markingMode='peer';
+    view.session.reviewCount=6;
+    view.session.reviewedCount=5;
+    view.session.settings.peerCalibrationPercent=100;
+    view.session.settings.peerDisagreementThreshold=0.5;
+    view.question={
+      id:'session-question',
+      sourceQuestionId:'question',
+      position:0,
+      marks:1,
+      portable:{
+        leaf:{id:'question',rootId:'question',label:'1',path:'1',displayRef:'9618/11/M/J/26 Q1',stem:'State one fact.',commandWord:'State',marks:1,answerKind:'text',answerLines:2},
+        chain:[{id:'question',label:'1',depth:0}],
+        contextBlocks:[],
+        dependencies:[],
+        sourceRef:'9618/11/M/J/26 Q1',
+      },
+      dependencyWork:[],
+    };
+    view.markScheme={
+      id:'scheme',schemeType:'points',maxMarks:1,guidanceMd:null,levels:[],groups:[],
+      points:[{id:'point',code:'M1',text:'Correct fact',marks:1}],
+    };
+    view.teacherAnswers=[{
+      id:'answer',text:'Learner answer',wordCount:2,submittedAt:timestamp,score:null,
+      feedback:null,scoreSource:null,moderatedAt:null,updatedAt:timestamp,
+      studentName:'QA learner',studentId:'student',reviewId:'teacher-review',reviewStatus:'assigned',
+      reviewKind:'teacher',reviewPurpose:'calibration',provisionalScore:0,provisionalFeedback:'Peer feedback',reviewMatchedPointIds:[],
+    }];
+    view.peerQualityQueue=[{
+      answerId:'answer',studentName:'QA learner',peerScore:0,teacherScore:1,disagreement:1,threshold:0.5,needsTeacherReview:true,
+    }];
+    vi.mocked(api).mockImplementation(async url =>
+      (url.endsWith('/heartbeat') ? {} : structuredClone(view)) as never
+    );
+
+    await act(async () => root.render(<LiveExamPage user={{ id: 'teacher', fullName: 'Teacher', role: 'teacher', schoolId: null }} classes={[]} />));
+
+    expect(container.textContent).toContain('TEACHER CALIBRATION');
+    expect(container.textContent).toContain('Peer bahoni mustaqil tekshirish');
+    expect(container.textContent).toContain('PEER QUALITY');
+    expect(container.textContent).toContain('Peer 0 · Teacher 1');
+    expect(container.textContent).toContain('Δ 1');
+  });
+
   it.each([403, 404])('removes the stale lobby and stops polling when access is revoked (%s)', async status => {
     vi.useFakeTimers();
     const view = makeSnapshot();
