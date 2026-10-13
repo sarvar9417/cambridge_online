@@ -153,3 +153,26 @@
     animation-iteration-count:1!important;
   }
 }
+
+
+/* A learner's personal, released Mark Point breakdown. */
+.live-point-feedback{display:grid;gap:12px;width:100%;padding:18px;border:1px solid var(--border);border-radius:var(--radius-xl);background:var(--surface);text-align:left}
+.live-point-feedback>header{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.live-point-feedback h2{margin:3px 0 0;font-size:20px}
+.live-point-feedback>header>strong{white-space:nowrap;color:var(--awarded);font-size:13px}
+.live-point-feedback>p,.live-point-feedback-note{margin:0;color:var(--text-muted);font-size:12px;line-height:1.5}
+.live-point-feedback ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.live-point-feedback li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft)}
+.live-point-feedback li.is-credited{border-color:color-mix(in srgb,var(--awarded) 38%,var(--border));background:var(--awarded-bg)}
+.live-point-feedback li.is-matched{border-color:color-mix(in srgb,var(--uncertain) 38%,var(--border));background:var(--uncertain-bg)}
+.live-point-feedback li.is-missed{border-color:color-mix(in srgb,var(--missed) 28%,var(--border));background:var(--missed-bg)}
+.live-point-feedback-icon{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--surface);font-size:18px;font-weight:900}
+.live-point-feedback .is-credited .live-point-feedback-icon,.live-point-feedback .is-credited small{color:var(--awarded)}
+.live-point-feedback .is-matched .live-point-feedback-icon,.live-point-feedback .is-matched small{color:var(--uncertain)}
+.live-point-feedback .is-missed .live-point-feedback-icon,.live-point-feedback .is-missed small{color:var(--missed)}
+.live-point-feedback li strong{font-size:13px}
+.live-point-feedback li p{margin:4px 0 5px;color:var(--text);line-height:1.5;overflow-wrap:anywhere}
+.live-point-feedback li small{font-weight:750}
+.live-complete-scheme{display:grid;gap:8px}.live-complete-scheme>summary{padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft);cursor:pointer;font-weight:750}
+.live-personal-answer .live-point-feedback{margin-top:10px}
+@media(max-width:640px){.live-point-feedback{padding:12px}.live-point-feedback>header{flex-direction:column;gap:6px}}
