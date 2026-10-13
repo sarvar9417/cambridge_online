@@ -63,5 +63,5 @@ export const config = {
   ...parsed,
   SUPABASE_URL: storageEnv.url,
   SUPABASE_STORAGE_SECRET_KEY: storageEnv.secretKey,
-  DB_POOL_MAX: parsed.DB_POOL_MAX ?? (process.env.VERCEL ? 2 : 10),
+  DB_POOL_MAX: parsed.DB_POOL_MAX ?? (process.env.VERCEL ? 4 : 10),
 };
