@@ -26,21 +26,28 @@ if (
 
 const isVercel = Boolean(process.env.VERCEL);
 
+// Fluid Compute may serve concurrent invocations in one warm function instance.
+// Avoid head-of-line blocking from max=1, while bounding connections to the
+// Supabase transaction pooler across many Vercel instances.
+export function resolvePoolMax(vercel: boolean, configuredMax?: number) {
+  const desired = configuredMax ?? (vercel ? 4 : 10);
+  return vercel ? Math.max(2, Math.min(4, desired)) : desired;
+}
+
 export const pool = connectionString
   ? new pg.Pool({
       connectionString,
       ssl,
-      // Vercel fans one route across multiple warm function instances. Keep
-      // each instance to one client; Supabase transaction mode multiplexes the
-      // short queries safely across the upstream database pool.
-      max: isVercel ? 1 : config.DB_POOL_MAX,
+      // Fluid Compute can handle concurrent requests on the same instance.
+      // Use a small bounded client pool instead of serialising them on one slot.
+      max: resolvePoolMax(isVercel, config.DB_POOL_MAX),
       // Cross-region/TLS handshakes can occasionally exceed five seconds.
       // Keep the fail-fast behaviour, but give both local session-pooler and
       // serverless transaction-pooler connections enough time to complete.
       connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 10000),
       // Reusing a warm serverless connection avoids forcing a new TLS/database
       // handshake after every brief gap between parallel classroom API calls.
-      idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? (isVercel ? 10000 : 30000)),
+      idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? (isVercel ? 5000 : 30000)),
       allowExitOnIdle: true,
     })
   : null;
