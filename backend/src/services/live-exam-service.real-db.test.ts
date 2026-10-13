@@ -250,6 +250,8 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
     const revealed=await service.revealMarkScheme(owner(),sessionId);
     expect(revealed.status).toBe('marking');
+    const provisionalStudent=await service.snapshot(student(0),sessionId);
+    expect(provisionalStudent.ownPointFeedback).toBeNull();
 
     const assignments=await client.query<{review_id:string;answer_student:string;reviewer_id:string;kind:string}>(
       `select r.id::text review_id,p.student_id::text answer_student,r.reviewer_id::text,r.kind::text
@@ -290,9 +292,23 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       [sessionQuestionId],
     );
     expect(released.rows.every((row)=>Number(row.final_score)===1&&row.score_source==='peer')).toBe(true);
+    const learnerReleased=await service.snapshot(student(0),sessionId);
+    expect(learnerReleased.ownPointFeedback).toMatchObject({
+      status:'available',points:[{code:'M1',matched:true,credited:true}],
+    });
+    expect(learnerReleased.teacherAnswers).toEqual([]);
+    expect(learnerReleased.participants).toEqual([]);
+    const anotherLearner=await service.snapshot(student(1),sessionId);
+    expect(anotherLearner.ownPointFeedback).toMatchObject({status:'available'});
+    expect((learnerReleased.ownAnswer as {text:string}).text).toBe('answer 1');
 
     const finished=await service.nextQuestion(owner(),sessionId);
     expect(finished.status).toBe('finished');
+    const studentReport=await service.snapshot(student(0),sessionId);
+    expect(studentReport.report).toMatchObject({
+      rows:[{pointFeedback:{status:'available',points:[{code:'M1',credited:true}]}}],
+    });
+    expect((studentReport.report as {rows:unknown[]}).rows).toHaveLength(1);
 
     expect(Number((await client.query(
       'select count(*) count from live_exam_learning_evidence where session_id=$1',
@@ -442,6 +458,10 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       [sessionId],
     );
     expect(state.rows[0]?.status).toBe('review');
+    const incorrectSnapshot=await service.snapshot(student(0),sessionId);
+    expect(incorrectSnapshot.ownPointFeedback).toMatchObject({
+      status:'available',points:[{code:'M1',matched:false,credited:false}],
+    });
     await service.nextQuestion(owner(),sessionId,Number(state.rows[0]!.version));
 
     const report=await service.detailedReport(owner(),sessionId);
