@@ -118,6 +118,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:boolean;
       exposure_table:boolean;
       exposure_trigger:boolean;
+      archive_actor_index:boolean;
     }>(`
       select
         exists(select 1 from information_schema.columns where table_schema='public' and table_name='live_exam_sessions' and column_name='join_code_expires_at') join_code_expires_at,
@@ -128,7 +129,8 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
         exists(select 1 from pg_trigger where tgname='live_exam_review_points_integrity' and not tgisinternal) point_trigger,
         exists(select 1 from pg_trigger where tgname='live_exam_join_code_retention' and not tgisinternal) join_code_trigger,
         exists(select 1 from information_schema.tables where table_schema='public' and table_name='class_question_exposures') exposure_table,
-        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger
+        exists(select 1 from pg_trigger where tgname='live_exam_events_question_exposure' and not tgisinternal) exposure_trigger,
+        exists(select 1 from pg_indexes where schemaname='public' and indexname='live_exam_sessions_archived_by_fk_idx') archive_actor_index
     `);
     expect(result.rows[0]).toEqual({
       join_code_expires_at:true,
@@ -140,6 +142,7 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       join_code_trigger:true,
       exposure_table:true,
       exposure_trigger:true,
+      archive_actor_index:true,
     });
   });
 
