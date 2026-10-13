@@ -1705,7 +1705,7 @@ export class LiveExamService {
       const questionTimeLimitS=resolveLiveQuestionTimeLimit(
         session.settings,
         String(question.rows[0].question_id),
-        settings.defaultQuestionTimeLimitS,
+        settings.defaultQuestionTimeLimitS ?? (session.question_time_limit_s == null ? null : Number(session.question_time_limit_s)),
       );
       await client.query(
         `insert into live_exam_answers(session_question_id,participant_id)
@@ -2319,7 +2319,7 @@ export class LiveExamService {
       const questionTimeLimitS=resolveLiveQuestionTimeLimit(
         session.settings,
         String(next.rows[0].question_id),
-        settings.defaultQuestionTimeLimitS,
+        settings.defaultQuestionTimeLimitS ?? (session.question_time_limit_s == null ? null : Number(session.question_time_limit_s)),
       );
       await client.query(
         `update live_exam_sessions set status='question_open',current_question_index=$2,
