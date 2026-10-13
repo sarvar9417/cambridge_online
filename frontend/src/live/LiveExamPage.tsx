@@ -14,6 +14,7 @@ import {
   type LiveExamStatus,
   type LiveExamSummary,
   type LiveMarkScheme,
+  type LivePointFeedback,
   type User,
 } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
@@ -258,6 +259,30 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
       <summary>Original Cambridge mark scheme’ni ko‘rish</summary>
       <p>{scheme.guidanceMd}</p>
     </details>:null}
+  </section>;
+}
+
+
+function ReleasedPointFeedbackView({feedback}:{feedback?:LivePointFeedback|null}) {
+  if(!feedback)return null;
+  if(feedback.status==='unavailable'){
+    const description=feedback.reason==='teacher_override'
+      ?'O‘qituvchi yakuniy ballni qo‘lda tuzatgan. Oldingi tekshiruvdagi point belgilari bu yakuniy bahoni aks ettirmaydi.'
+      :feedback.reason==='manual_scoring'
+        ?'Ushbu savol umumiy mezon yoki level bo‘yicha baholangan; individual pointlar uchun ball alohida hisoblanmagan.'
+        :'Yakuniy ball mavjud, ammo pointlar bo‘yicha ishonchli baholash tafsiloti qayd etilmagan.';
+    return <section className="live-point-feedback" aria-label="Mark Point natijalari">
+      <h2>Mark Point natijalari</h2><p role="note">{description}</p>
+    </section>;
+  }
+  const earned=feedback.points.filter((point)=>point.credited).length;
+  return <section className="live-point-feedback" aria-label="Sizning Mark Point natijalaringiz">
+    <header><div><span className="live-eyebrow">SIZNING BAHOLASHINGIZ</span><h2>Qaysi Mark Pointlar hisobga olindi?</h2></div><strong>{earned} / {feedback.points.length} ta mezon</strong></header>
+    <p className="live-point-feedback-note">Belgilangan mezonlar haqiqiy Mark Scheme asosida tekshirilgan. Ayrim savollarda maksimal ball yoki guruh cheklovi sabab bajarilgan mezonlar soni umumiy ballga teng bo‘lmaydi.</p>
+    <ul>{feedback.points.map((point)=><li className={point.credited?'is-credited':point.matched?'is-matched':'is-missed'} key={point.id}>
+      <span className="live-point-feedback-icon" aria-hidden="true">{point.credited?'✓':point.matched?'•':'×'}</span>
+      <div><strong>{point.code}</strong><p>{point.text}</p><small>{point.credited?'Ballga hisoblangan':point.matched?'Mezon bajarilgan, lekin qo‘shimcha ball hisoblanmagan':'Ball berilmagan'}</small></div>
+    </li>)}</ul>
   </section>;
 }
 
@@ -857,8 +882,8 @@ function StudentRoom({snapshot,refresh,userId}:{snapshot:LiveExamSnapshot;refres
     </aside></div>
   </div>;
   if(session.status==='review'&&!snapshot.ownAnswer)return <section className="live-wait"><h2>Joriy savol yakunlangan</h2><p>Siz ushbu savolning baholash bosqichida qo‘shildingiz. Keyingi savol ochilishini kuting.</p></section>;
-  if(session.status==='review')return <section className="live-student-result"><ReviewQuestionContext question={snapshot.question}/><span className="live-eyebrow">SAVOL NATIJASI</span><h1>{snapshot.ownAnswer?.score??'—'} <small>/ {snapshot.question?.marks}</small></h1><p>{snapshot.ownAnswer?.feedback||'Mark scheme pointlari asosida baholandi.'}</p><div><h2>Sizning javobingiz</h2><blockquote>{snapshot.ownAnswer?.text||'Javob yozilmagan'}</blockquote></div>{snapshot.markScheme?<MarkSchemeView scheme={snapshot.markScheme}/>:null}<p className="live-wait-note">O‘qituvchi keyingi savolni ochishi kutilmoqda.</p></section>;
-  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b><div className="live-personal-answer"><strong>Sizning javobingiz</strong><p>{row.answerText||'Javob yozilmagan'}</p>{row.feedback?<small>Izoh: {row.feedback}</small>:null}</div></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
+  if(session.status==='review')return <section className="live-student-result"><ReviewQuestionContext question={snapshot.question}/><span className="live-eyebrow">SAVOL NATIJASI</span><h1>{snapshot.ownAnswer?.score??'—'} <small>/ {snapshot.question?.marks}</small></h1><p>{snapshot.ownAnswer?.feedback||'Mark scheme pointlari asosida baholandi.'}</p><div><h2>Sizning javobingiz</h2><blockquote>{snapshot.ownAnswer?.text||'Javob yozilmagan'}</blockquote></div><ReleasedPointFeedbackView feedback={snapshot.ownPointFeedback}/>{snapshot.markScheme?<details className="live-complete-scheme"><summary>To‘liq Cambridge Mark Scheme</summary><MarkSchemeView scheme={snapshot.markScheme}/></details>:null}<p className="live-wait-note">O‘qituvchi keyingi savolni ochishi kutilmoqda.</p></section>;
+  if(session.status==='finished')return <section className="live-student-result live-finished"><CheckCircle size={64} weight="fill"/><span className="live-eyebrow">SESSIYA YAKUNLANDI</span><h1>{session.title}</h1><p>{session.questionCount} ta savol bajarildi. Natijalar saqlandi.</p>{snapshot.report?<><strong className="live-total-score">{snapshot.report.earned} / {snapshot.report.possible}</strong><div className="live-report-list">{snapshot.report.rows.map((row)=><article key={`${row.questionPosition}-${row.displayRef}`}><span>Savol {row.questionPosition+1}</span><strong>{row.displayRef}</strong><b>{row.score??'—'} / {row.marks}</b><div className="live-personal-answer"><strong>Sizning javobingiz</strong><p>{row.answerText||'Javob yozilmagan'}</p>{row.feedback?<small>Izoh: {row.feedback}</small>:null}<ReleasedPointFeedbackView feedback={row.pointFeedback}/></div></article>)}</div></>:null}<button onClick={()=>navigate('oquvchi/live')}>Sessiyalarimga qaytish</button></section>;
   return <section className="live-wait"><h1>Sessiya bekor qilindi</h1><button onClick={()=>navigate('oquvchi/live')}>Ortga</button></section>;
 }
 

@@ -46,6 +46,59 @@ describe('Live session updates', () => {
     vi.unstubAllGlobals();
   });
 
+  it('shows only the learner\'s released credited and missed Mark Points', async () => {
+    const view=makeSnapshot();
+    view.markScheme={id:'scheme',schemeType:'all_required',maxMarks:2,guidanceMd:null,levels:[],groups:[],
+      points:[{id:'p1',code:'M1',text:'Correct definition',marks:1},{id:'p2',code:'M2',text:'Correct explanation',marks:1}]};
+    view.ownAnswer={id:'own-answer',text:'Only definition',wordCount:2,submittedAt:timestamp,
+      score:1,feedback:'Partly correct',scoreSource:'teacher',moderatedAt:null,updatedAt:timestamp};
+    view.ownPointFeedback={status:'available',points:[
+      {id:'p1',code:'M1',text:'Correct definition',marks:1,matched:true,credited:true},
+      {id:'p2',code:'M2',text:'Correct explanation',marks:1,matched:false,credited:false},
+    ]};
+    vi.mocked(api).mockImplementation(async url=>
+      (url.endsWith('/heartbeat')?{}:structuredClone(view)) as never);
+    window.history.replaceState(null,'','/#oquvchi/live?id=session');
+    await act(async()=>root.render(<LiveExamPage user={{id:'student',fullName:'Learner',role:'student',schoolId:null}} classes={[]}/>));
+    const breakdown=container.querySelector('[aria-label="Sizning Mark Point natijalaringiz"]')!;
+    expect(breakdown.textContent).toContain('M1');
+    expect(breakdown.textContent).toContain('Ballga hisoblangan');
+    expect(breakdown.textContent).toContain('M2');
+    expect(breakdown.textContent).toContain('Ball berilmagan');
+    expect(container.textContent).toContain('1');
+  });
+
+  it('does not display stale awarded point flags after teacher override', async () => {
+    const view=makeSnapshot();
+    view.ownAnswer={id:'own-answer',text:'Answer',wordCount:1,submittedAt:timestamp,
+      score:1,feedback:'Manual correction',scoreSource:'teacher',moderatedAt:timestamp,updatedAt:timestamp};
+    view.ownPointFeedback={status:'unavailable',reason:'teacher_override'};
+    vi.mocked(api).mockImplementation(async url=>
+      (url.endsWith('/heartbeat')?{}:structuredClone(view)) as never);
+    window.history.replaceState(null,'','/#oquvchi/live?id=session');
+    await act(async()=>root.render(<LiveExamPage user={{id:'student',fullName:'Learner',role:'student',schoolId:null}} classes={[]}/>));
+    expect(container.textContent).toContain('O‘qituvchi yakuniy ballni qo‘lda tuzatgan');
+    expect(container.textContent).not.toContain('Ballga hisoblangan');
+  });
+
+  it('shows released point feedback per question in the completed personal report', async () => {
+    const view=makeSnapshot();
+    view.session.status='finished';
+    view.report={earned:1,possible:2,rows:[{
+      questionPosition:0,displayRef:'9618/11 Q1',marks:2,answerText:'Answer',score:1,
+      feedback:'One point',scoreSource:'peer',pointFeedback:{status:'available',points:[
+        {id:'p1',code:'M1',text:'Right fact',marks:1,matched:true,credited:true},
+        {id:'p2',code:'M2',text:'Missing fact',marks:1,matched:false,credited:false},
+      ]},
+    }]};
+    vi.mocked(api).mockImplementation(async url=>
+      (url.endsWith('/heartbeat')?{}:structuredClone(view)) as never);
+    window.history.replaceState(null,'','/#oquvchi/live?id=session');
+    await act(async()=>root.render(<LiveExamPage user={{id:'student',fullName:'Learner',role:'student',schoolId:null}} classes={[]}/>));
+    expect(container.textContent).toContain('Right fact');
+    expect(container.textContent).toContain('Missing fact');
+  });
+
   it('allows consecutive feedback-only edits after a successful moderation', async () => {
     let view = makeSnapshot();
     let waitForRefresh = false;
