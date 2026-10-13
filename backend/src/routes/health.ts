@@ -24,7 +24,10 @@ export function createReadyRouter(pool: Pool | null, capabilities: Record<string
         new Promise((_, reject) => { timeout=setTimeout(() => reject(new Error('readiness_timeout')), readinessTimeoutMs()); }),
       ]);
       res.json({ status: 'ok', database: 'ok', capabilities });
-    } catch {
+    } catch (error) {
+      const code=typeof error==='object'&&error&&'code'in error?String(error.code):null;
+      const reason=error instanceof Error&&error.message==='readiness_timeout'?'timeout':'query_error';
+      console.error('Database readiness check failed',{reason,code});
       res.status(503).json({ status: 'unavailable', database: 'error' });
     } finally {
       if(timeout)clearTimeout(timeout);
