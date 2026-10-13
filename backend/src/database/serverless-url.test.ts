@@ -39,6 +39,30 @@ describe('serverlessDatabaseUrl', () => {
     expect(serverlessDatabaseUrl(input, true, 'database.example.com')).toBe(input);
   });
 
+  it('repairs a shared pooler host and tenant-qualified username from public routing config', () => {
+    const value = serverlessDatabaseUrl(
+      'postgresql://postgres:secret@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require',
+      true,
+      'aws-0-ap-southeast-1.pooler.supabase.com',
+      'mphmganorvhsnwvhcxyj',
+    );
+    const url = new URL(value);
+    expect(url.hostname).toBe('aws-0-ap-southeast-1.pooler.supabase.com');
+    expect(url.port).toBe('6543');
+    expect(url.username).toBe('postgres.mphmganorvhsnwvhcxyj');
+    expect(url.password).toBe('secret');
+  });
+
+  it('replaces a stale pooler tenant suffix instead of appending twice', () => {
+    const value = serverlessDatabaseUrl(
+      'postgresql://postgres.oldproject:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres',
+      true,
+      'aws-0-ap-southeast-1.pooler.supabase.com',
+      'mphmganorvhsnwvhcxyj',
+    );
+    expect(new URL(value).username).toBe('postgres.mphmganorvhsnwvhcxyj');
+  });
+
   it('does not rewrite local/development URLs', () => {
     const input = 'postgresql://postgres:secret@localhost:5432/campath';
     expect(serverlessDatabaseUrl(input, false, 'aws-0-eu-central-1.pooler.supabase.com')).toBe(input);
