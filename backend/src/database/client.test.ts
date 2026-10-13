@@ -1,10 +1,22 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../config.js', () => ({ config: { DATABASE_URL: 'postgresql://test:test@localhost:5432/test', NODE_ENV: 'test' } }));
+vi.mock('../config.js', () => ({ config: { DATABASE_URL: 'postgresql://test:test@localhost:5432/test', NODE_ENV: 'test', DB_POOL_MAX: 10 } }));
 
-import { pool } from './client.js';
+import { pool, resolvePoolMax } from './client.js';
 
 afterAll(async () => { await pool?.end(); });
+
+describe('Fluid Compute database pool limits', () => {
+  it.each([
+    { vercel: true, configuredMax: undefined, expected: 4 },
+    { vercel: true, configuredMax: 1, expected: 2 },
+    { vercel: true, configuredMax: 3, expected: 3 },
+    { vercel: true, configuredMax: 10, expected: 4 },
+    { vercel: false, configuredMax: 10, expected: 10 },
+  ])('chooses $expected clients for vercel=$vercel and max=$configuredMax', ({ vercel, configuredMax, expected }) => {
+    expect(resolvePoolMax(vercel, configuredMax)).toBe(expected);
+  });
+});
 
 describe('background database connection errors', () => {
   it('handles an idle disconnect without crashing or logging connection credentials', () => {
