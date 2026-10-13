@@ -73,7 +73,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     )).rows[0]!.id;
     const scheme = {
       id: '33333333-3333-4333-8333-333333333333',
-      schemeType: 'points',
+      schemeType: 'all_required',
       maxMarks: 1,
       guidanceMd: null,
       levels: [],
