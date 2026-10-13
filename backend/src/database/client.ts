@@ -1,10 +1,10 @@
 import pg from 'pg';
 import { config } from '../config.js';
-import { databaseSslOptions, isLocalDatabase } from './ssl.js';
+import { databaseSslOptions, isLocalDatabase, stripConnectionStringSslPolicy } from './ssl.js';
 import { serverlessDatabaseUrl } from './serverless-url.js';
 
 const connectionString = config.DATABASE_URL
-  ? serverlessDatabaseUrl(config.DATABASE_URL)
+  ? stripConnectionStringSslPolicy(serverlessDatabaseUrl(config.DATABASE_URL))
   : undefined;
 
 const ssl = connectionString
