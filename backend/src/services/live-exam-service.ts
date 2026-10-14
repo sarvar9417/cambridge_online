@@ -873,7 +873,7 @@ export class LiveExamService {
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
                 teacherOverrideEnabled:actor.role==='student'?false:(input.teacherOverrideEnabled ?? true),
                 leaderboardMode: input.leaderboardMode ?? 'marks',
-                displayNameMode: input.displayNameMode ?? 'anonymous_alias',
+                displayNameMode:actor.role==='student'?'anonymous_alias':(input.displayNameMode??'anonymous_alias'),
                 peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
                 peerDisagreementThreshold: Math.max(0, Number(input.peerDisagreementThreshold ?? 1)),
                 defaultQuestionTimeLimitS: input.questionTimeLimitS ?? null,
