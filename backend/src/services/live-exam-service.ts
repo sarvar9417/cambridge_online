@@ -635,7 +635,7 @@ export class LiveExamService {
       return { ids:input.questionIds.filter((id) => available.has(id)),total };
     }
     return {
-      ids:!countOnly && options.sort!=='source'
+      ids:!countOnly && options.sort!=='source' && !automaticFixed
         ? this.groupSourceQuestionParts(rows) : rows.map(row=>row.id),
       total,
     };
