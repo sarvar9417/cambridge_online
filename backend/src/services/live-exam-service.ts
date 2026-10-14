@@ -584,7 +584,12 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    const sourceOrder='candidate.year desc,candidate.series,candidate.component,candidate.sort_order,candidate.display_ref,candidate.id';
+    // A leaf's sort_order is often 1 for every root question. Extract the
+    // numeric paper question first: Q2 must sort before Q10 even in that case.
+    // Source part sort_order still determines (a)/(b)/nested ordering.
+    const sourceOrder="candidate.year desc,candidate.series,candidate.component,"
+      +"substring(candidate.display_ref from '[Qq][[:space:]]*([0-9]+)')::int nulls last,"
+      +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
     const orderClause=options.sort==='source' || automaticFixed
       ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
