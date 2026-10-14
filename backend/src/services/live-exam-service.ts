@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
@@ -55,7 +55,7 @@ export interface CreateLiveExamInput {
   series?: Array<'FM' | 'MJ' | 'ON'>;
   components?: number[];
   questionIds?: string[];
-  questionOrder?: 'fixed' | 'shuffled';
+  questionOrder?: 'fixed' | 'shuffled' | 'balanced';
   allowLateJoin?: boolean;
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
@@ -324,6 +324,30 @@ export class LiveExamService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
+  /**
+   * Keep parts of the same authentic source-paper question adjacent without
+   * mixing papers or changing the teacher's deliberately fixed manual order.
+   * The dependency closure still runs afterwards and keeps prerequisites
+   * before the dependent part.
+   */
+  private groupSourceQuestionParts(rows:Array<{
+    id:string;display_ref?:string|null;sort_order?:number|null;
+  }>) {
+    const groups=new Map<string,typeof rows>();
+    for(const row of rows){
+      const ref=String(row.display_ref??'');
+      const match=ref.match(/^(.*?\\bQ\\s*\\d+)(?=\\s*(?:\\(|$))/i);
+      const key=match ? match[1]!.replace(/\\s+/g,' ').toUpperCase() : row.id;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key)!.push(row);
+    }
+    return [...groups.values()].flatMap(group=>group.length===1?group:group.sort((a,b)=>{
+      const left=a.sort_order,right=b.sort_order;
+      if(left!=null&&right!=null&&left!==right)return left-right;
+      return String(a.display_ref??'').localeCompare(String(b.display_ref??''),undefined,{numeric:true});
+    })).map(row=>row.id);
+  }
+
   private async chooseQuestionIds(
     actor: Actor,
     input: CreateLiveExamInput,
@@ -557,21 +581,64 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    const orderClause=options.sort==='source'
-      ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
+    const sourceOrder='candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id';
+    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
+    const orderClause=options.sort==='source' || automaticFixed
+      ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
-    const result = await this.pool.query(
-      'select candidate.id,count(*) over()::int total_count from ('+candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause,
-      values,
-    );
+    const selectedSections=[...new Set(input.coursebookSectionCodes??[])];
+    const balanced=!countOnly && options.sort!=='source' && !input.questionIds?.length
+      && input.questionOrder==='balanced' && selectedSections.length>1;
+    let query='select candidate.id,candidate.display_ref,candidate.sort_order,count(*) over()::int total_count from ('
+      +candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause;
+    if(balanced){
+      // An isolated bucket for each selected Hodder section and a round-robin
+      // selection across buckets prevents large sections dominating the game.
+      // Shared questions are assigned to exactly one bucket. Rotate the bucket
+      // priority by session seed to avoid favouring the first checkbox.
+      const seed=String(values[0]);
+      const sections=selectedSections.sort((a,b)=>{
+        const hash=(code:string)=>createHash('sha256').update(seed).update(code).digest('hex');
+        return hash(a).localeCompare(hash(b));
+      });
+      const conditions=sections.map((code,index)=>{
+        const predicate=liveCoursebookQuestionFilter(values,[code],'bucket_question');
+        return `when ${predicate} then ${index}`;
+      });
+      query=`select ranked.id,ranked.display_ref,ranked.sort_order,count(*) over()::int total_count
+        from (
+          select bucketed.*,
+            row_number() over (
+              partition by bucketed.section_bucket
+              order by md5(bucketed.id::text || $1::text)
+            ) section_rank
+          from (
+            select candidate.*,
+              case ${conditions.join(' ')} else ${sections.length} end section_bucket
+            from (${candidateSql}) candidate
+            join questions bucket_question on bucket_question.id=candidate.id
+          ) bucketed
+        ) ranked
+        order by ranked.section_rank,md5(ranked.id::text || $1::text)
+        limit ${limitParameter}${offsetClause}`;
+    }
+    const result = await this.pool.query(query,values);
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    const selected = result.rows.map((row) => String(row.id));
-    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
-      const available = new Set(selected);
-      return { ids:input.questionIds.filter((id) => available.has(id)), total };
+    const rows=result.rows.map((row)=>({
+      id:String(row.id),display_ref:row.display_ref as string|null,
+      sort_order:row.sort_order==null?null:Number(row.sort_order),
+    }));
+    if (input.questionIds?.length && input.questionOrder !== 'shuffled'
+       && input.questionOrder !== 'balanced') {
+      const available = new Set(rows.map(row=>row.id));
+      return { ids:input.questionIds.filter((id) => available.has(id)),total };
     }
-    return { ids:selected, total };
+    return {
+      ids:!countOnly && options.sort!=='source'
+        ? this.groupSourceQuestionParts(rows) : rows.map(row=>row.id),
+      total,
+    };
   }
 
   private async expandRequiredDependencies(questionIds: string[]) {
