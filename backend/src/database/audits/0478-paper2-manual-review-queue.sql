@@ -1,7 +1,7 @@
 -- Read-only source-backed 0478 Paper 2 expert review queue.
 -- A needs_review status reflects nontrivial taxonomy and/or source-fidelity
 -- uncertainty. Do NOT auto-approve based on extraction confidence alone.
-SELECT q.id AS question_id, q.display_ref,sp.year,sp.series,sp.variant,
+SELECT q.id AS question_id, q.display_ref,qp.year,qp.series,qp.variant,
        q.marks,q.answer_kind::text,q.status::text,
        round(q.extract_confidence::numeric,4) extraction_confidence,
        st.code subtopic,st.title subtopic_title,lo.code lo_code,lo.text lo_text,
