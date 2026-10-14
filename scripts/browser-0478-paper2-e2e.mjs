@@ -1,0 +1,86 @@
+// Integration acceptance against an isolated, synthetic 0478 Paper 2 fixture.
+// Never run this against production; the fixture exists only in Live E2E seed.
+import process from 'node:process';
+import { createBrowserQA } from './browser-qa.mjs';
+import { createRound, finishRound, snapshot } from './browser-live-qa.mjs';
+
+for(const key of ['SEED_OWNER_USERNAME','SEED_OWNER_PASSWORD','SEED_STUDENT_PASSWORD','CHROME_EXECUTABLE_PATH']){
+  if(!process.env[key])throw new Error(`Missing 0478 browser E2E setting: ${key}`);
+}
+const qa=await createBrowserQA({
+  baseUrl:process.env.LIVE_E2E_BASE_URL??'http://localhost:5173',
+  executablePath:process.env.CHROME_EXECUTABLE_PATH,
+  outputDir:process.env.LIVE_E2E_OUTPUT_DIR??'output/live-browser-e2e',
+});
+const ref='0478/22/M/J/26 QA Q1(a)';
+try{
+  const teacher=await qa.login(process.env.SEED_OWNER_USERNAME,process.env.SEED_OWNER_PASSWORD,'0478 teacher');
+  const student=await qa.login('student01',process.env.SEED_STUDENT_PASSWORD,'0478 student');
+  const classes=await teacher.page.evaluate(async()=>{
+    const {api}=await import('/src/lib/api.ts');
+    return api('/classes');
+  });
+  const classId=classes.data.find(item=>item.name==='10-A CS')?.id;
+  await qa.check('0478: existing 9618 test class can host formative Paper 2',Boolean(classId));
+
+  const publicTopics=await student.page.evaluate(async()=>{
+    const {api}=await import('/src/lib/api.ts');
+    return api('/live-exams/sections');
+  });
+  await qa.check('0478: student gets only public Paper 2 syllabus taxonomy',
+    publicTopics.topics.some(item=>item.syllabus_code==='0478'&&item.code==='8.1'
+      &&item.topic_number===8&&item.component===2)
+    && publicTopics.topics.every(item=>item.syllabus_code==='0478'&&item.component===2));
+
+  const eligibility=await teacher.page.evaluate(async classId=>{
+    const {api}=await import('/src/lib/api.ts');
+    const params=new URLSearchParams({
+      classId,syllabusCode:'0478',topicIds:'',subtopicIds:'',
+      coursebookSectionCodes:'',components:'2',includeDiagrams:'true',
+      excludeSeen:'false',limit:'15',
+    });
+    return api(`/live-exams/eligible-questions?${params}`);
+  },classId);
+  await qa.check('0478: full-schema readiness includes source-scoped Paper 2 fixture',
+    eligibility.data.some(item=>item.displayRef===ref&&item.component===2)
+      &&eligibility.data.every(item=>item.component===2),eligibility);
+
+  const id=await createRound(qa,teacher,[student],{
+    classId,mode:'teacher',title:`0478 Paper 2 browser QA ${Date.now()}`,
+    syllabusCode:'0478',displayRef:ref,excludeSeen:false,questionCount:1,
+  });
+  const marking=await snapshot(teacher.page,id);
+  await qa.check('0478: live question source and manual-only mark scheme frozen',
+    marking.question?.displayRef===ref
+      && marking.markScheme?.schemeType==='manual_only'
+      && marking.markScheme.maxMarks===2
+      && marking.markScheme.points.length===0,
+    {displayRef:marking.question?.displayRef,scheme:marking.markScheme?.schemeType});
+  await qa.waitText(student.page,'OFFICIAL MARK SCHEME');
+
+  const final=await finishRound(qa,teacher,[student],id,'teacher');
+  await qa.check('0478: teacher-assessed marks released on completion',
+    final.session.status==='finished'
+      && final.report.rows.length===1
+      && final.report.rows[0]?.marks===2
+      && final.report.rows[0]?.score===2,
+    {status:final.session.status,rows:final.report.rows});
+  // Verify a different 9618 coursebook session cannot reuse our IGCSE fixture.
+  const wrong=await teacher.page.evaluate(async ({classId,questionId})=>{
+    const {api}=await import('/src/lib/api.ts');
+    try{
+      await api('/live-exams/selection-preview',{method:'POST',body:JSON.stringify({
+        classId,syllabusCode:'9618',topicIds:[],subtopicIds:[],
+        coursebookSectionCodes:['1.1'],includeDiagrams:true,excludeSeen:false,
+        questionIds:[questionId],questionOrder:'fixed',
+      })});
+      return 'accepted';
+    }catch(error){return error.code??'error';}
+  },{classId,questionId:eligibility.data.find(item=>item.displayRef===ref)?.id});
+  await qa.check('0478: manual injection into 9618 Chapter 1 is rejected',wrong!=='accepted',{wrong});
+
+  const pageErrors=qa.report.pageErrors??[];
+  await qa.check('0478: browser error-free',pageErrors.length===0,{pageErrors});
+}finally{
+  await qa.finish();
+}
