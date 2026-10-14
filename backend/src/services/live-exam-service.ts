@@ -336,8 +336,8 @@ export class LiveExamService {
     const groups=new Map<string,typeof rows>();
     for(const row of rows){
       const ref=String(row.display_ref??'');
-      const match=ref.match(/^(.*?\\bQ\\s*\\d+)(?=\\s*(?:\\(|$))/i);
-      const key=match ? match[1]!.replace(/\\s+/g,' ').toUpperCase() : row.id;
+      const match=ref.match(/^(.*?\bQ\s*\d+)(?=\s*(?:\(|$))/i);
+      const key=match ? match[1]!.replace(/\s+/g,' ').toUpperCase() : row.id;
       if(!groups.has(key))groups.set(key,[]);
       groups.get(key)!.push(row);
     }
