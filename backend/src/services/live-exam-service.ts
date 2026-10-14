@@ -8,7 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-point-feedback.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
-import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
@@ -603,25 +603,44 @@ export class LiveExamService {
         const hash=(code:string)=>createHash('sha256').update(seed).update(code).digest('hex');
         return hash(a).localeCompare(hash(b));
       });
+      const chapterBySection=new Map(
+        resolveLiveCoursebookSections(sections).map(section=>[section.code,section.chapterNumber]),
+      );
       const conditions=sections.map((code,index)=>{
         const predicate=liveCoursebookQuestionFilter(values,[code],'bucket_question');
         return `when ${predicate} then ${index}`;
       });
+      const chapterCases=sections.map((code,index)=>
+        `when ${index} then ${chapterBySection.get(code)}`
+      );
+      // Chapter is the outer fairness unit: selecting more sections in one
+      // chapter must not make that chapter dominate the challenge. Within each
+      // chapter rotate among its ready sections; finally rotate chapters.
+      // The one-section ownership CASE ensures an overlapping source question
+      // never occupies two buckets or appears twice.
       query=`select ranked.id,ranked.display_ref,ranked.sort_order,count(*) over()::int total_count
         from (
-          select bucketed.*,
+          select sectioned.*,
             row_number() over (
-              partition by bucketed.section_bucket
-              order by md5(bucketed.id::text || $1::text)
-            ) section_rank
+              partition by sectioned.chapter_bucket
+              order by sectioned.section_rank,md5(sectioned.id::text || $1::text)
+            ) chapter_rank
           from (
-            select candidate.*,
-              case ${conditions.join(' ')} else ${sections.length} end section_bucket
-            from (${candidateSql}) candidate
-            join questions bucket_question on bucket_question.id=candidate.id
-          ) bucketed
+            select bucketed.*,
+              case bucketed.section_bucket ${chapterCases.join(' ')} else -1 end chapter_bucket,
+              row_number() over (
+                partition by bucketed.section_bucket
+                order by md5(bucketed.id::text || $1::text)
+              ) section_rank
+            from (
+              select candidate.*,
+                case ${conditions.join(' ')} else ${sections.length} end section_bucket
+              from (${candidateSql}) candidate
+              join questions bucket_question on bucket_question.id=candidate.id
+            ) bucketed
+          ) sectioned
         ) ranked
-        order by ranked.section_rank,md5(ranked.id::text || $1::text)
+        order by ranked.chapter_rank,md5(ranked.id::text || $1::text)
         limit ${limitParameter}${offsetClause}`;
     }
     const result = await this.pool.query(query,values);
