@@ -144,6 +144,8 @@ def discover_manifest() -> list[dict[str, Any]]:
             if year != folder_year:
                 raise RuntimeError(f"year_folder_mismatch:{folder_year}:{name}")
             component, variant = int(paper[0]), int(paper[1])
+            if component != 2:
+                continue  # Paper 1 is deliberately out of scope.
             item = {
                 "year": year,
                 "series": SERIES[series_letter.lower()],
@@ -254,18 +256,59 @@ def answer_kind(stem: str) -> str:
     return "text"
 
 
+
+def source_fidelity_blockers(stem: str, guidance: str) -> list[str]:
+    """Conservative blockers for known PDF artefacts; never auto-approve a polluted stem."""
+    findings: list[str] = []
+    if re.search(r"DO\s+NOT\s+WRITE\s+IN\s+THIS\s+MARGIN", stem, re.I):
+        findings.append("qp_margin_text")
+    if re.search(r"\\\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", stem, re.I):
+        findings.append("qp_control_or_replacement_chars")
+    if re.search(r"DO\s+NOT\s+WRITE\s+IN\s+THIS\s+MARGIN", guidance, re.I):
+        findings.append("ms_margin_text")
+    if re.search(r"\\\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", guidance, re.I):
+        findings.append("ms_control_or_replacement_chars")
+    # A plain text stem is not evidence that a diagram/trace-table image survived.
+    if answer_kind(stem) in ("diagram", "table"):
+        findings.append("requires_verified_structured_visual")
+    return findings
+
+
 def main() -> int:
-    report: dict[str, Any] = {"started_at": time.time(), "manifest": {}, "papers": [], "failures": []}
+    mode = os.environ.get("BACKFILL_MODE", "audit").strip().lower()
+    if mode not in ("audit", "apply"):
+        raise RuntimeError("invalid_backfill_mode")
+    if os.environ.get("BACKFILL_COMPONENTS", "2").strip() != "2":
+        raise RuntimeError("0478_paper2_only")
+    report: dict[str, Any] = {
+        "started_at": time.time(), "mode": mode, "component": 2,
+        "manifest": {}, "papers": [], "failures": [],
+    }
+    # A dry-run must not call any write RPC, including catalog or source staging.
+    manifest = discover_manifest()
+    pairs = audit_pairs(manifest)
+    report["manifest"] = {
+        "canonical_sources": len(manifest), "paired_papers": len(pairs),
+        "years": sorted({x["year"] for x in manifest}), "components": [2],
+    }
+    print(f"[0478 Paper 2] mode={mode} canonical sources={len(manifest)} paired papers={len(pairs)}", flush=True)
+    if mode == "audit":
+        report["finished_at"] = time.time()
+        Path("0478-backfill-report.json").write_text(
+            json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8",
+        )
+        return 0
+
+    if os.environ.get("BACKFILL_CONFIRM", "") != "I_APPROVE_0478_PAPER2_DB_WRITES":
+        raise RuntimeError("explicit_paper2_database_write_approval_required")
+    if os.environ.get("GITHUB_REF", "") != "refs/heads/main":
+        raise RuntimeError("apply_must_run_on_main")
+
     report["catalogs"] = []
     for catalog in catalog_payloads():
         version = str(catalog.get("versionLabel", "unknown"))
-        print(f"[0478] importing/checking syllabus catalog {version}", flush=True)
+        print(f"[0478 Paper 2] importing/checking syllabus catalog {version}", flush=True)
         report["catalogs"].append(runner("catalog", catalog=catalog).get("result"))
-
-    manifest = discover_manifest()
-    pairs = audit_pairs(manifest)
-    report["manifest"] = {"canonical_sources": len(manifest), "paired_papers": len(pairs), "years": sorted({x["year"] for x in manifest})}
-    print(f"[0478] canonical sources={len(manifest)} paired papers={len(pairs)}", flush=True)
 
     for batch_no, batch in enumerate(batches(manifest, 8), 1):
         print(f"[0478] stage batch {batch_no}", flush=True)
@@ -300,6 +343,9 @@ def main() -> int:
             for row in rows:
                 stem = str(row.get("stem") or "").strip()
                 guidance = str(row.get("guidance") or "").strip()
+                blockers = source_fidelity_blockers(stem, guidance)
+                if blockers:
+                    raise RuntimeError(f"source_fidelity_block:{row['path']}:{','.join(blockers)}")
                 taxonomy = classify(stem + "\n" + guidance, coverage)
                 if float(taxonomy["confidence"]) < 0.72:
                     low += 1
