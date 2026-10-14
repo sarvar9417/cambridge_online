@@ -15,8 +15,8 @@ describe('0478 Paper 2 Live Challenge isolation',()=>{
     expect(routes).toContain('syllabusCode:query.syllabusCode');
   });
   it('filters by source syllabus, and 0478 only by Paper 2, in count and candidate SQL',()=>{
-    expect(service).toContain("source_syllabus.code=${syllabusParameter}");
-    expect(service).toContain("source_syllabus.code=$1");
+    expect(service).toContain("source_syllabus.code=\'0478\'");
+    expect(service).toContain("source_syllabus.code=\'9618\'");
     expect(service.match(/source_component.number=2/g)?.length).toBeGreaterThanOrEqual(2);
     expect(service).toContain("syllabusCode==='0478'");
     expect(service).toContain("'live_0478_paper2_only'");
