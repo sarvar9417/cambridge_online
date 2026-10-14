@@ -1,0 +1,52 @@
+0478 PAPER 2 LIVE DATABASE REPAIR RESULTS — 2026-10-14
+
+Scope: connected cambridge_online Supabase, syllabus 0478, component 2 only.
+NO production app deployment or PR merge. Database DML was explicitly requested.
+
+Executed database repairs (idempotent, audit logged):
+1. 128 contaminated stem_md values replaced with anchored source-transcribed
+   content_json, matching QP source UUID, SHA256 and the first 25 normalized
+   characters. Saved old/new values and hashes to question_source_repair_history.
+2. 20 more contaminated stem_md values restored from content_json where the
+   normalized source prompt beginning or ending matched the old leaf.
+3. One final corrupted stem 0478/21/O/N/25 Q4(c)(ii) repaired after separate
+   exact source reference, task phrase and source SHA matching.
+   TOTAL: 149/149 previously detected margin-contaminated stems cleaned.
+   Post-write audit: 149 history records; 0 contain margin text in replacement;
+   0 replacement hash mismatches; 0 changed again.
+4. Corrected 10 unsupported "table" answer_kind classifications using source
+   prompt task, 9 to text and 1 SQL code; preserved marks and metadata;
+   10 audit_log records.
+5. Blocked 3 input-visual question defects until genuine source diagrams are
+   attached, using validation_findings/severity=error:
+   - 0478/21/M/J/26 Q8(a) original circuit figure (source QP page 7)
+   - 0478/21/O/N/23 Q7(a) original circuit figure (source QP page 6)
+   - 0478/22/O/N/24 Q3(a) original flowchart-symbol figures (page 2)
+   These findings DO NOT represent repaired or attached assets.
+
+Still open:
+- 306 0478 Paper 2 needs_review leaves, unchanged intentionally. Their low
+  automatic taxonomy confidence is NOT review evidence, and approving them
+  without direct QP/MS/LO checks would be unsafe.
+- The 306 are now in a source-linked read-only review report, priorities:
+    P0 short/missing source stem 4
+    P1 visual response review 8
+    P2 code/LO review 110
+    P3 short source/LO review 97
+    P4 taxonomy/mark scheme review 87
+- 24 QP records still do not have question rows (not in this repair request).
+- Direct-asset-absence metric dropped from 39 to 29 through 10 answer-kind
+  corrections. Direct-asset absence is NOT the same as an actually missing
+  input visual. The 3 confirmed missing input figures remain unresolved.
+- Source PDF figure crops, manual 306 LO assignments, and true mark scheme
+  point-level review are necessary before claiming full completion.
+
+Release safety:
+- All database repairs are recorded in GitHub branch
+  feature/0478-paper2-safe-audit-20261014, draft PR #360.
+- App production branch/deployment was not changed.
+- Existing question IDs, QP/MS source identities, marks, classification
+  relationships, mark schemes and original status were not overwritten
+  except for the 10 evidence-backed answer_kind corrections.
+- Existing Live readiness cache was stale even before the work. The app has
+  a dynamic fallback when cache_revision != corpus_revision.
