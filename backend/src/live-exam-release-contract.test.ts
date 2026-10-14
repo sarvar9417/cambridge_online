@@ -216,7 +216,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(service).toContain("lep.student_id=$2 and lep.left_at is null");
     expect(service).toContain('updatedAt: row.updated_at');
     expect(service).toContain('const matched = computed.effectiveMatched[point.code] === true;');
-    expect(service).toContain('[reviewId, point.id, matched, matched ? point.marks : 0]');
+    expect(service).toContain('[reviewId, point.id, matched, awarded]');
+    expect(service).toContain('creditedIds.has(point.id)');
   });
 
   it('keeps auto-close responses and review attribution authoritative',()=>{
