@@ -1,13 +1,17 @@
 import { createHash } from 'node:crypto';
 
 /**
- * Deterministic, conservative correction for imported Cambridge mark schemes
- * where an explicit "1 mark for each (correct) point/term" rubric has been
- * collapsed to one manual-only M1 carrying every mark.
+ * Cambridge mark scheme extracts sometimes compress several distinct mark
+ * points into a single "manual_only" M1 worth all available marks.
  *
- * Never infer an assessment rule from punctuation, a worked example, an
- * answer's length or marks alone. Unsupported/rule-dependent rubrics stay
- * manual-only, with the official source text unchanged.
+ * Do NOT infer independent scoring from an OCR'd "1 mark for each" phrase:
+ * PDF multi-column reading order mixes examiner restrictions and solutions.
+ * Each entry below was individually audited against its captured source
+ * guidance. Both display reference and the exact guidance fingerprint must
+ * match before a new Live session receives the derived point rubric.
+ *
+ * Expanding coverage requires reviewing each source in its original layout.
+ * Unlisted, revised, alternative or ambiguous rubrics retain manual marking.
  */
 export interface ExplicitPoint {
   id:string;code:string;text:string;marks:number;accept:unknown;reject:unknown;
@@ -24,40 +28,73 @@ export interface ExplicitScheme {
   derivedFromGuidance?:boolean;
 }
 
+interface AuditedRubric {
+  /** MD5 is only a content-revision fingerprint, not a security credential. */
+  guidanceMd5:string;
+  maxMarks:number;
+  criteria:readonly string[];
+}
+
+/** Individually verified 9618 source references and independent credit items. */
+const APPROVED_RUBRICS:Readonly<Record<string,AuditedRubric>>={
+  '9618/11/M/J/26 Q4(a)':{
+    guidanceMd5:'c4f7e73163f727b21dac87e64bbe5ab0',
+    maxMarks:4,
+    criteria:[
+      'CUSTOMER BORROW is a one-to-many relationship (1:M)',
+      'TOY_INSTANCE to TOY is a many-to-one relationship (M:1)',
+      'Identify the correct Primary Key and matching Foreign Key in both relationships',
+      'State how the keys form the relationship',
+    ],
+  },
+  '9618/11/M/J/26 Q5(a)':{
+    guidanceMd5:'950550f5d580c48e34193a96c686540c',
+    maxMarks:3,
+    criteria:[
+      'The image is made of pixels',
+      'Each pixel has one colour',
+      'Each colour has a unique binary code',
+      'The code for the colour of each pixel is stored in sequence / order',
+    ],
+  },
+  '9618/11/M/J/26 Q5(b)':{
+    guidanceMd5:'106fb96b0876d46896c82710b814cd35',
+    maxMarks:3,
+    criteria:[
+      'drawing object',
+      'property',
+      'drawing list',
+    ],
+  },
+  '9618/12/M/J/26 Q6(a)':{
+    guidanceMd5:'d2392b53b506fd7958465fbbb9c96142',
+    maxMarks:3,
+    criteria:[
+      'It only has one function, to monitor health',
+      'All the hardware, such as sensors and a microprocessor, is dedicated to monitoring health',
+      'The firmware cannot be easily amended or updated because its function is preset',
+    ],
+  },
+};
+
 function stableUuid(namespace:string,ordinal:number) {
   const hash=createHash('sha256').update(namespace).update(':').update(String(ordinal)).digest('hex');
-  // A stable version-5-shaped UUID; no persistence beyond the session snapshot
-  // and no database data edits are required.
   return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
 }
 
-function extractExplicitCriteria(guidance:string,maxMarks:number):string[]|null {
-  if(!Number.isInteger(maxMarks)||maxMarks<2||maxMarks>12)return null;
-  // Only the very explicit one-mark-per-independent-item Cambridge wording.
-  if(!/\b1\s+mark\s+for\s+each\s+(?:(?:correct|valid|suitable)\s+)?(?:point|term)\b/i.test(guidance))return null;
-  // These rules tie marks to pairs, options, ordering, levels or choices.
-  if(/(?:\b(?:per|for)\s+(?:matching|corresponding)\b|\bjustification\s+must\s+match\b|\bno\s+mix\s+and\s+match\b|\b(?:two|2)\s*[×x]\s*(?:two|2)\b|\b(?:wrong|incorrect)\s+order\b|\bmark\s+for\s+(?:an|a)\s+(?:appropriate|valid)\s+(?:expansion|description|explanation)\b)/i.test(guidance))return null;
-  const lines=guidance.split(/\r?\n/);
-  const bullets=lines
-    .map(line=>/^\s*[•●▪]\s*(.+?)\s*$/.exec(line)?.[1]?.trim())
-    .filter((line):line is string=>Boolean(line&&line.length>=5));
-  if(bullets.length<maxMarks||bullets.length>12)return null;
-  // Empty boilerplate or example/sample lists are not awardable criteria.
-  if(bullets.some(line=>/^(?:example(?:s)?|accept|reject|note|do not accept|or\b)/i.test(line)))return null;
-  if(new Set(bullets.map(x=>x.toLowerCase())).size!==bullets.length)return null;
-  return bullets;
-}
-
-export function expandExplicitLiveMarkPoints<T extends ExplicitScheme>(scheme:T):T {
+export function expandExplicitLiveMarkPoints<T extends ExplicitScheme>(
+  scheme:T,sourceReference:string,
+):T {
   if(scheme.schemeType!=='manual_only'
       ||scheme.points.length!==1||scheme.groups.length!==0||scheme.levels.length!==0
-      ||scheme.points[0]!.marks!==scheme.maxMarks)return scheme;
-  const official=scheme.guidanceMd?.trim();
-  if(!official)return scheme;
-  const criteria=extractExplicitCriteria(official,scheme.maxMarks);
-  if(!criteria)return scheme;
-  const groupId=criteria.length>scheme.maxMarks?stableUuid(scheme.id,0):null;
-  const points=criteria.map((text,index):ExplicitPoint=>({
+      ||scheme.points[0]!.marks!==scheme.maxMarks
+      ||!scheme.guidanceMd)return scheme;
+  const audited=APPROVED_RUBRICS[sourceReference];
+  if(!audited || audited.maxMarks!==scheme.maxMarks)return scheme;
+  const hash=createHash('md5').update(scheme.guidanceMd,'utf8').digest('hex');
+  if(hash!==audited.guidanceMd5)return scheme;
+  const groupId=audited.criteria.length>scheme.maxMarks?stableUuid(scheme.id,0):null;
+  const points=audited.criteria.map((text,index):ExplicitPoint=>({
     id:stableUuid(scheme.id,index+1),code:`MP${index+1}`,text,marks:1,
     accept:[],reject:[],requires:[],isBod:false,groupId,
   }));
