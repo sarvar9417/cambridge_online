@@ -196,7 +196,11 @@ export class LiveExamService {
            select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
          )))
          or ($2='student' and les.host_id=$4 and c.school_id=$3
-           and les.settings->>'practiceMode' in ('solo','group','collaborative'))
+           and les.settings->>'practiceMode' in ('solo','group','collaborative')
+           and c.archived_at is null
+           and exists(select 1 from enrollments host_membership
+             where host_membership.class_id=les.class_id
+               and host_membership.student_id=$4 and host_membership.left_at is null))
        )
        for update of les`,
       [sessionId, actor.role, actor.schoolId, actor.id],
