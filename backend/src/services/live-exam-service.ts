@@ -993,7 +993,8 @@ export class LiveExamService {
              'infinity'::timestamptz
            ) > now() and (
            les.status='lobby'
-           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+           or (les.status='question_open' and les.settings->>'practiceMode' is null
+             and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
          -- Concurrent learners may validate the same room together. Start,
          -- cancel and other state transitions still wait for every join to
@@ -1852,6 +1853,8 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      if((session.settings as {practiceMode?:string}|null)?.practiceMode)
+        throw new DomainError('live_practice_roster_locked',409);
       this.assertExpectedVersion(session, expectedVersion);
       if (!['lobby','question_open','marking','review'].includes(String(session.status))) {
         throw new DomainError('live_invalid_state', 409);
