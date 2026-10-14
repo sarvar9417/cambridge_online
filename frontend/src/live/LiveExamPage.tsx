@@ -239,6 +239,9 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
 }) {
   const groupedManualRubric=scheme.schemeType==='manual_only'
     && scheme.points.length===1 && scheme.points[0]!.marks>1;
+  // A composite/levels/manual scheme must NEVER show a checkbox pretending
+  // to award a whole multi-mark rubric. Such answers use the numeric score.
+  const canCheckPoint=interactive&&!schemeNeedsManualScore(scheme);
   const oneMarkPerPoint=scheme.points.length>0&&scheme.points.every((point)=>point.marks===1);
   const compactRule=scheme.groups.length===1&&oneMarkPerPoint
     ?`Har bir to‘g‘ri band uchun 1 ball · Maksimum ${scheme.groups[0]!.maxMarks} ball`
@@ -259,8 +262,8 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
     </p>:null}
     {scheme.levels.length?<div className="live-scheme-levels"><h3>Levels of response</h3>{scheme.levels.map((level)=><article key={level.id}><header><strong>Level {level.levelNumber}</strong><b>{level.minMarks}–{level.maxMarks} ball</b></header><p>{level.descriptorMd}</p>{level.indicativeContentMd?<small>{level.indicativeContentMd}</small>:null}</article>)}</div>:null}
     <div className="live-scheme-points">
-      {scheme.points.map((point,index)=><label className={selected?.has(point.id)?'is-selected':''} key={point.id}>
-        {interactive?<input type="checkbox" checked={selected?.has(point.id)??false} onChange={()=>onToggle?.(point.id)}/>:<b>{index+1}</b>}
+      {scheme.points.map((point,index)=><label className={canCheckPoint&&selected?.has(point.id)?'is-selected':''} key={point.id}>
+        {canCheckPoint?<input type="checkbox" checked={selected?.has(point.id)??false} onChange={()=>onToggle?.(point.id)}/>:<b>{index+1}</b>}
         <span><strong>{groupedManualRubric?'Umumiy baholash mezoni':point.code}</strong>{point.text}{markSchemeNotes(point.accept).map((note,noteIndex)=><small className="live-ms-note is-accept" key={`a-${noteIndex}`}>Accept: {note}</small>)}{markSchemeNotes(point.reject).map((note,noteIndex)=><small className="live-ms-note is-reject" key={`r-${noteIndex}`}>Reject: {note}</small>)}</span><i>{groupedManualRubric?`0–${point.marks}`:point.marks}</i>
       </label>)}
       {!scheme.points.length?<p>Bu savol umumiy ball bilan baholanadi.</p>:null}
