@@ -27,9 +27,9 @@ describe('Live dynamic question count',()=>{
   });
 
   it('recalculates availability from class, coursebook section and Live filters',()=>{
-    expect(page).toContain('coursebookSectionCodes:coursebookSectionCodes.join');
+    expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join");
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('[selectedClassId,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]');
+    expect(page).toContain('[selectedClassId,syllabusCode,selected0478SubtopicIds,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]');
   });
 });
