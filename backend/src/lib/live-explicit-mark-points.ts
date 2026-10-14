@@ -20,7 +20,7 @@ export interface ExplicitGroup {
 export interface ExplicitScheme {
   id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;
   points:ExplicitPoint[];groups:ExplicitGroup[];
-  levels:unknown[];
+  levels:Array<{levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd?:string|null}>;
 }
 
 function stableUuid(namespace:string,ordinal:number) {
