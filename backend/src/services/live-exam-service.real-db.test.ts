@@ -422,7 +422,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       'select final_score from live_exam_answers where session_question_id=$1',
       [sessionQuestionId],
     )).rows[0]!;
-    expect(final.final_score).toBe(3);
+    expect(Number(final.final_score)).toBe(3);
   });
 
   it('does not let a learner create a staff-controlled Live session',async()=>{
