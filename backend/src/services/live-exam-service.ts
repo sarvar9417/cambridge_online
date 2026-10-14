@@ -103,6 +103,7 @@ type MarkSchemeSnapshot = {
     indicativeContentMd: string | null;
   }>;
   points: MarkSchemePointSnapshot[];
+  derivedFromGuidance?:boolean;
   groups: Array<{
     id: string;
     label: string | null;
