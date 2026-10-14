@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
@@ -8,7 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-point-feedback.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
-import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
@@ -16,6 +16,14 @@ import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibr
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
 export const QUESTION_DEADLINE_GRACE_S = 10;
+// In many extracted Cambridge papers every leaf has sort_order=1 because that
+// column describes its position within a root. Natural numeric Q ordering
+// must precede this local part order (otherwise Q10 precedes Q2).
+export const LIVE_FIXED_SOURCE_ORDER_SQL=
+  "candidate.year desc,candidate.series,candidate.component,"
+  +"substring(candidate.display_ref from '[Qq][[:space:]]*([0-9]+)')::int nulls last,"
+  +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
+
 
 export function resolveLiveQuestionTimeLimit(
   settings: unknown,
@@ -56,7 +64,7 @@ export interface CreateLiveExamInput {
   series?: Array<'FM' | 'MJ' | 'ON'>;
   components?: number[];
   questionIds?: string[];
-  questionOrder?: 'fixed' | 'shuffled';
+  questionOrder?: 'fixed' | 'shuffled' | 'balanced';
   allowLateJoin?: boolean;
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
@@ -354,6 +362,30 @@ export class LiveExamService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
+  /**
+   * Keep parts of the same authentic source-paper question adjacent without
+   * mixing papers or changing the teacher's deliberately fixed manual order.
+   * The dependency closure still runs afterwards and keeps prerequisites
+   * before the dependent part.
+   */
+  private groupSourceQuestionParts(rows:Array<{
+    id:string;display_ref?:string|null;sort_order?:number|null;
+  }>) {
+    const groups=new Map<string,typeof rows>();
+    for(const row of rows){
+      const ref=String(row.display_ref??'');
+      const match=ref.match(/^(.*?\bQ\s*\d+)(?=\s*(?:\(|$))/i);
+      const key=match ? match[1]!.replace(/\s+/g,' ').toUpperCase() : row.id;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key)!.push(row);
+    }
+    return [...groups.values()].flatMap(group=>group.length===1?group:group.sort((a,b)=>{
+      const left=a.sort_order,right=b.sort_order;
+      if(left!=null&&right!=null&&left!==right)return left-right;
+      return String(a.display_ref??'').localeCompare(String(b.display_ref??''),undefined,{numeric:true});
+    })).map(row=>row.id);
+  }
+
   private async chooseQuestionIds(
     actor: Actor,
     input: CreateLiveExamInput,
@@ -365,7 +397,10 @@ export class LiveExamService {
     // syllabus-safe readiness resolution and optional seen-question filtering.
     // Manual pool browsing uses deterministic source order while room creation
     // keeps the existing seeded random selection behavior.
-    const sourceOrdered = !countOnly && options.sort === 'source';
+    // Automatic Fixed uses source ordering and must not bind a random seed:
+    // PostgreSQL rejects an unused $1 parameter (42P18).
+    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
+    const sourceOrdered = !countOnly && (options.sort === 'source' || automaticFixed);
     const values: unknown[] = countOnly || sourceOrdered
       ? [input.classId]
       : [options.seed ?? randomUUID(), input.classId];
@@ -587,21 +622,82 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    const orderClause=options.sort==='source'
-      ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
+    const sourceOrder=LIVE_FIXED_SOURCE_ORDER_SQL;
+    const orderClause=options.sort==='source' || automaticFixed
+      ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
-    const result = await this.pool.query(
-      'select candidate.id,count(*) over()::int total_count from ('+candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause,
-      values,
-    );
+    const selectedSections=[...new Set(input.coursebookSectionCodes??[])];
+    const balanced=!countOnly && options.sort!=='source' && !input.questionIds?.length
+      && input.questionOrder==='balanced' && selectedSections.length>1;
+    let query='select candidate.id,candidate.display_ref,candidate.sort_order,count(*) over()::int total_count from ('
+      +candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause;
+    if(balanced){
+      // An isolated bucket for each selected Hodder section and a round-robin
+      // selection across buckets prevents large sections dominating the game.
+      // Shared questions are assigned to exactly one bucket. Rotate the bucket
+      // priority by session seed to avoid favouring the first checkbox.
+      const seed=String(values[0]);
+      const sections=selectedSections.sort((a,b)=>{
+        const hash=(code:string)=>createHash('sha256').update(seed).update(code).digest('hex');
+        return hash(a).localeCompare(hash(b));
+      });
+      const chapterBySection=new Map(
+        resolveLiveCoursebookSections(sections).map(section=>[section.code,section.chapterNumber]),
+      );
+      const conditions=sections.map((code,index)=>{
+        const predicate=liveCoursebookQuestionFilter(values,[code],'bucket_question');
+        return `when ${predicate} then ${index}`;
+      });
+      const chapterCases=sections.map((code,index)=>
+        `when ${index} then ${chapterBySection.get(code)}`
+      );
+      // Chapter is the outer fairness unit: selecting more sections in one
+      // chapter must not make that chapter dominate the challenge. Within each
+      // chapter rotate among its ready sections; finally rotate chapters.
+      // The one-section ownership CASE ensures an overlapping source question
+      // never occupies two buckets or appears twice.
+      query=`select ranked.id,ranked.display_ref,ranked.sort_order,count(*) over()::int total_count
+        from (
+          select sectioned.*,
+            row_number() over (
+              partition by sectioned.chapter_bucket
+              order by sectioned.section_rank,md5(sectioned.id::text || $1::text)
+            ) chapter_rank
+          from (
+            select bucketed.*,
+              case bucketed.section_bucket ${chapterCases.join(' ')} else -1 end chapter_bucket,
+              row_number() over (
+                partition by bucketed.section_bucket
+                order by md5(bucketed.id::text || $1::text)
+              ) section_rank
+            from (
+              select candidate.*,
+                case ${conditions.join(' ')} else ${sections.length} end section_bucket
+              from (${candidateSql}) candidate
+              join questions bucket_question on bucket_question.id=candidate.id
+            ) bucketed
+          ) sectioned
+        ) ranked
+        order by ranked.chapter_rank,md5(ranked.id::text || $1::text)
+        limit ${limitParameter}${offsetClause}`;
+    }
+    const result = await this.pool.query(query,values);
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    const selected = result.rows.map((row) => String(row.id));
-    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
-      const available = new Set(selected);
-      return { ids:input.questionIds.filter((id) => available.has(id)), total };
+    const rows=result.rows.map((row)=>({
+      id:String(row.id),display_ref:row.display_ref as string|null,
+      sort_order:row.sort_order==null?null:Number(row.sort_order),
+    }));
+    if (input.questionIds?.length && input.questionOrder !== 'shuffled'
+       && input.questionOrder !== 'balanced') {
+      const available = new Set(rows.map(row=>row.id));
+      return { ids:input.questionIds.filter((id) => available.has(id)),total };
     }
-    return { ids:selected, total };
+    return {
+      ids:!countOnly && options.sort!=='source' && !automaticFixed
+        ? this.groupSourceQuestionParts(rows) : rows.map(row=>row.id),
+      total,
+    };
   }
 
   private async expandRequiredDependencies(questionIds: string[]) {
@@ -813,6 +909,8 @@ export class LiveExamService {
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
+    if(input.questionIds?.length && input.questionOrder==='balanced')
+      throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -2661,6 +2759,7 @@ export class LiveExamService {
   private settings(value: unknown) {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
+      questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       allowLateJoin: raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
