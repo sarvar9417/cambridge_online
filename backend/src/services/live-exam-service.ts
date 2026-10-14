@@ -16,6 +16,13 @@ import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibr
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
 export const QUESTION_DEADLINE_GRACE_S = 10;
+// In many extracted Cambridge papers every leaf has sort_order=1 because that
+// column describes its position within a root. Natural numeric Q ordering
+// must precede this local part order (otherwise Q10 precedes Q2).
+export const LIVE_FIXED_SOURCE_ORDER_SQL=
+  "candidate.year desc,candidate.series,candidate.component,"
+  +"substring(candidate.display_ref from '[Qq][[:space:]]*([0-9]+)')::int nulls last,"
+  +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
 
 export function resolveLiveQuestionTimeLimit(
   settings: unknown,
@@ -584,12 +591,7 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    // A leaf's sort_order is often 1 for every root question. Extract the
-    // numeric paper question first: Q2 must sort before Q10 even in that case.
-    // Source part sort_order still determines (a)/(b)/nested ordering.
-    const sourceOrder="candidate.year desc,candidate.series,candidate.component,"
-      +"substring(candidate.display_ref from '[Qq][[:space:]]*([0-9]+)')::int nulls last,"
-      +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
+    const sourceOrder=LIVE_FIXED_SOURCE_ORDER_SQL;
     const orderClause=options.sort==='source' || automaticFixed
       ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
