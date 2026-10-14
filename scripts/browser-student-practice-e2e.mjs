@@ -75,6 +75,22 @@ try{
     (await host.page.$('.live-student-host-code'))===null);
   await qa.clickText(host.page,'Start Challenge');
   await submit(host,'Uses binary digits zero and one');
+  const soloReady=await snapshot(host.page,solo.id);
+  const soloReveal=await host.page.evaluate(()=>{
+    const el=[...document.querySelectorAll('.live-student-host-actions button')]
+      .find(item=>item.textContent?.includes('Mark Scheme'));
+    return {text:el?.textContent,disabled:el?.disabled,
+      hostText:document.querySelector('.live-student-host')?.textContent};
+  });
+  console.log('Solo after submit:',JSON.stringify({
+    serverStatus:soloReady.session.status,serverSubmitted:soloReady.session.submittedCount,
+    serverParticipants:soloReady.session.participantCount,dom:soloReveal,
+  }));
+  await qa.check('Solo: server and host control agree that answer is submitted',
+    soloReady.session.submittedCount===1&&soloReady.session.participantCount===1,
+    {submitted:soloReady.session.submittedCount,participants:soloReady.session.participantCount,dom:soloReveal});
+  await host.page.waitForFunction(()=>[...document.querySelectorAll('.live-student-host-actions button')]
+    .some(item=>item.textContent?.includes('Mark Scheme')&&!item.disabled),{timeout:30000});
   await qa.clickText(host.page,'Javoblarni yopish · Mark Scheme');
   await review(host,'self',1);
   await qa.waitText(host.page,'SAVOL NATIJASI');
