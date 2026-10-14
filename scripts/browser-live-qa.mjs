@@ -67,12 +67,18 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618' }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
+  if (syllabusCode === '0478') {
+    await teacher.page.select('select[aria-label="Cambridge syllabus"]', '0478');
+    await qa.waitText(teacher.page, '0478 Paper 2 — Syllabus topics (7–10)');
+  }
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
-  await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
+  if (syllabusCode === '9618') {
+    await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
+  }
   if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (displayRef) {
     await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
