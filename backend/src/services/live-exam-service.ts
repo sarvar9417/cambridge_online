@@ -359,7 +359,11 @@ export class LiveExamService {
     // syllabus-safe readiness resolution and optional seen-question filtering.
     // Manual pool browsing uses deterministic source order while room creation
     // keeps the existing seeded random selection behavior.
-    const sourceOrdered = !countOnly && options.sort === 'source';
+    // Automatic Fixed uses source ordering and must not bind a random seed:
+    // PostgreSQL rejects an unused $1 parameter (42P18).
+    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed'
+      && options.sort!=='random';
+    const sourceOrdered = !countOnly && (options.sort === 'source' || automaticFixed);
     const values: unknown[] = countOnly || sourceOrdered
       ? [input.classId]
       : [options.seed ?? randomUUID(), input.classId];
@@ -582,7 +586,6 @@ export class LiveExamService {
       offsetClause=' offset $'+values.length;
     }
     const sourceOrder='candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id';
-    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
     const orderClause=options.sort==='source' || automaticFixed
       ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
