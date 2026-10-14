@@ -273,7 +273,7 @@ export interface LiveExamSummary {
   id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   pausedAt:string|null;pauseRemainingS:number|null;
-  settings:{allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
+  settings:{questionOrder?:'fixed'|'shuffled'|'balanced';practiceMode?:'solo'|'group'|'collaborative'|null;allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
 export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}
@@ -297,7 +297,7 @@ export type LivePointFeedback =
   | {status:'available';points:Array<{id:string;code:string;text:string;marks:number;matched:boolean;credited:boolean}>}
   | {status:'unavailable';reason:'teacher_override'|'manual_scoring'|'not_recorded'};
 export interface LiveExamSnapshot {
-  session:LiveExamSummary&{hostName:string;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;joinedLate?:boolean;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
+  session:LiveExamSummary&{hostName:string;isHost?:boolean;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;joinedLate?:boolean;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;ownPointFeedback?:LivePointFeedback|null;review:LiveExamReview|null;

@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
@@ -8,7 +8,7 @@ import { DomainError } from './assignments-service.js';
 import { computeScore, type Scheme } from '../lib/marking.js';
 import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-point-feedback.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
-import { liveCoursebookQuestionFilter } from '../lib/live-coursebook-sections.js';
+import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
@@ -16,6 +16,14 @@ import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibr
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
 export type LiveExamStatus = 'lobby' | 'question_open' | 'marking' | 'review' | 'finished' | 'cancelled';
 export const QUESTION_DEADLINE_GRACE_S = 10;
+// In many extracted Cambridge papers every leaf has sort_order=1 because that
+// column describes its position within a root. Natural numeric Q ordering
+// must precede this local part order (otherwise Q10 precedes Q2).
+export const LIVE_FIXED_SOURCE_ORDER_SQL=
+  "candidate.year desc,candidate.series,candidate.component,"
+  +"substring(candidate.display_ref from '[Qq][[:space:]]*([0-9]+)')::int nulls last,"
+  +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
+
 
 export function resolveLiveQuestionTimeLimit(
   settings: unknown,
@@ -44,6 +52,7 @@ export interface CreateLiveExamInput {
   /** Manual per-question overrides in seconds; null means unlimited for that question. */
   questionTimeLimits?: Record<string, number | null>;
   markingMode: LiveExamMarkingMode;
+  practiceMode?:'solo'|'group'|'collaborative';
   includeDiagrams: boolean;
   excludeSeen: boolean;
   /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
@@ -55,7 +64,7 @@ export interface CreateLiveExamInput {
   series?: Array<'FM' | 'MJ' | 'ON'>;
   components?: number[];
   questionIds?: string[];
-  questionOrder?: 'fixed' | 'shuffled';
+  questionOrder?: 'fixed' | 'shuffled' | 'balanced';
   allowLateJoin?: boolean;
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
@@ -143,6 +152,30 @@ export class LiveExamService {
     if (actor.role === 'student') throw new DomainError('staff_only', 403);
   }
 
+  /** Current enrollment is mandatory for student-created practice. */
+  private async requirePracticeClass(executor:Pick<Pool,'query'>|PoolClient,actor:Actor,classId:string){
+    if(actor.role!=='student')return this.requireClassControl(executor,actor,classId);
+    const result=await executor.query(
+      `select c.id,c.name from classes c
+       join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
+       where c.id=$1 and c.archived_at is null and c.school_id=$3
+       for share of e`,
+      [classId,actor.id,actor.schoolId],
+    );
+    if(!result.rowCount)throw new DomainError('not_found',404);
+    return result.rows[0] as {id:string;name:string};
+  }
+  private validatePracticeMode(actor:Actor,input:CreateLiveExamInput){
+    if(actor.role!=='student'){
+      if(input.practiceMode!==undefined)throw new DomainError('live_practice_mode_staff',400);
+      return;
+    }
+    if(!input.practiceMode || !['solo','group','collaborative'].includes(input.practiceMode)
+      || input.questionCount<1 || input.questionCount>12
+      || (input.practiceMode==='group'?input.markingMode!=='peer':input.markingMode!=='self')
+      || input.teacherOverrideEnabled===true || Number(input.peerCalibrationPercent??0)!==0)
+      throw new DomainError('live_student_practice_invalid',400);
+  }
   private async requireClassControl(executor: Pick<Pool, 'query'> | PoolClient, actor: Actor, classId: string) {
     this.assertStaff(actor);
     const result = await executor.query(
@@ -161,7 +194,6 @@ export class LiveExamService {
   }
 
   private async lockControlledSession(client: PoolClient, actor: Actor, sessionId: string) {
-    this.assertStaff(actor);
     const result = await client.query(
       `select les.*
        from live_exam_sessions les
@@ -171,6 +203,12 @@ export class LiveExamService {
          or ($2='teacher' and (c.owner_id=$4 or exists(
            select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
          )))
+         or ($2='student' and les.host_id=$4 and c.school_id=$3
+           and les.settings->>'practiceMode' in ('solo','group','collaborative')
+           and c.archived_at is null
+           and exists(select 1 from enrollments host_membership
+             where host_membership.class_id=les.class_id
+               and host_membership.student_id=$4 and host_membership.left_at is null))
        )
        for update of les`,
       [sessionId, actor.role, actor.schoolId, actor.id],
@@ -324,6 +362,30 @@ export class LiveExamService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
+  /**
+   * Keep parts of the same authentic source-paper question adjacent without
+   * mixing papers or changing the teacher's deliberately fixed manual order.
+   * The dependency closure still runs afterwards and keeps prerequisites
+   * before the dependent part.
+   */
+  private groupSourceQuestionParts(rows:Array<{
+    id:string;display_ref?:string|null;sort_order?:number|null;
+  }>) {
+    const groups=new Map<string,typeof rows>();
+    for(const row of rows){
+      const ref=String(row.display_ref??'');
+      const match=ref.match(/^(.*?\bQ\s*\d+)(?=\s*(?:\(|$))/i);
+      const key=match ? match[1]!.replace(/\s+/g,' ').toUpperCase() : row.id;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key)!.push(row);
+    }
+    return [...groups.values()].flatMap(group=>group.length===1?group:group.sort((a,b)=>{
+      const left=a.sort_order,right=b.sort_order;
+      if(left!=null&&right!=null&&left!==right)return left-right;
+      return String(a.display_ref??'').localeCompare(String(b.display_ref??''),undefined,{numeric:true});
+    })).map(row=>row.id);
+  }
+
   private async chooseQuestionIds(
     actor: Actor,
     input: CreateLiveExamInput,
@@ -335,7 +397,10 @@ export class LiveExamService {
     // syllabus-safe readiness resolution and optional seen-question filtering.
     // Manual pool browsing uses deterministic source order while room creation
     // keeps the existing seeded random selection behavior.
-    const sourceOrdered = !countOnly && options.sort === 'source';
+    // Automatic Fixed uses source ordering and must not bind a random seed:
+    // PostgreSQL rejects an unused $1 parameter (42P18).
+    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
+    const sourceOrdered = !countOnly && (options.sort === 'source' || automaticFixed);
     const values: unknown[] = countOnly || sourceOrdered
       ? [input.classId]
       : [options.seed ?? randomUUID(), input.classId];
@@ -557,21 +622,82 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    const orderClause=options.sort==='source'
-      ? 'candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id'
+    const sourceOrder=LIVE_FIXED_SOURCE_ORDER_SQL;
+    const orderClause=options.sort==='source' || automaticFixed
+      ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
-    const result = await this.pool.query(
-      'select candidate.id,count(*) over()::int total_count from ('+candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause,
-      values,
-    );
+    const selectedSections=[...new Set(input.coursebookSectionCodes??[])];
+    const balanced=!countOnly && options.sort!=='source' && !input.questionIds?.length
+      && input.questionOrder==='balanced' && selectedSections.length>1;
+    let query='select candidate.id,candidate.display_ref,candidate.sort_order,count(*) over()::int total_count from ('
+      +candidateSql+') candidate order by '+orderClause+' limit '+limitParameter+offsetClause;
+    if(balanced){
+      // An isolated bucket for each selected Hodder section and a round-robin
+      // selection across buckets prevents large sections dominating the game.
+      // Shared questions are assigned to exactly one bucket. Rotate the bucket
+      // priority by session seed to avoid favouring the first checkbox.
+      const seed=String(values[0]);
+      const sections=selectedSections.sort((a,b)=>{
+        const hash=(code:string)=>createHash('sha256').update(seed).update(code).digest('hex');
+        return hash(a).localeCompare(hash(b));
+      });
+      const chapterBySection=new Map(
+        resolveLiveCoursebookSections(sections).map(section=>[section.code,section.chapterNumber]),
+      );
+      const conditions=sections.map((code,index)=>{
+        const predicate=liveCoursebookQuestionFilter(values,[code],'bucket_question');
+        return `when ${predicate} then ${index}`;
+      });
+      const chapterCases=sections.map((code,index)=>
+        `when ${index} then ${chapterBySection.get(code)}`
+      );
+      // Chapter is the outer fairness unit: selecting more sections in one
+      // chapter must not make that chapter dominate the challenge. Within each
+      // chapter rotate among its ready sections; finally rotate chapters.
+      // The one-section ownership CASE ensures an overlapping source question
+      // never occupies two buckets or appears twice.
+      query=`select ranked.id,ranked.display_ref,ranked.sort_order,count(*) over()::int total_count
+        from (
+          select sectioned.*,
+            row_number() over (
+              partition by sectioned.chapter_bucket
+              order by sectioned.section_rank,md5(sectioned.id::text || $1::text)
+            ) chapter_rank
+          from (
+            select bucketed.*,
+              case bucketed.section_bucket ${chapterCases.join(' ')} else -1 end chapter_bucket,
+              row_number() over (
+                partition by bucketed.section_bucket
+                order by md5(bucketed.id::text || $1::text)
+              ) section_rank
+            from (
+              select candidate.*,
+                case ${conditions.join(' ')} else ${sections.length} end section_bucket
+              from (${candidateSql}) candidate
+              join questions bucket_question on bucket_question.id=candidate.id
+            ) bucketed
+          ) sectioned
+        ) ranked
+        order by ranked.chapter_rank,md5(ranked.id::text || $1::text)
+        limit ${limitParameter}${offsetClause}`;
+    }
+    const result = await this.pool.query(query,values);
     const total = Number(result.rows[0]?.total_count ?? result.rowCount ?? 0);
     if (requireExact && total < input.questionCount) throw new DomainError('live_question_pool_small', 409);
-    const selected = result.rows.map((row) => String(row.id));
-    if (input.questionIds?.length && input.questionOrder !== 'shuffled') {
-      const available = new Set(selected);
-      return { ids:input.questionIds.filter((id) => available.has(id)), total };
+    const rows=result.rows.map((row)=>({
+      id:String(row.id),display_ref:row.display_ref as string|null,
+      sort_order:row.sort_order==null?null:Number(row.sort_order),
+    }));
+    if (input.questionIds?.length && input.questionOrder !== 'shuffled'
+       && input.questionOrder !== 'balanced') {
+      const available = new Set(rows.map(row=>row.id));
+      return { ids:input.questionIds.filter((id) => available.has(id)),total };
     }
-    return { ids:selected, total };
+    return {
+      ids:!countOnly && options.sort!=='source' && !automaticFixed
+        ? this.groupSourceQuestionParts(rows) : rows.map(row=>row.id),
+      total,
+    };
   }
 
   private async expandRequiredDependencies(questionIds: string[]) {
@@ -689,7 +815,8 @@ export class LiveExamService {
       includeCounts?: boolean;
     },
   ) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     const selectionPromise = this.chooseQuestionIds(actor, {
       ...input,
@@ -745,7 +872,8 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
   ) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
+    if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
       throw new DomainError('live_topic_required', 400);
@@ -781,7 +909,10 @@ export class LiveExamService {
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    if(input.questionIds?.length && input.questionOrder==='balanced')
+      throw new DomainError('live_manual_balanced_unsupported',400);
+    this.validatePracticeMode(actor,input);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
@@ -790,9 +921,13 @@ export class LiveExamService {
     const selection = await this.chooseQuestionIds(actor, input);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    // Bound the total frozen source payload for learner-owned rooms while
+    // preserving the existing unrestricted staff/classroom builder.
+    if(actor.role==='student' && expandedQuestionIds.length>36)
+      throw new DomainError('live_student_dependency_limit',409);
     const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
       const [portable, markScheme] = await Promise.all([
-        this.questions.portable(actor, questionId),
+        this.questions.portable(actor.role==='student'?{...actor,role:'teacher'}:actor, questionId),
         this.markScheme(questionId),
       ]);
       if (!portable) throw new DomainError('live_question_not_ready', 409);
@@ -805,11 +940,25 @@ export class LiveExamService {
 
     const client = await this.pool.connect();
     try {
-      await this.requireClassControl(client, actor, input.classId);
       let session;
       for (let attempt = 0; attempt < 5; attempt += 1) {
         await client.query('begin');
         try {
+          if(actor.role==='student'){
+            await client.query('select pg_advisory_xact_lock(hashtext($1))',[actor.id]);
+            // Re-check current membership within the same transaction that
+            // creates the room, after serializing simultaneous host requests.
+            await this.requirePracticeClass(client, actor, input.classId);
+            const active=await client.query(
+              `select count(*)::int count from live_exam_sessions
+               where host_id=$1 and settings->>'practiceMode' in ('solo','group','collaborative')
+                 and status not in ('finished','cancelled') and archived_at is null`,
+              [actor.id],
+            );
+            if(Number(active.rows[0].count)>=3)throw new DomainError('live_student_practice_limit',409);
+          } else {
+            await this.requireClassControl(client, actor, input.classId);
+          }
           const joinCode = String(randomInt(100000, 1000000));
           session = await client.query(
             `insert into live_exam_sessions(
@@ -832,11 +981,14 @@ export class LiveExamService {
                 series: input.series ?? [],
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
-                allowLateJoin: input.allowLateJoin ?? false,
+                practiceMode:actor.role==='student'?input.practiceMode:null,
+                // Learner-led practice locks its roster at Start. In-progress
+                // late joins otherwise invalidate anonymous peer assignments.
+                allowLateJoin:actor.role==='student'?false:(input.allowLateJoin ?? false),
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
-                teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
+                teacherOverrideEnabled:actor.role==='student'?false:(input.teacherOverrideEnabled ?? true),
                 leaderboardMode: input.leaderboardMode ?? 'marks',
-                displayNameMode: input.displayNameMode ?? 'anonymous_alias',
+                displayNameMode:actor.role==='student'?'anonymous_alias':(input.displayNameMode??'anonymous_alias'),
                 peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
                 peerDisagreementThreshold: Math.max(0, Number(input.peerDisagreementThreshold ?? 1)),
                 defaultQuestionTimeLimitS: input.questionTimeLimitS ?? null,
@@ -857,6 +1009,10 @@ export class LiveExamService {
         }
       }
       if (!session) throw new DomainError('live_join_code_conflict', 409);
+       if(actor.role==='student')await client.query(
+         `insert into live_exam_participants(session_id,student_id,last_seen_at)
+          values($1,$2,now())`,[session.rows[0].id,actor.id],
+       );
       for (const [position, snapshot] of snapshots.entries()) {
         await client.query(
           `insert into live_exam_questions(
@@ -929,19 +1085,29 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          where les.join_code=$1
+           and (les.settings->>'practiceMode' is null
+             or (les.settings->>'practiceMode'<>'solo' and exists(
+               select 1 from classes practice_class
+               where practice_class.id=les.class_id and practice_class.school_id=$3
+                 and exists(select 1 from enrollments e
+                   where e.student_id=$2 and e.left_at is null
+                     and exists(select 1 from classes member_class
+                       where member_class.id=e.class_id
+                         and member_class.school_id=practice_class.school_id)))))
            and les.archived_at is null
            and coalesce(
              (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
              'infinity'::timestamptz
            ) > now() and (
            les.status='lobby'
-           or (les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+           or (les.status='question_open' and les.settings->>'practiceMode' is null
+             and coalesce((les.settings->>'allowLateJoin')::boolean,false))
          )
          -- Concurrent learners may validate the same room together. Start,
          -- cancel and other state transitions still wait for every join to
          -- commit because they acquire FOR UPDATE on this session row.
          for key share of les`,
-        [code],
+        [code,actor.id,actor.schoolId],
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
       const session = room.rows[0];
@@ -1135,6 +1301,12 @@ export class LiveExamService {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
+          ($2='student' and les.host_id=$3
+             and les.settings->>'practiceMode' in ('solo','group','collaborative')
+             and c.archived_at is null
+             and exists(select 1 from enrollments host_membership
+               where host_membership.class_id=les.class_id
+                 and host_membership.student_id=$3 and host_membership.left_at is null)) is_practice_host,
          lep.id participant_id,
          lep.joined_at participant_joined_at,
          (
@@ -1409,6 +1581,7 @@ export class LiveExamService {
         ...this.mapSession(session),
         className: session.class_name,
         hostName: session.host_name,
+        isHost:Boolean(session.is_practice_host),
         currentQuestionIndex: Number(session.current_question_index),
         startedAt: session.started_at,
         finishedAt: session.finished_at,
@@ -1751,7 +1924,9 @@ export class LiveExamService {
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
         [sessionId],
       );
-      if (Number(count.rows[0].count) < 1) throw new DomainError('live_no_participants', 409);
+      if(Number(count.rows[0].count)<1
+          || ((session.settings as {practiceMode?:string}|null)?.practiceMode==='group'
+           && Number(count.rows[0].count)<2))throw new DomainError('live_no_participants',409);
       const question = await client.query(
         `select id,question_id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
       if (!question.rowCount) throw new DomainError('live_no_questions', 409);
@@ -1784,10 +1959,14 @@ export class LiveExamService {
   }
 
   async setLateJoin(actor: Actor, sessionId: string, allowLateJoin: boolean, expectedVersion?: number) {
+    // Fixed-roster practice must never gain in-progress participants.
+    this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
+      if((session.settings as {practiceMode?:string}|null)?.practiceMode)
+        throw new DomainError('live_practice_roster_locked',409);
       this.assertExpectedVersion(session, expectedVersion);
       if (!['lobby','question_open','marking','review'].includes(String(session.status))) {
         throw new DomainError('live_invalid_state', 409);
@@ -1919,6 +2098,8 @@ export class LiveExamService {
       [sessionQuestionId],
     );
     const mode = String(session.marking_mode) as LiveExamMarkingMode;
+    if(mode==='peer' && (session.settings as {practiceMode?:string}|null)?.practiceMode==='group'
+      && answers.rows.length<2)throw new DomainError('live_peer_assignment_impossible',409);
     const peerAnswers = answers.rows.map((row) => ({
       answerId: String(row.answer_id),
       studentId: String(row.student_id),
@@ -2016,6 +2197,17 @@ export class LiveExamService {
       const session = await this.lockControlledSession(client, actor, sessionId);
       this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      if(actor.role==='student'){
+        // Never open the Mark Scheme early in a student-owned practice round.
+        const pending=await client.query(
+          `select count(*)::int count from live_exam_participants lep
+           left join live_exam_questions leq on leq.session_id=lep.session_id and leq.position=$2
+           left join live_exam_answers a on a.participant_id=lep.id and a.session_question_id=leq.id
+           where lep.session_id=$1 and lep.left_at is null and a.submitted_at is null`,
+          [sessionId,session.current_question_index],
+        );
+        if(Number(pending.rows[0].count)>0)throw new DomainError('live_students_pending',409);
+      }
       const result = await this.revealWithinTransaction(client, session, actor.id);
       await client.query('commit');
       return result;
@@ -2195,6 +2387,7 @@ export class LiveExamService {
     input: { score: number; feedback?: string; levelNumber?: number },
     expectedVersion?: number,
   ) {
+    this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2238,6 +2431,7 @@ export class LiveExamService {
   }
 
   async completeMarking(actor: Actor, sessionId: string, force = false, expectedVersion?: number) {
+    if(actor.role==='student'&&force)throw new DomainError('staff_only',403);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2468,6 +2662,7 @@ export class LiveExamService {
   }
 
   async removeParticipant(actor: Actor, sessionId: string, studentId: string, expectedVersion?: number) {
+    if(actor.role==='student'&&actor.id===studentId)throw new DomainError('live_host_cannot_leave',409);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2495,11 +2690,14 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`,
+        `select status::text,host_id,settings from live_exam_sessions where id=$1 for update`,
         [sessionId],
       );
       if (!session.rowCount) throw new DomainError('not_found', 404);
       if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);
+      if(String(session.rows[0].host_id)===actor.id
+        && ['solo','group','collaborative'].includes(String(session.rows[0].settings?.practiceMode)))
+        throw new DomainError('live_host_cannot_leave',409);
       const result = await client.query(
         `update live_exam_participants set left_at=now(),last_seen_at=now()
          where session_id=$1 and student_id=$2 and left_at is null returning id`,
@@ -2561,6 +2759,8 @@ export class LiveExamService {
   private settings(value: unknown) {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
+      questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
+      practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       allowLateJoin: raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
       teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,

@@ -7,7 +7,7 @@ import './student-live-challenge.css';
 const ACTIVE_STATUS = new Set(['lobby','question_open','marking','review']);
 
 const STATUS_TEXT:Record<LiveExamSummary['status'],string> = {
-  lobby:'O‘qituvchi boshlashini kutmoqda',
+  lobby:'Boshlanishini kutmoqda',
   question_open:'Savol ochiq',
   marking:'Baholash davom etmoqda',
   review:'Natijalar ochiq',
@@ -35,13 +35,13 @@ export function StudentLiveChallengeCard() {
     <div className="sh-live-icon"><Broadcast size={28} weight={active?'fill':'regular'}/></div>
     <div className="sh-live-copy">
       <span>CAMBRIDGE LIVE CHALLENGE</span>
-      <h2>{active?active.title:'Sinf bilan bir vaqtda past-paper ishlang'}</h2>
+      <h2>{active?active.title:'O‘zingiz Live Challenge yarating'}</h2>
       <p>{active
         ? `${active.className} · ${STATUS_TEXT[active.status]} · ${active.participantCount} o‘quvchi`
-        : 'O‘qituvchi bergan 6 xonali kod bilan live sessiyaga qo‘shiling. Savol, mark scheme va natija bir xil ritmda ochiladi.'}</p>
+        : 'Solo mashq qiling yoki do‘stlaringiz bilan Group va Collaborative Challenge oching. Boshqa xonalarga kod bilan qo‘shiling.'}</p>
     </div>
     <button type="button" onClick={()=>navigate(destination)}>
-      <PlayCircle size={20} weight="fill"/>{active?'Sessiyaga kirish':'Kodni kiritish'}
+      <PlayCircle size={20} weight="fill"/>{active?'Sessiyaga kirish':'Challenge yaratish'}
     </button>
   </section>;
 }

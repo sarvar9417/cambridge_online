@@ -10,11 +10,27 @@ function serviceFor(query: ReturnType<typeof vi.fn>) {
 }
 
 describe('LiveExamRoundSummaryService', () => {
-  it('is staff-only before querying the database', async () => {
-    const query=vi.fn();
+  it('rejects student access unless the student belongs to a dedicated practice room', async () => {
+    const query=vi.fn().mockResolvedValueOnce({rowCount:0,rows:[]});
     await expect(serviceFor(query).summary(student,'session-1'))
-      .rejects.toMatchObject({code:'staff_only',status:403});
-    expect(query).not.toHaveBeenCalled();
+      .rejects.toMatchObject({code:'not_found',status:404});
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(String(query.mock.calls[0]?.[0])).toContain("les.settings->>'practiceMode'");
+    expect(String(query.mock.calls[0]?.[0])).toContain('lep.student_id=$4');
+  });
+
+  it('anonymizes student practice standings even if room display names were configured to full',async()=>{
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{
+        id:'session-1',status:'review',current_question_index:0,
+        settings:{practiceMode:'group',displayNameMode:'full'},
+      }]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{student_id:'s1',full_name:'Private Student',score:3,marks:4,rank:1,alias_no:1}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{student_id:'s1',full_name:'Private Student',score:3,rank:1,alias_no:1}]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:4}]});
+    const output=await serviceFor(query).summary(student,'session-1');
+    expect(output.round.standings).toEqual([{rank:1,studentName:'Ishtirokchi 1',score:3,possible:4}]);
+    expect(output.overall.standings[0]).not.toHaveProperty('studentId');
   });
 
   it('does not expose standings before round results are ready', async () => {
