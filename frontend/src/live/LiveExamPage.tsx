@@ -313,6 +313,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [busy,setBusy]=useState(false);
   const [deletingSessionId,setDeletingSessionId]=useState('');
   const [code,setCode]=useState('');
+  const [practiceMode,setPracticeMode]=useState<'solo'|'group'|'collaborative'>('solo');
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [coursebookSectionCodes,setCoursebookSectionCodes]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
@@ -343,7 +344,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
 
   useEffect(()=>{
     const requests:Promise<unknown>[]=[api<{data:LiveExamSummary[]}>('/live-exams').then((r)=>setSessions(r.data))];
-    if(user.role!=='student')requests.push(api<FilterOptions>('/questions/filter-options').then(setOptions));
+    if(user.role==='student')requests.push(api<Pick<FilterOptions,'coursebookSections'>>('/live-exams/sections')
+      .then((result)=>setOptions({...EMPTY_OPTIONS,...result})));
+    else requests.push(api<FilterOptions>('/questions/filter-options').then(setOptions));
     Promise.all(requests).catch((cause)=>setError(message(cause,'Ma’lumotlar yuklanmadi.'))).finally(()=>setLoading(false));
   },[user.role]);
   useEffect(()=>{if(!selectedClassId&&classes[0])setSelectedClassId(classes[0].id)},[classes,selectedClassId]);
@@ -449,7 +452,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           if(cancelled)return;
           setEligibleTotal(result.total);
           setEligibleCounts(result.counts??null);
-          setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total):1);
+          setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total,user.role==='student'?12:Number.MAX_SAFE_INTEGER):1);
         })
         .catch((cause)=>{if(!cancelled)setError(message(cause,'Mos savollar soni aniqlanmadi.'))})
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
@@ -507,8 +510,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const body=JSON.stringify({
         classId:data.get('classId'),title:data.get('title'),topicIds:[],subtopicIds:[],coursebookSectionCodes,
-        questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
-        markingMode:data.get('markingMode'),includeDiagrams,excludeSeen,
+        questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
+        markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):data.get('markingMode'),includeDiagrams,excludeSeen,
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
@@ -516,15 +519,15 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           ?serializeLiveQuestionTimeOverrides(selectedQuestionIds,questionTimeLimits)
           :{},
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
-        teacherOverrideEnabled:data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
+        teacherOverrideEnabled:user.role!=='student'&&data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
         displayNameMode:data.get('displayNameMode'),
-        peerCalibrationPercent:Number(data.get('peerCalibrationPercent')??0),
+        peerCalibrationPercent:user.role==='student'?0:Number(data.get('peerCalibrationPercent')??0),
         peerDisagreementThreshold:Number(data.get('peerDisagreementThreshold')??1),
       });
       const key=createAttempt.current?.body===body?createAttempt.current.key:randomId();
       createAttempt.current={body,key};
       const created=await api<{id:string}>('/live-exams',{method:'POST',headers:{'Idempotency-Key':key},body});
-      navigate(`oqitish/live?id=${created.id}`);
+      navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live?id=${created.id}`);
     }catch(cause){setError(message(cause,'Live Challenge yaratilmadi.'));setBusy(false)}
   };
 
@@ -553,10 +556,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     <header className="live-page-head"><div><span className="live-eyebrow"><Broadcast size={18}/> CAMBRIDGE 9618</span><h1>Live Challenge</h1><p>Past-paper savolini bir vaqtda ishlang, so‘ng official mark scheme bilan baholang.</p></div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     {user.role==='student'?<section className="live-join-card">
-      <div><span className="live-eyebrow">XONAGA KIRISH</span><h2>O‘qituvchi bergan 6 xonali kodni kiriting</h2></div>
+      <div><span className="live-eyebrow">XONAGA KIRISH</span><h2>Do‘stingiz yoki o‘qituvchingiz bergan 6 xonali kodni kiriting</h2></div>
       <form onSubmit={join}><input aria-label="Xona kodi" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" value={code} onChange={(e)=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/><button disabled={busy||code.length!==6}>Qo‘shilish</button></form>
-    </section>:<form className="live-create" onSubmit={create}>
-      <section className="live-create-main"><span className="live-step">1</span><div><h2>Sessiya</h2><p>Sinf va savollar ko‘lamini tanlang.</p></div>
+    </section>:null}<form className="live-create" onSubmit={create}>
+      <section className="live-create-main"><span className="live-step">1</span><div><h2>{user.role==='student'?'O‘z mashqingizni yarating':'Sessiya'}</h2><p>Sinf va savollar ko‘lamini tanlang.</p></div>
+        {user.role==='student'?<label>Mashq rejimi<select aria-label="Mashq rejimi" value={practiceMode} onChange={(event)=>setPracticeMode(event.target.value as 'solo'|'group'|'collaborative')}>
+          <option value="solo">Solo — mustaqil mashq</option><option value="group">Group — anonim o‘zaro baholash</option><option value="collaborative">Collaborative — do‘stlar bilan o‘zini baholash</option>
+        </select><small>{practiceMode==='group'?'Kamida 2 ishtirokchi kerak.':practiceMode==='solo'?'Faqat siz kirishingiz mumkin.':'Do‘stlar bilan bir xonada o‘rganing.'}</small></label>:null}
         <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);clearManualPool()}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder="Chapter 14 revision"/></label>
         <div className="live-topic-grid"><fieldset><legend>Chapter</legend>{chapters.map((chapter)=>{const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapter.chapter_number).map((item)=>item.section_code);const checked=chapterCodes.length>0&&chapterCodes.every((code)=>coursebookSectionCodes.includes(code));return <label key={chapter.chapter_number}><input type="checkbox" checked={checked} onChange={()=>toggleChapter(chapter.chapter_number)}/><span>{chapter.chapter_number}. {chapter.chapter_title}</span></label>})}</fieldset>
@@ -605,28 +611,28 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         </section>
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
-        <label>Savollar soni<input name="questionCount" type="number" min={1} max={eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
+        <label>Savollar soni<input name="questionCount" type="number" min={1} max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER,user.role==='student'?12:Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled')}><option value="shuffled">Aralashtirilgan</option><option value="fixed">Tanlangan tartib</option></select></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
-        <label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>
-        <label>Peer calibration
+        {user.role==='student'?<p className="live-create-semantics">Baholash: {practiceMode==='group'?'anonim o‘zaro':'o‘zini'} baholash. O‘qituvchi huquqlari berilmaydi.</p>:<label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>}
+        {user.role!=='student'?<label>Peer calibration
           <select name="peerCalibrationPercent" defaultValue="0">
             <option value="0">O‘chirilgan</option><option value="10">10% teacher check</option><option value="20">20% teacher check</option><option value="50">50% teacher check</option><option value="100">100% double check</option>
           </select><small>Faqat peer rejimida: tanlangan javoblarni o‘qituvchi ham mustaqil tekshiradi.</small>
-        </label>
-        <label>Peer farq chegarasi<input name="peerDisagreementThreshold" type="number" min="0" max="20" step="0.5" defaultValue="1"/><small>Peer va teacher balli bundan ko‘p farq qilsa quality queue’da ko‘rinadi.</small></label>
+        </label>:null}
+        {user.role!=='student'?<label>Peer farq chegarasi<input name="peerDisagreementThreshold" type="number" min="0" max="20" step="0.5" defaultValue="1"/><small>Peer va teacher balli bundan ko‘p farq qilsa quality queue’da ko‘rinadi.</small></label>:null}
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
         <label>Proyektorda ism<select name="displayNameMode" defaultValue="anonymous_alias"><option value="anonymous_alias">Anonim: Ishtirokchi 1</option><option value="initials">Faqat initsiallar</option><option value="first_name">Faqat ism</option><option value="full">To‘liq ism</option></select><small>Anonim rejim maxfiylik uchun tavsiya etiladi.</small></label>
         <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);clearManualPool()}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
         <label className="live-check"><input name="excludeSeen" type="checkbox" checked={excludeSeen} onChange={(event)=>{setExcludeSeen(event.target.checked);clearManualPool()}}/><span>Oldin ishlatilgan savollarni olmaslik</span></label>
         <label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>
         <label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>
-        <label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>
-        <button disabled={busy||!coursebookSectionCodes.length||!classes.length||(selectionMode==='manual'&&!selectedQuestionIds.length)||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
-        <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi; o‘quvchilar faqat siz Start bosgandan keyin savolni ko‘radi.</small>
-        {!classes.length?<small className="live-warning">Avval kamida bitta sinf yarating.</small>:null}
+        {user.role!=='student'?<label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>:null}
+        <button disabled={busy||!coursebookSectionCodes.length||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi; ishtirokchilar faqat xona egasi Start bosgandan keyin savolni ko‘radi.</small>
+        {!classes.length?<small className="live-warning">Mashq yaratish uchun faol sinfga biriktirilgan bo‘lishingiz kerak.</small>:null}
       </aside>
-    </form>}
+    </form>
     <section className="live-history"><header><h2>{user.role==='student'?'Sessiyalarim':'Oxirgi sessiyalar'}</h2><span>{sessions.length}</span></header>
       {loading?<p className="live-empty">Yuklanmoqda…</p>:!sessions.length?<p className="live-empty">Hali live sessiya yo‘q.</p>:<div className="live-session-list">{sessions.map((session)=><article className="live-session-row" key={session.id}><button className="live-session-open" onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live?id=${session.id}`)}><span className={`live-state live-state--${session.status}`}>{STATUS_LABEL[session.status]}</span><strong>{session.title}</strong><small>{session.className} · {session.questionCount} savol · {session.participantCount} o‘quvchi</small><i>→</i></button>{user.role!=='student'&&['finished','cancelled'].includes(session.status)?<button type="button" className="live-session-delete" disabled={deletingSessionId===session.id} aria-label={`${session.title} sessiyasini tarixdan o‘chirish`} title="Tarixdan o‘chirish" onClick={()=>void deleteHistorySession(session)}><Trash/>{deletingSessionId===session.id?'O‘chirilmoqda…':'O‘chirish'}</button>:null}</article>)}</div>}
     </section>
