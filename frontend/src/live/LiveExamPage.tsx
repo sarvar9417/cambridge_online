@@ -1083,7 +1083,7 @@ function StudentHostControls({snapshot,refresh}:{snapshot:LiveExamSnapshot;refre
     <div className="live-student-host-actions">
       {session.status==='lobby'?<button type="button" disabled={busy||!canStart} onClick={()=>void act('/start')}>{busy&&actionKey==='/start'?'Boshlanmoqda…':'Start Challenge'}</button>:null}
       {session.status==='lobby'&&practice==='group'&&!canStart?<small>Peer baholash uchun kamida 2 o‘quvchi kerak.</small>:null}
-      {session.status==='question_open'&&!session.pausedAt?<button type="button" disabled={busy} onClick={()=>{if(window.confirm('Javoblarni yopib, Mark Scheme’ni ochasizmi?'))void act('/reveal')}}>Javoblarni yopish · Mark Scheme</button>:null}
+      {session.status==='question_open'&&!session.pausedAt?<button type="button" disabled={busy||session.submittedCount<session.participantCount} onClick={()=>{if(window.confirm('Javoblarni yopib, Mark Scheme’ni ochasizmi?'))void act('/reveal')}}>Javoblarni yopish · Mark Scheme ({session.submittedCount}/{session.participantCount})</button>:null}
       {session.status==='marking'?<button type="button" disabled={busy||session.reviewedCount<session.reviewCount} onClick={()=>void act('/marking/complete')}>Natijalarni ochish ({session.reviewedCount}/{session.reviewCount})</button>:null}
       {session.status==='review'?<button type="button" disabled={busy} onClick={()=>void act('/next')}>{session.currentQuestionIndex+1<session.questionCount?'Keyingi savol →':'Mashqni yakunlash'}</button>:null}
       {['question_open','marking','review'].includes(session.status)?<button type="button" className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause')}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}
