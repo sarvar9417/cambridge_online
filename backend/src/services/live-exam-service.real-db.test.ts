@@ -265,6 +265,109 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(afterMastery).toBe(beforeMastery);
   });
 
+  it('creates student practice rooms with the host enrolled, fixed roster and bounded concurrency',async()=>{
+    const portable={
+      leaf:{
+        id:questionId,rootId:questionId,label:'1',path:'1',displayRef:'PRACTICE 1',
+        stem:'Name one fact',marks:1,commandWord:null,answerKind:'short_text',answerLines:1,
+      },
+      chain:[{id:questionId,label:'1',depth:0}],
+      contextBlocks:[],dependencies:[],sourceRef:'PRACTICE 1',
+    };
+    const scheme={
+      id:'33333333-3333-4333-8333-333333333333',
+      schemeType:'all_required',maxMarks:1,guidanceMd:null,levels:[],groups:[],
+      points:[{id:pointId,code:'M1',text:'One mark',marks:1,
+        accept:null,reject:null,requires:[],isBod:false,groupId:null}],
+    };
+    const creator=new LiveExamService(pool,{
+      portable:async()=>portable,
+    } as unknown as PgQuestionsRepository);
+    const internal=creator as unknown as {
+      chooseQuestionIds:()=>Promise<{ids:string[];total:number}>;
+      expandRequiredDependencies:(ids:string[])=>Promise<string[]>;
+      markScheme:()=>Promise<typeof scheme>;
+    };
+    internal.chooseQuestionIds=async()=>({ids:[questionId],total:1});
+    internal.expandRequiredDependencies=async(ids)=>ids;
+    internal.markScheme=async()=>scheme;
+    const build=(practiceMode:'solo'|'group'|'collaborative')=>({
+      classId,title:'Student source-backed practice',topicIds:[],subtopicIds:[],
+      coursebookSectionCodes:['1.1'],questionCount:1,
+      markingMode:practiceMode==='group'?'peer' as const:'self' as const,
+      practiceMode,includeDiagrams:true,excludeSeen:false,
+      allowLateJoin:true,teacherOverrideEnabled:false,peerCalibrationPercent:0,
+    });
+    const first=await creator.create(student(0),build('solo'));
+    expect(first.questionCount).toBe(1);
+    expect((await client.query(
+      'select count(*)::int count from live_exam_participants where session_id=$1 and student_id=$2 and left_at is null',
+      [first.id,studentIds[0]],
+    )).rows[0].count).toBe(1);
+    const saved=await client.query('select settings from live_exam_sessions where id=$1',[first.id]);
+    expect(saved.rows[0].settings).toMatchObject({
+      practiceMode:'solo',allowLateJoin:false,teacherOverrideEnabled:false,
+    });
+    await expect(creator.setLateJoin(student(0),first.id,true)).rejects.toThrow();
+    const second=await creator.create(student(0),build('group'));
+    const third=await creator.create(student(0),build('collaborative'));
+    await expect(creator.create(student(0),build('solo')))
+      .rejects.toMatchObject({code:'live_student_practice_limit',status:409});
+    for(const id of [first.id,second.id,third.id])await creator.cancel(student(0),id);
+    const unauthorized=build('solo');
+    await client.query('update enrollments set left_at=now() where class_id=$1 and student_id=$2',[classId,studentIds[0]]);
+    await expect(creator.create(student(0),unauthorized)).rejects.toMatchObject({code:'not_found'});
+    await client.query('update enrollments set left_at=null where class_id=$1 and student_id=$2',[classId,studentIds[0]]);
+  });
+
+  it('runs peer group practice from two submitted answers through anonymous reviews to finished',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829987',markingMode:'peer',settings:{practiceMode:'group'},participants:[0,1],
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    await service.start(student(0),sessionId);
+    await service.submitAnswer(student(0),sessionId,'One mark');
+    await service.submitAnswer(student(1),sessionId,'One mark');
+    await service.revealMarkScheme(student(0),sessionId);
+    const reviews=await client.query<{id:string;reviewer_id:string;owner_id:string}>(
+      `select r.id,r.reviewer_id,lep.student_id owner_id
+       from live_exam_reviews r
+       join live_exam_answers a on a.id=r.answer_id
+       join live_exam_participants lep on lep.id=a.participant_id
+       where r.session_question_id=$1 and r.kind='peer'`,[sessionQuestionId],
+    );
+    expect(reviews.rows).toHaveLength(2);
+    expect(reviews.rows.every(row=>row.reviewer_id!==row.owner_id)).toBe(true);
+    for(const review of reviews.rows){
+      const reviewer=[student(0),student(1)].find(item=>item.id===review.reviewer_id)!;
+      await service.submitReview(reviewer,sessionId,review.id,{matchedPointIds:[pointId]});
+    }
+    expect((await client.query('select status::text from live_exam_sessions where id=$1',[sessionId])).rows[0].status).toBe('review');
+    expect((await service.nextQuestion(student(0),sessionId)).status).toBe('finished');
+  });
+
+  it('lets multiple learners self-assess in collaborative practice without teacher scoring',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829988',markingMode:'self',settings:{practiceMode:'collaborative'},participants:[0],
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    await service.join(student(1),'829988');
+    await service.start(student(0),sessionId);
+    await service.submitAnswer(student(0),sessionId,'One mark');
+    await service.submitAnswer(student(1),sessionId,'One mark');
+    await service.revealMarkScheme(student(0),sessionId);
+    const reviews=await client.query<{id:string;reviewer_id:string}>(
+      `select id,reviewer_id from live_exam_reviews where session_question_id=$1 and kind='self'`,
+      [sessionQuestionId],
+    );
+    expect(reviews.rows).toHaveLength(2);
+    for(const review of reviews.rows){
+      const reviewer=[student(0),student(1)].find(item=>item.id===review.reviewer_id)!;
+      await service.submitReview(reviewer,sessionId,review.id,{matchedPointIds:[pointId]});
+    }
+    expect((await service.nextQuestion(student(0),sessionId)).status).toBe('finished');
+  });
+
   it('does not let a learner create a staff-controlled Live session',async()=>{
     await expect(service.create(student(0),{
       classId,title:'Forbidden classroom impersonation',topicIds:[],subtopicIds:[],
