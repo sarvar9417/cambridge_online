@@ -283,11 +283,11 @@ export class LiveExamService {
     'yearFrom' | 'yearTo' | 'series' | 'components'
   >) {
     this.validateSyllabusSelection(input);
-    const values: unknown[] = [input.syllabusCode??'9618'];
+    const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
-      `source_syllabus.code=$1`,
+      input.syllabusCode==='0478'?"source_syllabus.code='0478'":"source_syllabus.code='9618'", 
       ...(input.syllabusCode==='0478'?['source_component.number=2']:[]),
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
@@ -434,8 +434,7 @@ export class LiveExamService {
       ? [input.classId]
       : [options.seed ?? randomUUID(), input.classId];
     const classParameter = countOnly || sourceOrdered ? '$1' : '$2';
-    values.push(syllabusCode);
-    const syllabusParameter='$'+values.length;
+    const syllabusCondition=syllabusCode==='0478'?"source_syllabus.code='0478'":"source_syllabus.code='9618'";
     // 0478 sessions can run in an existing 9618 class but MUST read from
     // 0478 source papers only, with 0478-specific readiness and no 9618 LO
     // fallback. The optional chapter bridge remains strictly 9618-only.
@@ -539,7 +538,7 @@ export class LiveExamService {
     }
 
     const filters: string[] = [
-      `source_syllabus.code=${syllabusParameter}`,
+      syllabusCondition,
       ...(syllabusCode==='0478'?['source_component.number=2']:[]),
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
