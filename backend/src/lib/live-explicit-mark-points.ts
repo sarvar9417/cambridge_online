@@ -21,6 +21,7 @@ export interface ExplicitScheme {
   id:string;schemeType:string;maxMarks:number;guidanceMd:string|null;
   points:ExplicitPoint[];groups:ExplicitGroup[];
   levels:Array<{levelNumber:number;minMarks:number;maxMarks:number;descriptorMd:string;indicativeContentMd?:string|null}>;
+  derivedFromGuidance?:boolean;
 }
 
 function stableUuid(namespace:string,ordinal:number) {
