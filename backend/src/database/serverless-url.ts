@@ -2,6 +2,7 @@ export function serverlessDatabaseUrl(
   rawUrl: string,
   isVercel = Boolean(process.env.VERCEL),
   poolerHost = process.env.SUPABASE_POOLER_HOST?.trim(),
+  configuredProjectRef = process.env.SUPABASE_PROJECT_REF?.trim(),
 ) {
   if (!isVercel) return rawUrl;
 
@@ -9,13 +10,21 @@ export function serverlessDatabaseUrl(
     const url = new URL(rawUrl);
     const isSupabasePooler = url.hostname.endsWith('.pooler.supabase.com');
     const isSessionMode = url.port === '' || url.port === '5432';
+    const validPoolerHost = poolerHost?.endsWith('.pooler.supabase.com') ? poolerHost : undefined;
 
-    // Supabase session mode pins one upstream connection per serverless client.
-    // Vercel can fan out many warm functions, so the session pool is easy to
-    // exhaust. Port 6543 is Supavisor transaction mode and is intended for
-    // short-lived/serverless workloads. Credentials and TLS host stay the same.
-    if (isSupabasePooler && isSessionMode) {
-      url.port = '6543';
+    // Shared Supavisor poolers identify the tenant from both the exact pooler
+    // host and the role-qualified username. Preview environments can carry an
+    // older/session-mode URL, so an explicit public project ref lets us repair
+    // those non-secret routing fields without touching the password/database.
+    if (isSupabasePooler) {
+      if (validPoolerHost) url.hostname = validPoolerHost;
+      if (configuredProjectRef) {
+        const role = url.username.split('.')[0] || url.username;
+        if (!url.username.endsWith(`.${configuredProjectRef}`)) {
+          url.username = `${role}.${configuredProjectRef}`;
+        }
+      }
+      if (isSessionMode) url.port = '6543';
       return url.toString();
     }
 
@@ -24,12 +33,13 @@ export function serverlessDatabaseUrl(
     // shared pooler host is configured, preserve the password/database/options
     // but switch host, username namespace and port to Supavisor transaction mode.
     const directMatch = /^db\.([a-z0-9]+)\.supabase\.co$/i.exec(url.hostname);
-    if (directMatch && poolerHost?.endsWith('.pooler.supabase.com')) {
-      const projectRef = directMatch[1];
-      url.hostname = poolerHost;
+    if (directMatch && validPoolerHost) {
+      const projectRef = configuredProjectRef || directMatch[1];
+      url.hostname = validPoolerHost;
       url.port = '6543';
+      const role = url.username.split('.')[0] || url.username;
       if (!url.username.endsWith(`.${projectRef}`)) {
-        url.username = `${url.username}.${projectRef}`;
+        url.username = `${role}.${projectRef}`;
       }
     }
 
