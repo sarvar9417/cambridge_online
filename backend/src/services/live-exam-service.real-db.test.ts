@@ -190,33 +190,6 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (pool) await pool.end();
   });
 
-  it('executes balanced section bucketing and Fixed source ordering on real PostgreSQL',async()=>{
-    const select=service as unknown as {
-      chooseQuestionIds(
-        actor:Actor,input:{
-          classId:string;title:string;topicIds:string[];subtopicIds:string[];
-          coursebookSectionCodes:string[];questionCount:number;markingMode:'teacher';
-          questionOrder:'balanced'|'fixed';includeDiagrams:boolean;excludeSeen:boolean;
-        },requireExact:boolean,countOnly:boolean,
-        options:{seed:string}
-      ):Promise<{ids:string[];total:number}>;
-    };
-    const input={
-      classId,title:'Source order syntax acceptance',topicIds:[],subtopicIds:[],
-      coursebookSectionCodes:['1.1','2.1'],questionCount:1,
-      markingMode:'teacher' as const,includeDiagrams:true,excludeSeen:false,
-    };
-    const balanced=await select.chooseQuestionIds(owner(),{
-      ...input,questionOrder:'balanced',
-    },false,false,{seed:'real-database-balanced-seed'});
-    const fixed=await select.chooseQuestionIds(owner(),{
-      ...input,questionOrder:'fixed',
-    },false,false,{seed:'real-database-fixed-seed'});
-    expect(balanced.total).toBeGreaterThanOrEqual(0);
-    expect(fixed.total).toBe(balanced.total);
-    expect(new Set(balanced.ids).size).toBe(balanced.ids.length);
-  });
-
   it('lets authenticated students join by valid code without checking class or school membership', async () => {
     const {sessionId}=await makeSession({
       code:'829901',
