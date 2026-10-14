@@ -876,11 +876,13 @@ export class LiveExamService {
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
-    await this.requireClassControl(this.pool, actor, input.classId);
-    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
+    // Check incompatible builder modes before any database work; no caller
+    // should be able to misrepresent manual question selection as balancing.
     if (input.questionIds?.length && input.questionOrder==='balanced') {
       throw new DomainError('live_manual_balanced_unsupported',400);
     }
+    await this.requireClassControl(this.pool, actor, input.classId);
+    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
