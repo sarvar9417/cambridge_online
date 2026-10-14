@@ -520,7 +520,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           :{},
         allowLateJoin:data.get('allowLateJoin')==='on',autoCloseWhenAllSubmitted:data.get('autoCloseWhenAllSubmitted')==='on',
         teacherOverrideEnabled:user.role!=='student'&&data.get('teacherOverrideEnabled')==='on',leaderboardMode:data.get('leaderboardMode'),
-        displayNameMode:data.get('displayNameMode'),
+        displayNameMode:user.role==='student'?'anonymous_alias':data.get('displayNameMode'),
         peerCalibrationPercent:user.role==='student'?0:Number(data.get('peerCalibrationPercent')??0),
         peerDisagreementThreshold:Number(data.get('peerDisagreementThreshold')??1),
       });
