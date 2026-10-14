@@ -1,4 +1,7 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
+import type {Pool} from 'pg';
+import type {PgQuestionsRepository} from '../repositories/questions-repository.js';
+import {LiveExamService} from '../services/live-exam-service.js';
 import { expandExplicitLiveMarkPoints, type ExplicitScheme } from './live-explicit-mark-points.js';
 import { liveMarkSchemeCapabilityReady } from './live-mark-scheme-capability.js';
 import {computeScore} from './marking.js';
@@ -89,6 +92,29 @@ describe('source-backed Live MP decomposition',()=>{
   const level={...original('1 mark for each point\n• Point one\n• Point two',2),
    schemeType:'levels_of_response',levels:[{id:'id',levelNumber:1,minMarks:0,maxMarks:2,descriptorMd:'Example',indicativeContentMd:null}]};
   expect(expandExplicitLiveMarkPoints(level)).toBe(level);
+ });
+
+ it('freezes normalized MP1/MP2/MP3 through the actual Live service source lookup',async()=>{
+  const source=original([
+    '5(b) 1 mark for each correct term 3',
+    '• drawing object',
+    '• property',
+    '• drawing list',
+  ].join('\\n'),3);
+  const query=vi.fn().mockResolvedValue({rows:[{scheme:source}]});
+  const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+  const actual=await (service as unknown as {
+    markScheme:(questionId:string)=>Promise<ExplicitScheme>;
+  }).markScheme('some-approved-question');
+  expect(actual.schemeType).toBe('all_required');
+  expect(actual.points).toHaveLength(3);
+  expect(actual.points.map(p=>p.marks)).toEqual([1,1,1]);
+  expect(actual.points.map(p=>p.code)).toEqual(['MP1','MP2','MP3']);
+  expect(query).toHaveBeenCalledTimes(1);
+  expect(String(query.mock.calls[0]![0])).toContain('canonical_mark_schemes');
+  // The original canonical response is never mutated or rewritten.
+  expect(source.schemeType).toBe('manual_only');
+  expect(source.points[0]!.marks).toBe(3);
  });
 
  it('leaves pre-existing distinct MP rubrics and already-expanded session snapshots unchanged',()=>{
