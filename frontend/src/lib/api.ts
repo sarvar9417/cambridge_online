@@ -273,7 +273,7 @@ export interface LiveExamSummary {
   id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   pausedAt:string|null;pauseRemainingS:number|null;
-  settings:{practiceMode?:'solo'|'group'|'collaborative'|null;allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
+  settings:{questionOrder?:'fixed'|'shuffled'|'balanced';practiceMode?:'solo'|'group'|'collaborative'|null;allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
 export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}
