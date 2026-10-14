@@ -361,8 +361,7 @@ export class LiveExamService {
     // keeps the existing seeded random selection behavior.
     // Automatic Fixed uses source ordering and must not bind a random seed:
     // PostgreSQL rejects an unused $1 parameter (42P18).
-    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed'
-      && options.sort!=='random';
+    const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
     const sourceOrdered = !countOnly && (options.sort === 'source' || automaticFixed);
     const values: unknown[] = countOnly || sourceOrdered
       ? [input.classId]
