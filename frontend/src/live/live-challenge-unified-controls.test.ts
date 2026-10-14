@@ -51,7 +51,7 @@ describe('unified Live Challenge classroom controls',()=>{
   it('uses the same diagram and seen-question filters in manual pool discovery and room creation',()=>{
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('markingMode:data.get(\'markingMode\'),includeDiagrams,excludeSeen');
+    expect(page).toContain("markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):data.get('markingMode'),includeDiagrams,excludeSeen");
     expect(page).toContain('setIncludeDiagrams(event.target.checked);clearManualPool()');
     expect(page).toContain('setExcludeSeen(event.target.checked);clearManualPool()');
   });
