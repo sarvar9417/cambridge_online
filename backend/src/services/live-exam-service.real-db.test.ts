@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
-import { LiveExamService } from './live-exam-service.js';
+import { LiveExamService, LIVE_FIXED_SOURCE_ORDER_SQL } from './live-exam-service.js';
 import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
 
 const describeLive = process.env.LIVE_DB_ACCEPTANCE === '1' ? describe : describe.skip;
@@ -188,6 +188,22 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       client.release();
     }
     if (pool) await pool.end();
+  });
+
+  it('sorts extracted Q2(a)/Q2(b) before Q10 despite identical leaf sort_order on real PostgreSQL',async()=>{
+    // Exact production comparator against the database engine and the same
+    // query aliases, not a JavaScript approximation or a text-only assertion.
+    const result=await client.query<{display_ref:string}>(`
+      select candidate.display_ref from (values
+        ('9618/11/M/J/26 Q10(a)',2026,'MJ',1,1,'q10'),
+        ('9618/11/M/J/26 Q2(b)',2026,'MJ',1,1,'q2b'),
+        ('9618/11/M/J/26 Q2(a)',2026,'MJ',1,1,'q2a')
+      ) as candidate (display_ref,year,series,component,sort_order,id)
+      order by ${LIVE_FIXED_SOURCE_ORDER_SQL}
+    `);
+    expect(result.rows.map(row=>row.display_ref)).toEqual([
+      '9618/11/M/J/26 Q2(a)','9618/11/M/J/26 Q2(b)','9618/11/M/J/26 Q10(a)',
+    ]);
   });
 
   it('lets authenticated students join by valid code without checking class or school membership', async () => {
