@@ -1,31 +1,32 @@
-name: Full 0478 corpus backfill
+name: Audit and import 0478 Paper 2
 
+# Deliberately manual: changing code or merging a PR must never stage PDFs or
+# import into the shared production database.
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'Audit (read-only) or explicitly approved database import'
+        type: choice
+        options: [audit, apply]
+        default: audit
+        required: true
+      confirm:
+        description: 'For apply only: enter I_APPROVE_0478_PAPER2_DB_WRITES'
+        required: false
+        type: string
       limit:
-        description: 'Maximum un-ingested papers to apply (0 = all)'
+        description: 'Maximum un-ingested Paper 2 variants to apply (0 = all)'
         required: false
         default: '0'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/full-0478-corpus-backfill.yml'
-      - 'backend/scripts/full-0478-corpus-backfill.py'
-      - 'backend/src/database/catalogs/0478-2015-2022.json'
-      - 'backend/src/database/catalogs/0478-2023-2025.json'
-      - 'backend/src/database/migrations/0100_0478_full_corpus_runner.sql'
-      - 'backend/src/database/migrations/0101_syllabus_catalog_json_rpc.sql'
-      - 'backend/src/database/migrations/0103_extend_0478_sources_to_2028.sql'
-      - 'supabase/functions/corpus-runner/index.ts'
-      - 'supabase/functions/corpus-runner/parser.ts'
+        type: string
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: full-0478-corpus-backfill
+  group: 0478-paper2-backfill
   cancel-in-progress: false
 
 jobs:
@@ -34,17 +35,35 @@ jobs:
     timeout-minutes: 180
     env:
       CORPUS_RUNNER_URL: https://mphmganorvhsnwvhcxyj.supabase.co/functions/v1/corpus-runner
-      BACKFILL_LIMIT: ${{ github.event.inputs.limit || '0' }}
+      BACKFILL_MODE: ${{ inputs.mode || 'audit' }}
+      BACKFILL_COMPONENTS: '2'
+      BACKFILL_CONFIRM: ${{ inputs.confirm || '' }}
+      BACKFILL_LIMIT: ${{ inputs.limit || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install source-backed corpus tools
+      - name: Require explicit approval and main ref before database writes
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          INPUT_CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$GITHUB_REF" != 'refs/heads/main' ]; then
+            echo 'Database writes must run on main after separate production approval.'
+            exit 1
+          fi
+          if [ "$INPUT_CONFIRM" != 'I_APPROVE_0478_PAPER2_DB_WRITES' ]; then
+            echo 'Explicit confirmation missing. No changes made.'
+            exit 1
+          fi
+      - name: Install corpus tools
         run: python -m pip install --upgrade 'gdown==5.2.0' requests scikit-learn
-      - name: Compile 0478 backfill script
-        run: python -m py_compile backend/scripts/full-0478-corpus-backfill.py
-      - name: Run full 0478 corpus backfill
+      - name: Syntax and scope tests
+        run: |
+          python -m py_compile backend/scripts/full-0478-corpus-backfill.py
+          python -m unittest discover -s backend/scripts -p 'test_0478_paper2_audit.py' -v
+      - name: Run scoped 0478 Paper 2 workflow
         id: backfill
         shell: bash
         run: |
@@ -53,15 +72,15 @@ jobs:
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Upload source audit report
+      - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 0478-backfill-report
+          name: 0478-paper2-audit-report
           path: 0478-backfill-report.json
           if-no-files-found: warn
-          retention-days: 14
-      - name: Enforce backfill result
+          retention-days: 30
+      - name: Enforce result
         if: always()
         run: |
           code='${{ steps.backfill.outputs.exit_code }}'
