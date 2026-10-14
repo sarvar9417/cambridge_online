@@ -38,17 +38,16 @@ function projectorDisplayName(fullName:string,aliasNo:number,mode:ProjectorDispl
 export class LiveExamRoundSummaryService {
   constructor(private readonly pool: Pool) {}
 
-  private assertStaff(actor: Actor) {
-    if (actor.role === 'student') throw new DomainError('staff_only', 403);
-  }
-
   private async controlledSession(actor: Actor, sessionId: string) {
-    this.assertStaff(actor);
     const result = await this.pool.query(
       `select les.id,les.status::text,les.current_question_index,les.settings
        from live_exam_sessions les
        join classes c on c.id=les.class_id
        where les.id=$1 and (
+         ($2='student' and les.settings->>'practiceMode' in ('solo','group','collaborative')
+           and exists(select 1 from live_exam_participants lep
+             where lep.session_id=les.id and lep.student_id=$4 and lep.left_at is null))
+         or 
          ($2='owner' and c.school_id=$3)
          or ($2='teacher' and (
            c.owner_id=$4 or exists(
@@ -65,13 +64,16 @@ export class LiveExamRoundSummaryService {
 
   async summary(actor: Actor, sessionId: string, projector = false) {
     const session = await this.controlledSession(actor, sessionId);
+    // Students may only see released standings from their own practice room,
+    // and must never receive names or student UUIDs from the staff scoreboard.
+    const anonymize = actor.role==='student'||projector;
     if (!['review','finished'].includes(session.status)) {
       throw new DomainError('live_results_not_ready', 409);
     }
 
     const currentPosition = Number(session.current_question_index);
     const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
-    const displayNameMode:ProjectorDisplayNameMode = session.settings?.displayNameMode === 'full'
+    const displayNameMode:ProjectorDisplayNameMode = actor.role==='student' ? 'anonymous_alias' : session.settings?.displayNameMode === 'full'
       || session.settings?.displayNameMode === 'first_name'
       || session.settings?.displayNameMode === 'initials'
       ? session.settings.displayNameMode
@@ -122,8 +124,8 @@ export class LiveExamRoundSummaryService {
     const overallPossible = Number(possibleResult.rows[0]?.possible ?? 0);
     const round: LiveExamStanding[] = roundResult.rows.map((row) => ({
       rank: Number(row.rank),
-      ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector
+      ...(anonymize ? {} : { studentId: String(row.student_id) }),
+      studentName: anonymize
         ? projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)
         : String(row.full_name),
       score: Number(row.score),
@@ -131,8 +133,8 @@ export class LiveExamRoundSummaryService {
     }));
     const overall: LiveExamStanding[] = overallResult.rows.map((row) => ({
       rank: Number(row.rank),
-      ...(projector ? {} : { studentId: String(row.student_id) }),
-      studentName: projector
+      ...(anonymize ? {} : { studentId: String(row.student_id) }),
+      studentName: anonymize
         ? projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)
         : String(row.full_name),
       score: Number(row.score),

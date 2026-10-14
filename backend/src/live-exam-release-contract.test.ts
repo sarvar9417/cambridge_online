@@ -260,7 +260,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(summary).toContain("displayNameMode === 'initials'");
     expect(summary).toContain("'anonymous_alias'");
     expect(summary).toContain('projectorDisplayName(String(row.full_name),Number(row.alias_no),displayNameMode)');
-    expect(summary).toContain("...(projector ? {} : { studentId: String(row.student_id) })");
+    expect(summary).toContain("...(anonymize ? {} : { studentId: String(row.student_id) })");
     expect(summary).toContain('lep.left_at is null');
     expect(liveRoute).toContain("router.get('/:id/projector'");
     expect(liveRoute).toContain('service.snapshot(req.actor!, id(req.params), true)');

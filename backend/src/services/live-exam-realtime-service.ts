@@ -44,6 +44,7 @@ export class LiveExamRealtimeService {
          on lep.session_id=les.id and lep.student_id=$3 and lep.left_at is null
        where les.id=$1 and (
          ($2='student' and lep.id is not null)
+          or ($2='student' and les.host_id=$3 and les.settings->>'practiceMode' in ('solo','group','collaborative'))
          or ($2='owner' and c.school_id=$4)
          or ($2='teacher' and (
            c.owner_id=$3 or exists(
