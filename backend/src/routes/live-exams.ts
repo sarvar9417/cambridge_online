@@ -32,7 +32,7 @@ const createInput = z.object({
   series: z.array(z.enum(['FM','MJ','ON'])).max(3).default([]),
   components: z.array(z.number().int().min(1).max(9)).max(9).default([]),
   questionIds: z.array(uuid).min(1).optional(),
-  questionOrder: z.enum(['fixed', 'shuffled']).default('shuffled'),
+  questionOrder: z.enum(['fixed', 'shuffled', 'balanced']).default('shuffled'),
   allowLateJoin: z.boolean().default(false),
   autoCloseWhenAllSubmitted: z.boolean().default(false),
   teacherOverrideEnabled: z.boolean().default(true),
