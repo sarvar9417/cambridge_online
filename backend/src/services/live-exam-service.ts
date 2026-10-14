@@ -10,6 +10,7 @@ import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-p
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
+import { expandExplicitLiveMarkPoints } from '../lib/live-explicit-mark-points.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
@@ -274,7 +275,12 @@ export class LiveExamService {
     );
     const scheme=result.rows[0]?.scheme as MarkSchemeSnapshot|undefined;
     if (!scheme || !liveMarkSchemeCapabilityReady(scheme)) throw new DomainError('live_question_not_ready', 409);
-    return scheme;
+    // Freeze explicit, source-backed 1-mark criteria separately for this Live
+    // session. Canonical approved data and historical frozen sessions remain
+    // untouched; ambiguous/level-based rubrics continue to use manual score.
+    const sessionScheme=expandExplicitLiveMarkPoints(scheme);
+    if(!liveMarkSchemeCapabilityReady(sessionScheme))throw new DomainError('live_question_not_ready',409);
+    return sessionScheme;
   }
 
   private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
