@@ -39,7 +39,13 @@ describe('Live Challenge saved question ordering',()=>{
     expect(result).toEqual({ids:['q21','q51','q31','q61'],total:12});
     expect(calls).toHaveLength(1);
     expect(calls[0]!.sql).toContain('partition by bucketed.section_bucket');
-    expect(calls[0]!.sql).toContain('order by ranked.section_rank,md5(ranked.id::text || $1::text)');
+    expect(calls[0]!.sql).toContain('partition by sectioned.chapter_bucket');
+    expect(calls[0]!.sql).toContain('order by ranked.chapter_rank,md5(ranked.id::text || $1::text)');
+    expect(calls[0]!.sql).toContain('case bucketed.section_bucket');
+    // All 2.1/2.2 options belong to Chapter 2. Even with more sections there,
+    // those questions must occupy just one chapter fairness bucket.
+    expect(calls[0]!.sql).toMatch(/when 0 then 2/);
+    expect(calls[0]!.sql).toMatch(/when 1 then 2/);
     expect(calls[0]!.sql).toContain('case when');
     expect(calls[0]!.sql).toContain('coursebook_lo.text ilike');
     expect(calls[0]!.sql).toContain('join questions bucket_question');
@@ -48,6 +54,26 @@ describe('Live Challenge saved question ordering',()=>{
     expect(calls[0]!.params[1]).toBe(base.classId);
     expect(calls[0]!.params).toContain(base.questionCount);
     expect(calls[0]!.params.length).toBeGreaterThan(5);
+  });
+
+  it('prioritizes chapters before sections when the teacher picks unequal section counts',async()=>{
+    const {service,calls}=picker([
+      {id:'a',display_ref:'9618/11/M/J/26 Q1',sort_order:1,total_count:4},
+      {id:'b',display_ref:'9618/11/M/J/26 Q2',sort_order:2,total_count:4},
+      {id:'c',display_ref:'9618/11/M/J/26 Q3',sort_order:3,total_count:4},
+      {id:'d',display_ref:'9618/11/M/J/26 Q4',sort_order:4,total_count:4},
+    ]);
+    await service.chooseQuestionIds(teacher,{
+      ...base,coursebookSectionCodes:['1.1','2.1','2.2'],
+      questionOrder:'balanced',
+    },true,false,{seed:'chapter-test'});
+    const sql=calls[0]!.sql;
+    expect(sql).toContain('partition by bucketed.section_bucket');
+    expect(sql).toContain('partition by sectioned.chapter_bucket');
+    expect(sql).toContain('order by sectioned.section_rank,md5(sectioned.id::text || $1::text)');
+    expect(sql).toContain('order by ranked.chapter_rank');
+    expect(sql).toMatch(/when \d+ then 1/);
+    expect((sql.match(/when \d+ then 2/g)??[]).toHaveLength(2);
   });
 
   it('honors Automatic + Fixed by preserving exact source query order',async()=>{
