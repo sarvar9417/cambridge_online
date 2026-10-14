@@ -73,7 +73,7 @@ export class LiveExamRoundSummaryService {
 
     const currentPosition = Number(session.current_question_index);
     const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
-    const displayNameMode:ProjectorDisplayNameMode = session.settings?.displayNameMode === 'full'
+    const displayNameMode:ProjectorDisplayNameMode = actor.role==='student' ? 'anonymous_alias' : session.settings?.displayNameMode === 'full'
       || session.settings?.displayNameMode === 'first_name'
       || session.settings?.displayNameMode === 'initials'
       ? session.settings.displayNameMode
