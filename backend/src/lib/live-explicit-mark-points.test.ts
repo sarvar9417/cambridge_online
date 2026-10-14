@@ -2,128 +2,160 @@ import {describe,it,expect,vi} from 'vitest';
 import type {Pool} from 'pg';
 import type {PgQuestionsRepository} from '../repositories/questions-repository.js';
 import {LiveExamService} from '../services/live-exam-service.js';
-import { expandExplicitLiveMarkPoints, type ExplicitScheme } from './live-explicit-mark-points.js';
-import { liveMarkSchemeCapabilityReady } from './live-mark-scheme-capability.js';
+import {expandExplicitLiveMarkPoints,type ExplicitScheme} from './live-explicit-mark-points.js';
+import {liveMarkSchemeCapabilityReady} from './live-mark-scheme-capability.js';
 import {computeScore} from './marking.js';
 
-function original(guidanceMd:string,maxMarks:number):ExplicitScheme{
- return {
-  id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',schemeType:'manual_only',maxMarks,guidanceMd,
-  levels:[],groups:[],points:[{
-   id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',code:'M1',
-   text:guidanceMd,marks:maxMarks,accept:[],reject:[],requires:[],isBod:false,groupId:null,
-  }],
- };
+const FIXTURES={
+  pixel:{
+    ref:'9618/11/M/J/26 Q5(a)',
+    marks:3,
+    guidance:[
+      '5(a) 1 mark for each point to max 3 3',
+      '• The image is made of pixels',
+      '• Each pixel has one colour',
+      '• Each colour has a unique binary code',
+      '• The code for the colour of each pixel is stored in sequence / order',
+    ].join('\n'),
+  },
+  terms:{
+    ref:'9618/11/M/J/26 Q5(b)',
+    marks:3,
+    guidance:[
+      '5(b) 1 mark for each correct term 3',
+      '• drawing object',
+      '• property',
+      '• drawing list',
+      'A drawing object is an individual element of an image, for example: a line, a square.',
+      'A property is an attribute of one part of the image, for example: a line colour, the width of a',
+      'line.',
+      'A drawing list is all of the elements that are included in the vector graphic.',
+    ].join('\n'),
+  },
+  relations:{
+    ref:'9618/11/M/J/26 Q4(a)',
+    marks:4,
+    guidance:[
+      '4(a) 1 mark for each correct point 4',
+      '• CUSTOMER BORROW is a one - to - many relationship // 1:M',
+      '• TOY_INSTANCE to TOY is a many - to - one relationship // M:1',
+      '• Identifying the correct Primary Key and matching Foreign Key in both relationships',
+      '• Stating how the keys form the relationship',
+    ].join('\n'),
+  },
+  health:{
+    ref:'9618/12/M/J/26 Q6(a)',
+    marks:3,
+    guidance:[
+      '6(a) 1 mark for each correct point to max 3 3',
+      '• It only has one function, to monitor health',
+      '• All the hardware such as sensors and a microprocessor is dedicated to',
+      'the task of monitoring health',
+      '• The firmware cannot be easily amended or updated because its function is',
+      'preset',
+    ].join('\n'),
+  },
+};
+type Fixture=(typeof FIXTURES)[keyof typeof FIXTURES];
+function original(source:Fixture):ExplicitScheme{
+  return {
+    id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    schemeType:'manual_only',maxMarks:source.marks,guidanceMd:source.guidance,
+    levels:[],groups:[],points:[{
+      id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',code:'M1',
+      text:source.guidance,marks:source.marks,accept:[],reject:[],requires:[],
+      isBod:false,groupId:null,
+    }],
+  };
 }
-function assess(s:ExplicitScheme,matches:number[]){
- const selected=new Set(matches);
- return computeScore({
-  type:s.schemeType as 'all_required'|'any_n_from_m',
-  maxMarks:s.maxMarks,
-  points:s.points.map(p=>({code:p.code,marks:p.marks,groupId:p.groupId,requires:[]})),
-  groups:s.groups.map(g=>({id:g.id,nRequired:g.nRequired,marksPerPoint:g.marksPerPoint,
-    maxMarks:g.maxMarks,awardMode:g.awardMode})),
-  levels:[],
- },s.points.map((p,i)=>({code:p.code,matched:selected.has(i),confidence:1}))).score;
+function score(s:ExplicitScheme,matches:number[]) {
+  const chosen=new Set(matches);
+  return computeScore({
+    type:s.schemeType as 'all_required'|'any_n_from_m',
+    maxMarks:s.maxMarks,
+    points:s.points.map(p=>({code:p.code,marks:p.marks,groupId:p.groupId,requires:[]})),
+    groups:s.groups.map(g=>({id:g.id,nRequired:g.nRequired,marksPerPoint:g.marksPerPoint,
+      maxMarks:g.maxMarks,awardMode:g.awardMode})),
+    levels:[],
+  },s.points.map((p,i)=>({code:p.code,matched:chosen.has(i),confidence:1}))).score;
 }
 
-describe('source-backed Live MP decomposition',()=>{
- it('separates three independent source terms into three stable one-mark points',()=>{
-  const source=original([
-   '5(b) 1 mark for each correct term 3',
-   '• drawing object',
-   '• property',
-   '• drawing list',
-   'An individual drawing object is part of an image.',
-  ].join('\n'),3);
-  const a=expandExplicitLiveMarkPoints(source);
-  expect(a.schemeType).toBe('all_required');
-  expect(a.points.map(p=>({code:p.code,text:p.text,marks:p.marks}))).toEqual([
-   {code:'MP1',text:'drawing object',marks:1},
-   {code:'MP2',text:'property',marks:1},
-   {code:'MP3',text:'drawing list',marks:1},
-  ]);
-  expect(new Set(a.points.map(p=>p.id)).size).toBe(3);
-  expect(a.points.every(p=>/^[0-9a-f-]{36}$/.test(p.id))).toBe(true);
-  expect(a.points.map(p=>p.id)).toEqual(expandExplicitLiveMarkPoints(source).points.map(p=>p.id));
-  expect(a.guidanceMd).toBe(source.guidanceMd);
-  expect(liveMarkSchemeCapabilityReady(a)).toBe(true);
-  expect(assess(a,[0,2])).toBe(2);
- });
+describe('Live MP audit: no automated guesses from OCR rules',()=>{
+  it('splits only audited source references with exactly matching source revisions',()=>{
+    for(const fixture of Object.values(FIXTURES)){
+      const source=original(fixture);
+      const normalized=expandExplicitLiveMarkPoints(source,fixture.ref);
+      expect(normalized).not.toBe(source);
+      expect(normalized.derivedFromGuidance).toBe(true);
+      expect(normalized.points.every(p=>p.marks===1)).toBe(true);
+      expect(new Set(normalized.points.map(p=>p.id)).size).toBe(normalized.points.length);
+      expect(normalized.guidanceMd).toBe(fixture.guidance);
+      expect(liveMarkSchemeCapabilityReady(normalized)).toBe(true);
+      expect(expandExplicitLiveMarkPoints(source,fixture.ref).points.map(p=>p.id))
+        .toEqual(normalized.points.map(p=>p.id));
+      expect(expandExplicitLiveMarkPoints(normalized,fixture.ref)).toBe(normalized);
+    }
+  });
 
- it('supports 3-of-4 independent source points with a scoring cap',()=>{
-  const source=original([
-   '5(a) 1 mark for each point to max 3 3',
-   '• The image is made of pixels',
-   '• Each pixel has one colour',
-   '• Each colour has a unique binary code',
-   '• The binary colour code is stored in sequence',
-  ].join('\n'),3);
-  const a=expandExplicitLiveMarkPoints(source);
-  expect(a.schemeType).toBe('any_n_from_m');
-  expect(a.points).toHaveLength(4);
-  expect(a.points.every(p=>p.marks===1&&p.groupId===a.groups[0]?.id)).toBe(true);
-  expect(a.groups).toMatchObject([{nRequired:3,marksPerPoint:1,maxMarks:3,awardMode:'fixed'}]);
-  expect(liveMarkSchemeCapabilityReady(a)).toBe(true);
-  expect(assess(a,[0,1])).toBe(2);
-  expect(assess(a,[0,1,2,3])).toBe(3);
- });
+  it('credits independent 3/3 terms and a capped 3/4 pixel rubric',()=>{
+    const terms=expandExplicitLiveMarkPoints(original(FIXTURES.terms),FIXTURES.terms.ref);
+    expect(terms.schemeType).toBe('all_required');
+    expect(terms.points.map(p=>p.text)).toEqual(['drawing object','property','drawing list']);
+    expect(score(terms,[0,2])).toBe(2);
+    const pixels=expandExplicitLiveMarkPoints(original(FIXTURES.pixel),FIXTURES.pixel.ref);
+    expect(pixels.schemeType).toBe('any_n_from_m');
+    expect(pixels.points).toHaveLength(4);
+    expect(pixels.groups).toMatchObject([{nRequired:3,maxMarks:3,marksPerPoint:1,awardMode:'fixed'}]);
+    expect(score(pixels,[0,1])).toBe(2);
+    expect(score(pixels,[0,1,2,3])).toBe(3);
+  });
 
- it('preserves original manual rubrics for mixed benefit+explanation paired marks',()=>{
-  const source=original([
-   '2(b) 1 mark for each benefit and 1 mark for an appropriate expansion to max 4 (2 x 2)',
-   '• Detects an error at runtime',
-   '• and shows where it happened',
-   '• Immediate execution',
-   '• with no compile stage',
-  ].join('\n'),4);
-  expect(expandExplicitLiveMarkPoints(source)).toBe(source);
- });
+  it('reconstitutes two genuine wrapped source points in an audited three-mark answer',()=>{
+    const health=expandExplicitLiveMarkPoints(original(FIXTURES.health),FIXTURES.health.ref);
+    expect(health.points).toHaveLength(3);
+    expect(health.points[1]!.text).toContain('monitoring health');
+    expect(health.points[2]!.text).toContain('function is preset');
+    expect(score(health,[0,1,2])).toBe(3);
+  });
 
- it('never invents points for calculations, SQL statements, levels or source options',()=>{
-  for(const content of [
-   'ACC results: AND 31 -> 10011010; XOR B01001111 -> 11010101; OR #30 -> 10011110.',
-   '1 mark for each correct statement. Award maximum 2 marks if statements are in wrong order\n• Correct table\n• SET clause\n• WHERE clause',
-   'No mark for choice. 1 mark for each point to max 3; justification must match. No mix and match.\n• bitmap\n• vector\n• quality',
-  ]) {
-    const scheme=original(content,3);
-    expect(expandExplicitLiveMarkPoints(scheme)).toBe(scheme);
-  }
-  const level={...original('1 mark for each point\n• Point one\n• Point two',2),
-   schemeType:'levels_of_response',levels:[{id:'id',levelNumber:1,minMarks:0,maxMarks:2,descriptorMd:'Example',indicativeContentMd:null}]};
-  expect(expandExplicitLiveMarkPoints(level)).toBe(level);
- });
+  it('fails closed for altered guidance, different paper, mismatched score and unknown reference',()=>{
+    const source=original(FIXTURES.pixel);
+    expect(expandExplicitLiveMarkPoints(source,'9618/11/M/J/25 Q5(a)')).toBe(source);
+    expect(expandExplicitLiveMarkPoints(source,'0478/21/M/J/26 Q5(a)')).toBe(source);
+    expect(expandExplicitLiveMarkPoints(source,'')).toBe(source);
+    expect(expandExplicitLiveMarkPoints({...source,guidanceMd:source.guidanceMd+'\nDo not award extra.'},FIXTURES.pixel.ref))
+      .not.toHaveProperty('derivedFromGuidance',true);
+    expect(expandExplicitLiveMarkPoints({...source,maxMarks:4},FIXTURES.pixel.ref)).toBeDefined();
+    expect(expandExplicitLiveMarkPoints({...source,maxMarks:4},FIXTURES.pixel.ref).schemeType).toBe('manual_only');
+    const paired=original({
+      ref:'9618/11/M/J/26 Q2(b)',marks:4,
+      guidance:'1 mark for each benefit and 1 for its explanation\n• Benefit one\n• explanation\n• Benefit two\n• explanation',
+    });
+    expect(expandExplicitLiveMarkPoints(paired,'9618/11/M/J/26 Q2(b)')).toBe(paired);
+  });
 
- it('freezes normalized MP1/MP2/MP3 through the actual Live service source lookup',async()=>{
-  const source=original([
-    '5(b) 1 mark for each correct term 3',
-    '• drawing object',
-    '• property',
-    '• drawing list',
-  ].join('\n'),3);
-  const query=vi.fn().mockResolvedValue({rows:[{scheme:source}]});
-  const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
-  const actual=await (service as unknown as {
-    markScheme:(questionId:string)=>Promise<ExplicitScheme>;
-  }).markScheme('some-approved-question');
-  expect(actual.schemeType).toBe('all_required');
-  expect(actual.points).toHaveLength(3);
-  expect(actual.points.map(p=>p.marks)).toEqual([1,1,1]);
-  expect(actual.points.map(p=>p.code)).toEqual(['MP1','MP2','MP3']);
-  expect(query).toHaveBeenCalledTimes(1);
-  expect(String(query.mock.calls[0]![0])).toContain('canonical_mark_schemes');
-  // The original canonical response is never mutated or rewritten.
-  expect(source.schemeType).toBe('manual_only');
-  expect(source.points[0]!.marks).toBe(3);
- });
+  it('preserves source-backed canonical result while using audited frozen MP1-MP3',async()=>{
+    const source=original(FIXTURES.terms);
+    const query=vi.fn().mockResolvedValue({rows:[{scheme:source,source_ref:FIXTURES.terms.ref}]});
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    const result=await (service as unknown as {
+      markScheme:(questionId:string)=>Promise<ExplicitScheme>;
+    }).markScheme('approved-question');
+    expect(result.points.map(p=>p.code)).toEqual(['MP1','MP2','MP3']);
+    expect(result.schemeType).toBe('all_required');
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(String(query.mock.calls[0]![0])).toContain('join questions q on q.id=ms.question_id');
+    expect(source.points).toHaveLength(1);
+    expect(source.schemeType).toBe('manual_only');
+  });
 
- it('leaves pre-existing distinct MP rubrics and already-expanded session snapshots unchanged',()=>{
-  const source=original('1 mark for each correct point\n• Point one\n• Point two',2);
-  const once=expandExplicitLiveMarkPoints(source);
-  expect(expandExplicitLiveMarkPoints(once)).toBe(once);
-  const multiple={...source,schemeType:'all_required',points:[
-   {...source.points[0]!,marks:1}, {...source.points[0]!,id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',code:'M2',marks:1},
-  ]};
-  expect(expandExplicitLiveMarkPoints(multiple)).toBe(multiple);
- });
+  it('does not re-interpret non-manual, group or level rubrics even with audited text',()=>{
+    const source=original(FIXTURES.pixel);
+    const ownPoints={...source,schemeType:'all_required'};
+    expect(expandExplicitLiveMarkPoints(ownPoints,FIXTURES.pixel.ref)).toBe(ownPoints);
+    const leveled={...source,levels:[{
+      levelNumber:1,minMarks:0,maxMarks:3,descriptorMd:'Best-fit',indicativeContentMd:null,
+    }]};
+    expect(expandExplicitLiveMarkPoints(leveled,FIXTURES.pixel.ref)).toBe(leveled);
+  });
 });
