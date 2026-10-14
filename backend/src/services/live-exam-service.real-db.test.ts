@@ -314,10 +314,16 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await expect(creator.create(student(0),build('solo')))
       .rejects.toMatchObject({code:'live_student_practice_limit',status:409});
     for(const id of [first.id,second.id,third.id])await creator.cancel(student(0),String(id));
+    const active=await creator.create(student(0),build('solo'));
     const unauthorized=build('solo');
     await client.query('update enrollments set left_at=now() where class_id=$1 and student_id=$2',[classId,studentIds[0]]);
     await expect(creator.create(student(0),unauthorized)).rejects.toMatchObject({code:'not_found'});
+    await expect(creator.cancel(student(0),String(active.id))).rejects.toMatchObject({code:'not_found',status:404});
+    expect((await creator.snapshot(student(0),String(active.id)) as {
+      session:{isHost:boolean};
+    }).session.isHost).toBe(false);
     await client.query('update enrollments set left_at=null where class_id=$1 and student_id=$2',[classId,studentIds[0]]);
+    await creator.cancel(student(0),String(active.id));
   });
 
   it('runs peer group practice from two submitted answers through anonymous reviews to finished',async()=>{
