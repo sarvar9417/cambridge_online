@@ -51,11 +51,11 @@ try{
   });
   const marking=await snapshot(teacher.page,id);
   await qa.check('0478: live question source and manual-only mark scheme frozen',
-    marking.question?.displayRef===ref
+    marking.question?.portable?.leaf?.displayRef===ref
       && marking.markScheme?.schemeType==='manual_only'
       && marking.markScheme.maxMarks===2
       && marking.markScheme.points.length===0,
-    {displayRef:marking.question?.displayRef,scheme:marking.markScheme?.schemeType});
+    {displayRef:marking.question?.portable?.leaf?.displayRef,scheme:marking.markScheme?.schemeType});
   await qa.waitText(student.page,'OFFICIAL MARK SCHEME');
 
   const final=await finishRound(qa,teacher,[student],id,'teacher');
