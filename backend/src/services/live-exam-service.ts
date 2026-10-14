@@ -771,6 +771,7 @@ export class LiveExamService {
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
   ) {
     await this.requirePracticeClass(this.pool, actor, input.classId);
+    if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
       throw new DomainError('live_topic_required', 400);
@@ -831,13 +832,15 @@ export class LiveExamService {
 
     const client = await this.pool.connect();
     try {
-      await this.requirePracticeClass(client, actor, input.classId);
       let session;
       for (let attempt = 0; attempt < 5; attempt += 1) {
         await client.query('begin');
         try {
           if(actor.role==='student'){
             await client.query('select pg_advisory_xact_lock(hashtext($1))',[actor.id]);
+            // Re-check current membership within the same transaction that
+            // creates the room, after serializing simultaneous host requests.
+            await this.requirePracticeClass(client, actor, input.classId);
             const active=await client.query(
               `select count(*)::int count from live_exam_sessions
                where host_id=$1 and settings->>'practiceMode' in ('solo','group','collaborative')
@@ -845,6 +848,8 @@ export class LiveExamService {
               [actor.id],
             );
             if(Number(active.rows[0].count)>=3)throw new DomainError('live_student_practice_limit',409);
+          } else {
+            await this.requireClassControl(client, actor, input.classId);
           }
           const joinCode = String(randomInt(100000, 1000000));
           session = await client.query(
@@ -869,7 +874,9 @@ export class LiveExamService {
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
                 practiceMode:actor.role==='student'?input.practiceMode:null,
-                 allowLateJoin:input.practiceMode==='solo'?false:(input.allowLateJoin ?? false),
+                // Learner-led practice locks its roster at Start. In-progress
+                // late joins otherwise invalidate anonymous peer assignments.
+                allowLateJoin:actor.role==='student'?false:(input.allowLateJoin ?? false),
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
                 teacherOverrideEnabled:actor.role==='student'?false:(input.teacherOverrideEnabled ?? true),
                 leaderboardMode: input.leaderboardMode ?? 'marks',
