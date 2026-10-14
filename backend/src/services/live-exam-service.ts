@@ -584,7 +584,7 @@ export class LiveExamService {
       values.push(options.offset);
       offsetClause=' offset $'+values.length;
     }
-    const sourceOrder='candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id';
+    const sourceOrder='candidate.year desc,candidate.series,candidate.component,candidate.sort_order,candidate.display_ref,candidate.id';
     const orderClause=options.sort==='source' || automaticFixed
       ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
