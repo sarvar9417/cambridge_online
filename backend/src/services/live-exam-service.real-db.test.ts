@@ -197,6 +197,13 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
     const rows=await service.list(student(0));
     expect(rows.some(row=>row.id===sessionId && row.settings.practiceMode==='solo')).toBe(true);
+    const lobby=await service.snapshot(student(0),sessionId) as {
+      session:{isHost:boolean};participants:unknown[];teacherAnswers:unknown[];questions:unknown[];
+    };
+    expect(lobby.session.isHost).toBe(true);
+    expect(lobby.participants).toEqual([]);
+    expect(lobby.teacherAnswers).toEqual([]);
+    expect(lobby.questions).toEqual([]);
     await expect(service.join(student(1),'829984')).rejects.toThrow();
     await expect(service.start(student(1),sessionId)).rejects.toThrow();
     await expect(service.moderateAnswer(student(0),sessionId,questionId,{score:1})).rejects.toThrow();
