@@ -969,14 +969,16 @@ export class LiveExamService {
       const room = await client.query(
         `select les.*
          from live_exam_sessions les
-         join classes c on c.id=les.class_id
          where les.join_code=$1
            and (les.settings->>'practiceMode' is null
-             or (les.settings->>'practiceMode'<>'solo' and c.school_id=$3
-               and exists(select 1 from enrollments e
-                 join classes member_class on member_class.id=e.class_id
-                 where e.student_id=$2 and e.left_at is null
-                   and member_class.school_id=c.school_id)))
+             or (les.settings->>'practiceMode'<>'solo' and exists(
+               select 1 from classes practice_class
+               where practice_class.id=les.class_id and practice_class.school_id=$3
+                 and exists(select 1 from enrollments e
+                   where e.student_id=$2 and e.left_at is null
+                     and exists(select 1 from classes member_class
+                       where member_class.id=e.class_id
+                         and member_class.school_id=practice_class.school_id)))))
            and les.archived_at is null
            and coalesce(
              (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
