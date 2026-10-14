@@ -24,6 +24,8 @@ describe('Live Challenge mark scheme presentation',()=>{
     expect(source).toContain("groupedManualRubric?'Umumiy baholash mezoni':point.code");
     expect(source).toContain("Rasmiy mezon bazada umumiy");
     expect(source).toContain("0–");
+    expect(source).toContain("const canCheckPoint=interactive&&!schemeNeedsManualScore(scheme)");
+    expect(source).toContain("{canCheckPoint?<input type=\"checkbox\"");
   });
 
   it('keeps the original source text available but visually secondary',()=>{
