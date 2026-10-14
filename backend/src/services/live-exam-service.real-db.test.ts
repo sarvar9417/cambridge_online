@@ -251,7 +251,8 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       [sessionQuestionId,studentIds[0]],
     )).rows[0]!;
     await service.submitReview(student(0),sessionId,review.id,{matchedPointIds:[pointId]});
-    expect((await service.completeMarking(student(0),sessionId)).status).toBe('review');
+    // The final self-review atomically releases the round, so there is no extra teacher step.
+    expect((await client.query('select status::text from live_exam_sessions where id=$1',[sessionId])).rows[0].status).toBe('review');
     expect((await service.nextQuestion(student(0),sessionId)).status).toBe('finished');
     const evidence=Number((await client.query(
       'select count(*)::int count from live_exam_learning_evidence where session_id=$1',
