@@ -221,7 +221,7 @@ try {
        'Write pseudocode using a FOR loop to output the integers from 1 to 5.',
        'Write',2,'pseudocode','approved',1,1,
        jsonb_build_object(
-         'version',1,'source',jsonb_build_object('paperId',$1::text,'sha256',repeat('a',64)),
+         'version',1,'source',jsonb_build_object('paperId',$1::uuid::text,'sha256',repeat('a',64)),
          'blocks',jsonb_build_array(
            jsonb_build_object('type','text','style','task',
              'text','Write pseudocode using a FOR loop to output the integers from 1 to 5.',
