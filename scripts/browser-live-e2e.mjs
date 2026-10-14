@@ -102,6 +102,42 @@ try {
     excludeSeen: false,
   });
   await qa.check('Live E2E: session and join code created', Boolean(id) && /^\d{6}$/.test(code ?? ''));
+  // Full-schema SQL acceptance: execute both Automatic Fixed and Balanced
+  // against the real approved question pool. The abbreviated lifecycle
+  // fixture deliberately omits source_papers, hence cannot execute this SQL.
+  const orderModes=await teacher.page.evaluate(async(classId)=>{
+    const {api}=await import('/src/lib/api.ts');
+    const result=[];
+    for(const mode of ['fixed','balanced']){
+      const created=await api('/live-exams',{
+        method:'POST',
+        headers:{'Idempotency-Key':crypto.randomUUID()},
+        body:JSON.stringify({
+          classId,title:`Ordering ${mode} acceptance`,
+          topicIds:[],subtopicIds:[],coursebookSectionCodes:['1.1','2.1'],
+          questionCount:1,markingMode:'teacher',includeDiagrams:true,
+          excludeSeen:false,questionOrder:mode,
+        }),
+      });
+      const saved=await api(`/live-exams/${created.id}`);
+      result.push({
+        mode,questionCount:saved.session.questionCount,
+        refs:saved.questions.map(row=>row.displayRef),
+        questionOrder:saved.session.settings.questionOrder,
+      });
+      await api(`/live-exams/${created.id}/cancel`,{
+        method:'POST',
+        headers:{'Idempotency-Key':crypto.randomUUID()},
+        body:JSON.stringify({expectedVersion:saved.session.version}),
+      });
+    }
+    return result;
+  },classId);
+  await qa.check('Live E2E: full-schema Balanced and Fixed creation SQL executes with frozen source question',
+    orderModes.length===2 && orderModes.every(row=>
+      row.questionCount===1 && row.refs.includes(targetRef) && row.mode===row.questionOrder),
+    orderModes);
+
   await teacher.page.waitForSelector('.live-lobby-order-preview ol li',{timeout:30000});
   const savedOrder=await teacher.page.evaluate(async sessionId=>{
     const {api}=await import('/src/lib/api.ts');
