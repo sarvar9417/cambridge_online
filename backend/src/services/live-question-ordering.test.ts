@@ -28,6 +28,23 @@ function picker(rows:Array<Record<string,unknown>>){
 }
 
 describe('Live Challenge saved question ordering',()=>{
+  it('rejects Manual + Balanced at the service boundary, before querying the database',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamService(
+      {query} as unknown as Pool,{} as PgQuestionsRepository,
+    );
+    await expect(service.create(teacher,{
+      ...base,questionIds:[
+        '00000000-0000-4000-8000-000000000031',
+        '00000000-0000-4000-8000-000000000032',
+        '00000000-0000-4000-8000-000000000033',
+        '00000000-0000-4000-8000-000000000034',
+      ],questionOrder:'balanced',
+    })).rejects.toMatchObject({code:'live_manual_balanced_unsupported',status:400});
+    expect(query).not.toHaveBeenCalled();
+  });
+
+
   it('uses round-robin section buckets after source-ready selection for Balanced Random',async()=>{
     const {service,calls}=picker([
       {id:'q21',display_ref:'9618/11/M/J/26 Q2(a)',sort_order:20,total_count:12},
