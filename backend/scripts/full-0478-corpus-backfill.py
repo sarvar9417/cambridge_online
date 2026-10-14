@@ -315,7 +315,8 @@ def main() -> int:
         runner("stage", sources=batch)
 
     boot = runner("bootstrap", syllabus_code="0478", year_from=2015, year_to=2026)["data"]
-    sources = boot.get("sources") or []
+    # Bootstrap can include old staged Paper 1 rows. Never import those here.
+    sources = [x for x in (boot.get("sources") or []) if int(x.get("component") or 0) == 2]
     coverage_all = boot.get("coverage") or []
     coverage_by_key = {(str(x["syllabus_id"]), int(x["component"])): x for x in coverage_all}
     print(f"[0478] un-ingested paper pairs={len(sources)}", flush=True)
