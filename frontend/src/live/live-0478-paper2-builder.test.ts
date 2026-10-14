@@ -20,6 +20,7 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
   it('allows 0478 Paper 2 full pool when no subtopics are ticked',()=>{
     expect(page).toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
     expect(page).toContain('Hech biri belgilanmasa barcha Live-ready Paper 2');
+    expect(page).toContain("disabled={busy||(syllabusCode==='9618'&&!coursebookSectionCodes.length)");
   });
   it('keeps the normal student and staff feature flows',()=>{
     expect(page).toContain("practiceMode:user.role==='student'?practiceMode:undefined");
