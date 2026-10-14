@@ -90,7 +90,7 @@ describe('Live Challenge saved question ordering',()=>{
     expect(sql).toContain('order by sectioned.section_rank,md5(sectioned.id::text || $1::text)');
     expect(sql).toContain('order by ranked.chapter_rank');
     expect(sql).toMatch(/when \d+ then 1/);
-    expect((sql.match(/when \d+ then 2/g)??[]).toHaveLength(2);
+    expect(sql.match(/when \d+ then 2/g)??[]).toHaveLength(2);
   });
 
   it('honors Automatic + Fixed by preserving exact source query order',async()=>{
