@@ -42,6 +42,7 @@ export function resolveLiveQuestionTimeLimit(
 
 export interface CreateLiveExamInput {
   classId: string;
+  syllabusCode?: '9618' | '0478';
   title: string;
   topicIds: string[];
   subtopicIds: string[];
@@ -278,13 +279,16 @@ export class LiveExamService {
   }
 
   private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
-    'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
+    'syllabusCode' | 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
     'yearFrom' | 'yearTo' | 'series' | 'components'
   >) {
+    this.validateSyllabusSelection(input);
     const values: unknown[] = [];
     const filters = [
       `q.status='approved'`,
       `q.marks>0`,
+      input.syllabusCode==='0478'?"source_syllabus.code='0478'":"source_syllabus.code='9618'", 
+      ...(input.syllabusCode==='0478'?['source_component.number=2']:[]),
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
@@ -355,6 +359,7 @@ export class LiveExamService {
       `select count(distinct q.id)::int total
        from questions q
        join source_papers sp on sp.id=q.source_paper_id
+       join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
        join components source_component on source_component.id=sp.component_id
        where ${filters.join(' and ')}`,
       values,
@@ -386,6 +391,28 @@ export class LiveExamService {
     })).map(row=>row.id);
   }
 
+  private validateSyllabusSelection(input: Pick<CreateLiveExamInput,'syllabusCode'|'coursebookSectionCodes'|'components'>) {
+    const code=input.syllabusCode??'9618';
+    if(code!=='9618'&&code!=='0478')throw new DomainError('live_invalid_syllabus',400);
+    if(code==='0478'&&(input.coursebookSectionCodes?.length||input.components?.some(value=>value!==2)))
+      throw new DomainError('live_0478_paper2_only',400);
+  }
+
+  private async requireQuestionSourceScope(questionIds:string[],syllabusCode:'9618'|'0478') {
+    if(!questionIds.length)return;
+    const result=await this.pool.query(
+      `select count(*)::int invalid
+       from questions q join source_papers sp on sp.id=q.source_paper_id
+       join syllabi sy on sy.id=sp.syllabus_id
+       join components c on c.id=sp.component_id
+       where q.id=any($1::uuid[])
+         and (sy.code<>$2 or ($2='0478' and c.number<>2))`,
+      [questionIds,syllabusCode],
+    );
+    if(Number(result.rows[0]?.invalid??0)!==0)
+      throw new DomainError('live_question_syllabus_mismatch',409);
+  }
+
   private async chooseQuestionIds(
     actor: Actor,
     input: CreateLiveExamInput,
@@ -399,12 +426,20 @@ export class LiveExamService {
     // keeps the existing seeded random selection behavior.
     // Automatic Fixed uses source ordering and must not bind a random seed:
     // PostgreSQL rejects an unused $1 parameter (42P18).
+    this.validateSyllabusSelection(input);
+    const syllabusCode=input.syllabusCode??'9618';
     const automaticFixed=!input.questionIds?.length && input.questionOrder==='fixed';
     const sourceOrdered = !countOnly && (options.sort === 'source' || automaticFixed);
     const values: unknown[] = countOnly || sourceOrdered
       ? [input.classId]
       : [options.seed ?? randomUUID(), input.classId];
     const classParameter = countOnly || sourceOrdered ? '$1' : '$2';
+    const syllabusCondition=syllabusCode==='0478'?"source_syllabus.code='0478'":"source_syllabus.code='9618'";
+    // 0478 sessions can run in an existing 9618 class but MUST read from
+    // 0478 source papers only, with 0478-specific readiness and no 9618 LO
+    // fallback. The optional chapter bridge remains strictly 9618-only.
+    const targetSyllabusSql=syllabusCode==='0478'?'sp.syllabus_id':'live_class.syllabus_id';
+    const cachedSyllabusSql=syllabusCode==='0478'?'sp.syllabus_id':'readiness_class.syllabus_id';
 
     // Prefer the precomputed readiness cache when its revision matches the
     // current corpus. Any source mutation marks the cache stale, at which point
@@ -419,7 +454,7 @@ export class LiveExamService {
       select 1
       from classes readiness_class
       join live_question_readiness readiness
-        on readiness.target_syllabus_id=readiness_class.syllabus_id
+        on readiness.target_syllabus_id=${cachedSyllabusSql}
        and readiness.question_id=q.id
       where readiness_class.id=${classParameter}
         and readiness.live_ready
@@ -457,7 +492,7 @@ export class LiveExamService {
               join subtopics direct_st on direct_st.id=direct_lo.subtopic_id
               join topics direct_t on direct_t.id=direct_st.topic_id
               where qlo.question_id=q.id
-                and direct_t.syllabus_id=live_class.syllabus_id
+                and direct_t.syllabus_id=${targetSyllabusSql}
             )
             or exists(
               select 1
@@ -469,7 +504,7 @@ export class LiveExamService {
               join subtopics target_st on target_st.id=target_lo.subtopic_id
               join topics target_t on target_t.id=target_st.topic_id
               where qlo.question_id=q.id
-                and target_t.syllabus_id=live_class.syllabus_id
+                and target_t.syllabus_id=${targetSyllabusSql}
             )
             or exists(
               select 1
@@ -477,7 +512,7 @@ export class LiveExamService {
               join subtopics source_st on source_st.id=qst.subtopic_id
               join topics source_t on source_t.id=source_st.topic_id
               join topics target_t
-                on target_t.syllabus_id=live_class.syllabus_id
+                on target_t.syllabus_id=${targetSyllabusSql}
                and target_t.number=source_t.number
               join subtopics target_st
                 on target_st.topic_id=target_t.id
@@ -502,7 +537,10 @@ export class LiveExamService {
       )`);
     }
 
-    const filters: string[] = [];
+    const filters: string[] = [
+      syllabusCondition,
+      ...(syllabusCode==='0478'?['source_component.number=2']:[]),
+    ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
     if (input.topicIds.length) {
@@ -594,6 +632,7 @@ export class LiveExamService {
          select distinct q.id,q.display_ref,sp.year,sp.series::text series,source_component.number component,q.sort_order
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
+         join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
          join components source_component on source_component.id=sp.component_id
          where ${readinessCacheFresh}
            and ${cachedReadiness}
@@ -602,6 +641,7 @@ export class LiveExamService {
          select distinct q.id,q.display_ref,sp.year,sp.series::text series,source_component.number component,q.sort_order
          from questions q
          join source_papers sp on sp.id=q.source_paper_id
+         join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
          join components source_component on source_component.id=sp.component_id
          join canonical_mark_schemes ms on ms.question_id=q.id
          where not ${readinessCacheFresh}
@@ -817,7 +857,7 @@ export class LiveExamService {
   ) {
     if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
-    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
+    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     const selectionPromise = this.chooseQuestionIds(actor, {
       ...input,
       title: 'Question preview',
@@ -875,7 +915,7 @@ export class LiveExamService {
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
-    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
+    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
       throw new DomainError('live_topic_required', 400);
     }
 
@@ -889,6 +929,7 @@ export class LiveExamService {
     if(selection.ids.length!==input.questionIds.length) throw new DomainError('live_question_selection_mismatch',400);
 
     const expandedIds=await this.expandRequiredDependencies(selection.ids);
+    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedIds,input.syllabusCode??'9618');
     const [selected,expanded]=await Promise.all([
       this.previewQuestions(selection.ids),
       this.previewQuestions(expandedIds),
@@ -913,7 +954,7 @@ export class LiveExamService {
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
-    if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
+    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
@@ -921,6 +962,7 @@ export class LiveExamService {
     const selection = await this.chooseQuestionIds(actor, input);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
     // Bound the total frozen source payload for learner-owned rooms while
     // preserving the existing unrestricted staff/classroom builder.
     if(actor.role==='student' && expandedQuestionIds.length>36)
@@ -968,6 +1010,7 @@ export class LiveExamService {
             [input.classId, actor.id, input.title, joinCode, input.markingMode,
               input.questionTimeLimitS ?? null,
               JSON.stringify({
+                syllabusCode: input.syllabusCode??'9618',
                 topicIds: input.topicIds,
                 subtopicIds: input.subtopicIds,
                 coursebookSectionCodes: input.coursebookSectionCodes ?? [],

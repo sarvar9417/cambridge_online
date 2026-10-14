@@ -266,6 +266,59 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
     }
   });
 
+  it('isolates 0478 sessions from 9618 class mastery but preserves normal official trigger behavior', async () => {
+    const functionResult=await client.query<{supported:boolean}>(
+      `select public.live_session_evidence_syllabus_matches_v1($1,'{"syllabusCode":"0478"}'::jsonb) as supported`,
+      [classId],
+    );
+    expect(functionResult.rows[0]?.supported).toBe(false);
+
+    const same=await client.query<{supported:boolean}>(
+      `select public.live_session_evidence_syllabus_matches_v1($1,'{"syllabusCode":"9618"}'::jsonb) as supported`,
+      [classId],
+    );
+    expect(same.rows[0]?.supported).toBe(true);
+    const legacy=await client.query<{supported:boolean}>(
+      `select public.live_session_evidence_syllabus_matches_v1($1,'{}'::jsonb) as supported`,
+      [classId],
+    );
+    expect(legacy.rows[0]?.supported).toBe(true);
+
+    const cross=(await client.query<{id:string}>(
+      `insert into live_exam_sessions(class_id,host_id,title,join_code,marking_mode,settings)
+       values($1,$2,'IGCSE 0478 formative','810098','teacher','{"syllabusCode":"0478"}'::jsonb) returning id`,
+      [classId,ownerId],
+    )).rows[0]!.id;
+    await client.query(
+      `update live_exam_sessions set status='finished',finished_at=now() where id=$1`,
+      [cross],
+    );
+    const evidence=await client.query<{n:number}>(
+      `select count(*)::int n from live_exam_learning_evidence where session_id=$1`,
+      [cross],
+    );
+    expect(evidence.rows[0]?.n).toBe(0);
+
+    const official=(await client.query<{id:string}>(
+      `insert into live_exam_sessions(class_id,host_id,title,join_code,marking_mode,settings)
+       values($1,$2,'9618 official','810099','teacher','{"syllabusCode":"9618"}'::jsonb) returning id`,
+      [classId,ownerId],
+    )).rows[0]!.id;
+    // This compact fixture intentionally has no mapped question and cannot
+    // complete official mastery; an error proves the official trigger still runs.
+    const officialQuestion=(await client.query<{id:string}>(
+      `insert into live_exam_questions(session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot)
+       values($1,$2,0,1,'{}'::jsonb,'{}'::jsonb) returning id`,
+      [official,questionId],
+    )).rows[0]!.id;
+    expect(officialQuestion).toBeTruthy();
+    await rejectedByDatabase(
+      `update live_exam_sessions set status='finished',finished_at=now() where id=$1`,
+      [official],
+      'live_exam_analytics_unmapped_question',
+    );
+  });
+
   it('has a writable durable rate-limit bucket for the server role', async () => {
     const key = `acceptance:${Date.now()}`;
     await client.query(

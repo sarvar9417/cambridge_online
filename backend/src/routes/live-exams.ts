@@ -8,12 +8,14 @@ import { runIdempotent } from '../lib/idempotent-request.js';
 import { LIVE_COURSEBOOK_SECTION_CODES, LIVE_COURSEBOOK_SECTIONS } from '../lib/live-coursebook-sections.js';
 
 const uuid = z.string().uuid();
+const liveSyllabusCode=z.enum(['9618','0478']).default('9618');
 const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
   .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section');
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
 
 const createInput = z.object({
   classId: uuid,
+  syllabusCode:liveSyllabusCode,
   title: z.string().trim().min(3).max(120),
   topicIds: z.array(uuid).max(30).default([]),
   subtopicIds: z.array(uuid).max(100).default([]),
@@ -83,12 +85,27 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
   });
 
   // Public coursebook taxonomy only; mark schemes and Question Bank stay protected.
-  router.get('/sections', (_req,res)=>{
+  router.get('/sections', async (_req,res)=>{
     privateNoStore(res);
-    res.json({coursebookSections:LIVE_COURSEBOOK_SECTIONS.map(section=>({
+    const coursebookSections=LIVE_COURSEBOOK_SECTIONS.map(section=>({
       syllabus_code:'9618',chapter_number:section.chapterNumber,chapter_title:section.chapterTitle,
       section_code:section.code,section_title:section.title,mapping_kind:section.mappingKind,
-    }))});
+    }));
+    // A public syllabus taxonomy (not question or mark-scheme content) is also
+    // available to student hosts. Restrict the menu to official 0478 Paper 2
+    // topics 7–10 in the newest syllabus edition.
+    const topics=pool ? await pool.query(`
+      select '0478'::text syllabus_code,t.id::text topic_id,t.number topic_number,
+             t.title topic_title,st.id::text subtopic_id,st.code,st.title subtopic_title,
+             2::int component
+      from syllabi sy join topics t on t.syllabus_id=sy.id
+      join subtopics st on st.topic_id=t.id
+      where sy.code='0478' and sy.valid_from=(
+        select max(valid_from) from syllabi where code='0478'
+      ) and t.number between 7 and 10
+      order by t.number,st.code
+    `) : null;
+    res.json({coursebookSections,topics:topics?.rows??[]});
   });
 
   router.post('/', durableStaffLimit, async (req, res) => {
@@ -127,6 +144,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     });
     const query=z.object({
       classId:uuid,
+      syllabusCode:liveSyllabusCode,
       topicIds:csvUuids,
       subtopicIds:csvUuids,
       coursebookSectionCodes:csvCoursebookSections,
@@ -147,6 +165,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     }).parse(req.query);
     res.json(await service.eligibleQuestions(req.actor!,{
       classId:query.classId,
+      syllabusCode:query.syllabusCode,
       topicIds:query.topicIds ?? [],
       subtopicIds:query.subtopicIds ?? [],
       coursebookSectionCodes:query.coursebookSectionCodes ?? [],
@@ -176,6 +195,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     privateNoStore(res);
     const body=z.object({
       classId:uuid,
+      syllabusCode:liveSyllabusCode,
       topicIds:z.array(uuid).max(30).default([]),
       subtopicIds:z.array(uuid).max(100).default([]),
       coursebookSectionCodes:z.array(coursebookSectionCode).max(100).default([]),

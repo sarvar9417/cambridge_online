@@ -165,6 +165,94 @@ try {
     throw new Error(`Live E2E eligibility fixture failed: ${JSON.stringify(readiness)}`);
   }
 
+
+  // Dedicated synthetic IGCSE fixture. This text is NOT an authentic Cambridge
+  // past-paper question. Its distinct 0478 source tuple exercises production
+  // Paper 2 selection, pseudocode answer and manual-only marking end-to-end.
+  const igcse=(await client.query<{id:string}>(
+    `insert into syllabi(code,subject,version_label,valid_from,valid_to)
+     values('0478','Computer Science','2026-2028',2026,2028)
+     on conflict(code,version_label) do update set is_active=true
+     returning id`,
+  )).rows[0]!.id;
+  const paper2=(await client.query<{id:string}>(
+    `insert into components(syllabus_id,number,name,level,duration_min,total_marks)
+     values($1,2,'Problem-solving and Programming','AS',105,75)
+     on conflict(syllabus_id,number) do update set name=excluded.name
+     returning id`,[igcse],
+  )).rows[0]!.id;
+  const topic8=(await client.query<{id:string}>(
+    `insert into topics(syllabus_id,number,title,level,component_id,sort_order)
+     values($1,8,'Programming','AS',$2,8)
+     on conflict(syllabus_id,number) do update set title=excluded.title
+     returning id`,[igcse,paper2],
+  )).rows[0]!.id;
+  const st81=(await client.query<{id:string}>(
+    `insert into subtopics(topic_id,code,title,sort_order)
+     values($1,'8.1','Programming concepts',1)
+     on conflict(topic_id,code) do update set title=excluded.title
+     returning id`,[topic8],
+  )).rows[0]!.id;
+  const lo=(await client.query<{id:string}>(
+    `insert into learning_objectives(subtopic_id,code,text,sort_order)
+     values($1,'8.1.1','Write a simple algorithm using iteration',1)
+     on conflict(subtopic_id,code) do update set text=excluded.text
+     returning id`,[st81],
+  )).rows[0]!.id;
+  const qp=(await client.query<{id:string}>(
+    `insert into source_papers(syllabus_id,component_id,year,series,variant,kind,storage_path,sha256,page_count)
+     values($1,$2,2026,'MJ',2,'QP','qa-only/0478-paper2-qp',repeat('a',64),3)
+     on conflict(syllabus_id,component_id,year,series,variant,kind)
+       do update set storage_path=excluded.storage_path returning id`,[igcse,paper2],
+  )).rows[0]!.id;
+  const ms=(await client.query<{id:string}>(
+    `insert into source_papers(syllabus_id,component_id,year,series,variant,kind,storage_path,sha256,page_count)
+     values($1,$2,2026,'MJ',2,'MS','qa-only/0478-paper2-ms',repeat('b',64),3)
+     on conflict(syllabus_id,component_id,year,series,variant,kind)
+       do update set storage_path=excluded.storage_path returning id`,[igcse,paper2],
+  )).rows[0]!.id;
+  const igcseRef='0478/22/M/J/26 QA Q1(a)';
+  const igcseQuestion=(await client.query<{id:string}>(
+    `insert into questions(
+       source_paper_id,component_id,label,path,display_ref,depth,sort_order,
+       stem_md,command_word,marks,answer_kind,status,extract_confidence,
+       content_version,content_json
+     ) values($1,$2,'1(a)','1.a',$3,1,1,
+       'Write pseudocode using a FOR loop to output the integers from 1 to 5.',
+       'Write',2,'pseudocode','approved',1,1,
+       jsonb_build_object(
+         'version',1,'source',jsonb_build_object('paperId',$1::uuid::text,'sha256',repeat('a',64)),
+         'blocks',jsonb_build_array(
+           jsonb_build_object('type','text','style','task',
+             'text','Write pseudocode using a FOR loop to output the integers from 1 to 5.',
+             'source',jsonb_build_object('page',2))
+         )
+       )
+     ) on conflict(source_paper_id,path) do update
+       set status='approved',stem_md=excluded.stem_md,content_json=excluded.content_json
+     returning id`,
+    [qp,paper2,igcseRef],
+  )).rows[0]!.id;
+  await client.query(
+    `insert into question_subtopics(question_id,subtopic_id,is_primary,weight,confidence,set_by)
+     values($1,$2,true,1,1,'qa')
+     on conflict(question_id,subtopic_id) do update set is_primary=true,confidence=1`,
+    [igcseQuestion,st81],
+  );
+  await client.query(
+    `insert into question_learning_objectives(question_id,lo_id,confidence)
+     values($1,$2,1) on conflict(question_id,lo_id) do update set confidence=1`,
+    [igcseQuestion,lo],
+  );
+  await client.query(
+    `insert into mark_schemes(question_id,source_paper_id,scheme_type,max_marks,guidance_md,status,extract_confidence)
+     values($1,$2,'manual_only',2,'Award up to 2 marks for a valid FOR iteration and correctly outputting the values 1 to 5.','approved',1)
+     on conflict(question_id) do update
+       set scheme_type=excluded.scheme_type,guidance_md=excluded.guidance_md,status='approved'
+     returning id`,
+    [igcseQuestion,ms],
+  );
+
   await client.query('commit');
   console.log('Seeded verified users and deterministic canonical Live E2E fixture');
 } catch (error) {

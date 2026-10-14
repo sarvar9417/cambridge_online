@@ -14,8 +14,8 @@ describe('Live Challenge coursebook chapter taxonomy',()=>{
   });
 
   it('sends textbook section codes to both availability and session creation',()=>{
-    expect(page).toContain("coursebookSectionCodes:coursebookSectionCodes.join(',')");
-    expect(page).toContain('topicIds:[],subtopicIds:[],coursebookSectionCodes');
+    expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join(','):''");
+    expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[]");
     expect(page).toContain('!coursebookSectionCodes.length');
   });
 });
