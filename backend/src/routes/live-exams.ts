@@ -5,7 +5,7 @@ import { rateLimit } from '../middleware/rate-limit.js';
 import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
-import { LIVE_COURSEBOOK_SECTION_CODES } from '../lib/live-coursebook-sections.js';
+import { LIVE_COURSEBOOK_SECTION_CODES, LIVE_COURSEBOOK_SECTIONS } from '../lib/live-coursebook-sections.js';
 
 const uuid = z.string().uuid();
 const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
@@ -22,6 +22,7 @@ const createInput = z.object({
   questionTimeLimitS: z.number().int().min(30).max(7200).optional(),
   questionTimeLimits: z.record(uuid, z.number().int().min(30).max(7200).nullable()).default({}),
   markingMode: z.enum(['teacher', 'peer', 'self']),
+  practiceMode:z.enum(['solo','group','collaborative']).optional(),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
   difficulty: z.enum(['easy','medium','hard']).optional(),
@@ -79,6 +80,15 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     // one user's view and replay it to the next signed-in user.
     privateNoStore(res);
     res.json({ data: await service.list(req.actor!) });
+  });
+
+  // Public coursebook taxonomy only; mark schemes and Question Bank stay protected.
+  router.get('/sections', (_req,res)=>{
+    privateNoStore(res);
+    res.json({coursebookSections:LIVE_COURSEBOOK_SECTIONS.map(section=>({
+      syllabus_code:'9618',chapter_number:section.chapterNumber,chapter_title:section.chapterTitle,
+      section_code:section.code,section_title:section.title,mapping_kind:section.mappingKind,
+    }))});
   });
 
   router.post('/', durableStaffLimit, async (req, res) => {
