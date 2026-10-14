@@ -176,3 +176,17 @@
 .live-complete-scheme{display:grid;gap:8px}.live-complete-scheme>summary{padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft);cursor:pointer;font-weight:750}
 .live-personal-answer .live-point-feedback{margin-top:10px}
 @media(max-width:640px){.live-point-feedback{padding:12px}.live-point-feedback>header{flex-direction:column;gap:6px}}
+
+/* Saved teacher-only final room order, intentionally hidden from students. */
+.live-lobby-order-preview{margin:1.25rem 0;padding:1.25rem;background:var(--surface,#fff);border:1px solid var(--line,#dce4ec);border-radius:16px}
+.live-lobby-order-preview>header{display:flex;justify-content:space-between;align-items:start;gap:1rem;flex-wrap:wrap}
+.live-lobby-order-preview h2{margin:.2rem 0}
+.live-lobby-order-preview p{margin:.25rem 0 .75rem}
+.live-lobby-order-preview details{margin-top:1rem}
+.live-lobby-order-preview summary{cursor:pointer;font-weight:650}
+.live-lobby-order-preview ol{list-style:none;padding:0;display:grid;gap:.4rem;margin:.8rem 0}
+.live-lobby-order-preview li{display:flex;gap:.75rem;align-items:center;padding:.6rem .75rem;border-radius:9px;background:var(--surface-2,#f6f8fa);flex-wrap:wrap}
+.live-lobby-order-preview li>span{font-variant-numeric:tabular-nums;min-width:1.6rem}
+.live-lobby-order-preview li>strong{flex:1 1 15rem;overflow-wrap:anywhere}
+.live-lobby-order-preview li>small{white-space:nowrap}
+.live-order-preview-note{font-size:.9rem;color:var(--text-muted,#536275)}
