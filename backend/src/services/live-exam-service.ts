@@ -2630,6 +2630,8 @@ export class LiveExamService {
   private settings(value: unknown) {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
+      questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'
+        ?raw.questionOrder:'shuffled',
       allowLateJoin: raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
       teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
