@@ -150,7 +150,8 @@ export class LiveExamService {
     const result=await executor.query(
       `select c.id,c.name from classes c
        join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
-       where c.id=$1 and c.archived_at is null and c.school_id=$3`,
+       where c.id=$1 and c.archived_at is null and c.school_id=$3
+       for share of e`,
       [classId,actor.id,actor.schoolId],
     );
     if(!result.rowCount)throw new DomainError('not_found',404);
@@ -1845,6 +1846,8 @@ export class LiveExamService {
   }
 
   async setLateJoin(actor: Actor, sessionId: string, allowLateJoin: boolean, expectedVersion?: number) {
+    // Fixed-roster practice must never gain in-progress participants.
+    this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
