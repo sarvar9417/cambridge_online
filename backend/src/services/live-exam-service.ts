@@ -269,8 +269,9 @@ export class LiveExamService {
            'id',msg.id,'label',msg.label,'nRequired',msg.n_required,
            'marksPerPoint',msg.marks_per_point,'maxMarks',msg.max_marks,'awardMode',msg.award_mode
          ) order by msg.sort_order,msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
-       ) scheme
+       ) scheme,q.display_ref source_ref
        from canonical_mark_schemes ms
+       join questions q on q.id=ms.question_id
        where ms.question_id=$1 and ms.status='approved'`,
       [questionId],
     );
@@ -279,7 +280,7 @@ export class LiveExamService {
     // Freeze explicit, source-backed 1-mark criteria separately for this Live
     // session. Canonical approved data and historical frozen sessions remain
     // untouched; ambiguous/level-based rubrics continue to use manual score.
-    const sessionScheme=expandExplicitLiveMarkPoints(scheme);
+    const sessionScheme=expandExplicitLiveMarkPoints(scheme,String(result.rows[0]?.source_ref??''));
     if(!liveMarkSchemeCapabilityReady(sessionScheme))throw new DomainError('live_question_not_ready',409);
     return sessionScheme;
   }
