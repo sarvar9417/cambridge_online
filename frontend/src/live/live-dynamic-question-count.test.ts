@@ -12,7 +12,7 @@ describe('Live dynamic question count',()=>{
     expect(page).toContain('Live-ready: ${eligibleCounts.liveReady}');
     expect(page).toContain('Hozir tanlash mumkin: ${eligibleCounts.available}');
     expect(page).toContain('Maximum: ${eligibleTotal}');
-    expect(page).toContain('max={eligibleTotal??undefined}');
+    expect(page).toContain("max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined}");
     expect(page).not.toContain('max={20}');
   });
 

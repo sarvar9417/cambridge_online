@@ -30,7 +30,8 @@ describe('Live Challenge deadline, result and late-join contracts',()=>{
     expect(page).toContain("allowLateJoin\" type=\"checkbox\" defaultChecked");
     expect(page).toContain("act('/late-join',{allowLateJoin:e.target.checked");
     expect(routes).toContain("router.post('/:id/late-join'");
-    expect(backend).toContain("les.status='question_open' and coalesce((les.settings->>'allowLateJoin')::boolean,false)");
+    expect(backend).toContain("les.status='question_open' and les.settings->>'practiceMode' is null");
+    expect(backend).toContain("coalesce((les.settings->>'allowLateJoin')::boolean,false)");
     expect(backend).not.toContain("les.status in ('question_open','marking','review')");
     expect(page).toContain('Kech qo‘shildingiz');
     expect(page).toContain('alohida vaqt qo‘shilmaydi');

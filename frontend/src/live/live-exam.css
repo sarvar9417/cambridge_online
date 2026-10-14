@@ -176,3 +176,14 @@
 .live-complete-scheme{display:grid;gap:8px}.live-complete-scheme>summary{padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft);cursor:pointer;font-weight:750}
 .live-personal-answer .live-point-feedback{margin-top:10px}
 @media(max-width:640px){.live-point-feedback{padding:12px}.live-point-feedback>header{flex-direction:column;gap:6px}}
+
+/* Student-owned practice controls are intentionally separate from staff tooling. */
+.live-student-host{display:grid;gap:1rem;background:var(--surface,#fff);border:1px solid var(--line,#dce4ec);border-radius:18px;padding:1.25rem;margin:1rem auto;max-width:1120px}
+.live-student-host>header{display:flex;align-items:start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.live-student-host h2{margin:.2rem 0}
+.live-student-host p{margin:.3rem 0}
+.live-student-host-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.live-student-host-actions button{max-width:100%}
+.live-student-host-code{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.live-student-host-code strong{font-size:1.55rem;letter-spacing:.1em;font-variant-numeric:tabular-nums}
+@media(max-width:640px){.live-student-host{margin:1rem .5rem}.live-student-host-actions button{flex:1 1 100%}}
