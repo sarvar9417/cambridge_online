@@ -55,6 +55,7 @@ const selected=[
   '0206_live_question_exposure_read_model.sql',
   '0207_live_question_readiness_cache.sql',
   '0210_student_live_practice_isolation.sql',
+  '0211_live_0478_paper2_syllabus_isolation.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');
