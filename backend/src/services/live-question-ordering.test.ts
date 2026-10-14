@@ -57,7 +57,7 @@ describe('Live Challenge saved question ordering',()=>{
     ]);
     const result=await service.chooseQuestionIds(teacher,{...base,questionCount:2,questionOrder:'fixed'},true,false,{seed:'seed'});
     expect(result.ids).toEqual(['new','old']);
-    expect(calls[0]!.sql).toContain('order by candidate.year desc,candidate.series,candidate.component,candidate.display_ref,candidate.sort_order,candidate.id');
+    expect(calls[0]!.sql).toContain('order by candidate.year desc,candidate.series,candidate.component,candidate.sort_order,candidate.display_ref,candidate.id');
     expect(calls[0]!.sql).not.toContain('$1::text');
     expect(calls[0]!.params[0]).toBe(base.classId);
     expect(calls[0]!.params).not.toContain('seed');
