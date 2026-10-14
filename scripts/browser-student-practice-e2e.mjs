@@ -68,6 +68,9 @@ async function review(student,kind,index){
 try{
   const host=await qa.login('student01',process.env.SEED_STUDENT_PASSWORD,'Student host');
   const peer=await qa.login('student02',process.env.SEED_STUDENT_PASSWORD,'Student peer');
+  // Learner-host reveal/cancel actions deliberately require confirmation.
+  // Handle the real Chrome dialog instead of leaving Puppeteer's click blocked.
+  host.page.on('dialog',dialog=>void dialog.accept());
 
   // Solo: host is the sole participant and cannot show the scheme before submit.
   const solo=await createRoom(host,'solo');
