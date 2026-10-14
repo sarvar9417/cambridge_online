@@ -2072,6 +2072,17 @@ export class LiveExamService {
       const session = await this.lockControlledSession(client, actor, sessionId);
       this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'question_open' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      if(actor.role==='student'){
+        // Never open the Mark Scheme early in a student-owned practice round.
+        const pending=await client.query(
+          `select count(*)::int count from live_exam_participants lep
+           left join live_exam_questions leq on leq.session_id=lep.session_id and leq.position=$2
+           left join live_exam_answers a on a.participant_id=lep.id and a.session_question_id=leq.id
+           where lep.session_id=$1 and lep.left_at is null and a.submitted_at is null`,
+          [sessionId,session.current_question_index],
+        );
+        if(Number(pending.rows[0].count)>0)throw new DomainError('live_students_pending',409);
+      }
       const result = await this.revealWithinTransaction(client, session, actor.id);
       await client.query('commit');
       return result;
