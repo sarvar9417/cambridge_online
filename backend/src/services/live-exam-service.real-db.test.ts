@@ -386,14 +386,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
         '• The image is made of pixels',
         '• Each pixel has one colour',
         '• Each colour has a unique binary code',
-        '• The code for each pixel is stored in sequence',
+        '• The code for the colour of each pixel is stored in sequence / order',
       ].join('\n'),
       levels:[],groups:[],points:[{
         id:pointId,code:'M1',text:'Combined 3-mark criterion',marks:3,
         accept:[],reject:[],requires:[],isBod:false,groupId:null,
       }],
     };
-    const expanded=expandExplicitLiveMarkPoints(base);
+    const expanded=expandExplicitLiveMarkPoints(base,'9618/11/M/J/26 Q5(a)');
     expect(expanded.schemeType).toBe('any_n_from_m');
     const {sessionId,sessionQuestionId}=await makeSession({
       code:'829990',markingMode:'self',
