@@ -2300,20 +2300,33 @@ export class LiveExamService {
         matched: selectedIds.has(point.id),
         confidence: 1,
       })));
-      await client.query(
-        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
-      for (const point of snapshot.points) {
-        const matched = computed.effectiveMatched[point.code] === true;
-        await client.query(
-          `update live_exam_review_points set matched=$3,awarded_marks=$4
-           where review_id=$1 and mark_scheme_point_id=$2`,
-          [reviewId, point.id, matched, matched ? point.marks : 0],
-        );
-      }
       const score = pointCount > 0 && computed.score !== null ? computed.score : input.score;
       if (score === undefined || score < 0 || score > Number(row.marks)) throw new DomainError('invalid_score', 400);
       if (selectedLevel && (score < selectedLevel.minMarks || score > selectedLevel.maxMarks)) {
         throw new DomainError('score_outside_level', 400);
+      }
+      // A 3-of-4 source-derived rubric allows all four criteria to be met,
+      // but only three to *earn* marks. Persist zero awarded marks for the
+      // excess matched point, without hiding that it was satisfied.
+      const pointFeedback=snapshot.derivedFromGuidance
+        ?releasedPointFeedback(snapshot,score,false,{
+          matchedPointIds:[...selectedIds],recordedCount:snapshot.points.length,
+        }):null;
+      if(pointFeedback&&pointFeedback.status!=='available')
+        throw new DomainError('live_mark_point_score_mismatch',409);
+      const creditedIds=new Set(pointFeedback?.status==='available'
+        ?pointFeedback.points.filter(point=>point.credited).map(point=>point.id):[]);
+      await client.query(
+        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
+      for (const point of snapshot.points) {
+        const matched = computed.effectiveMatched[point.code] === true;
+        const awarded=matched&&(!snapshot.derivedFromGuidance||creditedIds.has(point.id))
+          ?point.marks:0;
+        await client.query(
+          `update live_exam_review_points set matched=$3,awarded_marks=$4
+           where review_id=$1 and mark_scheme_point_id=$2`,
+          [reviewId, point.id, matched, awarded],
+        );
       }
       const feedback=(input.feedback ?? '').trim();
       if (row.kind === 'peer' && snapshot.points.length === 0 && score < Number(row.marks) && feedback.length < 2) {
