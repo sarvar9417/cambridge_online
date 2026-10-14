@@ -65,5 +65,5 @@ export function expandExplicitLiveMarkPoints<T extends ExplicitScheme>(scheme:T)
     id:groupId,label:'Any correct point',nRequired:scheme.maxMarks,
     marksPerPoint:1,maxMarks:scheme.maxMarks,awardMode:'fixed',
   }]:[];
-  return {...scheme,schemeType:groupId?'any_n_from_m':'all_required',points,groups} as T;
+  return {...scheme,schemeType:groupId?'any_n_from_m':'all_required',points,groups,derivedFromGuidance:true} as T;
 }
