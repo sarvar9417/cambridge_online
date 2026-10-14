@@ -2,8 +2,7 @@
 -- challenges may be held in existing 9618 classes as formative sessions, but
 -- MUST NOT write 0478 evidence into 9618 learning objectives/mastery.
 --
--- This migration is intentionally only committed to the preview branch.
--- It is not applied to the production database without separate approval.
+-- Apply only through the normal reviewed migration pipeline.
 
 CREATE OR REPLACE FUNCTION public.live_session_evidence_syllabus_matches_v1(
   p_class_id uuid,p_settings jsonb
@@ -21,7 +20,13 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.live_session_evidence_syllabus_matches_v1(uuid,jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.live_session_evidence_syllabus_matches_v1(uuid,jsonb) TO service_role;
+DO $migration$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.live_session_evidence_syllabus_matches_v1(uuid,jsonb) TO service_role;
+  END IF;
+END
+$migration$;
 
 DROP TRIGGER IF EXISTS live_exam_finish_learning_evidence ON public.live_exam_sessions;
 CREATE TRIGGER live_exam_finish_learning_evidence
