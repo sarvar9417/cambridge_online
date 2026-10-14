@@ -44,6 +44,7 @@ export interface CreateLiveExamInput {
   /** Manual per-question overrides in seconds; null means unlimited for that question. */
   questionTimeLimits?: Record<string, number | null>;
   markingMode: LiveExamMarkingMode;
+  practiceMode?:'solo'|'group'|'collaborative';
   includeDiagrams: boolean;
   excludeSeen: boolean;
   /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
@@ -143,6 +144,29 @@ export class LiveExamService {
     if (actor.role === 'student') throw new DomainError('staff_only', 403);
   }
 
+  /** Current enrollment is mandatory for student-created practice. */
+  private async requirePracticeClass(executor:Pick<Pool,'query'>|PoolClient,actor:Actor,classId:string){
+    if(actor.role!=='student')return this.requireClassControl(executor,actor,classId);
+    const result=await executor.query(
+      `select c.id,c.name from classes c
+       join enrollments e on e.class_id=c.id and e.student_id=$2 and e.left_at is null
+       where c.id=$1 and c.archived_at is null and c.school_id=$3`,
+      [classId,actor.id,actor.schoolId],
+    );
+    if(!result.rowCount)throw new DomainError('not_found',404);
+    return result.rows[0] as {id:string;name:string};
+  }
+  private validatePracticeMode(actor:Actor,input:CreateLiveExamInput){
+    if(actor.role!=='student'){
+      if(input.practiceMode!==undefined)throw new DomainError('live_practice_mode_staff',400);
+      return;
+    }
+    if(!input.practiceMode || !['solo','group','collaborative'].includes(input.practiceMode)
+      || input.questionCount<1 || input.questionCount>12
+      || (input.practiceMode==='group'?input.markingMode!=='peer':input.markingMode!=='self')
+      || input.teacherOverrideEnabled===true || Number(input.peerCalibrationPercent??0)!==0)
+      throw new DomainError('live_student_practice_invalid',400);
+  }
   private async requireClassControl(executor: Pick<Pool, 'query'> | PoolClient, actor: Actor, classId: string) {
     this.assertStaff(actor);
     const result = await executor.query(
@@ -161,7 +185,6 @@ export class LiveExamService {
   }
 
   private async lockControlledSession(client: PoolClient, actor: Actor, sessionId: string) {
-    this.assertStaff(actor);
     const result = await client.query(
       `select les.*
        from live_exam_sessions les
@@ -171,6 +194,8 @@ export class LiveExamService {
          or ($2='teacher' and (c.owner_id=$4 or exists(
            select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
          )))
+         or ($2='student' and les.host_id=$4 and c.school_id=$3
+           and les.settings->>'practiceMode' in ('solo','group','collaborative'))
        )
        for update of les`,
       [sessionId, actor.role, actor.schoolId, actor.id],
@@ -689,7 +714,7 @@ export class LiveExamService {
       includeCounts?: boolean;
     },
   ) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     const selectionPromise = this.chooseQuestionIds(actor, {
       ...input,
@@ -745,7 +770,7 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
   ) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
       throw new DomainError('live_topic_required', 400);
@@ -781,7 +806,8 @@ export class LiveExamService {
   }
 
   async create(actor: Actor, input: CreateLiveExamInput) {
-    await this.requireClassControl(this.pool, actor, input.classId);
+    this.validatePracticeMode(actor,input);
+    await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
@@ -792,7 +818,7 @@ export class LiveExamService {
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
     const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
       const [portable, markScheme] = await Promise.all([
-        this.questions.portable(actor, questionId),
+        this.questions.portable(actor.role==='student'?{...actor,role:'teacher'}:actor, questionId),
         this.markScheme(questionId),
       ]);
       if (!portable) throw new DomainError('live_question_not_ready', 409);
@@ -805,11 +831,21 @@ export class LiveExamService {
 
     const client = await this.pool.connect();
     try {
-      await this.requireClassControl(client, actor, input.classId);
+      await this.requirePracticeClass(client, actor, input.classId);
       let session;
       for (let attempt = 0; attempt < 5; attempt += 1) {
         await client.query('begin');
         try {
+          if(actor.role==='student'){
+            await client.query('select pg_advisory_xact_lock(hashtext($1))',[actor.id]);
+            const active=await client.query(
+              `select count(*)::int count from live_exam_sessions
+               where host_id=$1 and settings->>'practiceMode' in ('solo','group','collaborative')
+                 and status not in ('finished','cancelled') and archived_at is null`,
+              [actor.id],
+            );
+            if(Number(active.rows[0].count)>=3)throw new DomainError('live_student_practice_limit',409);
+          }
           const joinCode = String(randomInt(100000, 1000000));
           session = await client.query(
             `insert into live_exam_sessions(
@@ -832,9 +868,10 @@ export class LiveExamService {
                 series: input.series ?? [],
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
-                allowLateJoin: input.allowLateJoin ?? false,
+                practiceMode:actor.role==='student'?input.practiceMode:null,
+                 allowLateJoin:input.practiceMode==='solo'?false:(input.allowLateJoin ?? false),
                 autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
-                teacherOverrideEnabled: input.teacherOverrideEnabled ?? true,
+                teacherOverrideEnabled:actor.role==='student'?false:(input.teacherOverrideEnabled ?? true),
                 leaderboardMode: input.leaderboardMode ?? 'marks',
                 displayNameMode: input.displayNameMode ?? 'anonymous_alias',
                 peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
@@ -857,6 +894,10 @@ export class LiveExamService {
         }
       }
       if (!session) throw new DomainError('live_join_code_conflict', 409);
+       if(actor.role==='student')await client.query(
+         `insert into live_exam_participants(session_id,student_id,last_seen_at)
+          values($1,$2,now())`,[session.rows[0].id,actor.id],
+       );
       for (const [position, snapshot] of snapshots.entries()) {
         await client.query(
           `insert into live_exam_questions(
@@ -928,7 +969,14 @@ export class LiveExamService {
       const room = await client.query(
         `select les.*
          from live_exam_sessions les
+         join classes c on c.id=les.class_id
          where les.join_code=$1
+           and (les.settings->>'practiceMode' is null
+             or (les.settings->>'practiceMode'<>'solo' and c.school_id=$3
+               and exists(select 1 from enrollments e
+                 join classes member_class on member_class.id=e.class_id
+                 where e.student_id=$2 and e.left_at is null
+                   and member_class.school_id=c.school_id)))
            and les.archived_at is null
            and coalesce(
              (to_jsonb(les)->>'join_code_expires_at')::timestamptz,
@@ -941,7 +989,7 @@ export class LiveExamService {
          -- cancel and other state transitions still wait for every join to
          -- commit because they acquire FOR UPDATE on this session row.
          for key share of les`,
-        [code],
+        [code,actor.id,actor.schoolId],
       );
       if (!room.rowCount) throw new DomainError('live_code_not_found', 404);
       const session = room.rows[0];
@@ -1135,6 +1183,7 @@ export class LiveExamService {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
+          ($2='student' and les.host_id=$3 and les.settings->>'practiceMode' in ('solo','group','collaborative')) is_practice_host,
          lep.id participant_id,
          lep.joined_at participant_joined_at,
          (
@@ -1409,6 +1458,7 @@ export class LiveExamService {
         ...this.mapSession(session),
         className: session.class_name,
         hostName: session.host_name,
+        isHost:Boolean(session.is_practice_host),
         currentQuestionIndex: Number(session.current_question_index),
         startedAt: session.started_at,
         finishedAt: session.finished_at,
@@ -1751,7 +1801,9 @@ export class LiveExamService {
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
         [sessionId],
       );
-      if (Number(count.rows[0].count) < 1) throw new DomainError('live_no_participants', 409);
+      if(Number(count.rows[0].count)<1
+          || ((session.settings as {practiceMode?:string}|null)?.practiceMode==='group'
+           && Number(count.rows[0].count)<2))throw new DomainError('live_no_participants',409);
       const question = await client.query(
         `select id,question_id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
       if (!question.rowCount) throw new DomainError('live_no_questions', 409);
@@ -1919,6 +1971,8 @@ export class LiveExamService {
       [sessionQuestionId],
     );
     const mode = String(session.marking_mode) as LiveExamMarkingMode;
+    if(mode==='peer' && (session.settings as {practiceMode?:string}|null)?.practiceMode==='group'
+      && answers.rows.length<2)throw new DomainError('live_peer_assignment_impossible',409);
     const peerAnswers = answers.rows.map((row) => ({
       answerId: String(row.answer_id),
       studentId: String(row.student_id),
@@ -2195,6 +2249,7 @@ export class LiveExamService {
     input: { score: number; feedback?: string; levelNumber?: number },
     expectedVersion?: number,
   ) {
+    this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2238,6 +2293,7 @@ export class LiveExamService {
   }
 
   async completeMarking(actor: Actor, sessionId: string, force = false, expectedVersion?: number) {
+    if(actor.role==='student'&&force)throw new DomainError('staff_only',403);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2561,6 +2617,7 @@ export class LiveExamService {
   private settings(value: unknown) {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
+      practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       allowLateJoin: raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
       teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
