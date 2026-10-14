@@ -1203,7 +1203,12 @@ export class LiveExamService {
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
-          ($2='student' and les.host_id=$3 and les.settings->>'practiceMode' in ('solo','group','collaborative')) is_practice_host,
+          ($2='student' and les.host_id=$3
+             and les.settings->>'practiceMode' in ('solo','group','collaborative')
+             and c.archived_at is null
+             and exists(select 1 from enrollments host_membership
+               where host_membership.class_id=les.class_id
+                 and host_membership.student_id=$3 and host_membership.left_at is null)) is_practice_host,
          lep.id participant_id,
          lep.joined_at participant_joined_at,
          (
