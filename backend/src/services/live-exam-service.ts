@@ -715,6 +715,7 @@ export class LiveExamService {
       includeCounts?: boolean;
     },
   ) {
+    if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if (!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     const selectionPromise = this.chooseQuestionIds(actor, {
@@ -818,6 +819,10 @@ export class LiveExamService {
     const selection = await this.chooseQuestionIds(actor, input);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    // Bound the total frozen source payload for learner-owned rooms while
+    // preserving the existing unrestricted staff/classroom builder.
+    if(actor.role==='student' && expandedQuestionIds.length>36)
+      throw new DomainError('live_student_dependency_limit',409);
     const snapshots = await Promise.all(expandedQuestionIds.map(async (questionId) => {
       const [portable, markScheme] = await Promise.all([
         this.questions.portable(actor.role==='student'?{...actor,role:'teacher'}:actor, questionId),
