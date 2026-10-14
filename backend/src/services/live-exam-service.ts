@@ -930,7 +930,7 @@ export class LiveExamService {
     if(selection.ids.length!==input.questionIds.length) throw new DomainError('live_question_selection_mismatch',400);
 
     const expandedIds=await this.expandRequiredDependencies(selection.ids);
-    await this.requireQuestionSourceScope(expandedIds,input.syllabusCode??'9618');
+    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedIds,input.syllabusCode??'9618');
     const [selected,expanded]=await Promise.all([
       this.previewQuestions(selection.ids),
       this.previewQuestions(expandedIds),
@@ -963,7 +963,7 @@ export class LiveExamService {
     const selection = await this.chooseQuestionIds(actor, input);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
-    await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
+    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
     // Bound the total frozen source payload for learner-owned rooms while
     // preserving the existing unrestricted staff/classroom builder.
     if(actor.role==='student' && expandedQuestionIds.length>36)
