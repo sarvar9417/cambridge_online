@@ -262,11 +262,11 @@ def source_fidelity_blockers(stem: str, guidance: str) -> list[str]:
     findings: list[str] = []
     if re.search(r"DO\s+NOT\s+WRITE\s+IN\s+THIS\s+MARGIN", stem, re.I):
         findings.append("qp_margin_text")
-    if re.search(r"\\\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", stem, re.I):
+    if re.search(r"\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", stem, re.I):
         findings.append("qp_control_or_replacement_chars")
     if re.search(r"DO\s+NOT\s+WRITE\s+IN\s+THIS\s+MARGIN", guidance, re.I):
         findings.append("ms_margin_text")
-    if re.search(r"\\\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", guidance, re.I):
+    if re.search(r"\\u00(?:0[0-9a-f]|1[0-9a-f])|[\x00-\x08\x0b\x0c\x0e-\x1f\ufffd]", guidance, re.I):
         findings.append("ms_control_or_replacement_chars")
     # A plain text stem is not evidence that a diagram/trace-table image survived.
     if answer_kind(stem) in ("diagram", "table"):
