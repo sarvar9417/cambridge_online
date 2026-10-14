@@ -51,9 +51,17 @@ describe('unified Live Challenge classroom controls',()=>{
   it('uses the same diagram and seen-question filters in manual pool discovery and room creation',()=>{
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('markingMode:data.get(\'markingMode\'),includeDiagrams,excludeSeen');
+    expect(page).toContain("markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):data.get('markingMode'),includeDiagrams,excludeSeen");
     expect(page).toContain('setIncludeDiagrams(event.target.checked);clearManualPool()');
     expect(page).toContain('setExcludeSeen(event.target.checked);clearManualPool()');
+  });
+
+  it('submits learner practice settings that agree with hidden staff-only controls',()=>{
+    expect(page).toContain("displayNameMode:user.role==='student'?'anonymous_alias':data.get('displayNameMode')");
+    expect(page).toContain("markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):data.get('markingMode')");
+    expect(page).toContain("peerCalibrationPercent:user.role==='student'?0:Number(data.get('peerCalibrationPercent')??0)");
+    expect(page).toContain("teacherOverrideEnabled:user.role!=='student'&&data.get('teacherOverrideEnabled')==='on'");
+    expect(page).toContain("practiceMode:user.role==='student'?practiceMode:undefined");
   });
 
   it('invalidates stale manual pools, pages the source-ready pool, and reuses create idempotency on retry',()=>{
