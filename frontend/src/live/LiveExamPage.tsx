@@ -249,6 +249,10 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
       scheme.groups.length?<div className="live-scheme-groups">{scheme.groups.map((group)=><span key={group.id}>
         {group.label&&group.label!=='main'?`${group.label}: `:''}{group.nRequired} ta band · maksimum {group.maxMarks} ball
       </span>)}</div>:null}
+    {scheme.derivedFromGuidance?<p className="live-scheme-source-derived" role="note">
+      MP1, MP2 va keyingi bir ballik mezonlar rasmiy Cambridge Mark Scheme matnidan ajratilgan.
+      Asl ko‘rsatmalarni quyida tekshirishingiz mumkin; maksimum {scheme.maxMarks} ball saqlanadi.
+    </p>:null}
     {groupedManualRubric?<p className="live-scheme-manual-notice" role="note">
       Rasmiy mezon bazada umumiy {scheme.maxMarks} ball sifatida saqlangan. Bu alohida 1 ballik MP emas:
       javobga 0–{scheme.maxMarks} oralig‘ida qo‘lda ball bering. Batafsil shartlar original Mark Scheme’da keltirilgan.
