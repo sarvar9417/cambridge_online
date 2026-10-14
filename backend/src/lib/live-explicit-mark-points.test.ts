@@ -100,7 +100,7 @@ describe('source-backed Live MP decomposition',()=>{
     '• drawing object',
     '• property',
     '• drawing list',
-  ].join('\\n'),3);
+  ].join('\n'),3);
   const query=vi.fn().mockResolvedValue({rows:[{scheme:source}]});
   const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
   const actual=await (service as unknown as {
