@@ -2551,11 +2551,14 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await client.query(
-        `select status::text from live_exam_sessions where id=$1 for update`,
+        `select status::text,host_id,settings from live_exam_sessions where id=$1 for update`,
         [sessionId],
       );
       if (!session.rowCount) throw new DomainError('not_found', 404);
       if (session.rows[0].status !== 'lobby') throw new DomainError('live_invalid_state', 409);
+      if(String(session.rows[0].host_id)===actor.id
+        && ['solo','group','collaborative'].includes(String(session.rows[0].settings?.practiceMode)))
+        throw new DomainError('live_host_cannot_leave',409);
       const result = await client.query(
         `update live_exam_participants set left_at=now(),last_seen_at=now()
          where session_id=$1 and student_id=$2 and left_at is null returning id`,
