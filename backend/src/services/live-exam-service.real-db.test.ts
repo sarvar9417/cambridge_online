@@ -229,6 +229,41 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await service.cancel(student(0),sessionId);
   });
 
+  it('keeps finished student practice marks out of official mastery and classroom exposures',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829986',markingMode:'self',settings:{practiceMode:'solo'},participants:[0],
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    const beforeMastery=Number((await client.query(
+      'select count(*)::int count from mastery where student_id=$1',[studentIds[0]],
+    )).rows[0].count);
+    await service.start(student(0),sessionId);
+    const exposureCount=Number((await client.query(
+      'select count(*)::int count from class_question_exposures where live_session_question_id=$1',
+      [sessionQuestionId],
+    )).rows[0].count);
+    expect(exposureCount).toBe(0);
+    await expect(service.revealMarkScheme(student(0),sessionId)).rejects.toThrow();
+    await service.submitAnswer(student(0),sessionId,'One mark');
+    expect((await service.revealMarkScheme(student(0),sessionId)).status).toBe('marking');
+    const review=(await client.query<{id:string}>(
+      'select id from live_exam_reviews where session_question_id=$1 and reviewer_id=$2',
+      [sessionQuestionId,studentIds[0]],
+    )).rows[0]!;
+    await service.submitReview(student(0),sessionId,review.id,{matchedPointIds:[pointId]});
+    expect((await service.completeMarking(student(0),sessionId)).status).toBe('review');
+    expect((await service.nextQuestion(student(0),sessionId)).status).toBe('finished');
+    const evidence=Number((await client.query(
+      'select count(*)::int count from live_exam_learning_evidence where session_id=$1',
+      [sessionId],
+    )).rows[0].count);
+    expect(evidence).toBe(0);
+    const afterMastery=Number((await client.query(
+      'select count(*)::int count from mastery where student_id=$1',[studentIds[0]],
+    )).rows[0].count);
+    expect(afterMastery).toBe(beforeMastery);
+  });
+
   it('does not let a learner create a staff-controlled Live session',async()=>{
     await expect(service.create(student(0),{
       classId,title:'Forbidden classroom impersonation',topicIds:[],subtopicIds:[],
