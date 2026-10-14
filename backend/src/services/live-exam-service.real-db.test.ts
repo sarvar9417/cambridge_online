@@ -190,6 +190,45 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (pool) await pool.end();
   });
 
+  it('lets only an enrolled student-host control their own solo practice and blocks join-by-code', async()=>{
+    const {sessionId}=await makeSession({
+      code:'829984',markingMode:'self',settings:{practiceMode:'solo'},participants:[0],
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    const rows=await service.list(student(0));
+    expect(rows.some(row=>row.id===sessionId && row.settings.practiceMode==='solo')).toBe(true);
+    await expect(service.join(student(1),'829984')).rejects.toThrow();
+    await expect(service.start(student(1),sessionId)).rejects.toThrow();
+    await expect(service.moderateAnswer(student(0),sessionId,questionId,{score:1})).rejects.toThrow();
+    await expect(service.leave(student(0),sessionId)).rejects.toThrow();
+    const opened=await service.start(student(0),sessionId);
+    expect(opened.status).toBe('question_open');
+    await expect(service.completeMarking(student(0),sessionId,true)).rejects.toThrow();
+    const cancelled=await service.cancel(student(0),sessionId);
+    expect(cancelled.status).toBe('cancelled');
+  });
+
+  it('requires at least two members to start student-owned peer practice and checks join school',async()=>{
+    const {sessionId}=await makeSession({
+      code:'829985',markingMode:'peer',settings:{practiceMode:'group'},participants:[0],
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    await expect(service.start(student(0),sessionId)).rejects.toThrow();
+    await expect(service.join(otherSchoolStudent(),'829985')).rejects.toThrow();
+    await expect(service.join(sameSchoolGuest(),'829985')).rejects.toThrow();
+    const joined=await service.join(student(1),'829985');
+    expect(joined.sessionId).toBe(sessionId);
+    expect((await service.start(student(0),sessionId)).status).toBe('question_open');
+    await service.cancel(student(0),sessionId);
+  });
+
+  it('does not let a learner create a staff-controlled Live session',async()=>{
+    await expect(service.create(student(0),{
+      classId,title:'Forbidden classroom impersonation',topicIds:[],subtopicIds:[],
+      questionCount:1,markingMode:'teacher',includeDiagrams:true,excludeSeen:false,
+    })).rejects.toThrow();
+  });
+
   it('lets authenticated students join by valid code without checking class or school membership', async () => {
     const {sessionId}=await makeSession({
       code:'829901',
