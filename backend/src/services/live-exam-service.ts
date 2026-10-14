@@ -2526,6 +2526,7 @@ export class LiveExamService {
   }
 
   async removeParticipant(actor: Actor, sessionId: string, studentId: string, expectedVersion?: number) {
+    if(actor.role==='student'&&actor.id===studentId)throw new DomainError('live_host_cannot_leave',409);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
