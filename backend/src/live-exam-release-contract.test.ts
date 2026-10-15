@@ -273,4 +273,12 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(source('src/lib/live-projector-privacy.ts')).toContain('sanitized.teacherAnswers=[]');
     expect(source('src/lib/live-projector-privacy.ts')).toContain("if(key==='storagePath')");
   });
+
+  it('excludes composite manual-only and unrecorded marks from missed-MP reports',()=>{
+    expect(service).toContain("leq.mark_scheme_snapshot->>'schemeType' in ('all_required','any_n_from_m','exact_match')");
+    expect(service).toContain('join live_exam_review_points rp');
+    expect(service).toContain('count(*) filter(where rp.awarded_marks=0)::int missed_count');
+    expect(service).toContain('and r.awarded_marks=a.final_score');
+    expect(service).toContain('and a.moderated_at is null');
+  });
 });
