@@ -1693,15 +1693,17 @@ export class LiveExamService {
            point.value->>'text' text,
            coalesce((point.value->>'marks')::numeric,0) marks,
            count(*)::int assessed_count,
-           count(*) filter(where coalesce(rp.matched,false)=false)::int missed_count
+           count(*) filter(where rp.awarded_marks=0)::int missed_count
          from live_exam_questions leq
          cross join lateral jsonb_array_elements(coalesce(leq.mark_scheme_snapshot->'points','[]'::jsonb)) point(value)
          join live_exam_answers a on a.session_question_id=leq.id and a.final_score is not null
+           and a.moderated_at is null
          join live_exam_reviews r on r.answer_id=a.id and r.session_question_id=leq.id
-           and r.status in ('submitted','moderated')
-         left join live_exam_review_points rp
+           and r.status in ('submitted','moderated') and r.awarded_marks=a.final_score
+         join live_exam_review_points rp
            on rp.review_id=r.id and rp.mark_scheme_point_id=(point.value->>'id')::uuid
          where leq.session_id=$1
+           and leq.mark_scheme_snapshot->>'schemeType' in ('all_required','any_n_from_m','exact_match')
          group by leq.position,display_ref,point.value
          order by missed_count desc,assessed_count desc,leq.position,code`,
         [sessionId],
