@@ -614,7 +614,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
               </label>)}
             </div>
             {!paper2SyllabusTopics.length?<p className="live-warning">Mavzular ro‘yxati yuklanmadi. Barcha Paper 2 savollaridan tanlash uchun davom etishingiz mumkin.</p>:null}
-          </fieldset>
+          </fieldset>}
         <section className="live-builder-filters">
           <header><div><h3>Advanced filters</h3><p>Source va marks bo‘yicha poolni toraytiring.</p></div></header>
           <div className="live-builder-filter-grid">
