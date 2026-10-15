@@ -237,6 +237,11 @@ function ReviewQuestionContext({question}:{question:LiveExamQuestion|null|undefi
 function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
   scheme:LiveMarkScheme;selected?:Set<string>;onToggle?:(id:string)=>void;interactive?:boolean;
 }) {
+  const groupedManualRubric=scheme.schemeType==='manual_only'
+    && scheme.points.length===1 && scheme.points[0]!.marks>1;
+  // A composite/levels/manual scheme must NEVER show a checkbox pretending
+  // to award a whole multi-mark rubric. Such answers use the numeric score.
+  const canCheckPoint=interactive&&!schemeNeedsManualScore(scheme);
   const oneMarkPerPoint=scheme.points.length>0&&scheme.points.every((point)=>point.marks===1);
   const compactRule=scheme.groups.length===1&&oneMarkPerPoint
     ?`Har bir to‘g‘ri band uchun 1 ball · Maksimum ${scheme.groups[0]!.maxMarks} ball`
@@ -247,11 +252,19 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
       scheme.groups.length?<div className="live-scheme-groups">{scheme.groups.map((group)=><span key={group.id}>
         {group.label&&group.label!=='main'?`${group.label}: `:''}{group.nRequired} ta band · maksimum {group.maxMarks} ball
       </span>)}</div>:null}
+    {scheme.derivedFromGuidance?<p className="live-scheme-source-derived" role="note">
+      MP1, MP2 va keyingi bir ballik mezonlar rasmiy Cambridge Mark Scheme matnidan ajratilgan.
+      Asl ko‘rsatmalarni quyida tekshirishingiz mumkin; maksimum {scheme.maxMarks} ball saqlanadi.
+    </p>:null}
+    {groupedManualRubric?<p className="live-scheme-manual-notice" role="note">
+      Rasmiy mezon bazada umumiy {scheme.maxMarks} ball sifatida saqlangan. Bu alohida 1 ballik MP emas:
+      javobga 0–{scheme.maxMarks} oralig‘ida qo‘lda ball bering. Batafsil shartlar original Mark Scheme’da keltirilgan.
+    </p>:null}
     {scheme.levels.length?<div className="live-scheme-levels"><h3>Levels of response</h3>{scheme.levels.map((level)=><article key={level.id}><header><strong>Level {level.levelNumber}</strong><b>{level.minMarks}–{level.maxMarks} ball</b></header><p>{level.descriptorMd}</p>{level.indicativeContentMd?<small>{level.indicativeContentMd}</small>:null}</article>)}</div>:null}
     <div className="live-scheme-points">
-      {scheme.points.map((point,index)=><label className={selected?.has(point.id)?'is-selected':''} key={point.id}>
-        {interactive?<input type="checkbox" checked={selected?.has(point.id)??false} onChange={()=>onToggle?.(point.id)}/>:<b>{index+1}</b>}
-        <span><strong>{point.code}</strong>{point.text}{markSchemeNotes(point.accept).map((note,noteIndex)=><small className="live-ms-note is-accept" key={`a-${noteIndex}`}>Accept: {note}</small>)}{markSchemeNotes(point.reject).map((note,noteIndex)=><small className="live-ms-note is-reject" key={`r-${noteIndex}`}>Reject: {note}</small>)}</span><i>{point.marks}</i>
+      {scheme.points.map((point,index)=><label className={canCheckPoint&&selected?.has(point.id)?'is-selected':''} key={point.id}>
+        {canCheckPoint?<input type="checkbox" checked={selected?.has(point.id)??false} onChange={()=>onToggle?.(point.id)}/>:<b>{index+1}</b>}
+        <span><strong>{groupedManualRubric?'Umumiy baholash mezoni':point.code}</strong>{point.text}{markSchemeNotes(point.accept).map((note,noteIndex)=><small className="live-ms-note is-accept" key={`a-${noteIndex}`}>Accept: {note}</small>)}{markSchemeNotes(point.reject).map((note,noteIndex)=><small className="live-ms-note is-reject" key={`r-${noteIndex}`}>Reject: {note}</small>)}</span><i>{groupedManualRubric?`0–${point.marks}`:point.marks}</i>
       </label>)}
       {!scheme.points.length?<p>Bu savol umumiy ball bilan baholanadi.</p>:null}
     </div>

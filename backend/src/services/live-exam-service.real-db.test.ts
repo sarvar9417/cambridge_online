@@ -5,6 +5,7 @@ import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import { LiveExamService, LIVE_FIXED_SOURCE_ORDER_SQL } from './live-exam-service.js';
 import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
+import { expandExplicitLiveMarkPoints } from '../lib/live-explicit-mark-points.js';
 
 const describeLive = process.env.LIVE_DB_ACCEPTANCE === '1' ? describe : describe.skip;
 
@@ -56,6 +57,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     timeLimit?: number | null;
     settings?: Record<string, unknown>;
     participants?: number[];
+    markScheme?: Record<string,unknown>;
   }) {
     const sessionId = (await client.query<{id:string}>(
       `insert into live_exam_sessions
@@ -90,11 +92,12 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
         groupId: null,
       }],
     };
+    const finalScheme=input.markScheme??scheme;
     const sessionQuestionId = (await client.query<{id:string}>(
       `insert into live_exam_questions
         (session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot)
-       values ($1,$2,0,1,'{}'::jsonb,$3::jsonb) returning id`,
-      [sessionId,questionId,JSON.stringify(scheme)],
+       values ($1,$2,0,$3,'{}'::jsonb,$4::jsonb) returning id`,
+      [sessionId,questionId,Number(finalScheme.maxMarks),JSON.stringify(finalScheme)],
     )).rows[0]!.id;
     for (const index of input.participants ?? []) {
       await client.query(
@@ -372,6 +375,54 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       await service.submitReview(reviewer,sessionId,review.id,{matchedPointIds:[pointId]});
     }
     expect((await service.nextQuestion(student(0),sessionId)).status).toBe('finished');
+  });
+
+  it('caps actual PostgreSQL review MP awards at 3 for four source-derived criteria',async()=>{
+    const base={
+      id:'33333333-3333-4333-8333-333333333333',
+      schemeType:'manual_only',maxMarks:3,
+      guidanceMd:[
+        '5(a) 1 mark for each point to max 3 3',
+        '• The image is made of pixels',
+        '• Each pixel has one colour',
+        '• Each colour has a unique binary code',
+        '• The code for the colour of each pixel is stored in sequence / order',
+      ].join('\n'),
+      levels:[],groups:[],points:[{
+        id:pointId,code:'M1',text:'Combined 3-mark criterion',marks:3,
+        accept:[],reject:[],requires:[],isBod:false,groupId:null,
+      }],
+    };
+    const expanded=expandExplicitLiveMarkPoints(base,'9618/11/M/J/26 Q5(a)');
+    expect(expanded.schemeType).toBe('any_n_from_m');
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829990',markingMode:'self',
+      settings:{practiceMode:'solo'},participants:[0],markScheme:expanded,
+    });
+    await client.query('update live_exam_sessions set host_id=$2 where id=$1',[sessionId,studentIds[0]]);
+    await service.start(student(0),sessionId);
+    await service.submitAnswer(student(0),sessionId,'Pixels are coded in binary.');
+    await service.revealMarkScheme(student(0),sessionId);
+    const review=(await client.query<{id:string}>(
+      'select id from live_exam_reviews where session_question_id=$1 and reviewer_id=$2',
+      [sessionQuestionId,studentIds[0]],
+    )).rows[0]!;
+    await service.submitReview(student(0),sessionId,review.id,{
+      matchedPointIds:expanded.points.map(point=>point.id),
+    });
+    const award=await client.query<{matched:number;credited:number;marks:number}>(
+      `select count(*) filter(where matched)::int matched,
+       count(*) filter(where awarded_marks>0)::int credited,
+       coalesce(sum(awarded_marks),0)::int marks
+       from live_exam_review_points where review_id=$1`,
+      [review.id],
+    );
+    expect(award.rows[0]).toMatchObject({matched:4,credited:3,marks:3});
+    const final=(await client.query<{final_score:number}>(
+      'select final_score from live_exam_answers where session_question_id=$1',
+      [sessionQuestionId],
+    )).rows[0]!;
+    expect(Number(final.final_score)).toBe(3);
   });
 
   it('does not let a learner create a staff-controlled Live session',async()=>{

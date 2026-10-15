@@ -116,6 +116,11 @@ try{
   await submit(host,'The number system uses only zero and one');
   await submit(peer,'Each bit has one of two possible values');
   await qa.clickText(host.page,'Javoblarni yopish · Mark Scheme');
+  // The reveal mutation and the peer's realtime snapshot may settle at
+  // different times. Wait for the actual anonymous review workspace in both
+  // browsers before asserting server-side assignment and privacy.
+  await qa.waitText(host.page,'ANONIM JAVOB');
+  await qa.waitText(peer.page,'ANONIM JAVOB');
   const hostPeer=await snapshot(host.page,group.id);
   const peerPeer=await snapshot(peer.page,group.id);
   await qa.check('Group: separate anonymous peer assignments',

@@ -10,6 +10,7 @@ import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-p
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
+import { expandExplicitLiveMarkPoints } from '../lib/live-explicit-mark-points.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
@@ -103,6 +104,7 @@ type MarkSchemeSnapshot = {
     indicativeContentMd: string | null;
   }>;
   points: MarkSchemePointSnapshot[];
+  derivedFromGuidance?:boolean;
   groups: Array<{
     id: string;
     label: string | null;
@@ -268,14 +270,20 @@ export class LiveExamService {
            'id',msg.id,'label',msg.label,'nRequired',msg.n_required,
            'marksPerPoint',msg.marks_per_point,'maxMarks',msg.max_marks,'awardMode',msg.award_mode
          ) order by msg.sort_order,msg.id) from mark_scheme_groups msg where msg.mark_scheme_id=ms.id),'[]'::jsonb)
-       ) scheme
+       ) scheme,q.display_ref source_ref
        from canonical_mark_schemes ms
+       join questions q on q.id=ms.question_id
        where ms.question_id=$1 and ms.status='approved'`,
       [questionId],
     );
     const scheme=result.rows[0]?.scheme as MarkSchemeSnapshot|undefined;
     if (!scheme || !liveMarkSchemeCapabilityReady(scheme)) throw new DomainError('live_question_not_ready', 409);
-    return scheme;
+    // Freeze explicit, source-backed 1-mark criteria separately for this Live
+    // session. Canonical approved data and historical frozen sessions remain
+    // untouched; ambiguous/level-based rubrics continue to use manual score.
+    const sessionScheme=expandExplicitLiveMarkPoints(scheme,String(result.rows[0]?.source_ref??''));
+    if(!liveMarkSchemeCapabilityReady(sessionScheme))throw new DomainError('live_question_not_ready',409);
+    return sessionScheme;
   }
 
   private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
@@ -1728,15 +1736,17 @@ export class LiveExamService {
            point.value->>'text' text,
            coalesce((point.value->>'marks')::numeric,0) marks,
            count(*)::int assessed_count,
-           count(*) filter(where coalesce(rp.matched,false)=false)::int missed_count
+           count(*) filter(where rp.awarded_marks=0)::int missed_count
          from live_exam_questions leq
          cross join lateral jsonb_array_elements(coalesce(leq.mark_scheme_snapshot->'points','[]'::jsonb)) point(value)
          join live_exam_answers a on a.session_question_id=leq.id and a.final_score is not null
+           and a.moderated_at is null
          join live_exam_reviews r on r.answer_id=a.id and r.session_question_id=leq.id
-           and r.status in ('submitted','moderated')
-         left join live_exam_review_points rp
+           and r.status in ('submitted','moderated') and r.awarded_marks=a.final_score
+         join live_exam_review_points rp
            on rp.review_id=r.id and rp.mark_scheme_point_id=(point.value->>'id')::uuid
          where leq.session_id=$1
+           and leq.mark_scheme_snapshot->>'schemeType' in ('all_required','any_n_from_m','exact_match')
          group by leq.position,display_ref,point.value
          order by missed_count desc,assessed_count desc,leq.position,code`,
         [sessionId],
@@ -2336,20 +2346,33 @@ export class LiveExamService {
         matched: selectedIds.has(point.id),
         confidence: 1,
       })));
-      await client.query(
-        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
-      for (const point of snapshot.points) {
-        const matched = computed.effectiveMatched[point.code] === true;
-        await client.query(
-          `update live_exam_review_points set matched=$3,awarded_marks=$4
-           where review_id=$1 and mark_scheme_point_id=$2`,
-          [reviewId, point.id, matched, matched ? point.marks : 0],
-        );
-      }
       const score = pointCount > 0 && computed.score !== null ? computed.score : input.score;
       if (score === undefined || score < 0 || score > Number(row.marks)) throw new DomainError('invalid_score', 400);
       if (selectedLevel && (score < selectedLevel.minMarks || score > selectedLevel.maxMarks)) {
         throw new DomainError('score_outside_level', 400);
+      }
+      // A 3-of-4 source-derived rubric allows all four criteria to be met,
+      // but only three to *earn* marks. Persist zero awarded marks for the
+      // excess matched point, without hiding that it was satisfied.
+      const pointFeedback=snapshot.derivedFromGuidance
+        ?releasedPointFeedback(snapshot,score,false,{
+          matchedPointIds:[...selectedIds],recordedCount:snapshot.points.length,
+        }):null;
+      if(pointFeedback&&pointFeedback.status!=='available')
+        throw new DomainError('live_mark_point_score_mismatch',409);
+      const creditedIds=new Set(pointFeedback?.status==='available'
+        ?pointFeedback.points.filter(point=>point.credited).map(point=>point.id):[]);
+      await client.query(
+        `update live_exam_review_points set matched=false,awarded_marks=0 where review_id=$1`, [reviewId]);
+      for (const point of snapshot.points) {
+        const matched = computed.effectiveMatched[point.code] === true;
+        const awarded=matched&&(!snapshot.derivedFromGuidance||creditedIds.has(point.id))
+          ?point.marks:0;
+        await client.query(
+          `update live_exam_review_points set matched=$3,awarded_marks=$4
+           where review_id=$1 and mark_scheme_point_id=$2`,
+          [reviewId, point.id, matched, awarded],
+        );
       }
       const feedback=(input.feedback ?? '').trim();
       if (row.kind === 'peer' && snapshot.points.length === 0 && score < Number(row.marks) && feedback.length < 2) {

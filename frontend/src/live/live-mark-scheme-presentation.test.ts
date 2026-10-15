@@ -18,6 +18,16 @@ describe('Live Challenge mark scheme presentation',()=>{
     expect(css).toContain('.live-scheme-rule');
   });
 
+  it('does not mislabel a legacy composite multi-mark manual rubric as a single MP',()=>{
+    expect(source).toContain("scheme.schemeType==='manual_only'");
+    expect(source).toContain("scheme.points.length===1 && scheme.points[0]!.marks>1");
+    expect(source).toContain("groupedManualRubric?'Umumiy baholash mezoni':point.code");
+    expect(source).toContain("Rasmiy mezon bazada umumiy");
+    expect(source).toContain("0–");
+    expect(source).toContain("const canCheckPoint=interactive&&!schemeNeedsManualScore(scheme)");
+    expect(source).toContain("{canCheckPoint?<input type=\"checkbox\"");
+  });
+
   it('keeps the original source text available but visually secondary',()=>{
     expect(css).toContain('.live-scheme-original summary');
     expect(css).toContain('.live-scheme-original p');
