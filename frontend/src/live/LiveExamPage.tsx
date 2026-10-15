@@ -591,6 +591,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       <form onSubmit={join}><input aria-label="Xona kodi" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" value={code} onChange={(e)=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/><button disabled={busy||code.length!==6}>Qo‘shilish</button></form>
     </section>:null}<form className="live-create" onSubmit={create}>
       <section className="live-create-main"><span className="live-step">1</span><div><h2>{user.role==='student'?'O‘z mashqingizni yarating':'Sessiya'}</h2><p>Sinf va savollar ko‘lamini tanlang.</p></div>
+        <div className="live-create-fields">
         {user.role==='student'?<label>Mashq rejimi<select aria-label="Mashq rejimi" value={practiceMode} onChange={(event)=>setPracticeMode(event.target.value as 'solo'|'group'|'collaborative')}>
           <option value="solo">Solo — mustaqil mashq</option><option value="group">Group — anonim o‘zaro baholash</option><option value="collaborative">Collaborative — do‘stlar bilan o‘zini baholash</option>
         </select><small>{practiceMode==='group'?'Kamida 2 ishtirokchi kerak.':practiceMode==='solo'?'Faqat siz kirishingiz mumkin.':'Do‘stlar bilan bir xonada o‘rganing.'}</small></label>:null}
@@ -600,16 +601,20 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         </select><small>{syllabusCode==='0478'?'Faqat 0478 Paper 2. 9618 sinfida o‘tkazilgan 0478 natijalari 9618 mastery hisobiga qo‘shilmaydi.':'9618 Hodder coursebook bo‘limlari bo‘yicha.'}</small></label>
         <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);clearManualPool()}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder={syllabusCode==='0478'?'0478 Paper 2 Algorithms revision':'Chapter 14 revision'}/></label>
+        </div>
         {syllabusCode==='9618'
           ?<div className="live-topic-grid"><fieldset><legend>Chapter</legend>{chapters.map((chapter)=>{const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapter.chapter_number).map((item)=>item.section_code);const checked=chapterCodes.length>0&&chapterCodes.every((code)=>coursebookSectionCodes.includes(code));return <label key={chapter.chapter_number}><input type="checkbox" checked={checked} onChange={()=>toggleChapter(chapter.chapter_number)}/><span>{chapter.chapter_number}. {chapter.chapter_title}</span></label>})}</fieldset>
             <fieldset><legend>Chapter section</legend>{visibleCoursebookSections.map((section)=><label key={section.section_code}><input type="checkbox" checked={coursebookSectionCodes.includes(section.section_code)} onChange={()=>toggleCoursebookSection(section.section_code)}/><span>{section.section_code} {section.section_title}</span></label>)}</fieldset></div>
           :<fieldset className="live-0478-subtopics"><legend>0478 Paper 2 — Syllabus topics (7–10)</legend>
-            <p>Hech biri belgilanmasa barcha Live-ready Paper 2 savollaridan tanlanadi. Bo‘lim tanlasangiz shu bo‘limga mos savollar olinadi.</p>
-            {paper2SyllabusTopics.map(item=><label key={item.subtopic_id}>
-              <input type="checkbox" checked={selected0478SubtopicIds.includes(item.subtopic_id)} onChange={()=>toggle0478Subtopic(item.subtopic_id)}/>
-              <span>{item.code} {item.subtopic_title}</span>
-            </label>)}
-          </fieldset>}
+            <p className="live-0478-topic-help">Hech biri belgilanmasa barcha Live-ready Paper 2 savollaridan tanlanadi. Bo‘lim tanlasangiz shu bo‘limga mos savollar olinadi.</p>
+            <div className="live-0478-topic-list">
+              {paper2SyllabusTopics.map(item=><label key={item.subtopic_id} className="live-0478-topic-option">
+                <input type="checkbox" checked={selected0478SubtopicIds.includes(item.subtopic_id)} onChange={()=>toggle0478Subtopic(item.subtopic_id)}/>
+                <span><strong>{item.code}</strong> {item.subtopic_title}</span>
+              </label>)}
+            </div>
+            {!paper2SyllabusTopics.length?<p className="live-warning">Mavzular ro‘yxati yuklanmadi. Barcha Paper 2 savollaridan tanlash uchun davom etishingiz mumkin.</p>:null}
+          </fieldset>
         <section className="live-builder-filters">
           <header><div><h3>Advanced filters</h3><p>Source va marks bo‘yicha poolni toraytiring.</p></div></header>
           <div className="live-builder-filter-grid">
