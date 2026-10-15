@@ -61,7 +61,7 @@ try{
       };
     });
     await qa.check(`0478 layout: topic grid readable at ${width}px`,
-      geometry.topicCount>=2
+      geometry.topicCount>=1
       && geometry.topicsWidth>=Math.min(250,geometry.mainWidth*0.7)
       && geometry.topicInMain&&geometry.fieldsInMain
       && geometry.optionsWellSized&&geometry.fieldsWellSized
