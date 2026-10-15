@@ -201,3 +201,73 @@
 .live-lobby-order-preview li>strong{flex:1 1 15rem;overflow-wrap:anywhere}
 .live-lobby-order-preview li>small{white-space:nowrap}
 .live-order-preview-note{font-size:.9rem;color:var(--text-muted,#536275)}
+
+
+/* 0478/9618 Live builder layout: keep form fields and topic choices out of
+   the narrow step-number track. The available shell content width, not only
+   the browser viewport, determines when the settings sidebar should stack. */
+.live-page.live-landing{container:live-builder / inline-size}
+.live-create-main{grid-template-columns:42px minmax(0,1fr);min-width:0}
+.live-create-main>div:nth-child(2){grid-column:2}
+.live-create-main>.live-create-fields{
+  grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;min-width:0
+}
+.live-create-main>.live-create-fields>label{min-width:0;align-content:start}
+.live-create-main>.live-create-fields :is(input,select){min-width:0;max-width:100%}
+.live-create-main>:is(.live-topic-grid,.live-0478-subtopics){grid-column:1/-1;min-width:0}
+.live-0478-subtopics{
+  width:100%;min-inline-size:0;margin:0;padding:18px;
+  border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface-soft)
+}
+.live-0478-subtopics>legend{
+  max-width:calc(100% - 16px);padding:0 8px;
+  font-weight:800;line-height:1.4;white-space:normal
+}
+.live-0478-subtopics .live-0478-topic-help{
+  max-width:70ch;margin:0 0 14px;color:var(--text-muted);
+  font-size:13px;line-height:1.5;overflow-wrap:break-word
+}
+.live-0478-topic-list{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;gap:10px;max-height:360px;overflow-y:auto;
+  padding:2px;min-width:0
+}
+.live-create .live-0478-topic-option{
+  display:grid;grid-template-columns:20px minmax(0,1fr);
+  align-items:start;gap:11px;min-width:0;
+  padding:12px 13px;border:1px solid var(--border);
+  border-radius:var(--radius);background:var(--surface);
+  color:var(--text);font-size:13px;font-weight:600;line-height:1.45;
+  cursor:pointer;overflow-wrap:break-word
+}
+.live-create .live-0478-topic-option:hover{border-color:var(--accent)}
+.live-create .live-0478-topic-option:has(input:checked){
+  background:var(--accent-soft);border-color:var(--accent)
+}
+.live-create .live-0478-topic-option>input{
+  width:18px;height:18px;min-height:18px;padding:0;
+  margin:1px 0 0;accent-color:var(--accent)
+}
+.live-create .live-0478-topic-option>span{min-width:0;overflow-wrap:break-word}
+.live-create .live-0478-topic-option strong{color:var(--accent);white-space:nowrap}
+.live-create-main,.live-create-side,.live-builder-filters,.live-question-picker{min-width:0}
+@container live-builder (max-width:1000px){
+  .live-create{grid-template-columns:minmax(0,1fr)}
+  .live-create-side{position:static}
+}
+@container live-builder (max-width:670px){
+  .live-create-main>.live-create-fields{grid-template-columns:minmax(0,1fr)}
+  .live-0478-topic-list{grid-template-columns:minmax(0,1fr)}
+  .live-builder-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container live-builder (max-width:430px){
+  .live-builder-filter-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:640px){
+  .live-create-main{grid-template-columns:minmax(0,1fr);padding:16px}
+  .live-create-main>div:nth-child(2){grid-column:1}
+  .live-0478-subtopics{padding:12px}
+  .live-create .live-0478-topic-option{padding:11px}
+}
