@@ -296,8 +296,8 @@ export function normalizeCollapsedLiveMarkScheme<T extends LiveMarkSchemeForNorm
   const collapsed=Boolean(
     only
     && scheme.maxMarks>1
-    && only.marks===scheme.maxMarks
-    && /^M(?:P)?1$/i.test(only.code),
+    && /^M(?:P)?1$/i.test(only.code)
+    && (scheme.schemeType==='manual_only'||only.marks===scheme.maxMarks),
   );
   if (!collapsed) return scheme;
 
