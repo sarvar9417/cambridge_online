@@ -868,6 +868,7 @@ export class LiveExamService {
       includeCounts?: boolean;
     },
   ) {
+    this.validateSyllabusSelection(input);
     if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -925,6 +926,7 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
   ) {
+    this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
@@ -966,6 +968,7 @@ export class LiveExamService {
     if(input.questionIds?.length && input.questionOrder==='balanced')
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
+    this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
