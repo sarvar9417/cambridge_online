@@ -259,8 +259,8 @@ function MarkSchemeView({scheme,selected,onToggle,interactive=false}:{
       </label>)}
       {!scheme.points.length?<p>Bu savol umumiy ball bilan baholanadi.</p>:null}
     </div>
-    {scheme.guidanceMd?<details className="live-scheme-original">
-      <summary>Original Cambridge mark scheme’ni ko‘rish</summary>
+    {scheme.guidanceMd?<details className="live-scheme-original" open={!scheme.points.length}>
+      <summary>{scheme.points.length?'Original Cambridge mark scheme’ni ko‘rish':'Original Cambridge mark scheme — qo‘lda baholash'}</summary>
       <p>{scheme.guidanceMd}</p>
     </details>:null}
   </section>;
