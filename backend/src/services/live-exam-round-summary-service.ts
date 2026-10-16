@@ -15,6 +15,16 @@ export interface LiveExamScoreBucket {
   count: number;
 }
 
+export interface LiveExamGroupStanding {
+  rank:number;
+  groupNo:number;
+  label:string;
+  score:number;
+  possible:number;
+  totalScore:number;
+  memberCount:number;
+}
+
 type ProjectorDisplayNameMode = 'full' | 'first_name' | 'initials' | 'anonymous_alias';
 
 function projectorDisplayName(fullName:string,aliasNo:number,mode:ProjectorDisplayNameMode) {
@@ -26,6 +36,38 @@ function projectorDisplayName(fullName:string,aliasNo:number,mode:ProjectorDispl
     return initials ? `${initials}.` : `Ishtirokchi ${aliasNo}`;
   }
   return `Ishtirokchi ${aliasNo}`;
+}
+
+function competitionGroupStandings(
+  rows:Array<{competition_group:unknown;score:unknown}>,
+  possible:number,
+  names:string[],
+  prefix:string,
+):LiveExamGroupStanding[]{
+  const groups=new Map<number,{totalScore:number;memberCount:number}>();
+  for(const row of rows){
+    const groupNo=Number(row.competition_group);
+    if(!Number.isInteger(groupNo)||groupNo<1)continue;
+    const current=groups.get(groupNo)??{totalScore:0,memberCount:0};
+    current.totalScore+=Number(row.score);
+    current.memberCount+=1;
+    groups.set(groupNo,current);
+  }
+  const ordered=[...groups.entries()].map(([groupNo,value])=>({
+    groupNo,
+    label:names[groupNo-1]?.trim()||`${prefix} ${String.fromCharCode(64+groupNo)}`,
+    score:value.memberCount?value.totalScore/value.memberCount:0,
+    possible,
+    totalScore:value.totalScore,
+    memberCount:value.memberCount,
+  })).sort((left,right)=>right.score-left.score||left.groupNo-right.groupNo);
+  let previousScore:number|null=null;
+  let previousRank=0;
+  return ordered.map((item,index)=>{
+    const rank=previousScore!==null&&item.score===previousScore?previousRank:index+1;
+    previousScore=item.score;previousRank=rank;
+    return{rank,...item};
+  });
 }
 
 /**
@@ -73,6 +115,11 @@ export class LiveExamRoundSummaryService {
 
     const currentPosition = Number(session.current_question_index);
     const speedTieBreak = session.settings?.leaderboardMode === 'marks_speed_tiebreak';
+    const competitionMode=session.settings?.competitionMode==='teams'||session.settings?.competitionMode==='houses'
+      ?session.settings.competitionMode:'individual';
+    const competitionNames=Array.isArray(session.settings?.competitionGroupNames)
+      ?session.settings.competitionGroupNames.filter((value):value is string=>typeof value==='string')
+      :[];
     const displayNameMode:ProjectorDisplayNameMode = actor.role==='student' ? 'anonymous_alias' : session.settings?.displayNameMode === 'full'
       || session.settings?.displayNameMode === 'first_name'
       || session.settings?.displayNameMode === 'initials'
@@ -80,7 +127,7 @@ export class LiveExamRoundSummaryService {
       : 'anonymous_alias';
     const [roundResult, overallResult, possibleResult] = await Promise.all([
       this.pool.query(
-        `select lep.student_id,u.full_name,coalesce(a.final_score,0)::float8 score,leq.marks,
+        `select lep.student_id,u.full_name,lep.competition_group,coalesce(a.final_score,0)::float8 score,leq.marks,
            rank() over(order by coalesce(a.final_score,0) desc,
              case when $3::boolean then a.submitted_at end asc nulls last)::int rank,
            row_number() over(order by lep.joined_at,lep.student_id)::int alias_no
@@ -95,7 +142,7 @@ export class LiveExamRoundSummaryService {
         [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
-        `select lep.student_id,u.full_name,
+        `select lep.student_id,u.full_name,lep.competition_group,
            coalesce(sum(coalesce(a.final_score,0)),0)::float8 score,
            rank() over(order by coalesce(sum(coalesce(a.final_score,0)),0) desc,
              case when $3::boolean then sum(extract(epoch from (a.submitted_at-les.started_at))) end asc nulls last)::int rank,
@@ -108,7 +155,7 @@ export class LiveExamRoundSummaryService {
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where lep.session_id=$1 and lep.left_at is null
-         group by lep.student_id,u.full_name,lep.joined_at
+         group by lep.student_id,u.full_name,lep.joined_at,lep.competition_group
          order by score desc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
@@ -150,11 +197,22 @@ export class LiveExamRoundSummaryService {
       ? round.reduce((total,item) => total+item.score,0)/round.length
       : 0;
 
+    const groupPrefix=competitionMode==='houses'?'House':'Jamoa';
+    const groupRound=competitionMode==='individual'?[]:
+      competitionGroupStandings(roundResult.rows,roundPossible,competitionNames,groupPrefix);
+    const groupOverall=competitionMode==='individual'?[]:
+      competitionGroupStandings(overallResult.rows,overallPossible,competitionNames,groupPrefix);
+
     return {
       sessionId,
       questionPosition: currentPosition,
       marksFirst: true,
       leaderboardMode: speedTieBreak ? 'marks_speed_tiebreak' : 'marks',
+      competition:{
+        mode:competitionMode,
+        roundStandings:groupRound,
+        overallStandings:groupOverall,
+      },
       round: {
         possible: roundPossible,
         average,

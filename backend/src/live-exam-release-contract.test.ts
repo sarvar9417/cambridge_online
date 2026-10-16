@@ -19,6 +19,7 @@ const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
 const rehearsalIsolation=source('src/database/migrations/0212_live_rehearsal_isolation.sql');
+const competitionGroups=source('src/database/migrations/0213_live_team_house_groups.sql');
 const coursebookSections=source('src/lib/live-coursebook-sections.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
@@ -194,6 +195,18 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(rehearsalIsolation).toContain("NEW.settings->>'practiceMode' IS NULL");
     expect(rehearsalIsolation).toContain("coalesce((NEW.settings->>'rehearsalMode')::boolean,false)=false");
     expect(rehearsalIsolation).toContain("coalesce((les.settings->>'rehearsalMode')::boolean,false)=true");
+  });
+
+  it('keeps team and house competition separate from individual academic evidence',()=>{
+    expect(service).toContain("competitionMode?: 'individual' | 'teams' | 'houses'");
+    expect(service).toContain('competitionGroupCount?: number');
+    expect(service).toContain('competitionGroupNames?: string[]');
+    expect(service).toContain("live_competition_staff_only");
+    expect(service).toContain("live_competition_group_count_invalid");
+    expect(service).toContain('set competition_group=((ranked.row_no-1)%$2::int)+1');
+    expect(competitionGroups).toContain('ADD COLUMN competition_group smallint');
+    expect(competitionGroups).toContain('BETWEEN 1 AND 8');
+    expect(learningEvidence).not.toContain('competition_group');
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
