@@ -349,6 +349,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const createAttempt=useRef<{body:string;key:string}|null>(null);
   // A filter change invalidates any older manual question-pool response.
   const poolRequestEpoch=useRef(0);
+  const poolRequestBusy=useRef(false);
 
   useEffect(()=>{
     const requests:Promise<unknown>[]=[api<{data:LiveExamSummary[]}>('/live-exams').then((r)=>setSessions(r.data))];
@@ -400,7 +401,10 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   };
   const clearManualPool=()=>{
     poolRequestEpoch.current+=1;
-    setBusy(false);
+    if(poolRequestBusy.current){
+      poolRequestBusy.current=false;
+      setBusy(false);
+    }
     setEligibleTotal(null);
     setEligibleCounts(null);
     setQuestionPool([]);setSelectedQuestionIds([]);setQuestionTimeLimits({});setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
@@ -502,6 +506,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     const epoch=++poolRequestEpoch.current;
+    poolRequestBusy.current=true;
     setBusy(true);setError('');
     try{
       let total=eligibleTotal;
@@ -524,7 +529,10 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     }catch(cause){
       if(epoch===poolRequestEpoch.current)setError(message(cause,'Savollar havzasi yuklanmadi.'));
     }finally{
-      if(epoch===poolRequestEpoch.current)setBusy(false);
+      if(epoch===poolRequestEpoch.current){
+        poolRequestBusy.current=false;
+        setBusy(false);
+      }
     }
   };
 
@@ -658,7 +666,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           <header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleCounts?`Jami bazada: ${eligibleCounts.database} · Live-ready: ${eligibleCounts.liveReady} · Hozir tanlash mumkin: ${eligibleCounts.available}`:eligibleTotal!==null?`Hozir tanlash mumkin: ${eligibleTotal}`:(syllabusCode==='0478'?'0478 Paper 2 tanlangan':'Chapter yoki Chapter section tanlang')}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'balanced');setReplacingQuestionId('')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
           {selectionMode==='manual'?<>
             <div className="live-pool-toolbar">
-              <input aria-label="Savollarni qidirish" value={poolSearch} onChange={(event)=>setPoolSearch(event.target.value)} onKeyDown={(event)=>{if(event.key==='Enter'){event.preventDefault();void loadQuestionPool(0,poolSearch)}}} placeholder="Ref yoki savol matni bo‘yicha qidirish"/>
+              <input aria-label="Savollarni qidirish" value={poolSearch} onChange={(event)=>{const value=event.target.value;setPoolSearch(value);poolRequestEpoch.current+=1;if(poolRequestBusy.current){poolRequestBusy.current=false;setBusy(false)}setQuestionPool([]);setPoolTotal(null);setPoolPage(0)}} onKeyDown={(event)=>{if(event.key==='Enter'){event.preventDefault();void loadQuestionPool(0,poolSearch)}}} placeholder="Ref yoki savol matni bo‘yicha qidirish"/>
               <button type="button" className="live-secondary" disabled={busy||!selectedClassId||(syllabusCode==='9618'&&!coursebookSectionCodes.length)} onClick={()=>void loadQuestionPool(0,poolSearch)}>Savollarni ko‘rsatish</button>
             </div>
             <p className="live-selection-summary">{selectionPreview
@@ -681,7 +689,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
         <label>Savollar soni<input name="questionCount" type="number" min={1} max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER,user.role==='student'?12:Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
-        <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Random · IGCSE Paper 2 savollari':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?(syllabusCode==='0478'?'0478 Paper 2 uchun tasodifiy tartib qo‘llanadi.':'Avval tanlangan Chapter’lar o‘rtasida, keyin ularning Section’lari ichida muvozanat saqlanadi. Bitta Section bo‘lsa oddiy random ishlaydi.'):questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
+        <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Balanced Random · IGCSE Chapter va Section':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?(syllabusCode==='0478'?'Tanlangan IGCSE Chapter’lar va Section’lar o‘rtasida muvozanatli tasodifiy tanlanadi; filtr belgilanmasa barcha Paper 2 savollaridan random olinadi.':'Avval tanlangan Chapter’lar o‘rtasida, keyin ularning Section’lari ichida muvozanat saqlanadi. Bitta Section bo‘lsa oddiy random ishlaydi.'):questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         {user.role==='student'?<p className="live-create-semantics">Baholash: {practiceMode==='group'?'anonim o‘zaro':'o‘zini'} baholash. O‘qituvchi huquqlari berilmaydi.</p>:<label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>}
         {user.role!=='student'?<label>Peer calibration
