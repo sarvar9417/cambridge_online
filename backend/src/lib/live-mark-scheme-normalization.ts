@@ -40,6 +40,7 @@ type BulletSection = {
   cap: number | null;
   label: string;
   bullets: string[];
+  manualOnly: boolean;
 };
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -98,12 +99,13 @@ function headerInfo(line: string, fallbackMax: number) {
   const normalized=normalizeOcrWords(line);
   const from=normalized.match(/\b(?:any\s+)?(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+from\b/i);
   const max=normalized.match(/\bmax(?:imum)?\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\b/i);
-  const oneMark=/\bone\s+mark\b/i.test(normalized)
-    && /\b(?:per\s+mark\s+point|for\s+each|each|per|for)\b/i.test(normalized);
+  const oneMark=/\b(?:one|1)\s+mark(?:s)?\b/i.test(normalized)
+    && /\b(?:each|per\s+mark\s+point|for\s+each|for\s+every)\b/i.test(normalized);
+  const pairedRubric=/\b(?:expansion|matching\s+description|matching\s+explanation)\b/i.test(normalized);
   if (!from && !max && !oneMark) return null;
   const cap=numberValue(max?.[1]) ?? numberValue(from?.[1]) ?? (oneMark ? fallbackMax : null);
-  const labelMatch=normalized.match(/one\s+mark\s+(?:per\s+mark\s+point|for\s+each|each|per)\s+for\s+([^,:]+?)(?:,|\s+max\b)/i);
-  return { cap, label: labelMatch?.[1]?.trim() || 'main' };
+  const labelMatch=normalized.match(/(?:one|1)\s+mark\s+(?:per\s+mark\s+point|for\s+each\s+mark\s+point)\s+for\s+([^,:]+?)(?:,|\s+max\b)/i);
+  return { cap, label: labelMatch?.[1]?.trim() || 'main', manualOnly:pairedRubric };
 }
 
 function cleanCriterion(value: string) {
@@ -133,13 +135,14 @@ function makePoint(
 
 function parseExplicitMp(source:string,schemeId:string,maxMarks:number):ParsedRubric|null {
   const normalized=normalizeOcrWords(source);
-  if (!/\bone\s+mark\s+(?:per\s+mark\s+point|for\s+each\s+mark\s+point|each)\b/i.test(normalized)) return null;
+  const structuralCue=/(?:\b(?:one|1)\s+mark\s+(?:per\s+mark\s+point|for\s+each\s+mark\s+point|each)\b|\bmark\s+(?:as\s+follows|points?)\b)/i.test(normalized);
+  if (!structuralCue) return null;
   const lines=sourceLines(source);
   const rows:Array<{number:number;text:string[]}>=[];
   let current:{number:number;text:string[]}|null=null;
   const seen=new Set<number>();
   for (const line of lines) {
-    if (/^(?:for example|example|correct code)\s*[:]?$/i.test(line)) break;
+    if (/^(?:for example|example|correct code)\s*[:,]?$/i.test(line)) break;
     const match=line.match(/^MP\s*(\d+)\s*(.*)$/i);
     if (match) {
       const number=Number(match[1]);
@@ -191,18 +194,19 @@ function parseBulletSections(source:string,schemeId:string,maxMarks:number):Pars
         section=null;
       }
       if (!section) {
-        section={cap:header.cap,label:header.label,bullets:[]};
+        section={cap:header.cap,label:header.label,bullets:[],manualOnly:header.manualOnly};
         sections.push(section);
       } else {
         section.cap=header.cap;
         section.label=header.label;
+        section.manualOnly=section.manualOnly||header.manualOnly;
       }
       currentBullet=-1;
       continue;
     }
     if (/^•/.test(line)) {
       if (!section) {
-        section={cap:null,label:'main',bullets:[]};
+        section={cap:null,label:'main',bullets:[],manualOnly:false};
         sections.push(section);
       }
       section.bullets.push(cleanCriterion(line.replace(/^•\s*/,'')));
@@ -253,7 +257,9 @@ function parseBulletSections(source:string,schemeId:string,maxMarks:number):Pars
   }
   if (points.length<maxMarks) return null;
   return {
-    schemeType:needGroups?'any_n_from_m':'all_required',
+    schemeType:resolved.some((item)=>item.manualOnly)
+      ?'manual_only'
+      :(needGroups?'any_n_from_m':'all_required'),
     points,
     groups,
   };
