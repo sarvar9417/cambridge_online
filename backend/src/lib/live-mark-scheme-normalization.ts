@@ -308,14 +308,14 @@ export function normalizeCollapsedLiveMarkScheme<T extends LiveMarkSchemeForNorm
     guidanceMd:scheme.guidanceMd || source,
     points:parsed.points,
     groups:parsed.groups,
-  };
+  } as T;
 
   if (scheme.schemeType==='manual_only') return {
     ...scheme,
     guidanceMd:scheme.guidanceMd || source,
     points:[],
     groups:[],
-  };
+  } as T;
 
   return scheme;
 }
