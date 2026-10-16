@@ -40,6 +40,10 @@ type FilterOptions = {
     syllabus_code:string;topic_id:string;topic_number:number;topic_title:string;
     subtopic_id:string;code:string;subtopic_title:string;component:number|null;
   }>;
+  igcseBookSections?: Array<{
+    syllabus_code:string;chapter_number:number;chapter_title:string;
+    section_code:string;section_title:string;mapping_kind:'direct_subtopic'|'learning_objective_bridge';book_page:number;
+  }>;
   coursebookSections: Array<{
     syllabus_code:string;chapter_number:number;chapter_title:string;
     section_code:string;section_title:string;mapping_kind:'direct_subtopic'|'learning_objective_bridge';
@@ -316,7 +320,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [practiceMode,setPracticeMode]=useState<'solo'|'group'|'collaborative'>('solo');
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [syllabusCode,setSyllabusCode]=useState<'9618'|'0478'>('9618');
-  const [selected0478SubtopicIds,setSelected0478SubtopicIds]=useState<string[]>([]);
+  const [selected0478BookSectionCodes,setSelected0478BookSectionCodes]=useState<string[]>([]);
   const [coursebookSectionCodes,setCoursebookSectionCodes]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'|'balanced'>('balanced');
@@ -356,6 +360,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     ]).then(([questionOptions,sections])=>setOptions({
       ...questionOptions,
       coursebookSections:sections.coursebookSections,
+      igcseBookSections:sections.igcseBookSections??[],
       topics:[...(questionOptions.topics??[]),...(sections.topics??[]).filter(
         item=>item.syllabus_code==='0478',
       )],
@@ -364,18 +369,17 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   },[user.role]);
   useEffect(()=>{if(!selectedClassId&&classes[0])setSelectedClassId(classes[0].id)},[classes,selectedClassId]);
 
-  // 9618 uses Hodder chapter sections; 0478 Paper 2 uses its own official
-  // syllabus. Never present 9618 chapter codes as 0478 subtopics.
-  const paper2SyllabusTopics=[...new Map((options.topics??[])
-    .filter(item=>item.syllabus_code==='0478'&&item.topic_number>=7&&item.topic_number<=10)
-    .map(item=>[item.subtopic_id,item])).values()];
-  const coursebookSections=(options.coursebookSections??[]).filter((item)=>item.syllabus_code==='9618');
+  // Book chapters/sections are independent for 9618 and 0478.
+  const coursebookSections=(syllabusCode==='0478'
+    ?options.igcseBookSections??[]:options.coursebookSections??[])
+    .filter(item=>item.syllabus_code===syllabusCode);
+  const selectedBookCodes=syllabusCode==='0478'?selected0478BookSectionCodes:coursebookSectionCodes;
   const chapters=[...new Map(coursebookSections.map((item)=>[
     item.chapter_number,
     {chapter_number:item.chapter_number,chapter_title:item.chapter_title},
   ])).values()];
   const selectedChapterNumbers=[...new Set(coursebookSections
-    .filter((item)=>coursebookSectionCodes.includes(item.section_code))
+    .filter((item)=>selectedBookCodes.includes(item.section_code))
     .map((item)=>item.chapter_number))];
   const visibleCoursebookSections=coursebookSections.filter((item)=>
     !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
@@ -383,14 +387,10 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const changeSyllabus=(code:'9618'|'0478')=>{
     setSyllabusCode(code);
     setCoursebookSectionCodes([]);
-    setSelected0478SubtopicIds([]);
+    setSelected0478BookSectionCodes([]);
     setComponents(code==='0478'?[2]:[]);
     setYearFrom('');setYearTo('');setSeries([]);
     setQuestionCount(5);
-    clearManualPool();
-  };
-  const toggle0478Subtopic=(id:string)=>{
-    setSelected0478SubtopicIds(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);
     clearManualPool();
   };
   const clearManualPool=()=>{
@@ -398,12 +398,14 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
   const toggleCoursebookSection=(code:string)=>{
-    setCoursebookSectionCodes((current)=>current.includes(code)?current.filter((item)=>item!==code):[...current,code]);
+    const setter=syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes;
+    setter(current=>current.includes(code)?current.filter(item=>item!==code):[...current,code]);
     clearManualPool();
   };
   const toggleChapter=(chapterNumber:number)=>{
     const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapterNumber).map((item)=>item.section_code);
-    setCoursebookSectionCodes((current)=>{
+    const setter=syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes;
+    setter((current)=>{
       const allSelected=chapterCodes.length>0&&chapterCodes.every((code)=>current.includes(code));
       return allSelected
         ?current.filter((code)=>!chapterCodes.includes(code))
@@ -446,8 +448,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       classId:selectedClassId,
       syllabusCode,
       topicIds:'',
-      subtopicIds:syllabusCode==='0478'?selected0478SubtopicIds.join(','):'',
+      subtopicIds:'',
       coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join(','):'',
+      igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes.join(','):'',
       includeDiagrams:String(includeDiagrams),
       excludeSeen:String(excludeSeen),
       series:series.join(','),
@@ -486,7 +489,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,syllabusCode,selected0478SubtopicIds,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]);
+  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]);
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     setBusy(true);setError('');
@@ -516,8 +519,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     let cancelled=false;
     const timer=window.setTimeout(()=>{
       const body={
-        classId:selectedClassId,syllabusCode,topicIds:[],subtopicIds:syllabusCode==='0478'?selected0478SubtopicIds:[],
+        classId:selectedClassId,syllabusCode,topicIds:[],subtopicIds:[],
         coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[],
+        igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[],
         includeDiagrams,excludeSeen,difficulty:difficulty||undefined,
         marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,
@@ -529,7 +533,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     },250);
     return()=>{cancelled=true;window.clearTimeout(timer)};
   },[
-    selectionMode,selectedQuestionIds,selectedClassId,syllabusCode,selected0478SubtopicIds,coursebookSectionCodes,includeDiagrams,excludeSeen,
+    selectionMode,selectedQuestionIds,selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,
     difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,
   ]);
 
@@ -539,8 +543,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     try{
       const body=JSON.stringify({
         classId:data.get('classId'),syllabusCode,title:data.get('title'),topicIds:[],
-        subtopicIds:syllabusCode==='0478'?selected0478SubtopicIds:[],
+        subtopicIds:[],
         coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[],
+        igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[],
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):data.get('markingMode'),includeDiagrams,excludeSeen,
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
@@ -602,19 +607,19 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);clearManualPool()}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder={syllabusCode==='0478'?'0478 Paper 2 Algorithms revision':'Chapter 14 revision'}/></label>
         </div>
-        {syllabusCode==='9618'
-          ?<div className="live-topic-grid"><fieldset><legend>Chapter</legend>{chapters.map((chapter)=>{const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapter.chapter_number).map((item)=>item.section_code);const checked=chapterCodes.length>0&&chapterCodes.every((code)=>coursebookSectionCodes.includes(code));return <label key={chapter.chapter_number}><input type="checkbox" checked={checked} onChange={()=>toggleChapter(chapter.chapter_number)}/><span>{chapter.chapter_number}. {chapter.chapter_title}</span></label>})}</fieldset>
-            <fieldset><legend>Chapter section</legend>{visibleCoursebookSections.map((section)=><label key={section.section_code}><input type="checkbox" checked={coursebookSectionCodes.includes(section.section_code)} onChange={()=>toggleCoursebookSection(section.section_code)}/><span>{section.section_code} {section.section_title}</span></label>)}</fieldset></div>
-          :<fieldset className="live-0478-subtopics"><legend>0478 Paper 2 — Syllabus topics (7–10)</legend>
-            <p className="live-0478-topic-help">Hech biri belgilanmasa barcha Live-ready Paper 2 savollaridan tanlanadi. Bo‘lim tanlasangiz shu bo‘limga mos savollar olinadi.</p>
-            <div className="live-0478-topic-list">
-              {paper2SyllabusTopics.map(item=><label key={item.subtopic_id} className="live-0478-topic-option">
-                <input type="checkbox" checked={selected0478SubtopicIds.includes(item.subtopic_id)} onChange={()=>toggle0478Subtopic(item.subtopic_id)}/>
-                <span><strong>{item.code}</strong> {item.subtopic_title}</span>
-              </label>)}
-            </div>
-            {!paper2SyllabusTopics.length?<p className="live-warning">Mavzular ro‘yxati yuklanmadi. Barcha Paper 2 savollaridan tanlash uchun davom etishingiz mumkin.</p>:null}
-          </fieldset>}
+        {syllabusCode==='0478'?<p className="live-create-semantics live-book-help">Hodder IGCSE Coursebook (2021) · Section 2 — Algorithms, Programming and Logic. Chapter yoki Section tanlang. Belgilanmasa barcha Live-ready Paper 2 savollaridan foydalaniladi. 2015–2022 savollari yangi kitob Sectionlariga tasdiqsiz moslashtirilmaydi.</p>:null}
+        <div className="live-topic-grid" data-syllabus={syllabusCode}>
+          <fieldset><legend>{syllabusCode==='0478'?'IGCSE Book Chapter':'Chapter'}</legend>{chapters.map(chapter=>{
+            const codes=coursebookSections.filter(item=>item.chapter_number===chapter.chapter_number).map(item=>item.section_code);
+            const checked=codes.length>0&&codes.every(code=>selectedBookCodes.includes(code));
+            return <label key={chapter.chapter_number}><input type="checkbox" checked={checked} onChange={()=>toggleChapter(chapter.chapter_number)}/><span>{chapter.chapter_number}. {chapter.chapter_title}</span></label>
+          })}</fieldset>
+          <fieldset><legend>{syllabusCode==='0478'?'IGCSE Chapter Section':'Chapter section'}</legend>{visibleCoursebookSections.map(section=><label key={section.section_code}>
+            <input type="checkbox" checked={selectedBookCodes.includes(section.section_code)} onChange={()=>toggleCoursebookSection(section.section_code)}/>
+            <span>{section.section_code} {section.section_title}</span>
+          </label>)}</fieldset>
+        </div>
+        {syllabusCode==='0478'&&!coursebookSections.length?<p className="live-warning">IGCSE kitob boblari yuklanmadi. Sahifani yangilang.</p>:null}
         <section className="live-builder-filters">
           <header><div><h3>Advanced filters</h3><p>Source va marks bo‘yicha poolni toraytiring.</p></div></header>
           <div className="live-builder-filter-grid">
