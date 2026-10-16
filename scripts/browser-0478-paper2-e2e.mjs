@@ -47,20 +47,20 @@ try{
   await qa.go(teacher.page,'oqitish/live');
   await teacher.page.waitForSelector('select[aria-label="Cambridge syllabus"]');
   await teacher.page.select('select[aria-label="Cambridge syllabus"]','0478');
-  await teacher.page.waitForSelector('.live-0478-topic-option');
+  await teacher.page.waitForSelector('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label');
   for(const width of [1440,1024,768,390]){
     await teacher.page.setViewport({width,height:920});
     const geometry=await teacher.page.evaluate(()=>{
       const main=document.querySelector('.live-create-main');
       const fields=document.querySelector('.live-create-fields');
-      const topics=document.querySelector('.live-0478-subtopics');
-      const items=[...document.querySelectorAll('.live-0478-topic-option')];
+      const topics=document.querySelector('.live-topic-grid[data-syllabus="0478"]');
+      const items=[...topics.querySelectorAll('fieldset:nth-child(2) label')];
       const rect=element=>element.getBoundingClientRect();
       const m=rect(main),f=rect(fields),t=rect(topics);
       const labels=[...fields.querySelectorAll(':scope > label')].map(rect);
       return {
         viewport:window.innerWidth,mainWidth:m.width,topicsWidth:t.width,fieldsWidth:f.width,
-        topicCount:items.length,documentWidth:document.documentElement.scrollWidth,
+        topicCount:items.length,chapterCount:topics.querySelectorAll('fieldset:first-child label').length,documentWidth:document.documentElement.scrollWidth,
         topicInMain:t.left>=m.left-2&&t.right<=m.right+2,
         fieldsInMain:f.left>=m.left-2&&f.right<=m.right+2,
         optionsWellSized:items.every(item=>rect(item).width>=190),
@@ -69,7 +69,7 @@ try{
       };
     });
     await qa.check(`0478 layout: topic grid readable at ${width}px`,
-      geometry.topicCount>=1
+      geometry.topicCount>=16 && geometry.chapterCount===4
       && geometry.topicsWidth>=Math.min(250,geometry.mainWidth*0.7)
       && geometry.topicInMain&&geometry.fieldsInMain
       && geometry.optionsWellSized&&geometry.fieldsWellSized
