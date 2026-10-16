@@ -26,7 +26,7 @@ const chapterTitles:Record<number,string>={
 function section(code:string,title:string,page:number,loCodes:string[]):LiveIgcseBookSection {
   const chapterNumber=Number(code.split('.')[0]);
   return {code,title,chapterNumber,chapterTitle:chapterTitles[chapterNumber]!,sourcePage:page,
-    loCodes,mappingKind:code.startsWith('8.')?'direct_subtopic':'learning_objective_bridge'};
+    loCodes,mappingKind:'learning_objective_bridge'};
 }
 export const LIVE_IGCSE_PAPER2_SECTIONS:readonly LiveIgcseBookSection[]=[
   section('7.1','The program development life cycle',258,['7-lo-01']),
@@ -61,6 +61,10 @@ export function resolveIgcseBookSections(codes:readonly string[]) {
  * Not a text similarity classifier. Older (2015-2022) syllabus editions
  * have different LO numbering, so they're deliberately excluded from
  * narrow book-section filtering until separately reviewed.
+ *
+ * Every section, including 8.1–8.3, currently filters through specific
+ * learning objectives. MappingKind must reflect that instead of claiming
+ * that a subtopic-only join is sufficient.
  *
  * 'qAlias' MUST be a fixed code-authored SQL table alias.
  */
