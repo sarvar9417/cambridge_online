@@ -12,7 +12,7 @@ const uuid = z.string().uuid();
 const liveSyllabusCode=z.enum(['9618','0478']).default('9618');
 const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
   .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section');
-const igcseBookSectionCode=z.string().trim().regex(/^(7\\.[1-9]|8\\.[1-3]|9\\.1|10\\.[1-3])$/)
+const igcseBookSectionCode=z.string().trim().regex(/^(7\.[1-9]|8\.[1-3]|9\.1|10\.[1-3])$/)
   .refine(code=>LIVE_IGCSE_PAPER2_SECTION_CODES.has(code),'Unknown 0478 book section');
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
 
