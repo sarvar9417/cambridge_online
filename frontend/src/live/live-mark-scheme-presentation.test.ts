@@ -6,10 +6,10 @@ const source=readFileSync(resolve(process.cwd(),'src','live','LiveExamPage.tsx')
 const css=readFileSync(resolve(process.cwd(),'src','live','live-exam.css'),'utf8');
 
 describe('Live Challenge mark scheme presentation',()=>{
-  it('keeps raw Cambridge guidance collapsed instead of duplicating it above mark points',()=>{
+  it('keeps raw Cambridge guidance secondary when points are atomic and opens it for manual fallback',()=>{
     expect(source).not.toContain('<p className="live-scheme-guidance">{scheme.guidanceMd}</p>');
-    expect(source).toContain('<details className="live-scheme-original">');
-    expect(source).toContain('Original Cambridge mark scheme’ni ko‘rish');
+    expect(source).toContain('<details className="live-scheme-original" open={!scheme.points.length}>');
+    expect(source).toContain("scheme.points.length?'Original Cambridge mark scheme’ni ko‘rish':'Original Cambridge mark scheme — qo‘lda baholash'");
   });
 
   it('presents a human-readable one-mark rule and hides the technical main group label',()=>{
