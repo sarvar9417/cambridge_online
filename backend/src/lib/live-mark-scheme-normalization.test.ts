@@ -157,6 +157,15 @@ MP4 Return of calculated value`,4);
     expect(result.guidanceMd).toContain('Award up to four marks');
   });
 
+  it('removes a synthetic one-mark placeholder from an ambiguous multi-mark manual rubric',()=>{
+    const scheme=collapsed('Apply the published four-mark source rubric.',4);
+    scheme.points[0]!.marks=1;
+    const result=normalizeCollapsedLiveMarkScheme(scheme);
+    expect(result.schemeType).toBe('manual_only');
+    expect(result.points).toEqual([]);
+    expect(result.guidanceMd).toContain('four-mark source rubric');
+  });
+
   it('does not rewrite an already atomic mark scheme',()=>{
     const scheme:LiveMarkSchemeForNormalization={
       ...collapsed('Atomic source',2),
