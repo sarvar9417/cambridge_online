@@ -90,7 +90,17 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
     },igcseBookSectionCode);
     await qa.check('0478 book section '+igcseBookSectionCode+' selected',selected);
   }
-  if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
+  if (!excludeSeen) {
+    // A sticky rules sidebar can overlap this control after responsive viewport
+    // screenshots. Trigger the native DOM input click, then assert its React
+    // controlled state changed before proceeding with the source question pool.
+    const excluded=await teacher.page.$eval('input[name="excludeSeen"]',input=>{
+      if(!(input instanceof HTMLInputElement))return null;
+      if(input.checked)input.click();
+      return input.checked;
+    });
+    await qa.check('Live builder: used-question exclusion disabled',excluded===false);
+  }
   if (displayRef) {
     await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
     await qa.clickText(teacher.page, 'Savollarni ko‘rsatish');
