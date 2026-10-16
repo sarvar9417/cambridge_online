@@ -72,7 +72,7 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   await teacher.page.waitForSelector('input[name="title"]');
   if (syllabusCode === '0478') {
     await teacher.page.select('select[aria-label="Cambridge syllabus"]', '0478');
-    await qa.waitText(teacher.page, '0478 Paper 2 — Syllabus topics (7–10)');
+    await qa.waitText(teacher.page, 'IGCSE Book Chapter');
   }
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
