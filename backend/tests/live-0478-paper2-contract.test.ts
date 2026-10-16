@@ -37,6 +37,7 @@ describe('0478 Paper 2 Live Challenge isolation',()=>{
   it('gives student hosts the public 0478 topic menu without privileged question bank access',()=>{
     expect(routes).toContain("where sy.code='0478'");
     expect(routes).toContain('t.number between 7 and 10');
-    expect(routes).toContain("res.json({coursebookSections,topics:topics?.rows??[]})");
+    expect(routes).toContain('igcseBookSections:LIVE_IGCSE_PAPER2_SECTIONS.map');
+    expect(routes).toContain('topics:topics?.rows??[]');
   });
 });
