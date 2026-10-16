@@ -88,7 +88,6 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "p0": [],
     "p1": [],
     "p2": [
-      { "id": "LG-P2-01", "title": "QR join link" },
       { "id": "LG-P2-03", "title": "Team and house modes" },
       { "id": "LG-P2-04", "title": "Teacher rehearsal and demo mode" }
     ]
@@ -110,6 +109,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
       "LG-P1-12": "recent 30-day directed peer-pair history biases deterministic derangement away from repeat reviewers when alternatives exist; builder exposes opt-in deterministic teacher calibration sampling and a Cambridge-mark disagreement threshold; staff snapshots surface calibration disagreements, teacher calibration is authoritative for sampled answers, manual peer scoring below full marks requires concise feedback, and force-complete safely handles calibration plus unfinished peer work; pure allocator tests, real PostgreSQL lifecycle acceptance, browser suites and full verify are green on PR #348"
     },
     "p2_closure_evidence": {
+      "LG-P2-01": "teacher, projector and student-host lobby surfaces render a locally generated QR for a same-origin hash join URL carrying only the six-digit room code; the learner route pre-fills that code after authentication without exposing session IDs or using a third-party QR service; deterministic unit tests, responsive axe browser acceptance, real PostgreSQL and the full Live browser E2E are green on PR #366",
       "LG-P2-02": "manual Live selections can inherit the session timer or choose an explicit unlimited/30s/1m/1.5m/2m/3m/5m/10m profile per selected question; server snapshots freeze the mapping, start/next resolve the authoritative question timer, replacement carries the profile, removal drops stale overrides, and full verify + real PostgreSQL + Live browser suites + full teacher/projector/3-student E2E are green on PR #354",
       "LG-P2-05": "peer mode already supports opt-in 10/20/50/100% teacher calibration, including a 100% double-check profile; real PostgreSQL acceptance proves 100% creates peer plus independent teacher reviews for every answer, teacher marks become authoritative, disagreement thresholds populate the quality queue, and a focused frontend DOM regression verifies the TEACHER CALIBRATION and PEER QUALITY staff workflow"
     },
