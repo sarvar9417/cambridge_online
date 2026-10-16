@@ -116,6 +116,13 @@ try{
   await submit(host,'The number system uses only zero and one');
   await submit(peer,'Each bit has one of two possible values');
   await qa.clickText(host.page,'Javoblarni yopish · Mark Scheme');
+  // Peer assignments are committed asynchronously after the reveal action.
+  // Wait for both clients to receive the review phase before evaluating the
+  // anonymity invariant; a snapshot immediately after click races the commit.
+  await Promise.all([
+    qa.waitText(host.page,'ANONIM JAVOB'),
+    qa.waitText(peer.page,'ANONIM JAVOB'),
+  ]);
   const hostPeer=await snapshot(host.page,group.id);
   const peerPeer=await snapshot(peer.page,group.id);
   await qa.check('Group: separate anonymous peer assignments',
@@ -145,6 +152,10 @@ try{
   await submit(host,'A binary digit is either 0 or 1');
   await submit(peer,'Binary has base two');
   await qa.clickText(host.page,'Javoblarni yopish · Mark Scheme');
+  await Promise.all([
+    qa.waitText(host.page,'O‘Z JAVOBINGIZ'),
+    qa.waitText(peer.page,'O‘Z JAVOBINGIZ'),
+  ]);
   const each=[await snapshot(host.page,collaborative.id),await snapshot(peer.page,collaborative.id)];
   await qa.check('Collaborative: self reviews keep ownership separate',
     each.every(x=>x.review?.kind==='self'&&x.teacherAnswers.length===0));

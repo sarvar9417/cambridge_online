@@ -9,24 +9,25 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
   it('offers distinct 9618 and 0478 choices with 0478 Paper 2 only',()=>{
     expect(page).toContain('0478 — IGCSE Computer Science (Paper 2)');
     expect(page).toContain("(syllabusCode==='0478'?[2]:[1,2,3,4])");
-    expect(page).toContain('0478 Paper 2 — Syllabus topics (7–10)');
+    expect(page).toContain('IGCSE Book Chapter');
+    expect(page).toContain('IGCSE Chapter Section');
     expect(page).toContain('syllabusCode,topicIds:[]');
   });
   it('never sends 9618 chapters as 0478 filters',()=>{
     expect(page).toContain("syllabusCode==='9618'?coursebookSectionCodes:[]");
-    expect(page).toContain("syllabusCode==='0478'?selected0478SubtopicIds:[]");
-    expect(page).toContain("syllabusCode==='0478'?selected0478SubtopicIds.join(','):''");
-    expect(page).toContain('setSelected0478SubtopicIds([])');
+    expect(page).toContain("syllabusCode==='0478'?selected0478BookSectionCodes:[]");
+    expect(page).toContain("syllabusCode==='0478'?selected0478BookSectionCodes.join(','):''");
+    expect(page).toContain('setSelected0478BookSectionCodes([])');
   });
   it('allows 0478 Paper 2 full pool when no subtopics are ticked',()=>{
     expect(page).toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
-    expect(page).toContain('Hech biri belgilanmasa barcha Live-ready Paper 2');
+    expect(page).toContain('Belgilanmasa barcha Live-ready Paper 2');
     expect(page).toContain("disabled={busy||(syllabusCode==='9618'&&!coursebookSectionCodes.length)");
   });
   it('keeps syllabus, class and session title in a dedicated wide grid',()=>{
     expect(page).toContain('className="live-create-fields"');
-    expect(page).toContain('className="live-0478-topic-list"');
-    expect(page).toContain('className="live-0478-topic-option"');
+    expect(page).toContain('className="live-topic-grid" data-syllabus={syllabusCode}');
+    expect(page).toContain('selectedBookCodes.includes(section.section_code)');
     expect(styles).toContain('.live-create-main>.live-create-fields{');
     expect(styles).toContain('grid-column:1/-1');
     expect(styles).toContain('.live-create-main>:is(.live-topic-grid,.live-0478-subtopics)');
@@ -38,6 +39,14 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
     expect(styles).toContain('.live-create .live-0478-topic-option>input{');
     expect(styles).toContain('width:18px;height:18px;min-height:18px');
     expect(styles).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
+  });
+  it('keeps unrelated IGCSE Chapter Sections visible after selecting one and invalidates stale pool replies',()=>{
+    expect(page).toContain("syllabusCode==='0478'||!selectedChapterNumbers.length");
+    expect(page).toContain('const poolRequestEpoch=useRef(0)');
+    expect(page).toContain('poolRequestEpoch.current+=1');
+    expect(page).toContain('const epoch=++poolRequestEpoch.current');
+    expect(page).toContain('if(epoch!==poolRequestEpoch.current)return;');
+    expect(page).toContain('if(epoch===poolRequestEpoch.current)setError(');
   });
   it('keeps the normal student and staff feature flows',()=>{
     expect(page).toContain("practiceMode:user.role==='student'?practiceMode:undefined");

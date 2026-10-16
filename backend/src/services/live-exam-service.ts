@@ -9,6 +9,7 @@ import { computeScore, type Scheme } from '../lib/marking.js';
 import { releasedPointFeedback, type ReleasedPointFeedback } from '../lib/live-point-feedback.js';
 import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/source-visual-readiness.js';
 import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
+import { liveIgcseBookQuestionFilter, resolveIgcseBookSections } from '../lib/live-igcse-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
@@ -48,6 +49,8 @@ export interface CreateLiveExamInput {
   subtopicIds: string[];
   /** Hodder/coursebook section codes. Kept separate from official syllabus subtopic IDs. */
   coursebookSectionCodes?: string[];
+  /** 2021 Hodder IGCSE Paper 2 book sections, NOT syllabus subtopic UUIDs. */
+  igcseBookSectionCodes?: string[];
   questionCount: number;
   questionTimeLimitS?: number;
   /** Manual per-question overrides in seconds; null means unlimited for that question. */
@@ -279,7 +282,7 @@ export class LiveExamService {
   }
 
   private async countDatabaseQuestions(input: Pick<CreateLiveExamInput,
-    'syllabusCode' | 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
+    'syllabusCode' | 'topicIds' | 'subtopicIds' | 'coursebookSectionCodes' | 'igcseBookSectionCodes' | 'difficulty' | 'marksMin' | 'marksMax' |
     'yearFrom' | 'yearTo' | 'series' | 'components'
   >) {
     this.validateSyllabusSelection(input);
@@ -292,6 +295,8 @@ export class LiveExamService {
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    const igcseBookFilter=liveIgcseBookQuestionFilter(values,input.igcseBookSectionCodes??[],'q');
+    if(igcseBookFilter)filters.push(igcseBookFilter);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = '$'+values.length;
@@ -391,11 +396,13 @@ export class LiveExamService {
     })).map(row=>row.id);
   }
 
-  private validateSyllabusSelection(input: Pick<CreateLiveExamInput,'syllabusCode'|'coursebookSectionCodes'|'components'>) {
+  private validateSyllabusSelection(input: Pick<CreateLiveExamInput,'syllabusCode'|'coursebookSectionCodes'|'igcseBookSectionCodes'|'components'>) {
     const code=input.syllabusCode??'9618';
     if(code!=='9618'&&code!=='0478')throw new DomainError('live_invalid_syllabus',400);
     if(code==='0478'&&(input.coursebookSectionCodes?.length||input.components?.some(value=>value!==2)))
       throw new DomainError('live_0478_paper2_only',400);
+    if(code==='9618'&&input.igcseBookSectionCodes?.length)
+      throw new DomainError('live_book_syllabus_mismatch',400);
   }
 
   private async requireQuestionSourceScope(questionIds:string[],syllabusCode:'9618'|'0478') {
@@ -543,6 +550,8 @@ export class LiveExamService {
     ];
     const coursebookFilter=liveCoursebookQuestionFilter(values,input.coursebookSectionCodes??[],'q');
     if(coursebookFilter)filters.push(coursebookFilter);
+    const igcseBookFilter=liveIgcseBookQuestionFilter(values,input.igcseBookSectionCodes??[],'q');
+    if(igcseBookFilter)filters.push(igcseBookFilter);
     if (input.topicIds.length) {
       values.push(input.topicIds);
       const parameter = `$${values.length}`;
@@ -666,7 +675,8 @@ export class LiveExamService {
     const orderClause=options.sort==='source' || automaticFixed
       ? sourceOrder
       : 'md5(candidate.id::text || $1::text)';
-    const selectedSections=[...new Set(input.coursebookSectionCodes??[])];
+    const selectedSections=[...new Set(syllabusCode==='0478'
+      ?input.igcseBookSectionCodes??[]:input.coursebookSectionCodes??[])];
     const balanced=!countOnly && options.sort!=='source' && !input.questionIds?.length
       && input.questionOrder==='balanced' && selectedSections.length>1;
     let query='select candidate.id,candidate.display_ref,candidate.sort_order,count(*) over()::int total_count from ('
@@ -682,10 +692,13 @@ export class LiveExamService {
         return hash(a).localeCompare(hash(b));
       });
       const chapterBySection=new Map(
-        resolveLiveCoursebookSections(sections).map(section=>[section.code,section.chapterNumber]),
+        (syllabusCode==='0478'?resolveIgcseBookSections(sections)
+          :resolveLiveCoursebookSections(sections)).map(section=>[section.code,section.chapterNumber] as const),
       );
       const conditions=sections.map((code,index)=>{
-        const predicate=liveCoursebookQuestionFilter(values,[code],'bucket_question');
+        const predicate=syllabusCode==='0478'
+          ?liveIgcseBookQuestionFilter(values,[code],'bucket_question')
+          :liveCoursebookQuestionFilter(values,[code],'bucket_question');
         return `when ${predicate} then ${index}`;
       });
       const chapterCases=sections.map((code,index)=>
@@ -855,6 +868,7 @@ export class LiveExamService {
       includeCounts?: boolean;
     },
   ) {
+    this.validateSyllabusSelection(input);
     if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -912,6 +926,7 @@ export class LiveExamService {
     actor: Actor,
     input: Omit<CreateLiveExamInput, 'title' | 'markingMode' | 'questionCount'> & { questionIds: string[] },
   ) {
+    this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
@@ -953,6 +968,7 @@ export class LiveExamService {
     if(input.questionIds?.length && input.questionOrder==='balanced')
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
+    this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
@@ -1014,6 +1030,7 @@ export class LiveExamService {
                 topicIds: input.topicIds,
                 subtopicIds: input.subtopicIds,
                 coursebookSectionCodes: input.coursebookSectionCodes ?? [],
+                igcseBookSectionCodes: input.igcseBookSectionCodes ?? [],
                 includeDiagrams: input.includeDiagrams,
                 excludeSeen: input.excludeSeen,
                 difficulty: input.difficulty ?? null,

@@ -31,6 +31,14 @@ try{
     publicTopics.topics.some(item=>item.syllabus_code==='0478'&&item.code==='8.1'
       &&item.topic_number===8&&item.component===2)
     && publicTopics.topics.every(item=>item.syllabus_code==='0478'&&item.component===2));
+  await qa.check('0478: Hodder Chapter 7–10 includes 16 authentic Paper 2 book sections',
+    publicTopics.igcseBookSections.length===16
+    && new Set(publicTopics.igcseBookSections.map(item=>item.chapter_number)).size===4
+    && publicTopics.igcseBookSections.find(item=>item.section_code==='7.7')
+      ?.section_title==='Trace tables to document dry runs of algorithms'
+    && publicTopics.igcseBookSections.find(item=>item.section_code==='10.3')
+      ?.section_title.startsWith('Logic circuits, logic expressions'));
+
 
 
   // Screenshot regression: a bare fieldset used to fall into the 42px
@@ -39,20 +47,20 @@ try{
   await qa.go(teacher.page,'oqitish/live');
   await teacher.page.waitForSelector('select[aria-label="Cambridge syllabus"]');
   await teacher.page.select('select[aria-label="Cambridge syllabus"]','0478');
-  await teacher.page.waitForSelector('.live-0478-topic-option');
+  await teacher.page.waitForSelector('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label');
   for(const width of [1440,1024,768,390]){
     await teacher.page.setViewport({width,height:920});
     const geometry=await teacher.page.evaluate(()=>{
       const main=document.querySelector('.live-create-main');
       const fields=document.querySelector('.live-create-fields');
-      const topics=document.querySelector('.live-0478-subtopics');
-      const items=[...document.querySelectorAll('.live-0478-topic-option')];
+      const topics=document.querySelector('.live-topic-grid[data-syllabus="0478"]');
+      const items=[...topics.querySelectorAll('fieldset:nth-child(2) label')];
       const rect=element=>element.getBoundingClientRect();
       const m=rect(main),f=rect(fields),t=rect(topics);
       const labels=[...fields.querySelectorAll(':scope > label')].map(rect);
       return {
         viewport:window.innerWidth,mainWidth:m.width,topicsWidth:t.width,fieldsWidth:f.width,
-        topicCount:items.length,documentWidth:document.documentElement.scrollWidth,
+        topicCount:items.length,chapterCount:topics.querySelectorAll('fieldset:first-child label').length,documentWidth:document.documentElement.scrollWidth,
         topicInMain:t.left>=m.left-2&&t.right<=m.right+2,
         fieldsInMain:f.left>=m.left-2&&f.right<=m.right+2,
         optionsWellSized:items.every(item=>rect(item).width>=190),
@@ -61,7 +69,7 @@ try{
       };
     });
     await qa.check(`0478 layout: topic grid readable at ${width}px`,
-      geometry.topicCount>=1
+      geometry.topicCount>=16 && geometry.chapterCount===4
       && geometry.topicsWidth>=Math.min(250,geometry.mainWidth*0.7)
       && geometry.topicInMain&&geometry.fieldsInMain
       && geometry.optionsWellSized&&geometry.fieldsWellSized
@@ -72,11 +80,36 @@ try{
   }
   await teacher.page.setViewport({width:1440,height:1000});
 
+  // Regression: checking Section 7.7 must not hide other chapter sections
+  // or prevent a mixed 7.7 + 8.2 selection.
+  const mixedSections=await teacher.page.evaluate(async()=>{
+    const getCheckbox=code=>{
+      const label=[...document.querySelectorAll('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label')]
+        .find(node=>node.textContent?.trim().startsWith(code+' '));
+      return label?.querySelector('input[type="checkbox"]');
+    };
+    getCheckbox('7.7')?.click();
+    await new Promise(requestAnimationFrame);
+    const secondVisible=!!getCheckbox('8.2');
+    getCheckbox('8.2')?.click();
+    await new Promise(requestAnimationFrame);
+    const bothSelected=!!getCheckbox('7.7')?.checked&&!!getCheckbox('8.2')?.checked;
+    getCheckbox('7.7')?.click();
+    await new Promise(requestAnimationFrame);
+    getCheckbox('8.2')?.click();
+    await new Promise(requestAnimationFrame);
+    const bothCleared=!getCheckbox('7.7')?.checked&&!getCheckbox('8.2')?.checked;
+    return {secondVisible,bothSelected,bothCleared};
+  });
+  await qa.check('0478: selecting 7.7 does not hide 8.2 and cross-chapter selection works',
+    mixedSections.secondVisible&&mixedSections.bothSelected&&mixedSections.bothCleared,mixedSections);
+
+
   const eligibility=await teacher.page.evaluate(async classId=>{
     const {api}=await import('/src/lib/api.ts');
     const params=new URLSearchParams({
       classId,syllabusCode:'0478',topicIds:'',subtopicIds:'',
-      coursebookSectionCodes:'',components:'2',includeDiagrams:'true',
+      coursebookSectionCodes:'',igcseBookSectionCodes:'8.1',components:'2',includeDiagrams:'true',
       excludeSeen:'false',limit:'15',
     });
     return api(`/live-exams/eligible-questions?${params}`);
@@ -87,7 +120,7 @@ try{
 
   const id=await createRound(qa,teacher,[student],{
     classId,mode:'teacher',title:`0478 Paper 2 browser QA ${Date.now()}`,
-    syllabusCode:'0478',displayRef:ref,excludeSeen:false,questionCount:1,
+    syllabusCode:'0478',igcseBookSectionCode:'8.1',displayRef:ref,excludeSeen:false,questionCount:1,
   });
   const marking=await snapshot(teacher.page,id);
   await qa.check('0478: live question source and manual-only mark scheme frozen',

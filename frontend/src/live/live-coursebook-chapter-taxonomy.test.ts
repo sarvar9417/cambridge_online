@@ -8,8 +8,8 @@ describe('Live Challenge coursebook chapter taxonomy',()=>{
   it('uses chapter sections instead of exposing raw syllabus subtopics as the classroom picker',()=>{
     expect(page).toContain('coursebookSections');
     expect(page).toContain('coursebookSectionCodes');
-    expect(page).toContain('<legend>Chapter</legend>');
-    expect(page).toContain('<legend>Chapter section</legend>');
+    expect(page).toContain("?'IGCSE Book Chapter':'Chapter'");
+    expect(page).toContain("?'IGCSE Chapter Section':'Chapter section'");
     expect(page).not.toContain('<legend>Subtopic</legend>');
   });
 

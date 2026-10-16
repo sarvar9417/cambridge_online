@@ -67,19 +67,40 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618' }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618', igcseBookSectionCode = '' }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
   if (syllabusCode === '0478') {
     await teacher.page.select('select[aria-label="Cambridge syllabus"]', '0478');
-    await qa.waitText(teacher.page, '0478 Paper 2 — Syllabus topics (7–10)');
+    await qa.waitText(teacher.page, 'IGCSE Book Chapter');
   }
   await teacher.page.select('select[name="classId"]', classId);
   await qa.fill(teacher.page, 'input[name="title"]', title);
   if (syllabusCode === '9618') {
     await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
   }
-  if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
+  if (syllabusCode === '0478' && igcseBookSectionCode) {
+    const selected = await teacher.page.evaluate(sectionCode=>{
+      const label=[...document.querySelectorAll('.live-topic-grid fieldset:nth-child(2) label')]
+        .find(node=>node.textContent?.trim().startsWith(sectionCode+' '));
+      const input=label?.querySelector('input[type="checkbox"]');
+      if(!(input instanceof HTMLInputElement))return false;
+      input.click();
+      return input.checked;
+    },igcseBookSectionCode);
+    await qa.check('0478 book section '+igcseBookSectionCode+' selected',selected);
+  }
+  if (!excludeSeen) {
+    // A sticky rules sidebar can overlap this control after responsive viewport
+    // screenshots. Trigger the native DOM input click, then assert its React
+    // controlled state changed before proceeding with the source question pool.
+    const excluded=await teacher.page.$eval('input[name="excludeSeen"]',input=>{
+      if(!(input instanceof HTMLInputElement))return null;
+      if(input.checked)input.click();
+      return input.checked;
+    });
+    await qa.check('Live builder: used-question exclusion disabled',excluded===false);
+  }
   if (displayRef) {
     await teacher.page.select('select[aria-label="Savol tanlash usuli"]', 'manual');
     await qa.clickText(teacher.page, 'Savollarni ko‘rsatish');

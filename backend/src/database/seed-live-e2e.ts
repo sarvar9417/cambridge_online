@@ -195,7 +195,7 @@ try {
   )).rows[0]!.id;
   const lo=(await client.query<{id:string}>(
     `insert into learning_objectives(subtopic_id,code,text,sort_order)
-     values($1,'8.1.1','Write a simple algorithm using iteration',1)
+     values($1,'8.1-lo-04','Understand and use sequence, selection and iteration',1)
      on conflict(subtopic_id,code) do update set text=excluded.text
      returning id`,[st81],
   )).rows[0]!.id;

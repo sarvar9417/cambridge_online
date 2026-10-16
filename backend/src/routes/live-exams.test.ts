@@ -23,6 +23,38 @@ function appFor(service:Partial<LiveExamService>,actor:{id:string;role:'owner'|'
 }
 
 describe('live exam routes', () => {
+  it('publishes the 16 genuine IGCSE Hodder book sections for student hosts', async()=>{
+    const response=await request(appFor({})).get('/live-exams/sections').expect(200);
+    expect(response.body.igcseBookSections.map((s:{section_code:string})=>s.section_code)).toEqual([
+      '7.1','7.2','7.3','7.4','7.5','7.6','7.7','7.8','7.9',
+      '8.1','8.2','8.3','9.1','10.1','10.2','10.3',
+    ]);
+    expect(response.body.igcseBookSections[6]).toMatchObject({
+      syllabus_code:'0478',chapter_number:7,section_code:'7.7',
+      section_title:'Trace tables to document dry runs of algorithms',
+    });
+    expect(response.body.coursebookSections.some((s:{section_code:string})=>s.section_code==='16.2')).toBe(true);
+  });
+
+  it('accepts a scoped IGCSE book section and rejects invalid or 9618-only codes',async()=>{
+    const create=vi.fn().mockResolvedValue({id:'session-0478'});
+    const input={
+      classId:'22222222-2222-4222-8222-222222222222',
+      syllabusCode:'0478',title:'IGCSE 7.7 Trace tables',topicIds:[],subtopicIds:[],
+      coursebookSectionCodes:[],igcseBookSectionCodes:['7.7'],components:[2],
+      questionCount:3,markingMode:'teacher',includeDiagrams:true,excludeSeen:false,
+      questionOrder:'balanced',
+    };
+    const app=appFor({create});
+    await request(app).post('/live-exams').send(input).expect(201);
+    expect(create).toHaveBeenCalledWith(student,expect.objectContaining({
+      syllabusCode:'0478',igcseBookSectionCodes:['7.7'],components:[2],
+    }));
+    await request(app).post('/live-exams').send({...input,igcseBookSectionCodes:['1.1']}).expect(400);
+    await request(app).post('/live-exams').send({...input,igcseBookSectionCodes:['7.10']}).expect(400);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it('marks the session list private and non-cacheable', async () => {
     const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
     const response=await request(appFor({list})).get('/live-exams').expect(200);

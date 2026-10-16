@@ -6,11 +6,14 @@ import { durableRateLimit } from '../middleware/durable-rate-limit.js';
 import type { Pool } from 'pg';
 import { runIdempotent } from '../lib/idempotent-request.js';
 import { LIVE_COURSEBOOK_SECTION_CODES, LIVE_COURSEBOOK_SECTIONS } from '../lib/live-coursebook-sections.js';
+import { LIVE_IGCSE_PAPER2_SECTIONS, LIVE_IGCSE_PAPER2_SECTION_CODES } from '../lib/live-igcse-coursebook-sections.js';
 
 const uuid = z.string().uuid();
 const liveSyllabusCode=z.enum(['9618','0478']).default('9618');
 const coursebookSectionCode=z.string().trim().regex(/^\d{1,2}\.\d{1,2}$/)
   .refine((value)=>LIVE_COURSEBOOK_SECTION_CODES.has(value),'Unknown 9618 coursebook section');
+const igcseBookSectionCode=z.string().trim().regex(/^(7\.[1-9]|8\.[1-3]|9\.1|10\.[1-3])$/)
+  .refine(code=>LIVE_IGCSE_PAPER2_SECTION_CODES.has(code),'Unknown 0478 book section');
 const id = (params: Record<string, unknown>, key = 'id') => uuid.parse(params[key]);
 
 const createInput = z.object({
@@ -20,6 +23,7 @@ const createInput = z.object({
   topicIds: z.array(uuid).max(30).default([]),
   subtopicIds: z.array(uuid).max(100).default([]),
   coursebookSectionCodes: z.array(coursebookSectionCode).max(100).default([]),
+  igcseBookSectionCodes: z.array(igcseBookSectionCode).max(16).default([]),
   questionCount: z.number().int().min(1),
   questionTimeLimitS: z.number().int().min(30).max(7200).optional(),
   questionTimeLimits: z.record(uuid, z.number().int().min(30).max(7200).nullable()).default({}),
@@ -105,7 +109,11 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       ) and t.number between 7 and 10
       order by t.number,st.code
     `) : null;
-    res.json({coursebookSections,topics:topics?.rows??[]});
+    res.json({coursebookSections,igcseBookSections:LIVE_IGCSE_PAPER2_SECTIONS.map(section=>({
+      syllabus_code:'0478',chapter_number:section.chapterNumber,chapter_title:section.chapterTitle,
+      section_code:section.code,section_title:section.title,mapping_kind:section.mappingKind,
+      book_page:section.sourcePage,
+    })),topics:topics?.rows??[]});
   });
 
   router.post('/', durableStaffLimit, async (req, res) => {
@@ -130,6 +138,12 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid coursebook section list'});return z.NEVER}
       return parsed.data;
     });
+    const csvIgcseBookSections=z.string().default('').transform((value,ctx)=>{
+      const values=value?value.split(',').filter(Boolean):[];
+      const parsed=z.array(igcseBookSectionCode).max(16).safeParse(values);
+      if(!parsed.success){ctx.addIssue({code:'custom',message:'Invalid 0478 book section list'});return z.NEVER}
+      return parsed.data;
+    });
     const csvSeries=z.string().optional().transform((value,ctx)=>{
       const values=value?value.split(',').filter(Boolean):[];
       const parsed=z.array(z.enum(['FM','MJ','ON'])).max(3).safeParse(values);
@@ -148,6 +162,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       topicIds:csvUuids,
       subtopicIds:csvUuids,
       coursebookSectionCodes:csvCoursebookSections,
+      igcseBookSectionCodes:csvIgcseBookSections,
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       difficulty:z.enum(['easy','medium','hard']).optional(),
@@ -169,6 +184,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       topicIds:query.topicIds ?? [],
       subtopicIds:query.subtopicIds ?? [],
       coursebookSectionCodes:query.coursebookSectionCodes ?? [],
+      igcseBookSectionCodes:query.igcseBookSectionCodes ?? [],
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
       difficulty:query.difficulty,
@@ -199,6 +215,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       topicIds:z.array(uuid).max(30).default([]),
       subtopicIds:z.array(uuid).max(100).default([]),
       coursebookSectionCodes:z.array(coursebookSectionCode).max(100).default([]),
+      igcseBookSectionCodes:z.array(igcseBookSectionCode).max(16).default([]),
       includeDiagrams:z.boolean().default(true),
       excludeSeen:z.boolean().default(true),
       difficulty:z.enum(['easy','medium','hard']).optional(),
