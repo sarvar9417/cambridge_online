@@ -94,11 +94,15 @@ try{
     getCheckbox('8.2')?.click();
     await new Promise(requestAnimationFrame);
     const bothSelected=!!getCheckbox('7.7')?.checked&&!!getCheckbox('8.2')?.checked;
-    getCheckbox('7.7')?.click();getCheckbox('8.2')?.click();
-    return {secondVisible,bothSelected};
+    getCheckbox('7.7')?.click();
+    await new Promise(requestAnimationFrame);
+    getCheckbox('8.2')?.click();
+    await new Promise(requestAnimationFrame);
+    const bothCleared=!getCheckbox('7.7')?.checked&&!getCheckbox('8.2')?.checked;
+    return {secondVisible,bothSelected,bothCleared};
   });
   await qa.check('0478: selecting 7.7 does not hide 8.2 and cross-chapter selection works',
-    mixedSections.secondVisible&&mixedSections.bothSelected,mixedSections);
+    mixedSections.secondVisible&&mixedSections.bothSelected&&mixedSections.bothCleared,mixedSections);
 
 
   const eligibility=await teacher.page.evaluate(async classId=>{
