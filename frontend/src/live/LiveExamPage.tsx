@@ -330,6 +330,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [competitionMode,setCompetitionMode]=useState<'individual'|'teams'|'houses'>('individual');
   const [competitionGroupCount,setCompetitionGroupCount]=useState(2);
   const [competitionGroupNames,setCompetitionGroupNames]=useState('Jamoa A, Jamoa B');
+  const parsedCompetitionGroupNames=competitionGroupNames.split(',').map((value)=>value.trim()).filter(Boolean);
+  const competitionGroupsValid=competitionMode==='individual'
+    || (parsedCompetitionGroupNames.length===competitionGroupCount
+      && new Set(parsedCompetitionGroupNames.map((value)=>value.toLocaleLowerCase())).size===competitionGroupCount
+      && parsedCompetitionGroupNames.every((value)=>value.length<=30));
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [syllabusCode,setSyllabusCode]=useState<'9618'|'0478'>('9618');
   const [selected0478BookSectionCodes,setSelected0478BookSectionCodes]=useState<string[]>([]);
@@ -586,7 +591,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,rehearsalMode:user.role!=='student'&&rehearsalMode,
         competitionMode:user.role==='student'||rehearsalMode?'individual':competitionMode,
         competitionGroupCount:user.role!=='student'&&!rehearsalMode&&competitionMode!=='individual'?competitionGroupCount:undefined,
-        competitionGroupNames:user.role!=='student'&&!rehearsalMode&&competitionMode!=='individual'?competitionGroupNames.split(',').map((value)=>value.trim()).filter(Boolean):[],
+        competitionGroupNames:user.role!=='student'&&!rehearsalMode&&competitionMode!=='individual'?parsedCompetitionGroupNames:[],
         questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):rehearsalMode?'teacher':data.get('markingMode'),includeDiagrams,excludeSeen,
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
@@ -725,7 +730,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         {user.role==='student'?<small className="live-create-semantics">Ishtirokchilar faqat Start bosilguncha qo‘shila oladi; bu cheklov Mark Scheme va peer-review adolatliligini himoya qiladi.</small>:!rehearsalMode?<label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>:null}
         {!rehearsalMode?<label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>:null}
         {user.role!=='student'?<label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>:null}
-        <button disabled={busy||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <button disabled={busy||(!rehearsalMode&&user.role!=='student'&&!competitionGroupsValid)||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
         <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi; ishtirokchilar faqat xona egasi Start bosgandan keyin savolni ko‘radi.</small>
         {!classes.length?<small className="live-warning">Mashq yaratish uchun faol sinfga biriktirilgan bo‘lishingiz kerak.</small>:null}
       </aside>
