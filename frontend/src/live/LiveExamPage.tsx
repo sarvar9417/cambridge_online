@@ -111,6 +111,11 @@ function removeLiveDraft(key:string) {
   try{localStorage.removeItem(key)}catch{/* Storage may be disabled. */}
 }
 
+function defaultCompetitionNames(mode:'teams'|'houses',count:number) {
+  const prefix=mode==='houses'?'House':'Jamoa';
+  return Array.from({length:count},(_,index)=>`${prefix} ${String.fromCharCode(65+index)}`).join(', ');
+}
+
 function formatClock(seconds:number|null) {
   if (seconds === null) return 'Vaqt cheklanmagan';
   const safe=Math.max(0,seconds),minutes=Math.floor(safe/60),rest=safe%60;
@@ -304,7 +309,7 @@ function LobbyParticipants({snapshot,busy,onRemove}:{snapshot:LiveExamSnapshot;b
     <header><h2>O‘quvchilar</h2><span>{snapshot.session.participantCount} qo‘shildi</span></header>
     {!snapshot.participants.length?<p className="live-empty">O‘quvchilar kodni kiritishi kutilmoqda.</p>:<ul>
       {snapshot.participants.map((person)=><li key={person.id}>
-        <span className={person.online?'is-online':''}/><strong>{person.fullName}</strong><small>{person.online?'Online':'Aloqa uzilgan'}</small><button className="live-roster-remove" disabled={busy} onClick={()=>onRemove(person.studentId,person.fullName)}>Chiqarish</button>
+        <span className={person.online?'is-online':''}/><strong>{person.fullName}</strong><small>{person.competitionGroupName?`${person.competitionGroupName} · `:''}{person.online?'Online':'Aloqa uzilgan'}</small><button className="live-roster-remove" disabled={busy} onClick={()=>onRemove(person.studentId,person.fullName)}>Chiqarish</button>
       </li>)}
     </ul>}
   </section>;
@@ -322,6 +327,9 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [code,setCode]=useState(()=>/^\d{6}$/.test(sharedJoinCode)?sharedJoinCode:'');
   const [practiceMode,setPracticeMode]=useState<'solo'|'group'|'collaborative'>('solo');
   const [rehearsalMode,setRehearsalMode]=useState(false);
+  const [competitionMode,setCompetitionMode]=useState<'individual'|'teams'|'houses'>('individual');
+  const [competitionGroupCount,setCompetitionGroupCount]=useState(2);
+  const [competitionGroupNames,setCompetitionGroupNames]=useState('Jamoa A, Jamoa B');
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [syllabusCode,setSyllabusCode]=useState<'9618'|'0478'>('9618');
   const [selected0478BookSectionCodes,setSelected0478BookSectionCodes]=useState<string[]>([]);
@@ -575,7 +583,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         subtopicIds:[],
         coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[],
         igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[],
-        questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,rehearsalMode:user.role!=='student'&&rehearsalMode,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
+        questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,rehearsalMode:user.role!=='student'&&rehearsalMode,
+        competitionMode:user.role==='student'||rehearsalMode?'individual':competitionMode,
+        competitionGroupCount:user.role!=='student'&&!rehearsalMode&&competitionMode!=='individual'?competitionGroupCount:undefined,
+        competitionGroupNames:user.role!=='student'&&!rehearsalMode&&competitionMode!=='individual'?competitionGroupNames.split(',').map((value)=>value.trim()).filter(Boolean):[],
+        questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):rehearsalMode?'teacher':data.get('markingMode'),includeDiagrams,excludeSeen,
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
@@ -705,6 +717,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           </select><small>Faqat peer rejimida: tanlangan javoblarni o‘qituvchi ham mustaqil tekshiradi.</small>
         </label>:null}
         {user.role!=='student'&&!rehearsalMode?<label>Peer farq chegarasi<input name="peerDisagreementThreshold" type="number" min="0" max="20" step="0.5" defaultValue="1"/><small>Peer va teacher balli bundan ko‘p farq qilsa quality queue’da ko‘rinadi.</small></label>:null}
+        {user.role!=='student'&&!rehearsalMode?<><label>Musobaqa ko‘rinishi<select aria-label="Musobaqa ko‘rinishi" value={competitionMode} onChange={(event)=>{const mode=event.target.value as 'individual'|'teams'|'houses';setCompetitionMode(mode);if(mode!=='individual')setCompetitionGroupNames(defaultCompetitionNames(mode,competitionGroupCount))}}><option value="individual">Individual</option><option value="teams">Teams · jamoalar</option><option value="houses">Houses · house guruhlari</option></select><small>Academic ball va mastery individual qoladi; bu faqat Live reytingini guruhlaydi.</small></label>{competitionMode!=='individual'?<><label>Guruhlar soni<input aria-label="Guruhlar soni" type="number" min="2" max="8" value={competitionGroupCount} onChange={(event)=>{const count=Math.max(2,Math.min(8,Number(event.target.value)||2));setCompetitionGroupCount(count);setCompetitionGroupNames(defaultCompetitionNames(competitionMode,count))}}/></label><label>Guruh nomlari<input aria-label="Guruh nomlari" value={competitionGroupNames} onChange={(event)=>setCompetitionGroupNames(event.target.value)} placeholder="Jamoa A, Jamoa B"/><small>Vergul bilan ajrating; guruhlar soniga teng nom kiriting.</small></label></>:null}</>:null}
         <label>Leaderboard<select name="leaderboardMode" defaultValue="marks"><option value="marks">Faqat Cambridge ballari</option><option value="marks_speed_tiebreak">Ball, teng bo‘lsa tezlik</option></select></label>
         {user.role==='student'?<small className="live-create-semantics">Ishtirokchilar reytingda anonim ko‘rinadi. Haqiqiy ism va student ID boshqalarga berilmaydi.</small>:<label>Proyektorda ism<select name="displayNameMode" defaultValue="anonymous_alias"><option value="anonymous_alias">Anonim: Ishtirokchi 1</option><option value="initials">Faqat initsiallar</option><option value="first_name">Faqat ism</option><option value="full">To‘liq ism</option></select><small>Anonim rejim maxfiylik uchun tavsiya etiladi.</small></label>}
         <label className="live-check"><input name="includeDiagrams" type="checkbox" checked={includeDiagrams} onChange={(event)=>{setIncludeDiagrams(event.target.checked);clearManualPool()}}/><span>Diagramma va jadvallarni qo‘shish</span></label>
