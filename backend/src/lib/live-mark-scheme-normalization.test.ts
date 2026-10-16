@@ -148,6 +148,22 @@ MP4 Return of calculated value`,4);
     expect(result.points.every((point)=>point.marks===1)).toBe(true);
   });
 
+  it('splits numbered Mark points blocks used by 9618 programming schemes',()=>{
+    const scheme=collapsed(`Example solution
+Mark points
+1 Function heading, return type and ending
+2 Prompt for and input of plaintext
+3 Conditional loop checks one boundary
+4 Conditional loop checks both boundaries
+5 Re-input of plaintext in a loop
+6 Loop appends spaces`,6);
+    const result=normalizeCollapsedLiveMarkScheme(scheme);
+    expect(result.schemeType).toBe('all_required');
+    expect(result.points).toHaveLength(6);
+    expect(result.points.map((point)=>point.code)).toEqual(['MP1','MP2','MP3','MP4','MP5','MP6']);
+    expect(result.points.every((point)=>point.marks===1)).toBe(true);
+  });
+
   it('fails safe for an ambiguous manual rubric instead of exposing one fake multi-mark MP',()=>{
     const scheme=collapsed('Award up to four marks using the complete official rubric shown here.',4);
     const result=normalizeCollapsedLiveMarkScheme(scheme);
