@@ -60,6 +60,10 @@ export interface CreateLiveExamInput {
   practiceMode?:'solo'|'group'|'collaborative';
   /** Staff-only dry run. No learners, exposure ledger, mastery, or assessment evidence. */
   rehearsalMode?: boolean;
+  /** Optional non-academic classroom grouping used only by Live leaderboards. */
+  competitionMode?: 'individual' | 'teams' | 'houses';
+  competitionGroupCount?: number;
+  competitionGroupNames?: string[];
   includeDiagrams: boolean;
   excludeSeen: boolean;
   /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
@@ -192,6 +196,22 @@ export class LiveExamService {
       || input.autoCloseWhenAllSubmitted===true
       || Number(input.peerCalibrationPercent??0)!==0){
       throw new DomainError('live_rehearsal_invalid',400);
+    }
+  }
+  private validateCompetitionMode(actor:Actor,input:CreateLiveExamInput){
+    const mode=input.competitionMode??'individual';
+    if(actor.role==='student'&&mode!=='individual')
+      throw new DomainError('live_competition_staff_only',403);
+    if(input.rehearsalMode&&mode!=='individual')
+      throw new DomainError('live_rehearsal_invalid',400);
+    if(mode==='individual')return;
+    const count=Number(input.competitionGroupCount);
+    if(!Number.isInteger(count)||count<2||count>8)
+      throw new DomainError('live_competition_group_count_invalid',400);
+    const names=(input.competitionGroupNames??[]).map((value)=>value.trim()).filter(Boolean);
+    if(names.length!==count||new Set(names.map((value)=>value.toLocaleLowerCase())).size!==count
+      || names.some((value)=>value.length>30)){
+      throw new DomainError('live_competition_group_names_invalid',400);
     }
   }
   private async requireClassControl(executor: Pick<Pool, 'query'> | PoolClient, actor: Actor, classId: string) {
@@ -984,6 +1004,7 @@ export class LiveExamService {
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
     this.validateRehearsalMode(actor,input);
+    this.validateCompetitionMode(actor,input);
     this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -1059,6 +1080,11 @@ export class LiveExamService {
                 questionOrder: input.questionOrder ?? 'shuffled',
                 practiceMode:actor.role==='student'?input.practiceMode:null,
                 rehearsalMode:actor.role!=='student'&&input.rehearsalMode===true,
+                competitionMode:actor.role==='student'||input.rehearsalMode?'individual':(input.competitionMode??'individual'),
+                competitionGroupCount:actor.role==='student'||input.rehearsalMode||!input.competitionMode||input.competitionMode==='individual'
+                  ?null:Number(input.competitionGroupCount),
+                competitionGroupNames:actor.role==='student'||input.rehearsalMode||!input.competitionMode||input.competitionMode==='individual'
+                  ?[]:(input.competitionGroupNames??[]).map((value)=>value.trim()),
                 // Learner-led practice and staff rehearsal both lock the roster.
                 // Rehearsal is intentionally non-participatory.
                 allowLateJoin:actor.role==='student'||input.rehearsalMode===true?false:(input.allowLateJoin ?? false),
@@ -1197,6 +1223,29 @@ export class LiveExamService {
         [session.id, actor.id],
       );
       const participant = result.rows[0];
+      const roomSettings=this.settings(session.settings);
+      if(session.status==='question_open'&&roomSettings.competitionMode!=='individual'){
+        // Serialize only the tiny late-join group assignment. The classroom
+        // row remains shared so normal joins can still validate concurrently.
+        await client.query('select pg_advisory_xact_lock(hashtext($1))',[`live-competition:${session.id}`]);
+        await client.query(
+          `with groups as (
+             select group_no,
+               count(lep.id) filter(where lep.left_at is null)::int members
+             from generate_series(1,$2::int) group_no
+             left join live_exam_participants lep
+               on lep.session_id=$1 and lep.competition_group=group_no
+             group by group_no
+             order by members,group_no
+             limit 1
+           )
+           update live_exam_participants participant
+           set competition_group=groups.group_no
+           from groups
+           where participant.id=$3`,
+          [session.id,roomSettings.competitionGroupCount,participant.id],
+        );
+      }
       if (session.status === 'question_open') {
         await client.query(
           `insert into live_exam_answers(session_question_id,participant_id)
@@ -1427,7 +1476,7 @@ export class LiveExamService {
       ),
       detailedStaff
         ? this.pool.query(
-          `select lep.id,lep.student_id,u.full_name,lep.joined_at,lep.last_seen_at,
+          `select lep.id,lep.student_id,u.full_name,lep.joined_at,lep.last_seen_at,lep.competition_group,
              a.id answer_id,a.submitted_at,a.final_score,a.score_source,a.moderated_at
            from live_exam_participants lep
            join users u on u.id=lep.student_id
@@ -1694,6 +1743,9 @@ export class LiveExamService {
         submitted: Boolean(row.submitted_at),
         score: row.final_score === null ? null : Number(row.final_score),
         scoreSource: row.score_source,
+        competitionGroup: row.competition_group===null||row.competition_group===undefined?null:Number(row.competition_group),
+        competitionGroupName: row.competition_group===null||row.competition_group===undefined
+          ?null:settings.competitionGroupNames[Number(row.competition_group)-1]??null,
       })) : [],
       question,
       markScheme: reveal && currentRow ? currentRow.mark_scheme_snapshot : null,
@@ -2010,6 +2062,20 @@ export class LiveExamService {
         `select id,question_id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
       if (!question.rowCount) throw new DomainError('live_no_questions', 409);
       const settings=this.settings(session.settings);
+      if(settings.competitionMode!=='individual'){
+        await client.query(
+          `with ranked as (
+             select id,row_number() over(order by joined_at,id) row_no
+             from live_exam_participants
+             where session_id=$1 and left_at is null
+           )
+           update live_exam_participants participant
+           set competition_group=((ranked.row_no-1)%$2::int)+1
+           from ranked
+           where participant.id=ranked.id`,
+          [sessionId,settings.competitionGroupCount],
+        );
+      }
       const questionTimeLimitS=resolveLiveQuestionTimeLimit(
         session.settings,
         String(question.rows[0].question_id),
@@ -2844,6 +2910,12 @@ export class LiveExamService {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       rehearsalMode:raw.rehearsalMode===true,
+      competitionMode:raw.competitionMode==='teams'||raw.competitionMode==='houses'?raw.competitionMode:'individual' as const,
+      competitionGroupCount:raw.competitionMode==='teams'||raw.competitionMode==='houses'
+        ?Math.max(2,Math.min(8,Number(raw.competitionGroupCount)||2)):0,
+      competitionGroupNames:Array.isArray(raw.competitionGroupNames)
+        ?raw.competitionGroupNames.filter((value):value is string=>typeof value==='string').slice(0,8)
+        :[],
       allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
       teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
