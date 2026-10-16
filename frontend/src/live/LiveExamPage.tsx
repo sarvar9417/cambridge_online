@@ -347,6 +347,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [eligibleLoading,setEligibleLoading]=useState(false);
   const [questionCount,setQuestionCount]=useState(5);
   const createAttempt=useRef<{body:string;key:string}|null>(null);
+  // A filter change invalidates any older manual question-pool response.
+  const poolRequestEpoch=useRef(0);
 
   useEffect(()=>{
     const requests:Promise<unknown>[]=[api<{data:LiveExamSummary[]}>('/live-exams').then((r)=>setSessions(r.data))];
@@ -381,8 +383,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const selectedChapterNumbers=[...new Set(coursebookSections
     .filter((item)=>selectedBookCodes.includes(item.section_code))
     .map((item)=>item.chapter_number))];
+  // Keep every 0478 Section accessible when building a cross-chapter game.
+  // The existing 9618 chapter-focused picker is deliberately unchanged.
   const visibleCoursebookSections=coursebookSections.filter((item)=>
-    !selectedChapterNumbers.length||selectedChapterNumbers.includes(item.chapter_number)
+    syllabusCode==='0478'||!selectedChapterNumbers.length
+      ||selectedChapterNumbers.includes(item.chapter_number)
   );
   const changeSyllabus=(code:'9618'|'0478')=>{
     setSyllabusCode(code);
@@ -394,6 +399,10 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     clearManualPool();
   };
   const clearManualPool=()=>{
+    poolRequestEpoch.current+=1;
+    setBusy(false);
+    setEligibleTotal(null);
+    setEligibleCounts(null);
     setQuestionPool([]);setSelectedQuestionIds([]);setQuestionTimeLimits({});setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
@@ -492,24 +501,31 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]);
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
+    const epoch=++poolRequestEpoch.current;
     setBusy(true);setError('');
     try{
       let total=eligibleTotal;
       if(total===null){
         const summary=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false)}`);
+        if(epoch!==poolRequestEpoch.current)return;
         total=summary.total;setEligibleTotal(total);
         setEligibleCounts(summary.counts??null);
       }
       if(total===0){setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null);return}
       const pageSize=20;
       const result=await api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(pageSize,true,false,page*pageSize,search)}`);
+      if(epoch!==poolRequestEpoch.current)return;
       const maxPage=Math.max(0,Math.ceil(result.total/pageSize)-1);
       if(page>maxPage){setPoolPage(maxPage);return void loadQuestionPool(maxPage,search)}
       setPoolPage(page);
       setPoolTotal(result.total);
       setEligibleCounts(result.counts??null);
       setQuestionPool(result.data);
-    }catch(cause){setError(message(cause,'Savollar havzasi yuklanmadi.'))}finally{setBusy(false)}
+    }catch(cause){
+      if(epoch===poolRequestEpoch.current)setError(message(cause,'Savollar havzasi yuklanmadi.'));
+    }finally{
+      if(epoch===poolRequestEpoch.current)setBusy(false);
+    }
   };
 
   useEffect(()=>{
