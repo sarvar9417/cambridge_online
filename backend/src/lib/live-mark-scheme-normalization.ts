@@ -179,6 +179,59 @@ function parseExplicitMp(source:string,schemeId:string,maxMarks:number):ParsedRu
   };
 }
 
+function parseNumberedMarkPoints(source:string,schemeId:string,maxMarks:number):ParsedRubric|null {
+  const lines=sourceLines(source);
+  const marker=lines.findIndex((line)=>/\bmark(?:ing)?\s+points?\s*:?\s*$/i.test(normalizeOcrWords(line)));
+  if(marker<0)return null;
+
+  const rows:Array<{number:number;text:string[]}>=[];
+  let current:{number:number;text:string[]}|null=null;
+  let expected=1;
+  for(const line of lines.slice(marker+1)){
+    const match=line.match(/^\(?([0-9]{1,2})\)?[.)]?\s+(.+)$/);
+    if(match){
+      const number=Number(match[1]);
+      if(number!==expected){
+        if(rows.length>=maxMarks)break;
+        return null;
+      }
+      const text=cleanCriterion(match[2]??'');
+      if(!text)return null;
+      current={number,text:[text]};
+      rows.push(current);
+      expected+=1;
+      continue;
+    }
+    if(current){
+      if(/^(?:for example|example|correct code)\s*[:,]?$/i.test(line))break;
+      current.text.push(line);
+    }
+  }
+  if(rows.length<maxMarks)return null;
+  const groupNeeded=rows.length>maxMarks;
+  const groupId=groupNeeded?stableUuid(`${schemeId}:live-atomic-group:numbered`):null;
+  const points=rows.map((row,index)=>{
+    const text=row.text.join(' ');
+    const previous=index>0?`MP${rows[index-1]!.number}`:null;
+    return makePoint(
+      schemeId,index,`MP${row.number}`,text,groupId,
+      previous&&/^(?:…|\.\.\.)/.test(cleanCriterion(text))?[previous]:[],
+    );
+  });
+  return {
+    schemeType:groupNeeded?'any_n_from_m':'all_required',
+    points,
+    groups:groupNeeded?[{
+      id:groupId!,
+      label:'main',
+      nRequired:maxMarks,
+      marksPerPoint:1,
+      maxMarks,
+      awardMode:'fixed',
+    }]:[],
+  };
+}
+
 function parseBulletSections(source:string,schemeId:string,maxMarks:number):ParsedRubric|null {
   const lines=sourceLines(source);
   const sections:BulletSection[]=[];
@@ -305,6 +358,7 @@ export function normalizeCollapsedLiveMarkScheme<T extends LiveMarkSchemeForNorm
   if (!source) return scheme;
 
   const parsed=parseExplicitMp(source,scheme.id,scheme.maxMarks)
+    ?? parseNumberedMarkPoints(source,scheme.id,scheme.maxMarks)
     ?? parseBulletSections(source,scheme.id,scheme.maxMarks)
     ?? parseOneMarkClauses(source,scheme.id,scheme.maxMarks);
 
