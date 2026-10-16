@@ -73,6 +73,16 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain("!rehearsal&&['question_open','marking','review'].includes(session.status)");
   });
 
+  it('configures teams and houses without changing individual academic scoring',()=>{
+    expect(page).toContain("competitionMode:user.role==='student'||rehearsalMode?'individual':competitionMode");
+    expect(page).toContain('competitionGroupCount');
+    expect(page).toContain('competitionGroupNames');
+    expect(page).toContain('Teams · jamoalar');
+    expect(page).toContain('Houses · house guruhlari');
+    expect(page).toContain('Academic ball va mastery individual qoladi');
+    expect(page).toContain('competitionGroupName');
+  });
+
   it('invalidates stale manual pools, pages the source-ready pool, and reuses create idempotency on retry',()=>{
     expect(page).toContain('setQuestionPool([]);setSelectedQuestionIds([]);setSelectionPreview(null)');
     expect(page).toContain('const [eligibleTotal,setEligibleTotal]=useState<number|null>(null)');
