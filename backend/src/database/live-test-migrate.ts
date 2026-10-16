@@ -26,6 +26,7 @@ const files = [
   '0209_live_session_archive_fk_index.sql',
   '0210_student_live_practice_isolation.sql',
   '0211_live_0478_paper2_syllabus_isolation.sql',
+  '0212_live_rehearsal_isolation.sql',
 ];
 
 const pool = new Pool({ connectionString });
