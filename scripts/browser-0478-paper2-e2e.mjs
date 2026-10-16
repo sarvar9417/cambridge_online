@@ -31,6 +31,14 @@ try{
     publicTopics.topics.some(item=>item.syllabus_code==='0478'&&item.code==='8.1'
       &&item.topic_number===8&&item.component===2)
     && publicTopics.topics.every(item=>item.syllabus_code==='0478'&&item.component===2));
+  await qa.check('0478: Hodder Chapter 7–10 includes 16 authentic Paper 2 book sections',
+    publicTopics.igcseBookSections.length===16
+    && new Set(publicTopics.igcseBookSections.map(item=>item.chapter_number)).size===4
+    && publicTopics.igcseBookSections.find(item=>item.section_code==='7.7')
+      ?.section_title==='Trace tables to document dry runs of algorithms'
+    && publicTopics.igcseBookSections.find(item=>item.section_code==='10.3')
+      ?.section_title.startsWith('Logic circuits, logic expressions'));
+
 
 
   // Screenshot regression: a bare fieldset used to fall into the 42px
@@ -76,7 +84,7 @@ try{
     const {api}=await import('/src/lib/api.ts');
     const params=new URLSearchParams({
       classId,syllabusCode:'0478',topicIds:'',subtopicIds:'',
-      coursebookSectionCodes:'',components:'2',includeDiagrams:'true',
+      coursebookSectionCodes:'',igcseBookSectionCodes:'8.1',components:'2',includeDiagrams:'true',
       excludeSeen:'false',limit:'15',
     });
     return api(`/live-exams/eligible-questions?${params}`);
@@ -87,7 +95,7 @@ try{
 
   const id=await createRound(qa,teacher,[student],{
     classId,mode:'teacher',title:`0478 Paper 2 browser QA ${Date.now()}`,
-    syllabusCode:'0478',displayRef:ref,excludeSeen:false,questionCount:1,
+    syllabusCode:'0478',igcseBookSectionCode:'8.1',displayRef:ref,excludeSeen:false,questionCount:1,
   });
   const marking=await snapshot(teacher.page,id);
   await qa.check('0478: live question source and manual-only mark scheme frozen',
