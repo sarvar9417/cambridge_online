@@ -67,7 +67,7 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   return final;
 }
 
-export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618' }) {
+export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618', igcseBookSectionCode = '' }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
   if (syllabusCode === '0478') {
@@ -78,6 +78,17 @@ export async function createLobby(qa, teacher, { classId, mode, title, questionC
   await qa.fill(teacher.page, 'input[name="title"]', title);
   if (syllabusCode === '9618') {
     await teacher.page.locator('.live-topic-grid fieldset:first-child input[type="checkbox"]').click();
+  }
+  if (syllabusCode === '0478' && igcseBookSectionCode) {
+    const selected = await teacher.page.evaluate(sectionCode=>{
+      const label=[...document.querySelectorAll('.live-topic-grid fieldset:nth-child(2) label')]
+        .find(node=>node.textContent?.trim().startsWith(sectionCode+' '));
+      const input=label?.querySelector('input[type="checkbox"]');
+      if(!(input instanceof HTMLInputElement))return false;
+      input.click();
+      return input.checked;
+    },igcseBookSectionCode);
+    await qa.check('0478 book section '+igcseBookSectionCode+' selected',selected);
   }
   if (!excludeSeen) await teacher.page.locator('input[name="excludeSeen"]').click();
   if (displayRef) {
