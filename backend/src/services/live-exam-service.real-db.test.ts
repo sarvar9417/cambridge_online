@@ -265,6 +265,47 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(afterMastery).toBe(beforeMastery);
   });
 
+  it('runs a zero-learner staff rehearsal without exposure, evidence or mastery side effects',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829983',markingMode:'teacher',settings:{rehearsalMode:true,allowLateJoin:false},participants:[],
+    });
+    const beforeMastery=Number((await client.query(
+      'select count(*)::int count from mastery',
+    )).rows[0].count);
+
+    await expect(service.join(student(0),'829983'))
+      .rejects.toMatchObject({code:'live_code_not_found',status:404});
+    await expect(service.setLateJoin(owner(),sessionId,true))
+      .rejects.toMatchObject({code:'live_rehearsal_join_disabled',status:409});
+
+    const opened=await service.start(owner(),sessionId);
+    expect(opened.status).toBe('question_open');
+    expect(Number((await client.query(
+      'select count(*)::int count from live_exam_answers where session_question_id=$1',
+      [sessionQuestionId],
+    )).rows[0].count)).toBe(0);
+    expect(Number((await client.query(
+      'select count(*)::int count from class_question_exposures where live_session_question_id=$1',
+      [sessionQuestionId],
+    )).rows[0].count)).toBe(0);
+
+    expect((await service.revealMarkScheme(owner(),sessionId)).status).toBe('marking');
+    expect(Number((await client.query(
+      'select count(*)::int count from live_exam_reviews where session_question_id=$1',
+      [sessionQuestionId],
+    )).rows[0].count)).toBe(0);
+    expect((await service.completeMarking(owner(),sessionId,false)).status).toBe('review');
+    expect((await service.nextQuestion(owner(),sessionId)).status).toBe('finished');
+
+    expect(Number((await client.query(
+      'select count(*)::int count from live_exam_learning_evidence where session_id=$1',
+      [sessionId],
+    )).rows[0].count)).toBe(0);
+    expect(Number((await client.query(
+      'select count(*)::int count from mastery',
+    )).rows[0].count)).toBe(beforeMastery);
+  });
+
   it('creates student practice rooms with the host enrolled, fixed roster and bounded concurrency',async()=>{
     const portable={
       leaf:{

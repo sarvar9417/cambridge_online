@@ -29,6 +29,7 @@ const createInput = z.object({
   questionTimeLimits: z.record(uuid, z.number().int().min(30).max(7200).nullable()).default({}),
   markingMode: z.enum(['teacher', 'peer', 'self']),
   practiceMode:z.enum(['solo','group','collaborative']).optional(),
+  rehearsalMode:z.boolean().default(false),
   includeDiagrams: z.boolean().default(true),
   excludeSeen: z.boolean().default(true),
   difficulty: z.enum(['easy','medium','hard']).optional(),

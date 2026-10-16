@@ -79,7 +79,7 @@ function user(actor:ActorKey){
 const sourceSvg='<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180"><rect x="10" y="10" width="620" height="160" rx="8" fill="white" stroke="black"/><text x="40" y="60" font-size="24">A</text><path d="M70 52 H220" stroke="black" stroke-width="3"/><rect x="220" y="30" width="120" height="70" fill="none" stroke="black" stroke-width="3"/><text x="250" y="72" font-size="24">AND</text><path d="M340 65 H520" stroke="black" stroke-width="3"/><text x="530" y="72" font-size="24">Q</text><text x="40" y="130" font-size="20">Cambridge source-backed logic circuit</text></svg>';
 const assetUrl=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sourceSvg)}`;
 
-function snapshot(actor:ActorKey,status:SnapshotStatus='question_open'){
+function snapshot(actor:ActorKey,status:SnapshotStatus='question_open',rehearsal=false){
   const isStaff=actor==='teacher'||actor==='projector';
   const tableRows=Array.from({length:6},(_,r)=>Array.from({length:8},(_,c)=>`${r}:${c}`));
   return{
@@ -87,7 +87,7 @@ function snapshot(actor:ActorKey,status:SnapshotStatus='question_open'){
       id:SESSION_ID,classId:CLASS_ID,className:'AS Computer Science',title:'Browser acceptance',
       joinCode:'654321',status,markingMode:'peer',questionTimeLimitS:300,version:7,
       pausedAt:null,pauseRemainingS:null,
-      settings:{allowLateJoin:true,autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:true,leaderboardMode:'marks'},
+      settings:{rehearsalMode:rehearsal,allowLateJoin:rehearsal?false:true,autoCloseWhenAllSubmitted:false,teacherOverrideEnabled:true,leaderboardMode:'marks'},
       questionCount:1,participantCount:3,currentQuestionIndex:0,createdAt:now,updatedAt:now,
       hostName:'Acceptance teacher',startedAt:now,finishedAt:null,questionStartedAt:now,
       deadline:'2026-10-07T05:05:00.000Z',serverNow:now,submittedCount:0,reviewCount:0,reviewedCount:0,
@@ -138,7 +138,7 @@ function snapshot(actor:ActorKey,status:SnapshotStatus='question_open'){
   };
 }
 
-async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open'){
+async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open',rehearsal=false){
   await page.setRequestInterception(true);
   page.on('request',(request:HTTPRequest)=>{
     const url=new URL(request.url());
@@ -149,7 +149,7 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
     if(path==='/assignments'||path==='/results'||path==='/exports'){void json(request,{data:[]});return;}
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
-    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor,status));return;}
+    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor,status,rehearsal));return;}
     if(path===`/live-exams/${SESSION_ID}/events`){void json(request,{sessionId:SESSION_ID,currentVersion:7,changed:false,events:[]});return;}
     if(path===`/live-exams/${SESSION_ID}/heartbeat`){void json(request,{serverNow:now});return;}
     void json(request,{data:[]});
@@ -254,6 +254,51 @@ async function assertJoinQrFlow(browser:Browser,base:string){
   await Promise.all([teacherContext.close(),projectorContext.close(),studentContext.close()]);
 }
 
+async function assertRehearsalUi(browser:Browser,base:string){
+  const teacherContext=await browser.createBrowserContext();
+  const teacher=await teacherContext.newPage();
+  await teacher.setViewport({width:1440,height:1000});
+  await installApi(teacher,'teacher','lobby',true);
+  await teacher.goto(`${base}/#oqitish/live?id=${SESSION_ID}`,{waitUntil:'networkidle0',timeout:30_000});
+  await teacher.waitForSelector('.live-rehearsal-card',{timeout:15_000});
+  const lobby=await teacher.evaluate(()=>({
+    text:document.querySelector('.live-rehearsal-card')?.textContent??'',
+    qr:Boolean(document.querySelector('.live-code-card .live-join-qr')),
+    roster:Boolean(document.querySelector('.live-roster')),
+    startDisabled:(document.querySelector('.live-rehearsal-card .live-start') as HTMLButtonElement|null)?.disabled??true,
+  }));
+  if(!lobby.text.includes('REHEARSAL')||lobby.qr||lobby.roster||lobby.startDisabled){
+    throw new Error(`teacher rehearsal lobby failure: ${JSON.stringify(lobby)}`);
+  }
+
+  const projectorContext=await browser.createBrowserContext();
+  const projector=await projectorContext.newPage();
+  await projector.setViewport({width:1920,height:1080});
+  await installApi(projector,'projector','lobby',true);
+  await projector.goto(`${base}/#oqitish/live?id=${SESSION_ID}&projector=1`,{waitUntil:'networkidle0',timeout:30_000});
+  await projector.waitForSelector('.live-rehearsal-projector',{timeout:15_000});
+  const projectorState=await projector.evaluate(()=>({
+    text:document.querySelector('.live-rehearsal-projector')?.textContent??'',
+    qr:Boolean(document.querySelector('.live-join-qr')),
+  }));
+  if(!projectorState.text.includes('REHEARSAL')||projectorState.qr){
+    throw new Error(`projector rehearsal failure: ${JSON.stringify(projectorState)}`);
+  }
+
+  const activeContext=await browser.createBrowserContext();
+  const active=await activeContext.newPage();
+  await active.setViewport({width:1440,height:1000});
+  await installApi(active,'teacher','question_open',true);
+  await active.goto(`${base}/#oqitish/live?id=${SESSION_ID}`,{waitUntil:'networkidle0',timeout:30_000});
+  await active.waitForSelector('.live-question-card',{timeout:15_000});
+  if(await active.$('.live-active-join'))throw new Error('rehearsal exposed a learner join control after start');
+
+  await assertAxe(teacher,'teacher rehearsal lobby');
+  await assertAxe(projector,'projector rehearsal lobby');
+  await assertAxe(active,'teacher active rehearsal');
+  await Promise.all([teacherContext.close(),projectorContext.close(),activeContext.close()]);
+}
+
 async function assertReducedMotion(browser:Browser,base:string){
   const context=await browser.createBrowserContext();
   const page=await context.newPage();
@@ -323,7 +368,8 @@ try{
   for(const [index,surface] of surfaces.entries())await assertAxe(surface.page,`live surface ${index}`);
   await assertReducedMotion(browser,base);
   await assertJoinQrFlow(browser,base);
-  console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, QR join link, 1080p/4K projector, mobile answer UX, and source fidelity');
+  await assertRehearsalUi(browser,base);
+  console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, QR join link, teacher rehearsal, 1080p/4K projector, mobile answer UX, and source fidelity');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));

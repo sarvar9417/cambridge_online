@@ -18,6 +18,7 @@ const joinCodeLifecycle=source('src/database/migrations/0192_live_challenge_join
 const durableRateLimits=source('src/database/migrations/0193_durable_rate_limits.sql');
 const questionExposure=source('src/database/migrations/0206_live_question_exposure_read_model.sql');
 const questionReadiness=source('src/database/migrations/0207_live_question_readiness_cache.sql');
+const rehearsalIsolation=source('src/database/migrations/0212_live_rehearsal_isolation.sql');
 const coursebookSections=source('src/lib/live-coursebook-sections.ts');
 
 describe('Live Exam release security and recovery contract',()=>{
@@ -181,6 +182,18 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(questionExposure).not.toContain('started_at is not null');
     expect(service).toContain('from class_question_exposures exposure');
     expect(service).toContain("exposure.source_type='live'");
+  });
+
+  it('keeps staff rehearsal non-participatory and outside official learning evidence',()=>{
+    expect(service).toContain('rehearsalMode?: boolean');
+    expect(service).toContain("live_rehearsal_staff_only");
+    expect(service).toContain("live_rehearsal_invalid");
+    expect(service).toContain("!roomSettings.rehearsalMode && Number(count.rows[0].count)<1");
+    expect(service).toContain("coalesce((les.settings->>'rehearsalMode')::boolean,false)=false");
+    expect(service).toContain("live_rehearsal_join_disabled");
+    expect(rehearsalIsolation).toContain("NEW.settings->>'practiceMode' IS NULL");
+    expect(rehearsalIsolation).toContain("coalesce((NEW.settings->>'rehearsalMode')::boolean,false)=false");
+    expect(rehearsalIsolation).toContain("coalesce((les.settings->>'rehearsalMode')::boolean,false)=true");
   });
 
   it('keeps pause, late join and participant removal inside the canonical Live Exam boundary',()=>{
