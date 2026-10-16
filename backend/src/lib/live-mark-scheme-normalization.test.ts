@@ -107,6 +107,47 @@ One mark per mark point for testing, max three
     expect(result.points.every((point)=>point.marks===1)).toBe(true);
   });
 
+  it('splits numeric 1-mark-each bullet rubrics used by 9618 without the fake multi-mark M1',()=>{
+    const scheme=collapsed(`7(a)(i) 1 mark for each correct point to max 2 2
+• Efficient allocation of resources to processes
+• Moving processes between states
+• Allocating time slices to processes
+• Scheduling processes`,2);
+    const result=normalizeCollapsedLiveMarkScheme(scheme);
+    expect(result.schemeType).toBe('any_n_from_m');
+    expect(result.points).toHaveLength(4);
+    expect(result.points.every((point)=>point.marks===1)).toBe(true);
+    expect(result.groups[0]).toMatchObject({nRequired:2,maxMarks:2});
+  });
+
+  it('keeps paired benefit/expansion rubrics manual while exposing atomic checkboxes',()=>{
+    const scheme=collapsed(`2(b) 1 mark for each benefit and 1 mark for an appropriate expansion to max 4 (2 x 2) 4
+• Amend the code in real time
+• and see the changes immediately instead of recompiling
+• Stops as soon as an error is encountered
+• so the position of the error can be easily seen
+• Incomplete code can be tested
+• so the program does not need to be complete`,4);
+    const result=normalizeCollapsedLiveMarkScheme(scheme);
+    expect(result.schemeType).toBe('manual_only');
+    expect(result.points).toHaveLength(6);
+    expect(result.points.every((point)=>point.marks===1)).toBe(true);
+    expect(result.groups[0]).toMatchObject({nRequired:4,maxMarks:4});
+  });
+
+  it('splits explicit MP rows following a Cambridge Mark as follows block',()=>{
+    const scheme=collapsed(`Example solution:
+Mark as follows:
+MP1 Function header and parameter
+MP2 Declaration of local variables
+MP3 Correct calculation
+MP4 Return of calculated value`,4);
+    const result=normalizeCollapsedLiveMarkScheme(scheme);
+    expect(result.schemeType).toBe('all_required');
+    expect(result.points.map((point)=>point.code)).toEqual(['MP1','MP2','MP3','MP4']);
+    expect(result.points.every((point)=>point.marks===1)).toBe(true);
+  });
+
   it('fails safe for an ambiguous manual rubric instead of exposing one fake multi-mark MP',()=>{
     const scheme=collapsed('Award up to four marks using the complete official rubric shown here.',4);
     const result=normalizeCollapsedLiveMarkScheme(scheme);
