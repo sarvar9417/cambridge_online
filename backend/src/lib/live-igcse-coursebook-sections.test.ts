@@ -14,6 +14,7 @@ describe('2021 Hodder IGCSE Paper 2 book taxonomy',()=>{
     expect(LIVE_IGCSE_PAPER2_SECTIONS.find(s=>s.code==='7.7')?.title)
       .toBe('Trace tables to document dry runs of algorithms');
     expect(LIVE_IGCSE_PAPER2_SECTIONS.find(s=>s.code==='10.3')?.sourcePage).toBe(360);
+    expect(LIVE_IGCSE_PAPER2_SECTIONS.every(s=>s.mappingKind==='learning_objective_bridge')).toBe(true);
   });
   it('maps distinct 7.x and 10.x book sections to their corresponding official LOs, not whole chapters',()=>{
     expect(resolveIgcseBookSections(['7.7'])[0]?.loCodes).toEqual(['7-lo-07']);
