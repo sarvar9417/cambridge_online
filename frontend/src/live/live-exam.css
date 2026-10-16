@@ -301,3 +301,18 @@
   .live-join-card input{width:100%}
 }
 
+/* Staff rehearsal/demo: visually distinct from a live learner room. */
+.live-rehearsal-card{display:grid;gap:14px;max-width:780px;margin:0 auto;padding:28px;border:1px solid var(--accent);border-radius:var(--radius-xl);background:var(--accent-soft);box-shadow:var(--shadow)}
+.live-rehearsal-card h2{margin:0;font-size:clamp(24px,3vw,34px)}
+.live-rehearsal-card p{margin:0;color:var(--text-muted);line-height:1.6}
+.live-rehearsal-card>div{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.live-rehearsal-card .live-start{min-height:46px}
+.live-rehearsal-projector{min-height:48vh;text-align:center}
+.live-rehearsal-projector>div>span{color:var(--accent);font-weight:850;letter-spacing:.12em}
+.live-rehearsal-projector>div>strong{margin-top:12px;font-size:clamp(40px,5vw,76px);letter-spacing:-.03em}
+.live-rehearsal-projector>div>p{max-width:720px;margin-top:14px;color:var(--text-muted);font-size:clamp(18px,2vw,28px)}
+@media(max-width:640px){
+  .live-rehearsal-card{padding:20px}
+  .live-rehearsal-card>div{display:grid}
+}
+
