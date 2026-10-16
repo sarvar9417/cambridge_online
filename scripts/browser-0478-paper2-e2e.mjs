@@ -80,6 +80,27 @@ try{
   }
   await teacher.page.setViewport({width:1440,height:1000});
 
+  // Regression: checking Section 7.7 must not hide other chapter sections
+  // or prevent a mixed 7.7 + 8.2 selection.
+  const mixedSections=await teacher.page.evaluate(async()=>{
+    const getCheckbox=code=>{
+      const label=[...document.querySelectorAll('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label')]
+        .find(node=>node.textContent?.trim().startsWith(code+' '));
+      return label?.querySelector('input[type="checkbox"]');
+    };
+    getCheckbox('7.7')?.click();
+    await new Promise(requestAnimationFrame);
+    const secondVisible=!!getCheckbox('8.2');
+    getCheckbox('8.2')?.click();
+    await new Promise(requestAnimationFrame);
+    const bothSelected=!!getCheckbox('7.7')?.checked&&!!getCheckbox('8.2')?.checked;
+    getCheckbox('7.7')?.click();getCheckbox('8.2')?.click();
+    return {secondVisible,bothSelected};
+  });
+  await qa.check('0478: selecting 7.7 does not hide 8.2 and cross-chapter selection works',
+    mixedSections.secondVisible&&mixedSections.bothSelected,mixedSections);
+
+
   const eligibility=await teacher.page.evaluate(async classId=>{
     const {api}=await import('/src/lib/api.ts');
     const params=new URLSearchParams({
