@@ -135,6 +135,38 @@ describe('LiveExamRoundSummaryService', () => {
     expect((await run('full')).round.standings[0]?.studentName).toBe('Ali Valiyev');
   });
 
+  it('ranks teams by average Cambridge marks without replacing individual standings',async()=>{
+    const query=vi.fn()
+      .mockResolvedValueOnce({rowCount:1,rows:[{
+        id:'session-1',status:'review',current_question_index:0,
+        settings:{competitionMode:'teams',competitionGroupNames:['Red','Blue']},
+      }]})
+      .mockResolvedValueOnce({rowCount:4,rows:[
+        {student_id:'s1',full_name:'A',competition_group:1,score:5,marks:5,rank:1,alias_no:1},
+        {student_id:'s2',full_name:'B',competition_group:1,score:3,marks:5,rank:2,alias_no:2},
+        {student_id:'s3',full_name:'C',competition_group:2,score:2,marks:5,rank:3,alias_no:3},
+        {student_id:'s4',full_name:'D',competition_group:2,score:2,marks:5,rank:3,alias_no:4},
+      ]})
+      .mockResolvedValueOnce({rowCount:4,rows:[
+        {student_id:'s1',full_name:'A',competition_group:1,score:8,rank:1,alias_no:1},
+        {student_id:'s2',full_name:'B',competition_group:1,score:6,rank:2,alias_no:2},
+        {student_id:'s3',full_name:'C',competition_group:2,score:5,rank:3,alias_no:3},
+        {student_id:'s4',full_name:'D',competition_group:2,score:3,rank:4,alias_no:4},
+      ]})
+      .mockResolvedValueOnce({rowCount:1,rows:[{possible:10}]});
+    const result=await serviceFor(query).summary(teacher,'session-1',true);
+    expect(result.competition.mode).toBe('teams');
+    expect(result.competition.roundStandings).toEqual([
+      {rank:1,groupNo:1,label:'Red',score:4,possible:5,totalScore:8,memberCount:2},
+      {rank:2,groupNo:2,label:'Blue',score:2,possible:5,totalScore:4,memberCount:2},
+    ]);
+    expect(result.competition.overallStandings[0]).toMatchObject({
+      rank:1,groupNo:1,label:'Red',score:7,possible:10,totalScore:14,memberCount:2,
+    });
+    expect(result.round.standings).toHaveLength(4);
+    expect(result.round.standings.every((item)=>!('studentId' in item))).toBe(true);
+  });
+
   it('keeps speed disabled unless the room explicitly enables a tie-break', async () => {
     const query=vi.fn()
       .mockResolvedValueOnce({rowCount:1,rows:[{id:'session-1',status:'finished',current_question_index:0}]})
