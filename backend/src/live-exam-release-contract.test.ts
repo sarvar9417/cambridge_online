@@ -27,6 +27,7 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(schema).toContain('mark_scheme_snapshot jsonb NOT NULL');
     expect(service).toContain("`q.status='approved'`");
     expect(service).toContain("`ms.status='approved'`");
+    expect(service).toContain('normalizeCollapsedLiveMarkScheme(rawScheme)');
     expect(service).toContain('with recursive closure(question_id)');
     expect(service).toContain("qd.strength::text='required'");
     expect(service).not.toContain('q.parent_id is not null');
