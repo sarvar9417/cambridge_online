@@ -11,6 +11,7 @@ import { portableQuestionVisualReady, questionVisualIntegritySql } from '../lib/
 import { liveCoursebookQuestionFilter, resolveLiveCoursebookSections } from '../lib/live-coursebook-sections.js';
 import { liveIgcseBookQuestionFilter, resolveIgcseBookSections } from '../lib/live-igcse-coursebook-sections.js';
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
+import { normalizeCollapsedLiveMarkScheme } from '../lib/live-mark-scheme-normalization.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
@@ -276,7 +277,8 @@ export class LiveExamService {
        where ms.question_id=$1 and ms.status='approved'`,
       [questionId],
     );
-    const scheme=result.rows[0]?.scheme as MarkSchemeSnapshot|undefined;
+    const rawScheme=result.rows[0]?.scheme as MarkSchemeSnapshot|undefined;
+    const scheme=rawScheme?normalizeCollapsedLiveMarkScheme(rawScheme):undefined;
     if (!scheme || !liveMarkSchemeCapabilityReady(scheme)) throw new DomainError('live_question_not_ready', 409);
     return scheme;
   }
