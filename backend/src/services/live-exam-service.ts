@@ -57,6 +57,8 @@ export interface CreateLiveExamInput {
   questionTimeLimits?: Record<string, number | null>;
   markingMode: LiveExamMarkingMode;
   practiceMode?:'solo'|'group'|'collaborative';
+  /** Staff-only dry run. No learners, exposure ledger, mastery, or assessment evidence. */
+  rehearsalMode?: boolean;
   includeDiagrams: boolean;
   excludeSeen: boolean;
   /** Optional builder filters. Difficulty is a transparent marks-based band: easy 1–2, medium 3–4, hard 5+. */
@@ -179,6 +181,17 @@ export class LiveExamService {
       || (input.practiceMode==='group'?input.markingMode!=='peer':input.markingMode!=='self')
       || input.teacherOverrideEnabled===true || Number(input.peerCalibrationPercent??0)!==0)
       throw new DomainError('live_student_practice_invalid',400);
+  }
+  private validateRehearsalMode(actor:Actor,input:CreateLiveExamInput){
+    if(!input.rehearsalMode)return;
+    if(actor.role==='student')throw new DomainError('live_rehearsal_staff_only',403);
+    if(input.practiceMode!==undefined
+      || input.markingMode!=='teacher'
+      || input.allowLateJoin===true
+      || input.autoCloseWhenAllSubmitted===true
+      || Number(input.peerCalibrationPercent??0)!==0){
+      throw new DomainError('live_rehearsal_invalid',400);
+    }
   }
   private async requireClassControl(executor: Pick<Pool, 'query'> | PoolClient, actor: Actor, classId: string) {
     this.assertStaff(actor);
@@ -968,6 +981,7 @@ export class LiveExamService {
     if(input.questionIds?.length && input.questionOrder==='balanced')
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
+    this.validateRehearsalMode(actor,input);
     this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -1042,14 +1056,15 @@ export class LiveExamService {
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
                 practiceMode:actor.role==='student'?input.practiceMode:null,
-                // Learner-led practice locks its roster at Start. In-progress
-                // late joins otherwise invalidate anonymous peer assignments.
-                allowLateJoin:actor.role==='student'?false:(input.allowLateJoin ?? false),
-                autoCloseWhenAllSubmitted: input.autoCloseWhenAllSubmitted ?? false,
+                rehearsalMode:actor.role!=='student'&&input.rehearsalMode===true,
+                // Learner-led practice and staff rehearsal both lock the roster.
+                // Rehearsal is intentionally non-participatory.
+                allowLateJoin:actor.role==='student'||input.rehearsalMode===true?false:(input.allowLateJoin ?? false),
+                autoCloseWhenAllSubmitted: input.rehearsalMode===true?false:(input.autoCloseWhenAllSubmitted ?? false),
                 teacherOverrideEnabled:actor.role==='student'?false:(input.teacherOverrideEnabled ?? true),
                 leaderboardMode: input.leaderboardMode ?? 'marks',
                 displayNameMode:actor.role==='student'?'anonymous_alias':(input.displayNameMode??'anonymous_alias'),
-                peerCalibrationPercent: Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
+                peerCalibrationPercent: input.rehearsalMode===true?0:Math.max(0, Math.min(100, Math.round(input.peerCalibrationPercent ?? 0))),
                 peerDisagreementThreshold: Math.max(0, Number(input.peerDisagreementThreshold ?? 1)),
                 defaultQuestionTimeLimitS: input.questionTimeLimitS ?? null,
                 questionTimeLimits: Object.fromEntries(
@@ -1145,6 +1160,7 @@ export class LiveExamService {
         `select les.*
          from live_exam_sessions les
          where les.join_code=$1
+           and coalesce((les.settings->>'rehearsalMode')::boolean,false)=false
            and (les.settings->>'practiceMode' is null
              or (les.settings->>'practiceMode'<>'solo' and exists(
                select 1 from classes practice_class
@@ -1984,8 +2000,9 @@ export class LiveExamService {
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
         [sessionId],
       );
-      if(Number(count.rows[0].count)<1
-          || ((session.settings as {practiceMode?:string}|null)?.practiceMode==='group'
+      const roomSettings=this.settings(session.settings);
+      if((!roomSettings.rehearsalMode && Number(count.rows[0].count)<1)
+          || (roomSettings.practiceMode==='group'
            && Number(count.rows[0].count)<2))throw new DomainError('live_no_participants',409);
       const question = await client.query(
         `select id,question_id from live_exam_questions where session_id=$1 and position=0`, [sessionId]);
@@ -2025,8 +2042,11 @@ export class LiveExamService {
     try {
       await client.query('begin');
       const session = await this.lockControlledSession(client, actor, sessionId);
-      if((session.settings as {practiceMode?:string}|null)?.practiceMode)
+      const roomSettings=this.settings(session.settings);
+      if(roomSettings.practiceMode)
         throw new DomainError('live_practice_roster_locked',409);
+      if(roomSettings.rehearsalMode)
+        throw new DomainError('live_rehearsal_join_disabled',409);
       this.assertExpectedVersion(session, expectedVersion);
       if (!['lobby','question_open','marking','review'].includes(String(session.status))) {
         throw new DomainError('live_invalid_state', 409);
@@ -2821,7 +2841,8 @@ export class LiveExamService {
     return {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
-      allowLateJoin: raw.allowLateJoin === true,
+      rehearsalMode:raw.rehearsalMode===true,
+      allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
       teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
       leaderboardMode: raw.leaderboardMode === 'marks_speed_tiebreak'
