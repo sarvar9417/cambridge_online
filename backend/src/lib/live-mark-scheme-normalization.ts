@@ -31,7 +31,7 @@ export type LiveMarkSchemeForNormalization = {
 };
 
 type ParsedRubric = {
-  schemeType: 'all_required' | 'any_n_from_m';
+  schemeType: 'all_required' | 'any_n_from_m' | 'manual_only';
   points: LiveAtomicPoint[];
   groups: LiveAtomicGroup[];
 };
