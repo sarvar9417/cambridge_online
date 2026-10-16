@@ -40,6 +40,14 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
     expect(styles).toContain('width:18px;height:18px;min-height:18px');
     expect(styles).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
   });
+  it('keeps unrelated IGCSE Chapter Sections visible after selecting one and invalidates stale pool replies',()=>{
+    expect(page).toContain("syllabusCode==='0478'||!selectedChapterNumbers.length");
+    expect(page).toContain('const poolRequestEpoch=useRef(0)');
+    expect(page).toContain('poolRequestEpoch.current+=1');
+    expect(page).toContain('const epoch=++poolRequestEpoch.current');
+    expect(page).toContain('if(epoch!==poolRequestEpoch.current)return;');
+    expect(page).toContain('if(epoch===poolRequestEpoch.current)setError(');
+  });
   it('keeps the normal student and staff feature flows',()=>{
     expect(page).toContain("practiceMode:user.role==='student'?practiceMode:undefined");
     expect(page).toContain("api<{id:string}>('/live-exams'");
