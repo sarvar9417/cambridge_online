@@ -27,6 +27,7 @@ import {
 import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
+import { LiveJoinQr, liveJoinUrl } from './LiveJoinQr';
 import {
   moveLiveQuestionTimeOverride,
   serializeLiveQuestionTimeOverrides,
@@ -310,13 +311,15 @@ function LobbyParticipants({snapshot,busy,onRemove}:{snapshot:LiveExamSnapshot;b
 }
 
 function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
+  const route=useRoute();
+  const sharedJoinCode=(route.params.get('code')??'').replace(/\D/g,'').slice(0,6);
   const [sessions,setSessions]=useState<LiveExamSummary[]>([]);
   const [options,setOptions]=useState<FilterOptions>(EMPTY_OPTIONS);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [deletingSessionId,setDeletingSessionId]=useState('');
-  const [code,setCode]=useState('');
+  const [code,setCode]=useState(()=>/^\d{6}$/.test(sharedJoinCode)?sharedJoinCode:'');
   const [practiceMode,setPracticeMode]=useState<'solo'|'group'|'collaborative'>('solo');
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [syllabusCode,setSyllabusCode]=useState<'9618'|'0478'>('9618');
@@ -371,6 +374,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     Promise.all(requests).catch((cause)=>setError(message(cause,'Ma’lumotlar yuklanmadi.'))).finally(()=>setLoading(false));
   },[user.role]);
   useEffect(()=>{if(!selectedClassId&&classes[0])setSelectedClassId(classes[0].id)},[classes,selectedClassId]);
+  useEffect(()=>{if(user.role==='student'&&/^\d{6}$/.test(sharedJoinCode))setCode(sharedJoinCode)},[sharedJoinCode,user.role]);
 
   // Book chapters/sections are independent for 9618 and 0478.
   const coursebookSections=(syllabusCode==='0478'
@@ -617,6 +621,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     {error?<p className="live-error" role="alert">{error}</p>:null}
     {user.role==='student'?<section className="live-join-card">
       <div><span className="live-eyebrow">XONAGA KIRISH</span><h2>Do‘stingiz yoki o‘qituvchingiz bergan 6 xonali kodni kiriting</h2></div>
+      {/^\d{6}$/.test(sharedJoinCode)?<p className="live-shared-code-note" role="status">QR yoki ulashilgan havoladagi xona kodi tayyor: <strong>{sharedJoinCode}</strong></p>:null}
       <form onSubmit={join}><input aria-label="Xona kodi" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" value={code} onChange={(e)=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/><button disabled={busy||code.length!==6}>Qo‘shilish</button></form>
     </section>:null}<form className="live-create" onSubmit={create}>
       <section className="live-create-main"><span className="live-step">1</span><div><h2>{user.role==='student'?'O‘z mashqingizni yarating':'Sessiya'}</h2><p>Sinf va savollar ko‘lamini tanlang.</p></div>
@@ -732,7 +737,7 @@ function ProjectorView({snapshot,sessionId}:{snapshot:LiveExamSnapshot;sessionId
     <main className={session.pausedAt?'is-paused':''}>
       {session.pausedAt?<section className="live-paused-card"><Broadcast size={56}/><span>CHALLENGE PAUZADA</span><h1>O‘qituvchi davom ettirishi kutilmoqda</h1></section>:null}
       {!session.pausedAt?<>
-      {session.status==='lobby'?<section className="live-projector-lobby"><span>JOIN CODE</span><strong>{session.joinCode}</strong><p>{session.participantCount} o‘quvchi qo‘shildi</p></section>:null}
+      {session.status==='lobby'?<section className="live-projector-lobby"><div><span>JOIN CODE</span><strong>{session.joinCode}</strong><p>{session.participantCount} o‘quvchi qo‘shildi</p></div><LiveJoinQr code={session.joinCode} className="is-projector"/></section>:null}
       {session.status==='question_open'&&snapshot.question?<><LiveQuestionView question={snapshot.question}/><div className="live-projector-count"><UsersThree size={32}/><strong>{session.submittedCount}/{session.participantCount}</strong><span>javob topshirdi</span></div></>:null}
       {session.status==='marking'&&snapshot.markScheme?<><MarkSchemeView scheme={snapshot.markScheme}/><div className="live-projector-count"><CheckCircle size={32}/><strong>{session.reviewedCount}/{session.reviewCount}</strong><span>baholash tugadi</span></div></>:null}
       {session.status==='review'?<LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/>:null}
@@ -1116,14 +1121,15 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
     await act(`/participants/${studentId}/remove`,{expectedVersion:session.version});
   };
   const copyCode=()=>void navigator.clipboard?.writeText(session.joinCode);
+  const copyJoinLink=()=>void navigator.clipboard?.writeText(liveJoinUrl(session.joinCode));
   const openProjector=()=>window.open(`${window.location.href.split('#')[0]}#oqitish/live?id=${session.id}&projector=1`,'campath-projector','noopener,noreferrer');
 
   return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
-    {['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Nusxalash</button><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
+    {['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div>{session.settings.allowLateJoin?<LiveJoinQr code={session.joinCode} className="is-compact"/>:null}<div className="live-active-join-actions"><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Kod</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join link</button></div><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
     {session.status==='lobby'&&snapshot.questions.length?<section className="live-lobby-order-preview" aria-label="Boshlashdan oldingi yakuniy savollar tartibi"><header><div><span className="live-eyebrow">TEACHER-ONLY · FINAL ORDER</span><h2>Challenge savollari tartibi</h2><p><strong>Tartib:</strong> {session.settings.questionOrder==='balanced'?'Balanced Random':session.settings.questionOrder==='fixed'?'Fixed · Source tartibi':'Random'}</p><p>Bu haqiqiy saqlangan ketma-ketlik. O‘quvchilar Start bosilguncha savollarni ko‘ra olmaydi.</p></div><strong>{snapshot.questions.length} savol</strong></header><details open><summary>Yakuniy savollarni ko‘rish</summary><ol>{snapshot.questions.map(item=><li key={item.id}><span>{item.position+1}.</span><strong>{item.displayRef}</strong><small>{item.marks} ball</small></li>)}</ol></details><p className="live-order-preview-note">Tartib mos kelmasa, Challenge’ni bekor qilib boshqa tartibda qayta yarating. Boshlangan sessiyaning savollari almashtirilmaydi.</p></section>:null}
-    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><button onClick={copyCode}><Copy/> Kodni nusxalash</button><p>O‘quvchilar akkauntiga kirib, “Live Challenge” bo‘limida kodni kiritadi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
+    {session.status==='lobby'?<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><LiveJoinQr code={session.joinCode}/><div className="live-code-share-actions"><button onClick={copyCode}><Copy/> Kodni nusxalash</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join linkni nusxalash</button></div><p>QR kodni skanerlang yoki havolani ulashing. O‘quvchi akkauntga kirgach xona kodi avtomatik tayyor bo‘ladi.</p><button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button></section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>:null}
     {session.status==='question_open'&&snapshot.question?<><SessionProgress snapshot={snapshot}/><div className="live-teacher-question"><div><LiveQuestionView question={snapshot.question}/></div><aside><div className="live-timer-card"><span>QOLGAN VAQT</span><strong className={remaining!==null&&remaining<30?'is-urgent':''}>{session.pausedAt?formatClock(session.pauseRemainingS):formatClock(remaining)}</strong></div><div className="live-submit-stat"><strong>{session.submittedCount}</strong><span>/ {session.participantCount} topshirdi</span><progress max={Math.max(1,session.participantCount)} value={session.submittedCount}/></div><ul className="live-submit-list">{snapshot.participants.map((person)=><li key={person.id}><span>{person.fullName}</span><b className={person.submitted?'is-done':''}>{person.submitted?'Topshirdi':'Yozmoqda'}</b></li>)}</ul><button disabled={busy||Boolean(session.pausedAt)} onClick={()=>void act('/reveal')}>Javoblarni yopish va MSni ochish</button><small>Topshirmagan javoblar bo‘sh holatda avtomatik yopiladi.</small></aside></div></>:null}
     {session.status==='marking'?<><SessionProgress snapshot={snapshot}/><ReviewQuestionContext question={snapshot.question}/><div className="live-marking-head"><div><span className="live-eyebrow">BAHOLASH</span><h2>{session.reviewedCount}/{session.reviewCount} ta tugadi</h2></div><div className="live-marking-actions"><button disabled={busy||Boolean(session.pausedAt)||session.reviewedCount<session.reviewCount} onClick={()=>void act('/marking/complete')}>Natijalarni ochish</button>{session.markingMode!=='teacher'&&session.reviewedCount<session.reviewCount?<button className="live-secondary" disabled={busy||Boolean(session.pausedAt)} onClick={()=>{if(window.confirm('Tugallanmagan peer/self baholashlarni o‘qituvchiga biriktirishni xohlaysizmi? Hech kimga avtomatik 0 ball berilmaydi.'))void act('/marking/complete',{force:true})}}>Kutilayotganlarni o‘qituvchiga olish</button>:null}</div></div>
       {session.markingMode==='teacher'&&activeAnswer?<div className="live-teacher-marking"><nav>{snapshot.teacherAnswers.map((answer,index)=><button className={activeAnswer.id===answer.id?'is-active':''} key={answer.id} onClick={()=>setActiveAnswerId(answer.id)}><span>{index+1}</span><strong>{answer.studentName}</strong><i>{answer.reviewStatus==='assigned'?'Kutilmoqda':`${answer.score??0}/${snapshot.question?.marks}`}</i></button>)}</nav><TeacherAnswerMarker key={`${activeAnswer.id}:${activeAnswer.reviewStatus}:${activeAnswer.score}`} snapshot={snapshot} answer={activeAnswer} onDone={()=>{setActiveAnswerId('');return refresh()}}/></div>:null}
@@ -1164,8 +1170,8 @@ function StudentHostControls({snapshot,refresh}:{snapshot:LiveExamSnapshot;refre
   return <section className="live-student-host" aria-label="Sizning Challenge boshqaruvingiz">
     <header><div><span className="live-eyebrow">MY PRACTICE · HOST</span><h2>{practice==='solo'?'Solo Practice':practice==='group'?'Group Challenge':'Collaborative Practice'}</h2>
     <p>{session.participantCount} ishtirokchi · {session.submittedCount} javob topshirilgan</p></div>
-    {practice!=='solo'&&session.status==='lobby'?<div className="live-student-host-code"><small>JOIN CODE</small><strong>{session.joinCode}</strong>
-    <button type="button" className="live-secondary" onClick={()=>void navigator.clipboard?.writeText(session.joinCode)}>Nusxalash</button></div>:null}</header>
+    {practice!=='solo'&&session.status==='lobby'?<div className="live-student-host-code"><small>JOIN CODE</small><strong>{session.joinCode}</strong><LiveJoinQr code={session.joinCode} className="is-compact"/>
+    <div><button type="button" className="live-secondary" onClick={()=>void navigator.clipboard?.writeText(session.joinCode)}>Kod</button><button type="button" className="live-secondary" onClick={()=>void navigator.clipboard?.writeText(liveJoinUrl(session.joinCode))}>Join link</button></div></div>:null}</header>
     <div className="live-student-host-actions">
       {session.status==='lobby'?<button type="button" disabled={busy||!canStart} onClick={()=>void act('/start')}>{busy&&actionKey==='/start'?'Boshlanmoqda…':'Start Challenge'}</button>:null}
       {session.status==='lobby'&&practice==='group'&&!canStart?<small>Peer baholash uchun kamida 2 o‘quvchi kerak.</small>:null}

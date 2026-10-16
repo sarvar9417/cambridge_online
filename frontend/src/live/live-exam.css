@@ -271,3 +271,33 @@
   .live-0478-subtopics{padding:12px}
   .live-create .live-0478-topic-option{padding:11px}
 }
+
+/* QR join links: generated locally so the room code is never sent to a third-party QR service. */
+.live-join-qr{display:grid;justify-items:center;gap:7px}
+.live-join-qr svg{display:block;width:176px;max-width:100%;height:auto;border:1px solid var(--border);border-radius:12px;background:#fff;padding:5px}
+.live-join-qr-bg{fill:#fff}.live-join-qr-modules{fill:#111}
+.live-join-qr small{color:var(--text-muted);font-size:11px;line-height:1.3;text-align:center}
+.live-join-qr.is-compact{grid-template-columns:64px auto;justify-items:start;align-items:center;gap:8px}
+.live-join-qr.is-compact svg{width:64px;border-radius:8px;padding:2px}
+.live-join-qr.is-compact small{max-width:105px;text-align:left}
+.live-join-qr.is-projector svg{width:min(24vw,260px);border-width:2px;padding:7px}
+.live-join-qr.is-projector small{font-size:clamp(12px,1.2vw,18px)}
+.live-code-share-actions,.live-active-join-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.live-code-share-actions button,.live-active-join-actions button{display:flex;align-items:center;gap:6px}
+.live-shared-code-note{margin:10px 0 0;padding:9px 11px;border-radius:var(--radius);background:var(--accent-soft);color:var(--text-muted)}
+.live-shared-code-note strong{color:var(--text)}
+.live-projector-lobby{display:flex;align-items:center;justify-content:center;gap:clamp(24px,5vw,80px);flex-wrap:wrap}
+.live-projector-lobby>div{display:grid;justify-items:center}
+.live-student-host-code>.live-join-qr{flex-basis:100%}
+.live-student-host-code>div{display:flex;gap:.5rem;flex-wrap:wrap}
+@media(max-width:640px){
+  .live-code-card{padding:22px 16px}
+  .live-code-card>strong{font-size:clamp(44px,16vw,64px)}
+  .live-code-share-actions{width:100%}
+  .live-code-share-actions button{flex:1 1 160px;justify-content:center}
+  .live-active-join-actions{width:100%;justify-content:flex-start}
+  .live-join-card{grid-template-columns:1fr;padding:22px}
+  .live-join-card form{display:grid;grid-template-columns:1fr}
+  .live-join-card input{width:100%}
+}
+
