@@ -204,6 +204,56 @@ async function assertAxe(page:Page,label:string){
   }
 }
 
+async function assertJoinQrFlow(browser:Browser,base:string){
+  const teacherContext=await browser.createBrowserContext();
+  const teacher=await teacherContext.newPage();
+  await teacher.setViewport({width:1440,height:1000});
+  await installApi(teacher,'teacher','lobby');
+  await teacher.goto(`${base}/#oqitish/live?id=${SESSION_ID}`,{waitUntil:'networkidle0',timeout:30_000});
+  await teacher.waitForSelector('.live-code-card .live-join-qr svg',{timeout:15_000});
+  const teacherQr=await teacher.$eval('.live-code-card .live-join-qr svg',(svg)=>({
+    label:svg.getAttribute('aria-label')??'',
+    modules:svg.querySelector('.live-join-qr-modules')?.getAttribute('d')?.length??0,
+    width:svg.getBoundingClientRect().width,
+    bodyOverflow:document.documentElement.scrollWidth-window.innerWidth,
+  }));
+  if(teacherQr.label!=='Live Challenge 654321 xonasiga kirish uchun QR kod'||teacherQr.modules<500||teacherQr.width<120||teacherQr.bodyOverflow>2){
+    throw new Error(`teacher lobby QR failure: ${JSON.stringify(teacherQr)}`);
+  }
+
+  const projectorContext=await browser.createBrowserContext();
+  const projector=await projectorContext.newPage();
+  await projector.setViewport({width:1920,height:1080});
+  await installApi(projector,'projector','lobby');
+  await projector.goto(`${base}/#oqitish/live?id=${SESSION_ID}&projector=1`,{waitUntil:'networkidle0',timeout:30_000});
+  await projector.waitForSelector('.live-projector-lobby .live-join-qr svg',{timeout:15_000});
+  const projectorQr=await projector.$eval('.live-projector-lobby .live-join-qr svg',(svg)=>({
+    modules:svg.querySelector('.live-join-qr-modules')?.getAttribute('d')?.length??0,
+    width:svg.getBoundingClientRect().width,
+  }));
+  if(projectorQr.modules<500||projectorQr.width<180)throw new Error(`projector lobby QR failure: ${JSON.stringify(projectorQr)}`);
+
+  const studentContext=await browser.createBrowserContext();
+  const student=await studentContext.newPage();
+  await student.setViewport({width:390,height:844});
+  await installApi(student,'student1','lobby');
+  await student.goto(`${base}/#oquvchi/live?code=654321`,{waitUntil:'networkidle0',timeout:30_000});
+  await student.waitForSelector('input[aria-label="Xona kodi"]',{timeout:15_000});
+  const shared=await student.$eval('input[aria-label="Xona kodi"]',(input)=>({
+    value:(input as HTMLInputElement).value,
+    note:document.querySelector('.live-shared-code-note')?.textContent??'',
+    bodyOverflow:document.documentElement.scrollWidth-window.innerWidth,
+  }));
+  if(shared.value!=='654321'||!shared.note.includes('654321')||shared.bodyOverflow>2){
+    throw new Error(`shared join-link prefill failure: ${JSON.stringify(shared)}`);
+  }
+
+  await assertAxe(teacher,'teacher QR lobby');
+  await assertAxe(projector,'projector QR lobby');
+  await assertAxe(student,'student shared join link');
+  await Promise.all([teacherContext.close(),projectorContext.close(),studentContext.close()]);
+}
+
 async function assertReducedMotion(browser:Browser,base:string){
   const context=await browser.createBrowserContext();
   const page=await context.newPage();
@@ -272,7 +322,8 @@ try{
   }
   for(const [index,surface] of surfaces.entries())await assertAxe(surface.page,`live surface ${index}`);
   await assertReducedMotion(browser,base);
-  console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, 1080p/4K projector, mobile answer UX, and source fidelity');
+  await assertJoinQrFlow(browser,base);
+  console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, QR join link, 1080p/4K projector, mobile answer UX, and source fidelity');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));
