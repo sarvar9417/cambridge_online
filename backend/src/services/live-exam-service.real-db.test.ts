@@ -5,6 +5,7 @@ import type { AssetUrlSigner } from '../jobs/asset-store.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 import { LiveExamService, LIVE_FIXED_SOURCE_ORDER_SQL } from './live-exam-service.js';
 import { LiveExamRealtimeService } from './live-exam-realtime-service.js';
+import { LiveExamRoundSummaryService } from './live-exam-round-summary-service.js';
 
 const describeLive = process.env.LIVE_DB_ACCEPTANCE === '1' ? describe : describe.skip;
 
@@ -304,6 +305,55 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(Number((await client.query(
       'select count(*)::int count from mastery',
     )).rows[0].count)).toBe(beforeMastery);
+  });
+
+  it('balances team members at start and late join while keeping group scoring marks-first',async()=>{
+    const {sessionId}=await makeSession({
+      code:'829982',
+      markingMode:'teacher',
+      settings:{
+        competitionMode:'teams',
+        competitionGroupCount:2,
+        competitionGroupNames:['Red','Blue'],
+        allowLateJoin:true,
+      },
+      participants:[0,1,2],
+    });
+    expect((await service.start(owner(),sessionId)).status).toBe('question_open');
+    const initial=await client.query<{competition_group:number;count:number}>(
+      `select competition_group,count(*)::int count
+       from live_exam_participants
+       where session_id=$1 and left_at is null
+       group by competition_group order by competition_group`,
+      [sessionId],
+    );
+    expect(initial.rows.map(row=>[Number(row.competition_group),Number(row.count)])).toEqual([[1,2],[2,1]]);
+
+    expect((await service.join(sameSchoolGuest(),'829982')).sessionId).toBe(sessionId);
+    const balanced=await client.query<{competition_group:number;count:number}>(
+      `select competition_group,count(*)::int count
+       from live_exam_participants
+       where session_id=$1 and left_at is null
+       group by competition_group order by competition_group`,
+      [sessionId],
+    );
+    expect(balanced.rows.map(row=>[Number(row.competition_group),Number(row.count)])).toEqual([[1,2],[2,2]]);
+
+    await client.query(
+      `update live_exam_answers answer set
+         final_score=case when participant.competition_group=1 then 1 else 0 end,
+         score_source='teacher',submitted_at=now()
+       from live_exam_participants participant
+       where answer.participant_id=participant.id and participant.session_id=$1`,
+      [sessionId],
+    );
+    await client.query("update live_exam_sessions set status='review' where id=$1",[sessionId]);
+    const summary=await new LiveExamRoundSummaryService(pool).summary(owner(),sessionId);
+    expect(summary.competition.mode).toBe('teams');
+    expect(summary.competition.roundStandings).toEqual([
+      expect.objectContaining({rank:1,groupNo:1,label:'Red',score:1,possible:1,totalScore:2,memberCount:2}),
+      expect.objectContaining({rank:2,groupNo:2,label:'Blue',score:0,possible:1,totalScore:0,memberCount:2}),
+    ]);
   });
 
   it('creates student practice rooms with the host enrolled, fixed roster and bounded concurrency',async()=>{
