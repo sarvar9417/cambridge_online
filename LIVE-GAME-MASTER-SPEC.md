@@ -82,14 +82,14 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "live_accessibility_browser_gate": true,
     "peer_marking_quality_controls": true,
     "per_question_timing_profiles": true,
-    "optional_calibration_and_double_marking": true
+    "optional_calibration_and_double_marking": true,
+    "teacher_rehearsal_demo_mode": true
   },
   "gaps": {
     "p0": [],
     "p1": [],
     "p2": [
-      { "id": "LG-P2-03", "title": "Team and house modes" },
-      { "id": "LG-P2-04", "title": "Teacher rehearsal and demo mode" }
+      { "id": "LG-P2-03", "title": "Team and house modes" }
     ]
   },
   "acceptance": {
@@ -111,6 +111,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "p2_closure_evidence": {
       "LG-P2-01": "teacher, projector and student-host lobby surfaces render a locally generated QR for a same-origin hash join URL carrying only the six-digit room code; the learner route pre-fills that code after authentication without exposing session IDs or using a third-party QR service; deterministic unit tests, responsive axe browser acceptance, real PostgreSQL and the full Live browser E2E are green on PR #366",
       "LG-P2-02": "manual Live selections can inherit the session timer or choose an explicit unlimited/30s/1m/1.5m/2m/3m/5m/10m profile per selected question; server snapshots freeze the mapping, start/next resolve the authoritative question timer, replacement carries the profile, removal drops stale overrides, and full verify + real PostgreSQL + Live browser suites + full teacher/projector/3-student E2E are green on PR #354",
+      "LG-P2-04": "staff-only rehearsal/demo rooms force teacher semantics, start with zero learners, disable join/late-join and learner QR surfaces, remain projector-capable, and use migration 0212 to exclude rehearsal question openings from class exposure and finished rehearsals from learning evidence/mastery; real PostgreSQL proves zero answers/reviews/exposure/evidence/mastery side effects and Chrome acceptance covers teacher/projector rehearsal UI; PR #367",
       "LG-P2-05": "peer mode already supports opt-in 10/20/50/100% teacher calibration, including a 100% double-check profile; real PostgreSQL acceptance proves 100% creates peer plus independent teacher reviews for every answer, teacher marks become authoritative, disagreement thresholds populate the quality queue, and a focused frontend DOM regression verifies the TEACHER CALIBRATION and PEER QUALITY staff workflow"
     },
     "p0_closure_evidence": {
