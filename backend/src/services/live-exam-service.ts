@@ -693,7 +693,7 @@ export class LiveExamService {
       });
       const chapterBySection=new Map(
         (syllabusCode==='0478'?resolveIgcseBookSections(sections)
-          :resolveLiveCoursebookSections(sections)).map(section=>[section.code,section.chapterNumber]),
+          :resolveLiveCoursebookSections(sections)).map(section=>[section.code,section.chapterNumber] as const),
       );
       const conditions=sections.map((code,index)=>{
         const predicate=syllabusCode==='0478'
