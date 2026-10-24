@@ -9,6 +9,24 @@ export interface DatabaseSslInput {
 export const isLocalDatabase = (connectionString: string) =>
   /@(localhost|127\.0\.0\.1|postgres|host\.docker\.internal)[:/]/.test(connectionString);
 
+const CONNECTION_STRING_SSL_KEYS = ['sslmode','sslcert','sslkey','sslrootcert','sslpassword','uselibpqcompat'] as const;
+
+/**
+ * The application owns PostgreSQL TLS policy through DB_SSL_MODE/DB_SSL_CA.
+ * Remove libpq-style SSL query parameters from DATABASE_URL before handing it
+ * to node-postgres; otherwise pg-connection-string can replace the explicit
+ * `ssl` object (notably sslmode=require currently aliases verify-full).
+ */
+export function stripConnectionStringSslPolicy(connectionString:string) {
+  try {
+    const url=new URL(connectionString);
+    for(const key of CONNECTION_STRING_SSL_KEYS)url.searchParams.delete(key);
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 /**
  * `auto` is the rollout-safe default for remote databases:
  * - if a CA is configured, verify the certificate and hostname;
