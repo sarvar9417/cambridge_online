@@ -32,13 +32,20 @@ describe('0478 2025-2026 corpus configuration', () => {
     expect(migration).toContain('to service_role')
   })
 
-  it('retries transient Drive failures and watches all files that can change the corpus contract', async () => {
+  it('retries transient Drive failures and requires a manually confirmed Paper 2 audit/import', async () => {
     const runner = await read('../../supabase/functions/corpus-runner/index.ts')
     const workflow = await read('../../.github/workflows/full-0478-corpus-backfill.yml')
     expect(runner).toContain('const maxAttempts=4')
     expect(runner).toContain('r.status===429||r.status>=500')
     expect(runner).toContain('[500,1500,3500]')
-    expect(workflow).toContain("- 'backend/src/database/migrations/0103_extend_0478_sources_to_2028.sql'")
-    expect(workflow).toContain("- 'supabase/functions/corpus-runner/parser.ts'")
+    expect(workflow).toContain('workflow_dispatch:')
+    expect(workflow).not.toContain('  push:')
+    expect(workflow).toContain('BACKFILL_MODE:')
+    expect(workflow).toContain("BACKFILL_COMPONENTS: '2'")
+    expect(workflow).toContain('I_APPROVE_0478_PAPER2_DB_WRITES')
+    const script = await read('../scripts/full-0478-corpus-backfill.py')
+    expect(script).toContain('if component != 2:')
+    expect(script).toContain('if mode == "audit":')
+    expect(script).toContain('if int(x.get("component") or 0) == 2')
   })
 })
