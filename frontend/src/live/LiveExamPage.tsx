@@ -146,6 +146,7 @@ function useLiveSnapshot(sessionId:string,projector=false) {
   const [loading,setLoading]=useState(true);
   const [unavailable,setUnavailable]=useState(false);
   const request=useRef<Promise<void>|null>(null);
+  const consecutivePollFailures=useRef(0);
   const status=snapshot?.session.status;
   const terminal=status==='finished'||status==='cancelled'||unavailable;
   const refresh=useCallback(async(silent=false)=>{
@@ -160,13 +161,18 @@ function useLiveSnapshot(sessionId:string,projector=false) {
       // Presence changes do not increment the session version, so retain the
       // complete server snapshot on every poll instead of only state changes.
       setSnapshot(next);
+      consecutivePollFailures.current=0;
       setError('');
     }catch(cause){
       if(cause instanceof ApiError&&(cause.status===403||cause.status===404)){
         setUnavailable(true);
         setSnapshot(null);
         setError('Live sessiya topilmadi yoki unda qatnashish huquqingiz yo‘q.');
-      }else if(!silent)setError(message(cause,'Live sessiya yuklanmadi.'));
+      }else{
+        consecutivePollFailures.current+=1;
+        if(!silent||consecutivePollFailures.current>=3)
+          setError(`${message(cause,'Live sessiya yuklanmadi.')} Ma’lumotlar eskirgan bo‘lishi mumkin; ulanishni tekshiring.`);
+      }
     }
     finally{setLoading(false)}})();
     request.current=pending;
@@ -1209,8 +1215,9 @@ function LiveRoom({user,sessionId,projector}:{user:User;sessionId:string;project
   if(loading&&!snapshot)return <p className="live-loading">Live sessiya yuklanmoqda…</p>;
   if(error&&!snapshot)return <div className="live-page"><p className="live-error" role="alert">{error}</p><button onClick={()=>navigate(`${user.role==='student'?'oquvchi':'oqitish'}/live`)}>Ortga</button></div>;
   if(!snapshot)return null;
-  if(projectorView)return <ProjectorView snapshot={snapshot} sessionId={sessionId}/>;
-  return user.role==='student'?<><StudentHostControls snapshot={snapshot} refresh={()=>refresh()}/><StudentRoom snapshot={snapshot} refresh={()=>refresh()} userId={user.id}/></>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>;
+  const connectionWarning=error?<p className="live-error live-connection-warning" role="alert">{error}</p>:null;
+  if(projectorView)return <>{connectionWarning}<ProjectorView snapshot={snapshot} sessionId={sessionId}/></>;
+  return <>{connectionWarning}{user.role==='student'?<><StudentHostControls snapshot={snapshot} refresh={()=>refresh()}/><StudentRoom snapshot={snapshot} refresh={()=>refresh()} userId={user.id}/></>:<TeacherRoom snapshot={snapshot} refresh={()=>refresh()}/>}</>;
 }
 
 export function LiveExamPage({user,classes}:{user:User;classes:ClassItem[]}) {
