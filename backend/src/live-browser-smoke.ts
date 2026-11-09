@@ -405,7 +405,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   await clickMode(6);
   await teacher.waitForSelector('.ig-quiz .ig-answer-button');
-  if((await teacher.$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
+  if((await teacher.$$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
   await teacher.click('.ig-quiz .ig-answer-button:first-child');
   await teacher.waitForSelector('.ig-answer-feedback');
   await teacher.click('.ig-answer-feedback button');
