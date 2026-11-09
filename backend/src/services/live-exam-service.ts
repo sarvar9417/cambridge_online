@@ -27,6 +27,14 @@ export const LIVE_FIXED_SOURCE_ORDER_SQL=
   +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
 
 
+export function escapeLiveReportCsvCell(value:unknown) {
+  const original=value==null?'':String(value);
+  // Excel and other spreadsheet apps may execute untrusted text as a formula.
+  // Prefix only string cells; numeric scores must remain numeric in exports.
+  const text=typeof value==='string' && /^[\s\uFEFF\u200B]*[=+@-]/u.test(original)
+    ? String.fromCharCode(39)+original : original;
+  return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+}
 export function resolveLiveQuestionTimeLimit(
   settings: unknown,
   questionId: string,
@@ -1944,10 +1952,7 @@ export class LiveExamService {
       question.sessionQuestionId,
       question.subtopics.map((subtopic)=>subtopic.subtopicCode).join(' | '),
     ]));
-    const escape=(value:unknown)=>{
-      const text=value==null?'':String(value);
-      return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
-    };
+    const escape=escapeLiveReportCsvCell;
     const header=['Student','Question','Source ref','Subtopics','Score','Possible','Percentage','Score source','Feedback'];
     const lines=[header.map(escape).join(',')];
     for(const row of report.rows){
