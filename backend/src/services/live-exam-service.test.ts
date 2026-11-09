@@ -196,7 +196,7 @@ describe('LiveExamService eligible pool totals', () => {
     const classId='00000000-0000-4000-8000-000000000001';
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('from classes c'))return{rowCount:1,rows:[{id:classId,name:'AS'}]};
-      if(sql.includes('select candidate.id'))return{rowCount:1,rows:[{id:'q1',total_count:137}]};
+      if(sql.includes('select count(*)::int total from ('))return{rowCount:1,rows:[{total:137}]};
       throw new Error(`unexpected query: ${sql}`);
     });
     const questions={portable:vi.fn()} as unknown as PgQuestionsRepository;
@@ -211,6 +211,9 @@ describe('LiveExamService eligible pool totals', () => {
     expect(result.total).toBe(137);
     expect(result.counts).toBeUndefined();
     expect(questions.portable).not.toHaveBeenCalled();
+    const sqlStatements=query.mock.calls.map(([sql])=>String(sql));
+    expect(sqlStatements.some((sql)=>sql.includes('select count(*)::int total from ('))).toBe(true);
+    expect(sqlStatements.some((sql)=>sql.includes('select candidate.id'))).toBe(false);
   });
 });
 
