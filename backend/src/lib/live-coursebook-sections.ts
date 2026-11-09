@@ -276,20 +276,22 @@ export function liveCoursebookQuestionFilter(
   const sections=resolveLiveCoursebookSections(codes);
   if(!sections.length)return null;
 
-  // Chapter 7 headings all map to syllabus 7.1; only their LO terms differ.
-  // A single uncorrelated question-ID semi-join avoids repeated correlated
-  // EXISTS branches for every corpus question during Live pool counting.
-  // Preserve the existing filters for every other chapter/combination.
+  // Positive-LO book splits (e.g. Chapter 7 ethics/copyright/AI and
+  // Chapter 17 security) share one source syllabus subtopic. A single
+  // uncorrelated question-ID semi-join avoids repeatedly scanning correlated
+  // EXISTS branches for every candidate during eligible-pool queries.
+  // Mixed chapters and any negative-LO split retain the original predicates.
+  const source=sections[0]!;
   if(sections.every((section)=>
-    section.chapterNumber===7 && section.sourceTopicNumber===7 &&
-    section.sourceSubtopicCode==='7.1' &&
+    section.sourceTopicNumber===source.sourceTopicNumber &&
+    section.sourceSubtopicCode===source.sourceSubtopicCode &&
     section.mappingKind==='learning_objective_bridge' &&
     Boolean(section.includeLoTextAny?.length) &&
     !(section.excludeLoTextAny?.length)
   )){
     const patterns=[...new Set(sections.flatMap((section)=>section.includeLoTextAny??[]))]
       .map((term)=>`%${term}%`);
-    values.push(7,'7.1',patterns);
+    values.push(source.sourceTopicNumber,source.sourceSubtopicCode,patterns);
     const dollar=String.fromCharCode(36);
     const topicParameter=dollar+(values.length-2);
     const subtopicParameter=dollar+(values.length-1);
