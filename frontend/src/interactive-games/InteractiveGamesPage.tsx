@@ -84,7 +84,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (paused || roundEnded || !pack) return;
     const timer = window.setInterval(() => setSeconds((time) => time + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [paused, roundEnded, pack]);
+  }, [paused, roundEnded, pack, timeLimit]);
 
   const signal = useCallback((kind: GameSignal, count = 1) => {
     if (kind === 'correct') setCorrectCount((score) => score + Math.max(0, count));
