@@ -27,6 +27,14 @@ export const LIVE_FIXED_SOURCE_ORDER_SQL=
   +"candidate.sort_order nulls last,candidate.display_ref,candidate.id";
 
 
+export function escapeLiveReportCsvCell(value:unknown) {
+  const original=value==null?'':String(value);
+  // Excel and other spreadsheet apps may execute untrusted text as a formula.
+  // Prefix only string cells; numeric scores must remain numeric in exports.
+  const text=typeof value==='string' && /^[\s\uFEFF\u200B]*[=+@-]/u.test(original)
+    ? String.fromCharCode(39)+original : original;
+  return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+}
 export function resolveLiveQuestionTimeLimit(
   settings: unknown,
   questionId: string,
@@ -1392,7 +1400,11 @@ export class LiveExamService {
     return byAnswer;
   }
 
-  async snapshot(actor: Actor, sessionId: string, projector = false): Promise<Record<string, unknown>> {
+  async snapshot(actor: Actor, sessionId: string, projector = false, retryCount = 0): Promise<Record<string, unknown>> {
+    // Concurrent joins/submissions can keep changing the session version while
+    // the multi-query DTO is being assembled. Fail recoverably after a bounded
+    // number of re-reads rather than recursing until the serverless timeout.
+    if (retryCount >= 3) throw new DomainError('live_snapshot_unstable',409);
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
@@ -1426,7 +1438,7 @@ export class LiveExamService {
     if (!access.rowCount) throw new DomainError('not_found', 404);
     const session = access.rows[0];
     if (session.deadline_expired && await this.reconcileExpired(sessionId)) {
-      return this.snapshot(actor, sessionId, projector);
+      return this.snapshot(actor, sessionId, projector, retryCount+1);
     }
     const isStaff = Boolean(session.is_staff);
     if (projector && !isStaff) throw new DomainError('staff_only', 403);
@@ -1672,7 +1684,7 @@ export class LiveExamService {
     if (!latest.rowCount
       || Number(latest.rows[0].version) !== Number(session.version)
       || String(latest.rows[0].status) !== String(session.status)) {
-      return this.snapshot(actor, sessionId, projector);
+      return this.snapshot(actor, sessionId, projector, retryCount+1);
     }
 
     const response = {
@@ -1944,10 +1956,7 @@ export class LiveExamService {
       question.sessionQuestionId,
       question.subtopics.map((subtopic)=>subtopic.subtopicCode).join(' | '),
     ]));
-    const escape=(value:unknown)=>{
-      const text=value==null?'':String(value);
-      return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
-    };
+    const escape=escapeLiveReportCsvCell;
     const header=['Student','Question','Source ref','Subtopics','Score','Possible','Percentage','Score source','Feedback'];
     const lines=[header.map(escape).join(',')];
     for(const row of report.rows){
@@ -2163,7 +2172,7 @@ export class LiveExamService {
     } finally {client.release();}
   }
 
-  async saveAnswer(actor: Actor, sessionId: string, text: string) {
+  async saveAnswer(actor: Actor, sessionId: string, text: string, questionId?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
     // it cannot remain question_open merely because every browser went away.
@@ -2184,10 +2193,11 @@ export class LiveExamService {
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
+           and ($6::uuid is null or leq.id=$6::uuid)
              and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,a.updated_at`,
-           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S],
+           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S, questionId ?? null],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       await client.query('commit');
@@ -2198,7 +2208,7 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async submitAnswer(actor: Actor, sessionId: string, text?: string) {
+  async submitAnswer(actor: Actor, sessionId: string, text?: string, questionId?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
@@ -2217,10 +2227,11 @@ export class LiveExamService {
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
+           and ($6::uuid is null or leq.id=$6::uuid)
            and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,leq.id session_question_id`,
-        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S],
+        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S, questionId ?? null],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });

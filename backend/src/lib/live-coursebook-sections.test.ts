@@ -26,9 +26,9 @@ describe('9618 Live coursebook section bridge',()=>{
     });
     const values:unknown[]=[];
     const sql=liveCoursebookQuestionFilter(values,['16.2']);
-    expect(values).toEqual([15,'15.1','%virtual machine%']);
+    expect(values).toEqual([15,'15.1',['%virtual machine%']]);
     expect(sql).toContain('question_learning_objectives coursebook_qlo');
-    expect(sql).toContain('coursebook_lo.text ilike $3');
+    expect(sql).toContain('coursebook_lo.text ilike any($3::text[])');
   });
 
   it('bridges textbook Chapter 16.3 to official syllabus 16.2 without corrupting syllabus codes',()=>{
@@ -79,6 +79,28 @@ describe('9618 Live coursebook section bridge',()=>{
     expect(mixedSql).toContain(' or ');
     expect(mixedSql).toContain('coursebook_lo.text ilike');
     expect(mixedSql).toContain('coursebook_st.code');
+  });
+  it('uses one set-based LO filter for Chapter 17 encryption, quantum and certificates',()=>{
+    const values:unknown[]=[];
+    const sql=liveCoursebookQuestionFilter(values,['17.1','17.2','17.3','17.4']);
+    expect(values[0]).toBe(17);
+    expect(values[1]).toBe('17.1');
+    expect(values[2]).toEqual(expect.arrayContaining([
+      '%encryption works%','%quantum cryptography%','%Secure Socket Layer%','%digital cert%',
+    ]));
+    expect(sql).toContain('q.id in (');
+    expect(sql).toContain('coursebook_lo.text ilike any($3::text[])');
+    expect(sql).not.toContain(' or exists(');
+  });
+
+  it('keeps exclusion-based and mixed-subtopic splits on their exact predicates',()=>{
+    const values:unknown[]=[];
+    const sql=liveCoursebookQuestionFilter(values,['2.1','2.2']);
+    expect(sql).toContain('not exists(');
+    expect(sql).toContain(' or ');
+    const mixed:unknown[]=[];
+    const mixedSql=liveCoursebookQuestionFilter(mixed,['7.2','17.2']);
+    expect(mixedSql).toContain(' or ');
   });
   it('classifies source-backed Question Bank evidence into textbook sections',()=>{
     const chapter2Internet=coursebookSectionsForEvidence({

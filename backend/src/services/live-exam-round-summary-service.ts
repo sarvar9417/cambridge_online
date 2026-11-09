@@ -91,7 +91,7 @@ export class LiveExamRoundSummaryService {
          left join live_exam_answers a
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where leq.session_id=$1 and leq.position=$2
-         order by score desc,u.full_name,lep.student_id`,
+         order by rank asc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(
@@ -109,7 +109,7 @@ export class LiveExamRoundSummaryService {
            on a.session_question_id=leq.id and a.participant_id=lep.id
          where lep.session_id=$1 and lep.left_at is null
          group by lep.student_id,u.full_name,lep.joined_at
-         order by score desc,u.full_name,lep.student_id`,
+         order by rank asc,u.full_name,lep.student_id`,
         [sessionId, currentPosition, speedTieBreak],
       ),
       this.pool.query(

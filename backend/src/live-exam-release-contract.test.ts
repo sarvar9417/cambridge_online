@@ -137,7 +137,8 @@ describe('Live Exam release security and recovery contract',()=>{
     expect(route).toContain("runIdempotent(req, res, pool, operation)");
     expect(route).toContain("expectedVersion: z.number().int().positive()");
     expect(route).not.toContain("expectedVersion: z.number().int().positive().optional()");
-    expect(service).toContain('return this.snapshot(actor, sessionId, projector)');
+    expect(service).toContain('return this.snapshot(actor, sessionId, projector, retryCount+1)');
+    expect(service).toContain("if (retryCount >= 3) throw new DomainError('live_snapshot_unstable',409)");
   });
 
   it('keeps state changes versioned so reconnecting clients can detect missed events',()=>{

@@ -60,7 +60,7 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
     void load();
     const timer=window.setInterval(()=>void load(),3000);
     return()=>{cancelled=true;window.clearInterval(timer)};
-  },[sessionId,version]);
+  },[sessionId,version,variant]);
 
   if(error&&!summary)return <p className="live-leaderboard-error" role="alert">{error}</p>;
   if(!summary)return <p className="live-leaderboard-loading">Reyting hisoblanmoqda…</p>;
@@ -70,6 +70,7 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
   const maxCount=Math.max(1,...summary.round.distribution.map((item)=>item.count));
 
   return <section className={`live-leaderboard live-leaderboard--${variant}`}>
+    {error?<p className="live-leaderboard-error" role="alert">Reyting vaqtincha yangilanmayapti: {error}</p>:null}
     <header>
       <div><span>MARKS-FIRST</span><h2><Trophy weight="fill"/> Live Challenge reytingi</h2></div>
       <p>{summary.leaderboardMode==='marks_speed_tiebreak'?'Cambridge ballari asosiy; faqat teng ballarda topshirish vaqti ishlatiladi.':'Tezlik emas, Cambridge ballari tartibni belgilaydi.'}</p>

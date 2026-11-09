@@ -55,6 +55,31 @@ describe('live exam routes', () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
+  it('passes the originating question ID through autosave and final submit',async()=>{
+    const saveAnswer=vi.fn().mockResolvedValue({savedAt:'2026-11-09T00:00:00Z'});
+    const submitAnswer=vi.fn().mockResolvedValue({submittedAt:'2026-11-09T00:01:00Z'});
+    const sessionId='22222222-2222-4222-8222-222222222222';
+    const questionId='33333333-3333-4333-8333-333333333333';
+    const app=appFor({saveAnswer,submitAnswer});
+    await request(app).put(`/live-exams/${sessionId}/answer`)
+      .send({text:'draft',questionId}).expect(200);
+    await request(app).post(`/live-exams/${sessionId}/answer/submit`)
+      .send({text:'final',questionId}).expect(200);
+    expect(saveAnswer).toHaveBeenCalledWith(student,sessionId,'draft',questionId);
+    expect(submitAnswer).toHaveBeenCalledWith(student,sessionId,'final',questionId);
+  });
+
+  it('rejects malformed question context before touching answers',async()=>{
+    const saveAnswer=vi.fn(),submitAnswer=vi.fn();
+    const sessionId='22222222-2222-4222-8222-222222222222';
+    const app=appFor({saveAnswer,submitAnswer});
+    await request(app).put(`/live-exams/${sessionId}/answer`)
+      .send({text:'draft',questionId:'not-an-id'}).expect(400);
+    await request(app).post(`/live-exams/${sessionId}/answer/submit`)
+      .send({text:'final',questionId:'not-an-id'}).expect(400);
+    expect(saveAnswer).not.toHaveBeenCalled();
+    expect(submitAnswer).not.toHaveBeenCalled();
+  });
   it('marks the session list private and non-cacheable', async () => {
     const list=vi.fn().mockResolvedValue([{id:'session-1',joinCode:'123456'}]);
     const response=await request(appFor({list})).get('/live-exams').expect(200);

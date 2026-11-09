@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
-import { assignPeerReviewers, LiveExamService } from './live-exam-service.js';
+import { assignPeerReviewers, escapeLiveReportCsvCell, LiveExamService } from './live-exam-service.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 
 describe('assignPeerReviewers', () => {
@@ -378,5 +378,65 @@ describe('LiveExamService snapshot consistency', () => {
     expect(accessCount).toBe(2);
     expect(latestCount).toBe(2);
     expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+describe('LiveExamService round-bound answer writes',()=>{
+  const sessionId='22222222-2222-4222-8222-222222222222';
+  const oldQuestionId='33333333-3333-4333-8333-333333333333';
+  const actor={id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student'};
+
+  function serviceForWrite(){
+    const query=vi.fn(async(sql:string,_values?:unknown[])=>{
+      if(sql==='begin'||sql==='commit'||sql==='rollback')return{rows:[],rowCount:0};
+      if(sql.includes('for update skip locked'))return{rows:[],rowCount:0};
+      if(sql.includes('select status::text,paused_at'))return{rows:[{status:'question_open',paused_at:null}],rowCount:1};
+      if(sql.includes('select * from live_exam_sessions where id=$1 for update'))
+        return{rows:[{status:'question_open',paused_at:null}],rowCount:1};
+      if(sql.includes('update live_exam_answers a set'))return{rows:[],rowCount:0};
+      throw new Error('Unexpected query: '+sql);
+    });
+    const client={query,release:vi.fn()};
+    const pool={connect:vi.fn().mockResolvedValue(client)} as unknown as Pool;
+    return{service:new LiveExamService(pool,{} as PgQuestionsRepository),query};
+  }
+
+  it('restricts autosave SQL to the exact question and refuses a stale write',async()=>{
+    const {service,query}=serviceForWrite();
+    await expect(service.saveAnswer(actor,sessionId,'stale draft',oldQuestionId))
+      .rejects.toMatchObject({code:'live_answer_locked',status:409});
+    const update=query.mock.calls.find(([sql])=>String(sql).includes('update live_exam_answers a set'));
+    expect(update?.[0]).toContain('($6::uuid is null or leq.id=$6::uuid)');
+    expect(update?.[1]).toEqual([sessionId,actor.id,'stale draft',2,10,oldQuestionId]);
+  });
+
+  it('restricts final submit SQL to the originating question as well',async()=>{
+    const {service,query}=serviceForWrite();
+    await expect(service.submitAnswer(actor,sessionId,'old answer',oldQuestionId))
+      .rejects.toMatchObject({code:'live_answer_locked',status:409});
+    const update=query.mock.calls.find(([sql])=>String(sql).includes('update live_exam_answers a set'));
+    expect(update?.[0]).toContain('($6::uuid is null or leq.id=$6::uuid)');
+    expect(update?.[1]).toEqual([sessionId,actor.id,'old answer',2,10,oldQuestionId]);
+  });
+});
+describe('Live report CSV spreadsheet safety',()=>{
+  it('neutralizes formula-like names/feedback without changing numerical scores',()=>{
+    expect(escapeLiveReportCsvCell('=1+1')).toBe("'=1+1");
+    expect(escapeLiveReportCsvCell('  @HYPERLINK')).toBe("'  @HYPERLINK");
+    expect(escapeLiveReportCsvCell('\t+1')).toBe("'\t+1");
+    expect(escapeLiveReportCsvCell('-2+3')).toBe("'-2+3");
+    expect(escapeLiveReportCsvCell('Alice, Bob')).toBe('"Alice, Bob"');
+    expect(escapeLiveReportCsvCell(4)).toBe('4');
+    expect(escapeLiveReportCsvCell(-2)).toBe('-2');
+  });
+});
+describe('Live snapshot concurrency safety',()=>{
+  it('stops after a bounded number of optimistic snapshot retries',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    const actor={id:'student',role:'student' as const,schoolId:'school',fullName:'Student'};
+    await expect(service.snapshot(actor,'22222222-2222-4222-8222-222222222222',false,3))
+      .rejects.toMatchObject({code:'live_snapshot_unstable',status:409});
+    expect(query).not.toHaveBeenCalled();
   });
 });
