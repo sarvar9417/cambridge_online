@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
-  createQuizQuestions, createSpeakingPrompts, gameIsAvailable,
+  createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, gameIsAvailable,
   isAnagramEligible, poolForMode, selectGamePairs, type LiveGameTerm,
 } from './remote-games';
 
@@ -11,6 +11,24 @@ const term = (id: number, word: string): LiveGameTerm => ({
 });
 
 describe('Interactive Games robust production catalogue selection', () => {
+  it('finds chapters by exact topic and Hodder section codes even when titles do not contain them', () => {
+    const chapter = {
+      chapterNo: 17, title: 'Security', termCount: 100, approvedCount: 0,
+      topics: [{ code: '17.1', title: 'Threats to security', termCount: 50 }],
+      sections: [
+        { code: '17.2', title: 'Symmetric encryption', parentCode: null, termCount: 30 },
+        { code: '17.2.1', title: 'Cryptography', parentCode: '17.2', termCount: 10 },
+      ],
+    };
+    expect(chapterMatchesGameSearch(chapter, '17.2')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, '17.2.1')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, '17.1')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, ' CRYPTOGRAPHY ')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, 'chapter 17')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, '19.9')).toBe(false);
+    expect(chapterMatchesGameSearch(chapter, '')).toBe(true);
+  });
+
   it('builds valid Anagram rounds even when the first 29 terms have no playable words', () => {
     const chapter = Array.from({ length: 35 }, (_, i) => term(i, 'multi word ' + i));
     chapter.push(term(35, 'DATABASE'), term(36, 'BINARY'), term(37, 'ETHICS'));
