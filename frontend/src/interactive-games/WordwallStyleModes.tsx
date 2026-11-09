@@ -224,7 +224,7 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
         aria-label={'Use letter ' + letter + ' at position ' + (tileIndex + 1)}>{letter}</button>)}</div>
     <div className="ig-anagram-slots" aria-label="Answer slots">{scrambled.map((_, slotIndex) => <div
       key={slotIndex} className="ig-anagram-slot" onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => { event.preventDefault(); const tile = event.dataTransfer.getData('text/plain'); if (/^\\d+$/.test(tile)) place(Number(tile), slotIndex); }}>
+      onDrop={(event) => { event.preventDefault(); const tile = event.dataTransfer.getData('text/plain'); if (/^\d+$/.test(tile)) place(Number(tile), slotIndex); }}>
       <button type="button" disabled={locked || placed[slotIndex] === undefined}
         aria-label={'Answer position ' + (slotIndex + 1) + (placed[slotIndex] === undefined ? ' empty' : ', remove ' + scrambled[placed[slotIndex]!])}
         onClick={() => setPlaced((previous) => previous.filter((_, i) => i !== slotIndex))}>{placed[slotIndex] !== undefined ? scrambled[placed[slotIndex]!] : '·'}</button>
