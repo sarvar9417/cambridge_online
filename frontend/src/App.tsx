@@ -40,6 +40,7 @@ import { StudentAttemptWorkspace } from './student/StudentAttemptWorkspace';
 import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
 import { StudentGames } from './student/StudentGames';
+import { InteractiveGamesPage } from './interactive-games/InteractiveGamesPage';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
@@ -647,6 +648,8 @@ export function App() {
                 : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
                   : route.path === 'oqitish/live' || route.path === 'oquvchi/live'
                     ? <LiveExamPage user={user} classes={classes} />
+                  : route.path === 'oqitish/oyinlar' || route.path === 'oquvchi/oyinlar'
+                    ? <InteractiveGamesPage isTeacher={user.role !== 'student'} />
                   : routedSections;
 
   return (
