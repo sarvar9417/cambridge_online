@@ -6,7 +6,7 @@ import {
   type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
-import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type GameSignal } from './game-session';
+import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, useGameSignal, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import './interactive-games.css';
 import './remote-games.css';
@@ -284,23 +284,29 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 }
 
 function FlashCards({ pairs }: { pairs: GamePair[] }) {
+  const signal = useGameSignal();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const card = pairs[index];
   if (!card) return <p>No cards available.</p>;
   function go(next: number) { setIndex(next); setRevealed(false); }
+  function flip() {
+    if (!revealed) signal('review');
+    signal('flip');
+    setRevealed((value) => !value);
+  }
   return <div className="ig-content">
     <p className="ig-instruction">Recall the definition before revealing the answer. This is revision, not an assessed score.</p>
     <div className="ig-score">Card {index + 1} / {pairs.length}</div>
-    <button type="button" className="ig-flashcard"
-      onClick={() => setRevealed((value) => !value)}>
+    <button type="button" className={'ig-flashcard' + (revealed ? ' is-flipped' : '')}
+      onClick={flip}>
       <span className="ig-eyebrow">{revealed ? 'KEY TERM' : 'DEFINITION'}</span>
       <strong>{revealed ? card.term : card.definition}</strong>
       <small>{revealed ? 'Click to see the definition' : 'Click to reveal the term'}</small>
     </button>
     <div className="ig-card-controls">
       <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
-      <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Show definition' : 'Flip card'}</button>
+      <button type="button" onClick={flip}>{revealed ? 'Show definition' : 'Flip card'}</button>
       <button type="button" disabled={index === pairs.length - 1} onClick={() => go(index + 1)}>Next →</button>
     </div>
   </div>;
