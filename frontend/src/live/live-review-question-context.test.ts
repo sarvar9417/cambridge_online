@@ -9,7 +9,7 @@ describe('Live answer review question context',()=>{
   it('shows the active question during student marking and result review',()=>{
     expect(page).toContain('<ReviewQuestionContext question={snapshot.question}/>');
     expect(page).toContain("if(session.status==='marking'&&snapshot.markScheme)return <div className=\"live-review-workspace\">");
-    expect(page).toContain("if(session.status==='review')return <section className=\"live-student-result\"><ReviewQuestionContext question={snapshot.question}/>");
+    expect(page).toContain("if(session.status==='review')return <section className=\"live-student-result\">{session.settings.playMode==='cards'?<LiveCardBoard snapshot={snapshot} refresh={refresh}/>:null}<ReviewQuestionContext question={snapshot.question}/>");
   });
 
   it('shows the active question during teacher marking, fallback and override review',()=>{
