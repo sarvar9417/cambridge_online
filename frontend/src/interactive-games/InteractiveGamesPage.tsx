@@ -234,7 +234,7 @@ function FlashCards({ pairs }: { pairs: GamePair[] }) {
   return <div className="ig-content">
     <p className="ig-instruction">Recall the definition before revealing the answer. This is revision, not an assessed score.</p>
     <div className="ig-score">Card {index + 1} / {pairs.length}</div>
-    <button type="button" className="ig-flashcard" aria-label={revealed ? 'Term: ' + card.term : 'Definition: ' + card.definition + '. Flip to reveal the term.'}
+    <button type="button" className="ig-flashcard"
       onClick={() => setRevealed((value) => !value)}>
       <span className="ig-eyebrow">{revealed ? 'KEY TERM' : 'DEFINITION'}</span>
       <strong>{revealed ? card.term : card.definition}</strong>
