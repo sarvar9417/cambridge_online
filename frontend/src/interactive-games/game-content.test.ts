@@ -1,32 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { chapter7Pilot, GAME_CATALOG, GROUPS, isCorrectGroup, isCorrectPair } from './game-content';
+import { chapter7Pilot, GAME_CATALOG, findMatchOptions, isCorrectPair, scrambleTerm } from './game-content';
 
-describe('Interactive Games pilot bank', () => {
-  it('has unique IDs and valid matches for the supplied Cambridge section', () => {
+describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
+  it('has unique glossary IDs and eight requested modes in the specified order', () => {
     expect(chapter7Pilot.courseCode).toBe('9618');
     expect(chapter7Pilot.chapterNo).toBe(7);
     expect(chapter7Pilot.sectionCode).toBe('7.1');
-    expect(chapter7Pilot.pairs.length).toBeGreaterThanOrEqual(6);
     expect(new Set(chapter7Pilot.pairs.map((pair) => pair.id)).size).toBe(chapter7Pilot.pairs.length);
-    for (const pair of chapter7Pilot.pairs) {
-      expect(pair.term.trim()).not.toBe('');
-      expect(pair.definition.trim()).not.toBe('');
-      expect(isCorrectPair(pair.id, pair.id)).toBe(true);
+    expect(chapter7Pilot.pairs.length).toBeGreaterThanOrEqual(8);
+    expect(GAME_CATALOG.map((item) => item.label)).toEqual([
+      'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+    ]);
+    for (const item of chapter7Pilot.pairs) {
+      expect(item.term.length).toBeGreaterThan(0);
+      expect(item.definition.length).toBeGreaterThan(0);
+      expect(isCorrectPair(item.id, item.id)).toBe(true);
     }
     expect(isCorrectPair('ethics', 'morality')).toBe(false);
   });
 
-  it('includes only valid classification targets', () => {
-    expect(new Set(GROUPS).size).toBe(4);
-    expect(new Set(chapter7Pilot.groups.map((item) => item.id)).size).toBe(chapter7Pilot.groups.length);
-    for (const item of chapter7Pilot.groups) {
-      expect(GROUPS).toContain(item.group);
-      expect(isCorrectGroup(item, item.group)).toBe(true);
-      expect(isCorrectGroup(item, GROUPS.find((group) => group !== item.group)!)).toBe(false);
+  it('has usable speaking prompts and valid multiple-choice keys', () => {
+    expect(chapter7Pilot.speaking.length).toBeGreaterThanOrEqual(5);
+    expect(chapter7Pilot.quiz.length).toBeGreaterThanOrEqual(5);
+    for (const item of chapter7Pilot.speaking) {
+      expect(item.prompt.trim()).not.toBe('');
+      expect(item.talkingPoints.trim()).not.toBe('');
+    }
+    for (const item of chapter7Pilot.quiz) {
+      expect(item.options).toHaveLength(4);
+      expect(new Set(item.options).size).toBe(4);
+      expect(item.options[item.answerIndex].length).toBeGreaterThan(0);
+      expect(item.explanation.trim()).not.toBe('');
     }
   });
 
-  it('provides four distinct game templates', () => {
-    expect(GAME_CATALOG.map((item) => item.id)).toEqual(['match-up', 'matching-pairs', 'flash-cards', 'group-sort']);
+  it('generates four distinct Find the Match choices with one correct term for each prompt', () => {
+    chapter7Pilot.pairs.forEach((item, index) => {
+      const options = findMatchOptions(chapter7Pilot.pairs, index);
+      expect(options).toHaveLength(4);
+      expect(new Set(options.map((option) => option.id)).size).toBe(4);
+      expect(options.filter((option) => option.id === item.id)).toHaveLength(1);
+    });
+    expect(findMatchOptions(chapter7Pilot.pairs.slice(0, 3), 0)).toEqual([]);
+  });
+
+  it('scrambles anagram letters without deleting or adding any', () => {
+    for (const item of chapter7Pilot.pairs.filter((pair) => !pair.term.includes(' ') && pair.term.length >= 4)) {
+      const scrambled = scrambleTerm(item.term);
+      expect(scrambled).not.toBe(item.term.toUpperCase());
+      expect([...scrambled].sort()).toEqual([...item.term.toUpperCase()].sort());
+    }
   });
 });
