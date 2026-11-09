@@ -88,4 +88,43 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     expect(pack.contentStatus).toBe('needs_review');
     expect(query.mock.calls[1]?.[1]).toEqual(['9618', 3, null]);
   });
+  it('uses the active syllabus and does not truncate future imports at 500 terms', async () => {
+    const rows = Array.from({ length: 520 }, (_, i) => ({
+      id: 'id-' + i,
+      term: 'Unique term ' + i,
+      definition: 'Unique definition ' + i,
+      status: 'needs_review',
+      source: 'Drive: private-source-id-' + i,
+    }));
+    const query = vi.fn().mockResolvedValue({ rows });
+    const result = await new ContentService({ query } as unknown as Pool)
+      .interactiveGamePack(teacher, { courseCode: '9618', chapterNo: 4 });
+    expect(result.pairs).toHaveLength(520);
+    expect(query.mock.calls[0]?.[0]).not.toMatch(/limit\s+500/i);
+    expect(query.mock.calls[0]?.[0]).toContain('sy.is_active=true');
+    expect(result.pairs.every((pair) => pair.source === null)).toBe(true);
+  });
+
+  it('rejects an unknown book section and never runs a glossary query for it', async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    await expect(new ContentService({ query } as unknown as Pool).interactiveGamePack(teacher, {
+      courseCode: '9618', chapterNo: 2, sectionCode: '2.9.8',
+    })).rejects.toMatchObject({ status: 404 });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes ambiguous duplicate answers but never changes stored glossary rows', async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [
+      { id: '1', term: 'BIT', definition: 'Binary digit', status: 'approved' },
+      { id: '2', term: 'Bit', definition: 'Another definition', status: 'needs_review' },
+      { id: '3', term: 'Different', definition: 'Binary digit', status: 'needs_review' },
+      { id: '4', term: 'Byte', definition: 'Group of eight bits', status: 'approved' },
+    ] });
+    const result = await new ContentService({ query } as unknown as Pool)
+      .interactiveGamePack(teacher, { courseCode: '9618', chapterNo: 1 });
+    expect(result.pairs.map((pair) => pair.term)).toEqual(['BIT', 'Byte']);
+    expect(result.contentStatus).toBe('approved');
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
 });
