@@ -22,7 +22,7 @@
 .ig-deck-stack{width:min(100%,310px);height:250px;margin:0 auto;border:12px solid #eee9db;position:relative;background:repeating-linear-gradient(45deg,#c19c49,#c19c49 4px,#e5c574 4px,#e5c574 12px);border-radius:16px;color:white;box-shadow:0 10px 0 #d4c9b7,0 18px 0 #bdb6aa,0 26px 0 #9b988f;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center}
 .ig-deck-stack:before{content:"";position:absolute;inset:18px;border:4px double #f1dea9;border-radius:5px}
 .ig-deck-pattern{font-size:94px;line-height:1;text-shadow:0 2px 8px #a27b2b}
-.ig-deck-stack small{font-size:14px;background:#86611d99;padding:4px 8px;border-radius:10px;z-index:1}
+.ig-deck-stack small{font-size:14px;background:#4f3615;padding:4px 8px;border-radius:10px;z-index:1}
 .ig-dealt-card{min-height:260px;background:#fefbf1;border:8px solid #caa75b;box-shadow:0 7px #826b3f;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:15px;padding:22px;color:#252c39}
 .ig-dealt-card .ig-eyebrow{color:#98793f}
 .ig-dealt-card>p{font-size:clamp(18px,2.2vw,28px);font-weight:700;line-height:1.4;margin:0}
