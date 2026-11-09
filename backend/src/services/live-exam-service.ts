@@ -2163,7 +2163,7 @@ export class LiveExamService {
     } finally {client.release();}
   }
 
-  async saveAnswer(actor: Actor, sessionId: string, text: string) {
+  async saveAnswer(actor: Actor, sessionId: string, text: string, questionId?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
     // it cannot remain question_open merely because every browser went away.
@@ -2184,10 +2184,11 @@ export class LiveExamService {
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
+           and ($6::uuid is null or leq.id=$6::uuid)
              and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,a.updated_at`,
-           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S],
+           [sessionId, actor.id, text, words(text), QUESTION_DEADLINE_GRACE_S, questionId ?? null],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       await client.query('commit');
@@ -2198,7 +2199,7 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  async submitAnswer(actor: Actor, sessionId: string, text?: string) {
+  async submitAnswer(actor: Actor, sessionId: string, text?: string, questionId?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     await this.reconcileExpired(sessionId);
     const client = await this.pool.connect();
@@ -2217,10 +2218,11 @@ export class LiveExamService {
            and leq.session_id=les.id and leq.position=les.current_question_index
            and lep.session_id=les.id and lep.student_id=$2 and lep.left_at is null
            and a.session_question_id=leq.id and a.participant_id=lep.id and a.submitted_at is null
+           and ($6::uuid is null or leq.id=$6::uuid)
            and (les.question_time_limit_s is null or now() <= les.question_started_at
              + les.question_time_limit_s * interval '1 second' + $5::int * interval '1 second')
          returning a.id,leq.id session_question_id`,
-        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S],
+        [sessionId, actor.id, text ?? null, text === undefined ? 0 : words(text), QUESTION_DEADLINE_GRACE_S, questionId ?? null],
       );
       if (!result.rowCount) throw new DomainError('live_answer_locked', 409);
       let version = await this.bump(client, sessionId, actor.id, 'answer.submitted', { answerId: result.rows[0].id });
