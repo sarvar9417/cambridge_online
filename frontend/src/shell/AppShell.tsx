@@ -32,15 +32,17 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
     { path: 'boshqaruv/korpus', label: 'Korpus', badge: badges.reviewQueue }, { path: 'boshqaruv/sifat', label: 'Sifat' }, { path: 'boshqaruv/tizim', label: 'Tizim' },
   ] });
   if (role !== 'student') groups.push({ label: 'O‘qitish', items: [
+    // Pin classroom games first: on short screens the long rail is scrollable,
+    // and burying this item below several links makes a released module look absent.
+    { path: 'oqitish/oyinlar', label: 'Interactive Games' },
     { path: 'oqitish/darslar', label: 'Darslar' }, { path: 'oqitish/savol-banki', label: 'Savol banki' },
     { path: 'oqitish/live', label: 'Live Challenge' },
-    { path: 'oqitish/oyinlar', label: 'Interactive Games' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
+    { path: 'oquvchi/oyinlar', label: 'Interactive Games' },
     { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/darslar', label: 'Darslar' },
     { path: 'oquvchi/live', label: 'Live Challenge' },
-    { path: 'oquvchi/oyinlar', label: 'Interactive Games' },
     { path: 'oquvchi/vazifalar', label: 'Vazifalar' }, { path: 'oquvchi/natijalar', label: 'Natijalar' },
     { path: 'oquvchi/organish', label: 'Mashq va takrorlash' },
   ] });
@@ -65,6 +67,7 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
   const primaryGroups = groups.filter((group) => group.label !== 'Sinflar');
   const activeClassId = route.params.get('id') ?? route.params.get('sinf');
   const roleLabel = user.role === 'owner' ? 'Administrator' : user.role === 'teacher' ? 'O‘qituvchi' : 'O‘quvchi';
+  const gameRoute = user.role === 'student' ? 'oquvchi/oyinlar' : 'oqitish/oyinlar';
   const today = useMemo(() => {
     const date = new Date();
     const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
@@ -91,7 +94,16 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
         <button type="button" className="shell-archive" onClick={() => navigate('oqitish/sinf')}><Archive size={18} /> Arxivlangan sinflar</button>
       </aside> : null}
     </nav>
-    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div><time dateTime={new Date().toISOString().slice(0, 10)}>{today}</time><ThemeToggle /></header><main id="main" tabIndex={-1} className="shell-main">{children}</main></div>
+    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div>
+      <a className="shell-games-shortcut" href={`#${gameRoute}`}
+        aria-label="Interactive Games — 8 ta o‘yin"
+        aria-current={route.path === gameRoute ? 'page' : undefined}
+        onClick={(event) => { event.preventDefault(); navigate(gameRoute); }}>
+        <SquaresFour size={19} weight="fill" aria-hidden="true" />
+        <span className="shell-games-shortcut-full">Interactive Games</span>
+        <span className="shell-games-shortcut-mobile">O‘yinlar</span>
+      </a>
+      <time dateTime={new Date().toISOString().slice(0, 10)}>{today}</time><ThemeToggle /></header><main id="main" tabIndex={-1} className="shell-main">{children}</main></div>
     {menuOpen ? <button type="button" className="shell-scrim" aria-label="Menyuni yopish" onClick={() => setMenuOpen(false)} /> : null}
   </div>;
 }
