@@ -156,6 +156,8 @@ describe('LiveExamRoundSummaryService', () => {
     const result=await serviceFor(query).summary(teacher,'session-1');
     expect(result.leaderboardMode).toBe('marks_speed_tiebreak');
     expect(String(query.mock.calls[1]?.[0])).toContain('case when $3::boolean then a.submitted_at');
+    expect(String(query.mock.calls[1]?.[0])).toContain('order by rank asc,u.full_name,lep.student_id');
+    expect(String(query.mock.calls[2]?.[0])).toContain('order by rank asc,u.full_name,lep.student_id');
     expect(query.mock.calls[1]?.[1]).toEqual(['session-1',0,true]);
   });
 });
