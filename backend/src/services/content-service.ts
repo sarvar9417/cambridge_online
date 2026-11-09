@@ -204,7 +204,7 @@ export class ContentService {
       if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
     }
     const result = await this.pool.query(
-      `select gt.id,gt.term,gt.definition_en definition,gt.status::text status,gt.source_ref source,
+      `select gt.id,gt.term,gt.definition_en definition,gt.status::text status,
               st.code subtopic_code
        from glossary_terms gt
        join subtopics st on st.id=gt.subtopic_id
@@ -235,7 +235,7 @@ export class ContentService {
       return [{
         id: String(row.id), term, definition: String(row.definition).trim(),
         status: String(row.status) as 'approved' | 'needs_review',
-        source: row.source ? String(row.source) : null,
+        source: null, // Private Drive source references are not exposed to students.
       }];
     });
     return {
