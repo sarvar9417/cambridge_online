@@ -401,6 +401,16 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
 
   await clickMode(5);
+  console.log('Open-box navigation state',await teacher.evaluate(()=>({
+    selected:[...document.querySelectorAll<HTMLButtonElement>('.ig-game-tile')].map((button)=>({
+      title:button.querySelector('strong')?.textContent,
+      pressed:button.getAttribute('aria-pressed'),
+      disabled:button.disabled,
+    })),
+    heading:document.querySelector('.ig-workspace-head h2')?.textContent,
+    boxes:document.querySelectorAll('.ig-box').length,
+    html:document.querySelector('.ig-workspace')?.textContent?.slice(0,280),
+  })));
   await teacher.waitForSelector('.ig-box',{timeout:8_000});
   await teacher.click('.ig-box:first-child');
   await assertText('.ig-box-detail','Explain: Legal');
