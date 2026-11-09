@@ -91,19 +91,23 @@ export function chapterMatchesGameSearch(chapter: LiveGameChapter, query: string
 export const GAME_LENGTHS = [8, 16, 29] as const;
 export type GameLength = typeof GAME_LENGTHS[number];
 
-/** Letters are deliberately restricted to short, playable A-Z words.
- * Numbers, punctuation and multi-word terms cannot be meaningfully moved
- * into the current letter-tile UI. Do not silently drop them after game start.
- */
+/** Keep spaces and punctuation visible while arranging letters and digits. */
+export function isAnagramTile(character: string): boolean {
+  return /^[A-Z0-9]$/i.test(character);
+}
+
 export function isAnagramEligible(term: string): boolean {
-  return /^[A-Za-z]{4,22}$/.test(term) && new Set(term.toLowerCase()).size > 1;
+  const tiles = [...term.toUpperCase()].filter(isAnagramTile);
+  return !/[^a-z0-9\s()./+–-]/i.test(term) && tiles.length >= 2 && tiles.length <= 36 && new Set(tiles).size > 1;
 }
 
 export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
   if (!pairs.length) return false;
   switch (mode) {
-    case 'quiz': case 'find-the-match':
-      return new Set(pairs.map((pair) => pair.definition.trim().toLowerCase())).size >= 4;
+    case 'quiz':
+    case 'find-the-match':
+      return (mode !== 'quiz' || pairs.length >= 2)
+        && new Set(pairs.map((pair) => pair.definition.trim().toLowerCase())).size === pairs.length;
     case 'anagram':
       return pairs.some((pair) => isAnagramEligible(pair.term));
     default:
@@ -120,29 +124,29 @@ export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): Liv
 export function createSpeakingPrompts(pairs: readonly GamePair[]): SpeakingPrompt[] {
   return pairs.map((pair) => ({
     id: 'speaking-' + pair.id,
-    prompt: 'Explain "' + pair.term + '" in your own words.',
-    talkingPoints: pair.definition,
+    prompt: pair.definition,
+    talkingPoints: pair.term,
   }));
 }
 
 /**
  * A glossary-pair quiz asks for a term matching the displayed definition.
- * Uses exactly one correct source-backed term and three other source-backed
+ * Uses one correct term and up to three other source-backed
  * terms from this SAME selection. Never invent a Cambridge answer.
  */
 export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] {
-  if (pairs.length < 4) return [];
+  if (pairs.length < 2) return [];
   return pairs.map((pair, index) => {
-    const choices = findMatchOptions(pairs, index);
+    const choices = findMatchOptions(pairs, index, 2);
     const answerIndex = choices.findIndex((choice) => choice.id === pair.id);
-    if (choices.length !== 4 || answerIndex < 0) {
+    if (choices.length < 2 || answerIndex < 0) {
       throw new Error('Unable to make a valid source-backed quiz item.');
     }
     return {
       id: 'quiz-' + pair.id,
       prompt: pair.definition,
-      options: choices.map((choice) => choice.term) as [string, string, string, string],
-      answerIndex: answerIndex as 0 | 1 | 2 | 3,
+      options: choices.map((choice) => choice.term),
+      answerIndex,
       explanation: pair.term + ' — ' + pair.definition,
     };
   });

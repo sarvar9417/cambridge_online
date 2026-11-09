@@ -14,13 +14,15 @@ interface Props {
 
 /** Choose whole chapters or specific syllabus topics and Hodder sections. */
 export function GameScopePicker({ catalog, scopes, onChange, disabled = false }: Props) {
-  const [showAll, setShowAll] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set(scopes.map((scope) => scope.chapterNo)));
   const [filter, setFilter] = useState('');
   const chapters = catalog.chapters.filter((chapter) => chapterMatchesGameSearch(chapter, filter));
   const full = new Set(scopes.filter((scope) => scope.kind === 'chapter').map((scope) => scope.chapterNo));
   const selectedChapters = new Set(scopes.map((scope) => scope.chapterNo));
+  const allExpanded = chapters.length > 0 && chapters.every((chapter) => expanded.has(chapter.chapterNo));
 
   function wholeChapter(chapterNo: number, checked: boolean) {
+    if (checked) setExpanded((previous) => new Set([...previous, chapterNo]));
     onChange(selectWholeChapter(scopes, chapterNo, checked));
   }
   function narrow(scope: GameScope, checked: boolean) {
@@ -49,8 +51,9 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
         onChange(normalizeGameScopes(all));
       }}>Select all chapters</button>
       <button type="button" disabled={disabled || !scopes.length} onClick={() => onChange([])}>Clear selection</button>
-      <button type="button" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)}>
-        {showAll ? 'Collapse details' : 'Expand details'}
+      <button type="button" disabled={!chapters.length} aria-expanded={allExpanded} onClick={() =>
+        setExpanded(allExpanded ? new Set() : new Set(chapters.map((chapter) => chapter.chapterNo)))}>
+        {allExpanded ? 'Collapse details' : 'Expand details'}
       </button>
     </div>
     <div className="ig-scope-chapters">
@@ -66,17 +69,24 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
               <strong>Chapter {chapter.chapterNo} · {chapter.title}</strong>
               <span>{chapter.termCount} terms</span>
             </label>
-            <details className="ig-scope-details" open={showAll ? true : undefined}
-              key={showAll ? 'expanded' : 'default-' + chapter.chapterNo}>
-              <summary>Chapter {chapter.chapterNo}: {isFull ? 'Entire chapter ✓' : included.length ? included.length + ' selected' : 'Choose parts'}</summary>
+            <details className="ig-scope-details" open={expanded.has(chapter.chapterNo)}>
+              <summary onClick={(event) => {
+                event.preventDefault();
+                setExpanded((previous) => {
+                  const next = new Set(previous);
+                  if (next.has(chapter.chapterNo)) next.delete(chapter.chapterNo);
+                  else next.add(chapter.chapterNo);
+                  return next;
+                });
+              }}>Chapter {chapter.chapterNo}: {isFull ? 'Entire chapter · Choose topics and sections' : included.length ? included.length + ' selected' : 'Choose topics and sections'}</summary>
               <div className="ig-scope-detail-content">
-                {isFull && <p className="ig-scope-hint">Deselect the whole chapter to choose only some topics or sections.</p>}
+                {isFull && <p className="ig-scope-hint">Choose a topic or section to narrow this chapter. Selections in other chapters stay selected.</p>}
                 <strong>Syllabus topics</strong>
                 <div className="ig-scope-subchoices">
                   {chapter.topics.length ? chapter.topics.map((topic) =>
                     <label key={'topic-' + topic.code}>
-                      <input type="checkbox" disabled={disabled || isFull} aria-label={'Topic ' + topic.code + ' · Chapter ' + chapter.chapterNo}
-                        checked={isFull || included.some((scope) => scope.kind === 'topic' && scope.code === topic.code)}
+                      <input type="checkbox" disabled={disabled} aria-label={'Topic ' + topic.code + ' · Chapter ' + chapter.chapterNo}
+                        checked={included.some((scope) => scope.kind === 'topic' && scope.code === topic.code)}
                         onChange={(event) => narrow({ chapterNo: chapter.chapterNo, kind: 'topic', code: topic.code }, event.target.checked)} />
                       <span>{topic.code} · {topic.title}</span>
                       <small>{topic.termCount}</small>
@@ -87,9 +97,9 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
                 <div className="ig-scope-subchoices">
                   {chapter.sections.length ? chapter.sections.map((section) =>
                     <label key={'section-' + section.code}>
-                      <input type="checkbox" disabled={disabled || isFull}
+                      <input type="checkbox" disabled={disabled}
                         aria-label={'Hodder section ' + section.code + ' · Chapter ' + chapter.chapterNo}
-                        checked={isFull || included.some((scope) => scope.kind === 'section' && scope.code === section.code)}
+                        checked={included.some((scope) => scope.kind === 'section' && scope.code === section.code)}
                         onChange={(event) => narrow({ chapterNo: chapter.chapterNo, kind: 'section', code: section.code }, event.target.checked)} />
                       <span>{section.code} · {section.title}</span>
                       <small>{section.termCount}</small>

@@ -33,25 +33,21 @@ describe('Readable classroom wheel with 29 terms', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
-  it('shows at most ten readable sectors, with access to all 29 items', async () => {
-    expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(10);
-    expect(container.textContent).toContain('Wheel set 1 of 3');
-    expect(findButton('← Previous set').disabled).toBe(true);
-    await click(findButton('Next set →'));
-    expect(container.textContent).toContain('Wheel set 2 of 3');
-    expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(10);
-    await click(findButton('Next set →'));
-    expect(container.textContent).toContain('Wheel set 3 of 3');
-    expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(9);
-    expect(container.textContent).toContain('29 segments remaining');
-  });
-  it('keeps the full definition in the result panel, not tiny circular text', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0);
-    await click(findButton('Spin the wheel'));
-    expect(container.querySelector('.ig-wheel-result')?.textContent).toContain('An accurate source-backed description');
-    expect(findButton('Spin the wheel').disabled).toBe(true);
-    await click(findButton('Eliminate this segment'));
-    expect(container.textContent).toContain('28 segments remaining');
-    expect(findButton('Spin the wheel').disabled).toBe(false);
+  it('uses all 29 sectors, reveals only after landing, and removes the selected sector', async () => {
+    vi.useFakeTimers();
+    try {
+      expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(29);
+      vi.spyOn(Math, 'random').mockReturnValue(0.999);
+      await click(findButton('Spin the wheel'));
+      expect(container.querySelector('.ig-wheel-result')).toBeNull();
+      expect(findButton('Spinning…').disabled).toBe(true);
+      await act(async () => { vi.advanceTimersByTime(1800); });
+      expect(container.querySelector('.ig-wheel-result h3')?.textContent).toContain('Cambridge term 29');
+      await click(findButton('Eliminate this segment'));
+      expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(28);
+      expect(findButton('Spin the wheel').disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

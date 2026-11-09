@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useGameSignal } from './game-session';
 import {
   chapter7Pilot, findMatchOptions, scrambleTerm,
@@ -31,93 +31,99 @@ export function SpeakingCards({ prompts }: { prompts: readonly SpeakingPrompt[] 
   </div>;
 }
 
+const WHEEL_SPIN_MS = 1800;
+const WHEEL_COLOURS = ['#4442a5', '#00636b', '#9d2936', '#935000', '#186936', '#7633a5', '#16558e', '#924900'];
+
 export function SpinWheel({ pairs }: { pairs: readonly GamePair[] }) {
   const signal = useGameSignal();
   const [eliminated, setEliminated] = useState<string[]>([]);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<GamePair | null>(null);
+  const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [spins, setSpins] = useState(0);
-  const [wheelPage, setWheelPage] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [labelMode, setLabelMode] = useState<'term' | 'definition'>('definition');
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
   const active = pairs.filter((item) => !eliminated.includes(item.id));
-  const PAGE_SIZE = 10;
-  const pageCount = Math.max(1, Math.ceil(active.length / PAGE_SIZE));
-  const safePage = Math.min(wheelPage, pageCount - 1);
-  const visible = active.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
-  const selected = pairs.find((item) => item.id === result);
-  if (!pairs.length) return <p>No wheel topics available.</p>;
-  const sector = 360 / Math.max(1, visible.length);
-  const colours = ['#4442a5','#00636b','#9d2936','#935000','#186936','#7633a5','#16558e','#924900'];
-  const gradient = visible.length
-    ? 'conic-gradient(' + visible.map((_, i) => colours[i % colours.length] + ' ' + (i * sector) + 'deg ' + ((i + 1) * sector) + 'deg').join(',') + ')'
+  const sector = 360 / Math.max(1, active.length);
+  const gradient = active.length
+    ? 'conic-gradient(' + active.map((_, index) =>
+      WHEEL_COLOURS[index % WHEEL_COLOURS.length] + ' ' + (index * sector) + 'deg ' + ((index + 1) * sector) + 'deg').join(',') + ')'
     : '#64748b';
-  function turnPage(direction: -1 | 1) {
-    setWheelPage((page) => Math.min(Math.max(0, page + direction), pageCount - 1));
-    setRotation(0);
-    setResult(null);
-    setShowAnswer(false);
-  }
+
   function spin() {
-    if (!visible.length || selected) return;
-    const choiceIndex = Math.floor(Math.random() * visible.length);
-    const next = visible[choiceIndex]!;
-    const targetAngle = (360 - (choiceIndex + .5) * sector + 360) % 360;
-    setRotation((previous) => previous + 1440 + (targetAngle - (previous % 360) + 360) % 360);
-    setResult(next.id);
+    if (!active.length || spinning || result) return;
+    const index = Math.floor(Math.random() * active.length);
+    const choice = active[index]!;
+    const target = 360 - (index + .5) * sector;
+    setRotation((previous) => previous + 1440 + (target - previous % 360 + 360) % 360);
     setSpins((previous) => previous + 1);
-    setShowAnswer(false);
+    setSpinning(true);
     signal('spin');
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    timer.current = window.setTimeout(() => {
+      setResult(choice);
+      setSpinning(false);
+    }, reducedMotion ? 0 : WHEEL_SPIN_MS);
   }
-  function eliminate() {
-    if (!selected) return;
-    setEliminated((previous) => [...previous, selected.id]);
+
+  function closeResult(remove: boolean) {
+    if (!result) return;
+    if (remove) {
+      setEliminated((previous) => [...previous, result.id]);
+      if (active.length === 1) signal('complete');
+      else setRotation(0);
+    }
     setResult(null);
-    setRotation(0);
     setShowAnswer(false);
-    signal('review');
-    if (active.length === 1) signal('complete');
   }
+
   return <div className="ig-content">
-    <p className="ig-instruction">Spin for a random Cambridge term or definition. Long chapters are divided into readable wheel sets; use Next set to reach every term.</p>
+    <p className="ig-instruction">Spin to pick from every term in this round. Keep the selected sector or remove it before the next spin.</p>
     <div className="ig-score">{spins} spins · {active.length} segments remaining</div>
     <div className="ig-wheel-switch" role="group" aria-label="Wheel segment content">
-      <button type="button" aria-pressed={labelMode === 'definition'} onClick={() => setLabelMode('definition')}>Definitions</button>
-      <button type="button" aria-pressed={labelMode === 'term'} onClick={() => setLabelMode('term')}>Terms</button>
-    </div>
-    <div className="ig-wheel-pager" role="group" aria-label="Wheel page">
-      <button type="button" disabled={safePage === 0} onClick={() => turnPage(-1)}>← Previous set</button>
-      <span>Wheel set {safePage + 1} of {pageCount} · {visible.length} readable slices</span>
-      <button type="button" disabled={safePage >= pageCount - 1} onClick={() => turnPage(1)}>Next set →</button>
+      <button type="button" disabled={spinning || Boolean(result)} aria-pressed={labelMode === 'definition'} onClick={() => setLabelMode('definition')}>Definitions</button>
+      <button type="button" disabled={spinning || Boolean(result)} aria-pressed={labelMode === 'term'} onClick={() => setLabelMode('term')}>Terms</button>
     </div>
     <div className="ig-wheel-layout">
       <div className="ig-wheel-wrap">
         <span className="ig-wheel-pointer" aria-hidden="true">▼</span>
-        <div className="ig-wheel-disc" style={{ background: gradient, transform: 'rotate(' + rotation + 'deg)' }}
-          role="group" aria-label={visible.length + ' visible wheel sectors'}>
-          {visible.map((item, index) => {
-            const label = labelMode === 'term' ? item.term : item.definition;
-            return <span key={item.id} className="ig-wheel-label"
-              style={{ transform: 'rotate(' + ((index + .5) * sector) + 'deg) translateY(-102px) rotate(' + (-(index + .5) * sector) + 'deg)' }}
-              title={label}>{label.length > 21 ? label.slice(0, 20) + '…' : label}</span>;
-          })}
+        <div className="ig-wheel-disc" style={{
+          background: gradient, transform: 'rotate(' + rotation + 'deg)',
+          transitionDuration: spinning ? WHEEL_SPIN_MS + 'ms' : '0ms',
+        }} role="group" aria-label={active.length + ' wheel sectors'}>
+          <svg className="ig-wheel-radial" viewBox="-150 -150 300 300" aria-hidden="true">
+            {active.map((item, index) => {
+              const label = labelMode === 'term' ? item.term : item.definition;
+              return <g key={item.id} transform={'rotate(' + ((index + .5) * sector - 90) + ')'}>
+                <title>{label}</title>
+                <text className="ig-wheel-label" x="44" y="0" dominantBaseline="middle">
+                  {label.length > 18 ? label.slice(0, 17) + '…' : label}
+                </text>
+              </g>;
+            })}
+          </svg>
           <span className="ig-wheel-hub" aria-hidden="true">CS</span>
         </div>
       </div>
       <div className="ig-wheel-panel">
-        <button type="button" className="ig-primary-button" onClick={spin} disabled={!visible.length || Boolean(selected)}>Spin the wheel</button>
-        {selected && <div className="ig-wheel-result" aria-live="polite">
+        <button type="button" className="ig-primary-button" onClick={spin} disabled={!active.length || spinning || Boolean(result)}>{spinning ? 'Spinning…' : 'Spin the wheel'}</button>
+        {result && <div className="ig-wheel-result" aria-live="polite">
           <span className="ig-eyebrow">SELECTED SEGMENT</span>
-          <h3>{labelMode === 'term' ? selected.term : selected.definition}</h3>
-          <p>Explain or identify the correct concept before revealing the solution.</p>
-          <button type="button" onClick={() => { if (!showAnswer) signal('flip'); setShowAnswer((value) => !value); }}>{showAnswer ? 'Hide answer' : 'Reveal definition'}</button>
-          {showAnswer && <p className="ig-reveal">{selected.term} — {selected.definition}</p>}
+          <h3>{labelMode === 'term' ? result.term : result.definition}</h3>
+          <button type="button" onClick={() => {
+            if (!showAnswer) signal('flip');
+            setShowAnswer((value) => !value);
+          }}>{showAnswer ? 'Hide answer' : 'Reveal answer'}</button>
+          {showAnswer && <p className="ig-reveal">{labelMode === 'term' ? result.definition : result.term}</p>}
           <div className="ig-wheel-actions">
-            <button type="button" onClick={() => { setResult(null); setShowAnswer(false); }}>Resume</button>
-            <button type="button" onClick={eliminate}>Eliminate this segment</button>
+            <button type="button" onClick={() => closeResult(false)}>Resume</button>
+            <button type="button" onClick={() => closeResult(true)}>Eliminate this segment</button>
           </div>
         </div>}
-        {!active.length && <div className="ig-complete" role="status">All segments have been explored.</div>}
+        {!active.length && <div className="ig-complete" role="status">All sectors have been explored.</div>}
       </div>
     </div>
   </div>;
@@ -134,7 +140,6 @@ export function OpenBox({ pairs }: { pairs: readonly GamePair[] }) {
     if (!opened.includes(index)) {
       signal('open');
       signal('review');
-      if (opened.length + 1 === pairs.length) signal('complete');
     }
     setOpened((previous) => previous.includes(index) ? previous : [...previous, index]);
     setSelected(index);
@@ -143,16 +148,22 @@ export function OpenBox({ pairs }: { pairs: readonly GamePair[] }) {
   return <div className="ig-content">
     <p className="ig-instruction">Open a mystery box. Explain the term or challenge, then reveal the suggested answer. Opening a box is not scored.</p>
     <div className="ig-score">{opened.length} / {pairs.length} boxes explored</div>
-    <div className="ig-box-grid">
+    {!active && <div className="ig-box-grid">
       {pairs.map((pair, index) => <button type="button" key={pair.id}
         aria-pressed={selected === index} className={'ig-box ig-color-' + (index % 6) + (opened.includes(index) ? ' is-opened' : '') + (selected === index ? ' is-selected' : '')}
         onClick={() => open(index)}><span>{opened.includes(index) ? '✓' : index + 1}</span><strong>{opened.includes(index) ? 'Opened' : 'Tap to open'}</strong></button>)}
-    </div>
+    </div>}
     {active && <div className="ig-box-detail" aria-live="polite">
       <span className="ig-eyebrow">BOX {selected! + 1} · CHALLENGE</span>
       <h3>Explain: {active.term}</h3>
       <button type="button" onClick={() => { if (!revealed) signal('flip'); setRevealed((value) => !value); }}>{revealed ? 'Hide answer' : 'Reveal answer'}</button>
       {revealed && <p className="ig-reveal">{active.definition}</p>}
+      <div className="ig-box-actions">
+        <button type="button" onClick={() => {
+          setSelected(null);
+          if (opened.length === pairs.length) signal('complete');
+        }}>{opened.length === pairs.length ? 'See results →' : 'Back to boxes'}</button>
+      </div>
     </div>}
   </div>;
 }

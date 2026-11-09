@@ -27,8 +27,8 @@ export interface SpeakingPrompt {
 export interface QuizQuestion {
   id: string;
   prompt: string;
-  options: readonly [string, string, string, string];
-  answerIndex: 0 | 1 | 2 | 3;
+  options: readonly string[];
+  answerIndex: number;
   explanation: string;
 }
 export interface GamePack {
@@ -106,8 +106,8 @@ export function isCorrectPair(termId: string, definitionId: string): boolean {
 }
 
 /** Consistent per-question four-choice construction without making the prompt's answer obvious. */
-export function findMatchOptions(pairs: readonly GamePair[], index: number): GamePair[] {
-  if (pairs.length < 4) return [];
+export function findMatchOptions(pairs: readonly GamePair[], index: number, minimum = 4): GamePair[] {
+  if (pairs.length < minimum) return [];
   const target = pairs[index];
   if (!target) return [];
   // Pick three distinct distractors, including for short 4- and 5-term packs.
@@ -119,7 +119,7 @@ export function findMatchOptions(pairs: readonly GamePair[], index: number): Gam
       others.push(choice);
     }
   }
-  const place = index % 4;
+  const place = index % (others.length + 1);
   const result = [...others];
   result.splice(place, 0, target);
   return result;
