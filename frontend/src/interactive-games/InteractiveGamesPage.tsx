@@ -183,7 +183,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       that have not yet been linked to a precise subsection.
     </p>}
 
-    {ready && <>
+    {pack && ready && <>
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
           disabled={!gameIsAvailable(game.id, pairs)} aria-pressed={currentMode === game.id}
