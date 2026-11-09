@@ -63,7 +63,7 @@ export function LiveCardBoard({ snapshot, refresh, interactive = true }: LiveCar
         minWidth: columns * 124,
       }}>
         {Array.from({ length: columns }, (_, index) => index + 1).map((points) => {
-          const group = cards.filter((card) => card.marks === points);
+          const group = cards.filter((card) => card.marks === points).sort((a,b) => a.id.localeCompare(b.id));
           return <div className="live-card-column" key={points}>
             <header><strong>{points} ball</strong><small>{group.filter((card) => !card.used).length} ta qoldi</small></header>
             <div className="live-card-stack">
