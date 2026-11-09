@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
-  chapter7Pilot, GAME_CATALOG, GROUPS,
-  isCorrectGroup, isCorrectPair,
-  type GameKind, type GamePair, type GroupName,
+  chapter7Pilot, GAME_CATALOG, isCorrectPair,
+  type GameKind, type GamePair,
 } from './game-content';
+import { Anagram, FindTheMatch, OpenBox, Quiz, SpeakingCards, SpinWheel } from './ExtraGames';
 import './interactive-games.css';
 
 /**
@@ -23,7 +23,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <p>Short, focused games for Cambridge Computer Science. Choose a game to practise the same key ideas in a new way.</p>
         <div className="ig-pills"><span>Chapter {chapter7Pilot.chapterNo}</span><span>Section {chapter7Pilot.sectionCode}</span><span>{isTeacher ? 'Teacher preview' : 'Independent practice'}</span></div>
       </div>
-      <div className="ig-hero-mark" aria-hidden="true">4<span>play modes</span></div>
+      <div className="ig-hero-mark" aria-hidden="true">8<span>play modes</span></div>
     </div>
     <div className="ig-notice" role="note">
       <strong>Chapter 7.1 pilot content.</strong> This is a curated practice set, not the complete Chapter 7 question bank.
@@ -45,9 +45,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </div>
       <div key={mode + ':' + round}>
         {mode === 'match-up' && <MatchUp pairs={chapter7Pilot.pairs} />}
-        {mode === 'matching-pairs' && <MatchingPairs pairs={chapter7Pilot.pairs} />}
         {mode === 'flash-cards' && <FlashCards pairs={chapter7Pilot.pairs} />}
-        {mode === 'group-sort' && <GroupSort />}
+        {mode === 'speaking-cards' && <SpeakingCards prompts={chapter7Pilot.speaking} />}
+        {mode === 'spin-wheel' && <SpinWheel pairs={chapter7Pilot.pairs} />}
+        {mode === 'open-box' && <OpenBox pairs={chapter7Pilot.pairs} />}
+        {mode === 'quiz' && <Quiz questions={chapter7Pilot.quiz} />}
+        {mode === 'find-the-match' && <FindTheMatch pairs={chapter7Pilot.pairs} />}
+        {mode === 'anagram' && <Anagram pairs={chapter7Pilot.pairs} />}
       </div>
     </div>
     <p className="ig-source">Source: {chapter7Pilot.source}. Material is adapted and shortened for practice.</p>
@@ -89,52 +93,6 @@ function MatchUp({ pairs }: { pairs: GamePair[] }) {
   </div>;
 }
 
-interface MemoryCard { key: string; pairId: string; face: string; }
-function MatchingPairs({ pairs }: { pairs: GamePair[] }) {
-  const deck = useMemo(() => {
-    const cards: MemoryCard[] = pairs.flatMap((pair) => [
-      { key: 'term-' + pair.id, pairId: pair.id, face: pair.term },
-      { key: 'definition-' + pair.id, pairId: pair.id, face: pair.definition },
-    ]);
-    const order = [5, 10, 0, 13, 2, 9, 14, 1, 8, 7, 12, 3, 6, 15, 4, 11];
-    return order.map((index) => cards[index]).filter((card): card is MemoryCard => Boolean(card));
-  }, [pairs]);
-  const [open, setOpen] = useState<number[]>([]);
-  const [matched, setMatched] = useState<string[]>([]);
-  const [turns, setTurns] = useState(0);
-  const [feedback, setFeedback] = useState('Select two cards to find a matching term and definition.');
-
-  function flip(index: number) {
-    const card = deck[index];
-    if (!card || matched.includes(card.pairId) || open.includes(index)) return;
-    const picks = open.length === 2 ? [index] : [...open, index];
-    setOpen(picks);
-    if (picks.length !== 2) return;
-    setTurns((current) => current + 1);
-    const first = deck[picks[0]];
-    if (first?.pairId === card.pairId && first.key !== card.key) {
-      setMatched((current) => [...current, card.pairId]);
-      setFeedback('Pair found! Keep going.');
-    } else {
-      setFeedback('These cards do not match. Select another card to continue.');
-    }
-  }
-
-  return <div className="ig-content">
-    <p className="ig-instruction">Reveal two cards. Find the term and its definition. Wrong pairs stay visible until your next choice.</p>
-    <div className="ig-score" role="status">{matched.length} / {pairs.length} pairs found · {turns} attempts</div>
-    <div className="ig-memory-grid">{deck.map((card, index) => {
-      const complete = matched.includes(card.pairId);
-      const revealed = open.includes(index);
-      return <button key={card.key} type="button" disabled={complete} aria-pressed={revealed}
-        aria-label={complete ? 'Matched: ' + card.face : revealed ? card.face : 'Hidden card ' + (index + 1)}
-        className={'ig-memory-card' + (revealed ? ' is-open' : '') + (complete ? ' is-complete' : '')}
-        onClick={() => flip(index)}>{complete ? <span>✓ Matched</span> : revealed ? <span>{card.face}</span> : <span className="ig-memory-back">?</span>}</button>;
-    })}</div>
-    <p className="ig-feedback" aria-live="polite">{matched.length === pairs.length ? 'Excellent! You found every pair.' : feedback}</p>
-  </div>;
-}
-
 function FlashCards({ pairs }: { pairs: GamePair[] }) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -158,27 +116,3 @@ function FlashCards({ pairs }: { pairs: GamePair[] }) {
   </div>;
 }
 
-function GroupSort() {
-  const items = chapter7Pilot.groups;
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<GroupName | null>(null);
-  const [correct, setCorrect] = useState(0);
-  const item = items[index];
-  if (!item) return <div className="ig-complete" role="status"><h3>Round complete!</h3><p>{correct} / {items.length} correct on first attempt.</p></div>;
-  function choose(group: GroupName) {
-    if (selected) return;
-    setSelected(group);
-    if (isCorrectGroup(item, group)) setCorrect((current) => current + 1);
-  }
-  return <div className="ig-content">
-    <p className="ig-instruction">Read the statement and identify which concept it most directly describes.</p>
-    <div className="ig-score">Question {index + 1} / {items.length} · {correct} correct</div>
-    <div className="ig-sort-prompt">{item.statement}</div>
-    <div className="ig-sort-choices">{GROUPS.map((group) => <button type="button" key={group}
-      disabled={Boolean(selected)} className={'ig-sort-choice' + (selected && group === item.group ? ' is-correct' : '') + (selected === group && group !== item.group ? ' is-wrong' : '')}
-      onClick={() => choose(group)}>{group}</button>)}</div>
-    {selected && <div className="ig-sort-result" role="status"><strong>{selected === item.group ? 'Correct!' : 'Not quite.'}</strong> The best match is {item.group}.
-      <button type="button" onClick={() => { setIndex((current) => current + 1); setSelected(null); }}>Next question →</button>
-    </div>}
-  </div>;
-}
