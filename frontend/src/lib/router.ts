@@ -38,8 +38,8 @@ export function parseRoute(hash: string): Route {
 
 const PAGES_BY_SURFACE = {
   boshqaruv: new Set(['holat', 'odamlar', 'korpus', 'sifat', 'tizim']),
-  oqitish: new Set(['darslar', 'savol-banki', 'live', 'tanlovlar', 'vazifalar', 'tekshirish', 'oquvchilar', 'sinf']),
-  oquvchi: new Set(['uy', 'darslar', 'live', 'vazifalar', 'natijalar', 'organish']),
+  oqitish: new Set(['darslar', 'savol-banki', 'live', 'oyinlar', 'tanlovlar', 'vazifalar', 'tekshirish', 'oquvchilar', 'sinf']),
+  oquvchi: new Set(['uy', 'darslar', 'live', 'oyinlar', 'vazifalar', 'natijalar', 'organish']),
 };
 
 export function canAccessRoute(role: keyof typeof HOME_BY_ROLE, route: Route): boolean {
