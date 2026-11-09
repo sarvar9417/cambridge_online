@@ -11,6 +11,21 @@ export function createContentRouter(service: ContentService) {
   router.get('/', async (req, res) => res.json({ data: await service.list(req.actor!) }));
   router.get('/games', async (req, res) => res.json({ data: await service.games(req.actor!) }));
 
+  // Unlike the legacy /games endpoint, these routes are chapter/section scoped.
+  // They read the latest glossary and Hodder section links on every request.
+  router.get('/interactive-games/catalog', async (req, res) => {
+    const query = z.object({ courseCode: courseCode.default('9618') }).strict().parse(req.query);
+    res.json({ data: await service.interactiveGameCatalog(req.actor!, query.courseCode) });
+  });
+  router.get('/interactive-games/pack', async (req, res) => {
+    const query = z.object({
+      courseCode: courseCode.default('9618'),
+      chapterNo: z.coerce.number().int().min(1).max(20),
+      sectionCode: z.string().regex(/^\\d+(?:\\.\\d+)*$/).max(24).optional(),
+    }).strict().parse(req.query);
+    res.json({ data: await service.interactiveGamePack(req.actor!, query) });
+  });
+
   router.get('/lessons/progress', async (req, res) => {
     res.json({ data: await service.lessonProgress(req.actor!) });
   });
