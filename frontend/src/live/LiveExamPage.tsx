@@ -555,8 +555,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         classId:selectedClassId,syllabusCode,topicIds:[],subtopicIds:[],
         coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[],
         igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[],
-        includeDiagrams,excludeSeen,difficulty:difficulty||undefined,
-        marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
+        includeDiagrams,excludeSeen,difficulty:difficulty||undefined,playMode,
+        marksMin:marksMin?Number(marksMin):undefined,marksMax:playMode==='cards'?Math.min(Number(marksMax)||cardColumns,cardColumns):marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,
         series,components,questionIds:selectedQuestionIds,questionOrder:'fixed' as const,
       };
@@ -567,7 +567,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     return()=>{cancelled=true;window.clearTimeout(timer)};
   },[
     selectionMode,selectedQuestionIds,selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,
-    difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,
+    difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,
   ]);
 
   const create=async(event:FormEvent<HTMLFormElement>)=>{
@@ -581,7 +581,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[],
         questionCount:selectionMode==='manual'?selectedQuestionIds.length:questionCount,practiceMode:user.role==='student'?practiceMode:undefined,rehearsalMode:user.role!=='student'&&rehearsalMode,questionTimeLimitS:data.get('timeLimit')?Number(data.get('timeLimit'))*60:undefined,
         markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):rehearsalMode?'teacher':data.get('markingMode'),includeDiagrams,excludeSeen,
-        difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
+        difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:playMode==='cards'?Math.min(Number(marksMax)||cardColumns,cardColumns):marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
         questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,playMode,cardColumns,
         questionTimeLimits:selectionMode==='manual'
