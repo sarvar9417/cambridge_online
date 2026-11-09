@@ -72,7 +72,7 @@ export function SpinWheel({ pairs }: { pairs: readonly GamePair[] }) {
     <div className="ig-wheel-layout">
       <div className="ig-wheel-wrap">
         <span className="ig-wheel-pointer" aria-hidden="true">▼</span>
-        <div className="ig-wheel-disc" style={{ background: gradient, transform: 'rotate(' + rotation + 'deg)' }} aria-label={active.length + ' wheel segments'} >
+        <div className="ig-wheel-disc" style={{ background: gradient, transform: 'rotate(' + rotation + 'deg)' }} role="group" aria-label={active.length + ' wheel segments'} >
           {active.map((item, index) => <span key={item.id} className="ig-wheel-label"
             style={{
               transform: 'rotate(' + ((index + .5) * sector) + 'deg) translateY(-102px) rotate(' + (-(index + .5) * sector) + 'deg)',
