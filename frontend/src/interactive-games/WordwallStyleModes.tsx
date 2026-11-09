@@ -63,7 +63,7 @@ export function MatchUpBoard({ pairs }: { pairs: readonly GamePair[] }) {
           const isCorrect = answers[item.id] === item.id;
           return <div key={item.id} className={'ig-match-row' + (submitted ? isCorrect ? ' is-correct' : ' is-wrong' : '')}>
             <div className="ig-drop-target" onDragOver={(event) => { if (!submitted) event.preventDefault(); }} onDrop={(event) => drop(event, item.id)}>
-              <button type="button" disabled={submitted || (!chosen && !activeTerm)} aria-label={'Answer slot for ' + item.definition}
+              <button type="button" disabled={submitted || (!chosen && !activeTerm)} aria-label={(chosen ? chosen.term : 'Place term') + '. Answer slot for ' + item.definition}
                 onClick={() => { if (activeTerm) assign(item.id, activeTerm); else if (chosen) setAnswers((previous) => { const next = { ...previous }; delete next[item.id]; return next; }); }}>
                 {chosen ? chosen.term : 'Place term'}
               </button>
