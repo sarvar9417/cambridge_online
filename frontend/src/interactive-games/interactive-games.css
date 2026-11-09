@@ -51,6 +51,7 @@
 .ig-games { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
 .ig-game-tile {
   text-align: left;
+  scroll-margin-top: 110px; /* keep game choices clear of sticky app header */
   min-height: 146px;
   border: 1px solid var(--ig-border);
   background: var(--ig-paper);
