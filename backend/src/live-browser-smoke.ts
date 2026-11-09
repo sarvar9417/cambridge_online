@@ -484,6 +484,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
     },{timeout:5_000},modeIndex);
     const overlap=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     if(overlap>3)throw new Error('Interactive Games mobile overflow in mode '+modeIndex+': '+overlap);
+    await assertAxe(student,'Interactive Games student mobile mode '+modeIndex);
   }
   await assertAxe(student,'Interactive Games student anagram/mobile');
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
