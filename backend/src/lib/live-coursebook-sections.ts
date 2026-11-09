@@ -276,6 +276,46 @@ export function liveCoursebookQuestionFilter(
   const sections=resolveLiveCoursebookSections(codes);
   if(!sections.length)return null;
 
+  // Chapter 7 headings all map to syllabus 7.1; only their LO terms differ.
+  // A single uncorrelated question-ID semi-join avoids repeated correlated
+  // EXISTS branches for every corpus question during Live pool counting.
+  // Preserve the existing filters for every other chapter/combination.
+  if(sections.every((section)=>
+    section.chapterNumber===7 && section.sourceTopicNumber===7 &&
+    section.sourceSubtopicCode==='7.1' &&
+    section.mappingKind==='learning_objective_bridge' &&
+    Boolean(section.includeLoTextAny?.length) &&
+    !(section.excludeLoTextAny?.length)
+  )){
+    const patterns=[...new Set(sections.flatMap((section)=>section.includeLoTextAny??[]))]
+      .map((term)=>`%${term}%`);
+    values.push(7,'7.1',patterns);
+    const dollar=String.fromCharCode(36);
+    const topicParameter=dollar+(values.length-2);
+    const subtopicParameter=dollar+(values.length-1);
+    const patternsParameter=dollar+values.length;
+    return `${questionAlias}.id in (
+      select coursebook_qst.question_id
+      from question_subtopics coursebook_qst
+      join subtopics coursebook_st on coursebook_st.id=coursebook_qst.subtopic_id
+      join topics coursebook_t on coursebook_t.id=coursebook_st.topic_id
+      join syllabi coursebook_sy on coursebook_sy.id=coursebook_t.syllabus_id
+      join question_learning_objectives coursebook_qlo
+        on coursebook_qlo.question_id=coursebook_qst.question_id
+      join learning_objectives coursebook_lo on coursebook_lo.id=coursebook_qlo.lo_id
+      join subtopics coursebook_lo_st on coursebook_lo_st.id=coursebook_lo.subtopic_id
+      join topics coursebook_lo_t on coursebook_lo_t.id=coursebook_lo_st.topic_id
+      join syllabi coursebook_lo_sy on coursebook_lo_sy.id=coursebook_lo_t.syllabus_id
+      where coursebook_sy.code='9618'
+        and coursebook_t.number=${topicParameter}
+        and coursebook_st.code=${subtopicParameter}
+        and coursebook_lo_sy.code='9618'
+        and coursebook_lo_t.number=${topicParameter}
+        and coursebook_lo_st.code=${subtopicParameter}
+        and coursebook_lo.text ilike any(${patternsParameter}::text[])
+    )`;
+  }
+
   const clauses=sections.map((section)=>{
     values.push(section.sourceTopicNumber);
     const topicParameter=`$${values.length}`;

@@ -56,6 +56,30 @@ describe('9618 Live coursebook section bridge',()=>{
       .toEqual(['18.1','18.2']);
   });
 
+  it('counts all three Chapter 7 sections with one set-based question filter',()=>{
+    const values:unknown[]=['class-id'];
+    const sql=liveCoursebookQuestionFilter(values,['7.1','7.2','7.3'],'bucket_question');
+    expect(values).toEqual(['class-id',7,'7.1',[
+      '%ethic%','%copyright%','%licenc%','%Artificial Intelligence%',
+    ]]);
+    expect(sql).toContain('bucket_question.id in (');
+    expect(sql).toContain('question_subtopics coursebook_qst');
+    expect(sql).toContain('question_learning_objectives coursebook_qlo');
+    expect(sql).toContain('coursebook_lo.text ilike any($4::text[])');
+    expect(sql).not.toContain(' or exists(');
+  });
+
+  it('restricts one Chapter 7 subsection and preserves mixed-chapter behavior',()=>{
+    const values:unknown[]=[];
+    const sql=liveCoursebookQuestionFilter(values,['7.2']);
+    expect(values).toEqual([7,'7.1',['%copyright%','%licenc%']]);
+    expect(sql).toContain('coursebook_lo.text ilike any($3::text[])');
+    const mixed:unknown[]=[];
+    const mixedSql=liveCoursebookQuestionFilter(mixed,['7.2','16.3']);
+    expect(mixedSql).toContain(' or ');
+    expect(mixedSql).toContain('coursebook_lo.text ilike');
+    expect(mixedSql).toContain('coursebook_st.code');
+  });
   it('classifies source-backed Question Bank evidence into textbook sections',()=>{
     const chapter2Internet=coursebookSectionsForEvidence({
       subtopics:[{topicNumber:2,code:'2.1'}],
