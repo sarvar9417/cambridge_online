@@ -387,7 +387,7 @@ describe('LiveExamService round-bound answer writes',()=>{
   const actor={id:'11111111-1111-4111-8111-111111111111',role:'student' as const,schoolId:'school',fullName:'Student'};
 
   function serviceForWrite(){
-    const query=vi.fn(async(sql:string)=>{
+    const query=vi.fn(async(sql:string,_values?:unknown[])=>{
       if(sql==='begin'||sql==='commit'||sql==='rollback')return{rows:[],rowCount:0};
       if(sql.includes('for update skip locked'))return{rows:[],rowCount:0};
       if(sql.includes('select status::text,paused_at'))return{rows:[{status:'question_open',paused_at:null}],rowCount:1};
