@@ -27,7 +27,7 @@ describe('Interactive Games menu discovery', () => {
       const target = role === 'student' ? 'oquvchi/oyinlar' : 'oqitish/oyinlar';
       const group = navigationFor(role, []).find((entry) =>
         entry.label === (role === 'student' ? 'O‘rganish' : 'O‘qitish'));
-      expect(group?.items[0]).toEqual({ path: target, label: 'Interactive Games' });
+      expect(group?.items[role === 'student' ? 0 : 1]).toEqual({ path: target, label: 'Interactive Games' });
       expect(group?.items.filter((item) => item.path === target)).toHaveLength(1);
       const user = { role, fullName: 'Test Teacher' } as User;
       await act(async () => root.render(
