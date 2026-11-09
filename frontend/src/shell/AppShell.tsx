@@ -96,7 +96,7 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
     </nav>
     <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div>
       <a className="shell-games-shortcut" href={`#${gameRoute}`}
-        aria-label="Interactive Games — 8 ta o‘yin"
+        aria-label="Interactive Games — O‘yinlar (8 ta)"
         aria-current={route.path === gameRoute ? 'page' : undefined}
         onClick={(event) => { event.preventDefault(); navigate(gameRoute); }}>
         <SquaresFour size={19} weight="fill" aria-hidden="true" />
