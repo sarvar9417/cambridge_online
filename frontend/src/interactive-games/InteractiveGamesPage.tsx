@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
-  chapter7Pilot, GAME_CATALOG, isCorrectPair,
+  chapter7Pilot, GAME_CATALOG,
   type GameKind, type GamePair,
 } from './game-content';
-import { Anagram, FindTheMatch, OpenBox, Quiz, SpeakingCards, SpinWheel } from './ExtraGames';
+import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
+import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import './interactive-games.css';
 
 /**
@@ -44,56 +45,18 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <button className="ig-reset" type="button" onClick={() => setRound((current) => current + 1)}>↻ Restart</button>
       </div>
       <div key={mode + ':' + round}>
-        {mode === 'match-up' && <MatchUp pairs={chapter7Pilot.pairs} />}
+        {mode === 'match-up' && <MatchUpBoard pairs={chapter7Pilot.pairs} />}
         {mode === 'flash-cards' && <FlashCards pairs={chapter7Pilot.pairs} />}
-        {mode === 'speaking-cards' && <SpeakingCards prompts={chapter7Pilot.speaking} />}
+        {mode === 'speaking-cards' && <SpeakingDeck prompts={chapter7Pilot.speaking} />}
         {mode === 'spin-wheel' && <SpinWheel pairs={chapter7Pilot.pairs} />}
         {mode === 'open-box' && <OpenBox pairs={chapter7Pilot.pairs} />}
         {mode === 'quiz' && <Quiz questions={chapter7Pilot.quiz} />}
-        {mode === 'find-the-match' && <FindTheMatch pairs={chapter7Pilot.pairs} />}
-        {mode === 'anagram' && <Anagram pairs={chapter7Pilot.pairs} />}
+        {mode === 'find-the-match' && <FindMatchBoard pairs={chapter7Pilot.pairs} />}
+        {mode === 'anagram' && <AnagramTiles pairs={chapter7Pilot.pairs} />}
       </div>
     </div>
     <p className="ig-source">Source: {chapter7Pilot.source}. Material is adapted and shortened for practice.</p>
   </section>;
-}
-
-function MatchUp({ pairs }: { pairs: GamePair[] }) {
-  const [active, setActive] = useState<string | null>(null);
-  const [solved, setSolved] = useState<string[]>([]);
-  const [attempts, setAttempts] = useState<Record<string, number>>({});
-  const [feedback, setFeedback] = useState('');
-  const definitions = useMemo(() => [...pairs].reverse(), [pairs]);
-  const firstTry = solved.filter((id) => attempts[id] === 1).length;
-
-  function answer(definitionId: string, termId: string | null = active) {
-    if (!termId || solved.includes(definitionId) || solved.includes(termId)) return;
-    setAttempts((previous) => ({ ...previous, [termId]: (previous[termId] ?? 0) + 1 }));
-    if (isCorrectPair(termId, definitionId)) {
-      setSolved((previous) => [...previous, termId]);
-      setFeedback('Correct match! Choose the next term.');
-      setActive(null);
-    } else setFeedback('Not quite. Try another definition for this term.');
-  }
-
-  return <div className="ig-content">
-    <p className="ig-instruction">Drag a term onto its definition, or select both with a click or keyboard.</p>
-    <div className="ig-score" role="status">{solved.length} / {pairs.length} matched · {firstTry} correct on first attempt</div>
-    <div className="ig-match-grid">
-      <div className="ig-choice-column"><h3>Terms</h3>{pairs.map((pair) => <button key={pair.id} type="button"
-        disabled={solved.includes(pair.id)} draggable={!solved.includes(pair.id)} aria-pressed={active === pair.id}
-        onDragStart={(event) => { event.dataTransfer.setData('text/plain', pair.id); setActive(pair.id); }}
-        className={'ig-choice' + (active === pair.id ? ' is-active' : '') + (solved.includes(pair.id) ? ' is-complete' : '')}
-        onClick={() => { setActive(pair.id); setFeedback('Now choose the matching definition.'); }}>
-        {pair.term}{solved.includes(pair.id) ? ' ✓' : ''}</button>)}</div>
-      <div className="ig-choice-column"><h3>Definitions</h3>{definitions.map((pair) => <button key={pair.id} type="button"
-        disabled={solved.includes(pair.id)} className={'ig-choice' + (solved.includes(pair.id) ? ' is-complete' : '')}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => { event.preventDefault(); const termId = event.dataTransfer.getData('text/plain'); if (pairs.some((term) => term.id === termId)) answer(pair.id, termId); }}
-        onClick={() => answer(pair.id)}>{pair.definition}</button>)}</div>
-    </div>
-    <p className="ig-feedback" aria-live="polite">{solved.length === pairs.length ? 'All pairs completed! Restart to practise again.' : feedback}</p>
-  </div>;
 }
 
 function FlashCards({ pairs }: { pairs: GamePair[] }) {
@@ -105,15 +68,15 @@ function FlashCards({ pairs }: { pairs: GamePair[] }) {
   return <div className="ig-content">
     <p className="ig-instruction">Recall the definition before revealing the answer. This is revision, not an assessed score.</p>
     <div className="ig-score">Card {index + 1} / {pairs.length}</div>
-    <button type="button" className="ig-flashcard" aria-label={revealed ? 'Definition: ' + card.definition : 'Term: ' + card.term + '. Reveal definition.'}
+    <button type="button" className="ig-flashcard" aria-label={revealed ? 'Term: ' + card.term : 'Definition: ' + card.definition + '. Flip to reveal the term.'}
       onClick={() => setRevealed((value) => !value)}>
-      <span className="ig-eyebrow">{revealed ? 'DEFINITION' : 'KEY TERM'}</span>
-      <strong>{revealed ? card.definition : card.term}</strong>
-      <small>{revealed ? 'Click to see the term' : 'Click to reveal definition'}</small>
+      <span className="ig-eyebrow">{revealed ? 'KEY TERM' : 'DEFINITION'}</span>
+      <strong>{revealed ? card.term : card.definition}</strong>
+      <small>{revealed ? 'Click to see the definition' : 'Click to reveal the term'}</small>
     </button>
     <div className="ig-card-controls">
       <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
-      <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Show term' : 'Reveal answer'}</button>
+      <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Show definition' : 'Flip card'}</button>
       <button type="button" disabled={index === pairs.length - 1} onClick={() => go(index + 1)}>Next →</button>
     </div>
   </div>;
