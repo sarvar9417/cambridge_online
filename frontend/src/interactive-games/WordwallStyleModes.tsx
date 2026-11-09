@@ -119,7 +119,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
     <p className="ig-instruction">Shuffle the deck and deal a card. Speak about the prompt before revealing the suggested talking points. This activity does not record or verify audio.</p>
     <div className="ig-score" role="status">{history.length} dealt · {pile.length} remaining</div>
     <div className="ig-deck-stage">
-      <button type="button" className="ig-deck-stack" onClick={deal} disabled={!pile.length} aria-label={'Deal a card. ' + pile.length + ' left'}>
+      <button type="button" className="ig-deck-stack" onClick={deal} disabled={!pile.length} aria-label={'Deal a card. ' + pile.length + ' cards left'}>
         <span className="ig-deck-pattern" aria-hidden="true">◆</span><small>{pile.length} cards</small>
       </button>
       <div className="ig-dealt-card" role="region" aria-label="Current speaking card">
