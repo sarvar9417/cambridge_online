@@ -74,6 +74,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (!catalog || scopes.length === 0) {
       setPack(null);
       setPackLoading(false);
+      setPackError('');
       return;
     }
     let active = true;
@@ -146,6 +147,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (JSON.stringify(normalized) === scopesKey) return;
     setScopes(normalized);
     setPack(null);
+    setPackError('');
     setRound(0);
     setPlaySession((value) => value + 1);
     clearSession();
