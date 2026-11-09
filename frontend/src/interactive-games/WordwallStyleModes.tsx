@@ -226,7 +226,7 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
       key={slotIndex} className="ig-anagram-slot" onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => { event.preventDefault(); const tile = event.dataTransfer.getData('text/plain'); if (/^\d+$/.test(tile)) place(Number(tile), slotIndex); }}>
       <button type="button" disabled={locked || placed[slotIndex] === undefined}
-        aria-label={'Answer position ' + (slotIndex + 1) + (placed[slotIndex] === undefined ? ' empty' : ', remove ' + scrambled[placed[slotIndex]!])}
+        aria-label={'Answer position ' + (slotIndex + 1) + (placed[slotIndex] === undefined ? ' · empty' : ', remove ' + scrambled[placed[slotIndex]!])}
         onClick={() => setPlaced((previous) => previous.filter((_, i) => i !== slotIndex))}>{placed[slotIndex] !== undefined ? scrambled[placed[slotIndex]!] : '·'}</button>
     </div>)}</div>
     {failed > 0 && !locked && <p className="ig-feedback" role="status">Not quite. Rearrange the letters and try again.</p>}
