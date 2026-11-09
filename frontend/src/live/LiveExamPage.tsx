@@ -352,6 +352,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [eligibleTotal,setEligibleTotal]=useState<number|null>(null);
   const [eligibleCounts,setEligibleCounts]=useState<EligibleQuestionCounts|null>(null);
   const [eligibleLoading,setEligibleLoading]=useState(false);
+  const [eligibleError,setEligibleError]=useState('');
+  const [eligibleRetryKey,setEligibleRetryKey]=useState(0);
   const [questionCount,setQuestionCount]=useState(5);
   const createAttempt=useRef<{body:string;key:string}|null>(null);
   // A filter change invalidates any older manual question-pool response.
@@ -493,25 +495,27 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
 
   useEffect(()=>{
     if(!selectedClassId||(syllabusCode==='9618'&&!coursebookSectionCodes.length)){
-      setEligibleTotal(null);setEligibleCounts(null);setEligibleLoading(false);return;
+      setEligibleTotal(null);setEligibleCounts(null);setEligibleLoading(false);setEligibleError('');return;
     }
     let cancelled=false;
     setEligibleLoading(true);
+    setEligibleError('');
     setEligibleTotal(null);
     setEligibleCounts(null);
     const timer=window.setTimeout(()=>{
       void api<EligibleQuestionResponse>(`/live-exams/eligible-questions?${eligibleParams(1,false,false)}`)
         .then((result)=>{
           if(cancelled)return;
+          setEligibleError('');
           setEligibleTotal(result.total);
           setEligibleCounts(result.counts??null);
           setQuestionCount((current)=>result.total>0?Math.min(Math.max(1,current),result.total,user.role==='student'?12:Number.MAX_SAFE_INTEGER):1);
         })
-        .catch((cause)=>{if(!cancelled)setError(message(cause,'Mos savollar soni aniqlanmadi.'))})
+        .catch((cause)=>{if(!cancelled)setEligibleError(message(cause,'Mos savollar soni aniqlanmadi.'))})
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns]);
+  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,eligibleRetryKey]);
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     const epoch=++poolRequestEpoch.current;
@@ -674,6 +678,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         </section>
         <section className="live-question-picker">
           <header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleCounts?`Jami bazada: ${eligibleCounts.database} · Live-ready: ${eligibleCounts.liveReady} · Hozir tanlash mumkin: ${eligibleCounts.available}`:eligibleTotal!==null?`Hozir tanlash mumkin: ${eligibleTotal}`:(syllabusCode==='0478'?'0478 Paper 2 tanlangan':'Chapter yoki Chapter section tanlang')}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'balanced');setReplacingQuestionId('')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
+          {eligibleError?<p role="alert" className="live-warning">Savollar sonini olish vaqtincha muvaffaqiyatsiz: {eligibleError} <button type="button" className="live-link-button" onClick={()=>setEligibleRetryKey(key=>key+1)}>Qayta tekshirish</button></p>:null}
           {selectionMode==='manual'?<>
             <div className="live-pool-toolbar">
               <input aria-label="Savollarni qidirish" value={poolSearch} onChange={(event)=>{const value=event.target.value;setPoolSearch(value);poolRequestEpoch.current+=1;if(poolRequestBusy.current){poolRequestBusy.current=false;setBusy(false)}setQuestionPool([]);setPoolTotal(null);setPoolPage(0)}} onKeyDown={(event)=>{if(event.key==='Enter'){event.preventDefault();void loadQuestionPool(0,poolSearch)}}} placeholder="Ref yoki savol matni bo‘yicha qidirish"/>
