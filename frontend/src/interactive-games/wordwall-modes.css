@@ -95,7 +95,7 @@
 .ig-box strong{font-size:11px;opacity:.9}
 .ig-quiz .ig-answer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .ig-quiz .ig-answer-button{min-height:132px;display:flex;align-items:center;justify-content:center;color:white;font-size:clamp(17px,2vw,26px);font-weight:750;text-align:center;box-shadow:inset 0 -10px #0002;border:4px solid transparent;padding:20px;line-height:1.3;border-radius:12px}
-.ig-quiz .ig-answer-button span{flex:0 0 34px;background:#ffffff25;color:white}
+.ig-quiz .ig-answer-button span{flex:0 0 34px;background:#00000025;color:white}
 .ig-quiz .ig-answer-button:nth-child(1){background:#095f98;border-color:#34b1f3}
 .ig-quiz .ig-answer-button:nth-child(2){background:#d11e3d;border-color:#eb4a64}
 .ig-quiz .ig-answer-button:nth-child(3){background:#a34b00;border-color:#ff9a28}
