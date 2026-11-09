@@ -108,7 +108,7 @@
 .ig-sort-choice.is-wrong { background: #fff0ed; border: 2px solid #dd8078; color: #a43e36; opacity: 1; }
 .ig-sort-result { margin-top: 19px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #41506d; }
 .ig-complete { padding: 35px; text-align: center; }
-.ig-source { color: #6d788d; font-size: 12px; line-height: 1.5; margin: 18px 4px; }
+.ig-source { color: #4e5b71; font-size: 12px; line-height: 1.5; margin: 18px 4px; }
 @media (max-width: 950px) {
   .ig-games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ig-hero-mark { flex-basis: 115px; width: 115px; height: 115px; font-size: 45px; }
