@@ -1,5 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { scrambleTerm, type GamePair, type SpeakingPrompt } from './game-content';
+import { isAnagramEligible } from './remote-games';
 import './wordwall-modes.css';
 
 /** Chapter-scalable, submit-to-mark matching board.
@@ -186,7 +187,7 @@ export function FindMatchBoard({ pairs }: { pairs: readonly GamePair[] }) {
 
 /** Numbered, movable letter tiles. Click/tap to place, click a slot to remove; drag/drop also works. */
 export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
-  const words = useMemo(() => pairs.filter((item) => !item.term.includes(' ') && item.term.length >= 4), [pairs]);
+  const words = useMemo(() => pairs.filter((item) => isAnagramEligible(item.term)), [pairs]);
   const [index, setIndex] = useState(0);
   const [placed, setPlaced] = useState<number[]>([]);
   const [failed, setFailed] = useState(0);
@@ -199,7 +200,7 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
   const locked = complete || revealed;
   const answer = placed.map((position) => scrambled[position]).join('');
   function place(letterIndex: number, slotIndex = placed.length) {
-    if (locked || placed.includes(letterIndex) || letterIndex < 0 || letterIndex >= scrambled.length || slotIndex > placed.length) return;
+    if (locked || !Number.isInteger(letterIndex) || !Number.isInteger(slotIndex) || placed.includes(letterIndex) || letterIndex < 0 || letterIndex >= scrambled.length || slotIndex < 0 || slotIndex > placed.length) return;
     setPlaced((previous) => [...previous.slice(0, slotIndex), letterIndex, ...previous.slice(slotIndex)]);
   }
   function check() {
@@ -223,7 +224,7 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
         aria-label={'Use letter ' + letter + ' at position ' + (tileIndex + 1)}>{letter}</button>)}</div>
     <div className="ig-anagram-slots" aria-label="Answer slots">{scrambled.map((_, slotIndex) => <div
       key={slotIndex} className="ig-anagram-slot" onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => { event.preventDefault(); place(Number(event.dataTransfer.getData('text/plain')), slotIndex); }}>
+      onDrop={(event) => { event.preventDefault(); const tile = event.dataTransfer.getData('text/plain'); if (/^\\d+$/.test(tile)) place(Number(tile), slotIndex); }}>
       <button type="button" disabled={locked || placed[slotIndex] === undefined}
         aria-label={'Answer position ' + (slotIndex + 1) + (placed[slotIndex] === undefined ? ' empty' : ', remove ' + scrambled[placed[slotIndex]!])}
         onClick={() => setPlaced((previous) => previous.filter((_, i) => i !== slotIndex))}>{placed[slotIndex] !== undefined ? scrambled[placed[slotIndex]!] : '·'}</button>
