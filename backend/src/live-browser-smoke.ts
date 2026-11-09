@@ -361,7 +361,13 @@ async function assertInteractiveGames(browser:Browser,base:string){
   const errors:string[]=[];
   teacher.on('pageerror',(err)=>errors.push(err instanceof Error ? err.message : String(err)));
   teacher.on('console',(msg)=>{if(msg.type()==='error')errors.push(msg.text());});
-  await teacher.goto(base+'/#oqitish/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
+  // Reproduce user navigation from a different page. A working deep link alone
+  // does not prove the game exists in the menu.
+  await teacher.goto(base+'/#oqitish/darslar',{waitUntil:'networkidle0',timeout:30_000});
+  const sidebarGame=await teacher.$('.shell-nav-groups a[href="#oqitish/oyinlar"]');
+  if(!sidebarGame)throw new Error('Interactive Games is missing from teacher left menu');
+  await teacher.$eval('.shell-nav-groups a[href="#oqitish/oyinlar"]',(node)=>node.scrollIntoView({block:'center'}));
+  await teacher.click('.shell-nav-groups a[href="#oqitish/oyinlar"]');
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
   const clickMode=async(index:number)=>{
@@ -486,7 +492,12 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await student.setViewport({width:390,height:844});
   await installApi(student,'student1','lobby');
   student.on('pageerror',(err)=>errors.push('mobile: '+(err instanceof Error ? err.message : String(err))));
-  await student.goto(base+'/#oquvchi/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
+  await student.goto(base+'/#oquvchi/uy',{waitUntil:'networkidle0',timeout:30_000});
+  const studentGame=await student.$('.shell-nav-groups a[href="#oquvchi/oyinlar"]');
+  if(!studentGame)throw new Error('Interactive Games is missing from student left menu');
+  const headerShortcut=await student.$('.shell-games-shortcut[href="#oquvchi/oyinlar"]');
+  if(!headerShortcut)throw new Error('Interactive Games is missing from the mobile header');
+  await student.click('.shell-games-shortcut');
   await student.waitForSelector('.ig-game-tile',{timeout:15_000});
   await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
   const mobileOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
