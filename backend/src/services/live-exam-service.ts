@@ -1400,7 +1400,11 @@ export class LiveExamService {
     return byAnswer;
   }
 
-  async snapshot(actor: Actor, sessionId: string, projector = false): Promise<Record<string, unknown>> {
+  async snapshot(actor: Actor, sessionId: string, projector = false, retryCount = 0): Promise<Record<string, unknown>> {
+    // Concurrent joins/submissions can keep changing the session version while
+    // the multi-query DTO is being assembled. Fail recoverably after a bounded
+    // number of re-reads rather than recursing until the serverless timeout.
+    if (retryCount >= 3) throw new DomainError('live_snapshot_unstable',409);
     const access = await this.pool.query(
       `select les.*,c.name class_name,u.full_name host_name,
          ($2<>'student') is_staff,
@@ -1434,7 +1438,7 @@ export class LiveExamService {
     if (!access.rowCount) throw new DomainError('not_found', 404);
     const session = access.rows[0];
     if (session.deadline_expired && await this.reconcileExpired(sessionId)) {
-      return this.snapshot(actor, sessionId, projector);
+      return this.snapshot(actor, sessionId, projector, retryCount+1);
     }
     const isStaff = Boolean(session.is_staff);
     if (projector && !isStaff) throw new DomainError('staff_only', 403);
@@ -1680,7 +1684,7 @@ export class LiveExamService {
     if (!latest.rowCount
       || Number(latest.rows[0].version) !== Number(session.version)
       || String(latest.rows[0].status) !== String(session.status)) {
-      return this.snapshot(actor, sessionId, projector);
+      return this.snapshot(actor, sessionId, projector, retryCount+1);
     }
 
     const response = {
