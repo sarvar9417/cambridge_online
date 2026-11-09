@@ -407,7 +407,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
     const actual=await teacher.$eval(selector,(node)=>node.textContent??'');
     if(!actual.includes(fragment))throw new Error('Interactive Games missing '+fragment+' in '+selector+': '+actual);
   };
-  await assertText('.ig-notice','pending curriculum review');
+  await assertText('.ig-notice','pending review');
   await assertText('.ig-scope-picker','Information representation');
 
   // Match Up must grade only after submission.
