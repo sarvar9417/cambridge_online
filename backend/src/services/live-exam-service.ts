@@ -998,7 +998,7 @@ export class LiveExamService {
     const cardColumns = input.cardColumns ?? 5;
     if (cardMode && (!Number.isInteger(cardColumns) || cardColumns < 1 || cardColumns > 5)) throw new DomainError('live_invalid_card_columns',400);
     const selectionInput = cardMode ? {...input,marksMin:Math.max(1,input.marksMin??1),marksMax:Math.min(cardColumns,input.marksMax??cardColumns)} : input;
-    if (cardMode && selectionInput.marksMin > selectionInput.marksMax) throw new DomainError('live_card_mark_filter_conflict',400);
+    if (cardMode && (selectionInput.marksMin??0) > (selectionInput.marksMax??cardColumns)) throw new DomainError('live_card_mark_filter_conflict',400);
     const selection = await this.chooseQuestionIds(actor, selectionInput);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
@@ -2934,7 +2934,7 @@ export class LiveExamService {
     return {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
       playMode:raw.playMode==='cards'?'cards' as const:'random' as const,
-      cardColumns:raw.playMode==='cards'&&Number.isInteger(raw.cardColumns)&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
+      cardColumns:raw.playMode==='cards'&&Number.isInteger(Number(raw.cardColumns))&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       rehearsalMode:raw.rehearsalMode===true,
       allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
