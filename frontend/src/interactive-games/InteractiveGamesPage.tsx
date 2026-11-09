@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { GAME_CATALOG, type GameKind, type GamePair } from './game-content';
 import {
@@ -6,9 +6,11 @@ import {
   type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
+import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, useGameSignal, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import './interactive-games.css';
 import './remote-games.css';
+import './game-polish.css';
 
 /**
  * Database-driven revision. Every page request reads the latest glossary and
@@ -28,7 +30,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [playSession, setPlaySession] = useState(0);
   const [questionCount, setQuestionCount] = useState(29);
   const [seconds, setSeconds] = useState(0);
+  const [timeLimit, setTimeLimit] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [reviewedCount, setReviewedCount] = useState(0);
   const [fullscreenError, setFullscreenError] = useState('');
 
   useEffect(() => {
@@ -69,11 +77,22 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     return () => { active = false; };
   }, [chapterNo, sectionCode, refreshVersion, catalog]);
 
+  const timeExpired = timeLimit > 0 && seconds >= timeLimit;
+  const roundEnded = finished || timeExpired;
+
   useEffect(() => {
-    if (paused) return;
+    if (paused || roundEnded || !pack) return;
     const timer = window.setInterval(() => setSeconds((time) => time + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [paused]);
+  }, [paused, roundEnded, pack, timeLimit]);
+
+  const signal = useCallback((kind: GameSignal, count = 1) => {
+    if (kind === 'correct') setCorrectCount((score) => score + Math.max(0, count));
+    if (kind === 'incorrect') setWrongCount((score) => score + Math.max(0, count));
+    if (kind === 'review') setReviewedCount((total) => total + Math.max(0, count));
+    if (kind === 'complete') setFinished(true);
+    if (soundOn) soundEffect(kind);
+  }, [soundOn]);
 
   const chapter = catalog?.chapters.find((ch) => ch.chapterNo === chapterNo);
   const section = chapter?.sections.find((s) => s.code === sectionCode);
@@ -86,17 +105,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
   const active = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
-  const time = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+  const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
 
-  function resetGame(nextMode?: GameKind) {
-    if (nextMode) setMode(nextMode);
-    // Changing templates keeps the SAME vocabulary round, so learners can
-    // reinforce the same concepts using different interactions.
-    // "New round" (no nextMode) alone moves on to the next batch.
-    if (!nextMode || nextMode === mode) setRound((value) => value + 1);
-    setPlaySession((value) => value + 1);
+  function clearSession() {
+    setCorrectCount(0);
+    setWrongCount(0);
+    setReviewedCount(0);
     setSeconds(0);
+    setFinished(false);
     setPaused(false);
+  }
+
+  function resetGame(nextMode?: GameKind, advanceRound = false) {
+    if (nextMode) setMode(nextMode);
+    // Changing games preserves the selected vocabulary batch. Advancing the
+    // round is a separate explicit action, avoiding skipped questions.
+    if (advanceRound) setRound((value) => value + 1);
+    setPlaySession((value) => value + 1);
+    clearSession();
   }
   function changeChapter(value: string) {
     const number = Number(value);
@@ -105,13 +131,14 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setPack(null);
     setRound(0);
     setPlaySession((value) => value + 1);
-    setSeconds(0);
+    clearSession();
   }
   function changeSection(value: string) {
     setSectionCode(value);
     setPack(null);
     setRound(0);
-    setSeconds(0);
+    setPlaySession((value) => value + 1);
+    clearSession();
   }
   function toggleFullscreen() {
     setFullscreenError('');
@@ -125,11 +152,21 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     }
   }
 
-  return <section className="ig-page" aria-label="Interactive Games">
+  return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
-      <span className="ig-clock" role="timer">◷ {time}</span>
+      <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>
       <span className="ig-session-name">Interactive Games · {sectionCode || 'Chapter ' + (chapterNo ?? '—')}</span>
-      <button type="button" onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <label className="ig-timer-select">Time limit
+        <select aria-label="Time limit" value={timeLimit} onChange={(event) => {
+          setTimeLimit(Number(event.target.value));
+          resetGame();
+        }}>
+          {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
+        </select>
+      </label>
+      <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
+      <button type="button" className="ig-pause-button" disabled={roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
       <button type="button" onClick={toggleFullscreen}>⛶ Full screen</button>
       {fullscreenError && <span role="alert">{fullscreenError}</span>}
     </div>
@@ -166,7 +203,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </label>
       <label>Round size
         <select aria-label="Round size" value={questionCount} disabled={!ready}
-          onChange={(event) => { setQuestionCount(Number(event.target.value)); setRound(0); setPlaySession((value) => value + 1); setSeconds(0); }}>
+          onChange={(event) => { setQuestionCount(Number(event.target.value)); setRound(0); setPlaySession((value) => value + 1); clearSession(); }}>
           {GAME_LENGTHS.map((size) => <option key={size} value={size}>{size} terms</option>)}
         </select>
       </label>
@@ -207,9 +244,14 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{active.label}</h2>
             <p>{chapter?.title}{section ? ' · ' + section.title : ''}</p>
           </div>
-          <button className="ig-reset" type="button" onClick={() => resetGame()}>↻ New round</button>
+          <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
         </div>
-        <div key={[chapterNo, sectionCode, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
+        <div className="ig-session-metrics" role="status" aria-label="Current practice results">
+          <span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span><span>◈ {reviewedCount} reviewed</span>
+          <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>
+        </div>
+        <fieldset className="ig-game-stage" disabled={paused || roundEnded}
+          key={[chapterNo, sectionCode, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
@@ -218,31 +260,53 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           {currentMode === 'quiz' && <Quiz questions={questions} />}
           {currentMode === 'find-the-match' && <FindMatchBoard pairs={pairs} />}
           {currentMode === 'anagram' && <AnagramTiles pairs={pairs} />}
-        </div>
+        </fieldset>
+        {paused && !roundEnded && <div className="ig-paused-banner" role="status">Paused — resume the timer to continue playing.</div>}
+        {roundEnded && <div className="ig-result-panel" role="status">
+          <span className="ig-eyebrow">{timeExpired ? "TIME'S UP" : 'ROUND SUMMARY'}</span>
+          <h3>{timeExpired ? "Time's up!" : 'Round finished!'}</h3>
+          <p><strong>{active.label}</strong> · {formatClock(seconds)} played</p>
+          <div className="ig-result-stats">
+            <span><strong>{correctCount}</strong>Correct first attempts</span>
+            <span><strong>{wrongCount}</strong>Incorrect attempts</span>
+            <span><strong>{reviewedCount}</strong>Items reviewed</span>
+          </div>
+          <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery. Scores are not saved to your account.</p>
+          <div className="ig-result-actions">
+            <button type="button" onClick={() => resetGame()}>↻ Play this round again</button>
+            <button type="button" onClick={() => resetGame(undefined, true)}>Next vocabulary round →</button>
+          </div>
+        </div>}
       </div>
       <p className="ig-source">Source: {pack.source}. Live glossary data is used as-is; pending-review content is clearly labelled.</p>
     </>}
-  </section>;
+  </section></GameSignalContext.Provider>;
 }
 
 function FlashCards({ pairs }: { pairs: GamePair[] }) {
+  const signal = useGameSignal();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const card = pairs[index];
   if (!card) return <p>No cards available.</p>;
   function go(next: number) { setIndex(next); setRevealed(false); }
+  function flip() {
+    if (!revealed) signal('review');
+    signal('flip');
+    setRevealed((value) => !value);
+  }
   return <div className="ig-content">
     <p className="ig-instruction">Recall the definition before revealing the answer. This is revision, not an assessed score.</p>
     <div className="ig-score">Card {index + 1} / {pairs.length}</div>
-    <button type="button" className="ig-flashcard"
-      onClick={() => setRevealed((value) => !value)}>
+    <button type="button" className={'ig-flashcard' + (revealed ? ' is-flipped' : '')}
+      onClick={flip}>
       <span className="ig-eyebrow">{revealed ? 'KEY TERM' : 'DEFINITION'}</span>
       <strong>{revealed ? card.term : card.definition}</strong>
       <small>{revealed ? 'Click to see the definition' : 'Click to reveal the term'}</small>
     </button>
     <div className="ig-card-controls">
       <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
-      <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Show definition' : 'Flip card'}</button>
+      <button type="button" onClick={flip}>{revealed ? 'Show definition' : 'Flip card'}</button>
       <button type="button" disabled={index === pairs.length - 1} onClick={() => go(index + 1)}>Next →</button>
     </div>
   </div>;

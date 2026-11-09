@@ -1,12 +1,14 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { scrambleTerm, type GamePair, type SpeakingPrompt } from './game-content';
 import { isAnagramEligible } from './remote-games';
+import { useGameSignal } from './game-session';
 import './wordwall-modes.css';
 
 /** Chapter-scalable, submit-to-mark matching board.
  * Keyboard users can click a term and then a target instead of dragging.
  */
 export function MatchUpBoard({ pairs }: { pairs: readonly GamePair[] }) {
+  const signal = useGameSignal();
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -34,6 +36,14 @@ export function MatchUpBoard({ pairs }: { pairs: readonly GamePair[] }) {
   function drop(event: DragEvent<HTMLDivElement>, targetId: string) {
     event.preventDefault();
     assign(targetId, event.dataTransfer.getData('text/plain'));
+  }
+
+  function submitPage() {
+    if (submitted) return;
+    setSubmitted(true);
+    if (pageCorrect) signal('correct', pageCorrect);
+    if (items.length > pageCorrect) signal('incorrect', items.length - pageCorrect);
+    if (page >= pages - 1) signal('complete');
   }
 
   function nextPage() {
@@ -77,7 +87,7 @@ export function MatchUpBoard({ pairs }: { pairs: readonly GamePair[] }) {
     </div>
     <div className="ig-match-actions">
       {!submitted ? <button type="button" className="ig-primary-button" disabled={!placed.length}
-        onClick={() => setSubmitted(true)}>Submit Answers</button>
+        onClick={submitPage}>Submit Answers</button>
         : <>
           <p role="status"><strong>{pageCorrect} / {items.length} correct.</strong> These are your first submitted answers; corrections are shown separately.</p>
           {page < pages - 1 ? <button type="button" className="ig-primary-button" onClick={nextPage}>Next page →</button>
@@ -89,11 +99,13 @@ export function MatchUpBoard({ pairs }: { pairs: readonly GamePair[] }) {
 
 /** Speaking practice is a physical deck: shuffle, deal and undo, without claiming speech has been recorded. */
 export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }) {
+  const signal = useGameSignal();
   const [pile, setPile] = useState(() => prompts.map((_, index) => index));
   const [history, setHistory] = useState<number[]>([]);
   const [revealed, setRevealed] = useState(false);
   const current = history.length ? prompts[history[history.length - 1]!] : null;
   function shuffle() {
+    signal('flip');
     const next = [...pile];
     for (let i = next.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -103,6 +115,8 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
   }
   function deal() {
     if (!pile.length) return;
+    signal('deal');
+    signal('review');
     const index = pile[pile.length - 1]!;
     setPile((previous) => previous.slice(0, -1));
     setHistory((previous) => [...previous, index]);
@@ -127,7 +141,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
           <span className="ig-eyebrow">YOUR SPEAKING PROMPT</span>
           <p>{current.prompt}</p>
           {revealed && <div className="ig-reveal"><strong>Suggested talking points</strong><p>{current.talkingPoints}</p></div>}
-          <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Hide talking points' : 'Reveal talking points'}</button>
+          <button type="button" onClick={() => { if (!revealed) signal('flip'); setRevealed((value) => !value); }}>{revealed ? 'Hide talking points' : 'Reveal talking points'}</button>
         </> : <p className="ig-dealt-placeholder">{pile.length ? 'Deal a card to reveal a question.' : 'All cards have been dealt. Undo or restart.'}</p>}
       </div>
     </div>
@@ -141,6 +155,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
 
 /** Persistent multi-tile board; each successful answer removes a tile. */
 export function FindMatchBoard({ pairs }: { pairs: readonly GamePair[] }) {
+  const signal = useGameSignal();
   const [remaining, setRemaining] = useState(() => pairs.map((item) => item.id));
   const [lives, setLives] = useState(3);
   const [mistakes, setMistakes] = useState(0);
@@ -155,9 +170,13 @@ export function FindMatchBoard({ pairs }: { pairs: readonly GamePair[] }) {
   function choose(id: string) {
     if (!current || finished || !remaining.includes(id)) return;
     if (id === current.id) {
+      signal('correct');
+      if (remaining.length === 1) signal('complete');
       setRemaining((previous) => previous.filter((candidate) => candidate !== id));
       setWrongId(null);
     } else {
+      signal('incorrect');
+      if (lives === 1) signal('complete');
       setMistakes((previous) => previous + 1);
       setLives((previous) => Math.max(0, previous - 1));
       setWrongId(id);
@@ -187,6 +206,7 @@ export function FindMatchBoard({ pairs }: { pairs: readonly GamePair[] }) {
 
 /** Numbered, movable letter tiles. Click/tap to place, click a slot to remove; drag/drop also works. */
 export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
+  const signal = useGameSignal();
   const words = useMemo(() => pairs.filter((item) => isAnagramEligible(item.term)), [pairs]);
   const [index, setIndex] = useState(0);
   const [placed, setPlaced] = useState<number[]>([]);
@@ -207,10 +227,17 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
     if (locked || placed.length !== scrambled.length) return;
     if (answer.toLocaleLowerCase('en') === item.term.toLocaleLowerCase('en')) {
       setComplete(true);
-      if (failed === 0) setFirstTry((previous) => previous + 1);
-    } else setFailed((previous) => previous + 1);
+      if (failed === 0) {
+        setFirstTry((previous) => previous + 1);
+        signal('correct');
+      } else signal('review'); // A corrected retry is practice, not first-attempt mastery.
+    } else {
+      signal('incorrect');
+      setFailed((previous) => previous + 1);
+    }
   }
   function next() {
+    if (index === words.length - 1) signal('complete');
     setIndex((previous) => previous + 1); setPlaced([]); setFailed(0); setComplete(false); setRevealed(false);
   }
   return <div className="ig-content ig-anagram">
@@ -235,7 +262,7 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
       <button type="button" disabled={locked || !placed.length} onClick={() => setPlaced((previous) => previous.slice(0, -1))}>Undo</button>
       <button type="button" disabled={locked || !placed.length} onClick={() => setPlaced([])}>Clear</button>
       <button type="button" disabled={locked || placed.length !== scrambled.length} onClick={check}>Check answer</button>
-      <button type="button" disabled={locked} onClick={() => setRevealed(true)}>Reveal answer</button>
+      <button type="button" disabled={locked} onClick={() => { signal('review'); setRevealed(true); }}>Reveal answer</button>
       <button type="button" disabled={!locked} onClick={next}>{index === words.length - 1 ? 'See results →' : 'Next anagram →'}</button>
     </div>
   </div>;

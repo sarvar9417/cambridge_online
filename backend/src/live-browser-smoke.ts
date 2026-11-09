@@ -458,6 +458,26 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await assertText('.ig-hero','Chapter 2');
 
   await assertAxe(teacher,'Interactive Games teacher desktop');
+  // Optional sound, countdown, full interaction pause and honest session summary.
+  await teacher.click('.ig-sound-toggle');
+  const soundPressed=await teacher.$eval('.ig-sound-toggle',(node)=>node.getAttribute('aria-pressed'));
+  if(soundPressed!=='true')throw new Error('Game sound toggle did not turn on');
+  await teacher.select('select[aria-label="Time limit"]','30');
+  await assertText('.ig-clock','Remaining 00:30');
+  await teacher.click('.ig-pause-button');
+  const frozen=await teacher.$eval('fieldset.ig-game-stage',(node)=>node.hasAttribute('disabled'));
+  if(!frozen)throw new Error('Pausing the timer did not freeze gameplay');
+  await assertText('.ig-paused-banner','Paused');
+  await teacher.click('.ig-pause-button');
+  const resumed=await teacher.$eval('fieldset.ig-game-stage',(node)=>!node.hasAttribute('disabled'));
+  if(!resumed)throw new Error('Resume did not reactivate game');
+  await teacher.click('.ig-finish-button');
+  await teacher.waitForSelector('.ig-result-panel',{timeout:5_000});
+  await assertText('.ig-result-panel','Practice feedback only');
+  await assertAxe(teacher,'Interactive Games finished round');
+  await teacher.click('.ig-result-actions button:first-child');
+  const restarted=await teacher.$eval('fieldset.ig-game-stage',(node)=>!node.hasAttribute('disabled'));
+  if(!restarted)throw new Error('Play again did not restart the current round');
   const overflow=await teacher.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   if(overflow>3)throw new Error('Interactive Games desktop overflow: '+overflow);
 

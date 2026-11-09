@@ -165,4 +165,55 @@ describe('Interactive Games loads all modes from current database catalog', () =
     expect(container.textContent).toContain('No linked glossary terms');
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);
   });
+  it('offers opt-in audio and produces an honest first-attempt scoreboard after Match Up', async () => {
+    await render();
+    const off = button('🔇 Sound off');
+    expect(off.getAttribute('aria-pressed')).toBe('false');
+    await click(off);
+    expect(button('🔊 Sound on').getAttribute('aria-pressed')).toBe('true');
+    await click(button('🔊 Sound on')); // Avoid actually playing tones in JSDOM.
+    await click([...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')].find((x) => x.textContent === 'Legal')!);
+    const slot = [...container.querySelectorAll<HTMLButtonElement>('.ig-drop-target button')]
+      .find((item) => item.getAttribute('aria-label')?.includes('permitted or required by law'))!;
+    await click(slot);
+    await click(button('Submit Answers'));
+    const summary = container.querySelector('.ig-result-panel');
+    expect(summary?.textContent).toContain('Round finished!');
+    expect(summary?.textContent).toContain('Correct first attempts');
+    expect(summary?.textContent).toContain('Incorrect attempts');
+    expect(container.textContent).toContain('✓ 1 correct');
+    expect(container.textContent).toContain('✕ 7 mistakes');
+    expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(true);
+    await click(button('↻ Play this round again'));
+    expect(container.querySelector('.ig-result-panel')).toBeNull();
+    expect(container.textContent).toContain('✓ 0 correct');
+  });
+
+  it('pauses the whole game instead of allowing free answers while the timer is stopped', async () => {
+    await render();
+    await click(button('Ⅱ Pause timer'));
+    expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(true);
+    expect(container.textContent).toContain('Paused — resume the timer');
+    await click(button('▶ Resume timer'));
+    expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('ends a timed round when its 30-second countdown expires, without saving an assessment', async () => {
+    await render();
+    vi.useFakeTimers();
+    try {
+      await change('select[aria-label="Time limit"]', '30');
+      expect(container.textContent).toContain('Remaining 00:30');
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+        await Promise.resolve();
+      });
+      expect(container.textContent).toContain("Time's up!");
+      expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Scores are not saved');
+      expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });
