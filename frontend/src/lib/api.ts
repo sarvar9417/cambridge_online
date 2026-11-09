@@ -298,7 +298,7 @@ export type LivePointFeedback =
   | {status:'unavailable';reason:'teacher_override'|'manual_scoring'|'not_recorded'};
 export interface LiveExamSnapshot {
   session:LiveExamSummary&{hostName:string;isHost?:boolean;currentQuestionIndex:number;startedAt:string|null;finishedAt:string|null;questionStartedAt:string|null;joinedLate?:boolean;deadline:string|null;serverNow:string;submittedCount:number;reviewCount:number;reviewedCount:number};
-  cards:Array<{id:string;position:number;marks:number;used:boolean}>;
+  cards?:Array<{id:string;position:number;marks:number;used:boolean}>;
   questions:Array<{id:string;position:number;marks:number;displayRef:string}>;
   participants:Array<{id:string;studentId:string;fullName:string;joinedAt:string;lastSeenAt:string;online:boolean;submitted:boolean;score:number|null;scoreSource:LiveExamMarkingMode|null}>;
   question:LiveExamQuestion|null;markScheme:LiveMarkScheme|null;ownAnswer:LiveExamAnswer|null;ownPointFeedback?:LivePointFeedback|null;review:LiveExamReview|null;
