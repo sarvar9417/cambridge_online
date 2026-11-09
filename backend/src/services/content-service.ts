@@ -121,12 +121,12 @@ export class ContentService {
   private async interactiveGamesAccess(actor: Actor, courseCode: '9618' | '0478') {
     if (actor.role !== 'student') return;
     const result = await this.pool.query(
-      \`select 1
+      `select 1
          from enrollments e
          join classes c on c.id=e.class_id
          join syllabi sy on sy.id=c.syllabus_id
          where e.student_id=$1 and e.left_at is null and sy.code=$2
-         limit 1\`,
+         limit 1`,
       [actor.id, courseCode],
     );
     if (!result.rowCount) throw new DomainError('not_enrolled_in_syllabus', 403);
@@ -136,7 +136,7 @@ export class ContentService {
     await this.interactiveGamesAccess(actor, courseCode);
     const [chaptersResult, sectionsResult] = await Promise.all([
       this.pool.query(
-        \`select t.number as chapter_no,min(t.title) title,
+        `select t.number as chapter_no,min(t.title) title,
                 count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count,
                 count(distinct gt.id) filter (where gt.status='approved')::int approved_count
          from topics t
@@ -146,11 +146,11 @@ export class ContentService {
          where sy.code=$1
          group by t.number
          having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
-         order by t.number\`,
+         order by t.number`,
         [courseCode],
       ),
       this.pool.query(
-        \`select bs.chapter_number chapter_no,bs.section_code,bs.title,bs.parent_code,
+        `select bs.chapter_number chapter_no,bs.section_code,bs.title,bs.parent_code,
                 (select count(distinct g.id)::int
                  from hodder_book_sections child
                  join hodder_glossary_section_links links on links.book_section_id=child.id
@@ -162,7 +162,7 @@ export class ContentService {
          from hodder_book_sections bs
          join syllabi sy on sy.id=bs.syllabus_id
          where sy.code=$1
-         order by bs.chapter_number,bs.section_code\`,
+         order by bs.chapter_number,bs.section_code`,
         [courseCode],
       ),
     ]);
@@ -197,14 +197,14 @@ export class ContentService {
     // section codes (e.g., syllabus 2.1 can include textbook 2.2 content).
     if (sectionCode) {
       const exists = await this.pool.query(
-        \`select bs.id from hodder_book_sections bs join syllabi sy on sy.id=bs.syllabus_id
-         where sy.code=$1 and bs.chapter_number=$2 and bs.section_code=$3 limit 1\`,
+        `select bs.id from hodder_book_sections bs join syllabi sy on sy.id=bs.syllabus_id
+         where sy.code=$1 and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
         [courseCode, chapterNo, sectionCode],
       );
       if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
     }
     const result = await this.pool.query(
-      \`select gt.id,gt.term,gt.definition_en definition,gt.status::text status,gt.source_ref source,
+      `select gt.id,gt.term,gt.definition_en definition,gt.status::text status,gt.source_ref source,
               st.code subtopic_code
        from glossary_terms gt
        join subtopics st on st.id=gt.subtopic_id
@@ -221,7 +221,7 @@ export class ContentService {
              and (bs.section_code=$3 or bs.section_code like $3 || '.%')
          ))
        order by lower(gt.term), case when gt.status='approved' then 0 else 1 end,gt.id
-       limit 500\`,
+       limit 500`,
       [courseCode, chapterNo, sectionCode ?? null],
     );
     // The same term may occur in several syllabus subtopics. A game must not
