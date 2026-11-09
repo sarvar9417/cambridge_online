@@ -74,6 +74,20 @@ export function validGameScopes(scopes: readonly GameScope[], catalog: LiveGameC
   }));
 }
 
+/** Search chapter, syllabus topic and book-section *codes* as well as names.
+ * A teacher searching "17.2" expects the actual curriculum section to appear.
+ */
+export function chapterMatchesGameSearch(chapter: LiveGameChapter, query: string): boolean {
+  const needle = query.trim().toLocaleLowerCase('en');
+  if (!needle) return true;
+  const values = [
+    String(chapter.chapterNo), 'chapter ' + chapter.chapterNo, chapter.title,
+    ...chapter.topics.flatMap((topic) => [topic.code, topic.title]),
+    ...chapter.sections.flatMap((section) => [section.code, section.title]),
+  ];
+  return values.some((value) => value.toLocaleLowerCase('en').includes(needle));
+}
+
 export const GAME_LENGTHS = [8, 16, 29] as const;
 export type GameLength = typeof GAME_LENGTHS[number];
 
