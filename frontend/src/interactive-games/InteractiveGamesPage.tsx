@@ -164,9 +164,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
         </select>
       </label>
-      <button type="button" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
-      <button type="button" disabled={roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
-      <button type="button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
+      <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
+      <button type="button" className="ig-pause-button" disabled={roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
       <button type="button" onClick={toggleFullscreen}>⛶ Full screen</button>
       {fullscreenError && <span role="alert">{fullscreenError}</span>}
     </div>
