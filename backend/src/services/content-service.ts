@@ -125,7 +125,7 @@ export class ContentService {
          from enrollments e
          join classes c on c.id=e.class_id
          join syllabi sy on sy.id=c.syllabus_id
-         where e.student_id=$1 and e.left_at is null and sy.code=$2
+         where e.student_id=$1 and e.left_at is null and sy.code=$2 and sy.is_active=true
          limit 1`,
       [actor.id, courseCode],
     );
@@ -143,7 +143,7 @@ export class ContentService {
          join syllabi sy on sy.id=t.syllabus_id
          left join subtopics st on st.topic_id=t.id
          left join glossary_terms gt on gt.subtopic_id=st.id
-         where sy.code=$1
+         where sy.code=$1 and sy.is_active=true
          group by t.number
          having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
          order by t.number`,
@@ -161,7 +161,7 @@ export class ContentService {
                    and g.status in ('approved','needs_review')) term_count
          from hodder_book_sections bs
          join syllabi sy on sy.id=bs.syllabus_id
-         where sy.code=$1
+         where sy.code=$1 and sy.is_active=true
          order by bs.chapter_number,bs.section_code`,
         [courseCode],
       ),
@@ -198,7 +198,7 @@ export class ContentService {
     if (sectionCode) {
       const exists = await this.pool.query(
         `select bs.id from hodder_book_sections bs join syllabi sy on sy.id=bs.syllabus_id
-         where sy.code=$1 and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
+         where sy.code=$1 and sy.is_active=true and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
         [courseCode, chapterNo, sectionCode],
       );
       if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
@@ -210,7 +210,7 @@ export class ContentService {
        join subtopics st on st.id=gt.subtopic_id
        join topics t on t.id=st.topic_id
        join syllabi sy on sy.id=t.syllabus_id
-       where sy.code=$1 and t.number=$2 and gt.status in ('approved','needs_review')
+       where sy.code=$1 and sy.is_active=true and t.number=$2 and gt.status in ('approved','needs_review')
          and nullif(trim(gt.term),'') is not null
          and nullif(trim(gt.definition_en),'') is not null
          and ($3::text is null or exists (
@@ -221,17 +221,22 @@ export class ContentService {
              and (bs.section_code=$3 or bs.section_code like $3 || '.%')
          ))
        order by lower(gt.term), case when gt.status='approved' then 0 else 1 end,gt.id
-       limit 500`,
+       `,
       [courseCode, chapterNo, sectionCode ?? null],
     );
     // The same term may occur in several syllabus subtopics. A game must not
     // contain indistinguishable competing answers for a definition.
     const seen = new Set<string>();
+    const seenDefinitions = new Set<string>();
     const pairs = result.rows.flatMap((row) => {
       const term = String(row.term).trim();
       const key = term.toLocaleLowerCase('en');
-      if (seen.has(key)) return [];
+      const definitionKey = String(row.definition).trim().toLocaleLowerCase('en');
+      // Two different terms with an identical definition are ambiguous in
+      // Match Up / Quiz; do not put indistinguishable answer slots in a game.
+      if (seen.has(key) || seenDefinitions.has(definitionKey)) return [];
       seen.add(key);
+      seenDefinitions.add(definitionKey);
       return [{
         id: String(row.id), term, definition: String(row.definition).trim(),
         status: String(row.status) as 'approved' | 'needs_review',
@@ -240,7 +245,7 @@ export class ContentService {
     });
     return {
       courseCode, chapterNo, sectionCode: sectionCode ?? null,
-      contentStatus: pairs.every((pair) => pair.status === 'approved') ? 'approved' : 'needs_review',
+      contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved') ? 'approved' : 'needs_review',
       pairs,
       source: 'Current Cambridge 9618 Hodder-linked PostgreSQL glossary',
       assessed: false,
