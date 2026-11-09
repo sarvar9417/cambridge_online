@@ -1,5 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { scrambleTerm, type GamePair, type SpeakingPrompt } from './game-content';
+import './wordwall-modes.css';
 
 /** Chapter-scalable, submit-to-mark matching board.
  * Keyboard users can click a term and then a target instead of dragging.
