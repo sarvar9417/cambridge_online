@@ -430,3 +430,13 @@ describe('Live report CSV spreadsheet safety',()=>{
     expect(escapeLiveReportCsvCell(-2)).toBe('-2');
   });
 });
+describe('Live snapshot concurrency safety',()=>{
+  it('stops after a bounded number of optimistic snapshot retries',async()=>{
+    const query=vi.fn();
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    const actor={id:'student',role:'student' as const,schoolId:'school',fullName:'Student'};
+    await expect(service.snapshot(actor,'22222222-2222-4222-8222-222222222222',false,3))
+      .rejects.toMatchObject({code:'live_snapshot_unstable',status:409});
+    expect(query).not.toHaveBeenCalled();
+  });
+});
