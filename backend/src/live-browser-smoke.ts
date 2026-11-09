@@ -364,7 +364,17 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.goto(base+'/#oqitish/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
-  const clickMode=async(index:number)=>{await teacher.click('.ig-game-tile:nth-child('+index+')');};
+  const clickMode=async(index:number)=>{
+    const selector='.ig-game-tile:nth-child('+index+')';
+    // Sticky shell header can cover a tile at the very top of the viewport.
+    // Scroll the target into the visible centre before native mouse input.
+    await teacher.$eval(selector,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+    await teacher.click(selector);
+    await teacher.waitForFunction((choice)=>{
+      const button=document.querySelectorAll<HTMLButtonElement>('.ig-game-tile')[choice-1];
+      return button?.getAttribute('aria-pressed')==='true';
+    },{timeout:5_000},index);
+  };
   const assertText=async(selector:string,fragment:string)=>{
     const actual=await teacher.$eval(selector,(node)=>node.textContent??'');
     if(!actual.includes(fragment))throw new Error('Interactive Games missing '+fragment+' in '+selector+': '+actual);
@@ -401,26 +411,6 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
 
   await clickMode(5);
-  console.log('Open-box hit test',await teacher.evaluate(()=>{
-    const tile=document.querySelector<HTMLElement>('.ig-game-tile:nth-child(5)');
-    const rect=tile?.getBoundingClientRect();
-    const hit=rect?document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2):null;
-    return {
-      rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,
-      interceptedBy:hit?.outerHTML.slice(0,480),
-      scrollY:window.scrollY,
-    };
-  }));
-  console.log('Open-box navigation state',await teacher.evaluate(()=>({
-    selected:[...document.querySelectorAll<HTMLButtonElement>('.ig-game-tile')].map((button)=>({
-      title:button.querySelector('strong')?.textContent,
-      pressed:button.getAttribute('aria-pressed'),
-      disabled:button.disabled,
-    })),
-    heading:document.querySelector('.ig-workspace-head h2')?.textContent,
-    boxes:document.querySelectorAll('.ig-box').length,
-    html:document.querySelector('.ig-workspace')?.textContent?.slice(0,280),
-  })));
   await teacher.waitForSelector('.ig-box',{timeout:8_000});
   await teacher.click('.ig-box:first-child');
   await assertText('.ig-box-detail','Explain: Legal');
