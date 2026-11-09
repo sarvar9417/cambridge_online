@@ -290,9 +290,10 @@ export function liveCoursebookQuestionFilter(
     const patterns=[...new Set(sections.flatMap((section)=>section.includeLoTextAny??[]))]
       .map((term)=>`%${term}%`);
     values.push(7,'7.1',patterns);
-    const topicParameter=`${values.length-2}`;
-    const subtopicParameter=`${values.length-1}`;
-    const patternsParameter=`${values.length}`;
+    const dollar=String.fromCharCode(36);
+    const topicParameter=dollar+(values.length-2);
+    const subtopicParameter=dollar+(values.length-1);
+    const patternsParameter=dollar+values.length;
     return `${questionAlias}.id in (
       select coursebook_qst.question_id
       from question_subtopics coursebook_qst
