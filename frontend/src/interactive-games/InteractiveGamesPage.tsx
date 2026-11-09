@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   chapter7Pilot, GAME_CATALOG,
   type GameKind, type GamePair,
@@ -15,8 +15,35 @@ import './interactive-games.css';
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [mode, setMode] = useState<GameKind>('match-up');
   const [round, setRound] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+  useEffect(() => {
+    if (paused) return;
+    const interval = window.setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [paused]);
+  const time = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+  const toggleFullscreen = () => {
+    setFullscreenError('');
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => setFullscreenError('Could not exit fullscreen mode.'));
+    } else {
+      const element = document.querySelector('.ig-page');
+      if (element instanceof HTMLElement && element.requestFullscreen) {
+        void element.requestFullscreen().catch(() => setFullscreenError('Fullscreen is unavailable in this browser.'));
+      } else setFullscreenError('Fullscreen is unavailable in this browser.');
+    }
+  };
   const active = GAME_CATALOG.find((entry) => entry.id === mode)!;
   return <section className="ig-page" aria-label="Interactive Games">
+    <div className="ig-session-bar" role="group" aria-label="Game session controls">
+      <span className="ig-clock" role="timer">◷ {time}</span>
+      <span className="ig-session-name">Interactive Games · Section {chapter7Pilot.sectionCode}</span>
+      <button type="button" onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" onClick={toggleFullscreen}>⛶ Full screen</button>
+      {fullscreenError && <span role="alert">{fullscreenError}</span>}
+    </div>
     <div className="ig-hero">
       <div>
         <span className="ig-eyebrow">CAMBRIDGE 9618 · INTERACTIVE GAMES</span>
@@ -33,7 +60,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     <div className="ig-games" role="group" aria-label="Choose a game">
       {GAME_CATALOG.map((game, i) => <button key={game.id} type="button" aria-pressed={mode === game.id}
         className={'ig-game-tile' + (mode === game.id ? ' is-selected' : '')}
-        onClick={() => { setMode(game.id); setRound(0); }}>
+        onClick={() => { setMode(game.id); setRound(0); setSeconds(0); setPaused(false); }}>
         <span className="ig-game-number">0{i + 1}</span>
         <strong>{game.label}</strong>
         <small>{game.description}</small>
@@ -42,7 +69,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     <div className="ig-workspace">
       <div className="ig-workspace-head">
         <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{active.label}</h2><p>{chapter7Pilot.sectionTitle}</p></div>
-        <button className="ig-reset" type="button" onClick={() => setRound((current) => current + 1)}>↻ Restart</button>
+        <button className="ig-reset" type="button" onClick={() => { setRound((current) => current + 1); setSeconds(0); setPaused(false); }}>↻ Restart</button>
       </div>
       <div key={mode + ':' + round}>
         {mode === 'match-up' && <MatchUpBoard pairs={chapter7Pilot.pairs} />}
