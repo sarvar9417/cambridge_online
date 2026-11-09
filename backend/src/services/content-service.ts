@@ -109,6 +109,149 @@ export class ContentService {
     };
   }
 
+
+  /**
+   * Interactive Games are based on the current PostgreSQL Hodder catalogue and glossary.
+   * No hard-coded chapter map or content synchronisation is needed. Newly inserted chapters,
+   * sections and terms become discoverable on the next API request.
+   *
+   * "needs_review" terms are made available for explicitly labelled, non-assessed
+   * revision only. They are NEVER presented as approved grading evidence.
+   */
+  private async interactiveGamesAccess(actor: Actor, courseCode: '9618' | '0478') {
+    if (actor.role !== 'student') return;
+    const result = await this.pool.query(
+      `select 1
+         from enrollments e
+         join classes c on c.id=e.class_id
+         join syllabi sy on sy.id=c.syllabus_id
+         where e.student_id=$1 and e.left_at is null and sy.code=$2 and sy.is_active=true
+         limit 1`,
+      [actor.id, courseCode],
+    );
+    if (!result.rowCount) throw new DomainError('not_enrolled_in_syllabus', 403);
+  }
+
+  async interactiveGameCatalog(actor: Actor, courseCode: '9618' | '0478' = '9618') {
+    await this.interactiveGamesAccess(actor, courseCode);
+    const [chaptersResult, sectionsResult] = await Promise.all([
+      this.pool.query(
+        `select t.number as chapter_no,min(t.title) title,
+                count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count,
+                count(distinct gt.id) filter (where gt.status='approved')::int approved_count
+         from topics t
+         join syllabi sy on sy.id=t.syllabus_id
+         left join subtopics st on st.topic_id=t.id
+         left join glossary_terms gt on gt.subtopic_id=st.id
+         where sy.code=$1 and sy.is_active=true
+         group by t.number
+         having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
+         order by t.number`,
+        [courseCode],
+      ),
+      this.pool.query(
+        `select bs.chapter_number chapter_no,bs.section_code,bs.title,bs.parent_code,
+                (select count(distinct g.id)::int
+                 from hodder_book_sections child
+                 join hodder_glossary_section_links links on links.book_section_id=child.id
+                 join glossary_terms g on g.id=links.glossary_term_id
+                 where child.syllabus_id=bs.syllabus_id
+                   and child.chapter_number=bs.chapter_number
+                   and (child.section_code=bs.section_code or child.section_code like bs.section_code || '.%')
+                   and g.status in ('approved','needs_review')) term_count
+         from hodder_book_sections bs
+         join syllabi sy on sy.id=bs.syllabus_id
+         where sy.code=$1 and sy.is_active=true
+         order by bs.chapter_number,bs.section_code`,
+        [courseCode],
+      ),
+    ]);
+    return {
+      courseCode,
+      chapters: chaptersResult.rows.map((row) => ({
+        chapterNo: Number(row.chapter_no),
+        title: String(row.title),
+        termCount: Number(row.term_count),
+        approvedCount: Number(row.approved_count),
+        sections: sectionsResult.rows.filter((section) =>
+          Number(section.chapter_no) === Number(row.chapter_no) && Number(section.term_count) > 0,
+        ).map((section) => ({
+          code: String(section.section_code),
+          title: String(section.title),
+          parentCode: section.parent_code ? String(section.parent_code) : null,
+          termCount: Number(section.term_count),
+        })),
+      })),
+    };
+  }
+
+  async interactiveGamePack(actor: Actor, input: {
+    courseCode: '9618' | '0478';
+    chapterNo: number;
+    sectionCode?: string;
+  }) {
+    await this.interactiveGamesAccess(actor, input.courseCode);
+    const { courseCode, chapterNo, sectionCode } = input;
+    // Enforce an actual Hodder section before applying a subsection filter:
+    // the broader syllabus subtopic codes are not interchangeable with book
+    // section codes (e.g., syllabus 2.1 can include textbook 2.2 content).
+    if (sectionCode) {
+      const exists = await this.pool.query(
+        `select bs.id from hodder_book_sections bs join syllabi sy on sy.id=bs.syllabus_id
+         where sy.code=$1 and sy.is_active=true and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
+        [courseCode, chapterNo, sectionCode],
+      );
+      if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
+    }
+    const result = await this.pool.query(
+      `select gt.id,gt.term,gt.definition_en definition,gt.status::text status,
+              st.code subtopic_code
+       from glossary_terms gt
+       join subtopics st on st.id=gt.subtopic_id
+       join topics t on t.id=st.topic_id
+       join syllabi sy on sy.id=t.syllabus_id
+       where sy.code=$1 and sy.is_active=true and t.number=$2 and gt.status in ('approved','needs_review')
+         and nullif(trim(gt.term),'') is not null
+         and nullif(trim(gt.definition_en),'') is not null
+         and ($3::text is null or exists (
+           select 1 from hodder_glossary_section_links hgl
+           join hodder_book_sections bs on bs.id=hgl.book_section_id
+           where hgl.glossary_term_id=gt.id and bs.syllabus_id=t.syllabus_id
+             and bs.chapter_number=$2
+             and (bs.section_code=$3 or bs.section_code like $3 || '.%')
+         ))
+       order by lower(gt.term), case when gt.status='approved' then 0 else 1 end,gt.id
+       `,
+      [courseCode, chapterNo, sectionCode ?? null],
+    );
+    // The same term may occur in several syllabus subtopics. A game must not
+    // contain indistinguishable competing answers for a definition.
+    const seen = new Set<string>();
+    const seenDefinitions = new Set<string>();
+    const pairs = result.rows.flatMap((row) => {
+      const term = String(row.term).trim();
+      const key = term.toLocaleLowerCase('en');
+      const definitionKey = String(row.definition).trim().toLocaleLowerCase('en');
+      // Two different terms with an identical definition are ambiguous in
+      // Match Up / Quiz; do not put indistinguishable answer slots in a game.
+      if (seen.has(key) || seenDefinitions.has(definitionKey)) return [];
+      seen.add(key);
+      seenDefinitions.add(definitionKey);
+      return [{
+        id: String(row.id), term, definition: String(row.definition).trim(),
+        status: String(row.status) as 'approved' | 'needs_review',
+        source: null, // Private Drive source references are not exposed to students.
+      }];
+    });
+    return {
+      courseCode, chapterNo, sectionCode: sectionCode ?? null,
+      contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved') ? 'approved' : 'needs_review',
+      pairs,
+      source: 'Current Cambridge 9618 Hodder-linked PostgreSQL glossary',
+      assessed: false,
+    };
+  }
+
   async list(_actor: Actor) {
     const result = await this.pool.query(
       `select ci.id,ci.kind,ci.title,ci.body_md,st.code subtopic_code,st.title subtopic_title

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOME_BY_ROLE, parseRoute } from './router';
+import { HOME_BY_ROLE, canAccessRoute, parseRoute } from './router';
 
 describe('parseRoute', () => {
   it('splits a surface and a page', () => {
@@ -38,6 +38,14 @@ describe('parseRoute', () => {
     expect(HOME_BY_ROLE.owner.startsWith('boshqaruv/')).toBe(true);
     expect(HOME_BY_ROLE.teacher.startsWith('oqitish/')).toBe(true);
     expect(HOME_BY_ROLE.student.startsWith('oquvchi/')).toBe(true);
+  });
+
+  it('exposes Interactive Games independently from Live Challenge with role protection', () => {
+    expect(canAccessRoute('teacher', parseRoute('#oqitish/oyinlar'))).toBe(true);
+    expect(canAccessRoute('owner', parseRoute('#oqitish/oyinlar'))).toBe(true);
+    expect(canAccessRoute('student', parseRoute('#oqitish/oyinlar'))).toBe(false);
+    expect(canAccessRoute('student', parseRoute('#oquvchi/oyinlar'))).toBe(true);
+    expect(canAccessRoute('teacher', parseRoute('#oquvchi/oyinlar'))).toBe(false);
   });
 
   it('keeps a uuid selection id intact through the handoff link', () => {
