@@ -132,5 +132,12 @@ export function scrambleTerm(term: string): string {
   const odd = letters.filter((_, index) => index % 2 === 1).reverse();
   const even = letters.filter((_, index) => index % 2 === 0).reverse();
   const scrambled = [...odd, ...even].join('');
-  return scrambled === letters.join('') ? letters.reverse().join('') : scrambled;
+  if (scrambled !== letters.join('')) return scrambled;
+  // Palindromes such as ABBA also survive reversal unchanged.
+  // Move the first different character to the front, keeping the same letters.
+  const different = letters.findIndex((char) => char !== letters[0]);
+  if (different < 0) return letters.join(''); // Cannot scramble identical letters.
+  const shifted = [...letters];
+  [shifted[0], shifted[different]] = [shifted[different]!, shifted[0]!];
+  return shifted.join('');
 }
