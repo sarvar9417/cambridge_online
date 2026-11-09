@@ -472,6 +472,20 @@ async function assertInteractiveGames(browser:Browser,base:string){
   const mobileOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   if(mobileOverflow>3)throw new Error('Interactive Games mobile horizontal overflow: '+mobileOverflow);
   await assertAxe(student,'Interactive Games student mobile');
+  for(let modeIndex=1;modeIndex<=8;modeIndex++){
+    const selector='.ig-game-tile:nth-child('+modeIndex+')';
+    await student.$eval(selector,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+    const disabled=await student.$eval(selector,(node)=>('disabled' in node && Boolean((node as HTMLButtonElement).disabled)));
+    if(disabled)continue;
+    await student.click(selector);
+    await student.waitForFunction((choice)=>{
+      const button=document.querySelectorAll<HTMLButtonElement>('.ig-game-tile')[choice-1];
+      return button?.getAttribute('aria-pressed')==='true';
+    },{timeout:5_000},modeIndex);
+    const overlap=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    if(overlap>3)throw new Error('Interactive Games mobile overflow in mode '+modeIndex+': '+overlap);
+  }
+  await assertAxe(student,'Interactive Games student anagram/mobile');
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
   await studentContext.close();
   await teacherContext.close();
