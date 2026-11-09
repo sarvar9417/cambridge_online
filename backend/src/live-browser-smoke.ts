@@ -381,23 +381,27 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   // Flip a definition, then switch games using the same chapter content.
   await clickMode(2);
+  await teacher.waitForSelector('.ig-flashcard',{timeout:8_000});
   await assertText('.ig-flashcard','Relating to what is permitted');
   await teacher.click('.ig-flashcard');
   await assertText('.ig-flashcard','Legal');
 
   await clickMode(3);
+  await teacher.waitForSelector('.ig-deck-controls',{timeout:8_000});
   await teacher.click('.ig-deck-controls button:last-child');
   await assertText('.ig-score','1 dealt');
   await teacher.click('.ig-deck-controls button:nth-child(2)');
   await assertText('.ig-score','0 dealt');
 
   await clickMode(4);
+  await teacher.waitForSelector('.ig-wheel-panel',{timeout:8_000});
   await teacher.click('.ig-wheel-panel .ig-primary-button');
   await teacher.waitForSelector('.ig-wheel-result',{timeout:8_000});
   await teacher.click('.ig-wheel-actions button:last-child');
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
 
   await clickMode(5);
+  await teacher.waitForSelector('.ig-box',{timeout:8_000});
   await teacher.click('.ig-box:first-child');
   await assertText('.ig-box-detail','Explain: Legal');
   await teacher.click('.ig-box-detail button');
@@ -422,7 +426,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   if(lives!=='2 lives remaining')throw new Error('Find the Match life counter mismatch: '+lives);
 
   await clickMode(8);
-  await teacher.waitForSelector('.ig-anagram-letter');
+  await teacher.waitForSelector('.ig-anagram-letter',{timeout:8_000});
   const word=await teacher.$eval('.ig-anagram-hint',(node)=>node.textContent??'');
   if(!word.includes('Relating to what is permitted'))throw new Error('Anagram did not use real source term');
   for(const ch of 'LEGAL'){
