@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { GAME_CATALOG, type GameKind, type GamePair } from './game-content';
 import {
-  GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, selectGamePairs,
+  GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode, selectGamePairs,
   type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
@@ -25,6 +25,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [error, setError] = useState('');
   const [mode, setMode] = useState<GameKind>('match-up');
   const [round, setRound] = useState(0);
+  const [playSession, setPlaySession] = useState(0);
   const [questionCount, setQuestionCount] = useState(29);
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -76,18 +77,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   const chapter = catalog?.chapters.find((ch) => ch.chapterNo === chapterNo);
   const section = chapter?.sections.find((s) => s.code === sectionCode);
-  const pairs = useMemo(() => selectGamePairs(pack?.pairs ?? [], questionCount, round), [pack, questionCount, round]);
+  const allPairs = pack?.pairs ?? [];
+  const currentMode = gameIsAvailable(mode, allPairs)
+    ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
+  const eligiblePairs = useMemo(() => poolForMode(pack?.pairs ?? [], currentMode), [pack, currentMode]);
+  const pairs = useMemo(() => selectGamePairs(eligiblePairs, questionCount, round), [eligiblePairs, questionCount, round]);
   const speaking = useMemo(() => createSpeakingPrompts(pairs), [pairs]);
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
-  const currentMode = gameIsAvailable(mode, pairs)
-    ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, pairs))?.id ?? mode;
   const active = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
   const time = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
 
   function resetGame(nextMode?: GameKind) {
     if (nextMode) setMode(nextMode);
-    setRound((round) => round + 1);
+    // Changing templates keeps the SAME vocabulary round, so learners can
+    // reinforce the same concepts using different interactions.
+    // "New round" (no nextMode) alone moves on to the next batch.
+    if (!nextMode || nextMode === mode) setRound((value) => value + 1);
+    setPlaySession((value) => value + 1);
     setSeconds(0);
     setPaused(false);
   }
@@ -97,6 +104,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setSectionCode('');
     setPack(null);
     setRound(0);
+    setPlaySession((value) => value + 1);
     setSeconds(0);
   }
   function changeSection(value: string) {
@@ -158,7 +166,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </label>
       <label>Round size
         <select aria-label="Round size" value={questionCount} disabled={!ready}
-          onChange={(event) => { setQuestionCount(Number(event.target.value)); resetGame(); }}>
+          onChange={(event) => { setQuestionCount(Number(event.target.value)); setRound(0); setPlaySession((value) => value + 1); setSeconds(0); }}>
           {GAME_LENGTHS.map((size) => <option key={size} value={size}>{size} terms</option>)}
         </select>
       </label>
@@ -186,12 +194,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {pack && ready && <>
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={!gameIsAvailable(game.id, pairs)} aria-pressed={currentMode === game.id}
+          disabled={!gameIsAvailable(game.id, allPairs)} aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, pairs) ? game.description : 'This round needs more suitable terms.'}</small>
+          <small>{gameIsAvailable(game.id, allPairs) ? game.description : 'This round needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
@@ -201,7 +209,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </div>
           <button className="ig-reset" type="button" onClick={() => resetGame()}>↻ New round</button>
         </div>
-        <div key={[chapterNo, sectionCode, questionCount, currentMode, round, refreshVersion].join(':')}>
+        <div key={[chapterNo, sectionCode, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
