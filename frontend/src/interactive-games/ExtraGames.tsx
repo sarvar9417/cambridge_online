@@ -116,8 +116,8 @@ export function OpenBox({ pairs }: { pairs: readonly GamePair[] }) {
     <div className="ig-score">{opened.length} / {pairs.length} boxes explored</div>
     <div className="ig-box-grid">
       {pairs.map((pair, index) => <button type="button" key={pair.id}
-        aria-pressed={selected === index} className={'ig-box' + (opened.includes(index) ? ' is-opened' : '') + (selected === index ? ' is-selected' : '')}
-        onClick={() => open(index)}><span>{opened.includes(index) ? '✓' : '?'}</span><strong>Box {index + 1}</strong></button>)}
+        aria-pressed={selected === index} className={'ig-box ig-color-' + (index % 6) + (opened.includes(index) ? ' is-opened' : '') + (selected === index ? ' is-selected' : '')}
+        onClick={() => open(index)}><span>{opened.includes(index) ? '✓' : index + 1}</span><strong>{opened.includes(index) ? 'Opened' : 'Tap to open'}</strong></button>)}
     </div>
     {active && <div className="ig-box-detail" aria-live="polite">
       <span className="ig-eyebrow">BOX {selected! + 1} · CHALLENGE</span>
@@ -139,7 +139,7 @@ export function Quiz({ questions }: { questions: readonly QuizQuestion[] }) {
     setAnswer(optionIndex);
     if (optionIndex === question.answerIndex) setCorrect((previous) => previous + 1);
   }
-  return <div className="ig-content">
+  return <div className="ig-content ig-quiz">
     <p className="ig-instruction">Choose one answer per question. The explanation appears after your choice; answers cannot be changed.</p>
     <div className="ig-score">Question {index + 1} / {questions.length} · {correct} correct</div>
     <div className="ig-question">{question.prompt}</div>
