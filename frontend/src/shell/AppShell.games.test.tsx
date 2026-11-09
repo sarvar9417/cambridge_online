@@ -40,7 +40,7 @@ describe('Interactive Games menu discovery', () => {
       const shortcut = container.querySelector<HTMLAnchorElement>('.shell-games-shortcut');
       expect(sidebarLink?.textContent).toContain('Interactive Games');
       expect(shortcut?.getAttribute('href')).toBe('#' + target);
-      expect(shortcut?.getAttribute('aria-label')).toBe('Interactive Games — 8 ta o‘yin');
+      expect(shortcut?.getAttribute('aria-label')).toBe('Interactive Games — O‘yinlar (8 ta)');
       expect(shortcut?.getAttribute('aria-current')).toBe('page');
       await act(async () => shortcut?.click());
       expect(window.location.hash).toBe('#' + target);
