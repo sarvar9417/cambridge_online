@@ -1,0 +1,29 @@
+/* Live Challenge card-selection board. Only the picker is new; answer UI is unchanged. */
+.live-card-board{margin:18px 0;padding:20px;border:1px solid var(--border);border-radius:var(--radius-xl);background:var(--surface);box-shadow:var(--shadow);color:var(--text)}
+.live-card-board>header{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:16px}
+.live-card-board>header h2{margin:4px 0 6px;font-size:clamp(20px,3vw,27px)}
+.live-card-board>header p{margin:0;color:var(--text-muted);line-height:1.5}
+.live-card-count{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 12px;border-radius:30px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:800}
+.live-card-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 2px 9px}
+.live-card-columns{display:grid;align-items:stretch;gap:12px}
+.live-card-column{display:grid;grid-template-rows:auto 1fr;align-content:start;gap:9px;padding:11px;border-radius:14px;background:var(--surface-soft);border:1px solid var(--border)}
+.live-card-column>header{padding:6px 2px 9px;text-align:center;border-bottom:1px solid var(--border)}
+.live-card-column>header strong{display:block;font-size:clamp(17px,2.5vw,24px);color:var(--accent)}
+.live-card-column>header small{font-weight:700;color:var(--text-muted)}
+.live-card-stack{display:flex;flex-direction:column;gap:9px}
+.live-card-tile{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-height:74px;padding:11px;border:1px solid color-mix(in srgb,var(--accent) 46%,var(--border));border-radius:11px;background:var(--accent-soft);color:var(--text);text-align:left;transition:transform .12s,border-color .12s,background .12s}
+.live-card-tile:not(:disabled):hover{transform:translateY(-2px);border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 78%,var(--surface))}
+.live-card-tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.live-card-tile>span{font-size:12px;opacity:.75}
+.live-card-tile>strong{font-size:25px;font-variant-numeric:tabular-nums}
+.live-card-tile>small{font-size:11px;font-weight:800}
+.live-card-tile.is-used{opacity:.46;background:var(--surface);border-style:dashed;text-decoration:line-through}
+.live-card-tile:disabled{cursor:not-allowed}
+.live-card-empty{padding:25px 4px;color:var(--text-muted);font-size:12px;text-align:center}
+.live-card-board .live-error{margin:12px 0 0}
+.live-card-board[data-readonly='true'] .live-card-tile{cursor:default}
+.live-card-student-lobby,.live-card-student-review{width:min(100%,1100px);margin:0 auto}
+.live-student-result .live-card-board{width:100%;text-align:left}
+.live-projector-overlay .live-card-board{width:100%;box-shadow:none}
+.live-projector-overlay .live-card-tile{min-height:86px}
+@media(max-width:660px){.live-card-board{padding:13px}.live-card-board>header{flex-wrap:wrap}.live-card-columns{gap:7px}.live-card-column{padding:7px}.live-card-tile{min-height:65px;padding:8px}}

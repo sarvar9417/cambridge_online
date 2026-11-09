@@ -41,6 +41,8 @@ const createInput = z.object({
   components: z.array(z.number().int().min(1).max(9)).max(9).default([]),
   questionIds: z.array(uuid).min(1).optional(),
   questionOrder: z.enum(['fixed', 'shuffled', 'balanced']).default('shuffled'),
+  playMode: z.enum(['random','cards']).default('random'),
+  cardColumns: z.number().int().min(1).max(5).default(5),
   allowLateJoin: z.boolean().default(false),
   autoCloseWhenAllSubmitted: z.boolean().default(false),
   teacherOverrideEnabled: z.boolean().default(true),
@@ -164,6 +166,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       subtopicIds:csvUuids,
       coursebookSectionCodes:csvCoursebookSections,
       igcseBookSectionCodes:csvIgcseBookSections,
+      playMode:z.enum(['random','cards']).default('random'),
       includeDiagrams:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       excludeSeen:z.enum(['true','false']).default('true').transform((value)=>value==='true'),
       difficulty:z.enum(['easy','medium','hard']).optional(),
@@ -186,6 +189,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       subtopicIds:query.subtopicIds ?? [],
       coursebookSectionCodes:query.coursebookSectionCodes ?? [],
       igcseBookSectionCodes:query.igcseBookSectionCodes ?? [],
+      playMode:query.playMode,
       includeDiagrams:query.includeDiagrams ?? true,
       excludeSeen:query.excludeSeen ?? true,
       difficulty:query.difficulty,
@@ -217,6 +221,7 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       subtopicIds:z.array(uuid).max(100).default([]),
       coursebookSectionCodes:z.array(coursebookSectionCode).max(100).default([]),
       igcseBookSectionCodes:z.array(igcseBookSectionCode).max(16).default([]),
+      playMode:z.enum(['random','cards']).default('random'),
       includeDiagrams:z.boolean().default(true),
       excludeSeen:z.boolean().default(true),
       difficulty:z.enum(['easy','medium','hard']).optional(),
@@ -288,6 +293,11 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
       expectedVersion: z.number().int().positive(),
     }).strict().parse(req.body);
     return mutation(req,res,()=>service.setLateJoin(req.actor!,id(req.params),body.allowLateJoin,body.expectedVersion));
+  });
+
+  router.post('/:id/cards/:cardId/open', durableStaffLimit, async (req,res) => {
+    const body=versionInput.parse(req.body ?? {});
+    return mutation(req,res,()=>service.openCard(req.actor!,id(req.params),id(req.params,'cardId'),body.expectedVersion));
   });
 
   router.post('/:id/start', async (req, res) => {

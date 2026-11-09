@@ -22,7 +22,8 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
   it('allows 0478 Paper 2 full pool when no subtopics are ticked',()=>{
     expect(page).toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
     expect(page).toContain('Belgilanmasa barcha Live-ready Paper 2');
-    expect(page).toContain("disabled={busy||(syllabusCode==='9618'&&!coursebookSectionCodes.length)");
+    expect(page).toContain("||(syllabusCode==='9618'&&!coursebookSectionCodes.length)");
+    expect(page).toContain("playMode==='cards'&&selectionMode==='manual'");
   });
   it('keeps syllabus, class and session title in a dedicated wide grid',()=>{
     expect(page).toContain('className="live-create-fields"');

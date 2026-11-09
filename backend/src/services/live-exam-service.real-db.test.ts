@@ -23,6 +23,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
   let otherSchoolStudentId = '';
   const studentIds: string[] = [];
   const loadStudentIds: string[] = [];
+  const cardFixtureQuestionIds: string[] = [];
   const pointId = '22222222-2222-4222-8222-222222222222';
 
   const owner = (): Actor => ({
@@ -179,6 +180,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       await client.query('delete from mastery where student_id=any($1::uuid[])',[[...studentIds,...loadStudentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       if (classId) await client.query('delete from classes where id=$1',[classId]).catch(()=>{});
       if (questionId) await client.query('delete from questions where id=$1',[questionId]).catch(()=>{});
+      if (cardFixtureQuestionIds.length) await client.query('delete from questions where id=any($1::uuid[])',[cardFixtureQuestionIds]).catch(()=>{});
       if (studentIds.length || loadStudentIds.length || ownerId || sameSchoolGuestId || otherSchoolStudentId) {
         await client.query('delete from users where id=any($1::uuid[])',[[ownerId,...studentIds,...loadStudentIds,sameSchoolGuestId,otherSchoolStudentId].filter(Boolean)]).catch(()=>{});
       }
@@ -188,6 +190,71 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       client.release();
     }
     if (pool) await pool.end();
+  });
+
+  it('opens a 3-point card for everyone and rejects a simultaneous second student claim',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829996',markingMode:'teacher',
+      settings:{playMode:'cards',cardColumns:5,defaultQuestionTimeLimitS:180},
+      participants:[0,1],
+    });
+    const secondQuestionId=(await client.query<{id:string}>(
+      'insert into questions default values returning id',
+    )).rows[0]!.id;
+    cardFixtureQuestionIds.push(secondQuestionId);
+    const secondQuestion=(await client.query<{id:string}>(
+      `insert into live_exam_questions
+        (session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot)
+       select session_id,$2,1,3,question_snapshot,
+              jsonb_set(mark_scheme_snapshot,'{maxMarks}','3'::jsonb)
+       from live_exam_questions where id=$1 returning id`,
+      [sessionQuestionId,secondQuestionId],
+    )).rows[0]!.id;
+
+    const lobby=await service.snapshot(student(0),sessionId) as {
+      cards:Array<{id:string;marks:number;used:boolean}>;
+      questions:unknown[];question:unknown;markScheme:unknown;
+      session:{version:number;settings:{playMode:string}};
+    };
+    expect(lobby.cards).toHaveLength(2);
+    expect(lobby.cards.map(card=>card.marks).sort()).toEqual([1,3]);
+    expect(lobby.cards.every(card=>!card.used)).toBe(true);
+    expect(lobby.questions).toEqual([]);
+    expect(lobby.question).toBeNull();
+    expect(lobby.markScheme).toBeNull();
+    expect(lobby.session.settings.playMode).toBe('cards');
+    await expect(service.start(owner(),sessionId,lobby.session.version))
+      .rejects.toMatchObject({code:'live_card_selection_required',status:409});
+    await expect(service.openCard(sameSchoolGuest(),sessionId,secondQuestion,lobby.session.version))
+      .rejects.toMatchObject({code:'not_found',status:404});
+
+    const claims=await Promise.allSettled([
+      service.openCard(student(0),sessionId,secondQuestion,lobby.session.version),
+      service.openCard(student(1),sessionId,sessionQuestionId,lobby.session.version),
+    ]);
+    expect(claims.filter(result=>result.status==='fulfilled')).toHaveLength(1);
+    expect(claims.filter(result=>result.status==='rejected')).toHaveLength(1);
+    const winner=claims.find(result=>result.status==='fulfilled');
+    expect(winner && winner.status==='fulfilled' ? winner.value.status : null).toBe('question_open');
+
+    const active=await client.query<{id:string;question_id:string;position:number;marks:number}>(
+      'select id,question_id,position,marks from live_exam_questions where session_id=$1 order by position',
+      [sessionId],
+    );
+    expect(active.rows).toHaveLength(2);
+    expect(active.rows.map(row=>row.position)).toEqual([0,1]);
+    expect(active.rows.map(row=>row.marks).sort()).toEqual([1,3]);
+    expect(active.rows[0]!.id).toBe(claims[0]?.status==='fulfilled'?secondQuestion:sessionQuestionId);
+    const current=await client.query<{status:string;current_question_index:number}>(
+      'select status::text,current_question_index from live_exam_sessions where id=$1',[sessionId],
+    );
+    expect(current.rows[0]).toMatchObject({status:'question_open',current_question_index:0});
+    await expect(service.openCard(student(0),sessionId,active.rows[1]!.id,2))
+      .rejects.toMatchObject({code:'live_invalid_state',status:409});
+    const answers=await client.query(
+      'select count(*)::int count from live_exam_answers where session_question_id=$1',[active.rows[0]!.id],
+    );
+    expect(Number(answers.rows[0]?.count)).toBe(2);
   });
 
   it('lets only an enrolled student-host control their own solo practice and blocks join-by-code', async()=>{

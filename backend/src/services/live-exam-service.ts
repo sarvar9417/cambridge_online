@@ -72,6 +72,8 @@ export interface CreateLiveExamInput {
   components?: number[];
   questionIds?: string[];
   questionOrder?: 'fixed' | 'shuffled' | 'balanced';
+  playMode?: 'random' | 'cards';
+  cardColumns?: number;
   allowLateJoin?: boolean;
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
@@ -605,8 +607,9 @@ export class LiveExamService {
     }
     if (input.questionIds?.length) {
       values.push(input.questionIds);
-      filters.push(`q.id=any($${values.length}::uuid[])`);
+      filters.push('q.id=any(' + String.fromCharCode(36) + values.length + '::uuid[])');
     }
+    if (input.playMode === 'cards') filters.push(`not exists (select 1 from question_dependencies card_dependency where card_dependency.question_id=q.id and card_dependency.strength::text='required')`);
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
     if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
@@ -991,9 +994,15 @@ export class LiveExamService {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
 
-    const selection = await this.chooseQuestionIds(actor, input);
+    const cardMode = input.playMode === 'cards';
+    const cardColumns = input.cardColumns ?? 5;
+    if (cardMode && (!Number.isInteger(cardColumns) || cardColumns < 1 || cardColumns > 5)) throw new DomainError('live_invalid_card_columns',400);
+    const selectionInput = cardMode ? {...input,marksMin:Math.max(1,input.marksMin??1),marksMax:Math.min(cardColumns,input.marksMax??cardColumns)} : input;
+    if (cardMode && (selectionInput.marksMin??0) > (selectionInput.marksMax??cardColumns)) throw new DomainError('live_card_mark_filter_conflict',400);
+    const selection = await this.chooseQuestionIds(actor, selectionInput);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    if (cardMode && expandedQuestionIds.length !== questionIds.length) throw new DomainError('live_card_dependencies_unsupported',409);
     if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
     // Bound the total frozen source payload for learner-owned rooms while
     // preserving the existing unrestricted staff/classroom builder.
@@ -1012,6 +1021,7 @@ export class LiveExamService {
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
 
+    if (cardMode && snapshots.some((snapshot) => snapshot.portable.leaf.marks < 1 || snapshot.portable.leaf.marks > cardColumns)) throw new DomainError('live_card_marks_out_of_range',409);
     const client = await this.pool.connect();
     try {
       let session;
@@ -1057,6 +1067,8 @@ export class LiveExamService {
                 series: input.series ?? [],
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
+                playMode:cardMode?'cards':'random',
+                cardColumns:cardMode?cardColumns:null,
                 practiceMode:actor.role==='student'?input.practiceMode:null,
                 rehearsalMode:actor.role!=='student'&&input.rehearsalMode===true,
                 // Learner-led practice and staff rehearsal both lock the roster.
@@ -1448,6 +1460,10 @@ export class LiveExamService {
         ),
     ]);
     const currentRow = questionRows.rows.find((row) => Number(row.position) === Number(session.current_question_index));
+    // Unopened question content and mark schemes are never exposed in the card board.
+    const cards = this.settings(session.settings).playMode === 'cards'
+      ? questionRows.rows.map((row) => ({id:row.id,position:Number(row.position),marks:Number(row.marks),used:session.status !== 'lobby' && Number(row.position) <= Number(session.current_question_index)}))
+      : [];
     const reveal = ['marking', 'review', 'finished'].includes(String(session.status));
     const dependencyWork = currentRow ? await this.pool.query(
       `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
@@ -1678,6 +1694,7 @@ export class LiveExamService {
         reviewedCount: Number(reviewCounts.rows[0].completed),
         questionCount: questionRows.rowCount ?? 0,
       },
+      cards,
       questions: detailedStaff ? questionRows.rows.map((row) => ({
         id: row.id,
         position: Number(row.position),
@@ -1998,6 +2015,7 @@ export class LiveExamService {
       // roster and the status check prevents duplicate transitions.
       void expectedVersion;
       if (session.status !== 'lobby') throw new DomainError('live_invalid_state', 409);
+      if (this.settings(session.settings).playMode === 'cards') throw new DomainError('live_card_selection_required',409);
       const count = await client.query(
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
         [sessionId],
@@ -2037,6 +2055,78 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
+  /** A card click opens exactly one round. Concurrent clicks serialize on the session row. */
+  async openCard(actor: Actor, sessionId: string, cardId: string, expectedVersion: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const locked = await client.query(
+        `select les.* from live_exam_sessions les join classes c on c.id=les.class_id
+         where les.id=$1 and les.archived_at is null and c.archived_at is null and (
+           ($2='owner' and c.school_id=$3)
+           or ($2='teacher' and (c.owner_id=$4 or exists(
+             select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)))
+           or ($2='student' and exists(
+             select 1 from live_exam_participants lep
+             where lep.session_id=les.id and lep.student_id=$4 and lep.left_at is null))
+         ) for update of les`,
+        [sessionId,actor.role,actor.schoolId,actor.id],
+      );
+      if (!locked.rowCount) throw new DomainError('not_found',404);
+      const session = locked.rows[0] as Record<string,unknown>;
+      this.assertExpectedVersion(session,expectedVersion);
+      const settings = this.settings(session.settings);
+      if (settings.playMode!=='cards' || !['lobby','review'].includes(String(session.status)) || session.paused_at)
+        throw new DomainError('live_invalid_state',409);
+      const roster = await client.query(
+        `select count(*)::int count from live_exam_participants
+         where session_id=$1 and left_at is null`,[sessionId]);
+      if ((!settings.rehearsalMode && Number(roster.rows[0].count)<1)
+           || (settings.practiceMode==='group' && Number(roster.rows[0].count)<2))
+        throw new DomainError('live_no_participants',409);
+      const nextPosition = session.status==='lobby' ? 0 : Number(session.current_question_index)+1;
+      const rows = await client.query(
+        `select id,question_id,position,marks from live_exam_questions
+         where session_id=$1 order by position for update`,[sessionId]);
+      const selected = rows.rows.find((row)=>String(row.id)===cardId);
+      if (!selected || Number(selected.position)<nextPosition || Number(selected.marks)>settings.cardColumns)
+        throw new DomainError('live_card_unavailable',409);
+      if (nextPosition>=rows.rows.length) throw new DomainError('live_no_more_cards',409);
+      const displaced = rows.rows.find((row)=>Number(row.position)===nextPosition);
+      if (!displaced) throw new DomainError('live_question_sequence_invalid',409);
+      if (Number(selected.position)!==nextPosition) {
+        // A temporary non-negative position satisfies the pre-existing uniqueness index.
+        const freePosition = Math.max(...rows.rows.map((row)=>Number(row.position)))+1;
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,displaced.id,freePosition]);
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,selected.id,nextPosition]);
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,displaced.id,selected.position]);
+      }
+      await client.query(
+        `insert into live_exam_answers(session_question_id,participant_id)
+         select $2,lep.id from live_exam_participants lep
+         where lep.session_id=$1 and lep.left_at is null on conflict do nothing`,
+        [sessionId,selected.id]);
+      const questionTimeLimitS = resolveLiveQuestionTimeLimit(
+        session.settings,String(selected.question_id),
+        settings.defaultQuestionTimeLimitS ?? (session.question_time_limit_s==null?null:Number(session.question_time_limit_s)),
+      );
+      await client.query(
+        `update live_exam_sessions set status='question_open',current_question_index=$2,
+         started_at=coalesce(started_at,now()),question_started_at=now(),
+         answers_locked_at=null,mark_scheme_revealed_at=null,question_time_limit_s=$3
+         where id=$1`,[sessionId,nextPosition,questionTimeLimitS]);
+      const version = await this.bump(client,sessionId,actor.id,'question.opened',
+        {position:nextPosition,cardId,cardMarks:Number(selected.marks),selection:'card'});
+      await client.query('commit');
+      return {sessionId,status:'question_open' as const,version};
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
   async setLateJoin(actor: Actor, sessionId: string, allowLateJoin: boolean, expectedVersion?: number) {
     // Fixed-roster practice must never gain in-progress participants.
     this.assertStaff(actor);
@@ -2632,6 +2722,7 @@ export class LiveExamService {
         `select id,question_id from live_exam_questions where session_id=$1 and position=$2`,
         [sessionId, nextPosition],
       );
+      if (next.rowCount && this.settings(session.settings).playMode === 'cards') throw new DomainError('live_card_selection_required',409);
       if (!next.rowCount) {
         await client.query(
           `update live_exam_sessions set status='finished',finished_at=now() where id=$1`, [sessionId]);
@@ -2842,6 +2933,8 @@ export class LiveExamService {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
+      playMode:raw.playMode==='cards'?'cards' as const:'random' as const,
+      cardColumns:raw.playMode==='cards'&&Number.isInteger(Number(raw.cardColumns))&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       rehearsalMode:raw.rehearsalMode===true,
       allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
