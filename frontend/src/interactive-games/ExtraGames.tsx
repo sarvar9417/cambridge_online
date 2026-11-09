@@ -41,7 +41,7 @@ export function SpinWheel({ pairs }: { pairs: readonly GamePair[] }) {
   const selected = pairs.find((item) => item.id === result);
   if (!pairs.length) return <p>No wheel topics available.</p>;
   const sector = 360 / Math.max(1, active.length);
-  const colours = ['#5657b7','#1d8f9b','#d6544b','#eb8e23','#389b65','#a151c4','#2a79c9','#d77336'];
+  const colours = ['#4442a5','#00636b','#9d2936','#935000','#186936','#7633a5','#16558e','#924900'];
   const gradient = active.length
     ? 'conic-gradient(' + active.map((_, i) => colours[i % colours.length] + ' ' + (i * sector) + 'deg ' + ((i + 1) * sector) + 'deg').join(',') + ')'
     : '#64748b';
