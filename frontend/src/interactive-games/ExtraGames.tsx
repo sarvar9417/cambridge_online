@@ -31,43 +31,70 @@ export function SpeakingCards({ prompts }: { prompts: readonly SpeakingPrompt[] 
 }
 
 export function SpinWheel({ pairs }: { pairs: readonly GamePair[] }) {
-  const [result, setResult] = useState<number | null>(null);
+  const [eliminated, setEliminated] = useState<string[]>([]);
+  const [result, setResult] = useState<string | null>(null);
   const [rotation, setRotation] = useState(0);
   const [spins, setSpins] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [labelMode, setLabelMode] = useState<'term' | 'definition'>('definition');
+  const active = pairs.filter((item) => !eliminated.includes(item.id));
+  const selected = pairs.find((item) => item.id === result);
   if (!pairs.length) return <p>No wheel topics available.</p>;
-  const sector = 360 / pairs.length;
-  const labels = pairs.map((item) => item.term === 'Intellectual property rights' ? 'IP rights' : item.term);
+  const sector = 360 / Math.max(1, active.length);
+  const colours = ['#5657b7','#1d8f9b','#d6544b','#eb8e23','#389b65','#a151c4','#2a79c9','#d77336'];
+  const gradient = active.length
+    ? 'conic-gradient(' + active.map((_, i) => colours[i % colours.length] + ' ' + (i * sector) + 'deg ' + ((i + 1) * sector) + 'deg').join(',') + ')'
+    : '#64748b';
   function spin() {
-    let next = Math.floor(Math.random() * pairs.length);
-    if (pairs.length > 1 && result === next) next = (next + 1) % pairs.length;
-    const targetAngle = (360 - (next + 0.5) * sector + 360) % 360;
-    setRotation((previous) => previous + 360 * 3 + (targetAngle - (previous % 360) + 360) % 360);
-    setResult(next);
+    if (!active.length) return;
+    const choiceIndex = Math.floor(Math.random() * active.length);
+    const next = active[choiceIndex]!;
+    const targetAngle = (360 - (choiceIndex + .5) * sector + 360) % 360;
+    setRotation((previous) => previous + 1080 + (targetAngle - (previous % 360) + 360) % 360);
+    setResult(next.id);
     setSpins((previous) => previous + 1);
     setShowAnswer(false);
   }
+  function eliminate() {
+    if (!selected) return;
+    setEliminated((previous) => [...previous, selected.id]);
+    setResult(null);
+    setRotation(0);
+    setShowAnswer(false);
+  }
   return <div className="ig-content">
-    <p className="ig-instruction">Spin to select a random Computer Science term, then explain it before revealing the definition.</p>
-    <div className="ig-score">{spins} spin{spins === 1 ? '' : 's'}</div>
+    <p className="ig-instruction">Spin the wheel to receive a random Cambridge term or definition. Explain the answer aloud, then resume or eliminate the selected segment.</p>
+    <div className="ig-score">{spins} spins · {active.length} segments remaining</div>
+    <div className="ig-wheel-switch" role="group" aria-label="Wheel segment content">
+      <button type="button" aria-pressed={labelMode === 'definition'} onClick={() => setLabelMode('definition')}>Definitions</button>
+      <button type="button" aria-pressed={labelMode === 'term'} onClick={() => setLabelMode('term')}>Terms</button>
+    </div>
     <div className="ig-wheel-layout">
       <div className="ig-wheel-wrap">
         <span className="ig-wheel-pointer" aria-hidden="true">▼</span>
-        <div className="ig-wheel-disc" style={{ transform: 'rotate(' + rotation + 'deg)' }} aria-hidden="true">
-          {labels.map((label, index) => <span key={pairs[index]!.id} className="ig-wheel-label"
-            style={{ transform: 'rotate(' + ((index + .5) * sector) + 'deg) translateY(-102px) rotate(' + (-(index + .5) * sector) + 'deg)' }}>{label}</span>)}
-          <span className="ig-wheel-hub">CS</span>
+        <div className="ig-wheel-disc" style={{ background: gradient, transform: 'rotate(' + rotation + 'deg)' }} aria-label="Wheel with " >
+          {active.map((item, index) => <span key={item.id} className="ig-wheel-label"
+            style={{
+              transform: 'rotate(' + ((index + .5) * sector) + 'deg) translateY(-102px) rotate(' + (-(index + .5) * sector) + 'deg)',
+              fontSize: active.length > 16 ? '8px' : undefined,
+            }}>{labelMode === 'term' ? item.term : item.definition}</span>)}
+          <span className="ig-wheel-hub" aria-hidden="true">CS</span>
         </div>
       </div>
       <div className="ig-wheel-panel">
-        <button type="button" className="ig-primary-button" onClick={spin}>Spin the wheel</button>
-        {result !== null && <div className="ig-wheel-result" aria-live="polite">
-          <span className="ig-eyebrow">YOUR TOPIC</span>
-          <h3>{pairs[result]!.term}</h3>
-          <p>Explain this term aloud or to a classmate.</p>
+        <button type="button" className="ig-primary-button" onClick={spin} disabled={!active.length}>Spin the wheel</button>
+        {selected && <div className="ig-wheel-result" aria-live="polite">
+          <span className="ig-eyebrow">SELECTED SEGMENT</span>
+          <h3>{labelMode === 'term' ? selected.term : selected.definition}</h3>
+          <p>Explain or identify the correct concept before revealing the solution.</p>
           <button type="button" onClick={() => setShowAnswer((value) => !value)}>{showAnswer ? 'Hide answer' : 'Reveal definition'}</button>
-          {showAnswer && <p className="ig-reveal">{pairs[result]!.definition}</p>}
+          {showAnswer && <p className="ig-reveal">{selected.term} — {selected.definition}</p>}
+          <div className="ig-wheel-actions">
+            <button type="button" onClick={() => { setResult(null); setShowAnswer(false); }}>Resume</button>
+            <button type="button" onClick={eliminate}>Eliminate this segment</button>
+          </div>
         </div>}
+        {!active.length && <div className="ig-complete" role="status">All segments have been eliminated. Restart to play again.</div>}
       </div>
     </div>
   </div>;
