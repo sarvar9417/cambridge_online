@@ -32,10 +32,11 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
     { path: 'boshqaruv/korpus', label: 'Korpus', badge: badges.reviewQueue }, { path: 'boshqaruv/sifat', label: 'Sifat' }, { path: 'boshqaruv/tizim', label: 'Tizim' },
   ] });
   if (role !== 'student') groups.push({ label: 'O‘qitish', items: [
-    // Pin classroom games first: on short screens the long rail is scrollable,
-    // and burying this item below several links makes a released module look absent.
+    // Keep the lesson studio first, and pin games immediately after it.
+    // A header shortcut keeps games visible even if the long sidebar scrolls.
+    { path: 'oqitish/darslar', label: 'Darslar' },
     { path: 'oqitish/oyinlar', label: 'Interactive Games' },
-    { path: 'oqitish/darslar', label: 'Darslar' }, { path: 'oqitish/savol-banki', label: 'Savol banki' },
+    { path: 'oqitish/savol-banki', label: 'Savol banki' },
     { path: 'oqitish/live', label: 'Live Challenge' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
