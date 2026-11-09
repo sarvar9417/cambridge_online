@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  normalizeGameScopes, selectWholeChapter, toggleNarrowScope,
+  normalizeGameScopes, selectWholeChapter, toggleNarrowScope, chapterMatchesGameSearch,
   type GameScope, type LiveGameCatalog,
 } from './remote-games';
 import './game-scope-picker.css';
@@ -16,11 +16,7 @@ interface Props {
 export function GameScopePicker({ catalog, scopes, onChange, disabled = false }: Props) {
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState('');
-  const chapters = catalog.chapters.filter((chapter) =>
-    !filter.trim() ||
-    (chapter.chapterNo + ' ' + chapter.title + ' ' + chapter.topics.map((topic) => topic.title).join(' ') +
-      ' ' + chapter.sections.map((section) => section.title).join(' '))
-      .toLowerCase().includes(filter.trim().toLowerCase()));
+  const chapters = catalog.chapters.filter((chapter) => chapterMatchesGameSearch(chapter, filter));
   const full = new Set(scopes.filter((scope) => scope.kind === 'chapter').map((scope) => scope.chapterNo));
   const selectedChapters = new Set(scopes.map((scope) => scope.chapterNo));
 
