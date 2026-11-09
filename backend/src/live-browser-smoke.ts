@@ -401,6 +401,16 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
 
   await clickMode(5);
+  console.log('Open-box hit test',await teacher.evaluate(()=>{
+    const tile=document.querySelector<HTMLElement>('.ig-game-tile:nth-child(5)');
+    const rect=tile?.getBoundingClientRect();
+    const hit=rect?document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2):null;
+    return {
+      rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,
+      interceptedBy:hit?.outerHTML.slice(0,480),
+      scrollY:window.scrollY,
+    };
+  }));
   console.log('Open-box navigation state',await teacher.evaluate(()=>({
     selected:[...document.querySelectorAll<HTMLButtonElement>('.ig-game-tile')].map((button)=>({
       title:button.querySelector('strong')?.textContent,
