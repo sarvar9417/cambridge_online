@@ -13,17 +13,45 @@ export function createContentRouter(service: ContentService) {
 
   // Unlike the legacy /games endpoint, these routes are chapter/section scoped.
   // They read the latest glossary and Hodder section links on every request.
+  // Accept known query fields from the actual URL, not the entire req.query
+  // object. On Vercel/Express, unexpected transport query keys previously
+  // produced a 400 in the strict Zod object parser before SQL was reached.
+  // Explicitly reject invalid syllabus codes while ignoring unrelated keys.
   router.get('/interactive-games/catalog', async (req, res) => {
-    const query = z.object({ courseCode: courseCode.default('9618') }).strict().parse(req.query);
-    res.json({ data: await service.interactiveGameCatalog(req.actor!, query.courseCode) });
+    const params = new URL(req.originalUrl, 'http://localhost').searchParams;
+    const code = courseCode.parse(params.get('courseCode') ?? '9618');
+    res.json({ data: await service.interactiveGameCatalog(req.actor!, code) });
   });
+  // Legacy single-chapter route is preserved for older clients.
   router.get('/interactive-games/pack', async (req, res) => {
+    const params = new URL(req.originalUrl, 'http://localhost').searchParams;
     const query = z.object({
       courseCode: courseCode.default('9618'),
       chapterNo: z.coerce.number().int().min(1).max(20),
       sectionCode: z.string().regex(/^\d+(?:\.\d+)*$/).max(24).optional(),
-    }).strict().parse(req.query);
+    }).parse({
+      courseCode: params.get('courseCode') ?? '9618',
+      chapterNo: params.get('chapterNo') ?? undefined,
+      sectionCode: params.get('sectionCode') ?? undefined,
+    });
     res.json({ data: await service.interactiveGamePack(req.actor!, query) });
+  });
+  const gameScope = z.object({
+    chapterNo: z.number().int().min(1).max(20),
+    kind: z.enum(['chapter', 'topic', 'section']),
+    code: z.string().regex(/^\d+(?:\.\d+)*$/).max(24).optional(),
+  }).strict().superRefine((scope, context) => {
+    if ((scope.kind === 'chapter' && scope.code !== undefined) ||
+        (scope.kind !== 'chapter' && !scope.code)) {
+      context.addIssue({ code: 'custom', message: 'Invalid chapter/topic/section selection' });
+    }
+  });
+  router.post('/interactive-games/collection', async (req, res) => {
+    const body = z.object({
+      courseCode: courseCode.default('9618'),
+      scopes: z.array(gameScope).min(1).max(100),
+    }).strict().parse(req.body);
+    res.json({ data: await service.interactiveGameCollection(req.actor!, body) });
   });
 
   router.get('/lessons/progress', async (req, res) => {
