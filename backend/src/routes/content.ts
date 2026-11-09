@@ -21,7 +21,7 @@ export function createContentRouter(service: ContentService) {
     const query = z.object({
       courseCode: courseCode.default('9618'),
       chapterNo: z.coerce.number().int().min(1).max(20),
-      sectionCode: z.string().regex(/^\\d+(?:\\.\\d+)*$/).max(24).optional(),
+      sectionCode: z.string().regex(/^\d+(?:\.\d+)*$/).max(24).optional(),
     }).strict().parse(req.query);
     res.json({ data: await service.interactiveGamePack(req.actor!, query) });
   });
