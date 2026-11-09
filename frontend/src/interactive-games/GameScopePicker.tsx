@@ -72,9 +72,7 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
             </label>
             <details className="ig-scope-details" open={showAll ? true : undefined}
               key={showAll ? 'expanded' : 'default-' + chapter.chapterNo}>
-              <summary aria-label={'Choose topics and sections in Chapter ' + chapter.chapterNo}>
-                {isFull ? 'Entire chapter ✓' : included.length ? included.length + ' selected' : 'Choose parts'}
-              </summary>
+              <summary>Chapter {chapter.chapterNo}: {isFull ? 'Entire chapter ✓' : included.length ? included.length + ' selected' : 'Choose parts'}</summary>
               <div className="ig-scope-detail-content">
                 {isFull && <p className="ig-scope-hint">Deselect the whole chapter to choose only some topics or sections.</p>}
                 <strong>Syllabus topics</strong>
