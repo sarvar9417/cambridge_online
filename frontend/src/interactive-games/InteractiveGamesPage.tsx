@@ -229,7 +229,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">
       This selection currently has no linked glossary terms. Select more topics, sections or complete chapters.
     </p>}
-    {ready && <>
+    {pack && ready && <>
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
           disabled={!gameIsAvailable(game.id, allPairs)} aria-pressed={currentMode === game.id}
