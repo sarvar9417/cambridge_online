@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { GAME_CATALOG, type GameKind, type GamePair } from './game-content';
 import {
-  GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode, selectGamePairs,
-  type LiveGameCatalog, type LiveGamePack,
+  GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
+  selectGamePairs, validGameScopes, normalizeGameScopes,
+  type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
+import { GameScopePicker } from './GameScopePicker';
 import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, useGameSignal, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
@@ -12,19 +14,17 @@ import './interactive-games.css';
 import './remote-games.css';
 import './game-polish.css';
 
-/**
- * Database-driven revision. Every page request reads the latest glossary and
- * Hodder chapter/section mapping. Game results are practice-only and temporary.
- */
+/** Source-backed multi-chapter practice, with session-only feedback. */
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
-  const [chapterNo, setChapterNo] = useState<number | null>(null);
-  const [sectionCode, setSectionCode] = useState('');
+  const [scopes, setScopes] = useState<GameScope[]>([]);
+  const initializedScopes = useRef(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [packLoading, setPackLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [catalogError, setCatalogError] = useState('');
+  const [packError, setPackError] = useState('');
   const [mode, setMode] = useState<GameKind>('match-up');
   const [round, setRound] = useState(0);
   const [playSession, setPlaySession] = useState(0);
@@ -39,47 +39,68 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [reviewedCount, setReviewedCount] = useState(0);
   const [fullscreenError, setFullscreenError] = useState('');
 
+  // The catalogue is fetched on load and whenever the user explicitly refreshes.
+  // Newly imported chapters can be chosen without changing client code.
   useEffect(() => {
     let active = true;
     setCatalogLoading(true);
+    setCatalogError('');
     void api<{ data: LiveGameCatalog }>('/content/interactive-games/catalog?courseCode=9618')
       .then(({ data }) => {
         if (!active) return;
         setCatalog(data);
-        setChapterNo((old) => data.chapters.some((ch) => ch.chapterNo === old)
-          ? old : data.chapters[0]?.chapterNo ?? null);
-        setError('');
+        setScopes((previous) => {
+          if (!initializedScopes.current) {
+            initializedScopes.current = true;
+            return data.chapters.length ? [{ chapterNo: data.chapters[0]!.chapterNo, kind: 'chapter' }] : [];
+          }
+          const valid = validGameScopes(previous, data);
+          return JSON.stringify(valid) === JSON.stringify(previous) ? previous : valid;
+        });
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Chapter catalogue could not be loaded.');
+        if (active) {
+          setCatalog(null);
+          setPack(null);
+          setCatalogError(cause instanceof Error ? cause.message : 'Chapter catalogue could not be loaded.');
+        }
       })
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [refreshVersion]);
 
+  const scopesKey = JSON.stringify(normalizeGameScopes(scopes));
   useEffect(() => {
-    if (chapterNo === null || !catalog) return;
+    if (!catalog || scopes.length === 0) {
+      setPack(null);
+      setPackLoading(false);
+      return;
+    }
     let active = true;
     setPackLoading(true);
+    setPackError('');
     setPack(null);
-    const query = new URLSearchParams({ courseCode: '9618', chapterNo: String(chapterNo) });
-    if (sectionCode) query.set('sectionCode', sectionCode);
-    void api<{ data: LiveGamePack }>('/content/interactive-games/pack?' + query.toString())
+    void api<{ data: LiveGamePack }>('/content/interactive-games/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseCode: '9618', scopes: normalizeGameScopes(scopes) }),
+    })
       .then(({ data }) => {
         if (!active) return;
         setPack(data);
-        setError('');
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Game content could not be loaded.');
+        if (active) {
+          setPackError(cause instanceof Error ? cause.message : 'Selected content could not be loaded.');
+          setPack(null);
+        }
       })
       .finally(() => { if (active) setPackLoading(false); });
     return () => { active = false; };
-  }, [chapterNo, sectionCode, refreshVersion, catalog]);
+  }, [scopesKey, catalog, refreshVersion]);
 
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
-
   useEffect(() => {
     if (paused || roundEnded || !pack) return;
     const timer = window.setInterval(() => setSeconds((time) => time + 1), 1000);
@@ -94,8 +115,6 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (soundOn) soundEffect(kind);
   }, [soundOn]);
 
-  const chapter = catalog?.chapters.find((ch) => ch.chapterNo === chapterNo);
-  const section = chapter?.sections.find((s) => s.code === sectionCode);
   const allPairs = pack?.pairs ?? [];
   const currentMode = gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
@@ -103,9 +122,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const pairs = useMemo(() => selectGamePairs(eligiblePairs, questionCount, round), [eligiblePairs, questionCount, round]);
   const speaking = useMemo(() => createSpeakingPrompts(pairs), [pairs]);
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
-  const active = GAME_CATALOG.find((game) => game.id === currentMode)!;
+  const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
+  const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
 
   function clearSession() {
     setCorrectCount(0);
@@ -115,26 +135,16 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setFinished(false);
     setPaused(false);
   }
-
   function resetGame(nextMode?: GameKind, advanceRound = false) {
     if (nextMode) setMode(nextMode);
-    // Changing games preserves the selected vocabulary batch. Advancing the
-    // round is a separate explicit action, avoiding skipped questions.
     if (advanceRound) setRound((value) => value + 1);
     setPlaySession((value) => value + 1);
     clearSession();
   }
-  function changeChapter(value: string) {
-    const number = Number(value);
-    setChapterNo(Number.isFinite(number) && number > 0 ? number : null);
-    setSectionCode('');
-    setPack(null);
-    setRound(0);
-    setPlaySession((value) => value + 1);
-    clearSession();
-  }
-  function changeSection(value: string) {
-    setSectionCode(value);
+  function changeScopes(next: GameScope[]) {
+    const normalized = normalizeGameScopes(next);
+    if (JSON.stringify(normalized) === scopesKey) return;
+    setScopes(normalized);
     setPack(null);
     setRound(0);
     setPlaySession((value) => value + 1);
@@ -155,7 +165,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>
-      <span className="ig-session-name">Interactive Games · {sectionCode || 'Chapter ' + (chapterNo ?? '—')}</span>
+      <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
       <label className="ig-timer-select">Time limit
         <select aria-label="Time limit" value={timeLimit} onChange={(event) => {
           setTimeLimit(Number(event.target.value));
@@ -165,7 +175,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </select>
       </label>
       <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
-      <button type="button" className="ig-pause-button" disabled={roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
       <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
       <button type="button" onClick={toggleFullscreen}>⛶ Full screen</button>
       {fullscreenError && <span role="alert">{fullscreenError}</span>}
@@ -174,61 +184,52 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <div>
         <span className="ig-eyebrow">CAMBRIDGE 9618 · LIVE CURRICULUM BANK</span>
         <h1>Learn by playing.</h1>
-        <p>Choose a chapter and section. Every game is built from the latest terms and definitions already in the Cambridge database.</p>
+        <p>Select any combination of chapters, syllabus topics and Hodder sections. Play all eight games from the combined source-backed vocabulary bank.</p>
         <div className="ig-pills">
-          <span>{chapter ? 'Chapter ' + chapter.chapterNo : 'Select a chapter'}</span>
-          <span>{section ? 'Section ' + section.code : 'Full chapter'}</span>
+          <span>{chosenChapterCount ? chosenChapterCount + ' chapters selected' : 'Select chapters'}</span>
+          <span>{scopes.length} curriculum selections</span>
           <span>{isTeacher ? 'Teacher preview' : 'Student practice'}</span>
         </div>
       </div>
       <div className="ig-hero-mark" aria-hidden="true">8<span>play modes</span></div>
     </div>
 
-    <div className="ig-data-controls" role="group" aria-label="Select chapter and section">
-      <label>Chapter
-        <select aria-label="Chapter" disabled={!catalog || !catalog.chapters.length} value={chapterNo ?? ''}
-          onChange={(event) => changeChapter(event.target.value)}>
-          {catalog?.chapters.map((ch) => <option key={ch.chapterNo} value={ch.chapterNo}>
-            {ch.chapterNo}. {ch.title} ({ch.termCount} terms)
-          </option>)}
-        </select>
-      </label>
-      <label>Section
-        <select aria-label="Section" value={sectionCode} disabled={!chapter} onChange={(event) => changeSection(event.target.value)}>
-          <option value="">All sections — Chapter {chapterNo ?? ''}</option>
-          {chapter?.sections.map((item) => <option value={item.code} key={item.code}>
-            {item.code} — {item.title} ({item.termCount})
-          </option>)}
-        </select>
-      </label>
+    {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
+    <div className="ig-data-controls" role="group" aria-label="Game setup">
       <label>Round size
         <select aria-label="Round size" value={questionCount} disabled={!ready}
-          onChange={(event) => { setQuestionCount(Number(event.target.value)); setRound(0); setPlaySession((value) => value + 1); clearSession(); }}>
+          onChange={(event) => {
+            setQuestionCount(Number(event.target.value));
+            setRound(0);
+            setPlaySession((value) => value + 1);
+            clearSession();
+          }}>
           {GAME_LENGTHS.map((size) => <option key={size} value={size}>{size} terms</option>)}
         </select>
       </label>
-      <button className="ig-data-refresh" type="button" onClick={() => { setRefreshVersion((value) => value + 1); resetGame(); }}>↻ Refresh database</button>
+      <button className="ig-data-refresh" type="button" onClick={() => {
+        setRefreshVersion((value) => value + 1);
+        setPack(null);
+        resetGame();
+      }}>↻ Refresh database</button>
     </div>
 
     {catalogLoading && <p className="ig-data-message" role="status">Loading the latest chapter catalogue…</p>}
-    {!catalogLoading && catalog?.chapters.length === 0 && <p className="ig-data-message" role="status">
-      No game-ready glossary content is available for your syllabus yet.
-    </p>}
-    {packLoading && <p className="ig-data-message" role="status">Loading the latest terms from the database…</p>}
-    {error && <p className="ig-data-error" role="alert">{error}</p>}
+    {packLoading && <p className="ig-data-message" role="status">Combining selected chapters, topics and sections…</p>}
+    {catalogError && <p className="ig-data-error" role="alert">Chapter catalogue failed: {catalogError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>Retry</button></p>}
+    {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>Retry</button></p>}
+    {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
-      <strong>{pack.pairs.length} unique glossary terms loaded.</strong> Playing {pairs.length} this round.
+      <strong>{pack.pairs.length} unique glossary terms loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
       {pack.contentStatus === 'needs_review'
-        ? ' Some or all terms are pending curriculum review. They are shown for provisional practice only, not as approved exam answers.'
+        ? ' Some terms are pending review. Use for provisional practice only, not approved exam answers.'
         : ' All selected terms have been approved.'}
-      {' '}Scores are temporary practice feedback, not official assessment results.
+      {' '}Results are temporary practice feedback, not official assessment grades.
     </div>}
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">
-      No linked glossary terms were found for this section. Select the full chapter to practise newly imported terms
-      that have not yet been linked to a precise subsection.
+      This selection currently has no linked glossary terms. Select more topics, sections or complete chapters.
     </p>}
-
-    {pack && ready && <>
+    {ready && <>
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
           disabled={!gameIsAvailable(game.id, allPairs)} aria-pressed={currentMode === game.id}
@@ -236,13 +237,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, allPairs) ? game.description : 'This round needs more suitable terms.'}</small>
+          <small>{gameIsAvailable(game.id, allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
         <div className="ig-workspace-head">
-          <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{active.label}</h2>
-            <p>{chapter?.title}{section ? ' · ' + section.title : ''}</p>
+          <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
+            <p>{chosenChapterCount} chapters · {scopes.length} selections · {pairs.length} terms in this round</p>
           </div>
           <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
         </div>
@@ -251,7 +252,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>
         </div>
         <fieldset className="ig-game-stage" disabled={paused || roundEnded}
-          key={[chapterNo, sectionCode, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
+          key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
@@ -265,7 +266,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         {roundEnded && <div className="ig-result-panel" role="status">
           <span className="ig-eyebrow">{timeExpired ? "TIME'S UP" : 'ROUND SUMMARY'}</span>
           <h3>{timeExpired ? "Time's up!" : 'Round finished!'}</h3>
-          <p><strong>{active.label}</strong> · {formatClock(seconds)} played</p>
+          <p><strong>{activeGame.label}</strong> · {formatClock(seconds)} played</p>
           <div className="ig-result-stats">
             <span><strong>{correctCount}</strong>Correct first attempts</span>
             <span><strong>{wrongCount}</strong>Incorrect attempts</span>
@@ -278,7 +279,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </div>
         </div>}
       </div>
-      <p className="ig-source">Source: {pack.source}. Live glossary data is used as-is; pending-review content is clearly labelled.</p>
+      <p className="ig-source">Source: {pack.source}. Pending-review vocabulary is clearly labelled.</p>
     </>}
   </section></GameSignalContext.Provider>;
 }
