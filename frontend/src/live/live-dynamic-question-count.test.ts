@@ -26,10 +26,18 @@ describe('Live dynamic question count',()=>{
     expect(page).not.toContain('/20 ta savol');
   });
 
+  it('keeps a temporary count fetch failure local and provides an explicit retry',()=>{
+    expect(page).toContain("const [eligibleError,setEligibleError]=useState('')");
+    expect(page).toContain("setEligibleError(message(cause,'Mos savollar soni aniqlanmadi.'))");
+    expect(page).toContain("setEligibleError('')");
+    expect(page).toContain('setEligibleRetryKey(key=>key+1)');
+    expect(page).toContain('Qayta tekshirish');
+  });
+
   it('recalculates availability from class, coursebook section and Live filters',()=>{
     expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join");
     expect(page).toContain('includeDiagrams:String(includeDiagrams)');
     expect(page).toContain('excludeSeen:String(excludeSeen)');
-    expect(page).toContain('[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns]');
+    expect(page).toContain('[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,eligibleRetryKey]');
   });
 });
