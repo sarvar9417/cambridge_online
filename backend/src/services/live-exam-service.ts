@@ -350,7 +350,6 @@ export class LiveExamService {
         )
       )`);
     }
-    if (input.playMode === 'cards') filters.push(`not exists (select 1 from question_dependencies card_dependency where card_dependency.question_id=q.id and card_dependency.strength::text='required')`);
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
     if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
@@ -608,8 +607,9 @@ export class LiveExamService {
     }
     if (input.questionIds?.length) {
       values.push(input.questionIds);
-      filters.push(`q.id=any($${values.length}::uuid[])`);
+      filters.push(`q.id=any(${values.length}::uuid[])`);
     }
+    if (input.playMode === 'cards') filters.push(`not exists (select 1 from question_dependencies card_dependency where card_dependency.question_id=q.id and card_dependency.strength::text='required')`);
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
     if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
