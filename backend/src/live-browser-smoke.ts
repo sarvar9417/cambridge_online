@@ -489,18 +489,22 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   await assertAxe(teacher,'Interactive Games teacher desktop');
   // Optional sound, countdown, full interaction pause and honest session summary.
+  await teacher.$eval('.ig-sound-toggle',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-sound-toggle');
   const soundPressed=await teacher.$eval('.ig-sound-toggle',(node)=>node.getAttribute('aria-pressed'));
   if(soundPressed!=='true')throw new Error('Game sound toggle did not turn on');
   await teacher.select('select[aria-label="Time limit"]','30');
   await assertText('.ig-clock','Remaining 00:30');
+  await teacher.$eval('.ig-pause-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-pause-button');
   const frozen=await teacher.$eval('fieldset.ig-game-stage',(node)=>node.hasAttribute('disabled'));
   if(!frozen)throw new Error('Pausing the timer did not freeze gameplay');
   await assertText('.ig-paused-banner','Paused');
+  await teacher.$eval('.ig-pause-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-pause-button');
   const resumed=await teacher.$eval('fieldset.ig-game-stage',(node)=>!node.hasAttribute('disabled'));
   if(!resumed)throw new Error('Resume did not reactivate game');
+  await teacher.$eval('.ig-finish-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-finish-button');
   await teacher.waitForSelector('.ig-result-panel',{timeout:5_000});
   await assertText('.ig-result-panel','Practice feedback only');
