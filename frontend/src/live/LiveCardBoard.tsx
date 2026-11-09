@@ -17,6 +17,7 @@ export function LiveCardBoard({ snapshot, refresh, interactive = true }: LiveCar
   const cards = snapshot.cards ?? [];
   const remaining = cards.filter((card) => !card.used).length;
   const canPick = interactive
+    && remaining > 0
     && !session.pausedAt
     && (session.status === 'lobby' || session.status === 'review')
     && (session.settings.rehearsalMode || session.participantCount > 0)
