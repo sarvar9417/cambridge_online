@@ -11,11 +11,22 @@ describe('Live dynamic question count',()=>{
     expect(page).toContain('Jami bazada: ${eligibleCounts.database}');
     expect(page).toContain('Live-ready: ${eligibleCounts.liveReady}');
     expect(page).toContain('Hozir tanlash mumkin: ${eligibleCounts.available}');
-    expect(page).toContain('Maximum: ${eligibleTotal}');
+    expect(page).toContain("Maximum: ${user.role==='student'?Math.min(12,eligibleTotal):eligibleTotal}");
     expect(page).toContain("max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined}");
     expect(page).not.toContain('max={20}');
   });
 
+  it('prevents too-long answers from silently failing and binds writes to their question',()=>{
+    expect(page).toContain('maxLength={20000} value={answer}');
+    expect(page).toContain('questionId:snapshot.question?.id');
+    expect(page).toContain('20 000 belgi');
+  });
+
+  it('warns about persistent snapshot polling failures rather than showing stale state as live',()=>{
+    expect(page).toContain('consecutivePollFailures.current>=3');
+    expect(page).toContain('live-connection-warning');
+    expect(page).toContain('Ma’lumotlar eskirgan bo‘lishi mumkin');
+  });
   it('pages and searches the full eligible pool without capping the selectable total',()=>{
     expect(page).toContain('const pageSize=20');
     expect(page).toContain('eligibleParams(pageSize,true,false,page*pageSize,search)');
