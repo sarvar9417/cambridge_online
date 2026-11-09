@@ -35,13 +35,29 @@ export interface LiveGamePack {
 export const GAME_LENGTHS = [8, 16, 29] as const;
 export type GameLength = typeof GAME_LENGTHS[number];
 
+/** Letters are deliberately restricted to short, playable A-Z words.
+ * Numbers, punctuation and multi-word terms cannot be meaningfully moved
+ * into the current letter-tile UI. Do not silently drop them after game start.
+ */
+export function isAnagramEligible(term: string): boolean {
+  return /^[A-Za-z]{4,22}$/.test(term) && new Set(term.toLowerCase()).size > 1;
+}
+
 export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
   if (!pairs.length) return false;
   switch (mode) {
-    case 'quiz': case 'find-the-match': return pairs.length >= 4;
-    case 'anagram': return pairs.some((pair) => pair.term.length >= 4 && !pair.term.includes(' '));
-    default: return true;
+    case 'quiz': case 'find-the-match':
+      return new Set(pairs.map((pair) => pair.definition.trim().toLowerCase())).size >= 4;
+    case 'anagram':
+      return pairs.some((pair) => isAnagramEligible(pair.term));
+    default:
+      return true;
   }
+}
+
+export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): LiveGameTerm[] {
+  if (mode === 'anagram') return pairs.filter((pair) => isAnagramEligible(pair.term));
+  return [...pairs];
 }
 
 /** Same source terms, different game mechanics. No generated false definitions. */
