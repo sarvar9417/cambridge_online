@@ -409,6 +409,17 @@ async function assertInteractiveGames(browser:Browser,base:string){
   };
   await assertText('.ig-notice','pending review');
   await assertText('.ig-scope-picker','Information representation');
+  // Teachers routinely search by the printed Hodder code, not only its title.
+  const searchInput='input[aria-label="Search chapters and topics"]';
+  await teacher.type(searchInput,'2.1.1');
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===1);
+  await assertText('.ig-scope-chapter','Communication');
+  await teacher.click(searchInput);
+  await teacher.keyboard.down('Control');
+  await teacher.keyboard.press('A');
+  await teacher.keyboard.up('Control');
+  await teacher.keyboard.press('Backspace');
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===2);
 
   // Match Up must grade only after submission.
   await teacher.click('.ig-bank-term');
