@@ -43,6 +43,15 @@ describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
       expect(options.filter((option) => option.id === item.id)).toHaveLength(1);
     });
     expect(findMatchOptions(chapter7Pilot.pairs.slice(0, 3), 0)).toEqual([]);
+    for (const size of [4, 5]) {
+      const shortSet = chapter7Pilot.pairs.slice(0, size);
+      shortSet.forEach((item, index) => {
+        const choices = findMatchOptions(shortSet, index);
+        expect(choices).toHaveLength(4);
+        expect(new Set(choices.map((choice) => choice.id)).size).toBe(4);
+        expect(choices.filter((choice) => choice.id === item.id)).toHaveLength(1);
+      });
+    }
   });
 
   it('scrambles anagram letters without deleting or adding any', () => {
