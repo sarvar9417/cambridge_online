@@ -167,7 +167,7 @@ export function FindMatchBoard({ pairs }: { pairs: readonly GamePair[] }) {
   return <div className="ig-content ig-findmatch">
     <div className="ig-find-status">
       <span className="ig-score" role="status">{pairs.length - remaining.length} / {pairs.length} matched</span>
-      <span aria-label={lives + ' lives remaining'} className="ig-hearts">{'♥'.repeat(lives)}{'♡'.repeat(3 - lives)}</span>
+      <span role="status" aria-label={lives + ' lives remaining'} className="ig-hearts">{'♥'.repeat(lives)}{'♡'.repeat(3 - lives)}</span>
     </div>
     {!finished ? <>
       <div className="ig-find-clue"><span className="ig-eyebrow">Tap the matching tile</span><p>{current.definition}</p></div>
@@ -217,12 +217,12 @@ export function AnagramTiles({ pairs }: { pairs: readonly GamePair[] }) {
     <p className="ig-instruction">Arrange each letter in the blank slots. Select letter tiles or drag them into place. Select a filled slot to return that letter.</p>
     <div className="ig-score">Word {index + 1} of {words.length} · {firstTry} solved on first try</div>
     <p className="ig-anagram-hint">{item.definition}</p>
-    <div className="ig-anagram-letters" aria-label="Letter bank">{scrambled.map((letter, tileIndex) =>
+    <div className="ig-anagram-letters" role="group" aria-label="Letter bank">{scrambled.map((letter, tileIndex) =>
       <button key={tileIndex} type="button" className="ig-anagram-letter" draggable={!locked && !placed.includes(tileIndex)}
         disabled={locked || placed.includes(tileIndex)} onClick={() => place(tileIndex)}
         onDragStart={(event) => event.dataTransfer.setData('text/plain', String(tileIndex))}
         aria-label={'Use letter ' + letter + ' at position ' + (tileIndex + 1)}>{letter}</button>)}</div>
-    <div className="ig-anagram-slots" aria-label="Answer slots">{scrambled.map((_, slotIndex) => <div
+    <div className="ig-anagram-slots" role="group" aria-label="Answer slots">{scrambled.map((_, slotIndex) => <div
       key={slotIndex} className="ig-anagram-slot" onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => { event.preventDefault(); const tile = event.dataTransfer.getData('text/plain'); if (/^\d+$/.test(tile)) place(Number(tile), slotIndex); }}>
       <button type="button" disabled={locked || placed[slotIndex] === undefined}
