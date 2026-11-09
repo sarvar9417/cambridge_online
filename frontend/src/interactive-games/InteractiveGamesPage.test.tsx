@@ -14,7 +14,7 @@ describe('Standalone Interactive Games — exactly eight requested experiences',
   };
   const findButton = (text: string): HTMLButtonElement => {
     const found = [...container.querySelectorAll<HTMLButtonElement>('button')]
-      .find((item) => item.textContent?.trim() === text);
+      .find((item) => item.textContent?.trim() === text || (item.classList.contains('ig-answer-button') && item.textContent?.trim().endsWith(text)));
     if (!found) throw new Error('Missing button: ' + text);
     return found;
   };
