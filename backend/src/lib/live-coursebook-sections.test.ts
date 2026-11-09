@@ -26,9 +26,9 @@ describe('9618 Live coursebook section bridge',()=>{
     });
     const values:unknown[]=[];
     const sql=liveCoursebookQuestionFilter(values,['16.2']);
-    expect(values).toEqual([15,'15.1','%virtual machine%']);
+    expect(values).toEqual([15,'15.1',['%virtual machine%']]);
     expect(sql).toContain('question_learning_objectives coursebook_qlo');
-    expect(sql).toContain('coursebook_lo.text ilike $3');
+    expect(sql).toContain('coursebook_lo.text ilike any($3::text[])');
   });
 
   it('bridges textbook Chapter 16.3 to official syllabus 16.2 without corrupting syllabus codes',()=>{
