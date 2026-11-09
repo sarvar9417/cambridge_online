@@ -138,6 +138,31 @@ function snapshot(actor:ActorKey,status:SnapshotStatus='question_open',rehearsal
   };
 }
 
+
+const gameTerms = [
+  {id:'game-1',term:'Legal',definition:'Relating to what is permitted or required by law.'},
+  {id:'game-2',term:'Ethics',definition:'Moral principles guiding professional behaviour.'},
+  {id:'game-3',term:'Culture',definition:'The shared values and practices of a society.'},
+  {id:'game-4',term:'Morality',definition:'Personal beliefs about right and wrong.'},
+  {id:'game-5',term:'Privacy',definition:'Keeping personal information from unauthorised access.'},
+  {id:'game-6',term:'Plagiarism',definition:'Claiming another person’s work as your own.'},
+  {id:'game-7',term:'Cache',definition:'Fast memory that stores frequently needed data.'},
+  {id:'game-8',term:'Gateway',definition:'A device that connects networks using different protocols.'},
+  {id:'game-9',term:'Database',definition:'An organised collection of data.'},
+].map((item)=>({...item,status:'needs_review',source:null}));
+const gameCatalog = {
+  courseCode:'9618',
+  chapters:[
+    {chapterNo:1,title:'Information representation',termCount:9,approvedCount:0,sections:[
+      {code:'1.1',title:'Data representation',parentCode:'1',termCount:9},
+      {code:'1.1.1',title:'Number systems',parentCode:'1.1',termCount:5},
+    ]},
+    {chapterNo:2,title:'Communication',termCount:6,approvedCount:0,sections:[
+      {code:'2.1.1',title:'Networking devices',parentCode:'2.1',termCount:6},
+    ]},
+  ],
+};
+
 async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open',rehearsal=false){
   await page.setRequestInterception(true);
   page.on('request',(request:HTTPRequest)=>{
@@ -149,6 +174,15 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
     if(path==='/assignments'||path==='/results'||path==='/exports'){void json(request,{data:[]});return;}
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
+    if(path==='/content/interactive-games/catalog'){void json(request,{data:gameCatalog});return;}
+    if(path==='/content/interactive-games/pack'){
+      const chapterNo=Number(url.searchParams.get('chapterNo')||1);
+      const sectionCode=url.searchParams.get('sectionCode');
+      const candidate=chapterNo===2?gameTerms.slice(3):gameTerms;
+      const pairs=sectionCode==='1.1.1'?candidate.slice(0,5):candidate;
+      void json(request,{data:{courseCode:'9618',chapterNo,sectionCode,contentStatus:'needs_review',pairs,source:'Browser acceptance glossary',assessed:false}});
+      return;
+    }
     if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor,status,rehearsal));return;}
     if(path===`/live-exams/${SESSION_ID}/events`){void json(request,{sessionId:SESSION_ID,currentVersion:7,changed:false,events:[]});return;}
     if(path===`/live-exams/${SESSION_ID}/heartbeat`){void json(request,{serverNow:now});return;}
@@ -317,6 +351,118 @@ async function assertReducedMotion(browser:Browser,base:string){
   await context.close();
 }
 
+
+/** Native browser acceptance for every Interactive Games mode on desktop and mobile. */
+async function assertInteractiveGames(browser:Browser,base:string){
+  const teacherContext=await browser.createBrowserContext();
+  const teacher=await teacherContext.newPage();
+  await teacher.setViewport({width:1440,height:900});
+  await installApi(teacher,'teacher','lobby');
+  const errors:string[]=[];
+  teacher.on('pageerror',(err)=>errors.push(err.message));
+  teacher.on('console',(msg)=>{if(msg.type()==='error')errors.push(msg.text());});
+  await teacher.goto(base+'/#oqitish/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
+  await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
+  const clickMode=async(index:number)=>{await teacher.click('.ig-game-tile:nth-child('+index+')');};
+  const assertText=async(selector:string,fragment:string)=>{
+    const actual=await teacher.$eval(selector,(node)=>node.textContent??'');
+    if(!actual.includes(fragment))throw new Error('Interactive Games missing '+fragment+' in '+selector+': '+actual);
+  };
+  await assertText('.ig-notice','pending curriculum review');
+  await assertText('.ig-data-controls','Information representation');
+
+  // Match Up must grade only after submission.
+  await teacher.click('.ig-bank-term');
+  await teacher.click('.ig-drop-target button[aria-label*="permitted or required by law"]');
+  await assertText('.ig-score','1 of 9 placed');
+  await teacher.click('.ig-match-actions button');
+  await assertText('.ig-match-actions','1 / 9 correct');
+
+  // Flip a definition, then switch games using the same chapter content.
+  await clickMode(2);
+  await assertText('.ig-flashcard','Relating to what is permitted');
+  await teacher.click('.ig-flashcard');
+  await assertText('.ig-flashcard','Legal');
+
+  await clickMode(3);
+  await teacher.click('.ig-deck-controls button:last-child');
+  await assertText('.ig-score','1 dealt');
+  await teacher.click('.ig-deck-controls button:nth-child(2)');
+  await assertText('.ig-score','0 dealt');
+
+  await clickMode(4);
+  await teacher.click('.ig-wheel-panel .ig-primary-button');
+  await teacher.waitForSelector('.ig-wheel-result',{timeout:8_000});
+  await teacher.click('.ig-wheel-actions button:last-child');
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
+
+  await clickMode(5);
+  await teacher.click('.ig-box:first-child');
+  await assertText('.ig-box-detail','Explain: Legal');
+  await teacher.click('.ig-box-detail button');
+  await assertText('.ig-box-detail','Relating to what is permitted');
+
+  await clickMode(6);
+  await teacher.waitForSelector('.ig-quiz .ig-answer-button');
+  if((await teacher.$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
+  await teacher.click('.ig-quiz .ig-answer-button:first-child');
+  await teacher.waitForSelector('.ig-answer-feedback');
+  await teacher.click('.ig-answer-feedback button');
+  await assertText('.ig-quiz .ig-score','Question 2');
+
+  await clickMode(7);
+  await teacher.waitForSelector('.ig-find-tile');
+  await teacher.evaluate(()=>[...document.querySelectorAll<HTMLButtonElement>('.ig-find-tile')]
+    .find((button)=>button.textContent==='Legal')?.click());
+  await assertText('.ig-find-status','1 / 9 matched');
+  await teacher.evaluate(()=>[...document.querySelectorAll<HTMLButtonElement>('.ig-find-tile')]
+    .find((button)=>button.textContent==='Culture')?.click());
+  const lives=await teacher.$eval('.ig-hearts',(node)=>node.getAttribute('aria-label')??'');
+  if(lives!=='2 lives remaining')throw new Error('Find the Match life counter mismatch: '+lives);
+
+  await clickMode(8);
+  await teacher.waitForSelector('.ig-anagram-letter');
+  const word=await teacher.$eval('.ig-anagram-hint',(node)=>node.textContent??'');
+  if(!word.includes('Relating to what is permitted'))throw new Error('Anagram did not use real source term');
+  for(const ch of 'LEGAL'){
+    await teacher.evaluate((letter)=>{
+      const tile=[...document.querySelectorAll<HTMLButtonElement>('.ig-anagram-letter')]
+        .find((button)=>button.textContent===letter && !button.disabled);
+      if(!tile)throw new Error('Missing anagram tile '+letter);
+      tile.click();
+    },ch);
+  }
+  await teacher.click('.ig-card-controls button:nth-child(3)');
+  await assertText('.ig-feedback','Correct! Legal');
+
+  // Live section selection and a distinct chapter must reload from the API.
+  await teacher.select('select[aria-label="Section"]','1.1.1');
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('5 unique'));
+  await teacher.select('select[aria-label="Chapter"]','2');
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('6 unique'));
+  await assertText('.ig-hero','Chapter 2');
+
+  await assertAxe(teacher,'Interactive Games teacher desktop');
+  const overflow=await teacher.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  if(overflow>3)throw new Error('Interactive Games desktop overflow: '+overflow);
+
+  const studentContext=await browser.createBrowserContext();
+  const student=await studentContext.newPage();
+  await student.setViewport({width:390,height:844});
+  await installApi(student,'student1','lobby');
+  student.on('pageerror',(err)=>errors.push('mobile: '+err.message));
+  await student.goto(base+'/#oquvchi/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
+  await student.waitForSelector('.ig-game-tile',{timeout:15_000});
+  await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
+  const mobileOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  if(mobileOverflow>3)throw new Error('Interactive Games mobile horizontal overflow: '+mobileOverflow);
+  await assertAxe(student,'Interactive Games student mobile');
+  if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
+  await studentContext.close();
+  await teacherContext.close();
+}
+
 const address=await listen();
 const base=`http://127.0.0.1:${address.port}`;
 const chrome=process.env.CHROME_PATH;
@@ -367,6 +513,7 @@ try{
   }
   for(const [index,surface] of surfaces.entries())await assertAxe(surface.page,`live surface ${index}`);
   await assertReducedMotion(browser,base);
+  await assertInteractiveGames(browser,base);
   await assertJoinQrFlow(browser,base);
   await assertRehearsalUi(browser,base);
   console.log('Live multi-context browser smoke passed: WCAG axe, reduced-motion, QR join link, teacher rehearsal, 1080p/4K projector, mobile answer UX, and source fidelity');
