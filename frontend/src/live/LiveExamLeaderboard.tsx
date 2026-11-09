@@ -60,7 +60,7 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
     void load();
     const timer=window.setInterval(()=>void load(),3000);
     return()=>{cancelled=true;window.clearInterval(timer)};
-  },[sessionId,version]);
+  },[sessionId,version,variant]);
 
   if(error&&!summary)return <p className="live-leaderboard-error" role="alert">{error}</p>;
   if(!summary)return <p className="live-leaderboard-loading">Reyting hisoblanmoqda…</p>;
