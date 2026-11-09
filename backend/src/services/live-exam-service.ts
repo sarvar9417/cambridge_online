@@ -890,13 +890,18 @@ export class LiveExamService {
     if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
+    // The automatic builder only needs the pool size. Avoid source sorting,
+    // a LIMIT/OFFSET rowset and a count(*) window over that rowset when the
+    // client explicitly opts out of question data (the common filter-change
+    // request). The same readiness and class restrictions still apply.
+    const countOnly = input.includeData === false;
     const selectionPromise = this.chooseQuestionIds(actor, {
       ...input,
       title: 'Question preview',
       markingMode: 'teacher',
       questionCount: input.limit,
       questionIds: undefined,
-    }, false, false, {
+    }, false, countOnly, {
       offset:input.offset ?? 0,
       search:input.search,
       sort:'source',
