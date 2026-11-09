@@ -2055,6 +2055,78 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
+  /** A card click opens exactly one round. Concurrent clicks serialize on the session row. */
+  async openCard(actor: Actor, sessionId: string, cardId: string, expectedVersion: number) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const locked = await client.query(
+        `select les.* from live_exam_sessions les join classes c on c.id=les.class_id
+         where les.id=$1 and les.archived_at is null and c.archived_at is null and (
+           ($2='owner' and c.school_id=$3)
+           or ($2='teacher' and (c.owner_id=$4 or exists(
+             select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)))
+           or ($2='student' and exists(
+             select 1 from live_exam_participants lep
+             where lep.session_id=les.id and lep.student_id=$4 and lep.left_at is null))
+         ) for update of les`,
+        [sessionId,actor.role,actor.schoolId,actor.id],
+      );
+      if (!locked.rowCount) throw new DomainError('not_found',404);
+      const session = locked.rows[0] as Record<string,unknown>;
+      this.assertExpectedVersion(session,expectedVersion);
+      const settings = this.settings(session.settings);
+      if (settings.playMode!=='cards' || !['lobby','review'].includes(String(session.status)) || session.paused_at)
+        throw new DomainError('live_invalid_state',409);
+      const roster = await client.query(
+        `select count(*)::int count from live_exam_participants
+         where session_id=$1 and left_at is null`,[sessionId]);
+      if ((!settings.rehearsalMode && Number(roster.rows[0].count)<1)
+           || (settings.practiceMode==='group' && Number(roster.rows[0].count)<2))
+        throw new DomainError('live_no_participants',409);
+      const nextPosition = session.status==='lobby' ? 0 : Number(session.current_question_index)+1;
+      const rows = await client.query(
+        `select id,question_id,position,marks from live_exam_questions
+         where session_id=$1 order by position for update`,[sessionId]);
+      const selected = rows.rows.find((row)=>String(row.id)===cardId);
+      if (!selected || Number(selected.position)<nextPosition || Number(selected.marks)>settings.cardColumns)
+        throw new DomainError('live_card_unavailable',409);
+      if (nextPosition>=rows.rows.length) throw new DomainError('live_no_more_cards',409);
+      const displaced = rows.rows.find((row)=>Number(row.position)===nextPosition);
+      if (!displaced) throw new DomainError('live_question_sequence_invalid',409);
+      if (Number(selected.position)!==nextPosition) {
+        // A temporary non-negative position satisfies the pre-existing uniqueness index.
+        const freePosition = Math.max(...rows.rows.map((row)=>Number(row.position)))+1;
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,displaced.id,freePosition]);
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,selected.id,nextPosition]);
+        await client.query(`update live_exam_questions set position=$3 where session_id=$1 and id=$2`,
+          [sessionId,displaced.id,selected.position]);
+      }
+      await client.query(
+        `insert into live_exam_answers(session_question_id,participant_id)
+         select $2,lep.id from live_exam_participants lep
+         where lep.session_id=$1 and lep.left_at is null on conflict do nothing`,
+        [sessionId,selected.id]);
+      const questionTimeLimitS = resolveLiveQuestionTimeLimit(
+        session.settings,String(selected.question_id),
+        settings.defaultQuestionTimeLimitS ?? (session.question_time_limit_s==null?null:Number(session.question_time_limit_s)),
+      );
+      await client.query(
+        `update live_exam_sessions set status='question_open',current_question_index=$2,
+         started_at=coalesce(started_at,now()),question_started_at=now(),
+         answers_locked_at=null,mark_scheme_revealed_at=null,question_time_limit_s=$3
+         where id=$1`,[sessionId,nextPosition,questionTimeLimitS]);
+      const version = await this.bump(client,sessionId,actor.id,'question.opened',
+        {position:nextPosition,cardId,cardMarks:Number(selected.marks),selection:'card'});
+      await client.query('commit');
+      return {sessionId,status:'question_open' as const,version};
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally { client.release(); }
+  }
   async setLateJoin(actor: Actor, sessionId: string, allowLateJoin: boolean, expectedVersion?: number) {
     // Fixed-roster practice must never gain in-progress participants.
     this.assertStaff(actor);
