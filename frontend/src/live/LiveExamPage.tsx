@@ -28,6 +28,7 @@ import { AttemptContext } from '../AttemptContext';
 import { StructuredQuestionView } from '../student/StructuredQuestionView';
 import { LiveExamLeaderboard } from './LiveExamLeaderboard';
 import { LiveJoinQr, liveJoinUrl } from './LiveJoinQr';
+import { LiveCardBoard } from './LiveCardBoard';
 import {
   moveLiveQuestionTimeOverride,
   serializeLiveQuestionTimeOverrides,
@@ -328,6 +329,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [coursebookSectionCodes,setCoursebookSectionCodes]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'|'balanced'>('balanced');
+  const [playMode,setPlayMode]=useState<'random'|'cards'>('random');
+  const [cardColumns,setCardColumns]=useState(5);
   const [includeDiagrams,setIncludeDiagrams]=useState(true);
   const [excludeSeen,setExcludeSeen]=useState(true);
   const [difficulty,setDifficulty]=useState<''|'easy'|'medium'|'hard'>('');
@@ -469,6 +472,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       subtopicIds:'',
       coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join(','):'',
       igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes.join(','):'',
+      playMode,
       includeDiagrams:String(includeDiagrams),
       excludeSeen:String(excludeSeen),
       series:series.join(','),
@@ -480,8 +484,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       includeCounts:String(includeCounts),
     });
     if(difficulty)params.set('difficulty',difficulty);
-    if(marksMin)params.set('marksMin',marksMin);
-    if(marksMax)params.set('marksMax',marksMax);
+    if(marksMin||playMode==='cards')params.set('marksMin',marksMin||'1');
+    if(marksMax||playMode==='cards')params.set('marksMax',String(playMode==='cards'?Math.min(Number(marksMax)||cardColumns,cardColumns):Number(marksMax)));
     if(yearFrom)params.set('yearFrom',yearFrom);
     if(yearTo)params.set('yearTo',yearTo);
     return params;
@@ -507,7 +511,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components]);
+  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns]);
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     const epoch=++poolRequestEpoch.current;
@@ -579,7 +583,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):rehearsalMode?'teacher':data.get('markingMode'),includeDiagrams,excludeSeen,
         difficulty:difficulty||undefined,marksMin:marksMin?Number(marksMin):undefined,marksMax:marksMax?Number(marksMax):undefined,
         yearFrom:yearFrom?Number(yearFrom):undefined,yearTo:yearTo?Number(yearTo):undefined,series,components,
-        questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,
+        questionIds:selectionMode==='manual'?selectedQuestionIds:undefined,questionOrder,playMode,cardColumns,
         questionTimeLimits:selectionMode==='manual'
           ?serializeLiveQuestionTimeOverrides(selectedQuestionIds,questionTimeLimits)
           :{},
@@ -695,6 +699,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
         <label>Savollar soni<input name="questionCount" type="number" min={1} max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER,user.role==='student'?12:Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${eligibleTotal}`:'Mavzu tanlang'}</small></label>
+        <label>O‘yin turi<select aria-label="Savol ochish rejimi" value={playMode} onChange={(event)=>{setPlayMode(event.target.value as 'random'|'cards');clearManualPool()}}><option value="random">Random / navbatli · mavjud rejim</option><option value="cards">Card Selection · o‘quvchi kartani tanlaydi</option></select><small>Card rejimida kartadan ochilgan savolga hamma odatdagidek javob beradi.</small></label>
+        {playMode==='cards'?<label>Ball ustunlari<select aria-label="Kartochka ustunlari soni" value={cardColumns} onChange={(event)=>{setCardColumns(Number(event.target.value));clearManualPool()}}>{[1,2,3,4,5].map((value)=><option key={value} value={value}>{value} ta · 1–{value} ball</option>)}</select><small>Eng ko‘pi bilan 5 ta ustun. Faqat mustaqil Cambridge savollari tanlanadi.</small></label>:null}
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Balanced Random · IGCSE Chapter va Section':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?(syllabusCode==='0478'?'Tanlangan IGCSE Chapter’lar va Section’lar o‘rtasida muvozanatli tasodifiy tanlanadi; filtr belgilanmasa barcha Paper 2 savollaridan random olinadi.':'Avval tanlangan Chapter’lar o‘rtasida, keyin ularning Section’lari ichida muvozanat saqlanadi. Bitta Section bo‘lsa oddiy random ishlaydi.'):questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         {user.role!=='student'?<label className="live-check"><input name="rehearsalMode" type="checkbox" checked={rehearsalMode} onChange={(event)=>setRehearsalMode(event.target.checked)}/><span>Rehearsal / Demo — o‘quvchisiz sinab ko‘rish</span></label>:null}
@@ -712,8 +718,8 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         {user.role==='student'?<small className="live-create-semantics">Ishtirokchilar faqat Start bosilguncha qo‘shila oladi; bu cheklov Mark Scheme va peer-review adolatliligini himoya qiladi.</small>:!rehearsalMode?<label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>:null}
         {!rehearsalMode?<label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>:null}
         {user.role!=='student'?<label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>:null}
-        <button disabled={busy||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
-        <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi; ishtirokchilar faqat xona egasi Start bosgandan keyin savolni ko‘radi.</small>
+        <button disabled={busy||(playMode==='cards'&&selectionMode==='manual'&&(!selectionPreview||selectionPreview.dependencyCount>0||selectionPreview.selected.some((item)=>item.marks>cardColumns||item.marks<1)))||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi. {playMode==='cards'?'Card rejimida ishtirokchi kartani tanlagach savol hammaga ochiladi.':'Random rejimida Start bosilgach savol ochiladi.'}</small>
         {!classes.length?<small className="live-warning">Mashq yaratish uchun faol sinfga biriktirilgan bo‘lishingiz kerak.</small>:null}
       </aside>
     </form>
