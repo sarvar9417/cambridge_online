@@ -607,7 +607,7 @@ export class LiveExamService {
     }
     if (input.questionIds?.length) {
       values.push(input.questionIds);
-      filters.push('q.id=any(' + '
+      filters.push('q.id=any(' + String.fromCharCode(36) + values.length + '::uuid[])');
     }
     if (input.playMode === 'cards') filters.push(`not exists (select 1 from question_dependencies card_dependency where card_dependency.question_id=q.id and card_dependency.strength::text='required')`);
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
