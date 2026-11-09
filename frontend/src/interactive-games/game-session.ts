@@ -5,7 +5,7 @@ import { createContext, useContext } from 'react';
  * Signals are local to the mounted game; no scores are sent to a server.
  * Revealing a card or dealing a speaking prompt is never counted as mastery.
  */
-export type GameSignal = 'correct' | 'incorrect' | 'review' | 'flip' | 'deal' | 'spin' | 'open' | 'complete';
+export type GameSignal = 'start' | 'correct' | 'incorrect' | 'review' | 'flip' | 'deal' | 'spin' | 'open' | 'complete';
 export type GameSignalHandler = (signal: GameSignal, count?: number) => void;
 export const GameSignalContext = createContext<GameSignalHandler>(() => {});
 export const useGameSignal = () => useContext(GameSignalContext);
@@ -13,13 +13,13 @@ export const useGameSignal = () => useContext(GameSignalContext);
 let sharedAudio: AudioContext | null = null;
 
 /** Original, synthesized short sound effects: no third-party sound assets. */
-export function soundEffect(kind: GameSignal) {
+export function soundEffect(kind: Exclude<GameSignal, 'start'>) {
   if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
   try {
     sharedAudio ??= new window.AudioContext();
     const context = sharedAudio;
-    if (context.state === 'suspended') void context.resume();
-    const tones: Record<GameSignal, Array<[number, number]>> = {
+    if (context.state === 'suspended') void context.resume().catch(() => {});
+    const tones: Record<Exclude<GameSignal, 'start'>, Array<[number, number]>> = {
       correct: [[523, 0], [784, 0.095]],
       incorrect: [[240, 0], [175, 0.095]],
       review: [[440, 0]],

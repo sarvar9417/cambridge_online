@@ -31,6 +31,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [questionCount, setQuestionCount] = useState(29);
   const [seconds, setSeconds] = useState(0);
   const [timeLimit, setTimeLimit] = useState(0);
+  const [started, setStarted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -49,14 +50,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       .then(({ data }) => {
         if (!active) return;
         setCatalog(data);
-        setScopes((previous) => {
-          if (!initializedScopes.current) {
-            initializedScopes.current = true;
-            return data.chapters.length ? [{ chapterNo: data.chapters[0]!.chapterNo, kind: 'chapter' }] : [];
-          }
-          const valid = validGameScopes(previous, data);
-          return JSON.stringify(valid) === JSON.stringify(previous) ? previous : valid;
-        });
+        if (!initializedScopes.current && data.chapters.length) {
+          initializedScopes.current = true;
+          setScopes([{ chapterNo: data.chapters[0]!.chapterNo, kind: 'chapter' }]);
+        } else {
+          setScopes((previous) => validGameScopes(previous, data));
+        }
       })
       .catch((cause) => {
         if (active) {
@@ -69,20 +68,22 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     return () => { active = false; };
   }, [refreshVersion]);
 
-  const scopesKey = JSON.stringify(normalizeGameScopes(scopes));
+  const scopesKey = JSON.stringify(scopes);
   useEffect(() => {
-    if (!catalog || scopes.length === 0) {
+    if (catalogLoading || !catalog || scopes.length === 0) {
       setPack(null);
       setPackLoading(false);
       setPackError('');
       return;
     }
+    const request = new AbortController();
     let active = true;
     setPackLoading(true);
     setPackError('');
     setPack(null);
     void api<{ data: LiveGamePack }>('/content/interactive-games/collection', {
       method: 'POST',
+      signal: request.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseCode: '9618', scopes: normalizeGameScopes(scopes) }),
     })
@@ -97,23 +98,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         }
       })
       .finally(() => { if (active) setPackLoading(false); });
-    return () => { active = false; };
-  }, [scopesKey, catalog, refreshVersion]);
+    return () => { active = false; request.abort(); };
+  }, [scopes, catalog, catalogLoading]);
 
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
   useEffect(() => {
-    if (paused || roundEnded || !pack) return;
+    if (!started || paused || roundEnded || !pack) return;
     const timer = window.setInterval(() => setSeconds((time) => time + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [paused, roundEnded, pack, timeLimit]);
+  }, [started, paused, roundEnded, pack, timeLimit]);
 
   const signal = useCallback((kind: GameSignal, count = 1) => {
+    if (kind !== 'complete') setStarted(true);
     if (kind === 'correct') setCorrectCount((score) => score + Math.max(0, count));
     if (kind === 'incorrect') setWrongCount((score) => score + Math.max(0, count));
     if (kind === 'review') setReviewedCount((total) => total + Math.max(0, count));
     if (kind === 'complete') setFinished(true);
-    if (soundOn) soundEffect(kind);
+    if (soundOn && kind !== 'start') soundEffect(kind);
   }, [soundOn]);
 
   const allPairs = pack?.pairs ?? [];
@@ -134,6 +136,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setReviewedCount(0);
     setSeconds(0);
     setFinished(false);
+    setStarted(false);
     setPaused(false);
   }
   function resetGame(nextMode?: GameKind, advanceRound = false) {
@@ -151,6 +154,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setRound(0);
     setPlaySession((value) => value + 1);
     clearSession();
+  }
+  function refresh() {
+    setCatalogLoading(true);
+    setRefreshVersion((value) => value + 1);
+    setPack(null);
+    resetGame();
   }
   function toggleFullscreen() {
     setFullscreenError('');
@@ -177,9 +186,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </select>
       </label>
       <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
-      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
       <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
-      <button type="button" onClick={toggleFullscreen}>⛶ Full screen</button>
+      <button type="button" disabled={!ready} onClick={toggleFullscreen}>⛶ Full screen</button>
       {fullscreenError && <span role="alert">{fullscreenError}</span>}
     </div>
     <div className="ig-hero">
@@ -209,17 +218,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           {GAME_LENGTHS.map((size) => <option key={size} value={size}>{size} terms</option>)}
         </select>
       </label>
-      <button className="ig-data-refresh" type="button" onClick={() => {
-        setRefreshVersion((value) => value + 1);
-        setPack(null);
-        resetGame();
-      }}>↻ Refresh database</button>
+      <button className="ig-data-refresh" type="button" onClick={refresh}>↻ Refresh database</button>
     </div>
 
     {catalogLoading && <p className="ig-data-message" role="status">Loading the latest chapter catalogue…</p>}
     {packLoading && <p className="ig-data-message" role="status">Combining selected chapters, topics and sections…</p>}
-    {catalogError && <p className="ig-data-error" role="alert">Chapter catalogue failed: {catalogError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>Retry</button></p>}
-    {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>Retry</button></p>}
+    {catalogError && <p className="ig-data-error" role="alert">Chapter catalogue failed: {catalogError} <button type="button" onClick={refresh}>Retry</button></p>}
+    {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
       <strong>{pack.pairs.length} unique glossary terms loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
@@ -253,7 +258,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span><span>◈ {reviewedCount} reviewed</span>
           <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>
         </div>
-        <fieldset className="ig-game-stage" disabled={paused || roundEnded}
+        {timeLimit > 0 && !started && !roundEnded && <div className="ig-start-panel">
+          <p>The timer starts when you are ready.</p>
+          <button type="button" className="ig-primary-button" onClick={() => setStarted(true)}>Start timed round</button>
+        </div>}
+        <fieldset className="ig-game-stage" disabled={paused || roundEnded || (timeLimit > 0 && !started)}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
@@ -290,16 +299,20 @@ function FlashCards({ pairs }: { pairs: GamePair[] }) {
   const signal = useGameSignal();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const reviewed = useRef(new Set<string>());
   const card = pairs[index];
   if (!card) return <p>No cards available.</p>;
-  function go(next: number) { setIndex(next); setRevealed(false); }
+  function go(next: number) { signal('start'); setIndex(next); setRevealed(false); }
   function flip() {
-    if (!revealed) signal('review');
+    if (!revealed && !reviewed.current.has(card.id)) {
+      reviewed.current.add(card.id);
+      signal('review');
+    }
     signal('flip');
     setRevealed((value) => !value);
   }
   return <div className="ig-content">
-    <p className="ig-instruction">Recall the definition before revealing the answer. This is revision, not an assessed score.</p>
+    <p className="ig-instruction">Read the definition, think of the matching term, then flip the card.</p>
     <div className="ig-score">Card {index + 1} / {pairs.length}</div>
     <button type="button" className={'ig-flashcard' + (revealed ? ' is-flipped' : '')}
       onClick={flip}>
@@ -310,7 +323,9 @@ function FlashCards({ pairs }: { pairs: GamePair[] }) {
     <div className="ig-card-controls">
       <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
       <button type="button" onClick={flip}>{revealed ? 'Show definition' : 'Flip card'}</button>
-      <button type="button" disabled={index === pairs.length - 1} onClick={() => go(index + 1)}>Next →</button>
+      <button type="button" onClick={() => index === pairs.length - 1 ? signal('complete') : go(index + 1)}>
+        {index === pairs.length - 1 ? 'Finish deck' : 'Next →'}
+      </button>
     </div>
   </div>;
 }

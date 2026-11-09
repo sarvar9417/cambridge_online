@@ -392,6 +392,10 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.click('.shell-nav-groups a[href="#oqitish/oyinlar"]');
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
+  const clickGameControl=async(selector:string)=>{
+    await teacher.$eval(selector,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+    await teacher.click(selector);
+  };
   const clickMode=async(index:number)=>{
     const selector='.ig-game-tile:nth-child('+index+')';
     // Sticky shell header can cover a tile at the very top of the viewport.
@@ -421,82 +425,126 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.keyboard.press('Backspace');
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===2);
 
-  // Match Up must grade only after submission.
-  await teacher.click('.ig-bank-term');
-  await teacher.click('.ig-drop-target button[aria-label*="permitted or required by law"]');
+  // Complete all eight games through the same controls a teacher actually uses.
+  await clickGameControl('.ig-bank-term');
+  await clickGameControl('.ig-drop-target button[aria-label*="permitted or required by law"]');
   await assertText('.ig-score','1 of 9 placed');
-  await teacher.click('.ig-match-actions button');
+  await clickGameControl('.ig-match-actions button');
   await assertText('.ig-match-actions','1 / 9 correct');
+  await teacher.waitForSelector('.ig-result-panel');
 
-  // Flip a definition, then switch games using the same chapter content.
   await clickMode(2);
   await teacher.waitForSelector('.ig-flashcard',{timeout:8_000});
   await assertText('.ig-flashcard','Relating to what is permitted');
-  await teacher.click('.ig-flashcard');
+  await clickGameControl('.ig-flashcard');
   await assertText('.ig-flashcard','Legal');
+  await clickGameControl('.ig-card-controls button:nth-child(2)');
+  await clickGameControl('.ig-flashcard');
+  await assertText('.ig-session-metrics','1 reviewed');
+  for(let index=0;index<9;index++)await clickGameControl('.ig-card-controls button:last-child');
+  await teacher.waitForSelector('.ig-result-panel');
 
   await clickMode(3);
   await teacher.waitForSelector('.ig-deck-controls',{timeout:8_000});
-  await teacher.click('.ig-deck-controls button:last-child');
+  await clickGameControl('.ig-deck-controls button:last-child');
   await assertText('.ig-score','1 dealt');
-  await teacher.click('.ig-deck-controls button:nth-child(2)');
+  await clickGameControl('.ig-dealt-card button');
+  await assertText('.ig-dealt-card','Matching term');
+  await clickGameControl('.ig-deck-controls button:nth-child(2)');
   await assertText('.ig-score','0 dealt');
+  await clickGameControl('.ig-deck-controls button:first-child');
+  for(let index=0;index<10;index++)await clickGameControl('.ig-deck-controls button:last-child');
+  await teacher.waitForSelector('.ig-result-panel');
+  await assertText('.ig-session-metrics','9 reviewed');
 
   await clickMode(4);
   await teacher.waitForSelector('.ig-wheel-panel',{timeout:8_000});
-  await teacher.click('.ig-wheel-panel .ig-primary-button');
+  await clickGameControl('.ig-wheel-panel .ig-primary-button');
+  await assertText('.ig-wheel-panel .ig-primary-button','Spinning');
+  if(await teacher.$('.ig-wheel-result'))throw new Error('Wheel revealed its result before the spin ended');
   await teacher.waitForSelector('.ig-wheel-result',{timeout:8_000});
-  await teacher.click('.ig-wheel-actions button:last-child');
-  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-wheel-label').length===8);
+  await clickGameControl('.ig-wheel-result > button');
+  await teacher.waitForSelector('.ig-wheel-result .ig-reveal');
+  await clickGameControl('.ig-wheel-actions button:first-child');
+  await teacher.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
+  for(let remaining=9;remaining>0;remaining--){
+    await clickGameControl('.ig-wheel-panel .ig-primary-button');
+    await teacher.waitForSelector('.ig-wheel-actions button:last-child');
+    await clickGameControl('.ig-wheel-actions button:last-child');
+    await teacher.waitForFunction((expected)=>document.querySelectorAll('.ig-wheel-label').length===expected,{},remaining-1);
+  }
+  await teacher.waitForSelector('.ig-result-panel');
+  await teacher.emulateMediaFeatures([]);
 
   await clickMode(5);
   await teacher.waitForSelector('.ig-box',{timeout:8_000});
-  await teacher.click('.ig-box:first-child');
-  await assertText('.ig-box-detail','Explain: Legal');
-  await teacher.click('.ig-box-detail button');
-  await assertText('.ig-box-detail','Relating to what is permitted');
+  for(let box=1;box<=9;box++){
+    await clickGameControl('.ig-box:nth-child('+box+')');
+    await teacher.waitForSelector('.ig-box-detail');
+    if(box===1)await assertText('.ig-box-detail','Explain: Legal');
+    if(await teacher.$('.ig-result-panel'))throw new Error('Last box finished before its answer could be revealed');
+    await clickGameControl('.ig-box-detail > button');
+    await teacher.waitForSelector('.ig-box-detail .ig-reveal');
+    if(box===1)await assertText('.ig-box-detail','Relating to what is permitted');
+    await clickGameControl('.ig-box-actions button');
+  }
+  await teacher.waitForSelector('.ig-result-panel');
 
   await clickMode(6);
-  await teacher.waitForSelector('.ig-quiz .ig-answer-button');
-  if((await teacher.$$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
-  await teacher.click('.ig-quiz .ig-answer-button:first-child');
-  await teacher.waitForSelector('.ig-answer-feedback');
-  await teacher.click('.ig-answer-feedback button');
-  await assertText('.ig-quiz .ig-score','Question 2');
+  for(let index=0;index<9;index++){
+    await teacher.waitForSelector('.ig-quiz .ig-answer-button');
+    if((await teacher.$$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
+    await clickGameControl('.ig-quiz .ig-answer-button:nth-child('+(index%4+1)+')');
+    await teacher.waitForSelector('.ig-answer-feedback');
+    await clickGameControl('.ig-answer-feedback button');
+  }
+  await teacher.waitForSelector('.ig-result-panel');
+  await assertText('.ig-session-metrics','9 correct');
 
   await clickMode(7);
   await teacher.waitForSelector('.ig-find-tile');
-  await teacher.evaluate(()=>[...document.querySelectorAll<HTMLButtonElement>('.ig-find-tile')]
-    .find((button)=>button.textContent==='Legal')?.click());
-  await assertText('.ig-find-status','1 / 9 matched');
-  await teacher.evaluate(()=>[...document.querySelectorAll<HTMLButtonElement>('.ig-find-tile')]
-    .find((button)=>button.textContent==='Culture')?.click());
+  const clickTile=async (term:string)=>{
+    const index=await teacher.$$eval('.ig-find-tile',(nodes,expected)=>nodes.findIndex((node)=>node.textContent===expected),term);
+    if(index<0)throw new Error('Missing Find the Match tile: '+term);
+    await clickGameControl('.ig-find-tile:nth-child('+(index+1)+')');
+  };
+  await clickTile('Culture');
   const lives=await teacher.$eval('.ig-hearts',(node)=>node.getAttribute('aria-label')??'');
   if(lives!=='2 lives remaining')throw new Error('Find the Match life counter mismatch: '+lives);
+  for(const term of gameTerms)await clickTile(term.term);
+  await teacher.waitForSelector('.ig-result-panel');
+  await assertText('.ig-session-metrics','8 correct');
+  await assertText('.ig-session-metrics','1 reviewed');
 
   await clickMode(8);
   await teacher.waitForSelector('.ig-anagram-letter',{timeout:8_000});
-  const word=await teacher.$eval('.ig-anagram-hint',(node)=>node.textContent??'');
-  if(!word.includes('Relating to what is permitted'))throw new Error('Anagram did not use real source term');
-  for(const ch of 'LEGAL'){
-    await teacher.evaluate((letter)=>{
-      const tile=[...document.querySelectorAll<HTMLButtonElement>('.ig-anagram-letter')]
-        .find((button)=>button.textContent===letter && !button.disabled);
-      if(!tile)throw new Error('Missing anagram tile '+letter);
-      tile.click();
-    },ch);
+  await assertText('.ig-anagram-hint','Relating to what is permitted');
+  for(const term of gameTerms){
+    for(const letter of term.term.toUpperCase().replace(/[^A-Z0-9]/g,'')){
+      const tile=await teacher.$$eval('.ig-anagram-letter',(buttons,char)=>
+        buttons.findIndex((button)=>button.textContent===char && !(button as HTMLButtonElement).disabled),letter);
+      if(tile<0)throw new Error('Missing anagram tile '+letter);
+      await clickGameControl('.ig-anagram-letter:nth-child('+(tile+1)+')');
+    }
+    await clickGameControl('.ig-card-controls button:nth-child(3)');
+    await assertText('.ig-feedback','Correct! '+term.term);
+    await clickGameControl('.ig-card-controls button:last-child');
   }
-  await teacher.click('.ig-card-controls button:nth-child(3)');
-  await assertText('.ig-feedback','Correct! Legal');
+  await teacher.waitForSelector('.ig-result-panel');
 
-  // Select a Hodder section and combine it with a different full chapter.
-  await teacher.$eval('input[aria-label="Select entire Chapter 1"]',(node)=>(node as HTMLInputElement).click());
-  await teacher.click('.ig-scope-chapter:first-child summary');
-  await teacher.$eval('input[aria-label="Hodder section 1.1.1 · Chapter 1"]',(node)=>(node as HTMLInputElement).click());
-  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('5 unique'));
-  await teacher.$eval('input[aria-label="Select entire Chapter 2"]',(node)=>(node as HTMLInputElement).click());
+  // Narrow a chapter directly while another chapter remains selected.
+  await clickGameControl('input[aria-label="Select entire Chapter 2"]');
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('15 unique'));
+  if(!await teacher.$('.ig-scope-chapter:first-child details[open]')){
+    await clickGameControl('.ig-scope-chapter:first-child summary');
+  }
+  await clickGameControl('input[aria-label="Hodder section 1.1.1 · Chapter 1"]');
   await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('11 unique'));
+  await clickGameControl('input[aria-label="Topic 1.1 · Chapter 1"]');
+  await teacher.waitForFunction(()=>document.querySelector('.ig-session-name')?.textContent?.includes('3 selections'));
   await assertText('.ig-hero','2 chapters selected');
+  const fullChapter=await teacher.$eval('input[aria-label="Select entire Chapter 1"]',(node)=>(node as HTMLInputElement).checked);
+  if(fullChapter)throw new Error('Selecting a subtopic did not narrow its whole chapter');
 
   await assertAxe(teacher,'Interactive Games teacher desktop');
   // Optional sound, countdown, full interaction pause and honest session summary.
@@ -506,6 +554,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   if(soundPressed!=='true')throw new Error('Game sound toggle did not turn on');
   await teacher.select('select[aria-label="Time limit"]','30');
   await assertText('.ig-clock','Remaining 00:30');
+  await clickGameControl('.ig-start-panel button');
   await teacher.$eval('.ig-pause-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-pause-button');
   const frozen=await teacher.$eval('fieldset.ig-game-stage',(node)=>node.hasAttribute('disabled'));
@@ -521,8 +570,8 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await assertText('.ig-result-panel','Practice feedback only');
   await assertAxe(teacher,'Interactive Games finished round');
   await teacher.click('.ig-result-actions button:first-child');
-  const restarted=await teacher.$eval('fieldset.ig-game-stage',(node)=>!node.hasAttribute('disabled'));
-  if(!restarted)throw new Error('Play again did not restart the current round');
+  await teacher.waitForSelector('.ig-start-panel button',{visible:true});
+  await assertText('.ig-clock','Remaining 00:30');
   const overflow=await teacher.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   if(overflow>3)throw new Error('Interactive Games desktop overflow: '+overflow);
 

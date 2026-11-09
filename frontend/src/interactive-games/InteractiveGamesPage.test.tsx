@@ -143,7 +143,6 @@ describe('database-backed Interactive Games multi-selection', () => {
 
   it('combines a selected syllabus topic and a Hodder section from different chapters', async () => {
     await render();
-    await choose('Select entire Chapter 1'); // Remove default whole-chapter selection.
     await choose('Topic 1.1 · Chapter 1');
     await choose('Hodder section 2.1.1 · Chapter 2');
     expect(lastScopes().scopes).toEqual([
@@ -157,7 +156,6 @@ describe('database-backed Interactive Games multi-selection', () => {
 
   it('keeps a full-chapter choice canonical rather than double-adding nested subtopics', async () => {
     await render();
-    await choose('Select entire Chapter 1');
     await choose('Topic 1.1 · Chapter 1');
     await choose('Select entire Chapter 1');
     expect(lastScopes().scopes).toEqual([{ chapterNo: 1, kind: 'chapter' }]);
@@ -238,6 +236,9 @@ describe('database-backed Interactive Games multi-selection', () => {
     try {
       await change('select[aria-label="Time limit"]', '30');
       expect(container.textContent).toContain('Remaining 00:30');
+      await act(async () => { vi.advanceTimersByTime(30_000); });
+      expect(container.textContent).toContain('Remaining 00:30');
+      await click(button('Start timed round'));
       await act(async () => { vi.advanceTimersByTime(30_000); await Promise.resolve(); });
       expect(container.textContent).toContain("Time's up!");
       expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Scores are not saved');

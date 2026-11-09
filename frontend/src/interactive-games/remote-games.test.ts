@@ -30,7 +30,7 @@ describe('Interactive Games robust production catalogue selection', () => {
   });
 
   it('builds valid Anagram rounds even when the first 29 terms have no playable words', () => {
-    const chapter = Array.from({ length: 35 }, (_, i) => term(i, 'multi word ' + i));
+    const chapter = Array.from({ length: 35 }, (_, i) => term(i, 'X'.repeat(40) + i));
     chapter.push(term(35, 'DATABASE'), term(36, 'BINARY'), term(37, 'ETHICS'));
     expect(gameIsAvailable('anagram', chapter.slice(0, 29))).toBe(false);
     expect(gameIsAvailable('anagram', chapter)).toBe(true);
@@ -40,11 +40,13 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(poolForMode(chapter, 'match-up')).toHaveLength(38);
   });
 
-  it('disables Anagram for non-alphabetic strings and impossible letter scrambles', () => {
-    for (const value of ['SQL', 'One two', '3NF', 'RAM/ROM', 'AAAA', 'IP address', 'Python-3', 'X'.repeat(30)]) {
+  it('accepts compound terms and digits but rejects impossible or oversized scrambles', () => {
+    for (const value of ['A', 'AAAA', 'X'.repeat(30), '!', 'A 😊']) {
       expect(isAnagramEligible(value)).toBe(false);
     }
-    expect(isAnagramEligible('MALWARE')).toBe(true);
+    for (const value of ['SQL', '3NF', 'RAM/ROM', 'Primary key', 'Python-3']) {
+      expect(isAnagramEligible(value)).toBe(true);
+    }
     expect(isAnagramEligible('LEVEL')).toBe(true);
     expect(scrambleTerm('ABBA')).not.toBe('ABBA');
     expect([...scrambleTerm('ABBA')].sort()).toEqual([...('ABBA')].sort());
@@ -63,7 +65,7 @@ describe('Interactive Games robust production catalogue selection', () => {
     const pairs = ['Legal', 'Ethics', 'Culture', 'Morality', 'Privacy', 'Plagiarism'].map((x, i) => term(i, x));
     const prompts = createSpeakingPrompts(pairs);
     expect(prompts).toHaveLength(pairs.length);
-    expect(prompts.every((prompt) => prompt.prompt.startsWith('Explain "'))).toBe(true);
+    expect(prompts[0]).toMatchObject({ prompt: pairs[0]!.definition, talkingPoints: 'Legal' });
     const questions = createQuizQuestions(pairs);
     expect(questions).toHaveLength(pairs.length);
     for (const question of questions) {
@@ -72,7 +74,10 @@ describe('Interactive Games robust production catalogue selection', () => {
       expect(question.answerIndex).toBeGreaterThanOrEqual(0);
       expect(question.answerIndex).toBeLessThan(4);
     }
-    expect(gameIsAvailable('quiz', pairs.slice(0, 3))).toBe(false);
+    expect(gameIsAvailable('quiz', pairs.slice(0, 1))).toBe(false);
+    expect(gameIsAvailable('quiz', pairs.slice(0, 2))).toBe(true);
+    expect(createQuizQuestions(pairs.slice(0, 2)).map((question) => question.options.length)).toEqual([2, 2]);
+    expect(gameIsAvailable('find-the-match', pairs.slice(0, 1))).toBe(true);
     expect(gameIsAvailable('quiz', pairs)).toBe(true);
   });
 
