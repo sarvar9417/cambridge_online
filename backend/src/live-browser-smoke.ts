@@ -359,7 +359,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.setViewport({width:1440,height:900});
   await installApi(teacher,'teacher','lobby');
   const errors:string[]=[];
-  teacher.on('pageerror',(err)=>errors.push(err.message));
+  teacher.on('pageerror',(err)=>errors.push(err instanceof Error ? err.message : String(err)));
   teacher.on('console',(msg)=>{if(msg.type()==='error')errors.push(msg.text());});
   await teacher.goto(base+'/#oqitish/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
@@ -451,7 +451,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   const student=await studentContext.newPage();
   await student.setViewport({width:390,height:844});
   await installApi(student,'student1','lobby');
-  student.on('pageerror',(err)=>errors.push('mobile: '+err.message));
+  student.on('pageerror',(err)=>errors.push('mobile: '+(err instanceof Error ? err.message : String(err))));
   await student.goto(base+'/#oquvchi/oyinlar',{waitUntil:'networkidle0',timeout:30_000});
   await student.waitForSelector('.ig-game-tile',{timeout:15_000});
   await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
