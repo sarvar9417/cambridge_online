@@ -66,27 +66,30 @@ function MatchUp({ pairs }: { pairs: GamePair[] }) {
   const definitions = useMemo(() => [...pairs].reverse(), [pairs]);
   const firstTry = solved.filter((id) => attempts[id] === 1).length;
 
-  function answer(definitionId: string) {
-    if (!active || solved.includes(definitionId)) return;
-    setAttempts((previous) => ({ ...previous, [active]: (previous[active] ?? 0) + 1 }));
-    if (isCorrectPair(active, definitionId)) {
-      setSolved((previous) => [...previous, active]);
+  function answer(definitionId: string, termId: string | null = active) {
+    if (!termId || solved.includes(definitionId) || solved.includes(termId)) return;
+    setAttempts((previous) => ({ ...previous, [termId]: (previous[termId] ?? 0) + 1 }));
+    if (isCorrectPair(termId, definitionId)) {
+      setSolved((previous) => [...previous, termId]);
       setFeedback('Correct match! Choose the next term.');
       setActive(null);
     } else setFeedback('Not quite. Try another definition for this term.');
   }
 
   return <div className="ig-content">
-    <p className="ig-instruction">Select a term on the left, then select its definition on the right. You can also use the keyboard.</p>
+    <p className="ig-instruction">Drag a term onto its definition, or select both with a click or keyboard.</p>
     <div className="ig-score" role="status">{solved.length} / {pairs.length} matched · {firstTry} correct on first attempt</div>
     <div className="ig-match-grid">
       <div className="ig-choice-column"><h3>Terms</h3>{pairs.map((pair) => <button key={pair.id} type="button"
-        disabled={solved.includes(pair.id)} aria-pressed={active === pair.id}
+        disabled={solved.includes(pair.id)} draggable={!solved.includes(pair.id)} aria-pressed={active === pair.id}
+        onDragStart={(event) => { event.dataTransfer.setData('text/plain', pair.id); setActive(pair.id); }}
         className={'ig-choice' + (active === pair.id ? ' is-active' : '') + (solved.includes(pair.id) ? ' is-complete' : '')}
         onClick={() => { setActive(pair.id); setFeedback('Now choose the matching definition.'); }}>
         {pair.term}{solved.includes(pair.id) ? ' ✓' : ''}</button>)}</div>
       <div className="ig-choice-column"><h3>Definitions</h3>{definitions.map((pair) => <button key={pair.id} type="button"
-        disabled={solved.includes(pair.id) || !active} className={'ig-choice' + (solved.includes(pair.id) ? ' is-complete' : '')}
+        disabled={solved.includes(pair.id)} className={'ig-choice' + (solved.includes(pair.id) ? ' is-complete' : '')}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => { event.preventDefault(); const termId = event.dataTransfer.getData('text/plain'); if (pairs.some((term) => term.id === termId)) answer(pair.id, termId); }}
         onClick={() => answer(pair.id)}>{pair.definition}</button>)}</div>
     </div>
     <p className="ig-feedback" aria-live="polite">{solved.length === pairs.length ? 'All pairs completed! Restart to practise again.' : feedback}</p>
