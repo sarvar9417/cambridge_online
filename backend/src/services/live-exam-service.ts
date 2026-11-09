@@ -72,6 +72,8 @@ export interface CreateLiveExamInput {
   components?: number[];
   questionIds?: string[];
   questionOrder?: 'fixed' | 'shuffled' | 'balanced';
+  playMode?: 'random' | 'cards';
+  cardColumns?: number;
   allowLateJoin?: boolean;
   autoCloseWhenAllSubmitted?: boolean;
   teacherOverrideEnabled?: boolean;
@@ -348,6 +350,7 @@ export class LiveExamService {
         )
       )`);
     }
+    if (input.playMode === 'cards') filters.push(`not exists (select 1 from question_dependencies card_dependency where card_dependency.question_id=q.id and card_dependency.strength::text='required')`);
     if (input.difficulty === 'easy') filters.push('q.marks between 1 and 2');
     if (input.difficulty === 'medium') filters.push('q.marks between 3 and 4');
     if (input.difficulty === 'hard') filters.push('q.marks>=5');
@@ -991,9 +994,15 @@ export class LiveExamService {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
 
-    const selection = await this.chooseQuestionIds(actor, input);
+    const cardMode = input.playMode === 'cards';
+    const cardColumns = input.cardColumns ?? 5;
+    if (cardMode && (!Number.isInteger(cardColumns) || cardColumns < 1 || cardColumns > 5)) throw new DomainError('live_invalid_card_columns',400);
+    const selectionInput = cardMode ? {...input,marksMin:Math.max(1,input.marksMin??1),marksMax:Math.min(cardColumns,input.marksMax??cardColumns)} : input;
+    if (cardMode && selectionInput.marksMin > selectionInput.marksMax) throw new DomainError('live_card_mark_filter_conflict',400);
+    const selection = await this.chooseQuestionIds(actor, selectionInput);
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
+    if (cardMode && expandedQuestionIds.length !== questionIds.length) throw new DomainError('live_card_dependencies_unsupported',409);
     if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
     // Bound the total frozen source payload for learner-owned rooms while
     // preserving the existing unrestricted staff/classroom builder.
@@ -1012,6 +1021,7 @@ export class LiveExamService {
       return { questionId, portable: storedPortable(portable), markScheme };
     }));
 
+    if (cardMode && snapshots.some((snapshot) => snapshot.portable.leaf.marks < 1 || snapshot.portable.leaf.marks > cardColumns)) throw new DomainError('live_card_marks_out_of_range',409);
     const client = await this.pool.connect();
     try {
       let session;
@@ -1057,6 +1067,8 @@ export class LiveExamService {
                 series: input.series ?? [],
                 components: input.components ?? [],
                 questionOrder: input.questionOrder ?? 'shuffled',
+                playMode:cardMode?'cards':'random',
+                cardColumns:cardMode?cardColumns:null,
                 practiceMode:actor.role==='student'?input.practiceMode:null,
                 rehearsalMode:actor.role!=='student'&&input.rehearsalMode===true,
                 // Learner-led practice and staff rehearsal both lock the roster.
@@ -1448,6 +1460,10 @@ export class LiveExamService {
         ),
     ]);
     const currentRow = questionRows.rows.find((row) => Number(row.position) === Number(session.current_question_index));
+    // Unopened question content and mark schemes are never exposed in the card board.
+    const cards = this.settings(session.settings).playMode === 'cards'
+      ? questionRows.rows.map((row) => ({id:row.id,position:Number(row.position),marks:Number(row.marks),used:session.status !== 'lobby' && Number(row.position) <= Number(session.current_question_index)}))
+      : [];
     const reveal = ['marking', 'review', 'finished'].includes(String(session.status));
     const dependencyWork = currentRow ? await this.pool.query(
       `select qd.depends_on_id question_id,qd.kind::text kind,qd.strength::text strength,
@@ -1678,6 +1694,7 @@ export class LiveExamService {
         reviewedCount: Number(reviewCounts.rows[0].completed),
         questionCount: questionRows.rowCount ?? 0,
       },
+      cards,
       questions: detailedStaff ? questionRows.rows.map((row) => ({
         id: row.id,
         position: Number(row.position),
@@ -1998,6 +2015,7 @@ export class LiveExamService {
       // roster and the status check prevents duplicate transitions.
       void expectedVersion;
       if (session.status !== 'lobby') throw new DomainError('live_invalid_state', 409);
+      if (this.settings(session.settings).playMode === 'cards') throw new DomainError('live_card_selection_required',409);
       const count = await client.query(
         `select count(*)::int count from live_exam_participants where session_id=$1 and left_at is null`,
         [sessionId],
@@ -2632,6 +2650,7 @@ export class LiveExamService {
         `select id,question_id from live_exam_questions where session_id=$1 and position=$2`,
         [sessionId, nextPosition],
       );
+      if (next.rowCount && this.settings(session.settings).playMode === 'cards') throw new DomainError('live_card_selection_required',409);
       if (!next.rowCount) {
         await client.query(
           `update live_exam_sessions set status='finished',finished_at=now() where id=$1`, [sessionId]);
@@ -2842,6 +2861,8 @@ export class LiveExamService {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
+      playMode:raw.playMode==='cards'?'cards' as const:'random' as const,
+      cardColumns:raw.playMode==='cards'&&Number.isInteger(raw.cardColumns)&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       rehearsalMode:raw.rehearsalMode===true,
       allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
