@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
-import { assignPeerReviewers, LiveExamService } from './live-exam-service.js';
+import { assignPeerReviewers, escapeLiveReportCsvCell, LiveExamService } from './live-exam-service.js';
 import type { PgQuestionsRepository } from '../repositories/questions-repository.js';
 
 describe('assignPeerReviewers', () => {
@@ -417,5 +417,16 @@ describe('LiveExamService round-bound answer writes',()=>{
     const update=query.mock.calls.find(([sql])=>String(sql).includes('update live_exam_answers a set'));
     expect(update?.[0]).toContain('($6::uuid is null or leq.id=$6::uuid)');
     expect(update?.[1]).toEqual([sessionId,actor.id,'old answer',2,10,oldQuestionId]);
+  });
+});
+describe('Live report CSV spreadsheet safety',()=>{
+  it('neutralizes formula-like names/feedback without changing numerical scores',()=>{
+    expect(escapeLiveReportCsvCell('=1+1')).toBe("'=1+1");
+    expect(escapeLiveReportCsvCell('  @HYPERLINK')).toBe("'  @HYPERLINK");
+    expect(escapeLiveReportCsvCell('\t+1')).toBe("'\t+1");
+    expect(escapeLiveReportCsvCell('-2+3')).toBe("'-2+3");
+    expect(escapeLiveReportCsvCell('Alice, Bob')).toBe('"Alice, Bob"');
+    expect(escapeLiveReportCsvCell(4)).toBe('4');
+    expect(escapeLiveReportCsvCell(-2)).toBe('-2');
   });
 });
