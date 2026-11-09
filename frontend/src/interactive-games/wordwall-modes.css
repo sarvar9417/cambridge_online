@@ -24,9 +24,9 @@
 .ig-deck-pattern{font-size:94px;line-height:1;text-shadow:0 2px 8px #a27b2b}
 .ig-deck-stack small{font-size:14px;background:#4f3615;padding:4px 8px;border-radius:10px;z-index:1}
 .ig-dealt-card{min-height:260px;background:#fefbf1;border:8px solid #caa75b;box-shadow:0 7px #826b3f;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:15px;padding:22px;color:#252c39}
-.ig-dealt-card .ig-eyebrow{color:#98793f}
+.ig-dealt-card .ig-eyebrow{color:#61491c}
 .ig-dealt-card>p{font-size:clamp(18px,2.2vw,28px);font-weight:700;line-height:1.4;margin:0}
-.ig-dealt-card .ig-dealt-placeholder{color:#8b7755;font-size:17px}
+.ig-dealt-card .ig-dealt-placeholder{color:#5b4523;font-size:17px}
 .ig-dealt-card button{background:#fff;border:1px solid #c9a969;border-radius:9px;padding:9px 15px;color:#6d571e;font-weight:700}
 .ig-dealt-card .ig-reveal{text-align:left;max-width:100%;font-size:13px}
 .ig-deck-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:22px}
