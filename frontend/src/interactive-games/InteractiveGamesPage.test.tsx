@@ -186,6 +186,25 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(8);
   });
 
+  it('removes stale content errors as soon as the user clears a failed multi-selection', async () => {
+    mockApi.mockImplementation(async (path: string) => {
+      if (path.includes('/catalog')) return { data: catalog() };
+      throw new Error('HTTP 500 on selected topics');
+    });
+    await render();
+    expect(container.querySelector('.ig-data-error')?.textContent).toContain('Selected content failed');
+    await click(button('Clear selection'));
+    expect(container.querySelector('.ig-data-error')).toBeNull();
+    expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);
+    expect(container.textContent).toContain('Select at least one chapter');
+    mockApi.mockImplementation(respond as typeof api);
+    const attempts = mockApi.mock.calls.filter((call) => call[0] === '/content/interactive-games/collection').length;
+    await choose('Select entire Chapter 2');
+    expect(container.textContent).toContain('8 unique glossary terms loaded');
+    expect(mockApi.mock.calls.filter((call) => call[0] === '/content/interactive-games/collection').length).toBe(attempts + 1);
+    expect(container.querySelector('.ig-data-error')).toBeNull();
+  });
+
   it('shows no stale sample terms when the selected bank has zero linked vocabulary', async () => {
     mockApi.mockImplementation(async (path: string) => path.includes('/catalog')
       ? { data: catalog() } : { data: { ...pack([]), pairs: [] } });
