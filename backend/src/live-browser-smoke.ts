@@ -153,11 +153,16 @@ const gameTerms = [
 const gameCatalog = {
   courseCode:'9618',
   chapters:[
-    {chapterNo:1,title:'Information representation',termCount:9,approvedCount:0,sections:[
+    {chapterNo:1,title:'Information representation',termCount:9,approvedCount:0,topics:[
+      {code:'1.1',title:'Data representation',termCount:5},
+      {code:'1.2',title:'Multimedia',termCount:4},
+    ],sections:[
       {code:'1.1',title:'Data representation',parentCode:'1',termCount:9},
       {code:'1.1.1',title:'Number systems',parentCode:'1.1',termCount:5},
     ]},
-    {chapterNo:2,title:'Communication',termCount:6,approvedCount:0,sections:[
+    {chapterNo:2,title:'Communication',termCount:6,approvedCount:0,topics:[
+      {code:'2.1',title:'Networks',termCount:6},
+    ],sections:[
       {code:'2.1.1',title:'Networking devices',parentCode:'2.1',termCount:6},
     ]},
   ],
@@ -175,6 +180,23 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
     if(path==='/content/interactive-games/catalog'){void json(request,{data:gameCatalog});return;}
+    if(path==='/content/interactive-games/collection' && request.method()==='POST'){
+      const body=JSON.parse(request.postData()||'{}') as {
+        scopes:Array<{chapterNo:number;kind:'chapter'|'topic'|'section';code?:string}>;
+      };
+      const rows=body.scopes.flatMap((scope)=>{
+        const terms=scope.chapterNo===2?gameTerms.slice(3).map((term)=>({
+          ...term,id:'ch2-'+term.id,term:'2: '+term.term,
+          definition:'[2] '+term.definition,
+        })):gameTerms;
+        if(scope.kind==='section')return terms.slice(0,scope.chapterNo===1?5:4);
+        if(scope.kind==='topic')return terms.slice(0,scope.chapterNo===1?5:6);
+        return terms;
+      });
+      const pairs=[...new Map(rows.map((term)=>[term.id,term])).values()];
+      void json(request,{data:{courseCode:'9618',scopes:body.scopes,contentStatus:'needs_review',pairs,source:'Browser glossary',assessed:false}});
+      return;
+    }
     if(path==='/content/interactive-games/pack'){
       const chapterNo=Number(url.searchParams.get('chapterNo')||1);
       const sectionCode=url.searchParams.get('sectionCode');
@@ -385,8 +407,19 @@ async function assertInteractiveGames(browser:Browser,base:string){
     const actual=await teacher.$eval(selector,(node)=>node.textContent??'');
     if(!actual.includes(fragment))throw new Error('Interactive Games missing '+fragment+' in '+selector+': '+actual);
   };
-  await assertText('.ig-notice','pending curriculum review');
-  await assertText('.ig-data-controls','Information representation');
+  await assertText('.ig-notice','pending review');
+  await assertText('.ig-scope-picker','Information representation');
+  // Teachers routinely search by the printed Hodder code, not only its title.
+  const searchInput='input[aria-label="Search chapters and topics"]';
+  await teacher.type(searchInput,'2.1.1');
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===1);
+  await assertText('.ig-scope-chapter','Communication');
+  await teacher.click(searchInput);
+  await teacher.keyboard.down('Control');
+  await teacher.keyboard.press('A');
+  await teacher.keyboard.up('Control');
+  await teacher.keyboard.press('Backspace');
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===2);
 
   // Match Up must grade only after submission.
   await teacher.click('.ig-bank-term');
@@ -456,27 +489,33 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.click('.ig-card-controls button:nth-child(3)');
   await assertText('.ig-feedback','Correct! Legal');
 
-  // Live section selection and a distinct chapter must reload from the API.
-  await teacher.select('select[aria-label="Section"]','1.1.1');
+  // Select a Hodder section and combine it with a different full chapter.
+  await teacher.$eval('input[aria-label="Select entire Chapter 1"]',(node)=>(node as HTMLInputElement).click());
+  await teacher.click('.ig-scope-chapter:first-child summary');
+  await teacher.$eval('input[aria-label="Hodder section 1.1.1 · Chapter 1"]',(node)=>(node as HTMLInputElement).click());
   await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('5 unique'));
-  await teacher.select('select[aria-label="Chapter"]','2');
-  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('6 unique'));
-  await assertText('.ig-hero','Chapter 2');
+  await teacher.$eval('input[aria-label="Select entire Chapter 2"]',(node)=>(node as HTMLInputElement).click());
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('11 unique'));
+  await assertText('.ig-hero','2 chapters selected');
 
   await assertAxe(teacher,'Interactive Games teacher desktop');
   // Optional sound, countdown, full interaction pause and honest session summary.
+  await teacher.$eval('.ig-sound-toggle',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-sound-toggle');
   const soundPressed=await teacher.$eval('.ig-sound-toggle',(node)=>node.getAttribute('aria-pressed'));
   if(soundPressed!=='true')throw new Error('Game sound toggle did not turn on');
   await teacher.select('select[aria-label="Time limit"]','30');
   await assertText('.ig-clock','Remaining 00:30');
+  await teacher.$eval('.ig-pause-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-pause-button');
   const frozen=await teacher.$eval('fieldset.ig-game-stage',(node)=>node.hasAttribute('disabled'));
   if(!frozen)throw new Error('Pausing the timer did not freeze gameplay');
   await assertText('.ig-paused-banner','Paused');
+  await teacher.$eval('.ig-pause-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-pause-button');
   const resumed=await teacher.$eval('fieldset.ig-game-stage',(node)=>!node.hasAttribute('disabled'));
   if(!resumed)throw new Error('Resume did not reactivate game');
+  await teacher.$eval('.ig-finish-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
   await teacher.click('.ig-finish-button');
   await teacher.waitForSelector('.ig-result-panel',{timeout:5_000});
   await assertText('.ig-result-panel','Practice feedback only');

@@ -7,11 +7,22 @@ export interface LiveGameSection {
   parentCode: string | null;
   termCount: number;
 }
+export interface LiveGameTopic {
+  code: string;
+  title: string;
+  termCount: number;
+}
+export type GameScope = {
+  chapterNo: number;
+  kind: 'chapter' | 'topic' | 'section';
+  code?: string;
+};
 export interface LiveGameChapter {
   chapterNo: number;
   title: string;
   termCount: number;
   approvedCount: number;
+  topics: LiveGameTopic[];
   sections: LiveGameSection[];
 }
 export interface LiveGameCatalog {
@@ -24,12 +35,57 @@ export interface LiveGameTerm extends GamePair {
 }
 export interface LiveGamePack {
   courseCode: '9618' | '0478';
-  chapterNo: number;
-  sectionCode: string | null;
+  scopes: GameScope[];
   contentStatus: 'approved' | 'needs_review';
   pairs: LiveGameTerm[];
   source: string;
   assessed: false;
+}
+
+/** Chapter-wide selection supersedes its narrower topics and sections. */
+export function normalizeGameScopes(scopes: readonly GameScope[]): GameScope[] {
+  const selected = new Map<string, GameScope>();
+  const full = new Set(scopes.filter((scope) => scope.kind === 'chapter').map((scope) => scope.chapterNo));
+  for (const scope of scopes) {
+    if (scope.kind !== 'chapter' && full.has(scope.chapterNo)) continue;
+    selected.set(scope.chapterNo + ':' + scope.kind + ':' + (scope.code ?? ''), scope);
+  }
+  return [...selected.values()].sort((a, b) =>
+    a.chapterNo - b.chapterNo || a.kind.localeCompare(b.kind) || (a.code ?? '').localeCompare(b.code ?? ''));
+}
+export function selectWholeChapter(scopes: readonly GameScope[], chapterNo: number, checked: boolean) {
+  const without = scopes.filter((scope) => scope.chapterNo !== chapterNo);
+  return checked ? normalizeGameScopes([...without, { chapterNo, kind: 'chapter' }]) : normalizeGameScopes(without);
+}
+export function toggleNarrowScope(
+  scopes: readonly GameScope[], next: GameScope, checked: boolean,
+): GameScope[] {
+  const other = scopes.filter((scope) => !(scope.chapterNo === next.chapterNo && scope.kind === next.kind && scope.code === next.code));
+  if (!checked) return normalizeGameScopes(other);
+  return normalizeGameScopes([...other.filter((scope) => !(scope.chapterNo === next.chapterNo && scope.kind === 'chapter')), next]);
+}
+export function validGameScopes(scopes: readonly GameScope[], catalog: LiveGameCatalog) {
+  return normalizeGameScopes(scopes.filter((scope) => {
+    const chapter = catalog.chapters.find((item) => item.chapterNo === scope.chapterNo);
+    if (!chapter) return false;
+    if (scope.kind === 'chapter') return chapter.termCount > 0;
+    if (scope.kind === 'topic') return chapter.topics.some((topic) => topic.code === scope.code && topic.termCount > 0);
+    return chapter.sections.some((section) => section.code === scope.code && section.termCount > 0);
+  }));
+}
+
+/** Search chapter, syllabus topic and book-section *codes* as well as names.
+ * A teacher searching "17.2" expects the actual curriculum section to appear.
+ */
+export function chapterMatchesGameSearch(chapter: LiveGameChapter, query: string): boolean {
+  const needle = query.trim().toLocaleLowerCase('en');
+  if (!needle) return true;
+  const values = [
+    String(chapter.chapterNo), 'chapter ' + chapter.chapterNo, chapter.title,
+    ...chapter.topics.flatMap((topic) => [topic.code, topic.title]),
+    ...chapter.sections.flatMap((section) => [section.code, section.title]),
+  ];
+  return values.some((value) => value.toLocaleLowerCase('en').includes(needle));
 }
 
 export const GAME_LENGTHS = [8, 16, 29] as const;

@@ -134,7 +134,7 @@ export class ContentService {
 
   async interactiveGameCatalog(actor: Actor, courseCode: '9618' | '0478' = '9618') {
     await this.interactiveGamesAccess(actor, courseCode);
-    const [chaptersResult, sectionsResult] = await Promise.all([
+    const [chaptersResult, sectionsResult, topicsResult] = await Promise.all([
       this.pool.query(
         `select t.number as chapter_no,min(t.title) title,
                 count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count,
@@ -165,6 +165,19 @@ export class ContentService {
          order by bs.chapter_number,bs.section_code`,
         [courseCode],
       ),
+      this.pool.query(
+        `select t.number chapter_no,st.code,st.title,
+                count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count
+         from topics t
+         join syllabi sy on sy.id=t.syllabus_id
+         join subtopics st on st.topic_id=t.id
+         left join glossary_terms gt on gt.subtopic_id=st.id
+         where sy.code=$1 and sy.is_active=true
+         group by t.number,st.code,st.title,st.sort_order
+         having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
+         order by t.number,st.sort_order,st.code`,
+        [courseCode],
+      ),
     ]);
     return {
       courseCode,
@@ -173,6 +186,12 @@ export class ContentService {
         title: String(row.title),
         termCount: Number(row.term_count),
         approvedCount: Number(row.approved_count),
+        topics: topicsResult.rows.filter((topic) => Number(topic.chapter_no) === Number(row.chapter_no))
+          .map((topic) => ({
+            code: String(topic.code),
+            title: String(topic.title),
+            termCount: Number(topic.term_count),
+          })),
         sections: sectionsResult.rows.filter((section) =>
           Number(section.chapter_no) === Number(row.chapter_no) && Number(section.term_count) > 0,
         ).map((section) => ({
@@ -182,6 +201,96 @@ export class ContentService {
           termCount: Number(section.term_count),
         })),
       })),
+    };
+  }
+
+  /**
+   * Compose a single practice bank from selected chapters, syllabus topics and
+   * Hodder sections. All queries are read-only and scoped to the active syllabus.
+   */
+  async interactiveGameCollection(actor: Actor, input: {
+    courseCode: '9618' | '0478';
+    scopes: Array<{ chapterNo: number; kind: 'chapter' | 'topic' | 'section'; code?: string }>;
+  }) {
+    const catalog = await this.interactiveGameCatalog(actor, input.courseCode);
+    const distinct = new Map<string, typeof input.scopes[number]>();
+    for (const scope of input.scopes) {
+      const chapter = catalog.chapters.find((item) => item.chapterNo === scope.chapterNo);
+      if (!chapter ||
+        (scope.kind === 'chapter' && scope.code) ||
+        (scope.kind !== 'chapter' && !scope.code) ||
+        (scope.kind === 'topic' && !chapter.topics.some((topic) => topic.code === scope.code)) ||
+        (scope.kind === 'section' && !chapter.sections.some((section) => section.code === scope.code))) {
+        throw new DomainError('game_selection_not_found', 400);
+      }
+      distinct.set(scope.chapterNo + ':' + scope.kind + ':' + (scope.code ?? ''), scope);
+    }
+    const selected = [...distinct.values()];
+    const full = new Set(selected.filter((scope) => scope.kind === 'chapter').map((scope) => scope.chapterNo));
+    const scopes = selected.filter((scope) => scope.kind === 'chapter' || !full.has(scope.chapterNo));
+    if (!scopes.length || scopes.length > 100) throw new DomainError('game_selection_invalid', 400);
+
+    const result = await this.pool.query(
+      `with requested as (
+         select r.chapter_no,r.kind,r.code
+         from jsonb_to_recordset($2::jsonb) as r(chapter_no int,kind text,code text)
+       )
+       select gt.id,gt.term,gt.definition_en definition,gt.status::text status
+       from glossary_terms gt
+       join subtopics st on st.id=gt.subtopic_id
+       join topics t on t.id=st.topic_id
+       join syllabi sy on sy.id=t.syllabus_id
+       where sy.code=$1 and sy.is_active=true
+         and gt.status in ('approved','needs_review')
+         and nullif(trim(gt.term),'') is not null
+         and nullif(trim(gt.definition_en),'') is not null
+         and exists (
+           select 1 from requested selection
+           where selection.chapter_no=t.number
+           and (
+             selection.kind='chapter'
+             or (selection.kind='topic' and selection.code=st.code)
+             or (selection.kind='section' and exists (
+               select 1 from hodder_glossary_section_links hgl
+               join hodder_book_sections bs on bs.id=hgl.book_section_id
+               where hgl.glossary_term_id=gt.id and bs.syllabus_id=t.syllabus_id
+                 and bs.chapter_number=t.number
+                 and (bs.section_code=selection.code
+                   or bs.section_code like selection.code || '.%')
+             ))
+           )
+         )
+       order by case when gt.status='approved' then 0 else 1 end,
+                lower(gt.term),gt.id`,
+      [input.courseCode, JSON.stringify(scopes.map((scope) => ({
+        chapter_no: scope.chapterNo,kind: scope.kind,code: scope.code ?? null,
+      })))],
+    );
+
+    const seenTerms = new Set<string>();
+    const seenDefinitions = new Set<string>();
+    const pairs = result.rows.flatMap((row) => {
+      const term = String(row.term).trim();
+      const definition = String(row.definition).trim();
+      const termKey = term.toLocaleLowerCase('en');
+      const definitionKey = definition.toLocaleLowerCase('en');
+      if (seenTerms.has(termKey) || seenDefinitions.has(definitionKey)) return [];
+      seenTerms.add(termKey);
+      seenDefinitions.add(definitionKey);
+      return [{
+        id: String(row.id),term,definition,
+        status: String(row.status) as 'approved' | 'needs_review',
+        source: null as null,
+      }];
+    });
+    return {
+      courseCode: input.courseCode,
+      scopes,
+      contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved')
+        ? 'approved' as const : 'needs_review' as const,
+      pairs,
+      source: 'Active Cambridge syllabus glossary and Hodder section links',
+      assessed: false as const,
     };
   }
 

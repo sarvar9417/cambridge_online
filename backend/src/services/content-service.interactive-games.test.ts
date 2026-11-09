@@ -19,6 +19,10 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
         { chapter_no: 2, section_code: '2.1.1', title: 'Networking devices', parent_code: '2.1', term_count: 23 },
       ] })
       .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, code: '1.1', title: 'Data Representation', term_count: 51 },
+        { chapter_no: 2, code: '2.1', title: 'Networks', term_count: 258 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
         { chapter_no: 1, title: 'Information representation', term_count: 137, approved_count: 0 },
         { chapter_no: 2, title: 'Communication', term_count: 258, approved_count: 0 },
         { chapter_no: 3, title: 'Hardware', term_count: 273, approved_count: 0 },
@@ -26,17 +30,22 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
       ] })
       .mockResolvedValueOnce({ rows: [
         { chapter_no: 4, section_code: '4.1.1', title: 'Von Neumann model', parent_code: '4.1', term_count: 9 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 4, code: '4.1', title: 'Processor Fundamentals', term_count: 145 },
       ] });
     const service = new ContentService({ query } as unknown as Pool);
     const before = await service.interactiveGameCatalog(teacher);
     expect(before.chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3]);
     expect(before.chapters[0]?.sections[0]?.code).toBe('1.1.1');
+    expect(before.chapters[0]?.topics[0]?.code).toBe('1.1');
     const after = await service.interactiveGameCatalog(teacher);
     expect(after.chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3, 4]);
     expect(after.chapters[3]?.termCount).toBe(145);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls[0]?.[0]).toContain('from topics t');
     expect(query.mock.calls[1]?.[0]).toContain('hodder_glossary_section_links');
+    expect(query.mock.calls[2]?.[0]).toContain('subtopics st');
   });
 
   it('loads unapproved glossary only for provisional practice and deduplicates terms', async () => {
