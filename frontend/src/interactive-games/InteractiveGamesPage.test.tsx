@@ -3,27 +3,26 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InteractiveGamesPage } from './InteractiveGamesPage';
 
-describe('Standalone Interactive Games — exactly eight requested experiences', () => {
+describe('Eight screenshot-aligned Cambridge Interactive Games', () => {
   let root: Root;
   let container: HTMLDivElement;
-  const render = async (isTeacher = false) => {
-    await act(async () => root.render(<InteractiveGamesPage isTeacher={isTeacher} />));
+  const render = async (teacher = false) => {
+    await act(async () => root.render(<InteractiveGamesPage isTeacher={teacher} />));
   };
-  const click = async (button: HTMLButtonElement) => {
-    await act(async () => button.click());
+  const click = async (item: HTMLButtonElement) => { await act(async () => item.click()); };
+  const getButton = (text: string) => {
+    const node = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((item) => item.textContent?.trim() === text);
+    if (!node) throw new Error('Missing button: ' + text);
+    return node;
   };
-  const findButton = (text: string): HTMLButtonElement => {
-    const found = [...container.querySelectorAll<HTMLButtonElement>('button')]
-      .find((item) => item.textContent?.trim() === text || (item.classList.contains('ig-answer-button') && item.textContent?.trim().endsWith(text)));
-    if (!found) throw new Error('Missing button: ' + text);
-    return found;
-  };
-  const chooseGame = async (name: string) => {
+  const choose = async (name: string) => {
     const tile = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')]
       .find((item) => item.querySelector('strong')?.textContent === name);
-    expect(tile).toBeDefined();
-    await click(tile!);
+    if (!tile) throw new Error('Missing game: ' + name);
+    await click(tile);
   };
+
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     container = document.createElement('div');
@@ -37,107 +36,133 @@ describe('Standalone Interactive Games — exactly eight requested experiences',
     vi.restoreAllMocks();
   });
 
-  it('shows the exact eight-mode catalog and Match Up first-attempt results', async () => {
-    await render();
-    expect(container.textContent).toContain('Chapter 7');
-    expect(container.textContent).toContain('Section 7.1');
+  it('shows precisely eight requested games plus real pause and reset controls', async () => {
+    await render(true);
+    expect(container.textContent).toContain('Teacher preview');
     expect([...container.querySelectorAll('.ig-game-tile strong')].map((node) => node.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
       'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
     ]);
-    const term = [...container.querySelectorAll<HTMLButtonElement>('.ig-choice-column:first-child button')]
-      .find((item) => item.textContent === 'Legal')!;
-    const definition = [...container.querySelectorAll<HTMLButtonElement>('.ig-choice-column:nth-child(2) button')]
-      .find((item) => item.textContent?.startsWith('Relating to what is permitted'))!;
-    await click(term);
-    await click(definition);
-    expect(container.textContent).toContain('1 / 8 matched');
-    expect(container.textContent).toContain('1 correct on first attempt');
-    await click(container.querySelector<HTMLButtonElement>('.ig-reset')!);
-    expect(container.textContent).toContain('0 / 8 matched');
+    expect(container.querySelector('.ig-clock')?.textContent).toContain('00:00');
+    await click(getButton('Ⅱ Pause timer'));
+    expect(container.textContent).toContain('▶ Resume timer');
+    await click(getButton('↻ Restart'));
+    expect(container.textContent).toContain('Ⅱ Pause timer');
   });
 
-  it('reveals Flash Cards, advances, and hides the next answer', async () => {
+  it('Match Up places terms in definition slots and marks only on Submit Answers', async () => {
     await render();
-    await chooseGame('Flash Cards');
-    expect(container.querySelector('.ig-flashcard')?.textContent).toContain('Legal');
-    await click(findButton('Reveal answer'));
+    const terms = [...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')];
+    const legal = terms.find((item) => item.textContent === 'Legal')!;
+    await click(legal);
+    const slot = [...container.querySelectorAll<HTMLButtonElement>('.ig-drop-target button')]
+      .find((item) => item.getAttribute('aria-label')?.includes('permitted or required by law'))!;
+    await click(slot);
+    expect(slot.textContent).toBe('Legal');
+    expect(container.querySelector('.ig-match-row.is-correct')).toBeNull();
+    expect(container.textContent).toContain('1 of 8 placed');
+    await click(getButton('Submit Answers'));
+    expect(container.textContent).toContain('1 / 8 correct');
+    expect(container.querySelectorAll('.ig-match-row.is-correct')).toHaveLength(1);
+    await click(getButton('↻ Restart'));
+    expect(container.textContent).toContain('0 of 8 placed');
+  });
+
+  it('Flash Cards begins with definition and reveals the corresponding term', async () => {
+    await render();
+    await choose('Flash Cards');
     expect(container.querySelector('.ig-flashcard')?.textContent).toContain('Relating to what is permitted');
-    await click(findButton('Next →'));
-    expect(container.querySelector('.ig-flashcard')?.textContent).toContain('Morality');
-    expect(container.querySelector('.ig-flashcard')?.textContent).not.toContain('Beliefs about the difference');
+    await click(getButton('Flip card'));
+    expect(container.querySelector('.ig-flashcard')?.textContent).toContain('Legal');
+    await click(getButton('Next →'));
+    expect(container.querySelector('.ig-flashcard')?.textContent).toContain('Beliefs about the difference');
   });
 
-  it('shows oral Speaking Cards without claiming a verified speaking score', async () => {
-    await render(true);
-    expect(container.textContent).toContain('Teacher preview');
-    await chooseGame('Speaking Cards');
-    expect(container.textContent).toContain('answer aloud');
-    expect(container.textContent).toContain('does not record or verify audio');
-    await click(findButton('Reveal talking points'));
-    expect(container.textContent).toContain('Law determines legality');
-    await click(findButton('Next →'));
-    expect(container.textContent).not.toContain('Law determines legality');
+  it('Speaking Cards deals from a deck, reveals talking points and can undo', async () => {
+    await render();
+    await choose('Speaking Cards');
+    expect(container.querySelector('.ig-deck-stack')).not.toBeNull();
+    expect(container.textContent).toContain('0 dealt');
+    await click(getButton('Deal'));
+    expect(container.textContent).toContain('1 dealt');
+    await click(getButton('Reveal talking points'));
+    expect(container.textContent).toContain('Suggested talking points');
+    await click(getButton('Undo'));
+    expect(container.textContent).toContain('0 dealt');
+    await click(getButton('Shuffle'));
+    await click(getButton('Deal'));
+    expect(container.textContent).toContain('1 dealt');
   });
 
-  it('spins a visible wheel and reveals its selected topic definition', async () => {
+  it('Spin the Wheel supports choosing a topic, revealing and eliminating a slice', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.2);
     await render();
-    await chooseGame('Spin the Wheel');
+    await choose('Spin the Wheel');
     expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(8);
-    await click(findButton('Spin the wheel'));
+    expect(container.textContent).toContain('Definitions');
+    await click(getButton('Spin the wheel'));
+    expect(container.querySelector('.ig-wheel-result')).not.toBeNull();
+    await click(getButton('Reveal definition'));
     expect(container.querySelector('.ig-wheel-result')?.textContent).toContain('Morality');
-    await click(findButton('Reveal definition'));
-    expect(container.querySelector('.ig-wheel-result')?.textContent).toContain('Beliefs about the difference');
+    await click(getButton('Eliminate this segment'));
+    expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(7);
   });
 
-  it('opens independent numbered boxes and supports hiding the revealed answer', async () => {
+  it('Open the Box contains numbered closed tiles and reveals only after opening', async () => {
     await render();
-    await chooseGame('Open the Box');
-    expect(container.querySelectorAll('.ig-box')).toHaveLength(8);
-    await click(container.querySelector<HTMLButtonElement>('.ig-box')!);
+    await choose('Open the Box');
+    const boxes = [...container.querySelectorAll<HTMLButtonElement>('.ig-box')];
+    expect(boxes).toHaveLength(8);
+    expect(boxes[0]?.textContent).toContain('1');
+    await click(boxes[0]!);
     expect(container.textContent).toContain('1 / 8 boxes explored');
     expect(container.textContent).toContain('Explain: Legal');
-    await click(findButton('Reveal answer'));
+    await click(getButton('Reveal answer'));
     expect(container.querySelector('.ig-box-detail')?.textContent).toContain('permitted or required by law');
-    await click(findButton('Hide answer'));
-    expect(container.querySelector('.ig-box-detail')?.textContent).not.toContain('permitted or required by law');
   });
 
-  it('scores Quiz and Find the Match as two distinct question experiences', async () => {
+  it('Quiz uses four choices with first-attempt result, independent from Find the Match', async () => {
     await render();
-    await chooseGame('Quiz');
-    expect(container.querySelector('.ig-question')?.textContent).toContain('another person');
-    await click(findButton('Plagiarism'));
-    expect(container.querySelector('.ig-answer-feedback')?.textContent).toContain('Correct!');
+    await choose('Quiz');
+    expect(container.querySelectorAll('.ig-quiz .ig-answer-button')).toHaveLength(4);
+    const quizOption = [...container.querySelectorAll<HTMLButtonElement>('.ig-quiz .ig-answer-button')]
+      .find((item) => item.textContent?.includes('Plagiarism'))!;
+    await click(quizOption);
+    expect(container.textContent).toContain('Correct!');
     expect(container.textContent).toContain('1 correct');
-    await click(findButton('Next question →'));
+    await click(getButton('Next question →'));
     expect(container.textContent).toContain('Question 2 / 6');
-
-    await chooseGame('Find the Match');
-    expect(container.querySelector('.ig-question')?.textContent).toContain('permitted or required by law');
-    await click(findButton('Legal'));
-    expect(container.querySelector('.ig-answer-feedback')?.textContent).toContain('Correct!');
-    await click(findButton('Next definition →'));
-    expect(container.textContent).toContain('Definition 2 / 8');
   });
 
-  it('validates anagram input, showing first-try success only for independent answers', async () => {
+  it('Find the Match eliminates the correct tile and deducts one life on an error', async () => {
     await render();
-    await chooseGame('Anagram');
-    expect(container.querySelectorAll('.ig-anagram-letters span')).toHaveLength(5);
-    const input = container.querySelector<HTMLInputElement>('#ig-anagram-input')!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Legal');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await click(findButton('Check answer'));
+    await choose('Find the Match');
+    expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(8);
+    expect(container.querySelector('.ig-find-clue')?.textContent).toContain('permitted or required by law');
+    await click([...container.querySelectorAll<HTMLButtonElement>('.ig-find-tile')].find((item) => item.textContent === 'Legal')!);
+    expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(7);
+    expect(container.textContent).toContain('1 / 8 matched');
+    await click([...container.querySelectorAll<HTMLButtonElement>('.ig-find-tile')].find((item) => item.textContent === 'Culture')!);
+    expect(container.querySelector('.ig-hearts')?.getAttribute('aria-label')).toBe('2 lives remaining');
+  });
+
+  it('Anagram is assembled from clickable letter tiles, not a free-text answer', async () => {
+    await render();
+    await choose('Anagram');
+    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelectorAll('.ig-anagram-letter')).toHaveLength(5);
+    for (const letter of 'LEGAL') {
+      const unused = [...container.querySelectorAll<HTMLButtonElement>('.ig-anagram-letter')]
+        .find((item) => item.textContent === letter && !item.disabled)!;
+      expect(unused).toBeDefined();
+      await click(unused);
+    }
+    const slots = [...container.querySelectorAll('.ig-anagram-slot button')];
+    expect(slots.map((item) => item.textContent).join('')).toBe('LEGAL');
+    await click(getButton('Check answer'));
     expect(container.textContent).toContain('Correct! Legal');
     expect(container.textContent).toContain('1 solved on first try');
-    await click(findButton('Next anagram →'));
-    expect(container.textContent).toContain('Word 2 / 6');
-    await click(findButton('Reveal answer'));
-    expect(container.textContent).toContain('Answer revealed, not counted as a correct attempt.');
-    expect(container.textContent).toContain('1 solved on first try');
+    await click(getButton('Next anagram →'));
+    expect(container.textContent).toContain('Word 2 of 6');
   });
 });
