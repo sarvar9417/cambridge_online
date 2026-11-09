@@ -110,7 +110,15 @@ export function findMatchOptions(pairs: readonly GamePair[], index: number): Gam
   if (pairs.length < 4) return [];
   const target = pairs[index];
   if (!target) return [];
-  const others = [1, 3, 5].map((delta) => pairs[(index + delta) % pairs.length]!);
+  // Pick three distinct distractors, including for short 4- and 5-term packs.
+  // A fixed odd-offset list repeats candidates when the bank has five items.
+  const others: GamePair[] = [];
+  for (let offset = 1; others.length < 3 && offset < pairs.length; offset += 1) {
+    const choice = pairs[(index + offset) % pairs.length]!;
+    if (choice.id !== target.id && !others.some((item) => item.id === choice.id)) {
+      others.push(choice);
+    }
+  }
   const place = index % 4;
   const result = [...others];
   result.splice(place, 0, target);
