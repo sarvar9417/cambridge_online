@@ -46,6 +46,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [reviewedCount, setReviewedCount] = useState(0);
   const [answers, setAnswers] = useState<AnswerReview[]>([]);
   const [fullscreenError, setFullscreenError] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsFullscreen(document.fullscreenElement === document.querySelector('.ig-page'));
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
 
   // The catalogue is fetched on load and whenever the user explicitly refreshes.
   // Newly imported chapters can be chosen without changing client code.
@@ -183,11 +190,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   function toggleFullscreen() {
     setFullscreenError('');
     if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => setFullscreenError('Unable to exit fullscreen.'));
+      void document.exitFullscreen().then(() => setIsFullscreen(false))
+        .catch(() => setFullscreenError('Unable to exit fullscreen.'));
     } else {
       const element = document.querySelector('.ig-page');
       if (element instanceof HTMLElement && element.requestFullscreen) {
-        void element.requestFullscreen().catch(() => setFullscreenError('Fullscreen is unavailable.'));
+        void element.requestFullscreen().then(() => setIsFullscreen(true))
+          .catch(() => setFullscreenError('Fullscreen is unavailable.'));
       } else setFullscreenError('Fullscreen is unavailable in this browser.');
     }
   }
@@ -209,11 +218,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </select>
       </label>
       <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
-      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume timer' : 'Ⅱ Pause timer'}</button>
+      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume game' : 'Ⅱ Pause game'}</button>
       <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
-      <button type="button" disabled={!ready} onClick={toggleFullscreen}>⛶ Full screen</button>
-      {fullscreenError && <span role="alert">{fullscreenError}</span>}
-    </div>
+     </div>
     <div className="ig-hero">
       <div>
         <span className="ig-eyebrow">CAMBRIDGE 9618 · LIVE CURRICULUM BANK</span>
@@ -275,7 +282,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
             <p>{chosenChapterCount} chapters · {scopes.length} selections · {pairs.length} terms in this round</p>
           </div>
-          <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
+          <div className="ig-workspace-head-actions">
+            <button className="ig-fullscreen-toggle" type="button" onClick={toggleFullscreen}
+              aria-pressed={isFullscreen}>{isFullscreen ? '⤢ Exit full screen' : '⛶ Full screen'}</button>
+            <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
+          </div>
+          {fullscreenError && <span role="alert">{fullscreenError}</span>
         </div>
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
           {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
