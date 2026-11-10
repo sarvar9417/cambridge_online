@@ -261,6 +261,64 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     expect(Number(answers.rows[0]?.count)).toBe(2);
   });
 
+  it('holds each card round for teacher grade review, and invalidates approval after a score override',async()=>{
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:'829995',markingMode:'peer',
+      settings:{playMode:'cards',cardColumns:5,teacherOverrideEnabled:false},
+      participants:[0,1],
+    });
+    const nextQuestionId=(await client.query<{id:string}>(
+      'insert into questions default values returning id',
+    )).rows[0]!.id;
+    cardFixtureQuestionIds.push(nextQuestionId);
+    const nextCard=(await client.query<{id:string}>(
+      `insert into live_exam_questions
+        (session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot)
+        select session_id,$2,1,1,question_snapshot,mark_scheme_snapshot
+        from live_exam_questions where id=$1 returning id`,
+      [sessionQuestionId,nextQuestionId],
+    )).rows[0]!.id;
+    const participant=(await client.query<{id:string}>(
+      'select id from live_exam_participants where session_id=$1 and student_id=$2',
+      [sessionId,studentIds[0]],
+    )).rows[0]!.id;
+    const answer=(await client.query<{id:string}>(
+      `insert into live_exam_answers
+         (session_question_id,participant_id,answer_text,submitted_at)
+       values ($1,$2,'Student response',now()) returning id`,
+      [sessionQuestionId,participant],
+    )).rows[0]!.id;
+    await client.query(
+      `update live_exam_sessions set status='review',current_question_index=0 where id=$1`,
+      [sessionId],
+    );
+    const review=await service.snapshot(owner(),sessionId) as {
+      session:{version:number;settings:{teacherOverrideEnabled:boolean;cardReviewConfirmedPosition:number|null}};
+    };
+    // Cards require moderation even if an older teacher room disabled peer override.
+    expect(review.session.settings.teacherOverrideEnabled).toBe(true);
+    expect(review.session.settings.cardReviewConfirmedPosition).toBeNull();
+    await expect(service.openCard(owner(),sessionId,nextCard,review.session.version))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    await expect(service.nextQuestion(owner(),sessionId,review.session.version))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    await expect(service.confirmCardReview(student(0),sessionId,review.session.version))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+
+    const firstApproval=await service.confirmCardReview(owner(),sessionId,review.session.version);
+    expect(firstApproval).toMatchObject({position:0,confirmed:true});
+    await service.moderateAnswer(owner(),sessionId,answer,{score:1,feedback:'Teacher reviewed'},firstApproval.version);
+    const afterOverride=await service.snapshot(owner(),sessionId) as {
+      session:{version:number;settings:{cardReviewConfirmedPosition:number|null}};
+    };
+    expect(afterOverride.session.settings.cardReviewConfirmedPosition).toBeNull();
+    await expect(service.openCard(owner(),sessionId,nextCard,afterOverride.session.version))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    const approval=await service.confirmCardReview(owner(),sessionId,afterOverride.session.version);
+    const next=await service.openCard(owner(),sessionId,nextCard,approval.version);
+    expect(next).toMatchObject({status:'question_open'});
+  });
+
   it('lets only an enrolled student-host control their own solo practice and blocks join-by-code', async()=>{
     const {sessionId}=await makeSession({
       code:'829984',markingMode:'self',settings:{practiceMode:'solo'},participants:[0],
