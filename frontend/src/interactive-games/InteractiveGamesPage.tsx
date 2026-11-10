@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
+import { randomId } from '../lib/random-id';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
@@ -7,6 +8,7 @@ import {
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
+import { missedPracticePairs, practiceAttempts, type PracticeHistory, type SavePracticeRequest } from './practice-history';
 import { Quiz } from './ExtraGames';
 import { OpenBox, type BoxMode } from './OpenBox';
 import { FlashCards } from './FlashCards';
@@ -46,6 +48,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [wrongCount, setWrongCount] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [answers, setAnswers] = useState<AnswerReview[]>([]);
+  const [practiceHistory, setPracticeHistory] = useState<PracticeHistory | null>(null);
+  const [practiceHistoryError, setPracticeHistoryError] = useState('');
+  const [practiceSaveState, setPracticeSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [practiceSaveError, setPracticeSaveError] = useState('');
+  const [practiceRunId, setPracticeRunId] = useState(() => randomId());
+  const [mistakesOnly, setMistakesOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -116,6 +124,15 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     return () => { active = false; request.abort(); };
   }, [scopes, catalog, catalogLoading]);
 
+  useEffect(() => {
+    if (isTeacher) return;
+    let active = true;
+    void api<{ data: PracticeHistory }>('/content/interactive-games/practice?courseCode=9618')
+      .then(({ data }) => { if (active) { setPracticeHistory(data); setPracticeHistoryError(''); } })
+      .catch(() => { if (active) setPracticeHistoryError('Practice history is temporarily unavailable.'); });
+    return () => { active = false; };
+  }, [isTeacher]);
+
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
   useEffect(() => {
@@ -134,9 +151,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, [soundOn]);
 
   const allPairs = pack?.pairs ?? [];
-  const currentMode = gameIsAvailable(mode, allPairs)
+  const missedPairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], practiceHistory?.needsReviewIds ?? []),
+    [pack, practiceHistory]);
+  const currentMode = mistakesOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
-  const eligiblePairs = useMemo(() => poolForMode(pack?.pairs ?? [], currentMode), [pack, currentMode]);
+  const eligiblePairs = useMemo(
+    () => poolForMode(mistakesOnly ? missedPairs : (pack?.pairs ?? []), currentMode),
+    [pack, currentMode, mistakesOnly, missedPairs]);
   const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
     [eligiblePairs, questionCount, round, currentMode]);
   const selectedCount = Math.min(eligiblePairs.length, questionCount);
@@ -164,6 +185,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, []);
 
   function clearSession() {
+    setPracticeRunId(randomId());
+    setPracticeSaveState('idle');
+    setPracticeSaveError('');
     setAnswers([]);
     setCorrectCount(0);
     setWrongCount(0);
@@ -183,6 +207,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     const normalized = normalizeGameScopes(next);
     if (JSON.stringify(normalized) === scopesKey) return;
     setScopes(normalized);
+    setMistakesOnly(false);
     setPack(null);
     setPackError('');
     setRound(0);
@@ -197,11 +222,52 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     clearSession();
   }
   function refresh() {
+    setMistakesOnly(false);
     setCatalogLoading(true);
     setRefreshVersion((value) => value + 1);
     setPack(null);
     resetGame();
   }
+  async function savePractice() {
+    if (isTeacher || !pack || !roundEnded || practiceSaveState === 'saving' ||
+      practiceSaveState === 'saved') return;
+    const payload: SavePracticeRequest = {
+      runId: practiceRunId,
+      courseCode: '9618',
+      mode: currentMode,
+      scopes: normalizeGameScopes(scopes),
+      durationSeconds: Math.min(86400, seconds),
+      correctFirstAttempts: Math.min(500, correctCount),
+      incorrectFirstAttempts: Math.min(500, wrongCount),
+      reviewedCount: Math.min(500, reviewedCount),
+      attempts: practiceAttempts(answers, pairs),
+    };
+    setPracticeSaveState('saving');
+    setPracticeSaveError('');
+    try {
+      await api('/content/interactive-games/practice', {
+        method: 'POST', body: JSON.stringify(payload),
+      });
+      setPracticeSaveState('saved');
+      try {
+        const { data } = await api<{ data: PracticeHistory }>('/content/interactive-games/practice?courseCode=9618');
+        setPracticeHistory(data);
+        setPracticeHistoryError('');
+      } catch { setPracticeHistoryError('Saved, but history could not be refreshed.'); }
+    } catch (cause) {
+      setPracticeSaveState('error');
+      setPracticeSaveError(cause instanceof Error ? cause.message : 'Practice result could not be saved.');
+    }
+  }
+
+  function startMistakeReview() {
+    if (!missedPairs.length) return;
+    setMistakesOnly(true);
+    setMode('flash-cards');
+    setRound(0);
+    resetGame('flash-cards');
+  }
+
   function toggleFullscreen() {
     setFullscreenError('');
     if (document.fullscreenElement) {
@@ -291,20 +357,40 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       {pack.contentStatus === 'needs_review'
         ? ' Some supplementary definitions are pending review and need individual source verification. Use for provisional practice only.'
         : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
-      {' '}Results are temporary practice feedback, not official assessment grades.
+      {' '}Results are formative practice only, not official assessment grades.
     </div>}
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">
       This selection currently has no linked glossary terms. Select more topics, sections or complete chapters.
     </p>}
     {pack && ready && <>
+      {!isTeacher && <section className="ig-practice-history" aria-label="My practice history">
+        <h3>My practice history</h3>
+        <p>Private formative record. Mistake review uses first attempts; repeating a corrected answer does not prove mastery.</p>
+        {practiceHistoryError && <p role="status">{practiceHistoryError}</p>}
+        {practiceHistory?.recent.length ? <p>{practiceHistory.recent.length} recent saved rounds ·
+          {practiceHistory.needsReviewIds.length} terms to revisit</p>
+          : <p>No saved rounds yet.</p>}
+        {practiceHistory?.recent.length ? <details>
+          <summary>Recent practice results</summary>
+          <ol>{practiceHistory.recent.map((run) => <li key={run.runId}>
+            {run.mode} · {run.correctFirstAttempts} first-try correct ·
+            {run.incorrectFirstAttempts} mistakes · {run.reviewedCount} reviewed
+          </li>)}</ol>
+        </details> : null}
+        {mistakesOnly ? <button type="button" onClick={() => { setMistakesOnly(false); resetGame(); }}>
+          Return to all selected vocabulary
+        </button> : <button type="button" disabled={!missedPairs.length} onClick={startMistakeReview}>
+          Review my mistakes ({missedPairs.length}) in Flash Cards
+        </button>}
+      </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={!gameIsAvailable(game.id, allPairs)} aria-pressed={currentMode === game.id}
+          disabled={(mistakesOnly && game.id !== 'flash-cards') || !gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs)} aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
@@ -373,7 +459,17 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
             <summary>Show cards ({pairs.length})</summary>
             <ol>{pairs.map((pair) => <li key={pair.id}><strong>{pair.term}</strong><div>{pair.definition}</div></li>)}</ol>
           </details>}
-          <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery. Scores are not saved to your account.</p>
+          <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery.
+            Only student-submitted formative results can be saved; they are not official grades.</p>
+          {!isTeacher && <div className="ig-practice-save">
+            <button type="button" disabled={practiceSaveState === 'saving' || practiceSaveState === 'saved'}
+              onClick={() => void savePractice()}>
+              {practiceSaveState === 'saved' ? '✓ Practice saved'
+                : practiceSaveState === 'saving' ? 'Saving practice…' : 'Save practice to my history'}
+            </button>
+            {practiceSaveState === 'error' && <p role="alert">{practiceSaveError}</p>}
+            {practiceSaveState === 'saved' && <p role="status">Saved as practice only; not an official assessment.</p>}
+          </div>}
           <div className="ig-result-actions">
             <button type="button" onClick={() => resetGame()}>↻ Play this round again</button>
             <button type="button" onClick={() => resetGame(undefined, true)}>Next vocabulary round →</button>
