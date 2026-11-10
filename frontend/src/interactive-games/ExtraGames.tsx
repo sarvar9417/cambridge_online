@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useGameSignal } from './game-session';
 import {
   chapter7Pilot, findMatchOptions, scrambleTerm,
@@ -27,104 +27,6 @@ export function SpeakingCards({ prompts }: { prompts: readonly SpeakingPrompt[] 
       <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
       <button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? 'Hide talking points' : 'Reveal talking points'}</button>
       <button type="button" disabled={index === prompts.length - 1} onClick={() => go(index + 1)}>Next →</button>
-    </div>
-  </div>;
-}
-
-const WHEEL_SPIN_MS = 1800;
-const WHEEL_COLOURS = ['#4442a5', '#00636b', '#9d2936', '#935000', '#186936', '#7633a5', '#16558e', '#924900'];
-
-export function SpinWheel({ pairs }: { pairs: readonly GamePair[] }) {
-  const signal = useGameSignal();
-  const [eliminated, setEliminated] = useState<string[]>([]);
-  const [result, setResult] = useState<GamePair | null>(null);
-  const [spinning, setSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [spins, setSpins] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [labelMode, setLabelMode] = useState<'term' | 'definition'>('definition');
-  const timer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  const active = pairs.filter((item) => !eliminated.includes(item.id));
-  const sector = 360 / Math.max(1, active.length);
-  const gradient = active.length
-    ? 'conic-gradient(' + active.map((_, index) =>
-      WHEEL_COLOURS[index % WHEEL_COLOURS.length] + ' ' + (index * sector) + 'deg ' + ((index + 1) * sector) + 'deg').join(',') + ')'
-    : '#64748b';
-
-  function spin() {
-    if (!active.length || spinning || result) return;
-    const index = Math.floor(Math.random() * active.length);
-    const choice = active[index]!;
-    const target = 360 - (index + .5) * sector;
-    setRotation((previous) => previous + 1440 + (target - previous % 360 + 360) % 360);
-    setSpins((previous) => previous + 1);
-    setSpinning(true);
-    signal('spin');
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    timer.current = window.setTimeout(() => {
-      setResult(choice);
-      setSpinning(false);
-    }, reducedMotion ? 0 : WHEEL_SPIN_MS);
-  }
-
-  function closeResult(remove: boolean) {
-    if (!result) return;
-    if (remove) {
-      setEliminated((previous) => [...previous, result.id]);
-      if (active.length === 1) signal('complete');
-      else setRotation(0);
-    }
-    setResult(null);
-    setShowAnswer(false);
-  }
-
-  return <div className="ig-content">
-    <p className="ig-instruction">Spin to pick from every term in this round. Keep the selected sector or remove it before the next spin.</p>
-    <div className="ig-score">{spins} spins · {active.length} segments remaining</div>
-    <div className="ig-wheel-switch" role="group" aria-label="Wheel segment content">
-      <button type="button" disabled={spinning || Boolean(result)} aria-pressed={labelMode === 'definition'} onClick={() => setLabelMode('definition')}>Definitions</button>
-      <button type="button" disabled={spinning || Boolean(result)} aria-pressed={labelMode === 'term'} onClick={() => setLabelMode('term')}>Terms</button>
-    </div>
-    <div className="ig-wheel-layout">
-      <div className="ig-wheel-wrap">
-        <span className="ig-wheel-pointer" aria-hidden="true">▼</span>
-        <div className="ig-wheel-disc" style={{
-          background: gradient, transform: 'rotate(' + rotation + 'deg)',
-          transitionDuration: spinning ? WHEEL_SPIN_MS + 'ms' : '0ms',
-        }} role="group" aria-label={active.length + ' wheel sectors'}>
-          <svg className="ig-wheel-radial" viewBox="-150 -150 300 300" aria-hidden="true">
-            {active.map((item, index) => {
-              const label = labelMode === 'term' ? item.term : item.definition;
-              return <g key={item.id} transform={'rotate(' + ((index + .5) * sector - 90) + ')'}>
-                <title>{label}</title>
-                <text className="ig-wheel-label" x="44" y="0" dominantBaseline="middle">
-                  {label.length > 18 ? label.slice(0, 17) + '…' : label}
-                </text>
-              </g>;
-            })}
-          </svg>
-          <span className="ig-wheel-hub" aria-hidden="true">CS</span>
-        </div>
-      </div>
-      <div className="ig-wheel-panel">
-        <button type="button" className="ig-primary-button" onClick={spin} disabled={!active.length || spinning || Boolean(result)}>{spinning ? 'Spinning…' : 'Spin the wheel'}</button>
-        {result && <div className="ig-wheel-result" aria-live="polite">
-          <span className="ig-eyebrow">SELECTED SEGMENT</span>
-          <h3>{labelMode === 'term' ? result.term : result.definition}</h3>
-          <button type="button" onClick={() => {
-            if (!showAnswer) signal('flip');
-            setShowAnswer((value) => !value);
-          }}>{showAnswer ? 'Hide answer' : 'Reveal answer'}</button>
-          {showAnswer && <p className="ig-reveal">{labelMode === 'term' ? result.definition : result.term}</p>}
-          <div className="ig-wheel-actions">
-            <button type="button" onClick={() => closeResult(false)}>Resume</button>
-            <button type="button" onClick={() => closeResult(true)}>Eliminate this segment</button>
-          </div>
-        </div>}
-        {!active.length && <div className="ig-complete" role="status">All sectors have been explored.</div>}
-      </div>
     </div>
   </div>;
 }

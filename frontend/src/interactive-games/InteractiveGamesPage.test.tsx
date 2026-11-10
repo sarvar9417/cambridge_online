@@ -126,6 +126,20 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('gives Spin the Wheel a choice of no timer, count up, or a timed round', async () => {
+    await render(true);
+    await game('Spin the Wheel');
+    expect(container.querySelector('[role="timer"]')).toBeNull();
+    expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
+    await change('select[aria-label="Time limit"]', 'count-up');
+    expect(container.querySelector('[role="timer"]')?.textContent).toContain('Elapsed 00:00');
+    await change('select[aria-label="Time limit"]', '30');
+    expect(container.querySelector('[role="timer"]')?.textContent).toContain('Remaining 00:30');
+    expect(container.querySelector<HTMLFieldSetElement>('.ig-game-stage')?.disabled).toBe(true);
+    await click(button('Start timed round'));
+    expect(container.querySelector<HTMLFieldSetElement>('.ig-game-stage')?.disabled).toBe(false);
+  });
+
   it('combines two whole chapters into one 16-term bank and changes game without losing selection', async () => {
     await render();
     await choose('Select entire Chapter 2');

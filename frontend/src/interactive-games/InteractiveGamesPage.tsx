@@ -7,7 +7,8 @@ import {
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
-import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
+import { OpenBox, Quiz } from './ExtraGames';
+import { SpinWheel, type WheelOptions } from './SpinWheel';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, useGameSignal, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import './interactive-games.css';
@@ -35,6 +36,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
+  const [wheelOptions, setWheelOptions] = useState<WheelOptions>({ power: 'low', shuffle: false });
+  const [wheelStopwatch, setWheelStopwatch] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
@@ -110,7 +113,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, [started, paused, roundEnded, pack, timeLimit]);
 
   const signal = useCallback((kind: GameSignal, count = 1) => {
-    if (kind !== 'complete') setStarted(true);
+    if (kind !== 'complete' && kind !== 'tick') setStarted(true);
     if (kind === 'correct') setCorrectCount((score) => score + Math.max(0, count));
     if (kind === 'incorrect') setWrongCount((score) => score + Math.max(0, count));
     if (kind === 'review') setReviewedCount((total) => total + Math.max(0, count));
@@ -127,6 +130,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
+  const isWheel = currentMode === 'spin-wheel';
+  const showClock = !isWheel || timeLimit > 0 || wheelStopwatch;
+  const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
 
@@ -175,13 +181,17 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
-      <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>
+      {showClock && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
       <label className="ig-timer-select">Time limit
-        <select aria-label="Time limit" value={timeLimit} onChange={(event) => {
-          setTimeLimit(Number(event.target.value));
-          resetGame();
-        }}>
+        <select aria-label="Time limit" value={isWheel && !timeLimit && wheelStopwatch ? 'count-up' : timeLimit}
+          onChange={(event) => {
+            const countUp = event.target.value === 'count-up';
+            if (isWheel) setWheelStopwatch(countUp);
+            setTimeLimit(countUp ? 0 : Number(event.target.value));
+            resetGame();
+          }}>
+          {isWheel && <option value="count-up">Count up</option>}
           {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
         </select>
       </label>
@@ -255,19 +265,21 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
         </div>
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
-          <span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span><span>◈ {reviewedCount} reviewed</span>
-          <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>
+          {!isWheel && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
+          <span>◈ {reviewedCount} reviewed</span>
+          {showClock && <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>}
         </div>
         {timeLimit > 0 && !started && !roundEnded && <div className="ig-start-panel">
           <p>The timer starts when you are ready.</p>
           <button type="button" className="ig-primary-button" onClick={() => setStarted(true)}>Start timed round</button>
         </div>}
-        <fieldset className="ig-game-stage" disabled={paused || roundEnded || (timeLimit > 0 && !started)}
+        <fieldset className="ig-game-stage" disabled={stageDisabled}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
-          {currentMode === 'spin-wheel' && <SpinWheel pairs={pairs} />}
+          {isWheel && <SpinWheel pairs={pairs} options={wheelOptions} onOptionsChange={setWheelOptions}
+            blocked={stageDisabled} ended={roundEnded} />}
           {currentMode === 'open-box' && <OpenBox pairs={pairs} />}
           {currentMode === 'quiz' && <Quiz questions={questions} />}
           {currentMode === 'find-the-match' && <FindMatchBoard pairs={pairs} />}
@@ -279,8 +291,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <h3>{timeExpired ? "Time's up!" : 'Round finished!'}</h3>
           <p><strong>{activeGame.label}</strong> · {formatClock(seconds)} played</p>
           <div className="ig-result-stats">
-            <span><strong>{correctCount}</strong>Correct first attempts</span>
-            <span><strong>{wrongCount}</strong>Incorrect attempts</span>
+            {!isWheel && <>
+              <span><strong>{correctCount}</strong>Correct first attempts</span>
+              <span><strong>{wrongCount}</strong>Incorrect attempts</span>
+            </>}
             <span><strong>{reviewedCount}</strong>Items reviewed</span>
           </div>
           <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery. Scores are not saved to your account.</p>
