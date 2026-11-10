@@ -16,6 +16,9 @@ let mockPracticeHistory: {
   recent: Array<{ runId: string; mode: 'quiz'; correctFirstAttempts: number;
     incorrectFirstAttempts: number; reviewedCount: number; durationSeconds: number; createdAt: string }>;
   needsReviewIds: string[];
+  dueReviewIds?: string[];
+  scheduledTermCount?: number;
+  nextReviewAt?: string | null;
 } = { assessed: false, recent: [], needsReviewIds: [] };
 const catalog = (): LiveGameCatalog => ({
   courseCode: '9618',
@@ -152,6 +155,30 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent).toBe('Flash Cards');
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
     expect(container.querySelectorAll('.ig-game-tile:not([disabled])')).toHaveLength(1);
+    await click(button('Return to all selected vocabulary'));
+    expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('8 terms in this round');
+  });
+
+  it('presents a one-item due Quiz with four sourced options and a transparent review schedule', async () => {
+    mockPracticeHistory.dueReviewIds = ['1:' + baseTerms[0]!.id];
+    mockPracticeHistory.scheduledTermCount = 5;
+    mockPracticeHistory.nextReviewAt = '2026-11-14T00:00:00.000Z';
+    await render(false);
+    expect(container.querySelector('.ig-practice-history')?.textContent)
+      .toContain('5 terms scheduled');
+    expect(container.querySelector('.ig-practice-history')?.textContent)
+      .toContain('1 due now');
+    await click(button('Review due terms (1) in Quiz'));
+    expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent)
+      .toBe('Quiz');
+    expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
+    expect(container.querySelectorAll('.ig-quiz .ig-choice-card')).toHaveLength(4);
+    expect(container.querySelector('.ig-quiz .ig-question')?.textContent)
+      .toBe(baseTerms[0]!.definition);
+    expect(container.textContent).toContain('only currently due vocabulary');
+    expect(container.querySelectorAll('.ig-game-tile:not([disabled])')).toHaveLength(1);
+    await click(answerChoice(baseTerms[0]!.term));
+    expect(container.querySelector('.ig-answer-feedback')?.textContent).toContain('Correct!');
     await click(button('Return to all selected vocabulary'));
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('8 terms in this round');
   });
