@@ -6,8 +6,10 @@ import { LiveExamService } from './live-exam-service.js';
 
 const SESSION='11111111-1111-4111-8111-111111111111';
 const STUDENT='22222222-2222-4222-8222-222222222222';
+const TEACHER='44444444-4444-4444-8444-444444444444';
 const SCHOOL='33333333-3333-4333-8333-333333333333';
-const actor={id:STUDENT,role:'student',schoolId:SCHOOL} as Actor;
+const actor={id:TEACHER,role:'teacher',schoolId:SCHOOL} as Actor;
+const learner={id:STUDENT,role:'student',schoolId:SCHOOL} as Actor;
 const cards=[
   {id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',position:0,marks:1},
   {id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',question_id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',position:1,marks:2},
@@ -70,7 +72,26 @@ function fixture(options:{status?:string;currentIndex?:number;version?:number;au
   return {service,positions,session,queries,client};
 }
 
-describe('Live Challenge participant card mode',()=>{
+describe('Live Challenge teacher-controlled card mode',()=>{
+  it('rejects student card picks before opening a database transaction',async()=>{
+    const {service,positions,queries,client}=fixture();
+    await expect(service.openCard(learner,SESSION,cards[1]!.id,5))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+    expect(client.query).not.toHaveBeenCalled();
+    expect(queries).toHaveLength(0);
+    expect(positions.map((row)=>row.position)).toEqual([0,1,2]);
+  });
+
+  it('rejects learner-created Card Mode rooms; Random practice remains available',async()=>{
+    const {service,client}=fixture();
+    await expect(service.create(learner,{
+      classId:SESSION,syllabusCode:'9618',title:'Learner card room',
+      topicIds:[],subtopicIds:[],coursebookSectionCodes:['7.1'],
+      questionCount:3,markingMode:'self',practiceMode:'solo',playMode:'cards',
+    } as Parameters<LiveExamService['create']>[1]))
+      .rejects.toMatchObject({code:'live_card_teacher_only',status:403});
+    expect(client.query).not.toHaveBeenCalled();
+  });
   it('opens a selected 5-point card at position zero without changing its scoring marks',async()=>{
     const {service,positions,queries,session,client}=fixture();
     const result=await service.openCard(actor,SESSION,cards[2]!.id,5);
@@ -95,7 +116,7 @@ describe('Live Challenge participant card mode',()=>{
     expect(queries.at(-1)?.sql).toBe('rollback');
   });
 
-  it('lets a learner open a remaining card after review',async()=>{
+  it('lets a teacher open a remaining card after review',async()=>{
     const {service,session}=fixture({status:'review',currentIndex:0});
     const result=await service.openCard(actor,SESSION,cards[1]!.id,5);
     expect(result.status).toBe('question_open');
