@@ -391,7 +391,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           : <p>No saved rounds yet.</p>}
         {practiceHistory?.needsReviewIds.length ? <p>{practiceHistory.needsReviewIds.length}
           {practiceHistory.needsReviewIds.length === 1 ? ' term' : ' terms'} previously missed</p> : null}
-        {practiceHistory?.dueReviewIds.length ? <p>{practiceHistory.dueReviewIds.length}
+        {practiceHistory?.dueReviewIds?.length ? <p>{practiceHistory.dueReviewIds.length}
           {practiceHistory.dueReviewIds.length === 1 ? ' term is' : ' terms are'} due for spaced review</p> : <p>No spaced reviews due right now.</p>}
         {practiceHistory?.recent.length ? <details>
           <summary>Recent practice results</summary>
