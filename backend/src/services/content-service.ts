@@ -230,7 +230,11 @@ export class ContentService {
     }
     const selected = [...distinct.values()];
     const full = new Set(selected.filter((scope) => scope.kind === 'chapter').map((scope) => scope.chapterNo));
-    const scopes = selected.filter((scope) => scope.kind === 'chapter' || !full.has(scope.chapterNo));
+    const scopes = selected.filter((scope) =>
+      (scope.kind === 'chapter' || !full.has(scope.chapterNo)) &&
+      (scope.kind !== 'section' || !selected.some((parent) =>
+        parent.chapterNo === scope.chapterNo && parent.kind === 'section' &&
+        parent.code && scope.code?.startsWith(parent.code + '.') && scope.code !== parent.code)));
     if (!scopes.length || scopes.length > 100) throw new DomainError('game_selection_invalid', 400);
 
     const result = await this.pool.query(
