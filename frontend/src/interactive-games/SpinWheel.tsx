@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useGameSignal } from './game-session';
-import { findMatchOptions, shuffleItems, type GamePair } from './game-content';
+import { findMatchOptions, gamePairProvenance, shuffleItems, type GamePair } from './game-content';
 import { AnswerCards } from './AnswerCards';
 import './spin-wheel.css';
 
@@ -288,6 +288,8 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
             <button type="button" onClick={() => closeResult(true)}>Eliminate</button>
           </div>
           {showAnswer && <p className="ig-reveal" role="status">{answerLabel(result)}</p>}
+          {(showAnswer || selectedAnswer !== null) && gamePairProvenance(result) &&
+            <p className="ig-source-context">{gamePairProvenance(result)}</p>}
         </div> : <div className="ig-wheel-controls">
           <button ref={spinButton} type="button" className="ig-primary-button" onClick={spin} disabled={busy}>{spinning ? 'Spinning…' : 'Spin It'}</button>
         </div>}
