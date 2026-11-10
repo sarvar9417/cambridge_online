@@ -107,7 +107,6 @@ describe('Interactive Games private student practice history', () => {
       dueReviewIds: [a],
       scheduledTermCount: 2,
       nextReviewAt: upcoming.toISOString(),
-      assessed: false,
       recent: [{ runId, mode: 'quiz', correctFirstAttempts: 2, incorrectFirstAttempts: 1 }],
     });
     expect(String(query.mock.calls[1]?.[0])).toContain('where student_id=$1 and course_code=$2');
