@@ -193,7 +193,7 @@ export const GAME_STAGE_LIMITS: Partial<Record<GameKind, number>> = {
 export function selectModeStage(pairs: readonly LiveGameTerm[], requested: number, round: number, mode: GameKind) {
   const limit = GAME_STAGE_LIMITS[mode];
   if (!limit || requested <= limit) return selectGamePairs(pairs, requested, round);
-  const selected = pairs.slice(0, requested);
+  const selected = selectGamePairs(pairs, requested, 0);
   if (!selected.length) return [];
   const start = (round * limit) % selected.length;
   return selected.slice(start, start + limit);
@@ -231,11 +231,17 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
   });
 }
 
-/** Server can return a complete chapter. Use repeatable rotating windows to
- * prevent UI overload while still allowing every source term to be practiced.
+/** Prefer vocabulary from across the selected bank, not only consecutive
+ * alphabetically sorted words. A coprime stride permutes the whole bank:
+ * rotating consecutive windows covers every eligible item without repeats
+ * until the vocabulary pool cycles.
  */
 export function selectGamePairs(pairs: readonly LiveGameTerm[], length: number, round: number): LiveGameTerm[] {
+  if (length <= 0 || !pairs.length) return [];
   if (pairs.length <= length) return [...pairs];
+  const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+  let stride = Math.max(2, Math.ceil(pairs.length / length));
+  while (gcd(stride, pairs.length) !== 1) stride += 1;
   const start = (round * length) % pairs.length;
-  return Array.from({ length }, (_, index) => pairs[(start + index) % pairs.length]!);
+  return Array.from({ length }, (_, index) => pairs[((start + index) * stride) % pairs.length]!);
 }
