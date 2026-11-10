@@ -41,7 +41,7 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
   },
   "release": {
     "maturity": "release_candidate",
-    "latest_migration": "0214_interactive_game_practice_history.sql",
+    "latest_migration": "0215_interactive_game_spaced_repetition.sql",
     "canonical_model": "live_exam_*",
     "canonical_api": "/api/v1/live-exams",
     "user_facing_name": "Live Challenge"
