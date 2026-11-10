@@ -91,3 +91,7 @@
   .ig-classroom-team-controls { padding: 12px 14px 20px; }
   .ig-classroom-card { margin: 0 14px 20px; }
 }
+
+.ig-session-bar .ig-classroom-toggle { border: 1px solid #4046a6; background: #444bb3; color: #fff; border-radius: 10px; padding: 9px 14px; font-weight: 800; }
+.ig-session-bar .ig-classroom-toggle[aria-pressed="true"] { background: #283479; }
+.ig-session-bar .ig-classroom-toggle:hover:not(:disabled) { background: #30378c; }
