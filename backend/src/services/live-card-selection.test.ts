@@ -88,6 +88,7 @@ describe('Live Challenge teacher-controlled card mode',()=>{
       classId:SESSION,syllabusCode:'9618',title:'Learner card room',
       topicIds:[],subtopicIds:[],coursebookSectionCodes:['7.1'],
       questionCount:3,markingMode:'self',practiceMode:'solo',playMode:'cards',
+      includeDiagrams:true,excludeSeen:true,
     } as Parameters<LiveExamService['create']>[1]))
       .rejects.toMatchObject({code:'live_card_teacher_only',status:403});
     expect(client.query).not.toHaveBeenCalled();
