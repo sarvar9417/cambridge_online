@@ -137,7 +137,7 @@ export function LiveRichAnswerEditor({id,value,onChange,disabled=false,'aria-des
   };
   return <div className="live-rich-editor" data-testid="live-rich-editor">
     <div className="live-editor-toolbar" role="toolbar" aria-label="Javob matnini formatlash">
-      {COMMANDS.map(command=><button type="button" key={command.key} title={command.title} aria-label={command.label} disabled={disabled}
+      {COMMANDS.map(command=><button type="button" key={command.key} title={command.title} aria-label={command.text+' — '+command.label} disabled={disabled}
         onMouseDown={event=>event.preventDefault()} onClick={()=>action(command.key)}
         className={command.key==='bold'?'is-bold':command.key==='italic'?'is-italic':command.key==='underline'?'is-underline':''}>{command.text}</button>)}
     </div>
