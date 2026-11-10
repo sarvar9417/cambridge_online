@@ -27,7 +27,7 @@ ALTER TABLE public.interactive_game_practice_runs ENABLE ROW LEVEL SECURITY;
 -- PostgreSQL connection. No direct Supabase Data API access for public roles.
 REVOKE ALL ON public.interactive_game_practice_runs FROM PUBLIC;
 -- Plain PostgreSQL CI databases need not have Supabase Data API roles.
-DO $
+DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN
     EXECUTE 'REVOKE ALL ON public.interactive_game_practice_runs FROM anon';
@@ -36,6 +36,6 @@ BEGIN
     EXECUTE 'REVOKE ALL ON public.interactive_game_practice_runs FROM authenticated';
   END IF;
 END
-$;
+$$;
 COMMENT ON TABLE public.interactive_game_practice_runs IS
   'Self-reported formative practice history, never official assessment or CEFR/mastery evidence.';
