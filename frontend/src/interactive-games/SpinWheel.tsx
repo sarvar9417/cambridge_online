@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useGameSignal } from './game-session';
-import { shuffleItems, type GamePair } from './game-content';
+import { findMatchOptions, shuffleItems, type GamePair } from './game-content';
+import { AnswerCards } from './AnswerCards';
 import './spin-wheel.css';
 
 const colours = ['#3944a7', '#007287', '#a72a4b', '#9b530b', '#187047', '#7739a6', '#1b5fa1', '#a33b2b'];
@@ -36,6 +37,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const [dragging, setDragging] = useState(false);
   const [spins, setSpins] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [labelMode, setLabelMode] = useState<'term' | 'definition'>('definition');
   const drag = useRef<Drag | null>(null);
   const frame = useRef(0);
@@ -50,6 +52,10 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const sector = 360 / Math.max(1, active.length);
   const result = winner === null ? null : active[winner];
   const label = (item: GamePair) => labelMode === 'term' ? item.term : item.definition;
+  const answerLabel = (item: GamePair) => labelMode === 'term' ? item.definition : item.term;
+  // A removed sector can still be used as a distractor, so elimination never shrinks the test.
+  const answerOptions = result ? findMatchOptions(pairs, pairs.indexOf(result), 2) : [];
+  const hasQuiz = answerOptions.length > 0;
 
   useEffect(() => { playSignal.current = signal; }, [signal]);
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
@@ -164,17 +170,25 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
     returnFocus.current = true;
     setWinner(null);
     setShowAnswer(false);
+    setSelectedAnswer(null);
+  }
+
+  function reviewResult() {
+    if (result && !reviewed.current.has(result.id)) {
+      reviewed.current.add(result.id);
+      signal('review');
+    }
+    signal('flip');
+  }
+
+  function chooseAnswer(id: string) {
+    if (!result || blocked || selectedAnswer !== null) return;
+    setSelectedAnswer(id);
+    reviewResult();
   }
 
   function toggleAnswer() {
-    if (!result) return;
-    if (!showAnswer) {
-      if (!reviewed.current.has(result.id)) {
-        reviewed.current.add(result.id);
-        signal('review');
-      }
-      signal('flip');
-    }
+    if (!showAnswer) reviewResult();
     setShowAnswer(!showAnswer);
   }
 
@@ -205,7 +219,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
         <span>{spins} spins · {active.length} segments remaining</span>
       </div>
       {active.length > 0 ? <>
-        <div className="ig-wheel-viewport">
+        <div className="ig-wheel-viewport" hidden={hasQuiz}>
           <div className={'ig-wheel-camera' + (result ? ' is-zoomed' : '')}>
             <span className="ig-wheel-pointer" aria-hidden="true" />
             <div className={'ig-wheel-wrap' + (dragging ? ' is-dragging' : '')}
@@ -233,15 +247,23 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
             </div>
           </div>
         </div>
-        {result ? <div className="ig-wheel-result">
-          <span className="ig-eyebrow">SELECTED SEGMENT</span>
+        {result ? <div className={'ig-wheel-result' + (hasQuiz ? ' ig-wheel-quiz' : '')}>
+          <span className="ig-eyebrow">{hasQuiz ? 'SELECTED QUESTION' : 'SELECTED SEGMENT'}</span>
           <h3 ref={resultHeading} tabIndex={-1}>{label(result)}</h3>
+          {hasQuiz && <>
+            <AnswerCards options={answerOptions.map(answerLabel)} cardClass="ig-wheel-choice" blocked={blocked}
+              correctIndex={answerOptions.findIndex((option) => option.id === result.id)}
+              answer={selectedAnswer === null ? null : answerOptions.findIndex((option) => option.id === selectedAnswer)}
+              onChoose={(index) => chooseAnswer(answerOptions[index]!.id)} />
+            <p className="ig-wheel-answer-status" role="status">{selectedAnswer === null ? null
+              : selectedAnswer === result.id ? 'Correct!' : <>Correct answer · <strong>{answerLabel(result)}</strong></>}</p>
+          </>}
           <div className="ig-wheel-actions">
-            <button type="button" onClick={toggleAnswer} aria-expanded={showAnswer}>{showAnswer ? 'Hide answer' : 'Reveal answer'}</button>
+            {!hasQuiz && <button type="button" onClick={toggleAnswer} aria-expanded={showAnswer}>{showAnswer ? 'Hide answer' : 'Reveal answer'}</button>}
             <button type="button" onClick={() => closeResult(false)}>Resume</button>
             <button type="button" onClick={() => closeResult(true)}>Eliminate</button>
           </div>
-          {showAnswer && <p className="ig-reveal" role="status">{labelMode === 'term' ? result.definition : result.term}</p>}
+          {showAnswer && <p className="ig-reveal" role="status">{answerLabel(result)}</p>}
         </div> : <div className="ig-wheel-controls">
           <button ref={spinButton} type="button" className="ig-primary-button" onClick={spin} disabled={busy}>{spinning ? 'Spinning…' : 'Spin It'}</button>
         </div>}

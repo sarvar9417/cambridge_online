@@ -155,6 +155,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
   const [revealed, setRevealed] = useState<string[]>([]);
   const [dealSize, setDealSize] = useState(1);
   const [autoShuffle, setAutoShuffle] = useState(false);
+  const [slowDeal, setSlowDeal] = useState(false);
   const seen = useRef(new Set<string>());
   const current = history.at(-1) ?? [];
   const canDeal = pile.length > 0 || (autoShuffle && prompts.length > 0);
@@ -186,10 +187,13 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
       <label>Cards per deal <select value={dealSize} onChange={(event) => setDealSize(Number(event.target.value))}>
         <option value="1">1</option><option value="2">2</option><option value="3">3</option>
       </select></label>
+      <label>Deal animation <select value={slowDeal ? 'slow' : 'fast'} onChange={(event) => setSlowDeal(event.target.value === 'slow')}>
+        <option value="fast">Fast</option><option value="slow">Slow</option>
+      </select></label>
       <label><input type="checkbox" checked={autoShuffle} onChange={(event) => setAutoShuffle(event.target.checked)} /> Reshuffle when empty</label>
     </div>
     <div className="ig-score" role="status">{prompts.length - pile.length} dealt · {pile.length} remaining</div>
-    <div className="ig-deck-stage">
+    <div className={'ig-deck-stage' + (slowDeal ? ' is-slow-deal' : '')}>
       <button type="button" className="ig-deck-stack" onClick={deal} disabled={!canDeal} aria-label={'Deal cards. ' + pile.length + ' cards left'}>
         <span className="ig-deck-pattern" aria-hidden="true">◆</span><small>{pile.length} cards</small>
       </button>
@@ -267,8 +271,10 @@ export function FindMatchBoard({ pairs, recordAnswer }: { pairs: readonly GamePa
     {!finished ? <>
       <div className="ig-find-clue"><span className="ig-eyebrow">Tap the matching tile</span><p aria-live="polite">{current.definition}</p></div>
       <div className="ig-find-grid">
-        {board.map((item, position) => (!remove || !matched.has(item.id)) && <button type="button" key={item.id} onClick={() => choose(item)}
-          className={'ig-find-tile ig-color-' + (position % 6) + (wrongId === item.id ? ' is-wrong' : '')}>{item.term}</button>)}
+        {board.map((item, position) => remove && matched.has(item.id)
+          ? <span key={item.id} className="ig-find-gap" aria-hidden="true" />
+          : <button type="button" key={item.id} onClick={() => choose(item)}
+            className={'ig-find-tile ig-color-' + (position % 6) + (wrongId === item.id ? ' is-wrong' : '')}>{item.term}</button>)}
       </div>
       {feedback && <p className="ig-feedback" role="status">{feedback}</p>}
     </> : <div className="ig-complete" role="status">
@@ -289,6 +295,7 @@ export function AnagramTiles({ pairs, blocked, recordAnswer }: {
   const [instant, setInstant] = useState(true);
   const [auto, setAuto] = useState(true);
   const [showClue, setShowClue] = useState(true);
+  const [rearrange, setRearrange] = useState(false);
   const item = pairs[index];
   if (!item) return <div className="ig-complete" role="status">
     <h3>Anagram complete!</h3><p>{firstTry} / {pairs.length} solved on the first attempt.</p>
@@ -299,11 +306,16 @@ export function AnagramTiles({ pairs, blocked, recordAnswer }: {
         onChange={(event) => setInstant(event.target.value === 'letter')}>
         <option value="letter">Every letter</option><option value="submit">On submit</option>
       </select></label>
+      <label>Letter layout <select value={rearrange ? 'inline' : 'bank'} disabled={started}
+        onChange={(event) => setRearrange(event.target.value === 'inline')}>
+        <option value="bank">Letters above word</option><option value="inline">Rearrange letters in the word</option>
+      </select></label>
       <label><input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Automatically proceed</label>
       <label><input type="checkbox" checked={showClue} onChange={(event) => setShowClue(event.target.checked)} /> Show clue</label>
     </div>
-    <AnagramWord key={item.id} item={item} progress={`Word ${index + 1} of ${pairs.length} · ${firstTry} solved on first try`}
-      last={index === pairs.length - 1} instant={instant} auto={auto && !blocked} showClue={showClue} recordAnswer={recordAnswer}
+    <AnagramWord key={item.id + ':' + rearrange} item={item} progress={`Word ${index + 1} of ${pairs.length} · ${firstTry} solved on first try`}
+      last={index === pairs.length - 1} instant={instant} auto={auto && !blocked} showClue={showClue}
+      rearrange={rearrange} recordAnswer={recordAnswer}
       onStart={() => setStarted(true)} onFirstTry={() => setFirstTry((value) => value + 1)} onNext={() => {
         if (blocked) return;
         if (index === pairs.length - 1) signal('complete');
@@ -312,24 +324,29 @@ export function AnagramTiles({ pairs, blocked, recordAnswer }: {
   </div>;
 }
 
-function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnswer, onStart, onFirstTry, onNext }: {
-  item: GamePair; progress: string; last: boolean; instant: boolean; auto: boolean; showClue: boolean;
+function AnagramWord({ item, progress, last, instant, auto, showClue, rearrange, recordAnswer, onStart, onFirstTry, onNext }: {
+  item: GamePair; progress: string; last: boolean; instant: boolean; auto: boolean; showClue: boolean; rearrange: boolean;
   recordAnswer: RecordAnswer; onStart: () => void; onFirstTry: () => void; onNext: () => void;
 }) {
   const signal = useGameSignal();
   const characters = [...item.term.toUpperCase()];
   const solution = characters.filter(isAnagramTile).join('');
   const scrambled = [...scrambleTerm(solution)];
-  const [history, setHistory] = useState<(number | null)[][]>(() => [scrambled.map(() => null)]);
+  const initialSlots = () => scrambled.map((_, index) => rearrange ? index : null);
+  const [history, setHistory] = useState<(number | null)[][]>(() => [initialSlots()]);
+  const [pickedTile, setPickedTile] = useState<number | null>(null);
   const [firstMistake, setFirstMistake] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
   const [outcome, setOutcome] = useState<'correct' | 'revealed' | null>(null);
   const slots = history[history.length - 1]!;
   const nextEmpty = slots.indexOf(null);
+  const isCorrectSlot = (tile: number | null | undefined, slot: number) => tile != null && scrambled[tile] === solution[slot];
+  const isLocked = (slot: number) => instant && isCorrectSlot(slots[slot], slot);
   useGameAdvance(auto && outcome === 'correct', onNext);
 
   function update(next: (number | null)[]) {
     setHistory((previous) => [...previous, next]);
+    setPickedTile(null);
     setFeedback('');
   }
 
@@ -355,10 +372,10 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnsw
   function place(tile: number, slot: number) {
     if (outcome || !Number.isInteger(tile) || tile < 0 || tile >= scrambled.length || slot < 0 || slot >= slots.length) return;
     const previousSlot = slots.indexOf(tile);
-    if (previousSlot === slot || (instant && (previousSlot >= 0 || slots[slot] !== null))) return;
+    if (previousSlot === slot || isLocked(slot) || (previousSlot >= 0 && isLocked(previousSlot))) return;
     onStart();
     signal('start');
-    if (instant && scrambled[tile] !== solution[slot]) {
+    if (instant && !rearrange && scrambled[tile] !== solution[slot]) {
       wrong(`${scrambled[tile]} in slot ${slot + 1}`, `That letter does not fit in slot ${slot + 1}. Try another.`);
       return;
     }
@@ -366,7 +383,10 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnsw
     if (previousSlot >= 0) next[previousSlot] = next[slot]!;
     next[slot] = tile;
     update(next);
-    if (instant && !next.includes(null)) finish(false);
+    if (instant && next.every(isCorrectSlot)) finish(false);
+    else if (instant && rearrange && !isCorrectSlot(tile, slot) && !isCorrectSlot(next[previousSlot], previousSlot)) {
+      wrong(`${scrambled[tile]} in slot ${slot + 1}`, 'Neither tile is in its correct position yet.');
+    }
   }
 
   function check() {
@@ -378,20 +398,20 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnsw
 
   let slotIndex = 0;
   return <>
-    <p className="ig-instruction">Drag letters into slots, or tap a letter to place it in the next blank.</p>
+    <p className="ig-instruction">{rearrange ? 'Drag a letter onto another to swap them, or select two letters.' : 'Drag letters into slots, or tap a letter to place it in the next blank.'}</p>
     <div className="ig-score">{progress}</div>
     {showClue && <p className="ig-anagram-hint">{item.definition}</p>}
-    <div className="ig-anagram-letters" role="group" aria-label="Letter bank">{scrambled.map((letter, tile) =>
+    {!rearrange && <div className="ig-anagram-letters" role="group" aria-label="Letter bank">{scrambled.map((letter, tile) =>
       <button key={tile} type="button" className="ig-anagram-letter" draggable={!outcome && !slots.includes(tile)}
         disabled={Boolean(outcome) || slots.includes(tile) || nextEmpty < 0} onClick={() => place(tile, nextEmpty)}
         onDragStart={(event) => event.dataTransfer.setData('application/x-cambridge-anagram', String(tile))}
-        aria-label={`Use tile ${letter} at position ${tile + 1}`}>{letter}</button>)}</div>
+        aria-label={`Use tile ${letter} at position ${tile + 1}`}>{letter}</button>)}</div>}
     <div className="ig-anagram-slots" role="group" aria-label="Answer slots">{characters.map((character, index) => {
       if (!isAnagramTile(character)) return <span key={index} className="ig-anagram-separator" aria-hidden="true">{character}</span>;
       const slot = slotIndex++;
       const tile = slots[slot];
       const letter = tile == null ? null : scrambled[tile]!;
-      const locked = Boolean(letter && instant);
+      const locked = isLocked(slot);
       return <div key={index} className={'ig-anagram-slot' + (locked ? ' is-correct' : '')} onDragOver={(event) => {
         if (!outcome && !locked && !event.currentTarget.closest('fieldset:disabled')) event.preventDefault();
       }} onDrop={(event) => {
@@ -400,9 +420,14 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnsw
         if (!event.currentTarget.closest('fieldset:disabled') && /^\d+$/.test(source)) place(Number(source), slot);
       }}>
         <button type="button" disabled={Boolean(outcome) || !letter || locked} draggable={!outcome && Boolean(letter) && !locked}
-          aria-label={`Answer position ${slot + 1}${locked ? ', correct ' + letter : letter ? ', remove ' + letter : ', empty'}`}
+          aria-label={letter ? `${letter}, position ${slot + 1}${locked ? ', correct' : ''}` : `Empty answer position ${slot + 1}`}
+          aria-pressed={rearrange && !locked ? pickedTile === tile : undefined}
           onDragStart={(event) => event.dataTransfer.setData('application/x-cambridge-anagram', String(tile))}
-          onClick={() => update(slots.map((value, position) => position === slot ? null : value))}>{letter ?? '·'}</button>
+          onClick={() => {
+            if (!rearrange) update(slots.map((value, position) => position === slot ? null : value));
+            else if (pickedTile === null || pickedTile === tile) setPickedTile(pickedTile === tile ? null : tile!);
+            else place(pickedTile, slot);
+          }}>{letter ?? '·'}</button>
       </div>;
     })}</div>
     {feedback && <p className="ig-feedback" role="status">{feedback}</p>}
@@ -410,9 +435,9 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, recordAnsw
     <div className="ig-card-controls">
       {!instant && <>
         <button type="button" disabled={Boolean(outcome) || history.length < 2} onClick={() => {
-          setHistory((previous) => previous.slice(0, -1)); setFeedback('');
+          setHistory((previous) => previous.slice(0, -1)); setPickedTile(null); setFeedback('');
         }}>Undo</button>
-        <button type="button" disabled={Boolean(outcome) || slots.every((tile) => tile === null)} onClick={() => update(slots.map(() => null))}>Clear</button>
+        <button type="button" disabled={Boolean(outcome) || slots.every((tile) => tile === null)} onClick={() => update(initialSlots())}>{rearrange ? 'Reset letters' : 'Clear'}</button>
         <button type="button" disabled={Boolean(outcome) || nextEmpty >= 0} onClick={check}>Submit answer</button>
       </>}
       <button type="button" disabled={Boolean(outcome)} onClick={() => { onStart(); finish(true); }}>Reveal answer</button>

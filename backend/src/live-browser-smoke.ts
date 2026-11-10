@@ -476,10 +476,21 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await assertText('.ig-wheel-controls .ig-primary-button','Spinning');
   if(await teacher.$('.ig-wheel-result'))throw new Error('Wheel revealed its result before the spin ended');
   await teacher.waitForSelector('.ig-wheel-result',{timeout:8_000});
-  await teacher.waitForSelector('.ig-wheel-camera.is-zoomed');
+  const wheelQuestion=await teacher.$eval('.ig-wheel-quiz h3',(node)=>node.textContent);
+  const wheelMatch=gameTerms.find((term)=>term.definition===wheelQuestion);
+  if(!wheelMatch)throw new Error('Spin the Wheel showed an unknown question: '+wheelQuestion);
+  const wheelChoices=await teacher.$$eval('.ig-wheel-choice',(nodes)=>nodes.map((node)=>({
+    term:node.querySelector('strong')?.textContent,
+    top:node.getBoundingClientRect().top,
+  })));
+  if(wheelChoices.length!==4||new Set(wheelChoices.map((choice)=>choice.top)).size!==1){
+    throw new Error('Spin the Wheel did not display four answer cards in one desktop row');
+  }
+  const correctChoice=wheelChoices.findIndex((choice)=>choice.term===wheelMatch.term);
+  if(correctChoice<0)throw new Error('Spin the Wheel is missing its correct answer');
+  await clickGameControl('.ig-wheel-choice:nth-child('+(correctChoice+1)+')');
+  await assertText('.ig-wheel-answer-status','Correct!');
   await clickGameControl('.ig-wheel-actions button:first-child');
-  await teacher.waitForSelector('.ig-wheel-result .ig-reveal');
-  await clickGameControl('.ig-wheel-actions button:nth-child(2)');
   await teacher.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
   for(let remaining=9;remaining>0;remaining--){
     await clickGameControl('.ig-wheel-controls .ig-primary-button');
@@ -494,23 +505,35 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForSelector('.ig-box',{timeout:8_000});
   for(let box=1;box<=9;box++){
     await clickGameControl('.ig-box:nth-child('+box+')');
-    await teacher.waitForSelector('.ig-box-detail');
-    if(box===1)await assertText('.ig-box-detail','Explain: Legal');
-    if(await teacher.$('.ig-result-panel'))throw new Error('Last box finished before its answer could be revealed');
-    await clickGameControl('.ig-box-detail > button');
-    await teacher.waitForSelector('.ig-box-detail .ig-reveal');
-    if(box===1)await assertText('.ig-box-detail','Relating to what is permitted');
-    await clickGameControl('.ig-box-actions button');
+    await teacher.waitForSelector('.ig-box.is-opened:nth-child('+box+')');
+    if(box===1){
+      await assertText('.ig-box:nth-child(1)','Legal');
+      await clickGameControl('.ig-box:nth-child(1)');
+      await assertText('.ig-box:nth-child(1)','Relating to what is permitted');
+    }
   }
   await clickGameControl('.ig-box-actions button');
   await teacher.waitForSelector('.ig-result-panel');
 
+  await clickMode(5);
+  await teacher.select('.ig-template-options select','questions');
+  await clickGameControl('.ig-box:nth-child(1)');
+  await teacher.waitForSelector('.ig-box-question');
+  await assertText('.ig-box-clock','00:30');
+  if((await teacher.$$('.ig-box-question .ig-choice-card')).length!==4)throw new Error('A question box is missing answer cards');
+  await clickGameControl('.ig-box-question .ig-choice-card:first-child');
+  await assertText('.ig-box-question .ig-reveal','Correct!');
+  await teacher.waitForSelector('.ig-box.is-opened:nth-child(1):disabled');
+  await assertText('.ig-session-metrics','1 correct');
+  await assertText('.ig-box.is-opened:nth-child(1)','✓ Correct');
+
   await clickMode(6);
   for(let index=0;index<9;index++){
     await teacher.waitForFunction((number)=>document.querySelector('.ig-quiz .ig-score')?.textContent?.startsWith(`Question ${number} /`),{},index+1);
-    if((await teacher.$$('.ig-quiz .ig-answer-button')).length!==4)throw new Error('Quiz did not display exactly 4 answer choices');
-    await clickGameControl('.ig-quiz .ig-answer-button:nth-child('+(index%4+1)+')');
-    await teacher.waitForSelector('.ig-answer-button.is-correct');
+    const answerRows=await teacher.$$eval('.ig-quiz .ig-choice-card',(nodes)=>nodes.map((node)=>(node as HTMLElement).offsetTop));
+    if(answerRows.length!==4||new Set(answerRows).size!==1)throw new Error('Quiz did not display four cards in one desktop row: '+answerRows.join(', '));
+    await clickGameControl('.ig-quiz .ig-choice-card:nth-child('+(index%4+1)+')');
+    await teacher.waitForSelector('.ig-choice-card.is-correct');
   }
   await teacher.waitForSelector('.ig-result-panel');
   await assertText('.ig-session-metrics','9 correct');
@@ -518,7 +541,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await clickMode(7);
   await teacher.waitForSelector('.ig-find-tile');
   const clickTile=async (term:string)=>{
-    const index=await teacher.$$eval('.ig-find-tile',(nodes,expected)=>nodes.findIndex((node)=>node.textContent===expected),term);
+    const index=await teacher.$$eval('.ig-find-grid > *',(nodes,expected)=>nodes.findIndex((node)=>node.textContent===expected),term);
     if(index<0)throw new Error('Missing Find the Match tile: '+term);
     await clickGameControl('.ig-find-tile:nth-child('+(index+1)+')');
   };
@@ -626,6 +649,27 @@ async function assertInteractiveGames(browser:Browser,base:string){
     const overlap=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     if(overlap>3)throw new Error('Interactive Games mobile overflow in mode '+modeIndex+': '+overlap);
     await assertAxe(student,'Interactive Games student mobile mode '+modeIndex);
+    if(modeIndex===5){
+      await student.select('.ig-template-options select','questions');
+      const firstBox='.ig-box:first-child';
+      await student.$eval(firstBox,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+      await student.click(firstBox);
+      await student.waitForSelector('.ig-box-question');
+      await assertAxe(student,'Interactive Games question box on mobile');
+      const questionOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+      if(questionOverflow>3)throw new Error('Question box overflow on mobile: '+questionOverflow);
+    }
+    if(modeIndex===4){
+      await student.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
+      const spin='.ig-wheel-controls .ig-primary-button';
+      await student.$eval(spin,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+      await student.click(spin);
+      await student.waitForSelector('.ig-wheel-quiz');
+      const rows=await student.$$eval('.ig-wheel-choice',(nodes)=>nodes.map((node)=>node.getBoundingClientRect().top));
+      if(rows.length!==4||new Set(rows).size!==2)throw new Error('Spin the Wheel did not display two rows of answer cards on mobile');
+      await assertAxe(student,'Interactive Games wheel question on mobile');
+      await student.emulateMediaFeatures([]);
+    }
   }
   await assertAxe(student,'Interactive Games student anagram/mobile');
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));

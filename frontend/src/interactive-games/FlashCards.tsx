@@ -71,6 +71,9 @@ export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
     <button type="button" className={'ig-flashcard' + (flipped ? ' is-flipped' : '')} onClick={flip}>
       <span className="ig-eyebrow">{flipped ? 'KEY TERM' : 'DEFINITION'}</span>
       <strong>{flipped ? card.term : card.definition}</strong>
+      {marking && flipped && marks[cardId] !== undefined && <span className={'ig-flashcard-mark' + (marks[cardId] ? ' is-correct' : ' is-wrong')}>
+        {marks[cardId] ? '✓ Knew it' : '✕ Practise again'}
+      </span>}
       <small>{flipped ? 'Click to see the definition' : 'Click to reveal the term'}</small>
     </button>
     {marking && flipped && <div className="ig-card-controls" role="group" aria-label="Self-mark this card">

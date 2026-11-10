@@ -30,6 +30,7 @@
   overflow: hidden;
   padding: 16px 0;
 }
+.ig-wheel-viewport[hidden] { display: none; }
 .ig-wheel-camera {
   position: relative;
   width: min(76%, 380px, 56vh);
@@ -97,6 +98,22 @@
 .ig-wheel-result h3:focus { outline: none; }
 .ig-wheel-result button { padding: 9px 14px; border: 1px solid #bcc7e4; background: white; color: #3d4498; border-radius: 9px; font-weight: 700; }
 .ig-wheel-result .ig-reveal { margin: 10px 0 0; overflow-wrap: anywhere; }
+.ig-wheel-result.ig-wheel-quiz {
+  width: min(100%, 1180px);
+  padding: clamp(14px, 3vw, 36px);
+  border: 0;
+  background: transparent;
+}
+.ig-wheel-quiz h3 {
+  margin: 12px auto clamp(20px, 4vw, 48px);
+  max-width: 32ch;
+  color: #161b28;
+  font-size: clamp(1.3rem, 3.5vw, 3rem);
+  line-height: 1.22;
+  text-wrap: balance;
+}
+.ig-wheel-answer-status { color: #26345d; font-size: .95rem; }
+.ig-wheel-answer-status:empty { margin: 0; }
 .ig-wheel-stage .ig-complete { margin: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .ig-wheel-camera { transition: none; }

@@ -20,14 +20,14 @@ export type AnswerReview = {
 export type RecordAnswer = (answer: AnswerReview) => void;
 
 /** Keep marking visible briefly. A paused or ended stage never advances itself. */
-export function useGameAdvance(active: boolean, advance: () => void, delay = 1100) {
+export function useGameAdvance(active: boolean, advance: () => void, delay = 1100, step?: number) {
   const latest = useRef(advance);
   useEffect(() => { latest.current = advance; }, [advance]);
   useEffect(() => {
     if (!active) return;
     const timer = window.setTimeout(() => latest.current(), delay);
     return () => window.clearTimeout(timer);
-  }, [active, delay]);
+  }, [active, delay, step]);
 }
 
 let sharedAudio: AudioContext | null = null;

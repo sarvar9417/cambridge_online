@@ -7,7 +7,8 @@ import {
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
-import { OpenBox, Quiz } from './ExtraGames';
+import { Quiz } from './ExtraGames';
+import { OpenBox, type BoxMode } from './OpenBox';
 import { FlashCards } from './FlashCards';
 import { SpinWheel, type WheelOptions } from './SpinWheel';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type AnswerReview, type GameSignal } from './game-session';
@@ -28,6 +29,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [catalogError, setCatalogError] = useState('');
   const [packError, setPackError] = useState('');
   const [mode, setMode] = useState<GameKind>('match-up');
+  const [boxMode, setBoxMode] = useState<BoxMode>('simple');
   const [round, setRound] = useState(0);
   const [playSession, setPlaySession] = useState(0);
   const [questionCount, setQuestionCount] = useState(29);
@@ -133,15 +135,18 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
   const isWheel = currentMode === 'spin-wheel';
-  const isScored = ['match-up', 'quiz', 'find-the-match', 'anagram'].includes(currentMode);
+  const boxQuestions = gameIsAvailable('quiz', pairs) ? questions : [];
+  const effectiveBoxMode = boxQuestions.length ? boxMode : 'simple';
+  const isScored = ['match-up', 'quiz', 'find-the-match', 'anagram'].includes(currentMode) ||
+    (currentMode === 'open-box' && effectiveBoxMode === 'questions');
   const showClock = timeLimit > 0 || stopwatch;
   const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
 
-  function recordAnswer(answer: AnswerReview) {
+  const recordAnswer = useCallback((answer: AnswerReview) => {
     setAnswers((previous) => previous.some((item) => item.id === answer.id) ? previous : [...previous, answer]);
-  }
+  }, []);
 
   function clearSession() {
     setAnswers([]);
@@ -288,7 +293,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
           {isWheel && <SpinWheel pairs={pairs} options={wheelOptions} onOptionsChange={setWheelOptions}
             blocked={stageDisabled} ended={roundEnded} />}
-          {currentMode === 'open-box' && <OpenBox pairs={pairs} questions={gameIsAvailable('quiz', pairs) ? questions : []} />}
+          {currentMode === 'open-box' && <OpenBox pairs={pairs} questions={boxQuestions} mode={effectiveBoxMode} onModeChange={setBoxMode}
+            blocked={stageDisabled} recordAnswer={recordAnswer} />}
           {currentMode === 'quiz' && <Quiz questions={questions} blocked={stageDisabled} recordAnswer={recordAnswer} />}
           {currentMode === 'find-the-match' && <FindMatchBoard pairs={pairs} recordAnswer={recordAnswer} />}
           {currentMode === 'anagram' && <AnagramTiles pairs={pairs} blocked={stageDisabled} recordAnswer={recordAnswer} />}
@@ -312,6 +318,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
               <div>{answer.correct ? '✓ Correct' : '✕ First answer'} · {answer.submitted}</div>
               {!answer.correct && <div>Correct answer · {answer.expected}</div>}
             </li>)}</ol>
+          </details>}
+          {currentMode === 'flash-cards' && <details className="ig-answer-review">
+            <summary>Show cards ({pairs.length})</summary>
+            <ol>{pairs.map((pair) => <li key={pair.id}><strong>{pair.term}</strong><div>{pair.definition}</div></li>)}</ol>
           </details>}
           <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery. Scores are not saved to your account.</p>
           <div className="ig-result-actions">
