@@ -689,6 +689,14 @@ async function assertInteractiveGames(browser:Browser,base:string){
     }
   }
   await assertAxe(student,'Interactive Games student anagram/mobile');
+  // Formative results are saved only after a student explicitly finishes and
+  // submits; teacher preview must never impersonate a learner.
+  await student.$eval('.ig-finish-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+  await student.click('.ig-finish-button');
+  await student.waitForSelector('.ig-practice-save button');
+  await student.click('.ig-practice-save button');
+  await student.waitForFunction(()=>document.querySelector('.ig-practice-save')?.textContent?.includes('Practice saved'));
+  await assertText('.ig-practice-save','not an official assessment');
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
   await studentContext.close();
   await teacherContext.close();
