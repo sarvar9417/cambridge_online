@@ -145,9 +145,13 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
     const newBadges=after.badges.filter(badge=>!before.badges.includes(badge));
     const nextCue={key:`${questionIndex}:${signature}`,tier,score:entry.score,possible:entry.possible,streak:after.streak,newBadges};
     setCue(nextCue);
-    const timer=window.setTimeout(()=>setCue(current=>current?.key===nextCue.key?null:current),prefs.intensity==='spectacular'?4900:3200);
-    return()=>window.clearTimeout(timer);
   },[key,questionIndex,score,possible,prefs.animation,prefs.intensity,prefs.sound]);
+
+  useEffect(()=>{
+    if(!cue)return;
+    const timer=window.setTimeout(()=>setCue(current=>current?.key===cue.key?null:current),prefs.intensity==='spectacular'?4900:3200);
+    return()=>window.clearTimeout(timer);
+  },[cue,prefs.intensity]);
 
   return <>
     <div className="live-reward-bar" aria-label="Live Challenge rewards">
@@ -177,9 +181,11 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
   </>;
 }
 
-export function LiveChallengeFinalCeremony({title,earned,possible,children}:{
-  title:string;earned?:number|null;possible?:number|null;children?:ReactNode;
+export function LiveChallengeFinalCeremony({title,earned,possible,results,children}:{
+  title:string;earned?:number|null;possible?:number|null;
+  results?:Array<{questionPosition:number;score:number|null;marks:number}>;children?:ReactNode;
 }) {
+  const completed=getRewardSummary((results??[]).map(row=>({questionIndex:row.questionPosition,score:row.score,possible:row.marks})).filter(isRewardEntry));
   const percentage=typeof earned==='number'&&typeof possible==='number'&&possible>0
     ?Math.round(100*earned/possible):null;
   return <section className="live-neon-final" aria-label="Live Challenge Final Ceremony">
@@ -187,6 +193,7 @@ export function LiveChallengeFinalCeremony({title,earned,possible,children}:{
     <div><span className="live-neon-final-eyebrow"><Medal weight="fill"/> FINAL CEREMONY</span><h2>{title}</h2>
       <p>{percentage===null?'Challenge completed. Cambridge marks determine the results.':'Your Cambridge results are ready. Well played!'}</p>
       {percentage!==null?<strong className="live-neon-final-percent">{earned} / {possible} <small>marks · {percentage}%</small></strong>:null}
+      {completed.badges.length?<div className="live-neon-final-badges">{completed.badges.map(badge=><span key={badge} title={REWARD_LABELS[badge].description}>{REWARD_LABELS[badge].icon} {REWARD_LABELS[badge].title}</span>)}</div>:null}
     </div>
     {children}
   </section>;
