@@ -373,3 +373,29 @@
   line-height: 1.5;
   overflow-wrap: break-word;
 }
+
+/* Student-only formative history; no official grade or mastery claim. */
+.ig-practice-history {
+  margin: 14px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line, #d4dfef);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ig-practice-history h3 { margin: 0 0 5px; font-size: 16px; }
+.ig-practice-history p { margin: 5px 0 9px; }
+.ig-practice-history details { margin: 8px 0; }
+.ig-practice-history li { margin: 4px 0; }
+.ig-practice-history button,
+.ig-practice-save button {
+  padding: 10px 14px;
+  border-radius: 9px;
+  min-height: 40px;
+  font-weight: 650;
+}
+.ig-practice-history button:disabled,
+.ig-practice-save button:disabled { opacity: .65; cursor: not-allowed; }
+.ig-practice-save { margin: 12px 0; }
+.ig-practice-save p { margin: 6px 0; font-size: 13px; }
