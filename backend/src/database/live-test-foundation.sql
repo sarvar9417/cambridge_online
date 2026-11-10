@@ -39,6 +39,15 @@ CREATE TABLE subtopics (
   title text NOT NULL DEFAULT 'Acceptance subtopic'
 );
 
+-- Minimal syllabus glossary table for isolated formative SRS acceptance.
+-- Production uses the complete 0005/0213 glossary schema instead.
+CREATE TABLE glossary_terms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  subtopic_id uuid NOT NULL REFERENCES subtopics ON DELETE CASCADE,
+  term text NOT NULL,
+  definition_en text NOT NULL
+);
+
 CREATE TABLE learning_objectives (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subtopic_id uuid NOT NULL REFERENCES subtopics ON DELETE CASCADE
