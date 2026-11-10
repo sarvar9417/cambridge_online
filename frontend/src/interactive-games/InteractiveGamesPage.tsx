@@ -179,6 +179,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
+  const distinctTermLabels = new Set((pack?.pairs ?? []).map((pair) => pair.term.trim().toLocaleLowerCase('en'))).size;
 
   const recordAnswer = useCallback((answer: AnswerReview) => {
     setAnswers((previous) => previous.some((item) => item.id === answer.id) ? previous : [...previous, answer]);
@@ -351,7 +352,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
-      <strong>{pack.pairs.length} unique glossary terms loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      <strong>{pack.pairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      {pack.pairs.length > distinctTermLabels
+        ? ` ${pack.pairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
       {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
         ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
       {pack.contentStatus === 'needs_review'

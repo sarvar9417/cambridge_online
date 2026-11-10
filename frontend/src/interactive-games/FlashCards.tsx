@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { shuffleItems, type GamePair } from './game-content';
+import { gamePairProvenance, shuffleItems, type GamePair } from './game-content';
 import { useGameSignal } from './game-session';
 
 export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
@@ -76,6 +76,7 @@ export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
       </span>}
       <small>{flipped ? 'Click to see the definition' : 'Click to reveal the term'}</small>
     </button>
+    {flipped && gamePairProvenance(card) && <p className="ig-source-context" role="note">{gamePairProvenance(card)}</p>}
     {marking && flipped && <div className="ig-card-controls" role="group" aria-label="Self-mark this card">
       <button type="button" aria-pressed={marks[card.id] === true} onClick={() => mark(true)}>✓ Knew it</button>
       <button type="button" aria-pressed={marks[card.id] === false} onClick={() => mark(false)}>✕ Practise again</button>

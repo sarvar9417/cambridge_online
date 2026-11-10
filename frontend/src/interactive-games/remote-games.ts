@@ -1,4 +1,4 @@
-import { findMatchOptions, type GamePair, type GameKind, type QuizQuestion, type SpeakingPrompt } from './game-content';
+import { findMatchOptions, gamePairProvenance, type GamePair, type GameKind, type QuizQuestion, type SpeakingPrompt } from './game-content';
 
 /** Authenticated game catalogue and packs are sourced directly from PostgreSQL. */
 export interface LiveGameSection {
@@ -150,10 +150,22 @@ export function isAnagramEligible(term: string): boolean {
  * Duplicate labels are excluded from multiple-choice rounds rather than causing
  * the whole chapter's Quiz mode to disappear.
  */
+function answerEvidenceRank(pair: GamePair): number {
+  const entry = pair as Partial<LiveGameTerm>;
+  if (entry.isOfficialKeyTerm && entry.definitionEvidenceStatus === 'official_textbook_definition') return 0;
+  if (entry.definitionEvidenceStatus === 'supplementary_targeted_verified') return 1;
+  if (entry.definitionEvidenceStatus === 'supplementary_source_screened') return 2;
+  if (entry.definitionEvidenceStatus === 'supplementary_manual_review_required') return 5;
+  return entry.status === 'needs_review' ? 4 : 3;
+}
+
 function uniqueAnswerPairs<T extends GamePair>(pairs: readonly T[]): T[] {
   const terms = new Set<string>();
   const definitions = new Set<string>();
-  return pairs.filter((pair) => {
+  // Prefer explicitly verified source entries when several chapters use the
+  // same answer label. Stable sort preserves the supplied order on ties.
+  const preferred = [...pairs].sort((a, b) => answerEvidenceRank(a) - answerEvidenceRank(b));
+  return preferred.filter((pair) => {
     const termKey = pair.term.trim().toLocaleLowerCase('en');
     const definitionKey = pair.definition.trim().toLocaleLowerCase('en');
     if (!termKey || !definitionKey || terms.has(termKey) || definitions.has(definitionKey)) return false;
@@ -178,9 +190,12 @@ export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
 }
 
 export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): LiveGameTerm[] {
-  if (mode === 'anagram') return pairs.filter((pair) => isAnagramEligible(pair.term));
-  if (mode === 'quiz' || mode === 'find-the-match') return uniqueAnswerPairs(pairs);
-  return [...pairs];
+  // All chapter-specific meanings remain accessible in reveal-only cards.
+  // In games with a single answer key, duplicated terms or definitions would
+  // otherwise introduce competing, indistinguishable correct choices.
+  if (mode === 'flash-cards' || mode === 'speaking-cards') return [...pairs];
+  if (mode === 'anagram') return uniqueAnswerPairs(pairs.filter((pair) => isAnagramEligible(pair.term)));
+  return uniqueAnswerPairs(pairs);
 }
 
 /** Big banks stay selectable while the visual stage has a manageable workload.
@@ -211,6 +226,7 @@ export function createSpeakingPrompts(pairs: readonly GamePair[]): SpeakingPromp
     id: 'speaking-' + pair.id,
     prompt: pair.definition,
     talkingPoints: pair.term,
+    sourceContext: gamePairProvenance(pair) || undefined,
   }));
 }
 
@@ -233,6 +249,7 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
       options: choices.map((choice) => choice.term),
       answerIndex,
       explanation: pair.term + ' — ' + pair.definition,
+      sourceContext: gamePairProvenance(pair) || undefined,
     };
   });
 }

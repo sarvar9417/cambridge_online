@@ -131,6 +131,60 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(new Set(allStages).size).toBe(186);
   });
 
+  it('keeps different chapter meanings in review cards but prevents ambiguous scored answers', () => {
+    const contextual: LiveGameTerm[] = [
+      { ...term(1, 'Assembly language'),
+        definition: 'Mnemonic processor instructions', chapterNo: 4,
+        syllabusTopicCode: '4.1', hodderSectionCodes: ['4.2'],
+        isOfficialKeyTerm: true, officialKeyTermPage: 127 },
+      { ...term(2, 'Assembly language'),
+        definition: 'Program converted by an assembler', chapterNo: 20,
+        syllabusTopicCode: '20.3', hodderSectionCodes: ['20.2'] },
+      { ...term(3, 'Machine code'), definition: 'Binary processor instructions', chapterNo: 4 },
+      { ...term(4, 'Assembler'), definition: 'Translator for assembly code', chapterNo: 5 },
+      { ...term(5, 'Compiler'), definition: 'Translator for a whole program', chapterNo: 5 },
+      { ...term(6, 'Alternative'), definition: 'Binary processor instructions', chapterNo: 7 },
+    ];
+    expect(poolForMode(contextual, 'flash-cards')).toHaveLength(6);
+    expect(poolForMode(contextual, 'speaking-cards')).toHaveLength(6);
+    for (const mode of ['quiz', 'match-up', 'find-the-match', 'open-box', 'spin-wheel', 'anagram'] as const) {
+      const filtered = poolForMode(contextual, mode);
+      const labels = filtered.map((item) => item.term.trim().toLowerCase());
+      expect(labels.length).toBe(new Set(labels).size);
+      expect(filtered.filter((pair) => pair.term === 'Assembly language')).toHaveLength(1);
+    }
+    const quizPairs = poolForMode(contextual, 'quiz');
+    expect(quizPairs).toHaveLength(4);
+    const questions = createQuizQuestions(quizPairs);
+    expect(questions).toHaveLength(4);
+    expect(questions[0]?.sourceContext).toContain('Chapter 4');
+    expect(questions[0]?.sourceContext).toContain('Official Key Term, page 127');
+    const speech = createSpeakingPrompts(contextual);
+    expect(speech).toHaveLength(6);
+    expect(speech[0]?.sourceContext).toContain('Chapter 4');
+    expect(speech[1]?.sourceContext).toContain('Chapter 20');
+    expect(speech[1]?.talkingPoints).toBe('Assembly language');
+  });
+
+  it('chooses verified official glossary entries over manual-review duplicates for scored items', () => {
+    const values: LiveGameTerm[] = [
+      { ...term(1, 'Assembly language'), chapterNo: 20,
+        definitionEvidenceStatus: 'supplementary_manual_review_required' },
+      { ...term(2, 'Assembly language'), chapterNo: 4, isOfficialKeyTerm: true,
+        officialKeyTermPage: 127, definitionEvidenceStatus: 'official_textbook_definition',
+        status: 'approved' },
+      { ...term(3, 'Compiler'), definitionEvidenceStatus: 'supplementary_source_screened' },
+      { ...term(4, 'Interpreter'), definitionEvidenceStatus: 'supplementary_targeted_verified' },
+      { ...term(5, 'Machine code'), definitionEvidenceStatus: 'supplementary_source_screened' },
+    ];
+    expect(poolForMode(values, 'flash-cards')).toHaveLength(5);
+    const scored = poolForMode(values, 'quiz');
+    expect(scored).toHaveLength(4);
+    expect(scored.find((item) => item.term === 'Assembly language')?.id).toBe('2');
+    expect(createQuizQuestions(scored).find((item) => item.id === 'quiz-2')?.sourceContext)
+      .toContain('Official Key Term, page 127');
+  });
+
   it('generates review-only speaking prompts and a single correct quiz option per definition', () => {
     const pairs = ['Legal', 'Ethics', 'Culture', 'Morality', 'Privacy', 'Plagiarism'].map((x, i) => term(i, x));
     const prompts = createSpeakingPrompts(pairs);
