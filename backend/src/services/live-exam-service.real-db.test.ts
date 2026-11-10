@@ -226,7 +226,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await expect(service.start(owner(),sessionId,lobby.session.version))
       .rejects.toMatchObject({code:'live_card_selection_required',status:409});
     await expect(service.openCard(sameSchoolGuest(),sessionId,secondQuestion,lobby.session.version))
-      .rejects.toMatchObject({code:'not_found',status:404});
+      .rejects.toMatchObject({code:'staff_only',status:403});
 
     await expect(service.openCard(student(0),sessionId,secondQuestion,lobby.session.version))
       .rejects.toMatchObject({code:'staff_only',status:403});
