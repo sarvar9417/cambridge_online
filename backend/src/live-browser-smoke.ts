@@ -441,13 +441,27 @@ async function assertInteractiveGames(browser:Browser,base:string){
     const previous=(board as HTMLElement).style.width;
     (board as HTMLElement).style.width='900px';
     const narrow=getComputedStyle(definitions).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
+    const term=board.querySelector<HTMLElement>('.ig-bank-term');
+    const slot=board.querySelector<HTMLElement>('.ig-drop-target button');
+    const description=board.querySelector<HTMLElement>('.ig-match-description');
+    if(!term||!slot||!description)throw new Error('Missing Match Up source terms or targets');
+    const oldTerm=term.textContent,oldSlot=slot.textContent,oldDescription=description.textContent;
+    term.textContent='UnbrokenCambridgeVocabularyKeyword'.repeat(5);
+    slot.textContent='UnbrokenCambridgeVocabularyKeyword'.repeat(5);
+    description.textContent='LongSourceBackedDefinitionWithoutWhitespace'.repeat(5);
+    const termOverflow=term.scrollWidth>term.clientWidth+1;
+    const slotOverflow=slot.scrollWidth>slot.clientWidth+1;
+    const descriptionOverflow=description.scrollWidth>description.clientWidth+1;
+    term.textContent=oldTerm;
+    slot.textContent=oldSlot;
+    description.textContent=oldDescription;
     (board as HTMLElement).style.width='1500px';
     const wide=getComputedStyle(definitions).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
     (board as HTMLElement).style.width=previous;
-    return {narrow,wide};
+    return {narrow,wide,termOverflow,slotOverflow,descriptionOverflow};
   });
-  if(matchLayout.narrow!==1||matchLayout.wide!==2)
-    throw new Error('Match Up must reflow from one to two readable definition columns: '+JSON.stringify(matchLayout));
+  if(matchLayout.narrow!==1||matchLayout.wide!==2||matchLayout.termOverflow||matchLayout.slotOverflow||matchLayout.descriptionOverflow)
+    throw new Error('Match Up must use readable columns without clipping long labels or definitions: '+JSON.stringify(matchLayout));
 
   // Complete all eight games through the same controls a teacher actually uses.
   for(const [index,term] of gameTerms.entries()){
