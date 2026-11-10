@@ -50,8 +50,12 @@ export function normalizeGameScopes(scopes: readonly GameScope[]): GameScope[] {
     if (scope.kind !== 'chapter' && full.has(scope.chapterNo)) continue;
     selected.set(scope.chapterNo + ':' + scope.kind + ':' + (scope.code ?? ''), scope);
   }
-  return [...selected.values()].sort((a, b) =>
-    a.chapterNo - b.chapterNo || a.kind.localeCompare(b.kind) || (a.code ?? '').localeCompare(b.code ?? ''));
+  const values = [...selected.values()];
+  return values.filter((scope) => scope.kind !== 'section' || !values.some((parent) =>
+    parent.chapterNo === scope.chapterNo && parent.kind === 'section' && parent.code &&
+    scope.code?.startsWith(parent.code + '.') && parent.code !== scope.code))
+    .sort((a, b) =>
+      a.chapterNo - b.chapterNo || a.kind.localeCompare(b.kind) || (a.code ?? '').localeCompare(b.code ?? '', 'en', { numeric: true }));
 }
 export function selectWholeChapter(scopes: readonly GameScope[], chapterNo: number, checked: boolean) {
   const without = scopes.filter((scope) => scope.chapterNo !== chapterNo);
@@ -62,7 +66,11 @@ export function toggleNarrowScope(
 ): GameScope[] {
   const other = scopes.filter((scope) => !(scope.chapterNo === next.chapterNo && scope.kind === next.kind && scope.code === next.code));
   if (!checked) return normalizeGameScopes(other);
-  return normalizeGameScopes([...other.filter((scope) => !(scope.chapterNo === next.chapterNo && scope.kind === 'chapter')), next]);
+  return normalizeGameScopes([...other.filter((scope) =>
+    !(scope.chapterNo === next.chapterNo &&
+      (scope.kind === 'chapter' ||
+        (next.kind === 'section' && scope.kind === 'section' && scope.code &&
+          next.code?.startsWith(scope.code + '.'))))), next]);
 }
 export function validGameScopes(scopes: readonly GameScope[], catalog: LiveGameCatalog) {
   return normalizeGameScopes(scopes.filter((scope) => {
