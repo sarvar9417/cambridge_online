@@ -14,6 +14,7 @@ function fixture(terms: Array<{id:string;term:string;definition:string;status:st
       { chapter_no: 3, title: 'Hardware', term_count: 273, approved_count: 0 },
     ] })
     .mockResolvedValueOnce({ rows: [
+      { chapter_no: 1, section_code: '1.1', title: 'Data representation', parent_code: '1', term_count: 14 },
       { chapter_no: 1, section_code: '1.1.1', title: 'Number systems', parent_code: '1.1', term_count: 5 },
       { chapter_no: 2, section_code: '2.1.1', title: 'Network architecture', parent_code: '2.1', term_count: 6 },
     ] })
@@ -68,6 +69,28 @@ describe('Source-backed multi-selection queries for Interactive Games', () => {
     expect(bank.pairs).toHaveLength(1);
     expect(bank.contentStatus).toBe('approved');
     expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[1]))).toEqual([{ chapter_no: 1, kind: 'chapter', code: null }]);
+  });
+
+  it('canonicalizes overlapping Hodder parent and child scopes without combining unrelated syllabus scopes', async () => {
+    const { service, query } = fixture([
+      { id: 'a', term: 'Binary', definition: 'Base two system', status: 'approved' },
+    ]);
+    const bank = await service.interactiveGameCollection(teacher, {
+      courseCode: '9618', scopes: [
+        { chapterNo: 1, kind: 'section', code: '1.1.1' },
+        { chapterNo: 1, kind: 'section', code: '1.1' },
+        { chapterNo: 1, kind: 'topic', code: '1.1' },
+      ],
+    });
+    expect(bank.scopes).toEqual([
+      { chapterNo: 1, kind: 'section', code: '1.1' },
+      { chapterNo: 1, kind: 'topic', code: '1.1' },
+    ]);
+    expect(bank.pairs.map((pair) => pair.term)).toEqual(['Binary']);
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[1]))).toEqual([
+      { chapter_no: 1, kind: 'section', code: '1.1' },
+      { chapter_no: 1, kind: 'topic', code: '1.1' },
+    ]);
   });
 
   it('rejects a fabricated topic, a fabricated book section, and chapters with no vocabulary', async () => {
