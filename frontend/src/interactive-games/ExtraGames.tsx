@@ -82,7 +82,7 @@ export function OpenBox({ pairs, questions }: { pairs: readonly GamePair[]; ques
     </div> : <>
       <div className="ig-box-grid">{pairs.map((pair, index) => <button type="button" key={pair.id}
         className={'ig-box ig-color-' + (index % 6) + (opened.includes(index) ? ' is-opened' : '')}
-        aria-label={`Box ${index + 1}${opened.includes(index) ? ', opened' : ', tap to open'}`} onClick={() => open(index)}>
+        onClick={() => open(index)}>
         <span>{index + 1}</span><strong>{opened.includes(index) ? 'Opened' : 'Tap to open'}</strong>
       </button>)}</div>
       {opened.length === pairs.length && <div className="ig-box-actions">

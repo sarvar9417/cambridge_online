@@ -308,15 +308,15 @@ describe('database-backed Interactive Games multi-selection', () => {
   it('opens any numbered box, supports question boxes, and remembers their open state', async () => {
     await render();
     await game('Open the Box');
-    await click(container.querySelector<HTMLButtonElement>('[aria-label="Box 2, tap to open"]')!);
+    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(2)')!);
     expect(container.querySelector('.ig-box-detail h3')?.textContent).toBe('Explain: Morality');
     await click(button('Reveal answer'));
     expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toBe(baseTerms[1]!.definition);
     await click(button('Back to boxes'));
-    expect(container.querySelector('[aria-label="Box 2, opened"]')).toBeTruthy();
+    expect(container.querySelector('.ig-box.is-opened:nth-child(2)')).toBeTruthy();
     await game('Open the Box');
     await change('.ig-template-options select', 'questions');
-    await click(container.querySelector<HTMLButtonElement>('[aria-label="Box 1, tap to open"]')!);
+    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
     await click(button('Legal'));
     expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toContain('Correct!');
     expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
