@@ -1000,6 +1000,7 @@ export class LiveExamService {
       throw new DomainError('live_manual_balanced_unsupported',400);
     this.validatePracticeMode(actor,input);
     this.validateRehearsalMode(actor,input);
+    if(input.playMode==='cards' && actor.role==='student') throw new DomainError('live_card_teacher_only',403);
     this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
@@ -2069,8 +2070,9 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
-  /** A card click opens exactly one round. Concurrent clicks serialize on the session row. */
+  /** Only class staff can pick a card; concurrent picks serialize on the session row. */
   async openCard(actor: Actor, sessionId: string, cardId: string, expectedVersion: number) {
+    this.assertStaff(actor);
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -2080,9 +2082,6 @@ export class LiveExamService {
            ($2='owner' and c.school_id=$3)
            or ($2='teacher' and (c.owner_id=$4 or exists(
              select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4)))
-           or ($2='student' and exists(
-             select 1 from live_exam_participants lep
-             where lep.session_id=les.id and lep.student_id=$4 and lep.left_at is null))
          ) for update of les`,
         [sessionId,actor.role,actor.schoolId,actor.id],
       );
