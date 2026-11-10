@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/api';
-import { chapter7Pilot } from './game-content';
+import { chapter7Pilot, type GamePair } from './game-content';
 import type { GameScope, LiveGameCatalog, LiveGamePack } from './remote-games';
 import { InteractiveGamesPage } from './InteractiveGamesPage';
 
@@ -126,6 +126,20 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('gives Spin the Wheel a choice of no timer, count up, or a timed round', async () => {
+    await render(true);
+    await game('Spin the Wheel');
+    expect(container.querySelector('[role="timer"]')).toBeNull();
+    expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
+    await change('select[aria-label="Time limit"]', 'count-up');
+    expect(container.querySelector('[role="timer"]')?.textContent).toContain('Elapsed 00:00');
+    await change('select[aria-label="Time limit"]', '30');
+    expect(container.querySelector('[role="timer"]')?.textContent).toContain('Remaining 00:30');
+    expect(container.querySelector<HTMLFieldSetElement>('.ig-game-stage')?.disabled).toBe(true);
+    await click(button('Start timed round'));
+    expect(container.querySelector<HTMLFieldSetElement>('.ig-game-stage')?.disabled).toBe(false);
+  });
+
   it('combines two whole chapters into one 16-term bank and changes game without losing selection', async () => {
     await render();
     await choose('Select entire Chapter 2');
@@ -211,19 +225,161 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);
   });
 
-  it('Match Up grades only submitted answers and resets first-attempt statistics', async () => {
+  function drop(target: Element, type: string, value: string) {
+    const event = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', { value: { getData: (key: string) => key === type ? value : '' } });
+    return act(async () => { target.dispatchEvent(event); });
+  }
+
+  function toggleOption(label: string) {
+    const setting = [...container.querySelectorAll('.ig-template-options label')]
+      .find((node) => node.textContent?.trim() === label);
+    return click(setting!.querySelector<HTMLInputElement>('input')!);
+  }
+
+  it('Match Up waits for all pairs and preserves the first submission after a retry', async () => {
     await render();
-    await click([...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')].find((x) => x.textContent === 'Legal')!);
-    const slot = [...container.querySelectorAll<HTMLButtonElement>('.ig-drop-target button')]
-      .find((item) => item.getAttribute('aria-label')?.includes('permitted or required by law'))!;
-    await click(slot);
+    await toggleOption('Allow one retry');
+    async function match(target: GamePair, submitted: GamePair) {
+      await click([...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')].find((item) => item.textContent === submitted.term)!);
+      await click([...container.querySelectorAll<HTMLButtonElement>('.ig-drop-target button')]
+        .find((item) => item.getAttribute('aria-label')?.endsWith(target.definition))!);
+    }
+    const legalSlot = [...container.querySelectorAll('.ig-drop-target')]
+      .find((item) => item.querySelector('button')?.getAttribute('aria-label')?.endsWith(baseTerms[0]!.definition))!;
+    await drop(legalSlot, 'text/plain', `1:${baseTerms[0]!.id}`);
     expect(container.textContent).toContain('1 of 8 placed');
+    expect(container.querySelectorAll('.ig-bank-term')).toHaveLength(7);
+    expect(button('Submit Answers').disabled).toBe(true);
+    for (const [index, pair] of baseTerms.entries()) {
+      if (index) await match(pair, index === 1 ? baseTerms[2]! : index === 2 ? baseTerms[1]! : pair);
+    }
     await click(button('Submit Answers'));
-    expect(container.textContent).toContain('1 / 8 correct');
-    expect(container.textContent).toContain('✓ 1 correct');
-    expect(container.textContent).toContain('✕ 7 mistakes');
+    expect(container.textContent).toContain('6 / 8 correct');
+    await click(button('Retry incorrect matches'));
+    expect(container.querySelectorAll('.ig-match-row.is-correct')).toHaveLength(6);
+    await match(baseTerms[1]!, baseTerms[1]!);
+    await match(baseTerms[2]!, baseTerms[2]!);
+    await click(button('Submit Answers'));
+    expect(container.textContent).toContain('8 / 8 correct');
+    expect(container.textContent).toContain('✓ 6 correct');
+    expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Ethics');
     await click(button('↻ Play this round again'));
     expect(container.textContent).toContain('✓ 0 correct');
+    expect(container.querySelector('.ig-answer-review')).toBeNull();
+  });
+
+  it('flips flashcards, navigates by arrow key, and repeats a self-marked missed card', async () => {
+    await render();
+    await game('Flash Cards');
+    await toggleOption('Self-mark cards');
+    await toggleOption('Repeat missed cards');
+    const card = container.querySelector<HTMLButtonElement>('.ig-flashcard')!;
+    await click(card);
+    expect(card.textContent).toContain('Legal');
+    await click(button('✕ Practise again'));
+    await act(async () => { card.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); });
+    expect(card.textContent).toContain(baseTerms[1]!.definition);
+    for (let i = 1; i < baseTerms.length - 1; i++) await click(button('Next →'));
+    await click(button('Review missed cards'));
+    expect(card.textContent).toContain(baseTerms[0]!.definition);
+    expect(container.textContent).toContain('Card 1 / 1');
+    expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
+  });
+
+  it('deals a shuffled batch without duplicates and returns it to the deck on Undo', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    await render();
+    await game('Speaking Cards');
+    await change('.ig-template-options select', '3');
+    await click(button('Deal'));
+    const dealt = () => [...container.querySelectorAll('.ig-dealt-card > p')].map((item) => item.textContent);
+    const first = dealt();
+    expect(new Set(first).size).toBe(3);
+    expect(first[0]).not.toBe(baseTerms[0]!.definition);
+    expect(container.textContent).toContain('3 dealt · 5 remaining');
+    await click(button('Undo'));
+    expect(container.textContent).toContain('0 dealt · 8 remaining');
+    await click(button('Deal'));
+    expect(dealt()).toEqual(first);
+    expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('3 reviewed');
+  });
+
+  it('opens any numbered box, supports question boxes, and remembers their open state', async () => {
+    await render();
+    await game('Open the Box');
+    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(2)')!);
+    expect(container.querySelector('.ig-box-detail h3')?.textContent).toBe('Explain: Morality');
+    await click(button('Reveal answer'));
+    expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toBe(baseTerms[1]!.definition);
+    await click(button('Back to boxes'));
+    expect(container.querySelector('.ig-box.is-opened:nth-child(2)')).toBeTruthy();
+    await game('Open the Box');
+    await change('.ig-template-options select', 'questions');
+    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
+    await click(button('Legal'));
+    expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toContain('Correct!');
+    expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
+  });
+
+  it('marks the quiz immediately, allows one retry, and pauses automatic advancement', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Quiz');
+      await toggleOption('Allow one retry');
+      await click(button('BMorality'));
+      expect(container.querySelector('.ig-answer-button.is-wrong')?.textContent).toContain('Morality');
+      expect(container.querySelector('.ig-answer-button.is-correct')).toBeNull();
+      await click(button('ALegal'));
+      expect(container.querySelector('.ig-answer-button.is-correct')?.textContent).toContain('Legal');
+      await click(button('Ⅱ Pause timer'));
+      await act(async () => { vi.advanceTimersByTime(1500); });
+      expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 1');
+      await click(button('▶ Resume timer'));
+      await act(async () => { vi.advanceTimersByTime(1100); });
+      expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
+      await click(button('■ Finish game'));
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Morality');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('removes a correct Find the Match tile and retains the first incorrect choice for review', async () => {
+    await render();
+    await game('Find the Match');
+    const clue = container.querySelector('.ig-find-clue p')?.textContent;
+    const correct = baseTerms.find((item) => item.definition === clue)!;
+    const wrong = baseTerms.find((item) => item.id !== correct.id)!;
+    await click(button(wrong.term));
+    expect(container.querySelector('[aria-label="2 lives remaining"]')).toBeTruthy();
+    await click(button(correct.term));
+    expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(7);
+    await click(button('■ Finish game'));
+    expect(container.querySelector('.ig-answer-review')?.textContent).toContain(`First answer · ${wrong.term}`);
+  });
+
+  it('locks correct anagram letters immediately and separates a corrected word from a first attempt', async () => {
+    await render();
+    await game('Anagram');
+    await toggleOption('Automatically proceed');
+    function tile(letter: string) {
+      return [...container.querySelectorAll<HTMLButtonElement>('.ig-anagram-letter:not(:disabled)')]
+        .find((item) => item.textContent === letter)!;
+    }
+    await click(tile('E'));
+    expect(container.textContent).toContain('does not fit in slot 1');
+    expect(container.querySelectorAll('.ig-anagram-slot.is-correct')).toHaveLength(0);
+    const lastTile = tile('L');
+    const lastPosition = container.querySelectorAll('.ig-anagram-slot')[4]!;
+    const tileIndex = Number(lastTile.getAttribute('aria-label')?.split(' ').at(-1)) - 1;
+    await drop(lastPosition, 'application/x-cambridge-anagram', String(tileIndex));
+    expect(lastPosition.classList.contains('is-correct')).toBe(true);
+    for (const letter of 'LEGA') await click(tile(letter));
+    expect(container.querySelectorAll('.ig-anagram-slot.is-correct button:disabled')).toHaveLength(5);
+    await click(button('Next anagram →'));
+    expect(container.querySelector('.ig-anagram .ig-score')?.textContent).toContain('0 solved on first try');
+    await click(button('■ Finish game'));
+    expect(container.querySelector('.ig-answer-review')?.textContent).toContain('E in slot 1');
   });
 
   it('pauses and expires a 30-second round without treating it as an assessment', async () => {

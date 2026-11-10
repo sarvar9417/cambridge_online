@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
-import { GAME_CATALOG, type GameKind, type GamePair } from './game-content';
+import { GAME_CATALOG, type GameKind } from './game-content';
 import {
   GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
   selectGamePairs, validGameScopes, normalizeGameScopes,
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
-import { OpenBox, Quiz, SpinWheel } from './ExtraGames';
-import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, useGameSignal, type GameSignal } from './game-session';
+import { OpenBox, Quiz } from './ExtraGames';
+import { FlashCards } from './FlashCards';
+import { SpinWheel, type WheelOptions } from './SpinWheel';
+import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type AnswerReview, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import './interactive-games.css';
 import './remote-games.css';
@@ -35,9 +37,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
+  const [wheelOptions, setWheelOptions] = useState<WheelOptions>({ power: 'low', shuffle: false });
+  const [stopwatch, setStopwatch] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
+  const [answers, setAnswers] = useState<AnswerReview[]>([]);
   const [fullscreenError, setFullscreenError] = useState('');
 
   // The catalogue is fetched on load and whenever the user explicitly refreshes.
@@ -110,7 +115,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, [started, paused, roundEnded, pack, timeLimit]);
 
   const signal = useCallback((kind: GameSignal, count = 1) => {
-    if (kind !== 'complete') setStarted(true);
+    if (kind !== 'complete' && kind !== 'tick') setStarted(true);
     if (kind === 'correct') setCorrectCount((score) => score + Math.max(0, count));
     if (kind === 'incorrect') setWrongCount((score) => score + Math.max(0, count));
     if (kind === 'review') setReviewedCount((total) => total + Math.max(0, count));
@@ -127,10 +132,19 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
+  const isWheel = currentMode === 'spin-wheel';
+  const isScored = ['match-up', 'quiz', 'find-the-match', 'anagram'].includes(currentMode);
+  const showClock = timeLimit > 0 || stopwatch;
+  const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
 
+  function recordAnswer(answer: AnswerReview) {
+    setAnswers((previous) => previous.some((item) => item.id === answer.id) ? previous : [...previous, answer]);
+  }
+
   function clearSession() {
+    setAnswers([]);
     setCorrectCount(0);
     setWrongCount(0);
     setReviewedCount(0);
@@ -175,13 +189,17 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
-      <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>
+      {showClock && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
       <label className="ig-timer-select">Time limit
-        <select aria-label="Time limit" value={timeLimit} onChange={(event) => {
-          setTimeLimit(Number(event.target.value));
-          resetGame();
-        }}>
+        <select aria-label="Time limit" value={!timeLimit && stopwatch ? 'count-up' : timeLimit}
+          onChange={(event) => {
+            const countUp = event.target.value === 'count-up';
+            setStopwatch(countUp);
+            setTimeLimit(countUp ? 0 : Number(event.target.value));
+            resetGame();
+          }}>
+          <option value="count-up">Count up</option>
           {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
         </select>
       </label>
@@ -255,23 +273,25 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
         </div>
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
-          <span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span><span>◈ {reviewedCount} reviewed</span>
-          <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>
+          {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
+          <span>◈ {reviewedCount} reviewed</span>
+          {showClock && <span>{timeLimit ? 'Countdown' : 'Stopwatch'} · {time}</span>}
         </div>
         {timeLimit > 0 && !started && !roundEnded && <div className="ig-start-panel">
           <p>The timer starts when you are ready.</p>
           <button type="button" className="ig-primary-button" onClick={() => setStarted(true)}>Start timed round</button>
         </div>}
-        <fieldset className="ig-game-stage" disabled={paused || roundEnded || (timeLimit > 0 && !started)}
+        <fieldset className="ig-game-stage" disabled={stageDisabled}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
-          {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} />}
+          {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} recordAnswer={recordAnswer} />}
           {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
-          {currentMode === 'spin-wheel' && <SpinWheel pairs={pairs} />}
-          {currentMode === 'open-box' && <OpenBox pairs={pairs} />}
-          {currentMode === 'quiz' && <Quiz questions={questions} />}
-          {currentMode === 'find-the-match' && <FindMatchBoard pairs={pairs} />}
-          {currentMode === 'anagram' && <AnagramTiles pairs={pairs} />}
+          {isWheel && <SpinWheel pairs={pairs} options={wheelOptions} onOptionsChange={setWheelOptions}
+            blocked={stageDisabled} ended={roundEnded} />}
+          {currentMode === 'open-box' && <OpenBox pairs={pairs} questions={gameIsAvailable('quiz', pairs) ? questions : []} />}
+          {currentMode === 'quiz' && <Quiz questions={questions} blocked={stageDisabled} recordAnswer={recordAnswer} />}
+          {currentMode === 'find-the-match' && <FindMatchBoard pairs={pairs} recordAnswer={recordAnswer} />}
+          {currentMode === 'anagram' && <AnagramTiles pairs={pairs} blocked={stageDisabled} recordAnswer={recordAnswer} />}
         </fieldset>
         {paused && !roundEnded && <div className="ig-paused-banner" role="status">Paused — resume the timer to continue playing.</div>}
         {roundEnded && <div className="ig-result-panel" role="status">
@@ -279,10 +299,20 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <h3>{timeExpired ? "Time's up!" : 'Round finished!'}</h3>
           <p><strong>{activeGame.label}</strong> · {formatClock(seconds)} played</p>
           <div className="ig-result-stats">
-            <span><strong>{correctCount}</strong>Correct first attempts</span>
-            <span><strong>{wrongCount}</strong>Incorrect attempts</span>
+            {isScored && <>
+              <span><strong>{correctCount}</strong>Correct first attempts</span>
+              <span><strong>{wrongCount}</strong>Incorrect attempts</span>
+            </>}
             <span><strong>{reviewedCount}</strong>Items reviewed</span>
           </div>
+          {isScored && answers.length > 0 && <details className="ig-answer-review">
+            <summary>Review answers ({answers.length})</summary>
+            <ol>{answers.map((answer) => <li key={answer.id}>
+              <strong>{answer.prompt}</strong>
+              <div>{answer.correct ? '✓ Correct' : '✕ First answer'} · {answer.submitted}</div>
+              {!answer.correct && <div>Correct answer · {answer.expected}</div>}
+            </li>)}</ol>
+          </details>}
           <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery. Scores are not saved to your account.</p>
           <div className="ig-result-actions">
             <button type="button" onClick={() => resetGame()}>↻ Play this round again</button>
@@ -294,39 +324,3 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     </>}
   </section></GameSignalContext.Provider>;
 }
-
-function FlashCards({ pairs }: { pairs: GamePair[] }) {
-  const signal = useGameSignal();
-  const [index, setIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const reviewed = useRef(new Set<string>());
-  const card = pairs[index];
-  if (!card) return <p>No cards available.</p>;
-  function go(next: number) { signal('start'); setIndex(next); setRevealed(false); }
-  function flip() {
-    if (!revealed && !reviewed.current.has(card.id)) {
-      reviewed.current.add(card.id);
-      signal('review');
-    }
-    signal('flip');
-    setRevealed((value) => !value);
-  }
-  return <div className="ig-content">
-    <p className="ig-instruction">Read the definition, think of the matching term, then flip the card.</p>
-    <div className="ig-score">Card {index + 1} / {pairs.length}</div>
-    <button type="button" className={'ig-flashcard' + (revealed ? ' is-flipped' : '')}
-      onClick={flip}>
-      <span className="ig-eyebrow">{revealed ? 'KEY TERM' : 'DEFINITION'}</span>
-      <strong>{revealed ? card.term : card.definition}</strong>
-      <small>{revealed ? 'Click to see the definition' : 'Click to reveal the term'}</small>
-    </button>
-    <div className="ig-card-controls">
-      <button type="button" disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
-      <button type="button" onClick={flip}>{revealed ? 'Show definition' : 'Flip card'}</button>
-      <button type="button" onClick={() => index === pairs.length - 1 ? signal('complete') : go(index + 1)}>
-        {index === pairs.length - 1 ? 'Finish deck' : 'Next →'}
-      </button>
-    </div>
-  </div>;
-}
-

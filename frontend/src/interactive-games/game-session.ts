@@ -1,14 +1,34 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useRef } from 'react';
 
 /**
  * Lightweight feedback channel for practice-only game rounds.
  * Signals are local to the mounted game; no scores are sent to a server.
  * Revealing a card or dealing a speaking prompt is never counted as mastery.
  */
-export type GameSignal = 'start' | 'correct' | 'incorrect' | 'review' | 'flip' | 'deal' | 'spin' | 'open' | 'complete';
+export type GameSignal = 'start' | 'correct' | 'incorrect' | 'review' | 'flip' | 'deal' | 'spin' | 'tick' | 'open' | 'complete';
 export type GameSignalHandler = (signal: GameSignal, count?: number) => void;
 export const GameSignalContext = createContext<GameSignalHandler>(() => {});
 export const useGameSignal = () => useContext(GameSignalContext);
+
+export type AnswerReview = {
+  id: string;
+  prompt: string;
+  submitted: string;
+  expected: string;
+  correct: boolean;
+};
+export type RecordAnswer = (answer: AnswerReview) => void;
+
+/** Keep marking visible briefly. A paused or ended stage never advances itself. */
+export function useGameAdvance(active: boolean, advance: () => void, delay = 1100) {
+  const latest = useRef(advance);
+  useEffect(() => { latest.current = advance; }, [advance]);
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setTimeout(() => latest.current(), delay);
+    return () => window.clearTimeout(timer);
+  }, [active, delay]);
+}
 
 let sharedAudio: AudioContext | null = null;
 
@@ -25,24 +45,27 @@ export function soundEffect(kind: Exclude<GameSignal, 'start'>) {
       review: [[440, 0]],
       flip: [[560, 0]],
       deal: [[390, 0], [460, 0.055]],
-      spin: [[392, 0], [523, 0.09], [659, 0.18]],
+      spin: [[850, 0]],
+      tick: [[1050, 0]],
       open: [[330, 0], [660, 0.09]],
       complete: [[523, 0], [659, 0.1], [784, 0.2]],
     };
+    const short = kind === 'tick' || kind === 'spin';
+    const duration = short ? .035 : .16;
     const start = context.currentTime + 0.005;
     for (const [frequency, offset] of tones[kind]) {
       const oscillator = context.createOscillator();
       const volume = context.createGain();
       const time = start + offset;
-      oscillator.type = 'sine';
+      oscillator.type = short ? 'triangle' : 'sine';
       oscillator.frequency.value = frequency;
       volume.gain.setValueAtTime(0.0001, time);
-      volume.gain.exponentialRampToValueAtTime(0.075, time + 0.012);
-      volume.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+      volume.gain.exponentialRampToValueAtTime(short ? .04 : .075, time + .008);
+      volume.gain.exponentialRampToValueAtTime(0.0001, time + duration);
       oscillator.connect(volume);
       volume.connect(context.destination);
       oscillator.start(time);
-      oscillator.stop(time + 0.17);
+      oscillator.stop(time + duration + .01);
     }
   } catch {
     // Private-mode, autoplay and unsupported devices must never stop gameplay.
