@@ -9,7 +9,8 @@ import './wordwall-modes.css';
  */
 export function MatchUpBoard({ pairs, recordAnswer }: { pairs: readonly GamePair[]; recordAnswer: RecordAnswer }) {
   const signal = useGameSignal();
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
+  const visiblePageSize = pageSize === 'all' ? pairs.length : pageSize;
   const [randomLayout, setRandomLayout] = useState(false);
   const [retryEnabled, setRetryEnabled] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -20,8 +21,8 @@ export function MatchUpBoard({ pairs, recordAnswer }: { pairs: readonly GamePair
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [firstScore, setFirstScore] = useState(0);
-  const pages = Math.max(1, Math.ceil(pairs.length / pageSize));
-  const items = useMemo(() => pairs.slice(page * pageSize, (page + 1) * pageSize), [pairs, page, pageSize]);
+  const pages = Math.max(1, Math.ceil(pairs.length / visiblePageSize));
+  const items = useMemo(() => pairs.slice(page * visiblePageSize, (page + 1) * visiblePageSize), [pairs, page, visiblePageSize]);
   const terms = useMemo(() => randomLayout ? shuffleItems(items) : items, [items, randomLayout]);
   const definitions = useMemo(() => randomLayout ? shuffleItems(items) : [...items].reverse(), [items, randomLayout]);
   const placed = Object.values(answers);
@@ -97,10 +98,10 @@ export function MatchUpBoard({ pairs, recordAnswer }: { pairs: readonly GamePair
   return <div className="ig-content ig-match-board">
     <p className="ig-instruction">Drag each term beside its definition or select a term and then a slot. Place every term to submit.</p>
     <div className="ig-template-options" role="group" aria-label="Match Up options">
-      <label>Matches per page <select value={pageSize} disabled={started} onChange={(event) => setPageSize(Number(event.target.value))}>
+      <label>Matches per page <select value={pageSize} disabled={started} onChange={(event) => setPageSize(event.target.value === 'all' ? 'all' : Number(event.target.value))}>
         <option value="5">5</option><option value="10">10</option><option value="20">20</option>
         <option value="30">30</option>
-        <option value={pairs.length}>All ({pairs.length})</option>
+        <option value="all">All ({pairs.length})</option>
       </select></label>
       <label><input type="checkbox" checked={randomLayout} disabled={started} onChange={(event) => setRandomLayout(event.target.checked)} /> Shuffle layout</label>
       <label><input type="checkbox" checked={retryEnabled} disabled={started} onChange={(event) => setRetryEnabled(event.target.checked)} /> Allow one retry</label>
