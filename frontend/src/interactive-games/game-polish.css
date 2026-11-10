@@ -248,7 +248,10 @@
 .ig-answer-review ol { padding-left: 1.5rem; }
 .ig-answer-review li { margin-bottom: 10px; overflow-wrap: anywhere; }
 
-/* Keep matching definitions readable: never more than two columns. */
+/* Keep matching definitions readable: never more than two columns.
+   A desktop sidebar can leave a narrow game board even at a wide viewport,
+   so the one-column rule also follows the actual board width. */
+.ig-match-board .ig-match-board-grid { container: ig-match-layout / inline-size; }
 .ig-match-definitions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -256,7 +259,10 @@
 }
 .ig-match-definitions > h3 { grid-column: 1 / -1; }
 .ig-match-definitions .ig-match-row { min-width: 0; }
-.ig-match-definitions .ig-match-description { overflow-wrap: break-word; line-height: 1.5; }
+.ig-match-definitions .ig-match-description { overflow-wrap: anywhere; line-height: 1.5; }
+@container ig-match-layout (max-width: 1140px) {
+  .ig-match-definitions { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 1280px) {
   .ig-match-definitions { grid-template-columns: minmax(0, 1fr); }
 }
