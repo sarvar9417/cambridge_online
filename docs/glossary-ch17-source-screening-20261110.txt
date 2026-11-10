@@ -2,7 +2,7 @@ Chapter 17 supplementary glossary source-screening (10 November 2026)
 
 Source: user-provided Hodder Cambridge International AS & A Level Computer Science 9618, Chapter 17 PDF, 15 PDF pages (printed pp. 410–424). The copyrighted chapter PDF is not committed.
 
-Scope: 19 of the 36 Chapter 17 supplementary records currently flagged supplementary_manual_review_required. This is a source-content screening, not a final glossary inclusion decision.
+Scope: all 36 Chapter 17 supplementary records currently flagged supplementary_manual_review_required. This is a source-content screening, not a final glossary inclusion decision.
 
 Method:
 - Read the relevant paragraph, diagram, table or numbered process on the printed page recorded in the companion CSV.
@@ -13,12 +13,14 @@ Method:
 - Keep every screened record hidden pending separate curriculum relevance and wording review.
 
 Results:
-- 16 records have direct concept support in the chapter.
-- 1 record is a context-specific paraphrase rather than a named Key Term (Secret exponent).
+- 28 records have direct concept support in the chapter.
+- 3 records are textbook examples or application contexts rather than independent glossary terms.
+- 2 records are context-specific paraphrases rather than named Key Terms.
 - 1 record is explicitly historical, not a current factual limit (QKD distance limitation).
+- 1 record is a plausible inference needing more precise source confirmation (Certificate-supported signature verification).
 - 1 record is not established as phrased: the text mentions cracking a short key, but does not specify brute-force key cracking.
-- 17 other Chapter 17 manual-review records were not checked in this batch.
+- All 36 Chapter 17 manual-review records have now been screened for source support; no automatic promotion is recommended.
 
 No live database rows were modified, no term was promoted, and no source_ref or private Drive path is included in this artifact.
 
-Next: check the remaining Chapter 17 records against pp. 410–424; separately decide which source-supported concepts are valuable, non-redundant syllabus vocabulary; record individual decisions before any reversible, approved database update.
+Next: separately decide which source-supported concepts are valuable, non-redundant syllabus vocabulary; record individual decisions before any reversible, approved database update.
