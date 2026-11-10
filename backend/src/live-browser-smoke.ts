@@ -696,7 +696,10 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await student.waitForSelector('.ig-practice-save button');
   await student.click('.ig-practice-save button');
   await student.waitForFunction(()=>document.querySelector('.ig-practice-save')?.textContent?.includes('Practice saved'));
-  await assertText('.ig-practice-save','not an official assessment');
+  const studentSaveNotice=await student.$eval('.ig-practice-save',(node)=>node.textContent??'');
+  if(!studentSaveNotice.includes('not an official assessment')) {
+    throw new Error('Student saved-practice disclosure is missing: '+studentSaveNotice);
+  }
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
   await studentContext.close();
   await teacherContext.close();
