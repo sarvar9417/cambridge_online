@@ -332,22 +332,33 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
     )).rows[0]?.request_count).toBe(1);
   });
   it('schedules real PostgreSQL spaced review only from first attempts and ignores retries', async () => {
-    // The isolated live-test schema omits topics.level whereas the production
-    // syllabus schema keeps it. Test the real SRS trigger against either layout.
-    const hasLevel = await client.query<{present:boolean}>(
-      "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='topics' and column_name='level') as present",
+    // Isolated live-test DDL intentionally omits some teaching metadata:
+    // derive only the known optional columns, never a raw SQL identifier from
+    // untrusted input. Both schemas must exercise the SAME SRS SQL trigger.
+    const optional = await client.query<{table_name:string;column_name:string}>(
+      `select table_name,column_name from information_schema.columns
+        where table_schema='public' and table_name in ('topics','subtopics')
+          and column_name in ('level','sort_order')`,
     );
-    const topicSql = hasLevel.rows[0]?.present
-      ? `insert into topics(syllabus_id,number,title,level,sort_order)
-         select syllabus_id,91,'Spaced-review acceptance','A2',91 from classes where id=$1
-         returning id`
-      : `insert into topics(syllabus_id,number,title,sort_order)
-         select syllabus_id,91,'Spaced-review acceptance',91 from classes where id=$1
-         returning id`;
-    const topic = await client.query<{id:string}>(topicSql,[classId]);
+    const has = (tableName:string,columnName:string) =>
+      optional.rows.some((row) => row.table_name===tableName && row.column_name===columnName);
+    const topicColumns = ['syllabus_id','number','title',
+      ...(has('topics','level') ? ['level'] : []),
+      ...(has('topics','sort_order') ? ['sort_order'] : [])];
+    const topicValues = ['syllabus_id','91',"'Spaced-review acceptance'",
+      ...(has('topics','level') ? ["'A2'"] : []),
+      ...(has('topics','sort_order') ? ['91'] : [])];
+    const topic = await client.query<{id:string}>(
+      `insert into topics(${topicColumns.join(',')})
+       select ${topicValues.join(',')} from classes where id=$1 returning id`, [classId],
+    );
+    const subtopicColumns = ['topic_id','code','title',
+      ...(has('subtopics','sort_order') ? ['sort_order'] : [])];
+    const subtopicValues = ['$1',"'91.1'","'Spaced revision'",
+      ...(has('subtopics','sort_order') ? ['1'] : [])];
     const subtopic = await client.query<{id:string}>(
-      `insert into subtopics(topic_id,code,title,sort_order)
-       values ($1,'91.1','Spaced revision',1) returning id`, [topic.rows[0]!.id],
+      `insert into subtopics(${subtopicColumns.join(',')})
+       values (${subtopicValues.join(',')}) returning id`, [topic.rows[0]!.id],
     );
     const entry = await client.query<{id:string}>(
       `insert into glossary_terms(subtopic_id,term,definition_en)
