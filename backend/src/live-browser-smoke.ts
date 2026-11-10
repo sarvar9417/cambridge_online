@@ -432,6 +432,23 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.keyboard.press('Backspace');
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-scope-chapter').length===2);
 
+  // A viewport-only media query is insufficient: the desktop sidebar and
+  // other shell panels can leave the matching board much narrower than 1440px.
+  // Check the rendered CSS tracks at narrow and wide *container* widths.
+  const matchLayout=await teacher.$eval('.ig-match-board-grid',(board)=>{
+    const definitions=board.querySelector<HTMLElement>('.ig-match-definitions');
+    if(!definitions)throw new Error('Missing Match Up definitions grid');
+    const columns=()=>getComputedStyle(definitions).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length;
+    const narrow=columns();
+    const previous=(board as HTMLElement).style.width;
+    (board as HTMLElement).style.width='1500px';
+    const wide=columns();
+    (board as HTMLElement).style.width=previous;
+    return {narrow,wide};
+  });
+  if(matchLayout.narrow!==1||matchLayout.wide!==2)
+    throw new Error('Match Up must reflow from one to two readable definition columns: '+JSON.stringify(matchLayout));
+
   // Complete all eight games through the same controls a teacher actually uses.
   for(const [index,term] of gameTerms.entries()){
     const bankIndex=await teacher.$$eval('.ig-bank-term',(nodes,expected)=>
