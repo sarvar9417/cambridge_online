@@ -150,10 +150,22 @@ export function isAnagramEligible(term: string): boolean {
  * Duplicate labels are excluded from multiple-choice rounds rather than causing
  * the whole chapter's Quiz mode to disappear.
  */
+function answerEvidenceRank(pair: GamePair): number {
+  const entry = pair as Partial<LiveGameTerm>;
+  if (entry.isOfficialKeyTerm && entry.definitionEvidenceStatus === 'official_textbook_definition') return 0;
+  if (entry.definitionEvidenceStatus === 'supplementary_targeted_verified') return 1;
+  if (entry.definitionEvidenceStatus === 'supplementary_source_screened') return 2;
+  if (entry.definitionEvidenceStatus === 'supplementary_manual_review_required') return 5;
+  return entry.status === 'needs_review' ? 4 : 3;
+}
+
 function uniqueAnswerPairs<T extends GamePair>(pairs: readonly T[]): T[] {
   const terms = new Set<string>();
   const definitions = new Set<string>();
-  return pairs.filter((pair) => {
+  // Prefer explicitly verified source entries when several chapters use the
+  // same answer label. Stable sort preserves the supplied order on ties.
+  const preferred = [...pairs].sort((a, b) => answerEvidenceRank(a) - answerEvidenceRank(b));
+  return preferred.filter((pair) => {
     const termKey = pair.term.trim().toLocaleLowerCase('en');
     const definitionKey = pair.definition.trim().toLocaleLowerCase('en');
     if (!termKey || !definitionKey || terms.has(termKey) || definitions.has(definitionKey)) return false;
