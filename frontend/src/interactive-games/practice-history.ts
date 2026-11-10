@@ -19,6 +19,10 @@ export interface PracticeHistory {
   assessed: false;
   recent: PracticeRun[];
   needsReviewIds: string[];
+  /** Scheduled due terms may include a prior correct response whose interval expired. */
+  dueReviewIds?: string[];
+  scheduledTermCount?: number;
+  nextReviewAt?: string | null;
 }
 export interface SavePracticeRequest {
   runId: string;
