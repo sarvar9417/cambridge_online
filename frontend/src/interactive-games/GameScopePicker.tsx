@@ -112,7 +112,9 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
                         checked={included.some((scope) => scope.kind === 'section' && scope.code === section.code)}
                         onChange={(event) => narrow({ chapterNo: chapter.chapterNo, kind: 'section', code: section.code }, event.target.checked)} />
                       <span>{section.code} · {section.title}</span>
-                      <small>{section.termCount}</small>
+                      <small>{section.termCount}{included.some((scope) =>
+                        scope.kind === 'section' && Boolean(scope.code && section.code.startsWith(scope.code + '.')))
+                        ? ' · included by selected parent' : ''}</small>
                     </label>,
                   ) : <p>{filter.trim() ? 'No Hodder section matches this search.' : 'No Hodder glossary links available yet.'}</p>}
                 </div>
