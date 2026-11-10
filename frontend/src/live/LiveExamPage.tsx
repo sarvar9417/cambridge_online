@@ -441,6 +441,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const chooseSetupMode=(mode:'quick'|'advanced')=>{
     setSetupMode(mode);
     if(mode!=='quick')return;
+    // Never carry an invisible multi-chapter or partial Section filter into Quick Start.
+    if(quickChapter===''){
+      setCoursebookSectionCodes([]);
+      setSelected0478BookSectionCodes([]);
+    }
     setSelectionMode('auto');setQuestionOrder('balanced');
     setDifficulty('');setMarksMin('');setMarksMax('');setYearFrom('');setYearTo('');
     setSeries([]);setComponents(syllabusCode==='0478'?[2]:[]);
