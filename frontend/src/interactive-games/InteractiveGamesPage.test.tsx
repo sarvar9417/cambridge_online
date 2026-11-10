@@ -139,7 +139,7 @@ describe('database-backed Interactive Games multi-selection', () => {
   });
 
   it('switches between 9618 and 0478 without leaking chapter scopes across syllabuses', async () => {
-    mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
+    mockApi.mockImplementation((async (path: string, init?: RequestInit) => {
       if (path === '/content/interactive-games/catalog?courseCode=0478') {
         return { data: {
           courseCode: '0478', chapters: [{
@@ -154,7 +154,7 @@ describe('database-backed Interactive Games multi-selection', () => {
         return { data: { ...pack(input.scopes), courseCode: input.courseCode } };
       }
       return respond(path, init);
-    });
+    }) as typeof api);
     await render(true);
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
     await change('select[aria-label="Syllabus"]', '0478');
