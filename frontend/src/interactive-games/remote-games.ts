@@ -254,6 +254,34 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
   });
 }
 
+/** Retest ONLY due terms. Distractor choices may come from the selected
+ * chapter bank even when just one term is due; no invented wrong answers.
+ * Questions remain independent first-attempt practice, not verified mastery.
+ */
+export function createTargetedQuizQuestions(
+  targets: readonly GamePair[], sourceBank: readonly GamePair[],
+): QuizQuestion[] {
+  return targets.flatMap((pair) => {
+    const label = pair.term.trim().toLocaleLowerCase('en');
+    const definition = pair.definition.trim().toLocaleLowerCase('en');
+    const others = uniqueAnswerPairs(sourceBank.filter((item) => item.id !== pair.id &&
+      item.term.trim().toLocaleLowerCase('en') !== label &&
+      item.definition.trim().toLocaleLowerCase('en') !== definition));
+    const options = findMatchOptions([pair, ...others], 0);
+    if (options.length !== 4) return [];
+    const answerIndex = options.findIndex((item) => item.id === pair.id);
+    if (answerIndex < 0) return [];
+    return [{
+      id: 'quiz-' + pair.id,
+      prompt: pair.definition,
+      options: options.map((item) => item.term),
+      answerIndex,
+      explanation: pair.term + ' — ' + pair.definition,
+      sourceContext: gamePairProvenance(pair) || undefined,
+    }];
+  });
+}
+
 /** Prefer vocabulary from across the selected bank, not only consecutive
  * alphabetically sorted words. A coprime stride permutes the whole bank:
  * rotating consecutive windows covers every eligible item without repeats
