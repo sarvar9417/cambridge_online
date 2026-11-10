@@ -367,9 +367,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <h3>My practice history</h3>
         <p>Private formative record. Mistake review uses first attempts; repeating a corrected answer does not prove mastery.</p>
         {practiceHistoryError && <p role="status">{practiceHistoryError}</p>}
-        {practiceHistory?.recent.length ? <p>{practiceHistory.recent.length} recent saved rounds ·
-          {practiceHistory.needsReviewIds.length} terms to revisit</p>
+        {practiceHistory?.recent.length ? <p>{practiceHistory.recent.length} recent saved rounds</p>
           : <p>No saved rounds yet.</p>}
+        {practiceHistory?.needsReviewIds.length ? <p>{practiceHistory.needsReviewIds.length}
+          {practiceHistory.needsReviewIds.length === 1 ? ' term' : ' terms'} to revisit</p> : null}
         {practiceHistory?.recent.length ? <details>
           <summary>Recent practice results</summary>
           <ol>{practiceHistory.recent.map((run) => <li key={run.runId}>
