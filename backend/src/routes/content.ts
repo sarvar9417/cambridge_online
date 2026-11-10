@@ -80,7 +80,7 @@ export function createContentRouter(service: ContentService) {
         evidenceType: z.enum(['scored_response','self_rating']),
       }).strict()).max(500),
     }).strict().superRefine((input, context) => {
-      const seen = new Set(input.attempts.map((item) => item.termId));
+      const seen = new Set(input.attempts.map((item) => item.termId.toLowerCase()));
       if (seen.size !== input.attempts.length) context.addIssue({
         code: 'custom', path: ['attempts'], message: 'Duplicate glossary term attempts',
       });
