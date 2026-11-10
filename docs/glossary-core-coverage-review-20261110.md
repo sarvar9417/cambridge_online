@@ -8,18 +8,25 @@
 - Core eligibility remains unchanged: approved + visible + individually supported evidence. No supplementary item was relabelled as an official textbook Key Term.
 - The official Hodder 2019 Chapter 10–12 PDFs were not accessible in the current Project files. The Google Drive connector is disabled by the workspace administrator. Existing Hodder source references were preserved; the additional evidence recorded here is from Cambridge's official syllabus/pseudocode guide, not a claim that the missing Hodder pages were reopened.
 
-## Baseline and decision
+## Baseline and result
 
-The 9618-only baseline contained 44 subtopics. Four sections were at or below four Core terms:
+The 9618-only baseline contained 44 subtopics and 723 Core terms. Four sections were at or below four Core terms:
 
 | Subtopic | Before | After | Decision |
 |---|---:|---:|---|
-| 10.1 Data Types and Records | 4 | 10 | Added the six explicitly listed pseudocode data types: BOOLEAN, CHAR, DATE, INTEGER, REAL, STRING |
+| 10.1 Data Types and Records | 4 | 10 | Promoted the six explicitly listed pseudocode data types: BOOLEAN, CHAR, DATE, INTEGER, REAL, STRING |
 | 10.3 Files | 1 | 4 | Promoted Text file, File mode and EOF(file); file commands/modes remain supporting syntax, not separate Core concepts |
 | 11.2 Constructs | 0 | 6 | Promoted IF statement, CASE statement, Nested IF and the three syllabus loop types |
 | 12.2 Program Design | 4 | 4 | No forced additions; the four official Key Terms already cover structure charts and state-transition concepts. Revisit only when the Hodder Chapter 12 source is available. |
 
-The review promotes 15 existing records. It does not create duplicate rows, change `is_official_key_term`, change `status`, or delete data. The two manual-review entries promoted in 10.1/11.2 were checked against explicit Cambridge pseudocode-guide definitions and their scope in the syllabus.
+The live database read-back confirms:
+- **15 existing records** updated; no new glossary rows created and no records deleted.
+- **738 Core terms** in the active 9618 database scope (up from 723).
+- **0 subtopics** with zero Core terms (down from 1).
+- **2 subtopics** remain at 1–4 Core terms: 10.3 and 12.2, each with 4.
+- All 15 records are visible and have `supplementary_targeted_verified` evidence status.
+- Three previously manual-review entries were individually checked against Cambridge's official guide and promoted: REAL, IF statement and CASE statement.
+- `is_official_key_term` and `status` were not changed for any record.
 
 ## Definition policy
 
@@ -42,7 +49,7 @@ The database label `2026-2028` is not Cambridge's published naming convention: C
 ## Reversibility
 
 - CSV manifest: `glossary-core-coverage-review-20261110.csv`
-- Forward SQL: `glossary-core-coverage-review-20261110-forward.sql`
-- Rollback SQL: `glossary-core-coverage-review-20261110-rollback.sql`
+- Guarded forward SQL: `glossary-core-coverage-review-20261110-forward.sql`
+- Exact rollback SQL: `glossary-core-coverage-review-20261110-rollback.sql`
 
-All changes are UUID-scoped and can be reverted exactly. This review does not merge the PR or claim a production deployment.
+All changes are UUID-scoped and can be reverted exactly. The forward SQL checks the exact old values before changing each row. This review does not merge the PR or claim a production deployment.
