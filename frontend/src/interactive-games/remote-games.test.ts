@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
   createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
-  isAnagramEligible, poolForMode, selectGamePairs, normalizeGameScopes, toggleNarrowScope, type LiveGameTerm,
+  isAnagramEligible, poolForMode, selectGamePairs, normalizeGameScopes, toggleNarrowScope,
+  DEFAULT_GAME_LENGTH, GAME_LENGTHS, type LiveGameTerm,
 } from './remote-games';
 
 const term = (id: number, word: string): LiveGameTerm => ({
@@ -89,6 +90,24 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(isAnagramEligible('LEVEL')).toBe(true);
     expect(scrambleTerm('ABBA')).not.toBe('ABBA');
     expect([...scrambleTerm('ABBA')].sort()).toEqual([...('ABBA')].sort());
+  });
+
+  it('defaults to 30 and offers 10, 20, 30 and larger rounds rather than a 29-term ceiling', () => {
+    expect(DEFAULT_GAME_LENGTH).toBe(30);
+    expect(GAME_LENGTHS).toContain(10);
+    expect(GAME_LENGTHS).toContain(20);
+    expect(GAME_LENGTHS).toContain(30);
+    expect(GAME_LENGTHS).toContain(40);
+    expect(GAME_LENGTHS).toContain(50);
+    expect(GAME_LENGTHS).toContain(100);
+    expect(GAME_LENGTHS).toContain(500);
+    expect(GAME_LENGTHS).not.toContain(29);
+    const terms = Array.from({ length: 75 }, (_, index) => term(index, 'TERM-' + index));
+    expect(selectGamePairs(terms, DEFAULT_GAME_LENGTH, 0)).toHaveLength(30);
+    expect(selectGamePairs(terms, 40, 0)).toHaveLength(40);
+    expect(selectGamePairs(terms, 50, 0)).toHaveLength(50);
+    expect(selectGamePairs(terms, 100, 0)).toHaveLength(75);
+    expect(new Set(selectGamePairs(terms, 100, 0).map((pair) => pair.id)).size).toBe(75);
   });
 
   it('cycles each supplied vocabulary term through fair limited rounds', () => {
