@@ -17,6 +17,8 @@ type Term = {
   book_section: string;
   official: boolean;
   source_corrected?: string;
+  sourcePage?: number;
+  bodyTextSupplementary?: boolean;
 };
 type Chapter = { chapterNo: number; sections: Section[]; terms: Term[] };
 type Manifest = {
@@ -24,7 +26,7 @@ type Manifest = {
   syllabusVersion: string;
   sourceTitle: string;
   dataStatus: string;
-  editorialAudit: {datasetRows: number; officialVerified: number; supplementaryVerified: number};
+  editorialAudit: {datasetRows: number; officialVerified: number; supplementaryVerified: number; bodyTextSupplementaryTerms: number; pdfPagesInspected: number; bodyPrintedPagesAudited: number};
   chapters: Chapter[];
 };
 const dirnameHere = dirname(fileURLToPath(import.meta.url));
@@ -43,13 +45,16 @@ describe('Hodder 0478 Interactive Games coverage manifest', () => {
     expect(chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
-  it('tracks 389 source-screened keywords and all 142 book sections', () => {
-    expect(terms).toHaveLength(389);
+  it('tracks 513 source-screened keywords and all 142 book sections', () => {
+    expect(terms).toHaveLength(513);
     expect(terms.filter((term) => term.official)).toHaveLength(354);
-    expect(terms.filter((term) => !term.official)).toHaveLength(35);
-    expect(manifest.editorialAudit.datasetRows).toBe(389);
+    expect(terms.filter((term) => !term.official)).toHaveLength(159);
+    expect(manifest.editorialAudit.datasetRows).toBe(513);
     expect(manifest.editorialAudit.officialVerified).toBe(354);
-    expect(manifest.editorialAudit.supplementaryVerified).toBe(35);
+    expect(manifest.editorialAudit.supplementaryVerified).toBe(159);
+    expect(manifest.editorialAudit.bodyTextSupplementaryTerms).toBe(124);
+    expect(manifest.editorialAudit.pdfPagesInspected).toBe(404);
+    expect(manifest.editorialAudit.bodyPrintedPagesAudited).toBe(384);
     expect(sections).toHaveLength(142);
     expect(new Set(sections.map((section) => section.section_code)).size).toBe(142);
   });
@@ -79,6 +84,34 @@ describe('Hodder 0478 Interactive Games coverage manifest', () => {
     ];
     for (const [corrected, printed] of fixes) {
       expect(chapter3.terms.some((term) => term.term === corrected && term.source_corrected === printed && !term.official)).toBe(true);
+    }
+  });
+
+  it('documents 124 body-text terms with source pages and valid book sections', () => {
+    const bodyTerms = terms.filter((term) => term.bodyTextSupplementary);
+    expect(bodyTerms).toHaveLength(124);
+    expect(new Set(bodyTerms.map((term) => term.chapterNo)).size).toBe(10);
+    for (const term of bodyTerms) {
+      expect(term.official, term.term).toBe(false);
+      expect(term.sourcePage, term.term).toBeTypeOf('number');
+      const section = sectionsByCode.get(term.book_section);
+      expect(section, term.term).toBeDefined();
+      expect(term.sourcePage!, term.term).toBeGreaterThanOrEqual(section!.page_start);
+      expect(term.sourcePage!, term.term).toBeLessThanOrEqual(section!.page_end);
+    }
+    for (const [chapterNo, name] of [
+      [1, 'IPv6 address'],
+      [2, 'packet sequence number'],
+      [3, 'temperature sensor'],
+      [4, 'code editor'],
+      [5, 'genesis block'],
+      [6, 'collaborative filtering'],
+      [7, 'flowchart decision symbol'],
+      [8, 'CASE statement'],
+      [9, 'SQL aggregate function'],
+      [10, 'logic expression'],
+    ] as const) {
+      expect(bodyTerms.some((term) => term.chapterNo === chapterNo && term.term === name), name).toBe(true);
     }
   });
 
