@@ -19,6 +19,7 @@ import './game-polish.css';
 
 /** Source-backed multi-chapter practice, with session-only feedback. */
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
+  const [courseCode, setCourseCode] = useState<'9618' | '0478'>('9618');
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
   const [scopes, setScopes] = useState<GameScope[]>([]);
@@ -61,9 +62,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     let active = true;
     setCatalogLoading(true);
     setCatalogError('');
-    void api<{ data: LiveGameCatalog }>('/content/interactive-games/catalog?courseCode=9618')
+    void api<{ data: LiveGameCatalog }>(`/content/interactive-games/catalog?courseCode=${courseCode}`)
       .then(({ data }) => {
-        if (!active) return;
+        if (!active || data.courseCode !== courseCode) return;
         setCatalog(data);
         if (!initializedScopes.current && data.chapters.length) {
           initializedScopes.current = true;
@@ -81,11 +82,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       })
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
-  }, [refreshVersion]);
+  }, [refreshVersion, courseCode]);
 
   const scopesKey = JSON.stringify(scopes);
   useEffect(() => {
-    if (catalogLoading || !catalog || scopes.length === 0) {
+    if (catalogLoading || !catalog || catalog.courseCode !== courseCode || scopes.length === 0) {
       setPack(null);
       setPackLoading(false);
       setPackError('');
@@ -100,7 +101,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       method: 'POST',
       signal: request.signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseCode: '9618', scopes: normalizeGameScopes(scopes) }),
+      body: JSON.stringify({ courseCode, scopes: normalizeGameScopes(scopes) }),
     })
       .then(({ data }) => {
         if (!active) return;
@@ -114,7 +115,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       })
       .finally(() => { if (active) setPackLoading(false); });
     return () => { active = false; request.abort(); };
-  }, [scopes, catalog, catalogLoading]);
+  }, [scopes, catalog, catalogLoading, courseCode]);
 
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
@@ -179,6 +180,19 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setPlaySession((value) => value + 1);
     clearSession();
   }
+  function changeCourseCode(next: '9618' | '0478') {
+    if (next === courseCode) return;
+    initializedScopes.current = false;
+    setCatalog(null);
+    setPack(null);
+    setScopes([]);
+    setCatalogError('');
+    setPackError('');
+    setRound(0);
+    setPlaySession((value) => value + 1);
+    clearSession();
+    setCourseCode(next);
+  }
   function changeScopes(next: GameScope[]) {
     const normalized = normalizeGameScopes(next);
     if (JSON.stringify(normalized) === scopesKey) return;
@@ -238,7 +252,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
      </div>
     <div className="ig-hero">
       <div>
-        <span className="ig-eyebrow">CAMBRIDGE 9618 · LIVE CURRICULUM BANK</span>
+        <span className="ig-eyebrow">CAMBRIDGE {courseCode} · LIVE CURRICULUM BANK</span>
         <h1>Learn by playing.</h1>
         <p>Select any combination of chapters, syllabus topics and Hodder sections. Play all eight games from the combined source-backed vocabulary bank.</p>
         <div className="ig-pills">
@@ -250,8 +264,15 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <div className="ig-hero-mark" aria-hidden="true">8<span>play modes</span></div>
     </div>
 
-    {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
+    {catalog?.courseCode === courseCode && <GameScopePicker key={courseCode} catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
     <div className="ig-data-controls" role="group" aria-label="Game setup">
+      <label>Syllabus
+        <select aria-label="Syllabus" value={courseCode}
+          onChange={(event) => changeCourseCode(event.target.value as '9618' | '0478')}>
+          <option value="9618">9618 · AS & A Level</option>
+          <option value="0478">0478 · IGCSE</option>
+        </select>
+      </label>
       <label>Round size
         <select aria-label="Round size" value={customRoundSize ? 'custom' : String(questionCount)} disabled={!ready}
           onChange={(event) => {
@@ -283,7 +304,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packLoading && <p className="ig-data-message" role="status">Combining selected chapters, topics and sections…</p>}
     {catalogError && <p className="ig-data-error" role="alert">Chapter catalogue failed: {catalogError} <button type="button" onClick={refresh}>Retry</button></p>}
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
-    {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
+    {catalog?.courseCode === courseCode && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
       <strong>{pack.pairs.length} unique glossary terms loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
       {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
