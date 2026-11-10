@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
-  createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
+  createQuizQuestions, createTargetedQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
   isAnagramEligible, poolForMode, selectGamePairs, selectModeStage, normalizeGameScopes, toggleNarrowScope,
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, type LiveGameTerm,
 } from './remote-games';
@@ -183,6 +183,23 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(scored.find((item) => item.term === 'Assembly language')?.id).toBe('2');
     expect(createQuizQuestions(scored).find((item) => item.id === 'quiz-2')?.sourceContext)
       .toContain('Official Key Term, page 127');
+  });
+
+  it('quizzes just one due term using other source-bank terms as genuine distractors', () => {
+    const fullBank = [
+      term(1, 'Encryption'), term(2, 'Key'), term(3, 'Cipher'),
+      term(4, 'Decryption'), term(5, 'Certificate'), term(6, 'Hash'),
+    ];
+    const due = [fullBank[2]!];
+    const items = createTargetedQuizQuestions(due, fullBank);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe('quiz-3');
+    expect(items[0]?.prompt).toBe('Definition 3');
+    expect(items[0]?.options).toHaveLength(4);
+    expect(new Set(items[0]?.options).size).toBe(4);
+    expect(items[0]?.options[items[0]!.answerIndex]).toBe('Cipher');
+    expect(createTargetedQuizQuestions(due, fullBank.slice(0, 3))).toEqual([]);
+    expect(createTargetedQuizQuestions([], fullBank)).toEqual([]);
   });
 
   it('generates review-only speaking prompts and a single correct quiz option per definition', () => {
