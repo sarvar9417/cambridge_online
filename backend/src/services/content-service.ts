@@ -396,6 +396,109 @@ export class ContentService {
     };
   }
 
+  /**
+   * Persist only student-initiated, practice-only summary evidence.
+   * This endpoint never assigns official grades. Keep prompt and response text
+   * out of permanent storage, and validate glossary IDs against the syllabus.
+   */
+  async saveInteractiveGamePractice(actor: Actor, input: {
+    runId: string;
+    courseCode: '9618' | '0478';
+    mode: 'match-up' | 'flash-cards' | 'speaking-cards' | 'spin-wheel' |
+      'open-box' | 'quiz' | 'find-the-match' | 'anagram';
+    scopes: Array<{ chapterNo: number; kind: 'chapter' | 'topic' | 'section'; code?: string }>;
+    durationSeconds: number;
+    correctFirstAttempts: number;
+    incorrectFirstAttempts: number;
+    reviewedCount: number;
+    attempts: Array<{ termId: string; firstCorrect: boolean }>;
+  }) {
+    this.student(actor);
+    await this.interactiveGamesAccess(actor, input.courseCode);
+    const ids = input.attempts.map((item) => item.termId);
+    if (new Set(ids).size !== ids.length) throw new DomainError('duplicate_practice_attempt', 400);
+    if (ids.length) {
+      const found = await this.pool.query(
+        `select count(distinct gt.id)::int term_count
+           from glossary_terms gt
+           join subtopics st on st.id=gt.subtopic_id
+           join topics t on t.id=st.topic_id
+           join syllabi sy on sy.id=t.syllabus_id
+          where sy.code=$1 and sy.is_active=true
+            and gt.is_glossary_visible=true
+            and gt.status in ('approved','needs_review')
+            and gt.id=any($2::uuid[])`,
+        [input.courseCode, ids],
+      );
+      if (Number(found.rows[0]?.term_count) !== ids.length) {
+        throw new DomainError('practice_glossary_terms_invalid', 400);
+      }
+    }
+    const result = await this.pool.query(
+      `insert into interactive_game_practice_runs
+         (id,student_id,course_code,game_kind,selected_scopes,attempts,
+          correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
+       values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
+       on conflict (id) do update set id=excluded.id
+         where interactive_game_practice_runs.student_id=excluded.student_id
+       returning id`,
+      [input.runId, actor.id, input.courseCode, input.mode,
+        JSON.stringify(input.scopes), JSON.stringify(input.attempts),
+        input.correctFirstAttempts, input.incorrectFirstAttempts,
+        input.reviewedCount, input.durationSeconds],
+    );
+    if (!result.rowCount) throw new DomainError('practice_run_id_conflict', 409);
+    return { runId: input.runId, saved: true as const, assessed: false as const };
+  }
+
+  /** Last completed first-attempt outcome for each term determines whether
+   * that term should be offered for further (non-assessed) revision.
+   */
+  async interactiveGamePracticeHistory(actor: Actor, courseCode: '9618' | '0478') {
+    this.student(actor);
+    await this.interactiveGamesAccess(actor, courseCode);
+    const [runs, weaknesses] = await Promise.all([
+      this.pool.query(
+        `select id,game_kind,correct_first_attempts,incorrect_first_attempts,
+                reviewed_count,duration_seconds,created_at
+           from interactive_game_practice_runs
+          where student_id=$1 and course_code=$2
+          order by created_at desc,id desc limit 10`,
+        [actor.id, courseCode],
+      ),
+      this.pool.query(
+        `with recent_runs as (
+           select id,attempts,created_at from interactive_game_practice_runs
+            where student_id=$1 and course_code=$2
+            order by created_at desc,id desc limit 100
+         ), latest as (
+           select distinct on (a.entry->>'termId')
+                  a.entry->>'termId' term_id,
+                  (a.entry->>'firstCorrect')::boolean first_correct
+             from recent_runs r
+             cross join lateral jsonb_array_elements(r.attempts) a(entry)
+            order by a.entry->>'termId',r.created_at desc,r.id desc
+         )
+         select term_id from latest where first_correct=false
+         order by term_id limit 500`,
+        [actor.id, courseCode],
+      ),
+    ]);
+    return {
+      assessed: false as const,
+      recent: runs.rows.map((row) => ({
+        runId: String(row.id),
+        mode: String(row.game_kind),
+        correctFirstAttempts: Number(row.correct_first_attempts),
+        incorrectFirstAttempts: Number(row.incorrect_first_attempts),
+        reviewedCount: Number(row.reviewed_count),
+        durationSeconds: Number(row.duration_seconds),
+        createdAt: row.created_at,
+      })),
+      needsReviewIds: weaknesses.rows.map((row) => String(row.term_id)),
+    };
+  }
+
   async list(_actor: Actor) {
     const result = await this.pool.query(
       `select ci.id,ci.kind,ci.title,ci.body_md,st.code subtopic_code,st.title subtopic_title

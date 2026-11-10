@@ -179,6 +179,13 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
     if(path==='/assignments'||path==='/results'||path==='/exports'){void json(request,{data:[]});return;}
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
+    if(path==='/content/interactive-games/practice' && request.method()==='GET'){
+      void json(request,{data:{assessed:false,recent:[],needsReviewIds:[]}});return;
+    }
+    if(path==='/content/interactive-games/practice' && request.method()==='POST'){
+      const payload=JSON.parse(request.postData()||'{}') as {runId:string};
+      void json(request,{data:{runId:payload.runId,saved:true,assessed:false}});return;
+    }
     if(path==='/content/interactive-games/catalog'){void json(request,{data:gameCatalog});return;}
     if(path==='/content/interactive-games/collection' && request.method()==='POST'){
       const body=JSON.parse(request.postData()||'{}') as {
@@ -682,6 +689,17 @@ async function assertInteractiveGames(browser:Browser,base:string){
     }
   }
   await assertAxe(student,'Interactive Games student anagram/mobile');
+  // Formative results are saved only after a student explicitly finishes and
+  // submits; teacher preview must never impersonate a learner.
+  await student.$eval('.ig-finish-button',(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
+  await student.click('.ig-finish-button');
+  await student.waitForSelector('.ig-practice-save button');
+  await student.click('.ig-practice-save button');
+  await student.waitForFunction(()=>document.querySelector('.ig-practice-save')?.textContent?.includes('Practice saved'));
+  const studentSaveNotice=await student.$eval('.ig-practice-save',(node)=>node.textContent??'');
+  if(!studentSaveNotice.includes('not an official assessment')) {
+    throw new Error('Student saved-practice disclosure is missing: '+studentSaveNotice);
+  }
   if(errors.length)throw new Error('Interactive Games browser errors: '+errors.join(' | '));
   await studentContext.close();
   await teacherContext.close();
