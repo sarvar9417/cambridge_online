@@ -33,7 +33,8 @@ export function liveAnswerPlainText(value:string) {
  */
 export function sanitizeLiveRichHtml(html:string) {
   if (typeof document==='undefined') return '';
-  const parsed=new DOMParser().parseFromString(html,'text/html');
+  const parsed=document.createElement('template');
+  parsed.innerHTML=html;
   const out=document.createElement('div');
   const visit=(node:Node,parent:Node)=>{
     if(node.nodeType===Node.TEXT_NODE){parent.appendChild(document.createTextNode(node.textContent??''));return}
@@ -48,13 +49,14 @@ export function sanitizeLiveRichHtml(html:string) {
     }
     for(const item of Array.from(node.childNodes))visit(item,parent);
   };
-  for(const node of Array.from(parsed.body.childNodes))visit(node,out);
+  for(const node of Array.from(parsed.content.childNodes))visit(node,out);
   return out.innerHTML;
 }
 
 function htmlToNodes(html:string):ReactNode {
   if(typeof document==='undefined')return liveAnswerPlainText(LIVE_RICH_ANSWER_PREFIX+html);
-  const parsed=new DOMParser().parseFromString(sanitizeLiveRichHtml(html),'text/html');
+  const parsed=document.createElement('template');
+  parsed.innerHTML=sanitizeLiveRichHtml(html);
   const toReact=(node:Node,key:number):ReactNode=>{
     if(node.nodeType===Node.TEXT_NODE)return node.textContent;
     if(node.nodeType!==Node.ELEMENT_NODE)return null;
@@ -74,7 +76,7 @@ function htmlToNodes(html:string):ReactNode {
       :name==='li'?<li key={key}>{children}</li>
       :<blockquote key={key}>{children}</blockquote>;
   };
-  return Array.from(parsed.body.childNodes).map((node,index)=>toReact(node,index));
+  return Array.from(parsed.content.childNodes).map((node,index)=>toReact(node,index));
 }
 
 export function LiveAnswerDisplay({value}:{value:string}) {
