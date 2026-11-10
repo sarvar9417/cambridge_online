@@ -359,3 +359,17 @@
 @media (max-width: 520px) {
   .ig-quiz .ig-quiz-clock { padding: 9px 10px; font-size: 11px; }
 }
+
+/* Clear progression when a teacher requests a large 100-500-term practice set.
+   Each activity stage remains readable without discarding the remaining terms. */
+.ig-stage-notice {
+  margin: 10px 0 12px;
+  padding: 10px 13px;
+  background: var(--accent-soft, #edf3fd);
+  border-left: 3px solid var(--accent, #4169b2);
+  border-radius: 8px;
+  color: var(--text, #253b60);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
