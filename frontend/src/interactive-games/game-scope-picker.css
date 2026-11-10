@@ -31,3 +31,12 @@
 .ig-scope-picker input:focus-visible,.ig-scope-picker summary:focus-visible,.ig-scope-picker button:focus-visible { outline:3px solid #b05e00; outline-offset:2px; }
 @media(max-width:850px) { .ig-scope-chapters { grid-template-columns:1fr; } }
 @media(max-width:620px) { .ig-scope-picker { padding:13px; } .ig-scope-header { flex-direction:column; align-items:stretch; } .ig-scope-toolbar button { flex:1 1 auto; } }
+/* Preserve the two curriculum taxonomies without implying equivalent codes. */
+.ig-scope-explainer { color:#53627d; font-size:12px; line-height:1.55; margin:0 0 11px; }
+.ig-scope-subchoices .ig-scope-book-child { margin-left:17px; border-left:3px solid #a8b4e0; background:#f6f8fc; }
+.ig-scope-subchoices .ig-scope-book-parent { border-left:3px solid #5c65bf; font-weight:700; }
+.ig-scope-detail-content > .ig-scope-subchoices p { font-size:12px; color:#52617a; line-height:1.5; }
+@media(max-width:620px) {
+ .ig-scope-subchoices .ig-scope-book-child { margin-left:10px; }
+ .ig-scope-detail-content { max-height: min(55vh,560px); }
+}
