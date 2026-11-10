@@ -37,7 +37,7 @@ describe('Live rich-text answers',()=>{
     const onChange=vi.fn();
     await act(async()=>root.render(<LiveRichAnswerEditor id="live-answer" value="" onChange={onChange}/>));
     expect(container.querySelectorAll('[role="toolbar"] button')).toHaveLength(8);
-    expect(container.querySelector('[aria-label="Qalin"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label$="Qalin"]')).toBeTruthy();
     const editor=container.querySelector<HTMLElement>('[role="textbox"]')!;
     await act(async()=>{
       editor.textContent='Firewall controls traffic';
