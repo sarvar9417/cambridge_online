@@ -124,6 +124,23 @@ describe('Classroom wheel', () => {
     expect(container.querySelector('.ig-wheel-answer-status')?.textContent).toBe('Correct!');
   });
 
+  it('does not reshuffle wheel answers when a learner submits a choice', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    let seed = 90210;
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    });
+    await render(pairs.slice(0, 8));
+    await click(findButton('Spin It'));
+    const options = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-wheel-choice')]
+      .map((button) => button.querySelector('strong')?.textContent);
+    const before = options();
+    await click(container.querySelector<HTMLButtonElement>('.ig-wheel-choice')!);
+    expect(options()).toEqual(before);
+    expect(container.querySelectorAll('.ig-wheel-choice:disabled')).toHaveLength(4);
+  });
+
   it('shows the full answer and completes when the last segment is eliminated', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
     await render(pairs.slice(0, 1));
