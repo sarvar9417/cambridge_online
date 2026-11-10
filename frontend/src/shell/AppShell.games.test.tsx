@@ -10,6 +10,7 @@ describe('Interactive Games menu discovery', () => {
   let root: Root;
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    window.localStorage.removeItem('campath.sidebar.collapsed');
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -19,6 +20,7 @@ describe('Interactive Games menu discovery', () => {
     await act(async () => root.unmount());
     container.remove();
     window.location.hash = '';
+    window.localStorage.removeItem('campath.sidebar.collapsed');
     vi.unstubAllGlobals();
   });
 
@@ -46,4 +48,48 @@ describe('Interactive Games menu discovery', () => {
       expect(window.location.hash).toBe('#' + target);
     });
   }
+  it('lets desktop users close and reopen the menu without losing the current page', async () => {
+    const role = 'teacher' as const;
+    const user = { role, fullName: 'Test Teacher' } as User;
+    const route = parseRoute('#oqitish/oyinlar');
+    const view = () => <AppShell user={user} route={route} groups={navigationFor(role, [])}
+      onLogout={() => {}}><p>Unchanged game content</p></AppShell>;
+    await act(async () => root.render(view()));
+    const shell = container.querySelector<HTMLElement>('.shell')!;
+    const close = container.querySelector<HTMLButtonElement>('button[aria-label="Chap menyuni yopish"]')!;
+    expect(close.getAttribute('aria-expanded')).toBe('true');
+    expect(shell.classList.contains('shell--nav-collapsed')).toBe(false);
+    await act(async () => close.click());
+    expect(shell.classList.contains('shell--nav-collapsed')).toBe(true);
+    expect(window.localStorage.getItem('campath.sidebar.collapsed')).toBe('true');
+    expect(container.querySelector('button[aria-label="Chap menyuni ochish"]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.shell-main')?.textContent).toContain('Unchanged game content');
+    expect(window.location.hash).toBe('');
+    const reopen = container.querySelector<HTMLButtonElement>('button[aria-label="Chap menyuni ochish"]')!;
+    await act(async () => reopen.click());
+    expect(shell.classList.contains('shell--nav-collapsed')).toBe(false);
+    expect(window.localStorage.getItem('campath.sidebar.collapsed')).toBe('false');
+  });
+
+  it('restores the collapsed preference after remount and retains normal mobile menu controls', async () => {
+    window.localStorage.setItem('campath.sidebar.collapsed', 'true');
+    const role = 'student' as const;
+    const user = { role, fullName: 'Test Student' } as User;
+    const renderShell = () => <AppShell user={user} route={parseRoute('#oquvchi/oyinlar')}
+      groups={navigationFor(role, [])} onLogout={() => {}}><p>Student workspace</p></AppShell>;
+    await act(async () => root.render(renderShell()));
+    expect(container.querySelector('.shell')?.classList.contains('shell--nav-collapsed')).toBe(true);
+    expect(container.querySelector('.shell-burger')).not.toBeNull();
+    expect(container.querySelector('.shell-rail a[href="#oquvchi/oyinlar"]')).not.toBeNull();
+    const burger = container.querySelector<HTMLButtonElement>('.shell-burger')!;
+    await act(async () => burger.click());
+    expect(burger.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('.shell-rail')?.classList.contains('is-open')).toBe(true);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(renderShell()));
+    expect(container.querySelector('.shell')?.classList.contains('shell--nav-collapsed')).toBe(true);
+    expect(container.querySelector('button[aria-label="Chap menyuni ochish"]')).not.toBeNull();
+  });
+
 });
