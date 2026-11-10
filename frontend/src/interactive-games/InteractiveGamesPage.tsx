@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 import { randomId } from '../lib/random-id';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
-  DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
+  DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createTargetedQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
   selectModeStage, validGameScopes, normalizeGameScopes,
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
@@ -54,6 +54,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [practiceSaveError, setPracticeSaveError] = useState('');
   const [practiceRunId, setPracticeRunId] = useState(() => randomId());
   const [mistakesOnly, setMistakesOnly] = useState(false);
+  const [dueOnly, setDueOnly] = useState(false);
+  // Snapshot the due queue for the current scored round; successful saving
+  // must not unmount its own result panel when today's queue shrinks.
+  const [dueSessionIds, setDueSessionIds] = useState<string[]>([]);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -153,11 +157,16 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const allPairs = pack?.pairs ?? [];
   const missedPairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], practiceHistory?.needsReviewIds ?? []),
     [pack, practiceHistory]);
-  const currentMode = mistakesOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
-    ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
+  const duePairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], practiceHistory?.dueReviewIds ?? []),
+    [pack, practiceHistory]);
+  const dueSessionPairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], dueSessionIds),
+    [pack, dueSessionIds]);
+  const currentMode = dueOnly ? (gameIsAvailable('quiz', allPairs) ? 'quiz' : 'flash-cards')
+    : mistakesOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
+      ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const eligiblePairs = useMemo(
-    () => poolForMode(mistakesOnly ? missedPairs : (pack?.pairs ?? []), currentMode),
-    [pack, currentMode, mistakesOnly, missedPairs]);
+    () => poolForMode(dueOnly ? dueSessionPairs : mistakesOnly ? missedPairs : (pack?.pairs ?? []), currentMode),
+    [pack, currentMode, dueOnly, dueSessionPairs, mistakesOnly, missedPairs]);
   const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
     [eligiblePairs, questionCount, round, currentMode]);
   const selectedCount = Math.min(eligiblePairs.length, questionCount);
@@ -166,7 +175,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const stageTotal = staged ? Math.ceil(selectedCount / stageSize) : 1;
   const stageNumber = staged ? round % stageTotal + 1 : 1;
   const speaking = useMemo(() => createSpeakingPrompts(pairs), [pairs]);
-  const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
+  const questions = useMemo(() => dueOnly && currentMode === 'quiz'
+    ? createTargetedQuizQuestions(pairs, allPairs)
+    : createQuizQuestions(pairs), [dueOnly, currentMode, pairs, pack]);
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
   const maxSelectableRoundSize = Math.max(DEFAULT_GAME_LENGTH, eligiblePairs.length);
@@ -209,6 +220,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (JSON.stringify(normalized) === scopesKey) return;
     setScopes(normalized);
     setMistakesOnly(false);
+    setDueOnly(false);
+    setDueSessionIds([]);
     setPack(null);
     setPackError('');
     setRound(0);
@@ -224,6 +237,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }
   function refresh() {
     setMistakesOnly(false);
+    setDueOnly(false);
+    setDueSessionIds([]);
     setCatalogLoading(true);
     setRefreshVersion((value) => value + 1);
     setPack(null);
@@ -263,10 +278,30 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   function startMistakeReview() {
     if (!missedPairs.length) return;
+    setDueOnly(false);
+    setDueSessionIds([]);
     setMistakesOnly(true);
     setMode('flash-cards');
     setRound(0);
     resetGame('flash-cards');
+  }
+
+  function startDueReview() {
+    if (!duePairs.length) return;
+    const reviewGame = gameIsAvailable('quiz', allPairs) ? 'quiz' : 'flash-cards';
+    setDueSessionIds(duePairs.map((item) => item.id));
+    setDueOnly(true);
+    setMistakesOnly(false);
+    setMode(reviewGame);
+    setRound(0);
+    resetGame(reviewGame);
+  }
+
+  function exitFocusedReview() {
+    setMistakesOnly(false);
+    setDueOnly(false);
+    setDueSessionIds([]);
+    resetGame();
   }
 
   function toggleFullscreen() {
@@ -374,6 +409,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           : <p>No saved rounds yet.</p>}
         {practiceHistory?.needsReviewIds.length ? <p>{practiceHistory.needsReviewIds.length}
           {practiceHistory.needsReviewIds.length === 1 ? ' term' : ' terms'} to revisit</p> : null}
+        {practiceHistory?.scheduledTermCount !== undefined && <p>
+          {practiceHistory.scheduledTermCount} terms scheduled ·
+          {practiceHistory.dueReviewIds?.length ?? 0} due now
+        </p>}
+        {practiceHistory?.nextReviewAt && <p>
+          Next scheduled review: {new Date(practiceHistory.nextReviewAt).toLocaleDateString()}
+        </p>}
         {practiceHistory?.recent.length ? <details>
           <summary>Recent practice results</summary>
           <ol>{practiceHistory.recent.map((run) => <li key={run.runId}>
@@ -381,20 +423,32 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
             {run.incorrectFirstAttempts} mistakes · {run.reviewedCount} reviewed
           </li>)}</ol>
         </details> : null}
-        {mistakesOnly ? <button type="button" onClick={() => { setMistakesOnly(false); resetGame(); }}>
+        {mistakesOnly || dueOnly ? <button type="button" onClick={exitFocusedReview}>
           Return to all selected vocabulary
-        </button> : <button type="button" disabled={!missedPairs.length} onClick={startMistakeReview}>
-          Review my mistakes ({missedPairs.length}) in Flash Cards
-        </button>}
+        </button> : <>
+          <button type="button" disabled={!missedPairs.length} onClick={startMistakeReview}>
+            Review my mistakes ({missedPairs.length}) in Flash Cards
+          </button>
+          <button type="button" disabled={!duePairs.length} onClick={startDueReview}>
+            Review due terms ({duePairs.length}) in {gameIsAvailable('quiz', allPairs) ? 'Quiz' : 'Flash Cards'}
+          </button>
+        </>}
+        <p>Scheduled practice uses 1, 3, 7, 14, 30, 60 and 120-day intervals.
+          First-try answers influence the next review date, but do not establish mastery.</p>
       </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={(mistakesOnly && game.id !== 'flash-cards') || !gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs)} aria-pressed={currentMode === game.id}
+          disabled={((mistakesOnly || dueOnly) && game.id !== currentMode) ||
+            (dueOnly && game.id === 'quiz' ? currentMode !== 'quiz'
+              : !gameIsAvailable(game.id, mistakesOnly ? missedPairs : dueOnly ? dueSessionPairs : allPairs))}
+          aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{(dueOnly && game.id === 'quiz' && currentMode === 'quiz') ||
+            gameIsAvailable(game.id, mistakesOnly ? missedPairs : dueOnly ? dueSessionPairs : allPairs)
+            ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
@@ -416,6 +470,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </p>}
         {currentMode === 'quiz' && <p className="ig-stage-notice">
           Quiz question time: 30 seconds each. The separate round time limit above is optional.
+          {dueOnly ? ' This Quiz tests only currently due vocabulary using source-backed distractors.' : ''}
+        </p>}
+        {dueOnly && currentMode === 'flash-cards' && <p className="ig-stage-notice">
+          There are not enough different terms for a four-choice Quiz. Reveal these cards to revise;
+          a revealed card does not advance the scheduled review interval.
         </p>}
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
           {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
