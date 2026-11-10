@@ -148,4 +148,93 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it('loads the reviewed 0478 catalogue even while global 0478 activation is off', async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, title: 'Data representation', term_count: 34, approved_count: 34 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, section_code: '1.1.2', title: 'Number systems', parent_code: '1.1', term_count: 12 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, code: '1.1', title: 'Number systems', term_count: 13 },
+      ] });
+    const catalogue = await new ContentService({ query } as unknown as Pool)
+      .interactiveGameCatalog(teacher, '0478');
+    expect(catalogue.courseCode).toBe('0478');
+    expect(catalogue.chapters[0]).toMatchObject({
+      chapterNo: 1, termCount: 34, approvedCount: 34,
+    });
+    expect(catalogue.chapters[0]?.topics[0]?.code).toBe('1.1');
+    expect(catalogue.chapters[0]?.sections[0]?.code).toBe('1.1.2');
+    expect(query).toHaveBeenCalledTimes(3);
+    for (const [sql, parameters] of query.mock.calls) {
+      expect(sql).toContain("sy.code='0478' and sy.version_label='2026-2028'");
+      expect(sql).toContain("sy.code='9618' and sy.is_active=true");
+      expect(parameters).toEqual(['0478']);
+    }
+  });
+
+  it('gives 0478 students exactly the same enrollment gate as 9618 without activating other 0478 versions', async () => {
+    const denied = vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    await expect(new ContentService({ query: denied } as unknown as Pool)
+      .interactiveGameCatalog(student, '0478')).rejects.toMatchObject({ status: 403 });
+    expect(denied).toHaveBeenCalledTimes(1);
+
+    const allowed = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ approved: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const catalog = await new ContentService({ query: allowed } as unknown as Pool)
+      .interactiveGameCatalog(student, '0478');
+    expect(catalog).toEqual({ courseCode: '0478', chapters: [] });
+    expect(allowed.mock.calls[0]?.[1]).toEqual(['student', '0478']);
+    expect(allowed.mock.calls[0]?.[0]).toContain('e.left_at is null');
+    expect(allowed.mock.calls[0]?.[0]).toContain("sy.code='0478' and sy.version_label='2026-2028'");
+    expect(allowed).toHaveBeenCalledTimes(4);
+  });
+
+  it('serves the reviewed 0478 Hodder section to both legacy pack and multi-scope games', async () => {
+    const legacyQuery = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 'section-id' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'term-a', term: 'Binary', definition: 'A base-2 number system', status: 'approved', is_official_key_term: true, definition_evidence_status: 'official_textbook_definition' },
+      ] });
+    const pack = await new ContentService({ query: legacyQuery } as unknown as Pool)
+      .interactiveGamePack(teacher, { courseCode: '0478', chapterNo: 1, sectionCode: '1.1.2' });
+    expect(pack.courseCode).toBe('0478');
+    expect(pack.contentStatus).toBe('approved');
+    expect(pack.pairs[0]).toMatchObject({ term: 'Binary', isOfficialKeyTerm: true });
+    expect(legacyQuery.mock.calls[0]?.[0]).toContain("sy.version_label='2026-2028'");
+    expect(legacyQuery.mock.calls[1]?.[0]).toContain("sy.version_label='2026-2028'");
+    expect(legacyQuery.mock.calls[1]?.[1]).toEqual(['0478', 1, '1.1.2']);
+
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, title: 'Data representation', term_count: 12, approved_count: 12 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, section_code: '1.1.2', title: 'Number systems', parent_code: '1.1', term_count: 12 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, code: '1.1', title: 'Number systems', term_count: 12 },
+      ] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'term-a', term: 'Binary', definition: 'Base 2', status: 'approved', is_official_key_term: true, definition_evidence_status: 'official_textbook_definition' },
+        { id: 'term-b', term: 'Hexadecimal', definition: 'Base 16', status: 'approved', is_official_key_term: true, definition_evidence_status: 'official_textbook_definition' },
+      ] });
+    const result = await new ContentService({ query } as unknown as Pool)
+      .interactiveGameCollection(teacher, { courseCode: '0478', scopes: [
+        { chapterNo: 1, kind: 'section', code: '1.1.2' },
+      ] });
+    expect(result.contentStatus).toBe('approved');
+    expect(result.courseCode).toBe('0478');
+    expect(result.pairs.map((pair) => pair.term)).toEqual(['Binary', 'Hexadecimal']);
+    expect(result.scopes).toEqual([{ chapterNo: 1, kind: 'section', code: '1.1.2' }]);
+    expect(query.mock.calls[3]?.[0]).toContain("sy.code='0478' and sy.version_label='2026-2028'");
+    expect(query.mock.calls[3]?.[0]).toContain('hodder_glossary_section_links');
+    expect(query.mock.calls[3]?.[1]?.[0]).toBe('0478');
+  });
+
 });

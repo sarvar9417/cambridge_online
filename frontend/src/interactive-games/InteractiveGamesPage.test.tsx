@@ -228,6 +228,55 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('switches between 9618 and 0478 without leaking chapter scopes across syllabuses', async () => {
+    mockApi.mockImplementation((async (path: string, init?: RequestInit) => {
+      if (path === '/content/interactive-games/catalog?courseCode=0478') {
+        return { data: {
+          courseCode: '0478', chapters: [{
+            chapterNo: 1, title: 'Data representation', termCount: 8, approvedCount: 8,
+            topics: [{ code: '1.1', title: 'Number systems', termCount: 8 }],
+            sections: [{ code: '1.1.1', title: 'Binary number systems', termCount: 8, parentCode: '1.1' }],
+          }],
+        } satisfies LiveGameCatalog };
+      }
+      if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
+        const input = JSON.parse(String(init.body)) as { courseCode: '9618' | '0478'; scopes: GameScope[] };
+        const fixture = pack(input.scopes);
+        return { data: {
+          ...fixture, courseCode: input.courseCode,
+          contentStatus: input.courseCode === '0478' ? 'approved' : 'needs_review',
+          pairs: input.courseCode === '0478'
+            ? fixture.pairs.map((pair) => ({ ...pair, status: 'approved' as const, isOfficialKeyTerm: true, definitionEvidenceStatus: 'official_textbook_definition' as const }))
+            : fixture.pairs,
+        } };
+      }
+      return respond(path, init);
+    }) as typeof api);
+    await render(true);
+    expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+    await change('select[aria-label="Syllabus"]', '0478');
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('CAMBRIDGE 0478');
+    expect(container.textContent).toContain('Data representation');
+    expect(container.textContent).toContain('completed editorial review against the Hodder source');
+    const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
+    expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
+      'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+    ]);
+    expect(gameTiles.every((tile) => !tile.disabled)).toBe(true);
+    await game('Quiz');
+    expect(container.querySelector('.ig-quiz')).not.toBeNull();
+    expect(container.textContent).not.toContain('source-screened definitions are not individually expert-verified');
+    expect(container.textContent).not.toContain('Information representation');
+    expect(lastScopes()).toEqual({ courseCode: '0478', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+    await change('select[aria-label="Syllabus"]', '9618');
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('CAMBRIDGE 9618');
+    expect(container.textContent).toContain('pending review');
+    expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+  });
+
   it('shows fullscreen only inside the active game and switches to exit mode after entering', async () => {
     await render(true);
     expect(container.querySelector('.ig-session-bar .ig-fullscreen-toggle')).toBeNull();
