@@ -269,7 +269,12 @@ export class ContentService {
              ))
            )
          )
-       order by case when gt.status='approved' then 0 else 1 end,
+       order by
+                case when gt.is_official_key_term or gt.definition_evidence_status='official_textbook_definition' then 0
+                     when gt.definition_evidence_status='supplementary_targeted_verified' then 1
+                     when gt.definition_evidence_status='supplementary_source_screened' then 2
+                     else 3 end,
+                case when gt.status='approved' then 0 else 1 end,
                 lower(gt.term),gt.id`,
       [input.courseCode, JSON.stringify(scopes.map((scope) => ({
         chapter_no: scope.chapterNo,kind: scope.kind,code: scope.code ?? null,
@@ -342,7 +347,13 @@ export class ContentService {
              and bs.chapter_number=$2
              and (bs.section_code=$3 or bs.section_code like $3 || '.%')
          ))
-       order by lower(gt.term), case when gt.status='approved' then 0 else 1 end,gt.id
+       order by
+                case when gt.is_official_key_term or gt.definition_evidence_status='official_textbook_definition' then 0
+                     when gt.definition_evidence_status='supplementary_targeted_verified' then 1
+                     when gt.definition_evidence_status='supplementary_source_screened' then 2
+                     else 3 end,
+                case when gt.status='approved' then 0 else 1 end,
+                lower(gt.term),gt.id
        `,
       [courseCode, chapterNo, sectionCode ?? null],
     );
