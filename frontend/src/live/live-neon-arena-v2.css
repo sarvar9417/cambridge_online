@@ -140,3 +140,11 @@
   .live-neon-arena-progress>i,.live-chest-shine,.live-chest-lid{transition:none!important}
   .live-leaderboard--neon .live-leaderboard-list li,.live-neon-podium-place{animation:none!important}
 }
+
+/* Cosmetics are awarded at session milestones, independent of grading. */
+.live-mascot-equipped{position:absolute;z-index:4;top:-6px;left:50%;transform:translateX(-50%);
+  display:grid;place-items:center;font-size:26px;font-weight:900;color:#ffda69;
+  text-shadow:0 0 7px #ecc75a,0 2px 13px #100d2a;pointer-events:none}
+.live-mascot-equipped--wings{left:7px;top:50%;font-size:17px;letter-spacing:95px;white-space:nowrap}
+.live-mascot-equipped--star{font-size:21px}
+.live-neon-final .live-neon-final-ornament{margin:10px 0 0;color:#fce2a4;font-size:12px;font-weight:800}
