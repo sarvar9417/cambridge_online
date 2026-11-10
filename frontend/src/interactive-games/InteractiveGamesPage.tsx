@@ -454,6 +454,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} recordAnswer={recordAnswer} />}
           {currentMode === 'flash-cards' && <FlashCards
+            key={dueOnly ? 'spaced-review' : mistakesOnly ? 'mistake-review' : 'all-cards'}
             pairs={pairs}
             requireSelfMark={dueOnly}
             onResult={recordAnswer}
