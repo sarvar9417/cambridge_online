@@ -12,8 +12,8 @@ const a = '302745c8-0397-4ec2-ac0a-a0b65cef1fb1';
 const b = '94fe437b-f43f-4ad7-a4f5-9fefbcb04ab5';
 const runId = 'c8ae5926-f657-4133-93d2-6a7295290c25';
 
-function request(attempts: Array<{termId:string;firstCorrect:boolean}> = [
-  { termId: a, firstCorrect: false }, { termId: b, firstCorrect: true },
+function request(attempts: Array<{termId:string;firstCorrect:boolean;evidenceType:'scored_response'|'self_rating'}> = [
+  { termId: a, firstCorrect: false, evidenceType: 'scored_response' }, { termId: b, firstCorrect: true, evidenceType: 'scored_response' },
 ]) {
   return {
     runId, courseCode: '9618' as const, mode: 'quiz' as const,
@@ -65,7 +65,7 @@ describe('Interactive Games private student practice history', () => {
     const duplicates = vi.fn().mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
     await expect(new ContentService({ query: duplicates } as unknown as Pool)
       .saveInteractiveGamePractice(learner, request([
-        { termId: a, firstCorrect: false }, { termId: a, firstCorrect: true },
+        { termId: a, firstCorrect: false, evidenceType: 'scored_response' }, { termId: a, firstCorrect: true, evidenceType: 'scored_response' },
       ]))).rejects.toMatchObject({ status: 400 });
     expect(duplicates).toHaveBeenCalledTimes(1);
 
@@ -93,7 +93,7 @@ describe('Interactive Games private student practice history', () => {
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ term_count: 1 }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: runId, inserted: false, scheduled_count: 0 }] });
     const result = await new ContentService({ query } as unknown as Pool)
-      .saveInteractiveGamePractice(learner, request([{ termId: a, firstCorrect: true }]));
+      .saveInteractiveGamePractice(learner, request([{ termId: a, firstCorrect: true, evidenceType: 'scored_response' }]));
     expect(result).toMatchObject({ alreadySaved: true, assessed: false });
     expect(query).toHaveBeenCalledTimes(3);
     expect(String(query.mock.calls[2]?.[0])).toContain('on conflict (id) do nothing');
