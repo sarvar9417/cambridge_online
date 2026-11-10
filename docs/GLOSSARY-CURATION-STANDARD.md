@@ -12,7 +12,8 @@ Read-only production audit on **2026-11-10**, project `cambridge_online`, Postgr
 - Supplementary source-screened, **not individually verified**: **2,814**.
 - Supplementary terms marked **manual review required**: **750**.
 - Definition shorter than 60 characters: **458** (includes legitimate concise official definitions; this is a **review signal**, not a deletion criterion).
-- Same-subtopic normalized duplicate terms: **0**; repeated normalized definitions across terms: **2 groups**.
+- Same-subtopic normalized duplicate terms: **0**; across all chapters, **289 repeated-term groups** covering **633 rows**, of which **16 groups** mix official textbook definitions with records marked manual-review-required. Repeated normalized definitions across terms: **2 groups**.
+- Duplicate resolution must prioritize workflow-approved rows and then official/individually verified definitions over unverified or manual-review-required alternatives; never assume alphabetical/UUID order implies quality.
 
 **Do not equate** `glossary_terms.status=approved` with a source-verified or classroom-appropriate definition. `definition_evidence_status` is the independent quality indicator.
 
