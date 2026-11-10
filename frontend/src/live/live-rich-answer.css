@@ -1,0 +1,21 @@
+.live-rich-editor{display:grid;gap:0;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface);overflow:hidden}
+.live-rich-editor:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.live-editor-toolbar{display:flex;flex-wrap:wrap;gap:3px;padding:8px;border-bottom:1px solid var(--border);background:var(--surface-soft)}
+.live-answer-box .live-editor-toolbar button{display:grid;place-items:center;justify-self:auto;min-width:37px;min-height:35px;width:auto;padding:4px 10px;background:var(--surface);color:var(--text);border:1px solid transparent;border-radius:7px;font-size:15px;font-weight:650}
+.live-answer-box .live-editor-toolbar button:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent)}
+.live-answer-box .live-editor-toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.live-editor-toolbar button.is-bold{font-weight:900}.live-editor-toolbar button.is-italic{font-style:italic}.live-editor-toolbar button.is-underline{text-decoration:underline}
+.live-editor-toolbar button:disabled{opacity:.4;cursor:not-allowed}
+.live-editor-surface{min-height:220px;max-height:600px;overflow:auto;padding:20px;font:500 16px/1.65 var(--font-read);white-space:pre-wrap;overflow-wrap:anywhere;outline:none;color:var(--text)}
+.live-editor-surface:empty::before{content:attr(data-placeholder);color:var(--text-muted);pointer-events:none}
+.live-editor-surface[contenteditable="false"]{opacity:.7;background:var(--surface-soft);cursor:not-allowed}
+.live-editor-surface p,.live-answer-formatted p{margin:0 0 .75em}.live-editor-surface :is(ul,ol),.live-answer-formatted :is(ul,ol){padding-left:1.65em;margin:.5em 0}
+.live-editor-surface li,.live-answer-formatted li{margin:.25em 0}
+.live-editor-surface pre,.live-answer-formatted pre{overflow-x:auto;padding:12px 14px;border-radius:8px;background:var(--surface-soft);font:500 14px/1.55 var(--font-mono);white-space:pre-wrap}
+.live-editor-surface code,.live-answer-formatted code{font:500 .9em var(--font-mono)}
+.live-editor-surface blockquote,.live-answer-formatted blockquote{margin:.6em 0;padding:8px 12px;border-left:3px solid var(--accent)}
+.live-answer-formatted{white-space:normal;line-height:1.6;overflow-wrap:anywhere}
+.live-answer-formatted>:last-child{margin-bottom:0}
+.live-answer-plain{white-space:pre-wrap;overflow-wrap:anywhere}
+.live-editor-error{padding:6px 12px;color:var(--missed);font-weight:650}
+@media(max-width:640px){.live-editor-surface{min-height:230px;padding:14px}.live-answer-box .live-editor-toolbar button{min-width:34px;padding:3px 7px}}
