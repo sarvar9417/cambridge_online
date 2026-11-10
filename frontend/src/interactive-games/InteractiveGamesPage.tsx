@@ -298,7 +298,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <strong>{allPairs.length} terms selected from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
       {pack.pairs.some(pair=>pair.definitionEvidenceStatus!==undefined||pair.isOfficialKeyTerm!==undefined)
         ? ` ${Math.max(0,pack.pairs.length-allPairs.length)} less-verified or review-pending entries excluded from this ${vocabularyQuality==='core'?'core':'extended'} bank.`
-        : ' Source verification flags are unavailable for this legacy bank; use provisional practice only.'}
+        : ' Source verification flags are unavailable for this legacy bank; pending review entries are provisional practice only.'}
       {vocabularyQuality==='core'
         ? ' Core: official textbook terms and independently verified supplementary concepts. Exact official definitions are preserved.'
         : ' Extended: includes source-screened supplementary concepts that have not all passed individual expert verification.'}
