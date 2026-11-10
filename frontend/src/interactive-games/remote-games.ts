@@ -39,6 +39,31 @@ export interface LiveGameTerm extends GamePair {
     | 'supplementary_source_screened' | 'supplementary_targeted_verified'
     | 'supplementary_manual_review_required' | 'unclassified';
 }
+export type GameVocabularyQuality = 'core' | 'extended';
+
+/**
+ * Do not mistake PostgreSQL workflow "approved" for textbook verification.
+ * The default core game bank admits only official Hodder Key Terms and
+ * individually verified supplementary terms. Broad source-screened concepts
+ * require a deliberate Extended selection; manual-review entries never
+ * become answer choices while their evidence remains unresolved.
+ *
+ * Older APIs without any evidence metadata are preserved for compatibility
+ * instead of silently discarding their learning content.
+ */
+export function selectQualityGameTerms(pairs:readonly LiveGameTerm[], quality:GameVocabularyQuality):LiveGameTerm[] {
+  const hasEvidenceMetadata=pairs.some(pair=>pair.isOfficialKeyTerm!==undefined||
+    pair.definitionEvidenceStatus!==undefined);
+  if(!hasEvidenceMetadata)return [...pairs];
+  return pairs.filter(pair=>{
+    if(pair.status==='needs_review'||pair.definitionEvidenceStatus==='supplementary_manual_review_required')return false;
+    if(quality==='extended')return true;
+    return pair.isOfficialKeyTerm===true ||
+      pair.definitionEvidenceStatus==='official_textbook_definition' ||
+      pair.definitionEvidenceStatus==='supplementary_targeted_verified';
+  });
+}
+
 export interface LiveGamePack {
   courseCode: '9618' | '0478';
   scopes: GameScope[];

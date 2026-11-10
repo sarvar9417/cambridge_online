@@ -1,0 +1,87 @@
+# Cambridge 9618 Glossary: quality standard and staged remediation
+
+## Why this exists
+
+The glossary supports Interactive Games, classroom revision and key-term lookup. A large list of micro-facts, code snippets, figure labels, example-specific descriptions or incomplete definitions is **not** the same as a useful term–definition bank.
+
+Production audit **2026-11-10**, project `cambridge_online`, PostgreSQL `glossary_terms`: a separate concurrent official-key-term import increased this table from **4,287 to 4,664** records during the audit. The following is the verified **post-curation snapshot**:
+
+- **4,664** total records; **3,827** visible, **837** non-destructively hidden.
+- **925** records flagged official textbook Key Term (of which **923** have evidence status `official_textbook_definition`; **2** require manual evidence review).
+- **132** individually verified supplementary entries; **2,854** source-screened supplementary entries without independent expert verification; **755** records in manual-review evidence status (two official).
+- **723** records currently satisfy both workflow approval and textbook / individually verified evidence for the baseline `Core` game bank.
+- **95** explicitly reviewed micro-detail/example-specific entries and **742** remaining non-official manual-review-required entries were hidden with UUID-level rollback manifests.
+- **40** source-associated supplementary English definitions were rewritten for clarity (2 per Chapter); exact before/after text and restoration SQL are retained.
+- The initial 4,287-row profile found **289 repeated-term groups** covering 633 rows, including 16 groups mixing official and manual-review versions. Re-run duplicate metrics after imports before claiming up-to-date counts.
+- Treat short definitions and duplicate words as **review signals, not deletion criteria**. Preserve source-backed formula/rule names as genuine terms when they are concepts in the curriculum.
+
+**Do not equate** `glossary_terms.status=approved` with a source-verified or classroom-appropriate definition. `definition_evidence_status` is the independent quality indicator.
+
+## A good Key Term
+
+A glossary card is eligible for core revision if:
+
+1. It names a **self-contained Computer Science concept**, acronym, method, data structure, technology, rule or property that a student could independently define.
+2. Its scope is relevant to the tagged Cambridge syllabus, Hodder chapter and section.
+3. Its definition states **what it is**, plus the distinguishing purpose or behavior when needed. It is neither circular nor only a reference to a figure/example.
+4. It is accurate against its recorded source. Official Hodder `Key terms` wording and provenance are preserved verbatim in their **official-definition field**, even when short.
+5. Its distinction from near-neighbor terms is clear enough for a four-choice game, without trick ambiguity.
+6. It is not a textbook exercise step, an arbitrary example value, a diagram location, a prompt fragment or a minor implementation detail masquerading as a canonical keyword.
+
+Examples found in the database that **require editorial review**, not automatic deletion: `Sphere volume formula`, `Bank account facts`, `Bubble sort temporary variable`, `Low-level LDM instruction`, `Torrent download completion`. Some belong in **lesson examples or source notes**, not glossary flashcards.
+
+Examples of valid concepts that should remain: `Packet switching`, `Firewall`, `Binary search`, `Hashing`, `Data integrity` (when source-relevant). Even formula/rule names can be valid where they are actual curriculum concepts, e.g. Boolean algebra laws; do **not** reject all formulas or two-word terms algorithmically.
+
+## Definition policy
+
+- **Official source wording**: preserve `definition_en` and exact source reference; do not silently rewrite or invent an “official” definition.
+- **Learner-friendly explanation**: a separate reviewed, plainly written English explanation should clarify meaning, normal use and (where meaningful) a distinctive property, without replacing the official quotation.
+- **Acronyms**: expansion alone (e.g., `CLI — command line interface`) can be valid as an official excerpt, but the learner explanation should say what the interface lets a user do.
+- **Worked examples, code and cases** belong to a lesson/example layer and must not inflate the number of core terms.
+- Never bulk delete or remove provenance on an automatic heuristic. Record reviewer, reviewed source, old/new fields, and reason.
+
+**Example of a learner explanation (proposed, NOT textbook text):**
+
+> CLI (command-line interface): A text-based interface where a user types commands to control the computer or run programs instead of selecting graphical icons.
+
+This is a teaching explanation, not a claim that Hodder uses those exact words.
+
+## Immediate non-destructive safeguard
+
+Interactive Games defaults to **Core**: `is_official_key_term=true`, `definition_evidence_status=official_textbook_definition`, or `definition_evidence_status=supplementary_targeted_verified`, and `status=approved`.
+
+Teachers can explicitly switch to **Extended**, which also adds `supplementary_source_screened` terms, labelled as not individually expert-verified. `supplementary_manual_review_required` and `needs_review` terms are not playable in either evidence-backed mode.
+
+**Important:** The above source-evidence rule is only an interim safety gate. It is **not** a substitute for editorial concept quality or clear learner explanations. An official textbook term with a very terse definition may still need a separately reviewed explanation.
+
+## Source-based curation workflow
+
+1. Record a reproducible read-only chapter/section export with `id`, `term`, `definition_en`, `source_ref`, `is_official_key_term`, evidence status and current visibility.
+2. Compare with the actual coursebook `Key terms` and relevant chapter teaching text. Keep exact official terms and mark them as such only when verified.
+3. Classify each supplementary record: **core concept**, **contextual supporting concept**, **worked example/detail**, **ambiguous**, **duplicate**, or **source mismatch**.
+4. Give core terms source-verified student-friendly definitions. Move examples out of the flashcard bank without losing their lesson provenance.
+5. Stage reviewed changes and rollback mapping per chapter, run game exercises and a sample teacher acceptance, then migrate only the reviewed records.
+6. Re-run the read-only counts and ensure each chapter/section still has a meaningful set of playable cards. Do not force a fixed minimum count by inventing keywords.
+
+## Audit SQL (read-only)
+
+```sql
+select t.number chapter, count(*) total,
+ count(*) filter(where gt.is_official_key_term) official,
+ count(*) filter(where gt.definition_evidence_status='supplementary_targeted_verified') individually_verified,
+ count(*) filter(where gt.definition_evidence_status='supplementary_manual_review_required') manual_review
+from public.glossary_terms gt
+join public.subtopics st on st.id=gt.subtopic_id
+join public.topics t on t.id=st.topic_id
+group by t.number order by t.number;
+```
+
+## Applied 20-chapter, reversible learner-catalogue curation
+
+The **Core/Extended frontend code change itself** does not rewrite database data. In separate user-authorised database actions (same day), **837** visibility changes and **40** supplementary-definition rewrites were applied and independently read back.
+
+- `docs/glossary-curation-20261110-reviewed.csv` plus the matching rollback SQL document 95 individually selected textbook examples and micro-details.
+- `docs/glossary-manual-review-quarantine-20261110.csv` plus rollback SQL document 742 supplemental entries already marked manual review required. **Quarantine does not imply these 742 concepts are incorrect.** Their previous source/evidence/status remain untouched.
+- `docs/glossary-definitions-20261110-reviewed.csv` and rollback SQL record the exact 40 old and new definitions. All edited entries were non-official and remain in their original evidence tier; they must not be described as newly expert-certified.
+- All **925** officially flagged textbook-term definitions and all source references were left unchanged.
+- Full content verification of the remaining 3,827 visible records and separate clear student explanations for terse official definitions **remain outstanding**. No blanket claim of completion or full textbook-level verification is justified.

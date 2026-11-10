@@ -16,7 +16,8 @@ let mockPracticeHistory: {
   recent: Array<{ runId: string; mode: 'quiz'; correctFirstAttempts: number;
     incorrectFirstAttempts: number; reviewedCount: number; durationSeconds: number; createdAt: string }>;
   needsReviewIds: string[];
-} = { assessed: false, recent: [], needsReviewIds: [] };
+  dueReviewIds: string[];
+} = { assessed: false, recent: [], needsReviewIds: [], dueReviewIds: [] };
 const catalog = (): LiveGameCatalog => ({
   courseCode: '9618',
   chapters: [
@@ -121,7 +122,7 @@ describe('database-backed Interactive Games multi-selection', () => {
   beforeEach(() => {
     importedChapter4 = false;
     extraChapter2Term = false;
-    mockPracticeHistory = { assessed: false, recent: [], needsReviewIds: [] };
+    mockPracticeHistory = { assessed: false, recent: [], needsReviewIds: [], dueReviewIds: [] };
     mockApi.mockReset();
     mockApi.mockImplementation(respond as typeof api);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -167,13 +168,26 @@ describe('database-backed Interactive Games multi-selection', () => {
   it('shows private student history, reviews first-attempt mistakes, and returns to all terms', async () => {
     mockPracticeHistory.needsReviewIds = ['1:' + baseTerms[0]!.id];
     await render(false);
-    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 term to revisit');
+    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 term previously missed');
     await click(button('Review my mistakes (1) in Flash Cards'));
     expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent).toBe('Flash Cards');
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
     expect(container.querySelectorAll('.ig-game-tile:not([disabled])')).toHaveLength(1);
     await click(button('Return to all selected vocabulary'));
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('8 terms in this round');
+  });
+
+  it('starts spaced review only for due terms and requires an explicit self-rating', async () => {
+    mockPracticeHistory.dueReviewIds = ['1:' + baseTerms[0]!.id];
+    await render(false);
+    expect(container.textContent).toContain('1 term is due for spaced review');
+    await click(button('Start spaced review (1)'));
+    expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
+    expect(container.textContent).toContain('self-rate honestly');
+    expect(container.querySelector<HTMLInputElement>('.ig-template-options input[type="checkbox"]')?.checked).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('.ig-template-options input[type="checkbox"]')?.disabled).toBe(true);
+    await click(button('Flip card'));
+    expect(container.querySelector('[aria-label="Self-mark this card"]')).not.toBeNull();
   });
 
   it('saves a finished student practice run as formative evidence on explicit click only', async () => {

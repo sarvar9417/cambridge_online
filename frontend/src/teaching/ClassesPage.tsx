@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError, api, type ClassItem, type User } from '../lib/api';
 import { navigate, useRoute } from '../lib/router';
+import { ClassPracticeReport } from './ClassPracticeReport';
 import './classes.css';
 
 interface ClassRecord {
@@ -289,6 +290,8 @@ function ClassDetail({ user, classId, onChanged }: { user: User; classId: string
           </div>
         )}
       </section>
+
+      {!archived && <ClassPracticeReport classId={classId} />}
 
       {!archived ? (
         <section className="cl-card">

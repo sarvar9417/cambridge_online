@@ -411,11 +411,11 @@ export class ContentService {
     correctFirstAttempts: number;
     incorrectFirstAttempts: number;
     reviewedCount: number;
-    attempts: Array<{ termId: string; firstCorrect: boolean }>;
+    attempts: Array<{ termId: string; firstCorrect: boolean; evidenceType: 'scored_response' | 'self_rating' }>;
   }) {
     this.student(actor);
     await this.interactiveGamesAccess(actor, input.courseCode);
-    const ids = input.attempts.map((item) => item.termId);
+    const ids = input.attempts.map((item) => item.termId.toLowerCase());
     if (new Set(ids).size !== ids.length) throw new DomainError('duplicate_practice_attempt', 400);
     if (ids.length) {
       const found = await this.pool.query(
@@ -435,20 +435,72 @@ export class ContentService {
       }
     }
     const result = await this.pool.query(
-      `insert into interactive_game_practice_runs
-         (id,student_id,course_code,game_kind,selected_scopes,attempts,
-          correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
-       values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
-       on conflict (id) do update set id=excluded.id
-         where interactive_game_practice_runs.student_id=excluded.student_id
-       returning id`,
+      `with inserted_run as (
+         insert into interactive_game_practice_runs
+           (id,student_id,course_code,game_kind,selected_scopes,attempts,
+            correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
+         values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
+         on conflict (id) do nothing returning id
+       ), input_attempts as (
+         select * from jsonb_to_recordset($6::jsonb)
+           as x("termId" uuid,"firstCorrect" boolean)
+       ), scheduled as (
+         insert into interactive_game_practice_schedule
+           (student_id,course_code,term_id,interval_days,repetitions,ease_factor,due_at,
+            last_reviewed_at,last_first_correct,updated_at)
+         select $2,$3,a."termId",
+           case when a."firstCorrect" then 1 else 0 end,
+           case when a."firstCorrect" then 1 else 0 end,
+           2.50,
+           now() + case when a."firstCorrect" then interval '1 day' else interval '10 minutes' end,
+           now(),a."firstCorrect",now()
+         from input_attempts a cross join inserted_run
+         on conflict (student_id,course_code,term_id) do update set
+           interval_days = case
+             when excluded.last_first_correct=false then 0
+             when interactive_game_practice_schedule.repetitions=0 then 1
+             when interactive_game_practice_schedule.repetitions=1 then 3
+             else least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor,2))
+           end,
+           repetitions = case when excluded.last_first_correct
+             then least(10000,interactive_game_practice_schedule.repetitions+1) else 0 end,
+           ease_factor = greatest(1.30,least(3.00,
+             interactive_game_practice_schedule.ease_factor +
+             case when excluded.last_first_correct then 0.10 else -0.20 end)),
+           due_at = now() + case
+             when excluded.last_first_correct=false then interval '10 minutes'
+             when interactive_game_practice_schedule.repetitions=0 then interval '1 day'
+             when interactive_game_practice_schedule.repetitions=1 then interval '3 days'
+             else make_interval(days => least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor
+             )::int))
+           end,
+           last_reviewed_at=now(),
+           last_first_correct=excluded.last_first_correct,
+           updated_at=now()
+         returning term_id
+       )
+       select id, true as inserted, (select count(*) from scheduled)::int as scheduled_count
+         from inserted_run
+       union all
+       select id, false as inserted, 0 as scheduled_count
+         from interactive_game_practice_runs
+        where id=$1 and student_id=$2
+          and not exists (select 1 from inserted_run)`,
       [input.runId, actor.id, input.courseCode, input.mode,
         JSON.stringify(input.scopes), JSON.stringify(input.attempts),
         input.correctFirstAttempts, input.incorrectFirstAttempts,
         input.reviewedCount, input.durationSeconds],
     );
     if (!result.rowCount) throw new DomainError('practice_run_id_conflict', 409);
-    return { runId: input.runId, saved: true as const, assessed: false as const };
+    const inserted = result.rows[0]?.inserted === true;
+    return {
+      runId: input.runId, saved: true as const,
+      alreadySaved: !inserted, assessed: false as const,
+    };
   }
 
   /** Last completed first-attempt outcome for each term determines whether
@@ -457,7 +509,7 @@ export class ContentService {
   async interactiveGamePracticeHistory(actor: Actor, courseCode: '9618' | '0478') {
     this.student(actor);
     await this.interactiveGamesAccess(actor, courseCode);
-    const [runs, weaknesses] = await Promise.all([
+    const [runs, weaknesses, due] = await Promise.all([
       this.pool.query(
         `select id,game_kind,correct_first_attempts,incorrect_first_attempts,
                 reviewed_count,duration_seconds,created_at
@@ -483,6 +535,12 @@ export class ContentService {
          order by term_id limit 500`,
         [actor.id, courseCode],
       ),
+      this.pool.query(
+        `select term_id from interactive_game_practice_schedule
+          where student_id=$1 and course_code=$2 and due_at<=now()
+          order by due_at asc,term_id asc limit 500`,
+        [actor.id, courseCode],
+      ),
     ]);
     return {
       assessed: false as const,
@@ -496,6 +554,7 @@ export class ContentService {
         createdAt: row.created_at,
       })),
       needsReviewIds: weaknesses.rows.map((row) => String(row.term_id)),
+      dueReviewIds: due.rows.map((row) => String(row.term_id)),
     };
   }
 

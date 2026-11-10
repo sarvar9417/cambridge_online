@@ -1,14 +1,18 @@
 import { useState, type KeyboardEvent } from 'react';
 import { gamePairProvenance, shuffleItems, type GamePair } from './game-content';
-import { useGameSignal } from './game-session';
+import { useGameSignal, type AnswerReview } from './game-session';
 
-export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
+export function FlashCards({ pairs, requireSelfMark = false, onResult }: {
+  pairs: readonly GamePair[];
+  requireSelfMark?: boolean;
+  onResult?: (answer: AnswerReview) => void;
+}) {
   const signal = useGameSignal();
   const [deck, setDeck] = useState(pairs);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [reviewed, setReviewed] = useState(() => new Set<string>());
-  const [marking, setMarking] = useState(false);
+  const [marking, setMarking] = useState(requireSelfMark);
   const [marks, setMarks] = useState<Record<string, boolean>>({});
   const [repeatMissed, setRepeatMissed] = useState(false);
   const [auto, setAuto] = useState(false);
@@ -44,8 +48,19 @@ export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
   }
 
   function mark(knew: boolean) {
+    const firstMark = marks[cardId] === undefined;
     const nextMarks = { ...marks, [cardId]: knew };
     setMarks(nextMarks);
+    if (firstMark) {
+      signal(knew ? 'correct' : 'incorrect');
+      onResult?.({
+        id: cardId,
+        prompt: card.definition,
+        submitted: knew ? 'self-rated: knew it' : 'self-rated: practise again',
+        expected: card.term,
+        correct: knew,
+      });
+    }
     if (auto) next(nextMarks);
   }
 
@@ -56,9 +71,11 @@ export function FlashCards({ pairs }: { pairs: readonly GamePair[] }) {
   }
 
   return <div className="ig-content" onKeyDown={arrows}>
-    <p className="ig-instruction">Think of the matching term, then flip the card. Use the arrows to move through the deck.</p>
+    <p className="ig-instruction">{requireSelfMark
+      ? 'Review due terms. After revealing each term, self-rate honestly: Knew it or Practise again. This schedules revision; it is not an objective mastery test.'
+      : 'Think of the matching term, then flip the card. Use the arrows to move through the deck.'}</p>
     <div className="ig-template-options" role="group" aria-label="Flash Cards options">
-      <label><input type="checkbox" checked={marking} onChange={(event) => setMarking(event.target.checked)} /> Self-mark cards</label>
+      <label><input type="checkbox" checked={marking} disabled={requireSelfMark} onChange={(event) => setMarking(event.target.checked)} /> Self-mark cards</label>
       {marking && <>
         <label><input type="checkbox" checked={repeatMissed} onChange={(event) => setRepeatMissed(event.target.checked)} /> Repeat missed cards</label>
         <label><input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Automatically proceed after marking</label>

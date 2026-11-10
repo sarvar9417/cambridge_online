@@ -1,0 +1,59 @@
+GLOSSARY CORE COVERAGE REVIEW — 10 NOVEMBER 2026
+Updated after Chapter 2 and Chapter 3 manual-review batches.
+
+## Current live database read-back
+
+- Total glossary records: 4,664 across 20 chapters.
+- Visible: 3,836; hidden: 828. No records were deleted.
+- Official Key Terms visible: 925. Their flags and official textbook definitions were not changed.
+- Visible supplementary entries individually verified: 154.
+- Source-supported, workflow-approved Core bank: 745 terms (up from 723).
+- Across 44 active 9618 subtopics, zero-Core subtopics fell from 1 to 0. Two subtopics remain at exactly four Core terms: 10.3 Files and 12.2 Program Design; these are not automatically gaps and were not inflated with unsupported terms.
+- Chapter 2 currently has 86 Core terms; Chapter 3 has 44.
+
+## Core promotion batches
+
+### Initial 9618 coverage review — 15 records
+- 10.1 Data Types and Records: 4 → 10 (BOOLEAN, CHAR, DATE, INTEGER, REAL, STRING).
+- 10.3 Files: 1 → 4 (Text file, File mode, EOF(file), alongside File).
+- 11.2 Constructs: 0 → 6 (IF statement, CASE statement, Nested IF and the three syllabus loop types).
+- 12.2 Program Design: remains 4; its four official Key Terms already cover the relevant structure-chart and state-transition objectives.
+- Source: Cambridge 9618 syllabus and official pseudocode guides (2026 and 2027–2029). The Hodder 2019 Chapter 10–12 PDFs were not available in the Project uploads, so their existing source references were preserved but not re-opened.
+
+### Chapter 2 manual-review batch — 2 records
+- Low water mark and High water mark are now individually verified Core terms.
+- The coursebook explicitly defines them on p.52 as the minimum and maximum data levels in a playback buffer.
+- Low water mark was restored from the hidden manual-review set; High water mark was already visible but its evidence status and definition were strengthened.
+- The other 19 Chapter 2 quarantine candidates remain hidden because they are duplicate concepts, generic properties/roles, protocol sub-steps, examples, or unsupported/inferred labels.
+
+### Chapter 3 manual-review batch — 5 records
+- Logic expression (renamed from Boolean expression to match the coursebook's wording).
+- Magnetic storage.
+- Real-time response (embedded system).
+- Monitoring and control systems.
+- Infrared/motion sensor.
+- These five are supported by the uploaded Hodder 2019 Chapter 3 PDF and the Cambridge 2027–2029 syllabus where applicable. The other 30 Chapter 3 quarantine candidates remain hidden because they are component details, duplicates, diagram notation, examples or non-syllabus specifications.
+
+Across all batches, **22 existing records** now meet the Core evidence gate. Nine formerly hidden manual-review records were restored/promoted; one additional visible term (High water mark) was moved from source-screened to targeted-verified. No new glossary rows were created.
+
+## Quarantine and microdetail review status
+
+- The original 742-record manual-review quarantine manifest now has **733 still hidden** and **9 restored/promoted** after individual source checks.
+- There are 744 non-official manual-review records hidden in the live database; this includes the 733 remaining manifest records plus other pre-existing hidden records.
+- The separate 95-record microdetail curation list remains hidden. **53/95** were rechecked against the uploaded Chapters 2–8 and 14–18 PDFs; none needed restoration. **42/95** remain pending because Chapters 1, 9, 10, 11, 12, 13, 19 and 20 are not available in the current Project uploads.
+
+## Source and metadata limitations
+
+- Cambridge's published naming is 2026 (exam-year syllabus) and 2027–2029; the active database row is labelled `2026-2028`. Relevant content checked in this review matches across the Cambridge documents. Database syllabus metadata was not changed.
+- The Google Drive connector is disabled by the workspace administrator, so missing Hodder chapters could not be fetched from the configured PIMA folder.
+- The 2026 and 2027–2029 Cambridge pseudocode guides support the 10.1, 10.3 and 11.2 additions. Chapter 2 and Chapter 3 promotions were checked against the uploaded Hodder 2019 PDFs.
+
+## Audit and rollback artefacts
+
+- Initial 15-record coverage batch: `glossary-core-coverage-review-20261110.csv`, guarded forward SQL and exact rollback SQL.
+- Chapter 2: `glossary-chapter2-review-20261110.csv`, report TXT, guarded forward SQL and rollback SQL.
+- Chapter 3: `glossary-chapter3-review-20261110.csv`, report TXT, guarded forward SQL and rollback SQL.
+- Microdetail review: `glossary-microdetail-revalidation-20261110.csv` and report TXT (53 reviewed, 42 pending).
+- Earlier 95-record, 742-record and 40-definition manifests and rollback SQL remain in `docs/`.
+
+All database changes are UUID-scoped and reversible. The PR remains open and unmerged; deployment/preview is not confirmed.

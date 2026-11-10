@@ -145,3 +145,28 @@
   .cl-row { transition: none; }
   .cl-row:hover { transform: none; }
 }
+
+
+/* Aggregate-only, teacher-facing Interactive Games reporting. */
+.cl-practice-report .cl-card-head button {
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: var(--radius);
+  padding: .35rem .65rem; font: inherit; cursor: pointer;
+}
+.cl-practice-report .cl-card-head button:disabled { opacity: .5; }
+.cl-report-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: .6rem;
+}
+.cl-report-stats div {
+  display: grid; gap: .3rem; border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .85rem; background: var(--surface-soft);
+}
+.cl-report-stats strong { font-size: 1.55rem; font-variant-numeric: tabular-nums; color: var(--text); }
+.cl-report-stats span { font-size: .76rem; line-height: 1.4; color: var(--text-muted); }
+.cl-practice-report h3 { font-size: .83rem; margin: .5rem 0 0; }
+.cl-report-modes { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.cl-report-modes li {
+  display: flex; justify-content: space-between; gap: 1rem;
+  border-bottom: 1px solid var(--border); padding: .35rem 0;
+  font-size: .82rem;
+}

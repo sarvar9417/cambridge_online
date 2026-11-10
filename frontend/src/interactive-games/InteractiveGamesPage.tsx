@@ -4,8 +4,8 @@ import { randomId } from '../lib/random-id';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
-  selectModeStage, validGameScopes, normalizeGameScopes,
-  type GameScope, type LiveGameCatalog, type LiveGamePack,
+  selectModeStage, validGameScopes, normalizeGameScopes, selectQualityGameTerms,
+  type GameScope, type LiveGameCatalog, type LiveGamePack, type GameVocabularyQuality,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
 import { ClassroomMode } from './ClassroomMode';
@@ -24,6 +24,7 @@ import './game-polish.css';
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
+  const [vocabularyQuality, setVocabularyQuality] = useState<GameVocabularyQuality>('core');
   const [scopes, setScopes] = useState<GameScope[]>([]);
   const initializedScopes = useRef(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -56,6 +57,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [practiceRunId, setPracticeRunId] = useState(() => randomId());
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [classroomMode, setClassroomMode] = useState(false);
+  const [dueOnly, setDueOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -152,17 +154,21 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (soundOn && kind !== 'start') soundEffect(kind);
   }, [soundOn]);
 
-  const allPairs = pack?.pairs ?? [];
+  const allPairs = useMemo(() => selectQualityGameTerms(pack?.pairs ?? [], vocabularyQuality), [pack, vocabularyQuality]);
   const classroomPairs = useMemo(
     () => selectModeStage(allPairs, Math.min(questionCount, 50), round, 'flash-cards'),
     [allPairs, questionCount, round]);
-  const missedPairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], practiceHistory?.needsReviewIds ?? []),
-    [pack, practiceHistory]);
-  const currentMode = mistakesOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
+  const missedPairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.needsReviewIds ?? []),
+    [allPairs, practiceHistory]);
+  const duePairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.dueReviewIds ?? []),
+    [allPairs, practiceHistory]);
+  const reviewOnly = mistakesOnly || dueOnly;
+  const reviewPairs = dueOnly ? duePairs : missedPairs;
+  const currentMode = reviewOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const eligiblePairs = useMemo(
-    () => poolForMode(mistakesOnly ? missedPairs : (pack?.pairs ?? []), currentMode),
-    [pack, currentMode, mistakesOnly, missedPairs]);
+    () => poolForMode(reviewOnly ? reviewPairs : allPairs, currentMode),
+    [allPairs, currentMode, reviewOnly, reviewPairs]);
   const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
     [eligiblePairs, questionCount, round, currentMode]);
   const selectedCount = Math.min(eligiblePairs.length, questionCount);
@@ -184,7 +190,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
-  const distinctTermLabels = new Set((pack?.pairs ?? []).map((pair) => pair.term.trim().toLocaleLowerCase('en'))).size;
+  const distinctTermLabels = new Set(allPairs.map((pair) => pair.term.trim().toLocaleLowerCase('en'))).size;
 
   const recordAnswer = useCallback((answer: AnswerReview) => {
     setAnswers((previous) => previous.some((item) => item.id === answer.id) ? previous : [...previous, answer]);
@@ -214,6 +220,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (JSON.stringify(normalized) === scopesKey) return;
     setScopes(normalized);
     setMistakesOnly(false);
+    setDueOnly(false);
     setPack(null);
     setPackError('');
     setRound(0);
@@ -229,6 +236,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }
   function refresh() {
     setMistakesOnly(false);
+    setDueOnly(false);
     setCatalogLoading(true);
     setRefreshVersion((value) => value + 1);
     setPack(null);
@@ -246,7 +254,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       correctFirstAttempts: Math.min(500, correctCount),
       incorrectFirstAttempts: Math.min(500, wrongCount),
       reviewedCount: Math.min(500, reviewedCount),
-      attempts: practiceAttempts(answers, pairs),
+      attempts: practiceAttempts(answers, pairs, currentMode === 'flash-cards' ? 'self_rating' : 'scored_response'),
     };
     setPracticeSaveState('saving');
     setPracticeSaveError('');
@@ -268,7 +276,17 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   function startMistakeReview() {
     if (!missedPairs.length) return;
+    setDueOnly(false);
     setMistakesOnly(true);
+    setMode('flash-cards');
+    setRound(0);
+    resetGame('flash-cards');
+  }
+
+  function startDueReview() {
+    if (!duePairs.length) return;
+    setMistakesOnly(false);
+    setDueOnly(true);
     setMode('flash-cards');
     setRound(0);
     resetGame('flash-cards');
@@ -328,6 +346,17 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
     {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
     <div className="ig-data-controls" role="group" aria-label="Game setup">
+      <label>Vocabulary quality
+        <select aria-label="Vocabulary quality" value={vocabularyQuality} onChange={event=>{
+          setVocabularyQuality(event.target.value as GameVocabularyQuality);
+          setMistakesOnly(false);
+          setDueOnly(false);
+          setRound(0);setPlaySession(value=>value+1);clearSession();
+        }}>
+          <option value="core">Core · textbook and verified terms</option>
+          <option value="extended">Extended · additional source-screened concepts</option>
+        </select>
+      </label>
       <label>Round size
         <select aria-label="Round size" value={customRoundSize ? 'custom' : String(questionCount)} disabled={!ready}
           onChange={(event) => {
@@ -361,18 +390,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
-      <strong>{pack.pairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
-      {pack.pairs.length > distinctTermLabels
-        ? ` ${pack.pairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
-      {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
-        ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
-      {pack.contentStatus === 'needs_review'
-        ? ' Some supplementary definitions are pending review and need individual source verification. Use for provisional practice only.'
-        : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
+      <strong>{allPairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      {allPairs.length > distinctTermLabels
+        ? ` ${allPairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
+      {allPairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
+        ` (${allPairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${allPairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
+      {pack.pairs.some(pair=>pair.definitionEvidenceStatus!==undefined||pair.isOfficialKeyTerm!==undefined)
+        ? ` ${Math.max(0,pack.pairs.length-allPairs.length)} less-verified or review-pending entries excluded from this ${vocabularyQuality==='core'?'core':'extended'} bank.`
+        : ' Source verification flags are unavailable for this legacy bank; pending review content is for provisional practice only.'}
+      {vocabularyQuality==='core'
+        ? ' Core contains official textbook definitions and individually verified supplementary concepts; original source wording is preserved.'
+        : ' Extended includes supplementary source-screened concepts that are not all individually expert-verified.'}
       {' '}Results are formative practice only, not official assessment grades.
     </div>}
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">
       This selection currently has no linked glossary terms. Select more topics, sections or complete chapters.
+    </p>}
+    {pack && pack.pairs.length>0 && allPairs.length===0 && <p className="ig-data-message" role="status">
+      No verified core vocabulary is available for this narrow selection. Choose a broader Chapter or explicitly switch to Extended source-screened concepts.
     </p>}
     {pack && ready && (classroomMode && isTeacher ? <ClassroomMode
       pairs={classroomPairs} isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
@@ -386,28 +421,35 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         {practiceHistory?.recent.length ? <p>{practiceHistory.recent.length} recent saved rounds</p>
           : <p>No saved rounds yet.</p>}
         {practiceHistory?.needsReviewIds.length ? <p>{practiceHistory.needsReviewIds.length}
-          {practiceHistory.needsReviewIds.length === 1 ? ' term' : ' terms'} to revisit</p> : null}
+          {practiceHistory.needsReviewIds.length === 1 ? ' term' : ' terms'} previously missed</p> : null}
+        {practiceHistory?.dueReviewIds?.length ? <p>{practiceHistory.dueReviewIds.length}
+          {practiceHistory.dueReviewIds.length === 1 ? ' term is' : ' terms are'} due for spaced review</p> : <p>No spaced reviews due right now.</p>}
         {practiceHistory?.recent.length ? <details>
           <summary>Recent practice results</summary>
           <ol>{practiceHistory.recent.map((run) => <li key={run.runId}>
-            {run.mode} · {run.correctFirstAttempts} first-try correct ·
-            {run.incorrectFirstAttempts} mistakes · {run.reviewedCount} reviewed
+            {run.mode} · {run.correctFirstAttempts} {run.mode === 'flash-cards' ? 'self-rated as known' : 'first-try correct'} ·
+            {run.incorrectFirstAttempts} {run.mode === 'flash-cards' ? 'self-rated for revision' : 'mistakes'} · {run.reviewedCount} reviewed
           </li>)}</ol>
         </details> : null}
-        {mistakesOnly ? <button type="button" onClick={() => { setMistakesOnly(false); resetGame(); }}>
+        {reviewOnly ? <button type="button" onClick={() => { setMistakesOnly(false); setDueOnly(false); resetGame(); }}>
           Return to all selected vocabulary
-        </button> : <button type="button" disabled={!missedPairs.length} onClick={startMistakeReview}>
-          Review my mistakes ({missedPairs.length}) in Flash Cards
-        </button>}
+        </button> : <>
+          <button type="button" disabled={!missedPairs.length} onClick={startMistakeReview}>
+            Review my mistakes ({missedPairs.length}) in Flash Cards
+          </button>
+          <button type="button" disabled={!duePairs.length} onClick={startDueReview}>
+            Start spaced review ({duePairs.length})
+          </button>
+        </>}
       </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={(mistakesOnly && game.id !== 'flash-cards') || !gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs)} aria-pressed={currentMode === game.id}
+          disabled={(reviewOnly && game.id !== 'flash-cards') || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, mistakesOnly ? missedPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
@@ -442,7 +484,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <fieldset className="ig-game-stage" disabled={stageDisabled}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} recordAnswer={recordAnswer} />}
-          {currentMode === 'flash-cards' && <FlashCards pairs={pairs} />}
+          {currentMode === 'flash-cards' && <FlashCards
+            key={dueOnly ? 'spaced-review' : mistakesOnly ? 'mistake-review' : 'all-cards'}
+            pairs={pairs}
+            requireSelfMark={dueOnly}
+            onResult={recordAnswer}
+          />}
           {currentMode === 'speaking-cards' && <SpeakingDeck prompts={speaking} />}
           {isWheel && <SpinWheel pairs={pairs} options={wheelOptions} onOptionsChange={setWheelOptions}
             blocked={stageDisabled} ended={roundEnded} />}
