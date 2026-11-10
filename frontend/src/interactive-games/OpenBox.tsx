@@ -21,7 +21,7 @@ export function OpenBox({ pairs, questions, mode, onModeChange, blocked, recordA
   const [shuffle, setShuffle] = useState(false);
   const [autoReturn, setAutoReturn] = useState(true);
   const [questionTime, setQuestionTime] = useState(30);
-  const [remaining, setRemaining] = useState(30);
+  const [remainingMs, setRemainingMs] = useState(30_000);
   const heading = useRef<HTMLHeadingElement>(null);
   const grid = useRef<HTMLDivElement>(null);
   const returnFocus = useRef(false);
@@ -41,15 +41,19 @@ export function OpenBox({ pairs, questions, mode, onModeChange, blocked, recordA
     signal(correct ? 'correct' : 'incorrect');
   }, [blocked, question, answer, recordAnswer, signal]);
 
+  // Measure elapsed wall-clock time, not interval count. Browser throttling in
+  // background tabs must not grant extra time; Pause freezes remaining time.
   useEffect(() => {
     if (blocked || !question || !questionTime || answer !== null) return;
-    const timer = window.setInterval(() => setRemaining((previous) => Math.max(0, previous - 1)), 1000);
+    const deadline = Date.now() + remainingMs;
+    const timer = window.setInterval(() =>
+      setRemainingMs(Math.max(0, deadline - Date.now())), 200);
     return () => window.clearInterval(timer);
-  }, [blocked, question, questionTime, answer]);
+  }, [blocked, question?.id, questionTime, answer]);
 
   useEffect(() => {
-    if (questionTime && remaining === 0) submit(-1);
-  }, [questionTime, remaining, submit]);
+    if (questionTime && remainingMs === 0) submit(-1);
+  }, [questionTime, remainingMs, submit]);
 
   useEffect(() => {
     if (blocked) return;
@@ -72,7 +76,7 @@ export function OpenBox({ pairs, questions, mode, onModeChange, blocked, recordA
     if (blocked) return;
     if (mode === 'questions') {
       if (answers['quiz-' + pair.id] !== undefined) return;
-      setRemaining(questionTime);
+      setRemainingMs(questionTime * 1000);
       setSelected(index);
       signal('open');
     } else if (opened.includes(pair.id)) {
@@ -105,7 +109,7 @@ export function OpenBox({ pairs, questions, mode, onModeChange, blocked, recordA
     {question ? <div className="ig-box-detail ig-box-question">
       <div>
         <span className="ig-eyebrow">BOX {selected! + 1}</span>
-        {questionTime > 0 && <span className="ig-box-clock" role="timer">Question time · {formatClock(remaining)}</span>}
+        {questionTime > 0 && <span className="ig-box-clock" role="timer">Question time · {formatClock(Math.ceil(remainingMs / 1000))}</span>}
         <h3 ref={heading} tabIndex={-1}>{question.prompt}</h3>
       </div>
       <AnswerCards options={question.options} answer={answer} correctIndex={question.answerIndex} blocked={blocked} onChoose={submit} />
