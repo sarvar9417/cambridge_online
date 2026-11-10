@@ -521,7 +521,12 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForSelector('.ig-box-question');
   await assertText('.ig-box-clock','00:30');
   if((await teacher.$$('.ig-box-question .ig-choice-card')).length!==4)throw new Error('A question box is missing answer cards');
-  await clickGameControl('.ig-box-question .ig-choice-card:first-child');
+  const boxPrompt=await teacher.$eval('.ig-box-question h3',(node)=>node.textContent);
+  const boxTerm=gameTerms.find((term)=>term.definition===boxPrompt)?.term;
+  const boxChoices=await teacher.$eval('.ig-box-question .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
+  const boxChoiceIndex=boxChoices.indexOf(boxTerm??'');
+  if(boxChoiceIndex<0)throw new Error('Question box is missing its source-backed correct term');
+  await clickGameControl('.ig-box-question .ig-choice-card:nth-child('+(boxChoiceIndex+1)+')');
   await assertText('.ig-box-question .ig-reveal','Correct!');
   await teacher.waitForSelector('.ig-box.is-opened:nth-child(1):disabled');
   await assertText('.ig-session-metrics','1 correct');
@@ -532,7 +537,12 @@ async function assertInteractiveGames(browser:Browser,base:string){
     await teacher.waitForFunction((number)=>document.querySelector('.ig-quiz .ig-score')?.textContent?.startsWith(`Question ${number} /`),{},index+1);
     const answerRows=await teacher.$$eval('.ig-quiz .ig-choice-card',(nodes)=>nodes.map((node)=>(node as HTMLElement).offsetTop));
     if(answerRows.length!==4||new Set(answerRows).size!==1)throw new Error('Quiz did not display four cards in one desktop row: '+answerRows.join(', '));
-    await clickGameControl('.ig-quiz .ig-choice-card:nth-child('+(index%4+1)+')');
+    const prompt=await teacher.$eval('.ig-quiz .ig-question',(node)=>node.textContent);
+    const expectedTerm=gameTerms.find((term)=>term.definition===prompt)?.term;
+    const options=await teacher.$eval('.ig-quiz .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
+    const answerIndex=options.indexOf(expectedTerm??'');
+    if(answerIndex<0)throw new Error('Quiz item does not contain its correct glossary answer');
+    await clickGameControl('.ig-quiz .ig-choice-card:nth-child('+(answerIndex+1)+')');
     await teacher.waitForSelector('.ig-choice-card.is-correct');
   }
   await teacher.waitForSelector('.ig-result-panel');
