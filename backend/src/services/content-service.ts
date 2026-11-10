@@ -411,7 +411,7 @@ export class ContentService {
     correctFirstAttempts: number;
     incorrectFirstAttempts: number;
     reviewedCount: number;
-    attempts: Array<{ termId: string; firstCorrect: boolean }>;
+    attempts: Array<{ termId: string; firstCorrect: boolean; evidenceType: 'scored_response' | 'self_rating' }>;
   }) {
     this.student(actor);
     await this.interactiveGamesAccess(actor, input.courseCode);
