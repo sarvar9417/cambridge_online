@@ -373,3 +373,20 @@
   line-height: 1.5;
   overflow-wrap: break-word;
 }
+
+/* Provenance is public curriculum metadata: show it only after the answer has
+   been revealed, in compact text that remains readable on small screens. */
+.ig-source-context {
+  display: block;
+  max-width: 100%;
+  margin: 9px 0 6px;
+  font-size: .78rem;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--text-muted, #54627a);
+  overflow-wrap: anywhere;
+}
+.ig-wheel-result .ig-source-context,
+.ig-dealt-card .ig-source-context {
+  color: #405177;
+}
