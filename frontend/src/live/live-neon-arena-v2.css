@@ -148,3 +148,8 @@
 .live-mascot-equipped--wings{left:7px;top:50%;font-size:17px;letter-spacing:95px;white-space:nowrap}
 .live-mascot-equipped--star{font-size:21px}
 .live-neon-final .live-neon-final-ornament{margin:10px 0 0;color:#fce2a4;font-size:12px;font-weight:800}
+
+/* Maintain WCAG contrast when the original projector's muted text is on navy. */
+.live-neon-arena.live-projector-overlay>header>div:nth-child(2) small,
+.live-neon-arena.live-projector-overlay .live-projector-brand small{color:#d5e5ff}
+.live-neon-arena.live-projector-overlay>header .live-projector-session-info time{color:#f7fbff}
