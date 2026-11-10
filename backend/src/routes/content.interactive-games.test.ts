@@ -61,6 +61,28 @@ describe('Interactive Games live API route validation', () => {
     expect(service.interactiveGameCollection).toHaveBeenCalledWith(undefined, body);
   });
 
+  it('accepts Cambridge 0478 catalogue, chapter and multi-chapter game selections', async () => {
+    const { app, service } = setup();
+    const catalogue = await request(app).get('/content/interactive-games/catalog?courseCode=0478');
+    expect(catalogue.status).toBe(200);
+    expect(service.interactiveGameCatalog).toHaveBeenCalledWith(undefined, '0478');
+
+    const chapter = await request(app).get('/content/interactive-games/pack?courseCode=0478&chapterNo=3&sectionCode=3.1.2');
+    expect(chapter.status).toBe(200);
+    expect(service.interactiveGamePack).toHaveBeenCalledWith(undefined, {
+      courseCode: '0478', chapterNo: 3, sectionCode: '3.1.2',
+    });
+
+    const body = { courseCode: '0478', scopes: [
+      { chapterNo: 1, kind: 'chapter' },
+      { chapterNo: 2, kind: 'topic', code: '2.1' },
+      { chapterNo: 3, kind: 'section', code: '3.1.2' },
+    ] };
+    const collection = await request(app).post('/content/interactive-games/collection').send(body);
+    expect(collection.status).toBe(200);
+    expect(service.interactiveGameCollection).toHaveBeenCalledWith(undefined, body);
+  });
+
   it('rejects unknown kinds, no selections, and malformed subtopic codes', async () => {
     const { app, service } = setup();
     const bad = [
