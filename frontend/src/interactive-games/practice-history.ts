@@ -19,6 +19,7 @@ export interface PracticeHistory {
   assessed: false;
   recent: PracticeRun[];
   needsReviewIds: string[];
+  dueReviewIds: string[];
 }
 export interface SavePracticeRequest {
   runId: string;
