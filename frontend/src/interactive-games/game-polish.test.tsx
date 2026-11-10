@@ -124,6 +124,23 @@ describe('Classroom wheel', () => {
     expect(container.querySelector('.ig-wheel-answer-status')?.textContent).toBe('Correct!');
   });
 
+  it('does not reshuffle wheel answers when a learner submits a choice', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    let seed = 90210;
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    });
+    await render(pairs.slice(0, 8));
+    await click(findButton('Spin It'));
+    const options = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-wheel-choice')]
+      .map((button) => button.querySelector('strong')?.textContent);
+    const before = options();
+    await click(container.querySelector<HTMLButtonElement>('.ig-wheel-choice')!);
+    expect(options()).toEqual(before);
+    expect(container.querySelectorAll('.ig-wheel-choice:disabled')).toHaveLength(4);
+  });
+
   it('shows the full answer and completes when the last segment is eliminated', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
     await render(pairs.slice(0, 1));
@@ -155,6 +172,23 @@ describe('Classroom wheel', () => {
     expect(result()).toBeUndefined();
     await advance(1800);
     expect(result()).toBeTruthy();
+  });
+
+  it('freezes an in-flight wheel on Pause, then continues without rerolling', async () => {
+    await render();
+    vi.spyOn(Math, 'random').mockReturnValue(.7);
+    await click(findButton('Spin It'));
+    await advance(650);
+    const angleAtPause = rotation();
+    await render(pairs, true, false);
+    await advance(5_000);
+    expect(rotation()).toBeCloseTo(angleAtPause);
+    expect(result()).toBeUndefined();
+    expect(findButton('Spinning…').disabled).toBe(true);
+    await render(pairs, false, false);
+    await advance(2_000);
+    expect(result()).toBeTruthy();
+    expect(signal.mock.calls.filter(([kind]) => kind === 'spin')).toHaveLength(1);
   });
 
   it('cancels an in-flight spin when the session expires or is finished', async () => {

@@ -72,6 +72,18 @@ describe('database-backed Interactive Games multi-selection', () => {
     if (!value) throw new Error('Missing button ' + text);
     return value;
   };
+  const answerChoice = (term: string) => {
+    const choice = [...container.querySelectorAll<HTMLButtonElement>('.ig-choice-card')]
+      .find((button) => button.querySelector('strong')?.textContent === term);
+    if (!choice) throw new Error('Missing answer choice ' + term);
+    return choice;
+  };
+  const firstWrongChoice = (correctTerm: string) => {
+    const choice = [...container.querySelectorAll<HTMLButtonElement>('.ig-quiz .ig-choice-card')]
+      .find((button) => button.querySelector('strong')?.textContent !== correctTerm);
+    if (!choice) throw new Error('Missing incorrect choice for ' + correctTerm);
+    return choice;
+  };
   const game = async (name: string) => {
     const tile = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')]
       .find((item) => item.querySelector('strong')?.textContent === name);
@@ -180,13 +192,17 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(roundSelect.querySelector('option[value="20"]')).not.toBeNull();
     expect(roundSelect.querySelector('option[value="40"]')).not.toBeNull();
     await change('select[aria-label="Round size"]', '40');
-    expect(container.textContent).toContain('Playing 40 this round');
+    expect(container.textContent).toContain('Playing 30 this round');
+    expect(container.textContent).toContain('Stage 1 of 2 (40 selected)');
     const perPage = [...container.querySelectorAll<HTMLSelectElement>('.ig-template-options select')][0]!;
-    expect(perPage.querySelector('option[value="40"]')?.textContent).toBe('All (40)');
-    await act(async () => { perPage.value = '40'; perPage.dispatchEvent(new Event('change', { bubbles: true })); });
-    expect(container.querySelectorAll('.ig-match-row')).toHaveLength(40);
+    expect(perPage.querySelector('option[value="all"]')?.textContent).toBe('All (30)');
+    await act(async () => { perPage.value = 'all'; perPage.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(container.querySelectorAll('.ig-match-row')).toHaveLength(30);
+    await click(button('↻ New round'));
+    expect(container.textContent).toContain('Playing 10 this round');
+    expect(container.textContent).toContain('Stage 2 of 2 (40 selected)');
     await change('select[aria-label="Round size"]', '50');
-    expect(container.textContent).toContain('Playing 50 this round');
+    expect(container.textContent).toContain('Playing 30 this round');
     await change('select[aria-label="Round size"]', 'custom');
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Custom round size"]')!;
     expect(input).not.toBeNull();
@@ -196,9 +212,11 @@ describe('database-backed Interactive Games multi-selection', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       await Promise.resolve();
     });
-    expect(container.textContent).toContain('Playing 37 this round');
+    expect(container.textContent).toContain('Playing 30 this round');
+    expect(container.textContent).toContain('37 selected');
     await change('select[aria-label="Round size"]', '100');
-    expect(container.textContent).toContain('Playing 65 this round');
+    expect(container.textContent).toContain('Playing 30 this round');
+    expect(container.textContent).toContain('65 selected');
     expect(container.textContent).toContain('65 suitable terms');
     expect(container.querySelectorAll('.ig-match-row')).toHaveLength(10);
   });
@@ -400,7 +418,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
       expect(container.querySelector('.ig-box-question h3')?.textContent).toBe(baseTerms[0]!.definition);
       expect(container.querySelectorAll('.ig-box-question .ig-choice-card')).toHaveLength(4);
-      await click(button('ALegal'));
+      await click(answerChoice('Legal'));
       expect(container.querySelector('.ig-box-question .ig-reveal')?.textContent).toContain('Correct!');
       expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 correct');
       await act(async () => { vi.advanceTimersByTime(1100); });
@@ -477,7 +495,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await render();
       await game('Quiz');
       await toggleOption('Automatically proceed');
-      await click(button('ALegal'));
+      await click(answerChoice('Legal'));
       const stopped = container.querySelector('[aria-label="Quiz question countdown"]')?.textContent;
       await act(async () => { vi.advanceTimersByTime(60_000); await Promise.resolve(); });
       expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toBe(stopped);
@@ -487,12 +505,13 @@ describe('database-backed Interactive Games multi-selection', () => {
       await click(button('■ Finish game'));
       await game('Quiz');
       await toggleOption('Allow one retry');
-      await click(button('BMorality'));
+      const wrongTerm = firstWrongChoice('Legal').querySelector('strong')!.textContent!;
+      await click(answerChoice(wrongTerm));
       await act(async () => { vi.advanceTimersByTime(30_000); await Promise.resolve(); });
       expect(container.querySelector('.ig-quiz .ig-answer-feedback')?.textContent).toContain("Time's up!");
       expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 mistakes');
       await click(button('■ Finish game'));
-      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Morality');
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · ' + wrongTerm);
     } finally { vi.useRealTimers(); }
   });
 
@@ -500,7 +519,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     await render();
     await game('Quiz');
     await toggleOption('Automatically proceed');
-    await click(button('ALegal'));
+    await click(answerChoice('Legal'));
     await click(button('Next question →'));
     expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
     await click(button('← Previous question'));
@@ -514,10 +533,11 @@ describe('database-backed Interactive Games multi-selection', () => {
       await render();
       await game('Quiz');
       await toggleOption('Allow one retry');
-      await click(button('BMorality'));
-      expect(container.querySelector('.ig-choice-card.is-wrong')?.textContent).toContain('Morality');
+      const wrongTerm = firstWrongChoice('Legal').querySelector('strong')!.textContent!;
+      await click(answerChoice(wrongTerm));
+      expect(container.querySelector('.ig-choice-card.is-wrong')?.textContent).toContain(wrongTerm);
       expect(container.querySelector('.ig-choice-card.is-correct')).toBeNull();
-      await click(button('ALegal'));
+      await click(answerChoice('Legal'));
       expect(container.querySelector('.ig-choice-card.is-correct')?.textContent).toContain('Legal');
       await click(button('Ⅱ Pause game'));
       await act(async () => { vi.advanceTimersByTime(1500); });
@@ -526,7 +546,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await act(async () => { vi.advanceTimersByTime(1100); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
       await click(button('■ Finish game'));
-      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Morality');
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · ' + wrongTerm);
     } finally { vi.useRealTimers(); }
   });
 

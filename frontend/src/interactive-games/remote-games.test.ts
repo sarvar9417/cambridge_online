@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
   createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
-  isAnagramEligible, poolForMode, selectGamePairs, normalizeGameScopes, toggleNarrowScope,
+  isAnagramEligible, poolForMode, selectGamePairs, selectModeStage, normalizeGameScopes, toggleNarrowScope,
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, type LiveGameTerm,
 } from './remote-games';
 
@@ -119,6 +119,18 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(selectGamePairs(terms, 29, 999)).toHaveLength(29);
   });
 
+  it('samples large alphabetic banks evenly instead of using only the first few terms', () => {
+    const terms = Array.from({ length: 186 }, (_, index) => term(index, 'Vocabulary ' + index));
+    const selected = selectGamePairs(terms, 30, 0);
+    const positions = selected.map((item) => Number(item.id));
+    expect(new Set(positions).size).toBe(30);
+    expect(positions.some((position) => position >= 140)).toBe(true);
+    expect(positions.some((position) => position < 40)).toBe(true);
+    const allStages = Array.from({ length: 7 }, (_, index) =>
+      selectGamePairs(terms, 30, index).map((item) => item.id)).flat();
+    expect(new Set(allStages).size).toBe(186);
+  });
+
   it('generates review-only speaking prompts and a single correct quiz option per definition', () => {
     const pairs = ['Legal', 'Ethics', 'Culture', 'Morality', 'Privacy', 'Plagiarism'].map((x, i) => term(i, x));
     const prompts = createSpeakingPrompts(pairs);
@@ -133,9 +145,9 @@ describe('Interactive Games robust production catalogue selection', () => {
       expect(question.answerIndex).toBeLessThan(4);
     }
     expect(gameIsAvailable('quiz', pairs.slice(0, 1))).toBe(false);
-    expect(gameIsAvailable('quiz', pairs.slice(0, 2))).toBe(true);
-    expect(createQuizQuestions(pairs.slice(0, 2)).map((question) => question.options.length)).toEqual([2, 2]);
-    expect(gameIsAvailable('find-the-match', pairs.slice(0, 1))).toBe(true);
+    expect(gameIsAvailable('quiz', pairs.slice(0, 2))).toBe(false);
+    expect(createQuizQuestions(pairs.slice(0, 2))).toEqual([]);
+    expect(gameIsAvailable('find-the-match', pairs.slice(0, 1))).toBe(false);
     expect(gameIsAvailable('quiz', pairs)).toBe(true);
   });
 
@@ -147,6 +159,40 @@ describe('Interactive Games robust production catalogue selection', () => {
       { ...term(4, 'D'), definition: 'Third' },
     ];
     expect(gameIsAvailable('quiz', pairs)).toBe(false);
-    expect(gameIsAvailable('find-the-match', pairs)).toBe(false);
+    expect(gameIsAvailable('find-the-match', pairs)).toBe(true);
+    expect(poolForMode(pairs, 'quiz')).toHaveLength(3);
+    expect(gameIsAvailable('quiz', [...pairs, term(5, 'Extra')])).toBe(true);
+    expect(poolForMode([...pairs, term(5, 'Extra')], 'quiz')).toHaveLength(4);
   });
+  it('stages 500 selected questions in readable blocks while preserving each source term once', () => {
+    const terms = Array.from({ length: 520 }, (_, index) => term(index, 'Term ' + index));
+    const blocks = Array.from({ length: 10 }, (_, round) => selectModeStage(terms, 500, round, 'quiz'));
+    expect(blocks.map((items) => items.length)).toEqual(Array(10).fill(50));
+    expect(new Set(blocks.flat().map((item) => item.id)).size).toBe(500);
+    expect(selectModeStage(terms, 500, 10, 'quiz').map((item) => item.id))
+      .toEqual(blocks[0]!.map((item) => item.id));
+    const wheelBlocks = [0, 1, 2, 3].map((round) => selectModeStage(terms, 100, round, 'spin-wheel'));
+    expect(wheelBlocks.map((items) => items.length)).toEqual([30, 30, 30, 10]);
+    expect(new Set(wheelBlocks.flat().map((item) => item.id)).size).toBe(100);
+    expect(selectModeStage(terms, 20, 0, 'quiz')).toHaveLength(20);
+    expect(selectModeStage(terms, 30, 0, 'match-up')).toHaveLength(30);
+    expect(selectModeStage(terms, 100, 0, 'open-box')).toHaveLength(30);
+  });
+
+  it('keeps duplicate definitions from disabling the entire four-choice Quiz', () => {
+    const values = [
+      { ...term(1, 'A'), definition: 'One shared definition' },
+      { ...term(2, 'B'), definition: 'One shared definition' },
+      { ...term(3, 'C'), definition: 'Definition C' },
+      { ...term(4, 'D'), definition: 'Definition D' },
+      { ...term(5, 'E'), definition: 'Definition E' },
+    ];
+    expect(gameIsAvailable('quiz', values)).toBe(true);
+    const filtered = poolForMode(values, 'quiz');
+    expect(filtered).toHaveLength(4);
+    const questions = createQuizQuestions(filtered);
+    expect(questions).toHaveLength(4);
+    expect(questions.every((question) => new Set(question.options).size === 4)).toBe(true);
+  });
+
 });

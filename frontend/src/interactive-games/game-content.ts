@@ -105,24 +105,44 @@ export function isCorrectPair(termId: string, definitionId: string): boolean {
   return termId === definitionId;
 }
 
-/** Consistent per-question four-choice construction without making the prompt's answer obvious. */
+/** Build a four-option, source-backed multiple-choice item without leaking
+ * the answer through alphabetical neighbours or a fixed A/B/C/D pattern.
+ * Prefer distractors whose definitions share topic vocabulary. No invented
+ * definitions or terms: all choices come from the supplied real content.
+ */
 export function findMatchOptions(pairs: readonly GamePair[], index: number, minimum = 4): GamePair[] {
-  if (pairs.length < minimum) return [];
   const target = pairs[index];
-  if (!target) return [];
-  // Pick three distinct distractors, including for short 4- and 5-term packs.
-  // A fixed odd-offset list repeats candidates when the bank has five items.
-  const others: GamePair[] = [];
-  for (let offset = 1; others.length < 3 && offset < pairs.length; offset += 1) {
-    const choice = pairs[(index + offset) % pairs.length]!;
-    if (choice.id !== target.id && !others.some((item) => item.id === choice.id)) {
-      others.push(choice);
-    }
+  if (!target || pairs.length < minimum) return [];
+  const key = (value: string) => value.trim().toLocaleLowerCase('en');
+  const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'into', 'which',
+    'where', 'when', 'what', 'how', 'are', 'has', 'have', 'can', 'will', 'use', 'using',
+    'used', 'its', 'not', 'one', 'two', 'all', 'any', 'each', 'than', 'such', 'only',
+    'some', 'their', 'them', 'they', 'been', 'being', 'more', 'other', 'also', 'between']);
+  const words = (value: string) => new Set((value.toLocaleLowerCase('en').match(/[a-z0-9]{3,}/g) ?? [])
+    .filter((word) => !stopWords.has(word)));
+  const promptWords = words(target.definition);
+  const termWords = words(target.term);
+  const candidates = shuffleItems(pairs.filter((item) => item.id !== target.id &&
+    key(item.term) !== key(target.term) && key(item.definition) !== key(target.definition)));
+  const seenTerms = new Set([key(target.term)]);
+  const seenDefinitions = new Set([key(target.definition)]);
+  const ranked = candidates.map((item) => {
+    const definitionWords = words(item.definition);
+    const labelWords = words(item.term);
+    const commonDefinition = [...definitionWords].filter((word) => promptWords.has(word)).length;
+    const commonTerm = [...labelWords].filter((word) => termWords.has(word)).length;
+    const similarLength = Math.abs(item.definition.length - target.definition.length) <= 24 ? 1 : 0;
+    return { item, score: commonDefinition * 4 + commonTerm * 2 + similarLength };
+  }).sort((a, b) => b.score - a.score);
+  const selected: GamePair[] = [target];
+  for (const { item } of ranked) {
+    if (seenTerms.has(key(item.term)) || seenDefinitions.has(key(item.definition))) continue;
+    selected.push(item);
+    seenTerms.add(key(item.term));
+    seenDefinitions.add(key(item.definition));
+    if (selected.length === minimum) break;
   }
-  const place = index % (others.length + 1);
-  const result = [...others];
-  result.splice(place, 0, target);
-  return result;
+  return selected.length === minimum ? shuffleItems(selected) : [];
 }
 
 /** Stable scrambled prompt, never identical to the solution; does not leak correct spelling. */
