@@ -1,0 +1,3722 @@
+{
+  "schemaVersion": 1,
+  "sourceTitle": "Cambridge IGCSE and O Level Computer Science, Second Edition",
+  "sourceAuthors": "David Watson; Helen Williams",
+  "publisher": "Hodder Education",
+  "year": 2021,
+  "isbn": "9781398318281",
+  "courseCode": "0478",
+  "syllabusVersion": "2026-2028",
+  "dataStatus": "verified",
+  "sourceNote": "Editorial audit completed 2026-11-10 for the scoped 0478 Interactive Games keyword dataset. Chapter-end Hodder Key Terms were compared against the user's original second-edition PDF across all 10 chapters. The 357 printed Key Terms occurrences are represented by 354 corrected official entries (three source typos are documented with corrected concepts). All 35 supplementary concept definitions were reviewed for technical accuracy; they are not claimed to be verbatim textbook Key Terms. Missing Chapter 4 entries, classifier errors and OCR contamination were corrected. The private database contains 389 approved records; no copyrighted textbook definition corpus is reproduced in this public manifest. Syllabus activation and PR merge require separate approval.",
+  "numberingNote": "Subsection page bounds are containing section ranges based on the Hodder printed contents, not claimed precise start pages.",
+  "chapters": [
+    {
+      "chapterNo": 1,
+      "title": "Data representation",
+      "sections": [
+        {
+          "chapter_number": 1,
+          "section_code": "1",
+          "title": "Data representation",
+          "parent_code": null,
+          "page_start": 2,
+          "page_end": 44,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1",
+          "title": "Number systems",
+          "parent_code": "1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.1",
+          "title": "Binary represents data",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.2",
+          "title": "Binary, denary and hexadecimal systems",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.3",
+          "title": "Use of the hexadecimal system",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.4",
+          "title": "Addition of binary numbers",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.5",
+          "title": "Logical binary shifts",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.1.6",
+          "title": "Two’s complement (binary numbers)",
+          "parent_code": "1.1",
+          "page_start": 2,
+          "page_end": 24,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.2",
+          "title": "Text, sound and images",
+          "parent_code": "1",
+          "page_start": 25,
+          "page_end": 31,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.2.1",
+          "title": "Character sets – ASCII code and Unicode",
+          "parent_code": "1.2",
+          "page_start": 25,
+          "page_end": 31,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.2.2",
+          "title": "Representation of sound",
+          "parent_code": "1.2",
+          "page_start": 25,
+          "page_end": 31,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.2.3",
+          "title": "Representation of (bitmap) images",
+          "parent_code": "1.2",
+          "page_start": 25,
+          "page_end": 31,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.3",
+          "title": "Data storage and file compression",
+          "parent_code": "1",
+          "page_start": 32,
+          "page_end": 44,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.3.1",
+          "title": "Measurement of data storage",
+          "parent_code": "1.3",
+          "page_start": 32,
+          "page_end": 44,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.3.2",
+          "title": "Calculation of file size",
+          "parent_code": "1.3",
+          "page_start": 32,
+          "page_end": 44,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.3.3",
+          "title": "Data compression",
+          "parent_code": "1.3",
+          "page_start": 32,
+          "page_end": 44,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 1,
+          "section_code": "1.3.4",
+          "title": "Lossy and lossless file compression",
+          "parent_code": "1.3",
+          "page_start": 32,
+          "page_end": 44,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "bit",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.2",
+          "official": true
+        },
+        {
+          "term": "binary number system",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.1",
+          "official": true
+        },
+        {
+          "term": "hexadecimal number system",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.2",
+          "official": true
+        },
+        {
+          "term": "error code",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": true
+        },
+        {
+          "term": "MAC address",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": true
+        },
+        {
+          "term": "IP address",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": true
+        },
+        {
+          "term": "HTML",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": true
+        },
+        {
+          "term": "overflow error",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.4",
+          "official": true
+        },
+        {
+          "term": "logical shift",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.5",
+          "official": true
+        },
+        {
+          "term": "two’s complement",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.6",
+          "official": true
+        },
+        {
+          "term": "ASCII code",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.1",
+          "official": true
+        },
+        {
+          "term": "character set",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.1",
+          "official": true
+        },
+        {
+          "term": "Unicode",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.1",
+          "official": true
+        },
+        {
+          "term": "sampling resolution",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.2",
+          "official": true
+        },
+        {
+          "term": "bit depth",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.2",
+          "official": true
+        },
+        {
+          "term": "colour depth",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": true
+        },
+        {
+          "term": "sampling rate",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.2",
+          "official": true
+        },
+        {
+          "term": "bitmap image",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": true
+        },
+        {
+          "term": "pixel",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": true
+        },
+        {
+          "term": "image resolution",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": true
+        },
+        {
+          "term": "pixelated (image)",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": true
+        },
+        {
+          "term": "pixel density",
+          "subtopic_code": "1.2",
+          "book_section": "1.2",
+          "official": true
+        },
+        {
+          "term": "compression",
+          "subtopic_code": "1.3",
+          "book_section": "1.3",
+          "official": true
+        },
+        {
+          "term": "bandwidth",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.3",
+          "official": true
+        },
+        {
+          "term": "lossy (file compression)",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "lossless (file compression)",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "audio compression",
+          "subtopic_code": "1.3",
+          "book_section": "1.3",
+          "official": true
+        },
+        {
+          "term": "MP3",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "MP4",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "JPEG",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "run length encoding (RLE)",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.4",
+          "official": true
+        },
+        {
+          "term": "denary number system",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.2",
+          "official": false
+        },
+        {
+          "term": "byte",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.1",
+          "official": false
+        },
+        {
+          "term": "file size",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.2",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 2,
+      "title": "Data transmission",
+      "sections": [
+        {
+          "chapter_number": 2,
+          "section_code": "2",
+          "title": "Data transmission",
+          "parent_code": null,
+          "page_start": 45,
+          "page_end": 74,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.1",
+          "title": "Types and methods of data transmission",
+          "parent_code": "2",
+          "page_start": 45,
+          "page_end": 53,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.1.1",
+          "title": "Data packets",
+          "parent_code": "2.1",
+          "page_start": 45,
+          "page_end": 53,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.1.2",
+          "title": "Data transmission",
+          "parent_code": "2.1",
+          "page_start": 45,
+          "page_end": 53,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.1.3",
+          "title": "Universal serial bus (USB)",
+          "parent_code": "2.1",
+          "page_start": 45,
+          "page_end": 53,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.2",
+          "title": "Methods of error detection",
+          "parent_code": "2",
+          "page_start": 54,
+          "page_end": 62,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.2.1",
+          "title": "The need to check for errors",
+          "parent_code": "2.2",
+          "page_start": 54,
+          "page_end": 62,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.3",
+          "title": "Symmetric and asymmetric encryption",
+          "parent_code": "2",
+          "page_start": 63,
+          "page_end": 74,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 2,
+          "section_code": "2.3.1",
+          "title": "The purpose of encryption",
+          "parent_code": "2.3",
+          "page_start": 63,
+          "page_end": 74,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "data packet",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "packet header",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "packet trailer",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "cyclic redundancy check (CRC)",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "payload",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "node",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "packet switching",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "router",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "real time streaming",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "hopping/hop number",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": true
+        },
+        {
+          "term": "simplex",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.2",
+          "official": true
+        },
+        {
+          "term": "half-duplex",
+          "subtopic_code": "2.1",
+          "book_section": "2.1",
+          "official": true
+        },
+        {
+          "term": "full-duplex",
+          "subtopic_code": "2.1",
+          "book_section": "2.1",
+          "official": true
+        },
+        {
+          "term": "serial data transmission",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.2",
+          "official": true
+        },
+        {
+          "term": "parallel data transmission",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.2",
+          "official": true
+        },
+        {
+          "term": "skewed (data)",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.2",
+          "official": true
+        },
+        {
+          "term": "universal serial bus (USB)",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.3",
+          "official": true
+        },
+        {
+          "term": "parity check",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "parity bit",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "parity block",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "parity byte",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "checksum",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "automatic repeat request (ARQ)",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "acknowledgement",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "timeout",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "echo check",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "check digit",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": true
+        },
+        {
+          "term": "eavesdropper",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "encryption",
+          "subtopic_code": "2.3",
+          "book_section": "2.3",
+          "official": true
+        },
+        {
+          "term": "plaintext",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "ciphertext",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "encryption algorithm",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "symmetric encryption",
+          "subtopic_code": "2.3",
+          "book_section": "2.3",
+          "official": true
+        },
+        {
+          "term": "asymmetric encryption",
+          "subtopic_code": "2.3",
+          "book_section": "2.3",
+          "official": true
+        },
+        {
+          "term": "public key",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "private key",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "quantum computer",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": true
+        },
+        {
+          "term": "odd parity",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": false
+        },
+        {
+          "term": "even parity",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 3,
+      "title": "Hardware",
+      "sections": [
+        {
+          "chapter_number": 3,
+          "section_code": "3",
+          "title": "Hardware",
+          "parent_code": null,
+          "page_start": 75,
+          "page_end": 146,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1",
+          "title": "Computer architecture",
+          "parent_code": "3",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1.1",
+          "title": "The central processing unit (CPU)",
+          "parent_code": "3.1",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1.2",
+          "title": "Von Neumann architecture",
+          "parent_code": "3.1",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1.3",
+          "title": "Cores, cache and internal clock",
+          "parent_code": "3.1",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1.4",
+          "title": "Instruction set",
+          "parent_code": "3.1",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.1.5",
+          "title": "Embedded systems",
+          "parent_code": "3.1",
+          "page_start": 75,
+          "page_end": 87,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.2",
+          "title": "Input and output devices",
+          "parent_code": "3",
+          "page_start": 88,
+          "page_end": 118,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.2.1",
+          "title": "Input devices",
+          "parent_code": "3.2",
+          "page_start": 88,
+          "page_end": 118,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.2.2",
+          "title": "Output devices",
+          "parent_code": "3.2",
+          "page_start": 88,
+          "page_end": 118,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.2.3",
+          "title": "Sensors",
+          "parent_code": "3.2",
+          "page_start": 88,
+          "page_end": 118,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3",
+          "title": "Data storage",
+          "parent_code": "3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3.1",
+          "title": "Primary memory",
+          "parent_code": "3.3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3.2",
+          "title": "Secondary and off-line storage",
+          "parent_code": "3.3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3.3",
+          "title": "Magnetic, optical and solid-state storage",
+          "parent_code": "3.3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3.4",
+          "title": "Virtual memory",
+          "parent_code": "3.3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.3.5",
+          "title": "Cloud storage",
+          "parent_code": "3.3",
+          "page_start": 119,
+          "page_end": 132,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.4",
+          "title": "Network hardware",
+          "parent_code": "3",
+          "page_start": 133,
+          "page_end": 146,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.4.1",
+          "title": "Network interface card (NIC)",
+          "parent_code": "3.4",
+          "page_start": 133,
+          "page_end": 146,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.4.2",
+          "title": "Media Access Control (MAC)",
+          "parent_code": "3.4",
+          "page_start": 133,
+          "page_end": 146,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.4.3",
+          "title": "Internet protocol (IP) address",
+          "parent_code": "3.4",
+          "page_start": 133,
+          "page_end": 146,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 3,
+          "section_code": "3.4.4",
+          "title": "Routers",
+          "parent_code": "3.4",
+          "page_start": 133,
+          "page_end": 146,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "central processing unit (CPU)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.1",
+          "official": true
+        },
+        {
+          "term": "integrated circuit",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.1",
+          "official": true
+        },
+        {
+          "term": "von Neumann architecture",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "Arithmetic & Logic Unit (ALU)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.1",
+          "official": true
+        },
+        {
+          "term": "accumulator (ACC)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "memory address register (MAR)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "current instruction register (CIR)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "memory data register (MDR)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "program counter (PC)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "control unit",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.1",
+          "official": true
+        },
+        {
+          "term": "system clock",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "clock cycle",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "immediate access store (IAS)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "backing store",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "cache",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "register",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.1",
+          "official": true
+        },
+        {
+          "term": "address",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "memory location",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "system buses",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "address bus",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "data bus",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "control bus",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "unidirectional",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "bidirectional",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "word",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": true
+        },
+        {
+          "term": "overclocking",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "core",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "dual core",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "quad core",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "fetch–decode–execute cycle",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": false,
+          "source_corrected": "Fetch–Execute–Decode"
+        },
+        {
+          "term": "Basic Input/Output System (BIOS)",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": true
+        },
+        {
+          "term": "opcode",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.4",
+          "official": true
+        },
+        {
+          "term": "operand",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.4",
+          "official": true
+        },
+        {
+          "term": "instruction set",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.4",
+          "official": true
+        },
+        {
+          "term": "embedded system",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.5",
+          "official": true
+        },
+        {
+          "term": "barcode",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "key field",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "quick response (QR) code",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "frame QR code",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "DAC (digital to analogue converter)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "ADC (analogue to digital converter)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "charge couple device (CCD)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "virtual keyboard",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "repetitive strain injury (RSI)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "optical mouse",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "pointing device",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "complementary metal oxide semi-conductor (CMOS)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "digital signal processor (DSP)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "optical character recognition",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "computer-aided design (CAD)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": false,
+          "source_corrected": "computer sided design (CAD)"
+        },
+        {
+          "term": "computed tomographic (CT) scanner",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "capacitive touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "infra-red touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "resistive touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": true
+        },
+        {
+          "term": "actuator",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "digital micromirror device (DMD)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "thermal bubble",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "piezoelectric crystal",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "direct 3D printing",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "binder 3D printing",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "cathode",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "anode",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "source_corrected": "snode"
+        },
+        {
+          "term": "organic LED (OLED)",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "loudspeaker",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": true
+        },
+        {
+          "term": "memory",
+          "subtopic_code": "3.3",
+          "book_section": "3.3",
+          "official": true
+        },
+        {
+          "term": "random access memory (RAM)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.1",
+          "official": true
+        },
+        {
+          "term": "read only memory (ROM)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3",
+          "official": true
+        },
+        {
+          "term": "dynamic RAM (DRAM)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.1",
+          "official": true
+        },
+        {
+          "term": "static RAM (SRAM)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.1",
+          "official": true
+        },
+        {
+          "term": "volatile",
+          "subtopic_code": "3.3",
+          "book_section": "3.3",
+          "official": true
+        },
+        {
+          "term": "refresh",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.1",
+          "official": true
+        },
+        {
+          "term": "flip flop",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.1",
+          "official": true
+        },
+        {
+          "term": "latency",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": true
+        },
+        {
+          "term": "SSD endurance",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": true
+        },
+        {
+          "term": "optical storage",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": true
+        },
+        {
+          "term": "dual layering",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": true
+        },
+        {
+          "term": "virtual memory",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.4",
+          "official": true
+        },
+        {
+          "term": "disk thrashing (HDD)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.4",
+          "official": true
+        },
+        {
+          "term": "thrash point",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.4",
+          "official": true
+        },
+        {
+          "term": "data redundancy",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.5",
+          "official": true
+        },
+        {
+          "term": "cloud storage",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": true
+        },
+        {
+          "term": "network interface card (NIC)",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.1",
+          "official": true
+        },
+        {
+          "term": "router",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.2",
+          "official": true
+        },
+        {
+          "term": "static IP address",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.3",
+          "official": true
+        },
+        {
+          "term": "MAC address",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.2",
+          "official": true
+        },
+        {
+          "term": "dynamic IP address",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.3",
+          "official": true
+        },
+        {
+          "term": "dynamic host configuration protocol (DHCP)",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.3",
+          "official": true
+        },
+        {
+          "term": "sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false
+        },
+        {
+          "term": "hard disk drive (HDD)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false
+        },
+        {
+          "term": "solid-state drive (SSD)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false
+        },
+        {
+          "term": "secondary storage",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.2",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 4,
+      "title": "Software",
+      "sections": [
+        {
+          "chapter_number": 4,
+          "section_code": "4",
+          "title": "Software",
+          "parent_code": null,
+          "page_start": 147,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.1",
+          "title": "Types of software and interrupts",
+          "parent_code": "4",
+          "page_start": 147,
+          "page_end": 164,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.1.1",
+          "title": "System software and application software",
+          "parent_code": "4.1",
+          "page_start": 147,
+          "page_end": 164,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.1.2",
+          "title": "Operating systems",
+          "parent_code": "4.1",
+          "page_start": 147,
+          "page_end": 164,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.1.3",
+          "title": "Running of applications",
+          "parent_code": "4.1",
+          "page_start": 147,
+          "page_end": 164,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.1.4",
+          "title": "Interrupts",
+          "parent_code": "4.1",
+          "page_start": 147,
+          "page_end": 164,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2",
+          "title": "Types of programming language, translators and integrated development environments (IDEs)",
+          "parent_code": "4",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2.1",
+          "title": "High-level languages and low-level languages",
+          "parent_code": "4.2",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2.2",
+          "title": "Assembly languages",
+          "parent_code": "4.2",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2.3",
+          "title": "Translators",
+          "parent_code": "4.2",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2.4",
+          "title": "Advantages and disadvantages of compilers and interpreters",
+          "parent_code": "4.2",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 4,
+          "section_code": "4.2.5",
+          "title": "Integrated Development Environment (IDE)",
+          "parent_code": "4.2",
+          "page_start": 165,
+          "page_end": 179,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "utility programs (utilities)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "malware",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "anti-virus software",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "heuristic checking",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "quarantine",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "defragmentation",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "contiguous",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "back-up",
+          "subtopic_code": "4.1",
+          "book_section": "4.1",
+          "official": true
+        },
+        {
+          "term": "screensaver",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "device driver",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "descriptor",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "operating system",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "boot up/bootstrap loader",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.3",
+          "official": true
+        },
+        {
+          "term": "EEPROM",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.3",
+          "official": true
+        },
+        {
+          "term": "human computer interface (HCI)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "command line interface (CLI)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "graphical user interface (GUI)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "windows icons menu and pointing device (WIMP)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "post-WIMP",
+          "subtopic_code": "4.1",
+          "book_section": "4.1",
+          "official": true
+        },
+        {
+          "term": "memory management",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "security management",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "hardware management",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "buffer",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "file management",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": true
+        },
+        {
+          "term": "interrupt",
+          "subtopic_code": "4.1",
+          "book_section": "4.1",
+          "official": true
+        },
+        {
+          "term": "high-level language (HLL)",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.1",
+          "official": true
+        },
+        {
+          "term": "low-level language (LLL)",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.1",
+          "official": true
+        },
+        {
+          "term": "assembly language",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.2",
+          "official": true
+        },
+        {
+          "term": "assembler",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.3",
+          "official": true
+        },
+        {
+          "term": "compiler",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.3",
+          "official": true
+        },
+        {
+          "term": "interpreter",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.3",
+          "official": true
+        },
+        {
+          "term": "machine code",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.2",
+          "official": true
+        },
+        {
+          "term": "source code",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.3",
+          "official": false
+        },
+        {
+          "term": "integrated development environment (IDE)",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": true
+        },
+        {
+          "term": "multitasking",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "administrator",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "user account",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "error handling routine",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": true
+        },
+        {
+          "term": "firmware",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.3",
+          "official": true
+        },
+        {
+          "term": "interrupt priority",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.4",
+          "official": true
+        },
+        {
+          "term": "service (an interrupt)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.4",
+          "official": true
+        },
+        {
+          "term": "interrupt service routine (ISR)",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.4",
+          "official": true
+        },
+        {
+          "term": "translator",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.3",
+          "official": true
+        },
+        {
+          "term": "debugging",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": true
+        },
+        {
+          "term": "prettyprinting",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": true
+        },
+        {
+          "term": "report window",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": true
+        }
+      ]
+    },
+    {
+      "chapterNo": 5,
+      "title": "The internet and its uses",
+      "sections": [
+        {
+          "chapter_number": 5,
+          "section_code": "5",
+          "title": "The internet and its uses",
+          "parent_code": null,
+          "page_start": 180,
+          "page_end": 216,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1",
+          "title": "The internet and the World Wide Web (WWW)",
+          "parent_code": "5",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.1",
+          "title": "The differences between the internet and the World Wide Web (WWW)",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.2",
+          "title": "Uniform resource locators (URLs)",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.3",
+          "title": "HTTP and HTTPS",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.4",
+          "title": "Web browsers",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.5",
+          "title": "Retrieval and location of web pages",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.1.6",
+          "title": "Cookies",
+          "parent_code": "5.1",
+          "page_start": 180,
+          "page_end": 185,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.2",
+          "title": "Digital currency",
+          "parent_code": "5",
+          "page_start": 186,
+          "page_end": 188,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.2.1",
+          "title": "What is digital currency?",
+          "parent_code": "5.2",
+          "page_start": 186,
+          "page_end": 188,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.2.2",
+          "title": "Blockchaining",
+          "parent_code": "5.2",
+          "page_start": 186,
+          "page_end": 188,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.3",
+          "title": "Cyber security",
+          "parent_code": "5",
+          "page_start": 189,
+          "page_end": 216,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.3.1",
+          "title": "Cyber security threats",
+          "parent_code": "5.3",
+          "page_start": 189,
+          "page_end": 216,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 5,
+          "section_code": "5.3.2",
+          "title": "Keeping data safe from security threats",
+          "parent_code": "5.3",
+          "page_start": 189,
+          "page_end": 216,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "internet",
+          "subtopic_code": "5.1",
+          "book_section": "5.1",
+          "official": true
+        },
+        {
+          "term": "World Wide Web",
+          "subtopic_code": "5.1",
+          "book_section": "5.1",
+          "official": true
+        },
+        {
+          "term": "(web) browser",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.1",
+          "official": true
+        },
+        {
+          "term": "hypertext mark-up language (HTML)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.1",
+          "official": true
+        },
+        {
+          "term": "uniform resource locator (URL)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.1",
+          "official": true
+        },
+        {
+          "term": "hypertext transfer protocol secure (https)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.2",
+          "official": true
+        },
+        {
+          "term": "hyperlink",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.4",
+          "official": true
+        },
+        {
+          "term": "domain name server (DNS)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.5",
+          "official": true
+        },
+        {
+          "term": "cookie",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.4",
+          "official": true
+        },
+        {
+          "term": "user preferences",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.6",
+          "official": true
+        },
+        {
+          "term": "session cookie",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.6",
+          "official": true
+        },
+        {
+          "term": "persistent cookies",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.6",
+          "official": true
+        },
+        {
+          "term": "virtual shopping basket",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.6",
+          "official": true
+        },
+        {
+          "term": "digital currency",
+          "subtopic_code": "5.2",
+          "book_section": "5.2",
+          "official": true
+        },
+        {
+          "term": "cryptocurrency",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.1",
+          "official": true
+        },
+        {
+          "term": "cryptography",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.1",
+          "official": true
+        },
+        {
+          "term": "blockchain",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.1",
+          "official": true
+        },
+        {
+          "term": "timestamp",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.2",
+          "official": true
+        },
+        {
+          "term": "proof-of-work",
+          "subtopic_code": "5.2",
+          "book_section": "5.2",
+          "official": true
+        },
+        {
+          "term": "brute force attack",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "word list",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "data interception",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "packet sniffing",
+          "subtopic_code": "5.3",
+          "book_section": "5.3",
+          "official": true
+        },
+        {
+          "term": "wardriving",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "security",
+          "subtopic_code": "5.3",
+          "book_section": "5.3",
+          "official": true
+        },
+        {
+          "term": "denial of service (DoS) attack",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "distributed denial of service (DDoS) attack",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "spam",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "hacking",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "malware",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "virus",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "active host",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "worm",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "Trojan horse",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "spyware",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "adware",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "ransomware",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "phishing",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "spear phishing",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "pharming",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "DNS cache poisoning",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "social engineering",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "access levels",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "anti-spyware",
+          "subtopic_code": "5.3",
+          "book_section": "5.3",
+          "official": true
+        },
+        {
+          "term": "authentication",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "biometrics",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "two-step verification",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "patch",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "typo squatting",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "firewall",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": true
+        },
+        {
+          "term": "proxy server",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "privacy settings",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "secure sockets layer (SSL)",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "SSL certificate",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": true
+        },
+        {
+          "term": "hypertext transfer protocol (HTTP)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.3",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 6,
+      "title": "Automated and emerging technologies",
+      "sections": [
+        {
+          "chapter_number": 6,
+          "section_code": "6",
+          "title": "Automated and emerging technologies",
+          "parent_code": null,
+          "page_start": 217,
+          "page_end": 257,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.1",
+          "title": "Automated systems",
+          "parent_code": "6",
+          "page_start": 217,
+          "page_end": 229,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.1.1",
+          "title": "Sensors, microprocessors and actuators",
+          "parent_code": "6.1",
+          "page_start": 217,
+          "page_end": 229,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.1.2",
+          "title": "Advantages and disadvantages of automated",
+          "parent_code": "6.1",
+          "page_start": 217,
+          "page_end": 229,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.2",
+          "title": "Robotics",
+          "parent_code": "6",
+          "page_start": 230,
+          "page_end": 240,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.2.1",
+          "title": "What is robotics?",
+          "parent_code": "6.2",
+          "page_start": 230,
+          "page_end": 240,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.2.2",
+          "title": "Characteristics of a robot",
+          "parent_code": "6.2",
+          "page_start": 230,
+          "page_end": 240,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.2.3",
+          "title": "The role of robots and their advantages and disadvantages",
+          "parent_code": "6.2",
+          "page_start": 230,
+          "page_end": 240,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.3",
+          "title": "Artificial intelligence (AI)",
+          "parent_code": "6",
+          "page_start": 241,
+          "page_end": 257,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 6,
+          "section_code": "6.3.1",
+          "title": "Introduction",
+          "parent_code": "6.3",
+          "page_start": 241,
+          "page_end": 257,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "automated system",
+          "subtopic_code": "6.1",
+          "book_section": "6.1",
+          "official": true
+        },
+        {
+          "term": "distributed control system (DCS)",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.2",
+          "official": true
+        },
+        {
+          "term": "adaptive cruise control",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.2",
+          "official": true
+        },
+        {
+          "term": "accelerometer",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.2",
+          "official": true
+        },
+        {
+          "term": "robotics",
+          "subtopic_code": "6.2",
+          "book_section": "6.2",
+          "official": true
+        },
+        {
+          "term": "robot",
+          "subtopic_code": "6.2",
+          "book_section": "6.2",
+          "official": true
+        },
+        {
+          "term": "autonomous",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.1",
+          "official": true
+        },
+        {
+          "term": "controller",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.2",
+          "official": true
+        },
+        {
+          "term": "WebCrawler/search bot",
+          "subtopic_code": "6.2",
+          "book_section": "6.2",
+          "official": true
+        },
+        {
+          "term": "chatbots",
+          "subtopic_code": "6.2",
+          "book_section": "6.2",
+          "official": true
+        },
+        {
+          "term": "end-effector",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.2",
+          "official": true
+        },
+        {
+          "term": "LiDaR",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.3",
+          "official": true
+        },
+        {
+          "term": "drone",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.1",
+          "official": true
+        },
+        {
+          "term": "phenotyping",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.3",
+          "official": true
+        },
+        {
+          "term": "cognitive",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "artificial intelligence (AI)",
+          "subtopic_code": "6.3",
+          "book_section": "6.3",
+          "official": true
+        },
+        {
+          "term": "expert system",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "explanation system",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "inference engine",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "inference rules",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "knowledge base",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "object",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "attribute",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "rules base",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "machine learning",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "web scraping",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": true
+        },
+        {
+          "term": "actuator",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false
+        },
+        {
+          "term": "sensor",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 7,
+      "title": "Algorithm design and problem-solving",
+      "sections": [
+        {
+          "chapter_number": 7,
+          "section_code": "7",
+          "title": "Algorithm design and problem-solving",
+          "parent_code": null,
+          "page_start": 258,
+          "page_end": 298,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.1",
+          "title": "The program development life cycle",
+          "parent_code": "7",
+          "page_start": 258,
+          "page_end": 259,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.1.1",
+          "title": "Analysis",
+          "parent_code": "7.1",
+          "page_start": 258,
+          "page_end": 259,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.1.2",
+          "title": "Design",
+          "parent_code": "7.1",
+          "page_start": 258,
+          "page_end": 259,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.1.3",
+          "title": "Coding and iterative testing",
+          "parent_code": "7.1",
+          "page_start": 258,
+          "page_end": 259,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.1.4",
+          "title": "Testing",
+          "parent_code": "7.1",
+          "page_start": 258,
+          "page_end": 259,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.2",
+          "title": "Computer systems, sub-systems and decomposition",
+          "parent_code": "7",
+          "page_start": 260,
+          "page_end": 270,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.2.1",
+          "title": "The computer system and its sub-systems",
+          "parent_code": "7.2",
+          "page_start": 260,
+          "page_end": 270,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.2.2",
+          "title": "Decomposing a problem",
+          "parent_code": "7.2",
+          "page_start": 260,
+          "page_end": 270,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.2.3",
+          "title": "Methods used to design and construct a solution",
+          "parent_code": "7.2",
+          "page_start": 260,
+          "page_end": 270,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.3",
+          "title": "Explaining the purpose of an algorithm",
+          "parent_code": "7",
+          "page_start": 271,
+          "page_end": 271,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4",
+          "title": "Standard methods of solution",
+          "parent_code": "7",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4.1",
+          "title": "Totalling",
+          "parent_code": "7.4",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4.2",
+          "title": "Counting",
+          "parent_code": "7.4",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4.3",
+          "title": "Maximum, minimum and average",
+          "parent_code": "7.4",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4.4",
+          "title": "Linear search",
+          "parent_code": "7.4",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.4.5",
+          "title": "Bubble sort",
+          "parent_code": "7.4",
+          "page_start": 272,
+          "page_end": 275,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.5",
+          "title": "Validation and verification",
+          "parent_code": "7",
+          "page_start": 276,
+          "page_end": 280,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.5.1",
+          "title": "Validation",
+          "parent_code": "7.5",
+          "page_start": 276,
+          "page_end": 280,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.5.2",
+          "title": "Verification",
+          "parent_code": "7.5",
+          "page_start": 276,
+          "page_end": 280,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.6",
+          "title": "Test data",
+          "parent_code": "7",
+          "page_start": 281,
+          "page_end": 281,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.6.1",
+          "title": "How to suggest and apply suitable test data",
+          "parent_code": "7.6",
+          "page_start": 281,
+          "page_end": 281,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.7",
+          "title": "Trace tables to document dry runs of algorithms",
+          "parent_code": "7",
+          "page_start": 282,
+          "page_end": 284,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.8",
+          "title": "Identifying errors in algorithms",
+          "parent_code": "7",
+          "page_start": 285,
+          "page_end": 287,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 7,
+          "section_code": "7.9",
+          "title": "Writing and amending algorithms",
+          "parent_code": "7",
+          "page_start": 288,
+          "page_end": 298,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "analysis",
+          "subtopic_code": "7",
+          "book_section": "7.1",
+          "official": true
+        },
+        {
+          "term": "design",
+          "subtopic_code": "7",
+          "book_section": "7.1",
+          "official": true
+        },
+        {
+          "term": "coding",
+          "subtopic_code": "7",
+          "book_section": "7.1",
+          "official": true
+        },
+        {
+          "term": "testing",
+          "subtopic_code": "7",
+          "book_section": "7.1",
+          "official": true
+        },
+        {
+          "term": "abstraction",
+          "subtopic_code": "7",
+          "book_section": "7.2",
+          "official": true
+        },
+        {
+          "term": "decomposition",
+          "subtopic_code": "7",
+          "book_section": "7.2",
+          "official": true
+        },
+        {
+          "term": "top-down design",
+          "subtopic_code": "7",
+          "book_section": "7.2.1",
+          "official": true
+        },
+        {
+          "term": "inputs",
+          "subtopic_code": "7",
+          "book_section": "7.2.2",
+          "official": true
+        },
+        {
+          "term": "processes",
+          "subtopic_code": "7",
+          "book_section": "7.2.2",
+          "official": true
+        },
+        {
+          "term": "output",
+          "subtopic_code": "7",
+          "book_section": "7.2.2",
+          "official": true
+        },
+        {
+          "term": "storage",
+          "subtopic_code": "7",
+          "book_section": "7.2.2",
+          "official": true
+        },
+        {
+          "term": "structure diagram",
+          "subtopic_code": "7",
+          "book_section": "7.2.1",
+          "official": true
+        },
+        {
+          "term": "flowchart",
+          "subtopic_code": "7",
+          "book_section": "7.2.1",
+          "official": true
+        },
+        {
+          "term": "algorithm",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": true
+        },
+        {
+          "term": "pseudocode",
+          "subtopic_code": "7",
+          "book_section": "7.2.1",
+          "official": true
+        },
+        {
+          "term": "linear search",
+          "subtopic_code": "7",
+          "book_section": "7.4",
+          "official": true
+        },
+        {
+          "term": "bubble sort",
+          "subtopic_code": "7",
+          "book_section": "7.4",
+          "official": true
+        },
+        {
+          "term": "validation",
+          "subtopic_code": "7",
+          "book_section": "7.5",
+          "official": true
+        },
+        {
+          "term": "verification",
+          "subtopic_code": "7",
+          "book_section": "7.5",
+          "official": true
+        },
+        {
+          "term": "set of test data",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": true
+        },
+        {
+          "term": "normal data",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": true
+        },
+        {
+          "term": "abnormal data",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": true
+        },
+        {
+          "term": "extreme data",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": true
+        },
+        {
+          "term": "boundary data",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": true
+        },
+        {
+          "term": "range check",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "length check",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "type check",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "presence check",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "format check",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "check digit",
+          "subtopic_code": "7",
+          "book_section": "7.5.1",
+          "official": true
+        },
+        {
+          "term": "trace table",
+          "subtopic_code": "7",
+          "book_section": "7.7",
+          "official": false
+        },
+        {
+          "term": "dry run",
+          "subtopic_code": "7",
+          "book_section": "7.7",
+          "official": false
+        },
+        {
+          "term": "average",
+          "subtopic_code": "7",
+          "book_section": "7.4.3",
+          "official": false
+        },
+        {
+          "term": "logic error",
+          "subtopic_code": "7",
+          "book_section": "7.8",
+          "official": false
+        },
+        {
+          "term": "syntax error",
+          "subtopic_code": "7",
+          "book_section": "7.8",
+          "official": false
+        },
+        {
+          "term": "totalling",
+          "subtopic_code": "7",
+          "book_section": "7.4.1",
+          "official": false
+        },
+        {
+          "term": "counting",
+          "subtopic_code": "7",
+          "book_section": "7.4.2",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 8,
+      "title": "Programming",
+      "sections": [
+        {
+          "chapter_number": 8,
+          "section_code": "8",
+          "title": "Programming",
+          "parent_code": null,
+          "page_start": 299,
+          "page_end": 338,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1",
+          "title": "Programming concepts",
+          "parent_code": "8",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.1",
+          "title": "Variables and constants",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.2",
+          "title": "Basic data types",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.3",
+          "title": "Input and output",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.4",
+          "title": "Basic concepts",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.5",
+          "title": "Use of nested statements",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.6",
+          "title": "Procedures and functions",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.7",
+          "title": "Library routines",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.1.8",
+          "title": "Creating a maintainable program",
+          "parent_code": "8.1",
+          "page_start": 302,
+          "page_end": 328,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.2",
+          "title": "Arrays",
+          "parent_code": "8",
+          "page_start": 329,
+          "page_end": 332,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.2.1",
+          "title": "One- and Two-dimensional arrays",
+          "parent_code": "8.2",
+          "page_start": 329,
+          "page_end": 332,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.2.2",
+          "title": "Declaring and populating arrays with iteration",
+          "parent_code": "8.2",
+          "page_start": 329,
+          "page_end": 332,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.3",
+          "title": "File handling",
+          "parent_code": "8",
+          "page_start": 333,
+          "page_end": 338,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.3.1",
+          "title": "Purpose of storing data in a file",
+          "parent_code": "8.3",
+          "page_start": 333,
+          "page_end": 338,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 8,
+          "section_code": "8.3.2",
+          "title": "Using files",
+          "parent_code": "8.3",
+          "page_start": 333,
+          "page_end": 338,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "variable",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "constant",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "declare",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.1",
+          "official": true
+        },
+        {
+          "term": "integer",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.1",
+          "official": true
+        },
+        {
+          "term": "real number",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.2",
+          "official": true
+        },
+        {
+          "term": "char",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.2",
+          "official": true
+        },
+        {
+          "term": "string",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.2",
+          "official": true
+        },
+        {
+          "term": "sequence",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "selection",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "iteration",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "counting",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "totalling",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "operator",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "arithmetic operator",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "logical operator",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "Boolean operator",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "nesting",
+          "subtopic_code": "8.1",
+          "book_section": "8.1",
+          "official": true
+        },
+        {
+          "term": "procedure",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "function",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "parameters",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.6",
+          "official": true
+        },
+        {
+          "term": "MOD",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.3",
+          "official": true
+        },
+        {
+          "term": "DIV",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": true
+        },
+        {
+          "term": "ROUND",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.5",
+          "official": true
+        },
+        {
+          "term": "RANDOM",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.7",
+          "official": true
+        },
+        {
+          "term": "array",
+          "subtopic_code": "8.2",
+          "book_section": "8.2",
+          "official": true
+        },
+        {
+          "term": "index",
+          "subtopic_code": "8.2",
+          "book_section": "8.2",
+          "official": true
+        },
+        {
+          "term": "file",
+          "subtopic_code": "8.3",
+          "book_section": "8.3",
+          "official": true
+        },
+        {
+          "term": "FOR loop",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false
+        },
+        {
+          "term": "WHILE loop",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false
+        },
+        {
+          "term": "REPEAT UNTIL loop",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false
+        },
+        {
+          "term": "one-dimensional array",
+          "subtopic_code": "8.2",
+          "book_section": "8.2.1",
+          "official": false
+        },
+        {
+          "term": "two-dimensional array",
+          "subtopic_code": "8.2",
+          "book_section": "8.2.1",
+          "official": false
+        },
+        {
+          "term": "maintainable program",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.8",
+          "official": false
+        }
+      ]
+    },
+    {
+      "chapterNo": 9,
+      "title": "Databases",
+      "sections": [
+        {
+          "chapter_number": 9,
+          "section_code": "9",
+          "title": "Databases",
+          "parent_code": null,
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 9,
+          "section_code": "9.1",
+          "title": "Databases",
+          "parent_code": "9",
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 9,
+          "section_code": "9.1.1",
+          "title": "Single-table databases",
+          "parent_code": "9.1",
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 9,
+          "section_code": "9.1.2",
+          "title": "Basic data types",
+          "parent_code": "9.1",
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 9,
+          "section_code": "9.1.3",
+          "title": "Primary keys",
+          "parent_code": "9.1",
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 9,
+          "section_code": "9.1.4",
+          "title": "SQL",
+          "parent_code": "9.1",
+          "page_start": 339,
+          "page_end": 355,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "database",
+          "subtopic_code": "9",
+          "book_section": "9.1",
+          "official": true
+        },
+        {
+          "term": "single-table database",
+          "subtopic_code": "9",
+          "book_section": "9.1.3",
+          "official": true
+        },
+        {
+          "term": "table",
+          "subtopic_code": "9",
+          "book_section": "9.1.1",
+          "official": true
+        },
+        {
+          "term": "record",
+          "subtopic_code": "9",
+          "book_section": "9.1.1",
+          "official": true
+        },
+        {
+          "term": "field",
+          "subtopic_code": "9",
+          "book_section": "9.1.1",
+          "official": true
+        },
+        {
+          "term": "data type",
+          "subtopic_code": "9",
+          "book_section": "9.1.2",
+          "official": true
+        },
+        {
+          "term": "primary key",
+          "subtopic_code": "9",
+          "book_section": "9.1.3",
+          "official": true
+        },
+        {
+          "term": "Structured Query Language (SQL)",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": true
+        },
+        {
+          "term": "SQL scripts",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": true
+        },
+        {
+          "term": "SELECT",
+          "subtopic_code": "9",
+          "book_section": "9.1.2",
+          "official": true
+        },
+        {
+          "term": "FROM",
+          "subtopic_code": "9",
+          "book_section": "9.1.1",
+          "official": true
+        },
+        {
+          "term": "WHERE",
+          "subtopic_code": "9",
+          "book_section": "9.1.3",
+          "official": true
+        },
+        {
+          "term": "ORDER BY",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": true
+        },
+        {
+          "term": "SUM",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": true
+        },
+        {
+          "term": "COUNT",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": true
+        }
+      ]
+    },
+    {
+      "chapterNo": 10,
+      "title": "Boolean logic",
+      "sections": [
+        {
+          "chapter_number": 10,
+          "section_code": "10",
+          "title": "Boolean logic",
+          "parent_code": null,
+          "page_start": 356,
+          "page_end": 386,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.1",
+          "title": "Standard logic gate symbols",
+          "parent_code": "10",
+          "page_start": 356,
+          "page_end": 357,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.1.1",
+          "title": "Logic gate symbols",
+          "parent_code": "10.1",
+          "page_start": 356,
+          "page_end": 357,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2",
+          "title": "The function of the six logic gates",
+          "parent_code": "10",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.1",
+          "title": "NOT gate",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.2",
+          "title": "AND gate",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.3",
+          "title": "OR gate",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.4",
+          "title": "NAND gate (NOT AND)",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.5",
+          "title": "NOR gate (NOT OR)",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.2.6",
+          "title": "XOR gate",
+          "parent_code": "10.2",
+          "page_start": 358,
+          "page_end": 359,
+          "is_extension": false
+        },
+        {
+          "chapter_number": 10,
+          "section_code": "10.3",
+          "title": "Logic circuits, logic expressions, truth tables and problem statements",
+          "parent_code": "10",
+          "page_start": 360,
+          "page_end": 386,
+          "is_extension": false
+        }
+      ],
+      "terms": [
+        {
+          "term": "logic gate",
+          "subtopic_code": "10",
+          "book_section": "10.1",
+          "official": true
+        },
+        {
+          "term": "logic circuit",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": true
+        },
+        {
+          "term": "truth table",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": true
+        },
+        {
+          "term": "Boolean algebra",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": true
+        },
+        {
+          "term": "NOT gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.1",
+          "official": false
+        },
+        {
+          "term": "AND gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.2",
+          "official": false
+        },
+        {
+          "term": "OR gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.3",
+          "official": false
+        },
+        {
+          "term": "NAND gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.4",
+          "official": false
+        },
+        {
+          "term": "NOR gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.5",
+          "official": false
+        },
+        {
+          "term": "XOR gate",
+          "subtopic_code": "10",
+          "book_section": "10.2.6",
+          "official": false
+        }
+      ]
+    }
+  ],
+  "editorialAudit": {
+    "updatedAt": "2026-11-10",
+    "datasetRows": 389,
+    "officialKeyTerms": 354,
+    "officialVerified": 354,
+    "supplementaryTerms": 35,
+    "supplementaryVerified": 35,
+    "sourceChapterCount": 10,
+    "sourceKeyTermOccurrences": 357,
+    "sourceErrataAliases": 3,
+    "scope": "Editorially verified scoped keyword dataset, not syllabus activation or release authorization"
+  }
+}

@@ -125,7 +125,7 @@ export class ContentService {
          from enrollments e
          join classes c on c.id=e.class_id
          join syllabi sy on sy.id=c.syllabus_id
-         where e.student_id=$1 and e.left_at is null and sy.code=$2 and sy.is_active=true
+         where e.student_id=$1 and e.left_at is null and sy.code=$2 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
          limit 1`,
       [actor.id, courseCode],
     );
@@ -143,7 +143,7 @@ export class ContentService {
          join syllabi sy on sy.id=t.syllabus_id
          left join subtopics st on st.topic_id=t.id
          left join glossary_terms gt on gt.subtopic_id=st.id
-         where sy.code=$1 and sy.is_active=true
+         where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
          group by t.number
          having count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review')) > 0
          order by t.number`,
@@ -161,7 +161,7 @@ export class ContentService {
                    and g.is_glossary_visible=true and g.status in ('approved','needs_review')) term_count
          from hodder_book_sections bs
          join syllabi sy on sy.id=bs.syllabus_id
-         where sy.code=$1 and sy.is_active=true
+         where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
            and bs.section_code <> bs.chapter_number::text
          order by bs.chapter_number,bs.section_code`,
         [courseCode],
@@ -173,7 +173,7 @@ export class ContentService {
          join syllabi sy on sy.id=t.syllabus_id
          join subtopics st on st.topic_id=t.id
          left join glossary_terms gt on gt.subtopic_id=st.id
-         where sy.code=$1 and sy.is_active=true
+         where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
          group by t.number,st.code,st.title,st.sort_order
          having count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review')) > 0
          order by t.number,st.sort_order,st.code`,
@@ -209,7 +209,7 @@ export class ContentService {
 
   /**
    * Compose a single practice bank from selected chapters, syllabus topics and
-   * Hodder sections. All queries are read-only and scoped to the active syllabus.
+   * Hodder sections. All queries are read-only. The 9618 games use the active syllabus; 0478 games use the scoped 2026–2028 version while the global 0478 activation flag remains off.
    */
   async interactiveGameCollection(actor: Actor, input: {
     courseCode: '9618' | '0478';
@@ -257,7 +257,7 @@ export class ContentService {
        join subtopics st on st.id=gt.subtopic_id
        join topics t on t.id=st.topic_id
        join syllabi sy on sy.id=t.syllabus_id
-       where sy.code=$1 and sy.is_active=true
+       where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
          and gt.is_glossary_visible=true and gt.status in ('approved','needs_review')
          and nullif(trim(gt.term),'') is not null
          and nullif(trim(gt.definition_en),'') is not null
@@ -320,7 +320,7 @@ export class ContentService {
       contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved')
         ? 'approved' as const : 'needs_review' as const,
       pairs,
-      source: 'Active Cambridge syllabus glossary and Hodder section links',
+      source: 'Cambridge syllabus glossary and Hodder section links',
       assessed: false as const,
     };
   }
@@ -338,7 +338,7 @@ export class ContentService {
     if (sectionCode) {
       const exists = await this.pool.query(
         `select bs.id from hodder_book_sections bs join syllabi sy on sy.id=bs.syllabus_id
-         where sy.code=$1 and sy.is_active=true and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
+         where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028')) and bs.chapter_number=$2 and bs.section_code=$3 limit 1`,
         [courseCode, chapterNo, sectionCode],
       );
       if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
@@ -352,7 +352,7 @@ export class ContentService {
        join subtopics st on st.id=gt.subtopic_id
        join topics t on t.id=st.topic_id
        join syllabi sy on sy.id=t.syllabus_id
-       where sy.code=$1 and sy.is_active=true and t.number=$2 and gt.is_glossary_visible=true and gt.status in ('approved','needs_review')
+       where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028')) and t.number=$2 and gt.is_glossary_visible=true and gt.status in ('approved','needs_review')
          and nullif(trim(gt.term),'') is not null
          and nullif(trim(gt.definition_en),'') is not null
          and ($3::text is null or exists (
@@ -391,7 +391,7 @@ export class ContentService {
       courseCode, chapterNo, sectionCode: sectionCode ?? null,
       contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved') ? 'approved' : 'needs_review',
       pairs,
-      source: 'Current Cambridge 9618 Hodder-linked PostgreSQL glossary',
+      source: `Current Cambridge ${courseCode} Hodder-linked PostgreSQL glossary`,
       assessed: false,
     };
   }
@@ -424,7 +424,7 @@ export class ContentService {
            join subtopics st on st.id=gt.subtopic_id
            join topics t on t.id=st.topic_id
            join syllabi sy on sy.id=t.syllabus_id
-          where sy.code=$1 and sy.is_active=true
+          where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
             and gt.is_glossary_visible=true
             and gt.status in ('approved','needs_review')
             and gt.id=any($2::uuid[])`,

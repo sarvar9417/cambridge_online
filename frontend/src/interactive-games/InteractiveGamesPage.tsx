@@ -22,6 +22,7 @@ import './game-polish.css';
 
 /** Source-backed multi-chapter practice, with session-only feedback. */
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
+  const [courseCode, setCourseCode] = useState<'9618' | '0478'>('9618');
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
   const [vocabularyQuality, setVocabularyQuality] = useState<GameVocabularyQuality>('core');
@@ -73,9 +74,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     let active = true;
     setCatalogLoading(true);
     setCatalogError('');
-    void api<{ data: LiveGameCatalog }>('/content/interactive-games/catalog?courseCode=9618')
+    void api<{ data: LiveGameCatalog }>(`/content/interactive-games/catalog?courseCode=${courseCode}`)
       .then(({ data }) => {
-        if (!active) return;
+        if (!active || data.courseCode !== courseCode) return;
         setCatalog(data);
         if (!initializedScopes.current && data.chapters.length) {
           initializedScopes.current = true;
@@ -93,11 +94,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       })
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
-  }, [refreshVersion]);
+  }, [refreshVersion, courseCode]);
 
   const scopesKey = JSON.stringify(scopes);
   useEffect(() => {
-    if (catalogLoading || !catalog || scopes.length === 0) {
+    if (catalogLoading || !catalog || catalog.courseCode !== courseCode || scopes.length === 0) {
       setPack(null);
       setPackLoading(false);
       setPackError('');
@@ -112,10 +113,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       method: 'POST',
       signal: request.signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseCode: '9618', scopes: normalizeGameScopes(scopes) }),
+      body: JSON.stringify({ courseCode, scopes: normalizeGameScopes(scopes) }),
     })
       .then(({ data }) => {
-        if (!active) return;
+        if (!active || data.courseCode !== courseCode) return;
         setPack(data);
       })
       .catch((cause) => {
@@ -126,16 +127,16 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       })
       .finally(() => { if (active) setPackLoading(false); });
     return () => { active = false; request.abort(); };
-  }, [scopes, catalog, catalogLoading]);
+  }, [scopes, catalog, catalogLoading, courseCode]);
 
   useEffect(() => {
     if (isTeacher) return;
     let active = true;
-    void api<{ data: PracticeHistory }>('/content/interactive-games/practice?courseCode=9618')
+    void api<{ data: PracticeHistory }>(`/content/interactive-games/practice?courseCode=${courseCode}`)
       .then(({ data }) => { if (active) { setPracticeHistory(data); setPracticeHistoryError(''); } })
       .catch(() => { if (active) setPracticeHistoryError('Practice history is temporarily unavailable.'); });
     return () => { active = false; };
-  }, [isTeacher]);
+  }, [isTeacher, courseCode]);
 
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
@@ -215,6 +216,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setPlaySession((value) => value + 1);
     clearSession();
   }
+  function changeCourseCode(next: '9618' | '0478') {
+    if (next === courseCode) return;
+    initializedScopes.current = false;
+    setCatalog(null);
+    setPack(null);
+    setScopes([]);
+    setCatalogError('');
+    setPackError('');
+    setPracticeHistory(null);
+    setPracticeHistoryError('');
+    setMistakesOnly(false);
+    setDueOnly(false);
+    setClassroomMode(false);
+    setRound(0);
+    setPlaySession((value) => value + 1);
+    clearSession();
+    setCourseCode(next);
+  }
   function changeScopes(next: GameScope[]) {
     const normalized = normalizeGameScopes(next);
     if (JSON.stringify(normalized) === scopesKey) return;
@@ -247,7 +266,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       practiceSaveState === 'saved') return;
     const payload: SavePracticeRequest = {
       runId: practiceRunId,
-      courseCode: '9618',
+      courseCode,
       mode: currentMode,
       scopes: normalizeGameScopes(scopes),
       durationSeconds: Math.min(86400, seconds),
@@ -332,7 +351,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
      </div>
     <div className="ig-hero">
       <div>
-        <span className="ig-eyebrow">CAMBRIDGE 9618 · LIVE CURRICULUM BANK</span>
+        <span className="ig-eyebrow">CAMBRIDGE {courseCode} · LIVE CURRICULUM BANK</span>
         <h1>Learn by playing.</h1>
         <p>Select any combination of chapters, syllabus topics and Hodder sections. Play all eight games from the combined source-backed vocabulary bank.</p>
         <div className="ig-pills">
@@ -344,8 +363,15 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <div className="ig-hero-mark" aria-hidden="true">8<span>play modes</span></div>
     </div>
 
-    {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
+    {catalog?.courseCode === courseCode && <GameScopePicker key={courseCode} catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
     <div className="ig-data-controls" role="group" aria-label="Game setup">
+      <label>Syllabus
+        <select aria-label="Syllabus" value={courseCode}
+          onChange={(event) => changeCourseCode(event.target.value as '9618' | '0478')}>
+          <option value="9618">9618 · AS & A Level</option>
+          <option value="0478">0478 · IGCSE</option>
+        </select>
+      </label>
       <label>Vocabulary quality
         <select aria-label="Vocabulary quality" value={vocabularyQuality} onChange={event=>{
           setVocabularyQuality(event.target.value as GameVocabularyQuality);
@@ -388,7 +414,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packLoading && <p className="ig-data-message" role="status">Combining selected chapters, topics and sections…</p>}
     {catalogError && <p className="ig-data-error" role="alert">Chapter catalogue failed: {catalogError} <button type="button" onClick={refresh}>Retry</button></p>}
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
-    {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
+    {catalog?.courseCode === courseCode && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
       <strong>{allPairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
       {allPairs.length > distinctTermLabels
@@ -398,7 +424,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       {pack.pairs.some(pair=>pair.definitionEvidenceStatus!==undefined||pair.isOfficialKeyTerm!==undefined)
         ? ` ${Math.max(0,pack.pairs.length-allPairs.length)} less-verified or review-pending entries excluded from this ${vocabularyQuality==='core'?'core':'extended'} bank.`
         : ' Source verification flags are unavailable for this legacy bank; pending review content is for provisional practice only.'}
-      {vocabularyQuality==='core'
+      {courseCode==='0478' && pack.contentStatus==='approved'
+        ? ' All selected 0478 keywords and definitions have completed editorial review against the Hodder source. Supplementary concepts use reviewed explanations rather than verbatim Key Terms.'
+        : vocabularyQuality==='core'
         ? ' Core contains official textbook definitions and individually verified supplementary concepts; original source wording is preserved.'
         : ' Extended includes supplementary source-screened concepts that are not all individually expert-verified.'}
       {' '}Results are formative practice only, not official assessment grades.
