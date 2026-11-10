@@ -60,7 +60,8 @@ describe('unified Live Challenge classroom controls',()=>{
     expect(page).toContain("displayNameMode:user.role==='student'?'anonymous_alias':data.get('displayNameMode')");
     expect(page).toContain("markingMode:user.role==='student'?(practiceMode==='group'?'peer':'self'):rehearsalMode?'teacher':data.get('markingMode')");
     expect(page).toContain("peerCalibrationPercent:user.role==='student'||rehearsalMode?0:Number(data.get('peerCalibrationPercent')??0)");
-    expect(page).toContain("teacherOverrideEnabled:user.role!=='student'&&data.get('teacherOverrideEnabled')==='on'");
+    expect(page).toContain("teacherOverrideEnabled:user.role!=='student'&&(playMode==='cards'||data.get('teacherOverrideEnabled')==='on')");
+    expect(page).toContain('Card rejimida o‘qituvchi har bir raund baholarini ko‘rib');
     expect(page).toContain("practiceMode:user.role==='student'?practiceMode:undefined");
   });
 
