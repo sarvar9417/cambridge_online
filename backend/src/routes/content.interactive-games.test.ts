@@ -72,7 +72,7 @@ describe('Interactive Games live API route validation', () => {
       scopes: [{ chapterNo: 17, kind: 'chapter' }],
       durationSeconds: 72, correctFirstAttempts: 3,
       incorrectFirstAttempts: 1, reviewedCount: 0,
-      attempts: [{ termId, firstCorrect: false }],
+      attempts: [{ termId, firstCorrect: false, evidenceType: 'scored_response' }],
     };
     const save = await request(app).post('/content/interactive-games/practice').send(body);
     expect(save.status).toBe(200);
@@ -91,14 +91,14 @@ describe('Interactive Games live API route validation', () => {
       mode: 'quiz', scopes: [{ chapterNo: 17, kind: 'chapter' }],
       durationSeconds: 20, correctFirstAttempts: 0,
       incorrectFirstAttempts: 1, reviewedCount: 0,
-      attempts: [{ termId: '302745c8-0397-4ec2-ac0a-a0b65cef1fb1', firstCorrect: false }],
+      attempts: [{ termId: '302745c8-0397-4ec2-ac0a-a0b65cef1fb1', firstCorrect: false, evidenceType: 'scored_response' }],
     };
     for (const invalid of [
       { ...base, runId: 'not-a-uuid' },
       { ...base, attempts: [...base.attempts, ...base.attempts] },
       { ...base, officialGrade: 100 },
       { ...base, correctFirstAttempts: 1000 },
-      { ...base, attempts: [{ termId: 'not-valid', firstCorrect: false }] },
+      { ...base, attempts: [{ termId: 'not-valid', firstCorrect: false, evidenceType: 'scored_response' }] },
       { ...base, mode: 'unapproved-game' },
       { ...base, scopes: [] },
       { ...base, durationSeconds: -1 },
