@@ -5,6 +5,7 @@ import {randomId} from '../lib/random-id';
 import {celebrationTier,type CelebrationTier} from './live-challenge-rewards';
 import {LiveMascot3D} from './LiveMascot3D';
 import {NeonMascot,playResultSound} from './LiveChallengeCelebration';
+import './live-neon-arena-v2.css';
 
 export const DEFAULT_LIVE_POLICY:LiveEffectSettings={
   animations:true,sound:false,intensity:'balanced',publicCelebrations:true,
@@ -41,7 +42,8 @@ export function LiveChallengeMoment({eventId,score,possible,context,policy,publi
       window.sessionStorage.setItem(key,'shown');
     }catch{/* private browsing still shows one moment */}
     setVisible(true);
-    if(effects.sound&&(!publicView||window.sessionStorage.getItem('cambridge-live-projector-audio')==='armed'))playResultSound(tier);
+    let armed=false;try{armed=window.sessionStorage.getItem('cambridge-live-projector-audio')==='armed'}catch{/* blocked storage */}
+    if(effects.sound&&(!publicView||armed))playResultSound(tier);
   },[eventId,tier,effects.animations,effects.sound,effects.intensity,effects.publicCelebrations,publicView]);
   useEffect(()=>{
     if(!visible)return;
