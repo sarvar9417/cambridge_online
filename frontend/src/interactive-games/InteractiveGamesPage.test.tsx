@@ -11,6 +11,12 @@ const mockApi = vi.mocked(api);
 const baseTerms = chapter7Pilot.pairs;
 let importedChapter4 = false;
 let extraChapter2Term = false;
+let mockPracticeHistory: {
+  assessed: false;
+  recent: Array<{ runId: string; mode: 'quiz'; correctFirstAttempts: number;
+    incorrectFirstAttempts: number; reviewedCount: number; durationSeconds: number; createdAt: string }>;
+  needsReviewIds: string[];
+} = { assessed: false, recent: [], needsReviewIds: [] };
 const catalog = (): LiveGameCatalog => ({
   courseCode: '9618',
   chapters: [
@@ -49,6 +55,13 @@ function pack(scopes: GameScope[]): LiveGamePack {
   };
 }
 async function respond(path: string, init?: RequestInit) {
+  if (path === '/content/interactive-games/practice?courseCode=9618') {
+    return { data: mockPracticeHistory };
+  }
+  if (path === '/content/interactive-games/practice' && init?.method === 'POST') {
+    const request = JSON.parse(String(init.body)) as { runId: string };
+    return { data: { saved: true, assessed: false, runId: request.runId } };
+  }
   if (path.startsWith('/content/interactive-games/catalog')) return { data: catalog() };
   if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
     const input = JSON.parse(String(init.body)) as { scopes: GameScope[] };
@@ -108,6 +121,7 @@ describe('database-backed Interactive Games multi-selection', () => {
   beforeEach(() => {
     importedChapter4 = false;
     extraChapter2Term = false;
+    mockPracticeHistory = { assessed: false, recent: [], needsReviewIds: [] };
     mockApi.mockReset();
     mockApi.mockImplementation(respond as typeof api);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -120,6 +134,48 @@ describe('database-backed Interactive Games multi-selection', () => {
     container.remove();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('keeps teacher previews free of student practice write controls', async () => {
+    await render(true);
+    expect(container.querySelector('.ig-practice-history')).toBeNull();
+    await click(button('■ Finish game'));
+    expect(container.querySelector('.ig-practice-save')).toBeNull();
+    expect(mockApi.mock.calls.some(([path]) => path.includes('/interactive-games/practice'))).toBe(false);
+  });
+
+  it('shows private student history, reviews first-attempt mistakes, and returns to all terms', async () => {
+    mockPracticeHistory.needsReviewIds = ['1:' + baseTerms[0]!.id];
+    await render(false);
+    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 terms to revisit');
+    await click(button('Review my mistakes (1) in Flash Cards'));
+    expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent).toBe('Flash Cards');
+    expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
+    expect(container.querySelectorAll('.ig-game-tile:not([disabled])')).toHaveLength(1);
+    await click(button('Return to all selected vocabulary'));
+    expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('8 terms in this round');
+  });
+
+  it('saves a finished student practice run as formative evidence on explicit click only', async () => {
+    await render(false);
+    expect(container.textContent).toContain('No saved rounds yet');
+    expect(mockApi.mock.calls.filter(([path]) => path === '/content/interactive-games/practice')).toHaveLength(0);
+    await click(button('■ Finish game'));
+    expect(container.querySelector('.ig-practice-save')).not.toBeNull();
+    await click(button('Save practice to my history'));
+    const calls = mockApi.mock.calls.filter(([path]) => path === '/content/interactive-games/practice');
+    expect(calls).toHaveLength(1);
+    const payload = JSON.parse(String(calls[0]![1]?.body)) as {
+      runId: string; mode: string; courseCode: string; attempts: unknown[]; scopes: GameScope[];
+    };
+    expect(payload.mode).toBe('match-up');
+    expect(payload.courseCode).toBe('9618');
+    expect(payload.scopes).toEqual([{ chapterNo: 1, kind: 'chapter' }]);
+    expect(payload.runId).toMatch(/^[a-f0-9]{8}-/);
+    expect(payload.attempts).toEqual([]);
+    expect(container.querySelector('.ig-practice-save')?.textContent).toContain('Practice saved');
+    await click(button('↻ Play this round again'));
+    expect(container.querySelector('.ig-practice-save')).toBeNull();
   });
 
   it('loads chapters, syllabus topics and Hodder sections with the eight game templates', async () => {
