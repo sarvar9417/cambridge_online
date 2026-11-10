@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useGameAdvance, useGameSignal, type RecordAnswer } from './game-session';
+import { AnswerCards } from './AnswerCards';
 import {
   chapter7Pilot, findMatchOptions, scrambleTerm, shuffleItems,
   type GamePair, type QuizQuestion, type SpeakingPrompt,
@@ -31,74 +32,12 @@ export function SpeakingCards({ prompts }: { prompts: readonly SpeakingPrompt[] 
   </div>;
 }
 
-export function OpenBox({ pairs, questions }: { pairs: readonly GamePair[]; questions: readonly QuizQuestion[] }) {
-  const signal = useGameSignal();
-  const [opened, setOpened] = useState<number[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [mode, setMode] = useState<'simple' | 'questions'>('simple');
-  const [choices, setChoices] = useState<Record<string, number>>({});
-  const active = selected === null ? null : pairs[selected];
-  const question = mode === 'questions' && active ? questions.find((item) => item.id === 'quiz-' + active.id) : undefined;
-  const choice = question ? choices[question.id] : undefined;
-  if (!pairs.length) return <p>No challenge boxes available.</p>;
-
-  function open(index: number) {
-    if (!opened.includes(index)) {
-      signal('open');
-      signal('review');
-      setOpened((previous) => [...previous, index]);
-    }
-    setSelected(index);
-    setRevealed(false);
-  }
-
-  return <div className="ig-content">
-    <p className="ig-instruction">Choose any numbered box to reveal its contents. Opened boxes remain marked on the board.</p>
-    {questions.length > 0 && <div className="ig-template-options">
-      <label>Box type <select value={mode} disabled={opened.length > 0}
-        onChange={(event) => setMode(event.target.value === 'questions' ? 'questions' : 'simple')}>
-        <option value="simple">Simple boxes</option><option value="questions">Boxes with questions</option>
-      </select></label>
-    </div>}
-    <div className="ig-score">{opened.length} / {pairs.length} boxes opened</div>
-    {active ? <div className="ig-box-detail" aria-live="polite">
-      <span className="ig-eyebrow">BOX {selected! + 1}</span>
-      <h3>{question ? question.prompt : `Explain: ${active.term}`}</h3>
-      {question ? <>
-        <div className="ig-answer-grid">{question.options.map((option, index) => <button key={index} type="button"
-          className={'ig-answer-button' + (choice !== undefined && index === question.answerIndex ? ' is-correct'
-            : choice === index ? ' is-wrong' : '')} disabled={choice !== undefined} onClick={() => {
-            setChoices((previous) => ({ ...previous, [question.id]: index }));
-            signal('flip');
-          }}>{option}</button>)}</div>
-        {choice !== undefined && <p className="ig-reveal">{choice === question.answerIndex ? 'Correct!' : 'Correct answer'} · {question.options[question.answerIndex]}</p>}
-      </> : <>
-        <button type="button" aria-expanded={revealed} onClick={() => { if (!revealed) signal('flip'); setRevealed(!revealed); }}>
-          {revealed ? 'Hide answer' : 'Reveal answer'}</button>
-        {revealed && <p className="ig-reveal">{active.definition}</p>}
-      </>}
-      <div className="ig-box-actions"><button type="button" onClick={() => setSelected(null)}>Back to boxes</button></div>
-    </div> : <>
-      <div className="ig-box-grid">{pairs.map((pair, index) => <button type="button" key={pair.id}
-        className={'ig-box ig-color-' + (index % 6) + (opened.includes(index) ? ' is-opened' : '')}
-        onClick={() => open(index)}>
-        <span>{index + 1}</span><strong>{opened.includes(index) ? 'Opened' : 'Tap to open'}</strong>
-      </button>)}</div>
-      {opened.length === pairs.length && <div className="ig-box-actions">
-        <button type="button" className="ig-primary-button" onClick={() => signal('complete')}>Finish boxes</button>
-      </div>}
-    </>}
-  </div>;
-}
-
 export function Quiz({ questions, blocked, recordAnswer }: {
   questions: readonly QuizQuestion[]; blocked: boolean; recordAnswer: RecordAnswer;
 }) {
   const signal = useGameSignal();
   const [index, setIndex] = useState(0);
-  const [firstChoice, setFirstChoice] = useState<number | null>(null);
-  const [answer, setAnswer] = useState<number | null>(null);
+  const [responses, setResponses] = useState<Record<string, { first: number; answer: number | null }>>({});
   const [correct, setCorrect] = useState(0);
   const [auto, setAuto] = useState(true);
   const [retry, setRetry] = useState(false);
@@ -106,34 +45,36 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const ordered = useMemo(() => shuffleQuestions ? shuffleItems(questions) : questions, [questions, shuffleQuestions]);
   const question = ordered[index];
+  const response = question ? responses[question.id] : undefined;
+  const firstChoice = response?.first ?? null;
+  const answer = response?.answer ?? null;
   const options = useMemo(() => {
     const indexes = question?.options.map((_, i) => i) ?? [];
     return shuffleAnswers ? shuffleItems(indexes) : indexes;
   }, [question, shuffleAnswers]);
   const last = index === questions.length - 1;
-  const configuring = index === 0 && firstChoice === null;
+  const configuring = index === 0 && Object.keys(responses).length === 0;
   const next = () => {
-    if (blocked || answer === null) return;
+    if (blocked || (last && answer === null)) return;
     setIndex((previous) => previous + 1);
-    setFirstChoice(null);
-    setAnswer(null);
     if (last) signal('complete');
   };
-  useGameAdvance(auto && answer !== null && !blocked, next);
+  useGameAdvance(auto && answer !== null && !blocked, next, undefined, index);
   if (!question) return <div className="ig-complete" role="status"><h3>Quiz completed!</h3><p>{correct} / {questions.length} correct on first attempt.</p></div>;
 
   function choose(optionIndex: number) {
     if (blocked || !question || answer !== null || firstChoice === optionIndex) return;
     const isCorrect = optionIndex === question.answerIndex;
     if (firstChoice === null) {
-      setFirstChoice(optionIndex);
       recordAnswer({ id: question.id, prompt: question.prompt, submitted: question.options[optionIndex]!,
         expected: question.options[question.answerIndex]!, correct: isCorrect });
       if (isCorrect) setCorrect((previous) => previous + 1);
     }
     signal(isCorrect ? firstChoice === null ? 'correct' : 'review' : 'incorrect');
-    if (firstChoice === null && !isCorrect && retry) return;
-    setAnswer(optionIndex);
+    setResponses((previous) => ({ ...previous, [question.id]: {
+      first: firstChoice ?? optionIndex,
+      answer: firstChoice === null && !isCorrect && retry ? null : optionIndex,
+    } }));
   }
 
   return <div className="ig-content ig-quiz">
@@ -146,15 +87,17 @@ export function Quiz({ questions, blocked, recordAnswer }: {
     </div>
     <div className="ig-score">Question {index + 1} / {questions.length} · {correct} correct on first attempt</div>
     <div className="ig-question" aria-live="polite">{question.prompt}</div>
-    <div className="ig-answer-grid">{options.map((optionIndex, position) => <button key={`${question.id}-${optionIndex}`} type="button"
-      className={'ig-answer-button' + (answer !== null && optionIndex === question.answerIndex ? ' is-correct' : '') +
-        ((firstChoice === optionIndex || answer === optionIndex) && optionIndex !== question.answerIndex ? ' is-wrong' : '')}
-      disabled={answer !== null || firstChoice === optionIndex} onClick={() => choose(optionIndex)}>
-      <span>{String.fromCharCode(65 + position)}</span>{question.options[optionIndex]}</button>)}</div>
+    <AnswerCards options={question.options} order={options} answer={answer} correctIndex={question.answerIndex}
+      firstWrong={firstChoice !== question.answerIndex ? firstChoice : null} blocked={blocked}
+      cardClass="ig-answer-button" onChoose={choose} />
     {firstChoice !== null && answer === null && <p className="ig-feedback" role="status">Incorrect. Choose a different answer for your one retry.</p>}
     {answer !== null && <div className="ig-answer-feedback" role="status">
       <strong>{answer === question.answerIndex ? 'Correct!' : 'Correct answer'}</strong> {question.options[question.answerIndex]}
-      <button type="button" onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
+      {auto && <button type="button" onClick={next}>{last ? 'See results →' : 'Next question →'}</button>}
+    </div>}
+    {!auto && <div className="ig-card-controls" role="group" aria-label="Quiz navigation">
+      <button type="button" disabled={index === 0} onClick={() => setIndex((previous) => previous - 1)}>← Previous question</button>
+      <button type="button" disabled={last && answer === null} onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
     </div>}
   </div>;
 }

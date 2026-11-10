@@ -278,6 +278,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     await click(card);
     expect(card.textContent).toContain('Legal');
     await click(button('✕ Practise again'));
+    expect(card.querySelector('.ig-flashcard-mark.is-wrong')).toBeTruthy();
     await act(async () => { card.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); });
     expect(card.textContent).toContain(baseTerms[1]!.definition);
     for (let i = 1; i < baseTerms.length - 1; i++) await click(button('Next →'));
@@ -305,21 +306,67 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('3 reviewed');
   });
 
-  it('opens any numbered box, supports question boxes, and remembers their open state', async () => {
+  it('leaves simple boxes open on the board and scores question boxes before returning', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Open the Box');
+      const secondBox = container.querySelector<HTMLButtonElement>('.ig-box:nth-child(2)')!;
+      await click(secondBox);
+      expect(secondBox.classList.contains('is-opened')).toBe(true);
+      expect(secondBox.textContent).toContain('Morality');
+      expect(container.querySelectorAll('.ig-box')).toHaveLength(8);
+      await click(secondBox);
+      expect(secondBox.textContent).toContain(baseTerms[1]!.definition);
+      await game('Open the Box');
+      await change('.ig-template-options select', 'questions');
+      await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
+      expect(container.querySelector('.ig-box-question h3')?.textContent).toBe(baseTerms[0]!.definition);
+      expect(container.querySelectorAll('.ig-box-question .ig-choice-card')).toHaveLength(4);
+      await click(button('ALegal'));
+      expect(container.querySelector('.ig-box-question .ig-reveal')?.textContent).toContain('Correct!');
+      expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 correct');
+      await act(async () => { vi.advanceTimersByTime(1100); });
+      const answeredBox = container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!;
+      expect(answeredBox.textContent).toContain('✓ Correct');
+      expect(answeredBox.disabled).toBe(true);
+      await click(button('■ Finish game'));
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('✓ Correct · Legal');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('pauses the question-box clock and records a timeout as an incorrect attempt', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Open the Box');
+      await change('.ig-template-options select', 'questions');
+      await change('.ig-template-options label:nth-child(3) select', '15');
+      await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
+      expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
+      await click(button('Ⅱ Pause timer'));
+      await act(async () => { vi.advanceTimersByTime(15000); });
+      expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
+      await click(button('▶ Resume timer'));
+      await act(async () => { vi.advanceTimersByTime(15000); });
+      expect(container.querySelector('.ig-box-question .ig-reveal')?.textContent).toContain("Time's up!");
+      await act(async () => { vi.advanceTimersByTime(1100); });
+      expect(container.querySelector('.ig-box:nth-child(1)')?.textContent).toContain('Time expired');
+      await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(2)')!);
+      expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('preserves marked quiz answers while moving between questions manually', async () => {
     await render();
-    await game('Open the Box');
-    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(2)')!);
-    expect(container.querySelector('.ig-box-detail h3')?.textContent).toBe('Explain: Morality');
-    await click(button('Reveal answer'));
-    expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toBe(baseTerms[1]!.definition);
-    await click(button('Back to boxes'));
-    expect(container.querySelector('.ig-box.is-opened:nth-child(2)')).toBeTruthy();
-    await game('Open the Box');
-    await change('.ig-template-options select', 'questions');
-    await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
-    await click(button('Legal'));
-    expect(container.querySelector('.ig-box-detail .ig-reveal')?.textContent).toContain('Correct!');
-    expect(container.querySelector('.ig-session-metrics')?.textContent).not.toContain('correct');
+    await game('Quiz');
+    await toggleOption('Automatically proceed');
+    await click(button('ALegal'));
+    await click(button('Next question →'));
+    expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
+    await click(button('← Previous question'));
+    expect(container.querySelector('.ig-quiz .ig-answer-button.is-correct')?.textContent).toContain('Legal');
+    expect(container.querySelectorAll('.ig-quiz .ig-answer-button:disabled')).toHaveLength(4);
   });
 
   it('marks the quiz immediately, allows one retry, and pauses automatic advancement', async () => {
@@ -352,8 +399,10 @@ describe('database-backed Interactive Games multi-selection', () => {
     const wrong = baseTerms.find((item) => item.id !== correct.id)!;
     await click(button(wrong.term));
     expect(container.querySelector('[aria-label="2 lives remaining"]')).toBeTruthy();
+    const originalPosition = [...container.querySelectorAll('.ig-find-grid > *')].indexOf(button(correct.term));
     await click(button(correct.term));
     expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(7);
+    expect(container.querySelector('.ig-find-grid')?.children[originalPosition]?.classList.contains('ig-find-gap')).toBe(true);
     await click(button('■ Finish game'));
     expect(container.querySelector('.ig-answer-review')?.textContent).toContain(`First answer · ${wrong.term}`);
   });
@@ -380,6 +429,25 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-anagram .ig-score')?.textContent).toContain('0 solved on first try');
     await click(button('■ Finish game'));
     expect(container.querySelector('.ig-answer-review')?.textContent).toContain('E in slot 1');
+  });
+
+  it('rearranges anagram letters within the word by selecting two positions', async () => {
+    await render();
+    await game('Anagram');
+    await change('.ig-template-options label:nth-child(2) select', 'inline');
+    await toggleOption('Automatically proceed');
+    const tiles = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-anagram-slot button')];
+    expect(container.querySelector('.ig-anagram-letters')).toBeNull();
+    expect(tiles().map((tile) => tile.textContent).join('')).not.toBe('LEGAL');
+    for (const [index, letter] of [...'LEGAL'].entries()) {
+      if (tiles()[index]!.textContent === letter) continue;
+      const matching = tiles().find((tile) => !tile.disabled && tile.textContent === letter)!;
+      await click(matching);
+      expect(matching.getAttribute('aria-pressed')).toBe('true');
+      await click(tiles()[index]!);
+    }
+    expect(tiles().map((tile) => tile.textContent).join('')).toBe('LEGAL');
+    expect(container.querySelector('.ig-feedback')?.textContent).toContain('Correct!');
   });
 
   it('pauses and expires a 30-second round without treating it as an assessment', async () => {

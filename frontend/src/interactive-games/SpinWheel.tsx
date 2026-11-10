@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useGameSignal } from './game-session';
 import { findMatchOptions, shuffleItems, type GamePair } from './game-content';
+import { AnswerCards } from './AnswerCards';
 import './spin-wheel.css';
 
 const colours = ['#3944a7', '#007287', '#a72a4b', '#9b530b', '#187047', '#7739a6', '#1b5fa1', '#a33b2b'];
@@ -250,17 +251,10 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
           <span className="ig-eyebrow">{hasQuiz ? 'SELECTED QUESTION' : 'SELECTED SEGMENT'}</span>
           <h3 ref={resultHeading} tabIndex={-1}>{label(result)}</h3>
           {hasQuiz && <>
-            <div className="ig-wheel-choices" role="group" aria-label="Answer choices">
-              {answerOptions.map((option, index) => {
-                const marking = selectedAnswer !== null && option.id === result.id ? ' is-correct'
-                  : selectedAnswer === option.id ? ' is-wrong' : '';
-                return <button type="button" key={option.id} className={'ig-wheel-choice' + marking}
-                  disabled={blocked || selectedAnswer !== null} onClick={() => chooseAnswer(option.id)}>
-                  <span>{String.fromCharCode(65 + index)}</span>
-                  <strong>{answerLabel(option)}</strong>
-                </button>;
-              })}
-            </div>
+            <AnswerCards options={answerOptions.map(answerLabel)} cardClass="ig-wheel-choice" blocked={blocked}
+              correctIndex={answerOptions.findIndex((option) => option.id === result.id)}
+              answer={selectedAnswer === null ? null : answerOptions.findIndex((option) => option.id === selectedAnswer)}
+              onChoose={(index) => chooseAnswer(answerOptions[index]!.id)} />
             <p className="ig-wheel-answer-status" role="status">{selectedAnswer === null ? null
               : selectedAnswer === result.id ? 'Correct!' : <>Correct answer · <strong>{answerLabel(result)}</strong></>}</p>
           </>}
