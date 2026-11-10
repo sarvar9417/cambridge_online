@@ -148,7 +148,7 @@ describe('database-backed Interactive Games multi-selection', () => {
   it('shows private student history, reviews first-attempt mistakes, and returns to all terms', async () => {
     mockPracticeHistory.needsReviewIds = ['1:' + baseTerms[0]!.id];
     await render(false);
-    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 term to revisit');
+    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 term previously missed');
     await click(button('Review my mistakes (1) in Flash Cards'));
     expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent).toBe('Flash Cards');
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
