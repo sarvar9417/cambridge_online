@@ -438,8 +438,9 @@ async function assertInteractiveGames(browser:Browser,base:string){
   const matchLayout=await teacher.$eval('.ig-match-board-grid',(board)=>{
     const definitions=board.querySelector<HTMLElement>('.ig-match-definitions');
     if(!definitions)throw new Error('Missing Match Up definitions grid');
-    const narrow=getComputedStyle(definitions).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
     const previous=(board as HTMLElement).style.width;
+    (board as HTMLElement).style.width='900px';
+    const narrow=getComputedStyle(definitions).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
     (board as HTMLElement).style.width='1500px';
     const wide=getComputedStyle(definitions).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
     (board as HTMLElement).style.width=previous;
