@@ -8,6 +8,7 @@ import {
   type GameScope, type LiveGameCatalog, type LiveGamePack, type GameVocabularyQuality,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
+import { ClassroomMode } from './ClassroomMode';
 import { missedPracticePairs, practiceAttempts, type PracticeHistory, type SavePracticeRequest } from './practice-history';
 import { Quiz } from './ExtraGames';
 import { OpenBox, type BoxMode } from './OpenBox';
@@ -55,6 +56,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [practiceSaveError, setPracticeSaveError] = useState('');
   const [practiceRunId, setPracticeRunId] = useState(() => randomId());
   const [mistakesOnly, setMistakesOnly] = useState(false);
+  const [classroomMode, setClassroomMode] = useState(false);
   const [dueOnly, setDueOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -138,10 +140,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const timeExpired = timeLimit > 0 && seconds >= timeLimit;
   const roundEnded = finished || timeExpired;
   useEffect(() => {
-    if (!started || paused || roundEnded || !pack) return;
+    if (!started || paused || roundEnded || !pack || classroomMode) return;
     const timer = window.setInterval(() => setSeconds((time) => time + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [started, paused, roundEnded, pack, timeLimit]);
+  }, [started, paused, roundEnded, pack, timeLimit, classroomMode]);
 
   const signal = useCallback((kind: GameSignal, count = 1) => {
     if (kind !== 'complete' && kind !== 'tick') setStarted(true);
@@ -153,6 +155,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, [soundOn]);
 
   const allPairs = useMemo(() => selectQualityGameTerms(pack?.pairs ?? [], vocabularyQuality), [pack, vocabularyQuality]);
+  const classroomPairs = useMemo(
+    () => selectModeStage(allPairs, Math.min(questionCount, 50), round, 'flash-cards'),
+    [allPairs, questionCount, round]);
   const missedPairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.needsReviewIds ?? []),
     [allPairs, practiceHistory]);
   const duePairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.dueReviewIds ?? []),
@@ -305,7 +310,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
-      <label className="ig-timer-select">Round time limit
+      {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
+        disabled={!ready} onClick={() => { setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
+        {classroomMode ? 'Exit Classroom Mode' : 'Start Classroom Mode'}
+      </button>}
+      {!classroomMode && <label className="ig-timer-select">Round time limit
         <select aria-label="Time limit" value={!timeLimit && stopwatch ? 'count-up' : timeLimit}
           onChange={(event) => {
             const countUp = event.target.value === 'count-up';
@@ -316,10 +325,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <option value="count-up">Count up</option>
           {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
         </select>
-      </label>
-      <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
-      <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume game' : 'Ⅱ Pause game'}</button>
-      <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>
+      </label>}
+      {!classroomMode && <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>}
+      {!classroomMode && <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume game' : 'Ⅱ Pause game'}</button>}
+      {!classroomMode && <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>}
      </div>
     <div className="ig-hero">
       <div>
@@ -400,7 +409,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {pack && pack.pairs.length>0 && allPairs.length===0 && <p className="ig-data-message" role="status">
       No verified core vocabulary is available for this narrow selection. Choose a broader Chapter or explicitly switch to Extended source-screened concepts.
     </p>}
-    {pack && ready && <>
+    {pack && ready && (classroomMode && isTeacher ? <ClassroomMode
+      pairs={classroomPairs} isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
+      onNextRound={() => setRound((value) => value + 1)}
+      onExit={() => { setClassroomMode(false); resetGame(); }}
+    /> : <>
       {!isTeacher && <section className="ig-practice-history" aria-label="My practice history">
         <h3>My practice history</h3>
         <p>Private formative record. Mistake review uses first attempts; repeating a corrected answer does not prove mastery.</p>
@@ -528,6 +541,6 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </div>}
       </div>
       <p className="ig-source">Source: {pack.source}. Pending-review vocabulary is clearly labelled.</p>
-    </>}
+    </>)}
   </section></GameSignalContext.Provider>;
 }

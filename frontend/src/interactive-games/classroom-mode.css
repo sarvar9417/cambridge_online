@@ -1,0 +1,97 @@
+.ig-classroom {
+  margin-top: 24px;
+  border: 1px solid #cfd8ee;
+  border-radius: 22px;
+  background: #f6f8fe;
+  overflow: hidden;
+  box-shadow: 0 14px 34px #1b2c4b14;
+}
+.ig-classroom-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: clamp(22px, 3vw, 34px);
+  color: #fff;
+  background: linear-gradient(120deg, #151f4e, #4849aa);
+}
+.ig-classroom-header h2 { color: #fff; font-size: clamp(28px, 3.8vw, 42px); margin: 8px 0; }
+.ig-classroom-header p { color: #e4e8ff; line-height: 1.55; max-width: 650px; margin: 0; }
+.ig-classroom-header .ig-eyebrow { color: #c9d3ff; }
+.ig-classroom-header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.ig-classroom button { border: 1px solid #bac7e3; border-radius: 10px; padding: 10px 14px; background: #fff; color: #273773; font-weight: 750; }
+.ig-classroom button:hover:not(:disabled) { background: #edf0ff; }
+.ig-classroom-teams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 13px;
+  padding: 22px 25px 0;
+}
+.ig-classroom-team {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  border: 1px solid #d5def1;
+  background: #fff;
+  border-radius: 16px;
+  padding: 17px 12px;
+  min-width: 0;
+}
+.ig-classroom-team label { font-size: 11px; color: #52627e; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.ig-classroom-team input {
+  width: 100%;
+  max-width: 210px;
+  border: 1px solid #cad5eb;
+  border-radius: 9px;
+  padding: 8px;
+  color: #263660;
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+}
+.ig-classroom-team output { font-size: clamp(35px, 4.4vw, 58px); line-height: 1; color: #343f9c; font-weight: 900; font-variant-numeric: tabular-nums; }
+.ig-classroom-team-actions { display: flex; gap: 9px; }
+.ig-classroom-team-actions button { min-width: 60px; font-size: 17px; }
+.ig-classroom-team-actions button:last-child { background: #4a4fba; border-color: #4a4fba; color: #fff; }
+.ig-classroom-team-actions button:last-child:hover:not(:disabled) { background: #363c9f; }
+.ig-classroom-remove-team { font-size: 11px; }
+.ig-classroom-team-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 12px 25px 25px; color: #495775; }
+.ig-classroom-card {
+  margin: 0 25px 26px;
+  border: 1px solid #cbd5ee;
+  border-radius: 19px;
+  background: #fff;
+  padding: clamp(25px, 4vw, 50px);
+  text-align: center;
+}
+.ig-classroom-progress { color: #5965a5; font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.ig-classroom-card h3 { font-size: clamp(29px, 5vw, 55px); line-height: 1.15; margin: 20px 0 12px; color: #202d5c; overflow-wrap: anywhere; }
+.ig-classroom-provenance { font-size: 13px; color: #60708e; margin-bottom: 30px; }
+.ig-classroom-prompt { font-size: clamp(17px, 2vw, 22px); color: #53637e; line-height: 1.5; margin: 25px 0; }
+.ig-classroom-definition {
+  border: 1px solid #cbd8f3;
+  background: #f1f5ff;
+  border-radius: 14px;
+  margin: 26px 0;
+  padding: clamp(18px, 3vw, 34px);
+  color: #293b6a;
+  line-height: 1.6;
+}
+.ig-classroom-definition span { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; color: #4c5aab; }
+.ig-classroom-definition p { font-size: clamp(19px, 2.6vw, 27px); margin: 12px 0 0; }
+.ig-classroom .ig-classroom-reveal { color: #fff; background: #4a4fba; border-color: #4a4fba; padding: 13px 25px; font-size: 16px; }
+.ig-classroom-navigation { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 25px; }
+.ig-classroom-footnote { padding: 0 25px 20px; color: #52617d; font-size: 12px; line-height: 1.5; }
+.ig-page:fullscreen { overflow: auto; background: #f6f8fe; width: 100%; padding: 20px; }
+.ig-page:fullscreen .ig-classroom-card h3 { font-size: clamp(38px, 5vw, 78px); }
+@media (max-width: 680px) {
+  .ig-classroom-header { flex-direction: column; }
+  .ig-classroom-header-actions { justify-content: flex-start; }
+  .ig-classroom-teams { padding: 15px 14px 0; }
+  .ig-classroom-team-controls { padding: 12px 14px 20px; }
+  .ig-classroom-card { margin: 0 14px 20px; }
+}
+
+.ig-session-bar .ig-classroom-toggle { border: 1px solid #4046a6; background: #444bb3; color: #fff; border-radius: 10px; padding: 9px 14px; font-weight: 800; }
+.ig-session-bar .ig-classroom-toggle[aria-pressed="true"] { background: #283479; }
+.ig-session-bar .ig-classroom-toggle:hover:not(:disabled) { background: #30378c; }
