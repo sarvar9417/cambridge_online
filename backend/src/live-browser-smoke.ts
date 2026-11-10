@@ -589,12 +589,12 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   // Narrow a chapter directly while another chapter remains selected.
   await clickGameControl('input[aria-label="Select entire Chapter 2"]');
-  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('15 unique'));
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('15 glossary entries'));
   if(!await teacher.$('.ig-scope-chapter:first-child details[open]')){
     await clickGameControl('.ig-scope-chapter:first-child summary');
   }
   await clickGameControl('input[aria-label="Hodder section 1.1.1 · Chapter 1"]');
-  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('11 unique'));
+  await teacher.waitForFunction(()=>document.querySelector('.ig-notice')?.textContent?.includes('11 glossary entries'));
   await clickGameControl('input[aria-label="Topic 1.1 · Chapter 1"]');
   await teacher.waitForFunction(()=>document.querySelector('.ig-session-name')?.textContent?.includes('3 selections'));
   await assertText('.ig-hero','2 chapters selected');
