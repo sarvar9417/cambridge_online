@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
-  DEFAULT_GAME_LENGTH, GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
-  selectGamePairs, validGameScopes, normalizeGameScopes,
+  DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
+  selectModeStage, validGameScopes, normalizeGameScopes,
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
@@ -137,7 +137,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const currentMode = gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const eligiblePairs = useMemo(() => poolForMode(pack?.pairs ?? [], currentMode), [pack, currentMode]);
-  const pairs = useMemo(() => selectGamePairs(eligiblePairs, questionCount, round), [eligiblePairs, questionCount, round]);
+  const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
+    [eligiblePairs, questionCount, round, currentMode]);
+  const selectedCount = Math.min(eligiblePairs.length, questionCount);
+  const staged = Boolean(GAME_STAGE_LIMITS[currentMode] && selectedCount > GAME_STAGE_LIMITS[currentMode]!);
+  const stageSize = GAME_STAGE_LIMITS[currentMode] ?? selectedCount;
+  const stageTotal = staged ? Math.ceil(selectedCount / stageSize) : 1;
+  const stageNumber = staged ? round % stageTotal + 1 : 1;
   const speaking = useMemo(() => createSpeakingPrompts(pairs), [pairs]);
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
@@ -214,7 +220,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
-      <label className="ig-timer-select">Time limit
+      <label className="ig-timer-select">Round time limit
         <select aria-label="Time limit" value={!timeLimit && stopwatch ? 'count-up' : timeLimit}
           onChange={(event) => {
             const countUp = event.target.value === 'count-up';
@@ -302,7 +308,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <div className="ig-workspace">
         <div className="ig-workspace-head">
           <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
-            <p>{chosenChapterCount} chapters · {scopes.length} selections · {pairs.length} terms in this round</p>
+            <p>{chosenChapterCount} chapters · {scopes.length} selections · {pairs.length} terms in this round
+              {staged ? ` · Stage ${stageNumber} of ${stageTotal} (${selectedCount} selected)` : ''}</p>
           </div>
           <div className="ig-workspace-head-actions">
             <button className="ig-fullscreen-toggle" type="button" onClick={toggleFullscreen}
@@ -311,6 +318,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </div>
           {fullscreenError && <span role="alert">{fullscreenError}</span>}
         </div>
+        {staged && <p className="ig-stage-notice" role="status">
+          This game shows up to {stageSize} terms at a time for readability. {selectedCount} terms selected ·
+          stage {stageNumber} of {stageTotal}. Use Next vocabulary round to practise the remaining terms.
+        </p>}
+        {currentMode === 'quiz' && <p className="ig-stage-notice">
+          Quiz question time: 30 seconds each. The separate round time limit above is optional.
+        </p>}
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
           {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
           <span>◈ {reviewedCount} reviewed</span>
