@@ -371,7 +371,7 @@ export class ContentService {
       courseCode, chapterNo, sectionCode: sectionCode ?? null,
       contentStatus: pairs.length > 0 && pairs.every((pair) => pair.status === 'approved') ? 'approved' : 'needs_review',
       pairs,
-      source: 'Current Cambridge 9618 Hodder-linked PostgreSQL glossary',
+      source: `Current Cambridge ${courseCode} Hodder-linked PostgreSQL glossary`,
       assessed: false,
     };
   }
