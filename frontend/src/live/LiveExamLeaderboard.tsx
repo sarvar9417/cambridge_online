@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type {LiveEffectSettings} from '../lib/api';
+import {LiveChallengeMoment} from './LiveChallengeStage';
+import {LiveChallengeFinalPodium} from './LiveChallengeFinalPodium';
 import { ChartBar, Medal, Trophy } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import './live-exam-leaderboard.css';
@@ -33,17 +36,24 @@ function scoreText(score:number,possible:number) {
 }
 
 function StandingList({items,emptyText}:{items:Standing[];emptyText:string}) {
+  const previous=useRef<Map<string,number>>(new Map());
+  useEffect(()=>{
+    previous.current=new Map(items.map(item=>[item.studentId??item.studentName,item.rank]));
+  },[items]);
   if(!items.length)return <p className="live-leaderboard-empty">{emptyText}</p>;
   return <ol className="live-leaderboard-list">
-    {items.map((item)=><li key={`${item.rank}-${item.studentName}`}>
+    {items.map((item)=>{
+      const id=item.studentId??item.studentName;
+      const last=previous.current.get(id);
+      return <li key={`${id}:${item.rank}:${item.score}`} className={last!==undefined&&item.rank<last?'is-rank-up':last!==undefined&&item.rank>last?'is-rank-down':''}>
       <span className={`live-leaderboard-rank live-leaderboard-rank--${Math.min(item.rank,4)}`}>{item.rank<=3?<Medal weight="fill"/>:item.rank}</span>
-      <strong>{item.studentName}</strong>
+      <strong>{item.studentName}{last!==undefined&&item.rank<last?<span className="live-rank-change" aria-label="Rank improved"> ↑</span>:null}</strong>
       <b>{scoreText(item.score,item.possible)}</b>
-    </li>)}
+    </li>})}
   </ol>;
 }
 
-export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessionId:string;version:number;variant?:'teacher'|'projector'}) {
+export function LiveExamLeaderboard({sessionId,version,variant='teacher',celebrate=false,final=false,policy}:{sessionId:string;version:number;variant?:'teacher'|'projector';celebrate?:boolean;final?:boolean;policy?:LiveEffectSettings}) {
   const [summary,setSummary]=useState<RoundSummary|null>(null);
   const [error,setError]=useState('');
 
@@ -69,7 +79,13 @@ export function LiveExamLeaderboard({sessionId,version,variant='teacher'}:{sessi
   const overallTop=summary.overall.standings.slice(0,variant==='projector'?6:8);
   const maxCount=Math.max(1,...summary.round.distribution.map((item)=>item.count));
 
-  return <section className={`live-leaderboard live-leaderboard--${variant}`}>
+  return <section className={`live-leaderboard live-leaderboard--${variant} live-leaderboard--neon`}>
+    {celebrate?<LiveChallengeMoment
+      eventId={`${sessionId}:${summary.questionPosition}:released-round:${variant}`}
+      score={summary.round.average} possible={summary.round.possible}
+      context="The round is complete. Every learner's mark remains private until released."
+      policy={policy} publicView/>:null}
+    {final?<LiveChallengeFinalPodium standings={summary.overall.standings}/>:null}
     {error?<p className="live-leaderboard-error" role="alert">Reyting vaqtincha yangilanmayapti: {error}</p>:null}
     <header>
       <div><span>MARKS-FIRST</span><h2><Trophy weight="fill"/> Live Challenge reytingi</h2></div>
