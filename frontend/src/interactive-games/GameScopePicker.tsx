@@ -127,6 +127,6 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
     {!chapters.length && <p className="ig-data-message">No matching chapters or topics. Clear the search to see available content.</p>}
     {!scopes.length && <p className="ig-scope-empty" role="status">Select at least one chapter, topic or section to create an Interactive Games round.</p>}
     {scopes.length >= 100 && <p className="ig-scope-empty">Maximum 100 individual selections. You can select an entire chapter instead.</p>}
-    <p className="ig-scope-hint">Counts beside sections are linked glossary entries, not additive totals: parent and child selections overlap. Each term appears at most once in the combined game bank. New database imports appear after Refresh database.</p>
+    <p className="ig-scope-hint">Counts beside sections are linked glossary entries, not additive totals: parent and child selections overlap. Each glossary entry appears once in the combined bank. The same term can appear in different chapters with different definitions; scored games avoid ambiguous answers. New database imports appear after Refresh database.</p>
   </div>;
 }
