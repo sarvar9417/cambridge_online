@@ -69,6 +69,14 @@ describe('Interactive Games private student practice history', () => {
       ]))).rejects.toMatchObject({ status: 400 });
     expect(duplicates).toHaveBeenCalledTimes(1);
 
+    const caseVariant = vi.fn().mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
+    await expect(new ContentService({ query: caseVariant } as unknown as Pool)
+      .saveInteractiveGamePractice(learner, request([
+        { termId: a, firstCorrect: false, evidenceType: 'scored_response' },
+        { termId: a.toUpperCase(), firstCorrect: true, evidenceType: 'scored_response' },
+      ]))).rejects.toMatchObject({ status: 400 });
+    expect(caseVariant).toHaveBeenCalledTimes(1);
+
     const foreignTerm = vi.fn()
       .mockResolvedValueOnce({ rowCount: 1, rows: [{}] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ term_count: 1 }] });
