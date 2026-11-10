@@ -185,6 +185,10 @@ export const GAME_STAGE_LIMITS: Partial<Record<GameKind, number>> = {
   'spin-wheel': 30,
   'open-box': 30,
   'find-the-match': 30,
+  'quiz': 50,
+  'anagram': 50,
+  'flash-cards': 50,
+  'speaking-cards': 50,
 };
 export function selectModeStage(pairs: readonly LiveGameTerm[], requested: number, round: number, mode: GameKind) {
   const limit = GAME_STAGE_LIMITS[mode];
