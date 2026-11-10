@@ -41,6 +41,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const [labelMode, setLabelMode] = useState<'term' | 'definition'>('definition');
   const drag = useRef<Drag | null>(null);
   const frame = useRef(0);
+  const animation = useRef<{ start: number; elapsed: number; step: (time: number) => void } | null>(null);
   const angle = useRef(0);
   const lastTick = useRef(-Infinity);
   const disc = useRef<HTMLDivElement>(null);
@@ -54,20 +55,36 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const label = (item: GamePair) => labelMode === 'term' ? item.term : item.definition;
   const answerLabel = (item: GamePair) => labelMode === 'term' ? item.definition : item.term;
   // A removed sector can still be used as a distractor, so elimination never shrinks the test.
-  const answerOptions = result ? findMatchOptions(pairs, pairs.indexOf(result), 2) : [];
+  const answerOptions = result ? findMatchOptions(pairs, pairs.indexOf(result)) : [];
   const hasQuiz = answerOptions.length > 0;
 
   useEffect(() => { playSignal.current = signal; }, [signal]);
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
+  // Unlike a finished session, Pause must freeze the animation rather than
+  // discarding the spin. Resume continues from the exact animation progress.
   useEffect(() => {
     if (ended) {
       window.cancelAnimationFrame(frame.current);
       frame.current = 0;
+      animation.current = null;
       drag.current = null;
       setSpinning(false);
       setDragging(false);
+      return;
     }
-  }, [ended]);
+    if (blocked) {
+      window.cancelAnimationFrame(frame.current);
+      frame.current = 0;
+      if (animation.current) {
+        animation.current.elapsed = Math.max(0, performance.now() - animation.current.start);
+      }
+      drag.current = null;
+      setDragging(false);
+    } else if (animation.current && !frame.current) {
+      animation.current.start = performance.now() - animation.current.elapsed;
+      frame.current = window.requestAnimationFrame(animation.current.step);
+    }
+  }, [blocked, ended]);
   useEffect(() => {
     if (blocked) return;
     if (winner !== null) resultHeading.current?.focus();
@@ -92,6 +109,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const finish = () => {
       frame.current = 0;
+      animation.current = null;
       rotate(fullTurn(target));
       // Slice zero is centred on the fixed pointer at the left of the wheel.
       setWinner(Math.floor(fullTurn(-target + sector / 2) / sector));
@@ -103,13 +121,16 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
     }
     if (reducedMotion) { finish(); return; }
     setSpinning(true);
-    const start = performance.now();
+    const spin = { start: performance.now(), elapsed: 0, step: (_time: number) => {} };
     const animate = (now: number) => {
-      const elapsed = Math.max(0, Math.min(1, (now - start) / duration));
+      if (animation.current !== spin) return;
+      const elapsed = Math.max(0, Math.min(1, (now - spin.start) / duration));
       rotate(from + (target - from) * (1 - (1 - elapsed) ** 3), now);
       if (elapsed === 1) finish();
       else frame.current = window.requestAnimationFrame(animate);
     };
+    spin.step = animate;
+    animation.current = spin;
     frame.current = window.requestAnimationFrame(animate);
   }
 
