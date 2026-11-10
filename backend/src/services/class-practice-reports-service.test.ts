@@ -69,6 +69,8 @@ describe('aggregate-only class practice reports', () => {
     expect(String(query.mock.calls[1]?.[0])).toContain("e.left_at is null");
     expect(String(query.mock.calls[1]?.[0])).toContain("r.course_code=$2");
     expect(String(query.mock.calls[3]?.[0])).toContain('having count(distinct r.student_id) >= 5');
+    expect(String(query.mock.calls[3]?.[0])).toContain('gt.is_glossary_visible=true');
+    expect(String(query.mock.calls[3]?.[0])).toContain('sy.code=$2');
     expect(JSON.stringify(result)).not.toContain(teacher.id);
   });
 });
