@@ -166,6 +166,25 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(speech[1]?.talkingPoints).toBe('Assembly language');
   });
 
+  it('chooses verified official glossary entries over manual-review duplicates for scored items', () => {
+    const values: LiveGameTerm[] = [
+      { ...term(1, 'Assembly language'), chapterNo: 20,
+        definitionEvidenceStatus: 'supplementary_manual_review_required' },
+      { ...term(2, 'Assembly language'), chapterNo: 4, isOfficialKeyTerm: true,
+        officialKeyTermPage: 127, definitionEvidenceStatus: 'official_textbook_definition',
+        status: 'approved' },
+      { ...term(3, 'Compiler'), definitionEvidenceStatus: 'supplementary_source_screened' },
+      { ...term(4, 'Interpreter'), definitionEvidenceStatus: 'supplementary_targeted_verified' },
+      { ...term(5, 'Machine code'), definitionEvidenceStatus: 'supplementary_source_screened' },
+    ];
+    expect(poolForMode(values, 'flash-cards')).toHaveLength(5);
+    const scored = poolForMode(values, 'quiz');
+    expect(scored).toHaveLength(4);
+    expect(scored.find((item) => item.term === 'Assembly language')?.id).toBe('2');
+    expect(createQuizQuestions(scored).find((item) => item.id === 'quiz-2')?.sourceContext)
+      .toContain('Official Key Term, page 127');
+  });
+
   it('generates review-only speaking prompts and a single correct quiz option per definition', () => {
     const pairs = ['Legal', 'Ethics', 'Culture', 'Morality', 'Privacy', 'Plagiarism'].map((x, i) => term(i, x));
     const prompts = createSpeakingPrompts(pairs);
