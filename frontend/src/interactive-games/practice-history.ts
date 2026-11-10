@@ -5,6 +5,7 @@ import type { GameScope } from './remote-games';
 export interface PracticeAttempt {
   termId: string;
   firstCorrect: boolean;
+  evidenceType: 'scored_response' | 'self_rating';
 }
 export interface PracticeRun {
   runId: string;
@@ -38,7 +39,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 /** No free-text answers are saved. Map the first recorded answer for each
  * valid glossary UUID; revealed cards never masquerade as answered questions.
  */
-export function practiceAttempts(answers: readonly AnswerReview[], pairs: readonly GamePair[]): PracticeAttempt[] {
+export function practiceAttempts(answers: readonly AnswerReview[], pairs: readonly GamePair[],
+  evidenceType: PracticeAttempt['evidenceType'] = 'scored_response'): PracticeAttempt[] {
   const eligible = new Set(pairs.map((pair) => pair.id.toLowerCase()));
   const seen = new Set<string>();
   const attempts: PracticeAttempt[] = [];
@@ -47,7 +49,7 @@ export function practiceAttempts(answers: readonly AnswerReview[], pairs: readon
     const termId = raw.toLowerCase();
     if (!UUID_PATTERN.test(termId) || !eligible.has(termId) || seen.has(termId)) continue;
     seen.add(termId);
-    attempts.push({ termId, firstCorrect: answer.correct });
+    attempts.push({ termId, firstCorrect: answer.correct, evidenceType });
   }
   return attempts;
 }
