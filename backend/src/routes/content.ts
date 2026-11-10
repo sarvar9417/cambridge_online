@@ -54,6 +54,40 @@ export function createContentRouter(service: ContentService) {
     res.json({ data: await service.interactiveGameCollection(req.actor!, body) });
   });
 
+  // Student-owned formative history. These self-reported outcomes never
+  // populate official grades or mastery records.
+  const practiceMode = z.enum([
+    'match-up','flash-cards','speaking-cards','spin-wheel',
+    'open-box','quiz','find-the-match','anagram',
+  ]);
+  router.get('/interactive-games/practice', async (req, res) => {
+    const params = new URL(req.originalUrl, 'http://localhost').searchParams;
+    const code = courseCode.parse(params.get('courseCode') ?? '9618');
+    res.json({ data: await service.interactiveGamePracticeHistory(req.actor!, code) });
+  });
+  router.post('/interactive-games/practice', async (req, res) => {
+    const body = z.object({
+      runId: z.string().uuid(),
+      courseCode: courseCode.default('9618'),
+      mode: practiceMode,
+      scopes: z.array(gameScope).min(1).max(100),
+      durationSeconds: z.number().int().min(0).max(86400),
+      correctFirstAttempts: z.number().int().min(0).max(500),
+      incorrectFirstAttempts: z.number().int().min(0).max(500),
+      reviewedCount: z.number().int().min(0).max(500),
+      attempts: z.array(z.object({
+        termId: z.string().uuid(), firstCorrect: z.boolean(),
+        evidenceType: z.enum(['scored_response','self_rating']),
+      }).strict()).max(500),
+    }).strict().superRefine((input, context) => {
+      const seen = new Set(input.attempts.map((item) => item.termId.toLowerCase()));
+      if (seen.size !== input.attempts.length) context.addIssue({
+        code: 'custom', path: ['attempts'], message: 'Duplicate glossary term attempts',
+      });
+    }).parse(req.body);
+    res.json({ data: await service.saveInteractiveGamePractice(req.actor!, body) });
+  });
+
   router.get('/lessons/progress', async (req, res) => {
     res.json({ data: await service.lessonProgress(req.actor!) });
   });

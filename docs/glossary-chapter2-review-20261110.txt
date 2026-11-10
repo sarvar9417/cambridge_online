@@ -1,0 +1,25 @@
+CHAPTER 2 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed the 20 Chapter 2 records in the original manual-review quarantine manifest against the uploaded Hodder 9618 Chapter 2 PDF, pp.30–63.
+- Also reviewed the already-visible High-water mark entry because the source defines it as the paired threshold for Low water mark.
+
+Outcome
+- Promoted Low water mark and High water mark to supplementary_targeted_verified and Core.
+- Renamed both to the source's wording without hyphens.
+- Rewrote both definitions in parallel, using the exact distinction made on p.52: minimum versus maximum data level in the playback buffer.
+- The other 19 Chapter 2 quarantine entries remain hidden. Reasons include: duplicate of a visible term (Remote backup, Communication satellite, Authentication, Network ID, Bitwise AND mask, Bandwidth); a component of an already-covered concept (CSMA/CD); a generic property or role; an example; or content the book marks as beyond the syllabus.
+- No official Key Term flags or official textbook definitions were changed.
+
+Key source checks
+- p.52 explicitly identifies low water mark as the minimum and high water mark as the maximum data level in the playback buffer.
+- p.51 describes frame resend after collision as part of CSMA/CD, so a separate Frame retransmission term would be over-granular.
+- p.43's satellite material is already represented by Communication satellite; the duplicate Satellite communication entry stays hidden.
+- p.59–60's subnet material is already represented by Network ID (netID) and Bitwise AND mask.
+- p.33's authentication concept is already represented by the official Authentication entry in Chapter 6.
+- p.62–63 marks web scripting as beyond syllabus; the conditional-statement item is only a code example there.
+
+Changes
+- 2 records promoted/verified; 1 previously hidden record restored.
+- No records created or deleted.
+- Forward and rollback SQL are UUID-scoped and old-value guarded.

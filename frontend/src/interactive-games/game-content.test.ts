@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chapter7Pilot, GAME_CATALOG, findMatchOptions, isCorrectPair, scrambleTerm } from './game-content';
+import { chapter7Pilot, GAME_CATALOG, findMatchOptions, gamePairProvenance, isCorrectPair, scrambleTerm } from './game-content';
 
 describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
   it('has unique glossary IDs and eight requested modes in the specified order', () => {
@@ -18,6 +18,26 @@ describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
       expect(isCorrectPair(item.id, item.id)).toBe(true);
     }
     expect(isCorrectPair('ethics', 'morality')).toBe(false);
+  });
+
+  it('identifies chapter and source precisely without inventing official Hodder status', () => {
+    expect(gamePairProvenance({ id: 'x', term: 'Cache', definition: 'Fast memory' })).toBe('');
+    const publicContext = {
+      id: 'a', term: 'Assembly', definition: 'Assembly definition',
+      chapterNo: 4, chapterTitle: 'Processor Fundamentals',
+      syllabusTopicCode: '4.1', syllabusTopicTitle: 'Architecture',
+      hodderSectionCodes: ['4.2', '4.2.1'],
+      officialKeyTermPage: 127,
+    };
+    const supplementary = gamePairProvenance(publicContext);
+    expect(supplementary).toContain('Chapter 4');
+    expect(supplementary).toContain('Cambridge syllabus topic 4.1');
+    expect(supplementary).toContain('Hodder sections 4.2, 4.2.1');
+    expect(supplementary).not.toContain('Official Key Term');
+    const official = gamePairProvenance({ ...publicContext, isOfficialKeyTerm: true });
+    expect(official).toContain('Official Key Term, page 127');
+    expect(gamePairProvenance({ ...publicContext, chapterNo: undefined, isOfficialKeyTerm: false }))
+      .not.toContain('Chapter undefined');
   });
 
   it('has usable speaking prompts and valid multiple-choice keys', () => {

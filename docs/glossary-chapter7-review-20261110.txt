@@ -1,0 +1,34 @@
+CHAPTER 7 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 60 Chapter 7 quarantine candidates against the uploaded Hodder 9618 Chapter 7 PDF and the Cambridge 9618 Syllabus 2027–2029, §7.1, p.25.
+- Six broad, source-supported concepts were promoted to supplementary_targeted_verified and Core:
+  1. Legal versus ethical behaviour
+  2. Conflict of interest
+  3. Software licence
+  4. AI decision-making
+  5. Social impacts of AI
+  6. Economic impacts of AI
+- The other 54 candidates remain hidden.
+
+Why the six were promoted
+- The coursebook explicitly distinguishes legal behaviour from morality and professional ethics (pp.179–180).
+- Conflict of interest is explicitly named in the IEEE Code of Ethics (p.181).
+- Software licensing is a syllabus requirement; the coursebook explains the licence conditions and types (pp.186–189).
+- The coursebook explains AI as performing tasks that require decision-making and problem-solving (p.190).
+- Social and economic impacts of AI are explicit syllabus categories and are discussed in the coursebook (pp.190–193).
+
+Why the other 54 remain hidden
+- Specific AI examples (bomb disposal, nuclear disaster zones, facial recognition, autonomous vehicles, pollution detection and ecosystem modelling) remain examples rather than separate general terms.
+- The exact term Algorithmic bias is not defined in the uploaded chapter; it is not inferred from the paid-search-ranking example.
+- Copyright holder is covered by the official Intellectual property rights term.
+- Commercial/shareware comparisons and registration/support details are covered by visible Commercial software licence and official Shareware terms.
+- DRM access restrictions, device restrictions, streaming without copying and subscription restrictions are examples covered by the official Digital rights management (DRM) term.
+- Product-key verification is covered by the official Product key term.
+- Individual code-of-ethics clauses (bribery, colleague support, non-discrimination and BCS duties) remain hidden rather than turning each clause into a separate Core card.
+- Other entries are scenarios, social-impact examples, or details of copyright, privacy and AI applications.
+
+Changes
+- 6 records promoted; 54 Chapter 7 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

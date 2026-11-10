@@ -1,0 +1,33 @@
+CHAPTER 17 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 35 Chapter 17 quarantine candidates against the uploaded Hodder 9618 Chapter 17 PDF, pp.411–422, and the Cambridge 9618 Syllabus 2027–2029, §17.1, p.36.
+- Four records were promoted to supplementary_targeted_verified and Core:
+  1. Public-key authenticity problem
+  2. Digital certificate acquisition (renamed from Certificate issuance; combines applicant identity verification and certificate issuance)
+  3. Session key (renamed from Temporary session key)
+  4. Quantum cryptography limitations (renamed from QKD distance limitation; avoids the dated 2019 range figure)
+- The other 31 candidates remain hidden.
+
+Why the four were promoted
+- The coursebook explains that a public key alone does not establish the sender's identity; digital certificates provide a trusted association between identity and public key (pp.414, 421).
+- The syllabus explicitly requires explaining how a digital certificate is acquired; the coursebook diagram shows applicant identification, CA verification and certificate generation (p.421).
+- The coursebook's TLS example uses a temporary symmetric session key for protected client-server traffic (p.418); the syllabus includes SSL/TLS protocols.
+- The syllabus explicitly requires the purpose, benefits and drawbacks of quantum cryptography. The coursebook lists specialist hardware/dedicated links, limited range and possible polarisation changes as drawbacks (p.415). The dated numerical range is deliberately not repeated.
+
+Why the other 31 remain hidden
+- Encryption and Encryption key duplicate the official/visible terms in Chapter 6.
+- HTTP versus HTTPS duplicates the separate HTTP and HTTPS terms in Chapter 2.
+- Sensitive information duplicates Data confidentiality; Website identity certificate duplicates official Digital certificate.
+- Certificate applicant verification is included in the consolidated Digital certificate acquisition concept.
+- Forged-key, browser trust, certificate warning and certificate-signature checks are examples/steps covered by Public-key authenticity problem, Digital certificate and PKI.
+- QKD beam splitters, photon detectors, polarisation choices, sender comparison and synchronisation are protocol/hardware steps covered by official Quantum key distribution.
+- Diffie–Hellman exponents, exchanged values and shared-key calculation are worked-example steps.
+- TLS record/handshake layers, TLS integrity and application examples are already covered by TLS, Handshake, Data integrity and SSL/TLS terms.
+- Brute-force key cracking is a key-space example rather than a named syllabus requirement.
+- Confidentiality separate from signature remains hidden pending editorial clarification: the coursebook lists confidentiality among digital-signature purposes but also says the worked digest-signature method does not encrypt the message.
+
+Changes
+- 4 records promoted; 31 Chapter 17 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

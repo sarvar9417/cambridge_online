@@ -243,6 +243,14 @@ export class ContentService {
          from jsonb_to_recordset($2::jsonb) as r(chapter_no int,kind text,code text)
        )
        select gt.id,gt.term,gt.definition_en definition,
+              t.number chapter_no,t.title chapter_title,
+              st.code syllabus_topic_code,st.title syllabus_topic_title,
+              gt.official_key_term_page,gt.official_key_term_section,
+              (select array_agg(distinct bs.section_code order by bs.section_code)
+                 from hodder_glossary_section_links hgl
+                 join hodder_book_sections bs on bs.id=hgl.book_section_id
+                where hgl.glossary_term_id=gt.id and bs.syllabus_id=t.syllabus_id
+                  and bs.chapter_number=t.number and bs.section_code<>t.number::text) hodder_section_codes,
               case when sy.code='9618' and gt.definition_evidence_status='supplementary_manual_review_required' then 'needs_review' else gt.status::text end status,
               gt.is_official_key_term,gt.definition_evidence_status
        from glossary_terms gt
@@ -276,21 +284,33 @@ export class ContentService {
       })))],
     );
 
-    const seenTerms = new Set<string>();
-    const seenDefinitions = new Set<string>();
+    // Each UUID is one documented glossary entry. Distinct chapters can use
+    // identical terms with different, valid contextual definitions. Preserve
+    // both for non-assessed review; scored games remove ambiguous answer labels
+    // locally rather than deleting source entries in this API.
+    const seenIds = new Set<string>();
     const pairs = result.rows.flatMap((row) => {
+      const id = String(row.id);
+      if (seenIds.has(id)) return [];
+      seenIds.add(id);
       const term = String(row.term).trim();
       const definition = String(row.definition).trim();
-      const termKey = term.toLocaleLowerCase('en');
-      const definitionKey = definition.toLocaleLowerCase('en');
-      if (seenTerms.has(termKey) || seenDefinitions.has(definitionKey)) return [];
-      seenTerms.add(termKey);
-      seenDefinitions.add(definitionKey);
       return [{
-        id: String(row.id),term,definition,
+        id,term,definition,
         status: String(row.status) as 'approved' | 'needs_review',
         isOfficialKeyTerm: Boolean(row.is_official_key_term),
         definitionEvidenceStatus: String(row.definition_evidence_status ?? 'unclassified'),
+        // Public curriculum pointers only. Never return private Drive source_ref.
+        ...(row.chapter_no == null ? {} : { chapterNo: Number(row.chapter_no) }),
+        ...(row.chapter_title == null ? {} : { chapterTitle: String(row.chapter_title) }),
+        ...(row.syllabus_topic_code == null ? {} : { syllabusTopicCode: String(row.syllabus_topic_code) }),
+        ...(row.syllabus_topic_title == null ? {} : { syllabusTopicTitle: String(row.syllabus_topic_title) }),
+        hodderSectionCodes: Array.isArray(row.hodder_section_codes)
+          ? row.hodder_section_codes.map(String) as string[] : [],
+        ...(row.is_official_key_term && row.official_key_term_page != null
+          ? { officialKeyTermPage: Number(row.official_key_term_page) } : {}),
+        ...(row.is_official_key_term && row.official_key_term_section
+          ? { officialKeyTermSection: String(row.official_key_term_section) } : {}),
         source: null as null,
       }];
     });
@@ -373,6 +393,168 @@ export class ContentService {
       pairs,
       source: `Current Cambridge ${courseCode} Hodder-linked PostgreSQL glossary`,
       assessed: false,
+    };
+  }
+
+  /**
+   * Persist only student-initiated, practice-only summary evidence.
+   * This endpoint never assigns official grades. Keep prompt and response text
+   * out of permanent storage, and validate glossary IDs against the syllabus.
+   */
+  async saveInteractiveGamePractice(actor: Actor, input: {
+    runId: string;
+    courseCode: '9618' | '0478';
+    mode: 'match-up' | 'flash-cards' | 'speaking-cards' | 'spin-wheel' |
+      'open-box' | 'quiz' | 'find-the-match' | 'anagram';
+    scopes: Array<{ chapterNo: number; kind: 'chapter' | 'topic' | 'section'; code?: string }>;
+    durationSeconds: number;
+    correctFirstAttempts: number;
+    incorrectFirstAttempts: number;
+    reviewedCount: number;
+    attempts: Array<{ termId: string; firstCorrect: boolean; evidenceType: 'scored_response' | 'self_rating' }>;
+  }) {
+    this.student(actor);
+    await this.interactiveGamesAccess(actor, input.courseCode);
+    const ids = input.attempts.map((item) => item.termId.toLowerCase());
+    if (new Set(ids).size !== ids.length) throw new DomainError('duplicate_practice_attempt', 400);
+    if (ids.length) {
+      const found = await this.pool.query(
+        `select count(distinct gt.id)::int term_count
+           from glossary_terms gt
+           join subtopics st on st.id=gt.subtopic_id
+           join topics t on t.id=st.topic_id
+           join syllabi sy on sy.id=t.syllabus_id
+          where sy.code=$1 and ((sy.code='9618' and sy.is_active=true) or (sy.code='0478' and sy.version_label='2026-2028'))
+            and gt.is_glossary_visible=true
+            and gt.status in ('approved','needs_review')
+            and gt.id=any($2::uuid[])`,
+        [input.courseCode, ids],
+      );
+      if (Number(found.rows[0]?.term_count) !== ids.length) {
+        throw new DomainError('practice_glossary_terms_invalid', 400);
+      }
+    }
+    const result = await this.pool.query(
+      `with inserted_run as (
+         insert into interactive_game_practice_runs
+           (id,student_id,course_code,game_kind,selected_scopes,attempts,
+            correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
+         values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
+         on conflict (id) do nothing returning id
+       ), input_attempts as (
+         select * from jsonb_to_recordset($6::jsonb)
+           as x("termId" uuid,"firstCorrect" boolean)
+       ), scheduled as (
+         insert into interactive_game_practice_schedule
+           (student_id,course_code,term_id,interval_days,repetitions,ease_factor,due_at,
+            last_reviewed_at,last_first_correct,updated_at)
+         select $2,$3,a."termId",
+           case when a."firstCorrect" then 1 else 0 end,
+           case when a."firstCorrect" then 1 else 0 end,
+           2.50,
+           now() + case when a."firstCorrect" then interval '1 day' else interval '10 minutes' end,
+           now(),a."firstCorrect",now()
+         from input_attempts a cross join inserted_run
+         on conflict (student_id,course_code,term_id) do update set
+           interval_days = case
+             when excluded.last_first_correct=false then 0
+             when interactive_game_practice_schedule.repetitions=0 then 1
+             when interactive_game_practice_schedule.repetitions=1 then 3
+             else least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor,2))
+           end,
+           repetitions = case when excluded.last_first_correct
+             then least(10000,interactive_game_practice_schedule.repetitions+1) else 0 end,
+           ease_factor = greatest(1.30,least(3.00,
+             interactive_game_practice_schedule.ease_factor +
+             case when excluded.last_first_correct then 0.10 else -0.20 end)),
+           due_at = now() + case
+             when excluded.last_first_correct=false then interval '10 minutes'
+             when interactive_game_practice_schedule.repetitions=0 then interval '1 day'
+             when interactive_game_practice_schedule.repetitions=1 then interval '3 days'
+             else make_interval(days => least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor
+             )::int))
+           end,
+           last_reviewed_at=now(),
+           last_first_correct=excluded.last_first_correct,
+           updated_at=now()
+         returning term_id
+       )
+       select id, true as inserted, (select count(*) from scheduled)::int as scheduled_count
+         from inserted_run
+       union all
+       select id, false as inserted, 0 as scheduled_count
+         from interactive_game_practice_runs
+        where id=$1 and student_id=$2
+          and not exists (select 1 from inserted_run)`,
+      [input.runId, actor.id, input.courseCode, input.mode,
+        JSON.stringify(input.scopes), JSON.stringify(input.attempts),
+        input.correctFirstAttempts, input.incorrectFirstAttempts,
+        input.reviewedCount, input.durationSeconds],
+    );
+    if (!result.rowCount) throw new DomainError('practice_run_id_conflict', 409);
+    const inserted = result.rows[0]?.inserted === true;
+    return {
+      runId: input.runId, saved: true as const,
+      alreadySaved: !inserted, assessed: false as const,
+    };
+  }
+
+  /** Last completed first-attempt outcome for each term determines whether
+   * that term should be offered for further (non-assessed) revision.
+   */
+  async interactiveGamePracticeHistory(actor: Actor, courseCode: '9618' | '0478') {
+    this.student(actor);
+    await this.interactiveGamesAccess(actor, courseCode);
+    const [runs, weaknesses, due] = await Promise.all([
+      this.pool.query(
+        `select id,game_kind,correct_first_attempts,incorrect_first_attempts,
+                reviewed_count,duration_seconds,created_at
+           from interactive_game_practice_runs
+          where student_id=$1 and course_code=$2
+          order by created_at desc,id desc limit 10`,
+        [actor.id, courseCode],
+      ),
+      this.pool.query(
+        `with recent_runs as (
+           select id,attempts,created_at from interactive_game_practice_runs
+            where student_id=$1 and course_code=$2
+            order by created_at desc,id desc limit 100
+         ), latest as (
+           select distinct on (a.entry->>'termId')
+                  a.entry->>'termId' term_id,
+                  (a.entry->>'firstCorrect')::boolean first_correct
+             from recent_runs r
+             cross join lateral jsonb_array_elements(r.attempts) a(entry)
+            order by a.entry->>'termId',r.created_at desc,r.id desc
+         )
+         select term_id from latest where first_correct=false
+         order by term_id limit 500`,
+        [actor.id, courseCode],
+      ),
+      this.pool.query(
+        `select term_id from interactive_game_practice_schedule
+          where student_id=$1 and course_code=$2 and due_at<=now()
+          order by due_at asc,term_id asc limit 500`,
+        [actor.id, courseCode],
+      ),
+    ]);
+    return {
+      assessed: false as const,
+      recent: runs.rows.map((row) => ({
+        runId: String(row.id),
+        mode: String(row.game_kind),
+        correctFirstAttempts: Number(row.correct_first_attempts),
+        incorrectFirstAttempts: Number(row.incorrect_first_attempts),
+        reviewedCount: Number(row.reviewed_count),
+        durationSeconds: Number(row.duration_seconds),
+        createdAt: row.created_at,
+      })),
+      needsReviewIds: weaknesses.rows.map((row) => String(row.term_id)),
+      dueReviewIds: due.rows.map((row) => String(row.term_id)),
     };
   }
 

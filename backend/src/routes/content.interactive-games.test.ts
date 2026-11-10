@@ -10,6 +10,8 @@ function setup() {
     interactiveGameCatalog: vi.fn(async () => ({ courseCode: '9618', chapters: [] })),
     interactiveGamePack: vi.fn(async () => ({ courseCode: '9618', pairs: [] })),
     interactiveGameCollection: vi.fn(async () => ({ courseCode: '9618', scopes: [], pairs: [] })),
+    interactiveGamePracticeHistory: vi.fn(async () => ({ assessed: false, recent: [], needsReviewIds: [] })),
+    saveInteractiveGamePractice: vi.fn(async () => ({ saved: true, assessed: false })),
   };
   const app = express();
   app.use(express.json());
@@ -81,6 +83,52 @@ describe('Interactive Games live API route validation', () => {
     const collection = await request(app).post('/content/interactive-games/collection').send(body);
     expect(collection.status).toBe(200);
     expect(service.interactiveGameCollection).toHaveBeenCalledWith(undefined, body);
+  });
+
+  it('saves student practice-only results and reads private study history with strict input', async () => {
+    const { app, service } = setup();
+    const runId = 'c8ae5926-f657-4133-93d2-6a7295290c25';
+    const termId = '302745c8-0397-4ec2-ac0a-a0b65cef1fb1';
+    const body = {
+      runId, courseCode: '9618', mode: 'quiz',
+      scopes: [{ chapterNo: 17, kind: 'chapter' }],
+      durationSeconds: 72, correctFirstAttempts: 3,
+      incorrectFirstAttempts: 1, reviewedCount: 0,
+      attempts: [{ termId, firstCorrect: false, evidenceType: 'scored_response' }],
+    };
+    const save = await request(app).post('/content/interactive-games/practice').send(body);
+    expect(save.status).toBe(200);
+    expect(save.body.data.assessed).toBe(false);
+    expect(service.saveInteractiveGamePractice).toHaveBeenCalledWith(undefined, body);
+    const history = await request(app).get('/content/interactive-games/practice?courseCode=9618');
+    expect(history.status).toBe(200);
+    expect(history.body.data.assessed).toBe(false);
+    expect(service.interactiveGamePracticeHistory).toHaveBeenCalledWith(undefined, '9618');
+  });
+
+  it('rejects malformed IDs, duplicate attempts, spoofed fields and excessive practice payloads', async () => {
+    const { app, service } = setup();
+    const base = {
+      runId: 'c8ae5926-f657-4133-93d2-6a7295290c25',
+      mode: 'quiz', scopes: [{ chapterNo: 17, kind: 'chapter' }],
+      durationSeconds: 20, correctFirstAttempts: 0,
+      incorrectFirstAttempts: 1, reviewedCount: 0,
+      attempts: [{ termId: '302745c8-0397-4ec2-ac0a-a0b65cef1fb1', firstCorrect: false, evidenceType: 'scored_response' }],
+    };
+    for (const invalid of [
+      { ...base, runId: 'not-a-uuid' },
+      { ...base, attempts: [...base.attempts, ...base.attempts] },
+      { ...base, officialGrade: 100 },
+      { ...base, correctFirstAttempts: 1000 },
+      { ...base, attempts: [{ termId: 'not-valid', firstCorrect: false, evidenceType: 'scored_response' }] },
+      { ...base, mode: 'unapproved-game' },
+      { ...base, scopes: [] },
+      { ...base, durationSeconds: -1 },
+    ]) {
+      const response = await request(app).post('/content/interactive-games/practice').send(invalid);
+      expect(response.status).toBe(400);
+    }
+    expect(service.saveInteractiveGamePractice).not.toHaveBeenCalled();
   });
 
   it('rejects unknown kinds, no selections, and malformed subtopic codes', async () => {

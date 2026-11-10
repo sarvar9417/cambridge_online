@@ -18,11 +18,41 @@ export interface GamePair {
   id: string;
   term: string;
   definition: string;
+  /** Public curriculum context; never a private Drive reference. */
+  chapterNo?: number;
+  chapterTitle?: string;
+  syllabusTopicCode?: string;
+  syllabusTopicTitle?: string;
+  hodderSectionCodes?: string[];
+  isOfficialKeyTerm?: boolean;
+  officialKeyTermPage?: number;
+  officialKeyTermSection?: string;
+}
+
+/** Explain the exact learning context without treating supplementary terms
+ * as official Hodder definitions or disclosing private source references.
+ */
+export function gamePairProvenance(pair: GamePair): string {
+  const parts: string[] = [];
+  if (Number.isInteger(pair.chapterNo) && (pair.chapterNo ?? 0) > 0) {
+    parts.push('Chapter ' + pair.chapterNo +
+      (pair.chapterTitle ? ' · ' + pair.chapterTitle : ''));
+  }
+  if (pair.syllabusTopicCode) parts.push('Cambridge syllabus topic ' + pair.syllabusTopicCode);
+  if (pair.hodderSectionCodes?.length) {
+    parts.push('Hodder ' + (pair.hodderSectionCodes.length === 1 ? 'section ' : 'sections ') +
+      pair.hodderSectionCodes.join(', '));
+  }
+  if (pair.isOfficialKeyTerm && Number.isInteger(pair.officialKeyTermPage) && (pair.officialKeyTermPage ?? 0) > 0) {
+    parts.push('Official Key Term, page ' + pair.officialKeyTermPage);
+  }
+  return parts.join(' · ');
 }
 export interface SpeakingPrompt {
   id: string;
   prompt: string;
   talkingPoints: string;
+  sourceContext?: string;
 }
 export interface QuizQuestion {
   id: string;
@@ -30,6 +60,7 @@ export interface QuizQuestion {
   options: readonly string[];
   answerIndex: number;
   explanation: string;
+  sourceContext?: string;
 }
 export interface GamePack {
   id: string;

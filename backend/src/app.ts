@@ -24,6 +24,8 @@ import { PgSelectionsRepository } from './repositories/selections-repository.js'
 import { createAuthRouter } from './routes/auth.js';
 import { createClassesRouter } from './routes/classes.js';
 import { createClassesAdminRouter } from './routes/classes-admin.js';
+import { createClassPracticeReportsRouter } from './routes/class-practice-reports.js';
+import { ClassPracticeReportsService } from './services/class-practice-reports-service.js';
 import { ClassesService } from './services/classes-service.js';
 import { createQuestionsRouter } from './routes/questions.js';
 import { createLessonCheckpointsRouter } from './routes/lesson-checkpoints.js';
@@ -131,6 +133,7 @@ export function createApp(
   // Managing classes mounts before reading them: the read router owns '/:id',
   // which would otherwise swallow paths like '/unassigned-students'.
   if (pool) mountPrivate('/api/v1/classes', createClassesAdminRouter(new ClassesService(pool)));
+  if (pool) mountPrivate('/api/v1/classes', createClassPracticeReportsRouter(new ClassPracticeReportsService(pool)));
   if (classesRepository) mountPrivate('/api/v1/classes', createClassesRouter(classesRepository,assignmentsService));
   if (questionsRepository) mountPrivate('/api/v1/questions', createQuestionsRouter(questionsRepository));
   if (pool) mountPrivate('/api/v1/lesson-checkpoints', createLessonCheckpointsRouter(new LessonCheckpointService(pool,assetUrlSigner)));

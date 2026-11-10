@@ -1,0 +1,27 @@
+CHAPTER 4 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed the 34 Chapter 4 manual-review candidates against the uploaded Hodder 9618 Chapter 4 PDF, especially §4.3.2, pp.130–132, and the Cambridge 9618 syllabus 2027–2029, §4.3, p.22.
+- Four entries are now source-verified Core concepts: Bit manipulation, Bitwise AND, Bitwise OR and Bitwise XOR.
+- The coursebook's Key Terms list on p.130 already contains Mask. Therefore the quarantined "Bit set with OR" example remains hidden rather than duplicating the official Mask entry.
+- Thirty other Chapter 4 candidates remain hidden.
+
+Why the four were promoted
+- The syllabus explicitly requires bit manipulation and the AND, OR and XOR operations.
+- The coursebook explains the operations on p.131 and shows their use with masks in the bit-manipulation section.
+- Definitions were tightened to state exactly what happens to corresponding binary bits.
+
+Why the other candidates remain hidden
+- Assembly notation tokens (#n, B, &) and trace columns are syntax/trace details.
+- Bit set with OR and bit toggle with XOR are specific applications already covered by Mask and Bitwise OR/XOR.
+- Indexed array access and relative jump offset are details of existing addressing modes.
+- Control signal overlaps the existing Control bus and Control signals during execution entries.
+- Register width overlaps Word length; loop counter/termination conditions and assembly loops are covered by Chapter 11 constructs.
+- Fixed/floating-point calculation entries duplicate representation concepts; interrupt/multitasking and monitoring/control entries duplicate existing concepts.
+- Remaining entries are worked traces, implementation details or generic properties rather than stand-alone syllabus terms.
+
+Changes
+- 4 records promoted to supplementary_targeted_verified and made visible.
+- No official Key Term flags were changed; the existing official Mask entry was left untouched.
+- 30 Chapter 4 quarantine candidates remain hidden.
+- UUID-scoped forward and rollback SQL are included.
