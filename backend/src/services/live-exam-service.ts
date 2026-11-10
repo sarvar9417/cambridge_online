@@ -2070,6 +2070,38 @@ export class LiveExamService {
     } finally { client.release(); }
   }
 
+  /** A teacher must explicitly finish reviewing the released scores before another card can open. */
+  async confirmCardReview(actor: Actor, sessionId: string, expectedVersion: number) {
+    this.assertStaff(actor);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session = await this.lockControlledSession(client, actor, sessionId);
+      this.assertExpectedVersion(session, expectedVersion);
+      const settings = this.settings(session.settings);
+      if (settings.playMode !== 'cards' || session.status !== 'review' || session.paused_at) {
+        throw new DomainError('live_invalid_state',409);
+      }
+      const position = Number(session.current_question_index);
+      if (settings.cardReviewConfirmedPosition === position) {
+        await client.query('commit');
+        return {sessionId,position,version:Number(session.version),confirmed:true};
+      }
+      await client.query(
+        `update live_exam_sessions
+         set settings=jsonb_set(coalesce(settings,'{}'::jsonb),'{cardReviewConfirmedPosition}',to_jsonb($2::int),true)
+         where id=$1`,
+        [sessionId,position],
+      );
+      const version = await this.bump(client,sessionId,actor.id,'card.review.confirmed',{position});
+      await client.query('commit');
+      return {sessionId,position,version,confirmed:true};
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {client.release();}
+  }
+
   /** Only class staff can pick a card; concurrent picks serialize on the session row. */
   async openCard(actor: Actor, sessionId: string, cardId: string, expectedVersion: number) {
     this.assertStaff(actor);
@@ -2091,6 +2123,8 @@ export class LiveExamService {
       const settings = this.settings(session.settings);
       if (settings.playMode!=='cards' || !['lobby','review'].includes(String(session.status)) || session.paused_at)
         throw new DomainError('live_invalid_state',409);
+      if (session.status==='review' && settings.cardReviewConfirmedPosition!==Number(session.current_question_index))
+        throw new DomainError('live_card_review_confirmation_required',409);
       const roster = await client.query(
         `select count(*)::int count from live_exam_participants
          where session_id=$1 and left_at is null`,[sessionId]);
@@ -2608,6 +2642,13 @@ export class LiveExamService {
       await client.query(
         `update live_exam_reviews set status='moderated',moderated_by=$2,moderated_at=now()
          where answer_id=$1`, [answerId, actor.id]);
+      // A grade change after acknowledgement must reopen the teacher review gate.
+      if (settings.playMode==='cards' && session.status==='review') {
+        await client.query(
+          `update live_exam_sessions set settings=coalesce(settings,'{}'::jsonb)-'cardReviewConfirmedPosition'
+           where id=$1`,[sessionId],
+        );
+      }
       const version = await this.bump(client, sessionId, actor.id, 'answer.moderated', { answerId });
       await client.query('commit');
       return { answerId, score: input.score, version };
@@ -2732,6 +2773,9 @@ export class LiveExamService {
       const session = await this.lockControlledSession(client, actor, sessionId);
       this.assertExpectedVersion(session, expectedVersion);
       if (session.status !== 'review' || session.paused_at) throw new DomainError('live_invalid_state', 409);
+      const cardSettings=this.settings(session.settings);
+      if (cardSettings.playMode==='cards' && cardSettings.cardReviewConfirmedPosition!==Number(session.current_question_index))
+        throw new DomainError('live_card_review_confirmation_required',409);
       const nextPosition = Number(session.current_question_index) + 1;
       const next = await client.query(
         `select id,question_id from live_exam_questions where session_id=$1 and position=$2`,
@@ -2950,11 +2994,14 @@ export class LiveExamService {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
       playMode:raw.playMode==='cards'?'cards' as const:'random' as const,
       cardColumns:raw.playMode==='cards'&&Number.isInteger(Number(raw.cardColumns))&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
+      cardReviewConfirmedPosition: typeof raw.cardReviewConfirmedPosition==='number'
+        && Number.isInteger(raw.cardReviewConfirmedPosition) && raw.cardReviewConfirmedPosition>=0
+        ? raw.cardReviewConfirmedPosition : null,
       practiceMode:raw.practiceMode==='solo'||raw.practiceMode==='group'||raw.practiceMode==='collaborative'?raw.practiceMode:null,
       rehearsalMode:raw.rehearsalMode===true,
       allowLateJoin: raw.rehearsalMode===true?false:raw.allowLateJoin === true,
       autoCloseWhenAllSubmitted: raw.autoCloseWhenAllSubmitted === true,
-      teacherOverrideEnabled: raw.teacherOverrideEnabled !== false,
+      teacherOverrideEnabled: raw.playMode==='cards' || raw.teacherOverrideEnabled !== false,
       leaderboardMode: raw.leaderboardMode === 'marks_speed_tiebreak'
         ? 'marks_speed_tiebreak' as const
         : 'marks' as const,
