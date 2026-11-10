@@ -228,7 +228,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
                   })}
                 </svg>
               </div>
-              <button type="button" className="ig-wheel-hub" aria-label="Spin the wheel" disabled={busy}
+              <button type="button" className="ig-wheel-hub" aria-label="Spin It from the wheel center" disabled={busy}
                 onPointerDown={(event) => event.stopPropagation()} onClick={spin}>Spin It</button>
             </div>
           </div>
