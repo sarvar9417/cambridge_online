@@ -70,6 +70,11 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
 export async function createLobby(qa, teacher, { classId, mode, title, questionCount = 1, timeLimit = '', allowLateJoin = false, autoClose = false, displayRef = '', excludeSeen = true, syllabusCode = '9618', igcseBookSectionCode = '' }) {
   await qa.go(teacher.page, 'oqitish/live');
   await teacher.page.waitForSelector('input[name="title"]');
+  // E2E exercises advanced manual paper selection and peer controls.
+  // These are intentionally collapsed in the new teacher Quick Start UI.
+  await teacher.page.locator('.live-setup-switch button:nth-child(2)').click();
+  const rulesOpen=await teacher.page.$eval('.live-advanced-options',details=>details.open);
+  if(!rulesOpen)await teacher.page.locator('.live-advanced-options summary').click();
   if (syllabusCode === '0478') {
     await teacher.page.select('select[aria-label="Cambridge syllabus"]', '0478');
     await qa.waitText(teacher.page, 'IGCSE Book Chapter');

@@ -17,7 +17,10 @@ describe('Live dynamic question count',()=>{
   });
 
   it('prevents too-long answers from silently failing and binds writes to their question',()=>{
-    expect(page).toContain('maxLength={20000} value={answer}');
+    const editor=readFileSync(resolve(process.cwd(),'src/live/LiveRichAnswer.tsx'),'utf8');
+    expect(page).toContain('<LiveRichAnswerEditor id="live-answer"');
+    expect(editor).toContain('LIVE_ANSWER_MAX_LENGTH = 20000');
+    expect(editor).toContain('if(next.length>LIVE_ANSWER_MAX_LENGTH)');
     expect(page).toContain('questionId:snapshot.question?.id');
     expect(page).toContain('20 000 belgi');
   });

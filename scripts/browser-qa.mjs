@@ -31,7 +31,7 @@ export async function createBrowserQA({ baseUrl = 'http://localhost:5173', execu
     await page.keyboard.up('Control');
     if (String(value) === '') await page.keyboard.press('Backspace');
     else await page.type(selector, String(value));
-    await page.waitForFunction((selector, value) => document.querySelector(selector)?.value === value, {}, selector, String(value));
+    await page.waitForFunction((selector, value) => (document.querySelector(selector)?.isContentEditable ? document.querySelector(selector)?.textContent : document.querySelector(selector)?.value) === value, {}, selector, String(value));
   }
   async function clickText(page, text, scope = 'button') {
     await page.bringToFront();

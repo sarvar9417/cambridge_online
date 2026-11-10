@@ -489,10 +489,10 @@ try{
   await student1.page.type('#live-answer','student one recovered answer');
   await waitText(student1.page,'Temporary browser network drop.',5_000);
   await student1.page.waitForFunction(()=>document.body.textContent?.includes('✓ Sinxronlandi'),{timeout:8_000});
-  if(state.answers.student1.text!=='student one recovered answer')throw new Error('student1 autosave retry did not persist server state');
+  if(!state.answers.student1.text.startsWith('@@LIVE_RICH_V1@@')||!state.answers.student1.text.includes('student one recovered answer'))throw new Error('student1 autosave retry did not persist server state');
   await student1.page.reload({waitUntil:'networkidle0'});
   await student1.page.waitForSelector('#live-answer',{timeout:12_000});
-  const restored=await student1.page.$eval('#live-answer',(node)=>(node as HTMLTextAreaElement).value);
+  const restored=await student1.page.$eval('#live-answer',(node)=>node.textContent);
   if(restored!=='student one recovered answer')throw new Error(`student1 reconnect recovery mismatch: ${restored}`);
 
   // Pause must propagate to every active role and block the student workspace.

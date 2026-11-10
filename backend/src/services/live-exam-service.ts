@@ -13,6 +13,7 @@ import { liveIgcseBookQuestionFilter, resolveIgcseBookSections } from '../lib/li
 import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../lib/live-mark-scheme-capability.js';
 import { normalizeCollapsedLiveMarkScheme } from '../lib/live-mark-scheme-normalization.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
+import { liveAnswerWordCount } from '../lib/live-rich-answer.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -142,7 +143,7 @@ export function assignPeerReviewers(answers: PeerAnswer[], seed: string) {
 }
 
 function words(value: string) {
-  return value.trim() ? value.trim().split(/\s+/).length : 0;
+  return liveAnswerWordCount(value);
 }
 
 function storedPortable(portable: PortableQuestion): StoredQuestionSnapshot {

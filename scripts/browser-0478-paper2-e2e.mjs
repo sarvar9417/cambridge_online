@@ -46,6 +46,8 @@ try{
   // Validate actual browser geometry across shell and mobile widths.
   await qa.go(teacher.page,'oqitish/live');
   await teacher.page.waitForSelector('select[aria-label="Cambridge syllabus"]');
+  // The full two-column taxonomy is intentionally behind Advanced Setup for staff.
+  await teacher.page.locator('.live-setup-switch button:nth-child(2)').click();
   await teacher.page.select('select[aria-label="Cambridge syllabus"]','0478');
   await teacher.page.waitForSelector('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label');
   for(const width of [1440,1024,768,390]){
