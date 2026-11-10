@@ -136,6 +136,26 @@ describe('database-backed Interactive Games multi-selection', () => {
     vi.restoreAllMocks();
   });
 
+  it('offers teacher-only classroom mode with a separate projector workspace', async () => {
+    await render(true);
+    await click(button('Start Classroom Mode'));
+    expect(container.querySelector('.ig-classroom')).not.toBeNull();
+    expect(container.querySelector('.ig-workspace')).toBeNull();
+    expect(container.querySelector('.ig-practice-save')).toBeNull();
+    await click(button('Reveal definition'));
+    expect(container.querySelector('.ig-classroom-definition')).not.toBeNull();
+    await click(button('Exit classroom mode'));
+    expect(container.querySelector('.ig-classroom')).toBeNull();
+    expect(container.querySelector('.ig-workspace')).not.toBeNull();
+    expect(mockApi.mock.calls.some(([path]) => path.includes('/interactive-games/practice'))).toBe(false);
+  });
+
+  it('never offers Classroom Mode to a student', async () => {
+    await render(false);
+    expect(container.querySelector('.ig-classroom-toggle')).toBeNull();
+    expect(container.querySelector('.ig-classroom')).toBeNull();
+  });
+
   it('keeps teacher previews free of student practice write controls', async () => {
     await render(true);
     expect(container.querySelector('.ig-practice-history')).toBeNull();
