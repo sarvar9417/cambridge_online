@@ -19,7 +19,7 @@ export function LiveCardBoard({ snapshot, refresh, interactive = false }: LiveCa
   const canPick = interactive
     && remaining > 0
     && !session.pausedAt
-    && (session.status === 'lobby' || session.status === 'review')
+    && (session.status === 'lobby' || (session.status === 'review' && session.settings.cardReviewConfirmedPosition === session.currentQuestionIndex))
     && (session.settings.rehearsalMode || session.participantCount > 0)
     && (session.settings.practiceMode !== 'group' || session.participantCount >= 2);
 
@@ -56,7 +56,9 @@ export function LiveCardBoard({ snapshot, refresh, interactive = false }: LiveCa
               : 'Kartani faqat o‘qituvchi tanlaydi. Savol hammaga bir vaqtda ochiladi.'
             : canPick
               ? 'Kartani tanlang — savol barcha o‘quvchilarga bir vaqtda ochiladi.'
-              : session.status === 'lobby' && session.participantCount === 0 && !session.settings.rehearsalMode
+              : session.status === 'review' && session.settings.cardReviewConfirmedPosition !== session.currentQuestionIndex
+                ? 'Avval o‘quvchilar baholarini ko‘rib, tasdiqlang.'
+                : session.status === 'lobby' && session.participantCount === 0 && !session.settings.rehearsalMode
                 ? 'Avval kamida bitta o‘quvchi xonaga qo‘shilishi kerak.'
                 : 'Navbatdagi kartani tanlash uchun joriy bosqich tugashini kuting.'}</p>
       </div>
