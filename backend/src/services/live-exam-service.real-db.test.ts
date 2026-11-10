@@ -192,7 +192,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     if (pool) await pool.end();
   });
 
-  it('opens a 3-point card for everyone and rejects a simultaneous second student claim',async()=>{
+  it('opens teacher-selected card for everyone and rejects student claims',async()=>{
     const {sessionId,sessionQuestionId}=await makeSession({
       code:'829996',markingMode:'teacher',
       settings:{playMode:'cards',cardColumns:5,defaultQuestionTimeLimitS:180},
@@ -228,9 +228,13 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await expect(service.openCard(sameSchoolGuest(),sessionId,secondQuestion,lobby.session.version))
       .rejects.toMatchObject({code:'not_found',status:404});
 
+    await expect(service.openCard(student(0),sessionId,secondQuestion,lobby.session.version))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+    await expect(service.openCard(student(1),sessionId,sessionQuestionId,lobby.session.version))
+      .rejects.toMatchObject({code:'staff_only',status:403});
     const claims=await Promise.allSettled([
-      service.openCard(student(0),sessionId,secondQuestion,lobby.session.version),
-      service.openCard(student(1),sessionId,sessionQuestionId,lobby.session.version),
+      service.openCard(owner(),sessionId,secondQuestion,lobby.session.version),
+      service.openCard(owner(),sessionId,sessionQuestionId,lobby.session.version),
     ]);
     expect(claims.filter(result=>result.status==='fulfilled')).toHaveLength(1);
     expect(claims.filter(result=>result.status==='rejected')).toHaveLength(1);
@@ -249,7 +253,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       'select status::text,current_question_index from live_exam_sessions where id=$1',[sessionId],
     );
     expect(current.rows[0]).toMatchObject({status:'question_open',current_question_index:0});
-    await expect(service.openCard(student(0),sessionId,active.rows[1]!.id,2))
+    await expect(service.openCard(owner(),sessionId,active.rows[1]!.id,2))
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
     const answers=await client.query(
       'select count(*)::int count from live_exam_answers where session_question_id=$1',[active.rows[0]!.id],
