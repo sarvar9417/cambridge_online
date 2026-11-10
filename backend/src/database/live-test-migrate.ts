@@ -27,6 +27,10 @@ const files = [
   '0210_student_live_practice_isolation.sql',
   '0211_live_0478_paper2_syllabus_isolation.sql',
   '0212_live_rehearsal_isolation.sql',
+  // Exercise the same student-owned history and SRS trigger migrations in the
+  // isolated, transaction-rolled-back PostgreSQL acceptance environment.
+  '0214_interactive_game_practice_history.sql',
+  '0215_interactive_game_spaced_review.sql',
 ];
 
 const pool = new Pool({ connectionString });
