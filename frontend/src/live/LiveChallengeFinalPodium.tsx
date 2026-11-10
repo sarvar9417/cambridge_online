@@ -14,7 +14,7 @@ export function LiveChallengeFinalPodium({standings}:{standings:readonly PodiumS
   return <section className="live-neon-podium" aria-label="Final Ceremony podium">
     <header><Trophy size={23} weight="fill"/><div><small>FINAL CEREMONY</small><h3>Cambridge Challenge podium</h3></div></header>
     <ol className="live-neon-podium-stands">{top.map((person,index)=><li key={person.studentName+`:${index}`}
-      className={`live-neon-podium-place live-neon-podium-place--${Math.min(index+1,3)}`}
+      className={`live-neon-podium-place live-neon-podium-place--${Math.min(person.rank,3)}`}
       aria-label={`Position ${person.rank}: ${person.studentName}`}>
       <span className="live-neon-podium-medal" aria-hidden="true"><Medal weight="fill"/></span>
       <strong>{person.studentName}</strong>
