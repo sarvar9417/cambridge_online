@@ -241,7 +241,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes().scopes).toEqual([
       { chapterNo: 1, kind: 'chapter' }, { chapterNo: 2, kind: 'chapter' },
     ]);
-    expect(container.textContent).toContain('16 unique glossary terms loaded');
+    expect(container.textContent).toContain('16 glossary entries loaded');
     await game('Quiz');
     expect(container.querySelectorAll('.ig-quiz .ig-choice-card')).toHaveLength(4);
     expect(lastScopes().scopes).toHaveLength(2);
@@ -258,7 +258,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       { chapterNo: 1, kind: 'topic', code: '1.1' },
       { chapterNo: 2, kind: 'section', code: '2.1.1' },
     ]);
-    expect(container.textContent).toContain('9 unique glossary terms loaded');
+    expect(container.textContent).toContain('9 glossary entries loaded');
     await game('Find the Match');
     expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(9);
   });
@@ -268,7 +268,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     await choose('Topic 1.1 · Chapter 1');
     await choose('Select entire Chapter 1');
     expect(lastScopes().scopes).toEqual([{ chapterNo: 1, kind: 'chapter' }]);
-    expect(container.textContent).toContain('8 unique glossary terms loaded');
+    expect(container.textContent).toContain('8 glossary entries loaded');
   });
 
   it('discovers imported chapters and new glossary terms on Refresh database', async () => {
@@ -278,9 +278,9 @@ describe('database-backed Interactive Games multi-selection', () => {
     await click(button('↻ Refresh database'));
     expect(container.textContent).toContain('Chapter 4');
     await choose('Select entire Chapter 2');
-    expect(container.textContent).toContain('17 unique glossary terms loaded');
+    expect(container.textContent).toContain('17 glossary entries loaded');
     await choose('Select entire Chapter 4');
-    expect(container.textContent).toContain('25 unique glossary terms loaded');
+    expect(container.textContent).toContain('25 glossary entries loaded');
   });
 
   it('shows an actionable 400-error state, not empty topic controls or fake terms', async () => {
@@ -307,7 +307,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     mockApi.mockImplementation(respond as typeof api);
     const attempts = mockApi.mock.calls.filter((call) => call[0] === '/content/interactive-games/collection').length;
     await choose('Select entire Chapter 2');
-    expect(container.textContent).toContain('8 unique glossary terms loaded');
+    expect(container.textContent).toContain('8 glossary entries loaded');
     expect(mockApi.mock.calls.filter((call) => call[0] === '/content/interactive-games/collection').length).toBe(attempts + 1);
     expect(container.querySelector('.ig-data-error')).toBeNull();
   });

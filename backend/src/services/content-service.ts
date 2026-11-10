@@ -243,6 +243,14 @@ export class ContentService {
          from jsonb_to_recordset($2::jsonb) as r(chapter_no int,kind text,code text)
        )
        select gt.id,gt.term,gt.definition_en definition,
+              t.number chapter_no,t.title chapter_title,
+              st.code syllabus_topic_code,st.title syllabus_topic_title,
+              gt.official_key_term_page,gt.official_key_term_section,
+              (select array_agg(distinct bs.section_code order by bs.section_code)
+                 from hodder_glossary_section_links hgl
+                 join hodder_book_sections bs on bs.id=hgl.book_section_id
+                where hgl.glossary_term_id=gt.id and bs.syllabus_id=t.syllabus_id
+                  and bs.chapter_number=t.number and bs.section_code<>t.number::text) hodder_section_codes,
               case when sy.code='9618' and gt.definition_evidence_status='supplementary_manual_review_required' then 'needs_review' else gt.status::text end status,
               gt.is_official_key_term,gt.definition_evidence_status
        from glossary_terms gt
@@ -276,21 +284,33 @@ export class ContentService {
       })))],
     );
 
-    const seenTerms = new Set<string>();
-    const seenDefinitions = new Set<string>();
+    // Each UUID is one documented glossary entry. Distinct chapters can use
+    // identical terms with different, valid contextual definitions. Preserve
+    // both for non-assessed review; scored games remove ambiguous answer labels
+    // locally rather than deleting source entries in this API.
+    const seenIds = new Set<string>();
     const pairs = result.rows.flatMap((row) => {
+      const id = String(row.id);
+      if (seenIds.has(id)) return [];
+      seenIds.add(id);
       const term = String(row.term).trim();
       const definition = String(row.definition).trim();
-      const termKey = term.toLocaleLowerCase('en');
-      const definitionKey = definition.toLocaleLowerCase('en');
-      if (seenTerms.has(termKey) || seenDefinitions.has(definitionKey)) return [];
-      seenTerms.add(termKey);
-      seenDefinitions.add(definitionKey);
       return [{
-        id: String(row.id),term,definition,
+        id,term,definition,
         status: String(row.status) as 'approved' | 'needs_review',
         isOfficialKeyTerm: Boolean(row.is_official_key_term),
         definitionEvidenceStatus: String(row.definition_evidence_status ?? 'unclassified'),
+        // Public curriculum pointers only. Never return private Drive source_ref.
+        ...(row.chapter_no == null ? {} : { chapterNo: Number(row.chapter_no) }),
+        ...(row.chapter_title == null ? {} : { chapterTitle: String(row.chapter_title) }),
+        ...(row.syllabus_topic_code == null ? {} : { syllabusTopicCode: String(row.syllabus_topic_code) }),
+        ...(row.syllabus_topic_title == null ? {} : { syllabusTopicTitle: String(row.syllabus_topic_title) }),
+        hodderSectionCodes: Array.isArray(row.hodder_section_codes)
+          ? row.hodder_section_codes.map(String) as string[] : [],
+        ...(row.is_official_key_term && row.official_key_term_page != null
+          ? { officialKeyTermPage: Number(row.official_key_term_page) } : {}),
+        ...(row.is_official_key_term && row.official_key_term_section
+          ? { officialKeyTermSection: String(row.official_key_term_section) } : {}),
         source: null as null,
       }];
     });

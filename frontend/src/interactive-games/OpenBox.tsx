@@ -116,6 +116,7 @@ export function OpenBox({ pairs, questions, mode, onModeChange, blocked, recordA
       {answer !== null && <div className="ig-box-actions">
         <p className="ig-reveal" role="status">{answer === question.answerIndex ? 'Correct!' : answer < 0 ? "Time's up!" : 'Incorrect.'}
           {' '}Correct answer · {question.options[question.answerIndex]}</p>
+        {question.sourceContext && <small className="ig-source-context">{question.sourceContext}</small>}
         <button type="button" onClick={closeQuestion}>Back to boxes</button>
       </div>}
     </div> : <>
