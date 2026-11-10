@@ -457,7 +457,7 @@ export class ContentService {
   async interactiveGamePracticeHistory(actor: Actor, courseCode: '9618' | '0478') {
     this.student(actor);
     await this.interactiveGamesAccess(actor, courseCode);
-    const [runs, weaknesses] = await Promise.all([
+    const [runs, weaknesses, schedule] = await Promise.all([
       this.pool.query(
         `select id,game_kind,correct_first_attempts,incorrect_first_attempts,
                 reviewed_count,duration_seconds,created_at
@@ -483,9 +483,27 @@ export class ContentService {
          order by term_id limit 500`,
         [actor.id, courseCode],
       ),
+      this.pool.query(
+        `select term_id,interval_stage,due_at
+           from interactive_game_review_schedule
+          where student_id=$1 and course_code=$2
+          order by due_at,term_id limit 5000`,
+        [actor.id, courseCode],
+      ),
     ]);
+    const now = Date.now();
+    const scheduleRows = schedule.rows.map((row) => ({
+      id: String(row.term_id), stage: Number(row.interval_stage),
+      dueAt: new Date(row.due_at).getTime(),
+    })).filter((item) => Number.isFinite(item.dueAt) && item.stage >= 0 && item.stage <= 7);
+    const nextReview = scheduleRows.find((item) => item.dueAt > now);
     return {
       assessed: false as const,
+      // Intervals are for formative revision only, never a mastery grade.
+      dueReviewIds: scheduleRows.filter((item) => item.dueAt <= now).slice(0, 500)
+        .map((item) => item.id),
+      scheduledTermCount: scheduleRows.length,
+      nextReviewAt: nextReview ? new Date(nextReview.dueAt).toISOString() : null,
       recent: runs.rows.map((row) => ({
         runId: String(row.id),
         mode: String(row.game_kind),
