@@ -162,6 +162,7 @@ export class ContentService {
          from hodder_book_sections bs
          join syllabi sy on sy.id=bs.syllabus_id
          where sy.code=$1 and sy.is_active=true
+           and bs.section_code <> bs.chapter_number::text
          order by bs.chapter_number,bs.section_code`,
         [courseCode],
       ),
@@ -193,13 +194,15 @@ export class ContentService {
             termCount: Number(topic.term_count),
           })),
         sections: sectionsResult.rows.filter((section) =>
-          Number(section.chapter_no) === Number(row.chapter_no) && Number(section.term_count) > 0,
+          Number(section.chapter_no) === Number(row.chapter_no) &&
+          String(section.section_code) !== String(row.chapter_no) &&
+          Number(section.term_count) > 0,
         ).map((section) => ({
           code: String(section.section_code),
           title: String(section.title),
           parentCode: section.parent_code ? String(section.parent_code) : null,
           termCount: Number(section.term_count),
-        })),
+        })).sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true })),
       })),
     };
   }
