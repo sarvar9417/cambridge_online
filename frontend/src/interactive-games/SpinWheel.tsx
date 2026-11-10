@@ -55,7 +55,10 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const label = (item: GamePair) => labelMode === 'term' ? item.term : item.definition;
   const answerLabel = (item: GamePair) => labelMode === 'term' ? item.definition : item.term;
   // A removed sector can still be used as a distractor, so elimination never shrinks the test.
-  const answerOptions = result ? findMatchOptions(pairs, pairs.indexOf(result)) : [];
+  // Answer cards must keep exactly the same randomized order while the
+  // result is displayed, including after the learner clicks an answer.
+  const answerOptions = useMemo(() => result ? findMatchOptions(pairs, pairs.indexOf(result)) : [],
+    [pairs, result]);
   const hasQuiz = answerOptions.length > 0;
 
   useEffect(() => { playSignal.current = signal; }, [signal]);
