@@ -38,15 +38,44 @@ describe('Hodder 0478 Interactive Games coverage manifest', () => {
   it('uses the distinct 0478 syllabus and explicit review evidence', () => {
     expect(manifest.courseCode).toBe('0478');
     expect(manifest.syllabusVersion).toBe('2026-2028');
-    expect(manifest.dataStatus).toBe('needs_review');
+    expect(manifest.dataStatus).toBe('partially_verified');
     expect(chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
-  it('tracks 377 source-screened keywords and all 142 book sections', () => {
-    expect(terms).toHaveLength(377);
-    expect(terms.filter((term) => term.official)).toHaveLength(334);
+  it('tracks 389 source-screened keywords and all 142 book sections', () => {
+    expect(terms).toHaveLength(389);
+    expect(terms.filter((term) => term.official)).toHaveLength(354);
+    expect(terms.filter((term) => !term.official)).toHaveLength(35);
     expect(sections).toHaveLength(142);
     expect(new Set(sections.map((section) => section.section_code)).size).toBe(142);
+  });
+
+
+  it('includes all Chapter 4 official Key Terms missed by the first extraction', () => {
+    const chapter4 = chapters.find((chapter) => chapter.chapterNo === 4)!;
+    const required = [
+      'multitasking', 'administrator', 'user account', 'error handling routine',
+      'firmware', 'interrupt priority', 'service (an interrupt)',
+      'interrupt service routine (ISR)', 'high-level language (HLL)',
+      'low-level language (LLL)', 'translator', 'debugging', 'prettyprinting',
+      'report window', 'machine code', 'assembly language', 'assembler',
+      'compiler', 'interpreter', 'integrated development environment (IDE)',
+    ];
+    for (const name of required) {
+      expect(chapter4.terms.some((term) => term.term.toLowerCase() === name.toLowerCase() && term.official), name).toBe(true);
+    }
+  });
+
+  it('retains corrected publisher errata without treating misspellings as official terms', () => {
+    const chapter3 = chapters.find((chapter) => chapter.chapterNo === 3)!;
+    const fixes = [
+      ['fetch–decode–execute cycle', 'Fetch–Execute–Decode'],
+      ['computer-aided design (CAD)', 'computer sided design (CAD)'],
+      ['anode', 'snode'],
+    ];
+    for (const [corrected, printed] of fixes) {
+      expect(chapter3.terms.some((term) => term.term === corrected && term.source_corrected === printed && !term.official)).toBe(true);
+    }
   });
 
   it('never duplicates a term inside a chapter and subtopic', () => {
