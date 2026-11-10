@@ -434,6 +434,68 @@ describe('database-backed Interactive Games multi-selection', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('gives each Quiz question its own 30-second clock and marks an unanswered timeout once', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Quiz');
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toContain('00:30');
+      await act(async () => { vi.advanceTimersByTime(29_000); await Promise.resolve(); });
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toContain('00:01');
+      await act(async () => { vi.advanceTimersByTime(1_000); await Promise.resolve(); });
+      expect(container.querySelector('.ig-quiz .ig-answer-feedback')?.textContent).toContain("Time's up!");
+      expect(container.querySelectorAll('.ig-quiz .ig-choice-card:disabled')).toHaveLength(4);
+      expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 mistakes');
+      await act(async () => { vi.advanceTimersByTime(1100); await Promise.resolve(); });
+      expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toContain('00:30');
+      await click(button('■ Finish game'));
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Time expired');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('freezes Quiz question time while paused and resumes from the exact remaining time', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Quiz');
+      await act(async () => { vi.advanceTimersByTime(12_000); await Promise.resolve(); });
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toContain('00:18');
+      await click(button('Ⅱ Pause game'));
+      await act(async () => { vi.advanceTimersByTime(60_000); await Promise.resolve(); });
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toContain('00:18');
+      expect(container.querySelector('.ig-quiz .ig-answer-feedback')).toBeNull();
+      await click(button('▶ Resume game'));
+      await act(async () => { vi.advanceTimersByTime(18_000); await Promise.resolve(); });
+      expect(container.querySelector('.ig-quiz .ig-answer-feedback')?.textContent).toContain("Time's up!");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('stops a Quiz timer on an answer and does not double-count timeouts during a retry', async () => {
+    vi.useFakeTimers();
+    try {
+      await render();
+      await game('Quiz');
+      await toggleOption('Automatically proceed');
+      await click(button('ALegal'));
+      const stopped = container.querySelector('[aria-label="Quiz question countdown"]')?.textContent;
+      await act(async () => { vi.advanceTimersByTime(60_000); await Promise.resolve(); });
+      expect(container.querySelector('[aria-label="Quiz question countdown"]')?.textContent).toBe(stopped);
+      expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 correct');
+      expect(container.querySelector('.ig-quiz .ig-answer-feedback')?.textContent).not.toContain("Time's up!");
+      await click(button('Next question →'));
+      await click(button('■ Finish game'));
+      await game('Quiz');
+      await toggleOption('Allow one retry');
+      await click(button('BMorality'));
+      await act(async () => { vi.advanceTimersByTime(30_000); await Promise.resolve(); });
+      expect(container.querySelector('.ig-quiz .ig-answer-feedback')?.textContent).toContain("Time's up!");
+      expect(container.querySelector('.ig-session-metrics')?.textContent).toContain('1 mistakes');
+      await click(button('■ Finish game'));
+      expect(container.querySelector('.ig-answer-review')?.textContent).toContain('First answer · Morality');
+    } finally { vi.useRealTimers(); }
+  });
+
   it('preserves marked quiz answers while moving between questions manually', async () => {
     await render();
     await game('Quiz');
