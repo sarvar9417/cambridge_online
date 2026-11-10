@@ -188,10 +188,6 @@
 .ig-page:fullscreen .ig-data-controls,
 .ig-page:fullscreen .ig-notice,
 .ig-page:fullscreen .ig-source { display: none; }
-.ig-quiz .ig-answer-button {
-  transition: transform .15s ease, filter .15s ease;
-}
-.ig-quiz .ig-answer-button:not(:disabled):hover { transform: translateY(-2px); }
 .ig-anagram-letter:not(:disabled):hover { filter: brightness(1.15); transform: translateY(-2px); }
 .ig-anagram .ig-anagram-letters { flex-wrap: wrap; }
 .ig-anagram-separator { min-width: .5em; align-self: center; font-weight: 700; }
