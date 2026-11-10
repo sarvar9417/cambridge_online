@@ -68,3 +68,15 @@
 @keyframes live-neon-confetti{0%{opacity:0;transform:translate(0,0) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translate(var(--tx,100px),var(--ty,-100px)) rotate(680deg)}}
 @media(max-width:560px){.live-neon-cue{right:8px;top:78px;width:min(350px,calc(100vw - 16px));grid-template-columns:100px minmax(0,1fr);min-height:154px;padding:10px}.live-neon-mascot{width:105px;height:114px}.live-neon-cue-copy>strong{font-size:17px}.live-neon-points{font-size:24px}.live-neon-final{padding:22px 16px}.live-neon-final-crown{width:80px;height:80px}.live-neon-final-crown>svg{width:46px;height:46px}}
 @media(prefers-reduced-motion:reduce){.live-neon-cue,.live-neon-mascot,.live-mascot-arm-right,.live-mascot-eye,.live-neon-points,.live-neon-particles i,.live-neon-final-crown>span{animation:none!important;transition:none!important}.live-neon-particles{display:none}}
+
+/* Higher specificity than the generic student result div styling. */
+.live-student-result>.live-reward-bar{background:linear-gradient(110deg,rgba(13,22,59,.96),rgba(38,24,92,.95));color:#e8f4ff;border:1px solid rgba(110,174,255,.38);padding:12px 16px;border-radius:16px}
+.live-neon-final-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.live-neon-final-badges span{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #d1b17c77;border-radius:10px;background:#f2c87b20;color:#fce4af;font-size:11px;font-weight:750}
+.live-projector-ceremony{display:grid;align-content:start;gap:10px;max-height:calc(100vh - 160px);overflow:auto}
+.live-projector-ceremony .live-neon-final{margin:0;padding:15px 25px}
+.live-projector-ceremony .live-neon-final-crown{width:75px;height:75px}
+.live-projector-ceremony .live-neon-final-crown>svg{width:45px;height:45px}
+.live-projector-ceremony .live-neon-final h2{font-size:26px}
+.live-projector-ceremony .live-leaderboard{margin:0}
+@media(max-width:560px){.live-neon-final-badges{justify-content:center}.live-projector-ceremony{max-height:none}}
