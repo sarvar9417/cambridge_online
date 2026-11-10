@@ -807,7 +807,7 @@ function ProjectorView({snapshot,sessionId}:{snapshot:LiveExamSnapshot;sessionId
       {session.status==='question_open'&&snapshot.question?<><LiveQuestionView question={snapshot.question}/><div className="live-projector-count"><UsersThree size={32}/><strong>{session.submittedCount}/{session.participantCount}</strong><span>javob topshirdi</span></div></>:null}
       {session.status==='marking'&&snapshot.markScheme?<><MarkSchemeView scheme={snapshot.markScheme}/><div className="live-projector-count"><CheckCircle size={32}/><strong>{session.reviewedCount}/{session.reviewCount}</strong><span>baholash tugadi</span></div></>:null}
       {session.status==='review'?<><LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/>{session.settings.playMode==='cards'?<LiveCardBoard snapshot={snapshot} interactive={false}/>:null}</>:null}
-      {session.status==='finished'?<div className="live-projector-ceremony"><LiveChallengeFinalCeremony title="Cambridge Challenge Complete"/><LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/></div>:null}
+      {session.status==='finished'?<div className="live-projector-ceremony"><LiveChallengeFinalCeremony title="Sessiya yakunlandi"/><LiveExamLeaderboard sessionId={sessionId} version={session.version} variant="projector"/></div>:null}
       {session.status==='cancelled'?<section className="live-projector-result"><h1>Sessiya bekor qilindi</h1></section>:null}
       </>:null}
     </main>
