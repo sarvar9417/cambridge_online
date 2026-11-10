@@ -141,3 +141,13 @@ export function scrambleTerm(term: string): string {
   [shifted[0], shifted[different]] = [shifted[different]!, shifted[0]!];
   return shifted.join('');
 }
+
+/** Return a shuffled copy so games never reorder the source round. */
+export function shuffleItems<T>(items: readonly T[]): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other]!, shuffled[index]!];
+  }
+  return shuffled;
+}

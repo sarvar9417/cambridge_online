@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useGameSignal } from './game-session';
-import type { GamePair } from './game-content';
+import { shuffleItems, type GamePair } from './game-content';
 import './spin-wheel.css';
 
 const colours = ['#3944a7', '#007287', '#a72a4b', '#9b530b', '#187047', '#7739a6', '#1b5fa1', '#a33b2b'];
@@ -13,15 +13,6 @@ export type WheelOptions = { power: keyof typeof spinPower; shuffle: boolean };
 type Drag = { id: number; angle: number; moved: number; velocity: number; time: number; interrupted: boolean };
 
 const fullTurn = (angle: number) => ((angle % 360) + 360) % 360;
-
-function shufflePairs(pairs: readonly GamePair[]) {
-  const shuffled = [...pairs];
-  for (let index = shuffled.length - 1; index > 0; index--) {
-    const other = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[other]] = [shuffled[other]!, shuffled[index]!];
-  }
-  return shuffled;
-}
 
 function pointerAngle(event: PointerEvent<HTMLDivElement>) {
   const bounds = event.currentTarget.getBoundingClientRect();
@@ -54,7 +45,7 @@ export function SpinWheel({ pairs, options, onOptionsChange, blocked = false, en
   const spinButton = useRef<HTMLButtonElement>(null);
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef(false);
-  const order = useMemo(() => options.shuffle ? shufflePairs(pairs) : pairs, [pairs, options.shuffle]);
+  const order = useMemo(() => options.shuffle ? shuffleItems(pairs) : pairs, [pairs, options.shuffle]);
   const active = order.filter((item) => !eliminated.includes(item.id));
   const sector = 360 / Math.max(1, active.length);
   const result = winner === null ? null : active[winner];

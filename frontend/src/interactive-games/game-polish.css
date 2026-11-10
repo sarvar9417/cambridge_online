@@ -225,3 +225,29 @@
     transform: none !important;
   }
 }
+
+.ig-template-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  color: #38476e;
+  font-size: .85rem;
+  font-weight: 700;
+}
+.ig-template-options label { display: inline-flex; align-items: center; gap: 6px; }
+.ig-template-options select, .ig-template-options button {
+  border: 1px solid #bac6e0;
+  border-radius: 7px;
+  padding: 6px 8px;
+  color: #344574;
+  background: white;
+}
+.ig-dealt-cards { display: grid; gap: 16px; min-width: 0; }
+.ig-dealt-card > p { overflow-wrap: anywhere; }
+.ig-anagram .ig-anagram-slot.is-correct button { background: #e3f6e9; border-color: #3a8a57; color: #174b30; opacity: 1; }
+.ig-answer-review { max-width: 680px; margin: 16px auto; text-align: left; }
+.ig-answer-review summary { cursor: pointer; font-weight: 800; }
+.ig-answer-review ol { padding-left: 1.5rem; }
+.ig-answer-review li { margin-bottom: 10px; overflow-wrap: anywhere; }
