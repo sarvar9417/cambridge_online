@@ -8,7 +8,7 @@
   "courseCode": "0478",
   "syllabusVersion": "2026-2028",
   "dataStatus": "verified",
-  "sourceNote": "Editorial audit completed 2026-11-10 for the scoped 0478 Interactive Games keyword dataset. Chapter-end Hodder Key Terms were compared against the user's original second-edition PDF across all 10 chapters. The 357 printed Key Terms occurrences are represented by 354 corrected official entries (three source typos are documented with corrected concepts). All 35 supplementary concept definitions were reviewed for technical accuracy; they are not claimed to be verbatim textbook Key Terms. Missing Chapter 4 entries, classifier errors and OCR contamination were corrected. The private database contains 389 approved records; no copyrighted textbook definition corpus is reproduced in this public manifest. Syllabus activation and PR merge require separate approval.",
+  "sourceNote": "The 2021 Hodder Computer Science (0478/0984/2210) Student Book was scanned across 404 PDF pages (including cover, introductory material and index). All 10 body chapters, printed pages 2–386 except section-divider p.257, were screened for important instructional terms beyond chapter-end Key Terms. This glossary contains 354 editorially checked official Key Terms and 159 educational supplementary concepts, including 124 newly curated from the chapter body text. Supplementary English explanations are original editorial paraphrases supported by section and printed page; they are NOT verbatim publisher Key Terms definitions. Publisher typos are tracked. Complete refers to the curated core concepts, not every incidental phrase in the book.",
   "numberingNote": "Subsection page bounds are containing section ranges based on the Hodder printed contents, not claimed precise start pages.",
   "chapters": [
     {
@@ -373,6 +373,78 @@
           "subtopic_code": "1.3",
           "book_section": "1.3.2",
           "official": false
+        },
+        {
+          "term": "HTML colour code",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": false,
+          "sourcePage": 13,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "IPv4 address",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": false,
+          "sourcePage": 13,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "IPv6 address",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": false,
+          "sourcePage": 13,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "memory dump",
+          "subtopic_code": "1.1",
+          "book_section": "1.1.3",
+          "official": false,
+          "sourcePage": 12,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "audio sample",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.2",
+          "official": false,
+          "sourcePage": 29,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "extended ASCII",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.1",
+          "official": false,
+          "sourcePage": 27,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "image dimensions",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.3",
+          "official": false,
+          "sourcePage": 31,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "sound amplitude",
+          "subtopic_code": "1.2",
+          "book_section": "1.2.2",
+          "official": false,
+          "sourcePage": 30,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "nibble",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.1",
+          "official": false,
+          "sourcePage": 32,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -696,6 +768,62 @@
           "subtopic_code": "2.2",
           "book_section": "2.2.1",
           "official": false
+        },
+        {
+          "term": "packet destination address",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": false,
+          "sourcePage": 46,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "packet loss",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": false,
+          "sourcePage": 48,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "packet sequence number",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": false,
+          "sourcePage": 46,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "packet source address",
+          "subtopic_code": "2.1",
+          "book_section": "2.1.1",
+          "official": false,
+          "sourcePage": 46,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "data corruption",
+          "subtopic_code": "2.2",
+          "book_section": "2.2.1",
+          "official": false,
+          "sourcePage": 59,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "encryption key",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": false,
+          "sourcePage": 63,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "public-private key pair",
+          "subtopic_code": "2.3",
+          "book_section": "2.3.1",
+          "official": false,
+          "sourcePage": 64,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -1457,6 +1585,246 @@
           "subtopic_code": "3.3",
           "book_section": "3.3.2",
           "official": false
+        },
+        {
+          "term": "CPU clock speed",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.3",
+          "official": false,
+          "sourcePage": 81,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "CPU word length",
+          "subtopic_code": "3.1",
+          "book_section": "3.1.2",
+          "official": false,
+          "sourcePage": 79,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "control system",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 115,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "DLP projector",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 102,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "humidity sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 117,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "infrared sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 114,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "inkjet printer",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 104,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "input device",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": false,
+          "sourcePage": 88,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "laser printer",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 105,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "LCD screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 107,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "LED-backlit display",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 107,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "light sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 117,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "magnetic field sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 115,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "moisture sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 117,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "monitoring system",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 114,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "output device",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.2",
+          "official": false,
+          "sourcePage": 101,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "pH sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 116,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "pressure sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 114,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "projected capacitive touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": false,
+          "sourcePage": 99,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "QR code reader",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": false,
+          "sourcePage": 90,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "surface capacitive touch screen",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.1",
+          "official": false,
+          "sourcePage": 99,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "temperature sensor",
+          "subtopic_code": "3.2",
+          "book_section": "3.2.3",
+          "official": false,
+          "sourcePage": 116,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "Blu-ray disc",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false,
+          "sourcePage": 127,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "CD (compact disc)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false,
+          "sourcePage": 126,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "DVD (digital versatile disc)",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false,
+          "sourcePage": 126,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "magnetic storage",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.3",
+          "official": false,
+          "sourcePage": 123,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "paging",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.4",
+          "official": false,
+          "sourcePage": 129,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "virtual-memory page",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.4",
+          "official": false,
+          "sourcePage": 129,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "locally administered MAC address",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.2",
+          "official": false,
+          "sourcePage": 133,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "universally administered MAC address",
+          "subtopic_code": "3.4",
+          "book_section": "3.4.2",
+          "official": false,
+          "sourcePage": 133,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -1849,6 +2217,102 @@
           "subtopic_code": "4.2",
           "book_section": "4.2.5",
           "official": true
+        },
+        {
+          "term": "application software",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": false,
+          "sourcePage": 147,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "false positive malware detection",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": false,
+          "sourcePage": 151,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "interrupt request",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.4",
+          "official": false,
+          "sourcePage": 161,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "memory allocation",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.2",
+          "official": false,
+          "sourcePage": 159,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "system software",
+          "subtopic_code": "4.1",
+          "book_section": "4.1.1",
+          "official": false,
+          "sourcePage": 147,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "auto-completion",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 173,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "auto-documenter",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 173,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "code editor",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 171,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "debugger",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 172,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "error diagnostics",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 172,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "runtime environment",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 172,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "syntax highlighting",
+          "subtopic_code": "4.2",
+          "book_section": "4.2.5",
+          "official": false,
+          "sourcePage": 173,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -2313,6 +2777,103 @@
           "subtopic_code": "5.1",
           "book_section": "5.1.3",
           "official": false
+        },
+        {
+          "term": "domain name",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.5",
+          "official": false,
+          "sourcePage": 183,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "web page",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.1",
+          "official": false,
+          "sourcePage": 181,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "website",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.1",
+          "official": false,
+          "sourcePage": 181,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "blockchain block",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.2",
+          "official": false,
+          "sourcePage": 188,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "blockchain miner",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.2",
+          "official": false,
+          "sourcePage": 188,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "fiat currency",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.1",
+          "official": false,
+          "sourcePage": 186,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "genesis block",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.2",
+          "official": false,
+          "sourcePage": 188,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "hash value",
+          "subtopic_code": "5.2",
+          "book_section": "5.2.2",
+          "official": false,
+          "sourcePage": 188,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "anti-malware software",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.2",
+          "official": false,
+          "sourcePage": 199,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "packet sniffer",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": false,
+          "sourcePage": 190,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "WEP (Wired Equivalent Privacy)",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": false,
+          "sourcePage": 190,
+          "bodyTextSupplementary": true,
+          "source_corrected": "wired equivalency privacy (WEP)"
+        },
+        {
+          "term": "wireless access point mapping",
+          "subtopic_code": "5.3",
+          "book_section": "5.3.1",
+          "official": false,
+          "sourcePage": 190,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -2579,6 +3140,119 @@
           "subtopic_code": "6.1",
           "book_section": "6.1.1",
           "official": false
+        },
+        {
+          "term": "adaptive cruise control system",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false,
+          "sourcePage": 222,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "automatic irrigation",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false,
+          "sourcePage": 224,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "industrial control system",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false,
+          "sourcePage": 218,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "self-parking vehicle",
+          "subtopic_code": "6.1",
+          "book_section": "6.1.1",
+          "official": false,
+          "sourcePage": 221,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "domestic robot",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.3",
+          "official": false,
+          "sourcePage": 238,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "medical robot",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.3",
+          "official": false,
+          "sourcePage": 238,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "robot controller",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.2",
+          "official": false,
+          "sourcePage": 231,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "robot electrical components",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.2",
+          "official": false,
+          "sourcePage": 231,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "robot mechanical structure",
+          "subtopic_code": "6.2",
+          "book_section": "6.2.2",
+          "official": false,
+          "sourcePage": 231,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "cognitive functions",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": false,
+          "sourcePage": 241,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "collaborative filtering",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": false,
+          "sourcePage": 248,
+          "bodyTextSupplementary": true,
+          "source_corrected": "collaboration filtering"
+        },
+        {
+          "term": "expert-system interface",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": false,
+          "sourcePage": 243,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "machine-learning model",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": false,
+          "sourcePage": 248,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "training data",
+          "subtopic_code": "6.3",
+          "book_section": "6.3.1",
+          "official": false,
+          "sourcePage": 243,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -3034,6 +3708,94 @@
           "subtopic_code": "7",
           "book_section": "7.4.2",
           "official": false
+        },
+        {
+          "term": "double-entry verification",
+          "subtopic_code": "7",
+          "book_section": "7.5.2",
+          "official": false,
+          "sourcePage": 280,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "flowchart decision symbol",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": false,
+          "sourcePage": 263,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "flowchart flow line",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": false,
+          "sourcePage": 264,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "flowchart process symbol",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": false,
+          "sourcePage": 263,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "flowchart terminator",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": false,
+          "sourcePage": 263,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "iterative testing",
+          "subtopic_code": "7",
+          "book_section": "7.1.3",
+          "official": false,
+          "sourcePage": 259,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "nested IF statement",
+          "subtopic_code": "7",
+          "book_section": "7.2.3",
+          "official": false,
+          "sourcePage": 268,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "structure chart",
+          "subtopic_code": "7",
+          "book_section": "7.1.2",
+          "official": false,
+          "sourcePage": 259,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "test-data set",
+          "subtopic_code": "7",
+          "book_section": "7.6.1",
+          "official": false,
+          "sourcePage": 281,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "trace-table dry run",
+          "subtopic_code": "7",
+          "book_section": "7.7",
+          "official": false,
+          "sourcePage": 282,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "visual verification",
+          "subtopic_code": "7",
+          "book_section": "7.5.2",
+          "official": false,
+          "sourcePage": 280,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -3384,6 +4146,150 @@
           "subtopic_code": "8.1",
           "book_section": "8.1.8",
           "official": false
+        },
+        {
+          "term": "argument (procedure/function)",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.6",
+          "official": false,
+          "sourcePage": 325,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "CASE statement",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 311,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "condition-controlled loop",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 313,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "count-controlled loop",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 313,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "global variable",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.6",
+          "official": false,
+          "sourcePage": 325,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "IF statement",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 310,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "library routine",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.7",
+          "official": false,
+          "sourcePage": 315,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "local variable",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.6",
+          "official": false,
+          "sourcePage": 325,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "LOWER string operation",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 315,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "string length",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 315,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "substring operation",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 315,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "UPPER string operation",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.4",
+          "official": false,
+          "sourcePage": 315,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "variable scope",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.6",
+          "official": false,
+          "sourcePage": 325,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "array element",
+          "subtopic_code": "8.2",
+          "book_section": "8.2.1",
+          "official": false,
+          "sourcePage": 329,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "array row and column indices",
+          "subtopic_code": "8.2",
+          "book_section": "8.2.1",
+          "official": false,
+          "sourcePage": 331,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "file-open operation",
+          "subtopic_code": "8.3",
+          "book_section": "8.3.2",
+          "official": false,
+          "sourcePage": 333,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "file-read operation",
+          "subtopic_code": "8.3",
+          "book_section": "8.3.2",
+          "official": false,
+          "sourcePage": 333,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "file-write operation",
+          "subtopic_code": "8.3",
+          "book_section": "8.3.2",
+          "official": false,
+          "sourcePage": 333,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -3536,6 +4442,54 @@
           "subtopic_code": "9",
           "book_section": "9.1.4",
           "official": true
+        },
+        {
+          "term": "alphabetical sort order",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": false,
+          "sourcePage": 347,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "field validation",
+          "subtopic_code": "9",
+          "book_section": "9.1.1",
+          "official": false,
+          "sourcePage": 341,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "primary-key uniqueness",
+          "subtopic_code": "9",
+          "book_section": "9.1.3",
+          "official": false,
+          "sourcePage": 343,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "SQL aggregate function",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": false,
+          "sourcePage": 347,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "SQL query",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": false,
+          "sourcePage": 345,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "SQL search condition",
+          "subtopic_code": "9",
+          "book_section": "9.1.4",
+          "official": false,
+          "sourcePage": 346,
+          "bodyTextSupplementary": true
         }
       ]
     },
@@ -3703,20 +4657,63 @@
           "subtopic_code": "10",
           "book_section": "10.2.6",
           "official": false
+        },
+        {
+          "term": "compound logic expression",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": false,
+          "sourcePage": 365,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "intermediate logic output",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": false,
+          "sourcePage": 367,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "logic expression",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": false,
+          "sourcePage": 360,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "logic-circuit verification",
+          "subtopic_code": "10",
+          "book_section": "10.3",
+          "official": false,
+          "sourcePage": 374,
+          "bodyTextSupplementary": true
+        },
+        {
+          "term": "truth-table input combination",
+          "subtopic_code": "10",
+          "book_section": "10.1.1",
+          "official": false,
+          "sourcePage": 357,
+          "bodyTextSupplementary": true
         }
       ]
     }
   ],
   "editorialAudit": {
     "updatedAt": "2026-11-10",
-    "datasetRows": 389,
+    "datasetRows": 513,
     "officialKeyTerms": 354,
     "officialVerified": 354,
-    "supplementaryTerms": 35,
-    "supplementaryVerified": 35,
+    "supplementaryTerms": 159,
+    "supplementaryVerified": 159,
     "sourceChapterCount": 10,
     "sourceKeyTermOccurrences": 357,
     "sourceErrataAliases": 3,
-    "scope": "Editorially verified scoped keyword dataset, not syllabus activation or release authorization"
+    "scope": "10 chapter body text and glossary editorial keyword coverage; syllabus remains globally inactive and production deployment is a separate gate",
+    "bodyTextSupplementaryTerms": 124,
+    "bodyPrintedPagesAudited": 384,
+    "pdfPagesInspected": 404
   }
 }
