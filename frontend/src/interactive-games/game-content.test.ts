@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { chapter7Pilot, GAME_CATALOG, findMatchOptions, isCorrectPair, scrambleTerm } from './game-content';
 
 describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
@@ -52,6 +52,42 @@ describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
         expect(choices.filter((choice) => choice.id === item.id)).toHaveLength(1);
       });
     }
+  });
+
+  it('does not leak Quiz answers through a fixed A/B/C/D cycle or sorted adjacent terms', () => {
+    let state = 1_234_567;
+    const random = vi.spyOn(Math, 'random').mockImplementation(() => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state / 2 ** 32;
+    });
+    try {
+      const pairs = Array.from({ length: 80 }, (_, index) => ({
+        id: 'id-' + index, term: 'Term ' + String(index).padStart(3, '0'),
+        definition: 'Distinct concept about memory and processing number ' + index,
+      }));
+      const placements = pairs.map((pair, index) =>
+        findMatchOptions(pairs, index).findIndex((choice) => choice.id === pair.id));
+      expect(new Set(placements).size).toBe(4);
+      expect(placements).not.toEqual(pairs.map((_, index) => index % 4));
+      expect(placements).not.toEqual(pairs.map((_, index) => 0));
+    } finally { random.mockRestore(); }
+  });
+
+  it('prefers genuinely related source-backed distractors over alphabetic neighbours', () => {
+    const pairs = [
+      { id: 'target', term: 'Symmetric encryption', definition: 'Encryption that uses the same secret key to encrypt and decrypt data' },
+      { id: 'noise1', term: 'Algorithm design', definition: 'Steps for solving a computational problem' },
+      { id: 'noise2', term: 'Database index', definition: 'A structure used to search stored records efficiently' },
+      { id: 'near1', term: 'Asymmetric encryption', definition: 'Encryption that uses different public and private keys to encrypt and decrypt data' },
+      { id: 'noise3', term: 'Iteration', definition: 'Repeated execution of a set of instructions in a loop' },
+      { id: 'near2', term: 'Cryptographic key', definition: 'Secret key value used for encrypting and decrypting data in cryptography' },
+    ];
+    const choices = findMatchOptions(pairs, 0);
+    expect(choices).toHaveLength(4);
+    expect(choices.map((item) => item.id)).toContain('near1');
+    expect(choices.map((item) => item.id)).toContain('near2');
+    expect(choices.filter((item) => item.id === 'target')).toHaveLength(1);
+    expect(findMatchOptions(pairs.slice(0, 3), 0)).toEqual([]);
   });
 
   it('scrambles anagram letters without deleting or adding any', () => {
