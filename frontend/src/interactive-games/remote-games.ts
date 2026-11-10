@@ -140,13 +140,30 @@ export function isAnagramEligible(term: string): boolean {
   return !/[^a-z0-9\s()./+–-]/i.test(term) && tiles.length >= 2 && tiles.length <= 36 && new Set(tiles).size > 1;
 }
 
+/** Each distractor must be distinguishable by both its term and its definition.
+ * Duplicate labels are excluded from multiple-choice rounds rather than causing
+ * the whole chapter's Quiz mode to disappear.
+ */
+function uniqueAnswerPairs<T extends GamePair>(pairs: readonly T[]): T[] {
+  const terms = new Set<string>();
+  const definitions = new Set<string>();
+  return pairs.filter((pair) => {
+    const termKey = pair.term.trim().toLocaleLowerCase('en');
+    const definitionKey = pair.definition.trim().toLocaleLowerCase('en');
+    if (!termKey || !definitionKey || terms.has(termKey) || definitions.has(definitionKey)) return false;
+    terms.add(termKey);
+    definitions.add(definitionKey);
+    return true;
+  });
+}
+
 export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
   if (!pairs.length) return false;
   switch (mode) {
     case 'quiz':
+      return uniqueAnswerPairs(pairs).length >= 4;
     case 'find-the-match':
-      return (mode !== 'quiz' || pairs.length >= 2)
-        && new Set(pairs.map((pair) => pair.definition.trim().toLowerCase())).size === pairs.length;
+      return uniqueAnswerPairs(pairs).length >= 2;
     case 'anagram':
       return pairs.some((pair) => isAnagramEligible(pair.term));
     default:
@@ -156,7 +173,26 @@ export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
 
 export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): LiveGameTerm[] {
   if (mode === 'anagram') return pairs.filter((pair) => isAnagramEligible(pair.term));
+  if (mode === 'quiz' || mode === 'find-the-match') return uniqueAnswerPairs(pairs);
   return [...pairs];
+}
+
+/** Big banks stay selectable while the visual stage has a manageable workload.
+ * The next-stage control advances within the requested subset without repeats.
+ */
+export const GAME_STAGE_LIMITS: Partial<Record<GameKind, number>> = {
+  'match-up': 30,
+  'spin-wheel': 30,
+  'open-box': 30,
+  'find-the-match': 30,
+};
+export function selectModeStage(pairs: readonly LiveGameTerm[], requested: number, round: number, mode: GameKind) {
+  const limit = GAME_STAGE_LIMITS[mode];
+  if (!limit || requested <= limit) return selectGamePairs(pairs, requested, round);
+  const selected = pairs.slice(0, requested);
+  if (!selected.length) return [];
+  const start = (round * limit) % selected.length;
+  return selected.slice(start, start + limit);
 }
 
 /** Same source terms, different game mechanics. No generated false definitions. */
@@ -174,11 +210,11 @@ export function createSpeakingPrompts(pairs: readonly GamePair[]): SpeakingPromp
  * terms from this SAME selection. Never invent a Cambridge answer.
  */
 export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] {
-  if (pairs.length < 2) return [];
+  if (pairs.length < 4) return [];
   return pairs.map((pair, index) => {
-    const choices = findMatchOptions(pairs, index, 2);
+    const choices = findMatchOptions(pairs, index);
     const answerIndex = choices.findIndex((choice) => choice.id === pair.id);
-    if (choices.length < 2 || answerIndex < 0) {
+    if (choices.length !== 4 || answerIndex < 0) {
       throw new Error('Unable to make a valid source-backed quiz item.');
     }
     return {
