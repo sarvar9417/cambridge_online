@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
-  createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, gameIsAvailable,
+  createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
   isAnagramEligible, poolForMode, selectGamePairs, type LiveGameTerm,
 } from './remote-games';
 
@@ -27,6 +27,30 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(chapterMatchesGameSearch(chapter, 'chapter 17')).toBe(true);
     expect(chapterMatchesGameSearch(chapter, '19.9')).toBe(false);
     expect(chapterMatchesGameSearch(chapter, '')).toBe(true);
+  });
+
+  it('limits numeric searches to the exact chapter, preserves source distinctions and removes redundant book roots', () => {
+    const chapter = {
+      chapterNo: 17, title: 'Security', termCount: 186, approvedCount: 0,
+      topics: [{ code: '17.1', title: 'Encryption, Encryption Protocols and Digital certificates', termCount: 186 }],
+      sections: [
+        { code: '17', title: 'Security', parentCode: null, termCount: 186 },
+        { code: '17.1', title: 'Encryption', parentCode: '17', termCount: 51 },
+        { code: '17.1.2', title: 'Symmetric encryption', parentCode: '17.1', termCount: 17 },
+        { code: '17.2', title: 'Quantum cryptography', parentCode: '17', termCount: 30 },
+        { code: '17.3', title: 'Protocols', parentCode: '17', termCount: 54 },
+      ],
+    };
+    expect(chapterMatchesGameSearch(chapter, '17')).toBe(true);
+    expect(chapterMatchesGameSearch(chapter, '1')).toBe(false);
+    expect(chapterMatchesGameSearch(chapter, 'chapter 1')).toBe(false);
+    expect(chapterMatchesGameSearch(chapter, '17.2')).toBe(true);
+    expect(visibleGameCatalogEntries(chapter, '17.2').topics).toEqual([]);
+    expect(visibleGameCatalogEntries(chapter, '17.2').sections.map((section) => section.code)).toEqual(['17.2']);
+    expect(visibleGameCatalogEntries(chapter, '17.1').sections.map((section) => section.code)).toEqual(['17.1', '17.1.2']);
+    expect(visibleGameCatalogEntries(chapter, '17.1').topics).toHaveLength(1);
+    expect(visibleGameCatalogEntries(chapter, '').sections.some((section) => section.code === '17')).toBe(false);
+    expect(visibleGameCatalogEntries(chapter, 'Security').sections.some((section) => section.code === '17')).toBe(false);
   });
 
   it('builds valid Anagram rounds even when the first 29 terms have no playable words', () => {
