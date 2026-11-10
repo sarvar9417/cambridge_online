@@ -157,6 +157,23 @@ describe('Classroom wheel', () => {
     expect(result()).toBeTruthy();
   });
 
+  it('freezes an in-flight wheel on Pause, then continues without rerolling', async () => {
+    await render();
+    vi.spyOn(Math, 'random').mockReturnValue(.7);
+    await click(findButton('Spin It'));
+    await advance(650);
+    const angleAtPause = rotation();
+    await render(pairs, true, false);
+    await advance(5_000);
+    expect(rotation()).toBeCloseTo(angleAtPause);
+    expect(result()).toBeUndefined();
+    expect(findButton('Spinning…').disabled).toBe(true);
+    await render(pairs, false, false);
+    await advance(2_000);
+    expect(result()).toBeTruthy();
+    expect(signal.mock.calls.filter(([kind]) => kind === 'spin')).toHaveLength(1);
+  });
+
   it('cancels an in-flight spin when the session expires or is finished', async () => {
     await render();
     await click(findButton('Spin It'));
