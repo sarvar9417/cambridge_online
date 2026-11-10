@@ -314,3 +314,48 @@
   .ig-workspace-head-actions { justify-content:flex-start; width:100%; }
   .ig-workspace-head-actions button { flex:1 1 140px; }
 }
+
+/* Quiz: a separate thirty-second countdown for every question, not the whole round. */
+.ig-quiz .ig-quiz-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #c3d5ef;
+  border-radius: 11px 11px 0 0;
+  background: #f2f7ff;
+  color: #29466e;
+  font-size: 13px;
+  font-weight: 750;
+}
+.ig-quiz .ig-quiz-clock strong {
+  font-size: clamp(18px, 2.2vw, 25px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ig-quiz .ig-quiz-clock.is-low {
+  border-color: #e6bb72;
+  background: #fff5df;
+  color: #8a520d;
+}
+.ig-quiz .ig-quiz-clock.is-expired {
+  border-color: #edb5b5;
+  background: #fff0f0;
+  color: #a31e33;
+}
+.ig-quiz .ig-quiz-time-progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  margin: 0 0 15px;
+  border: 0;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  accent-color: #4169b2;
+}
+.ig-quiz .ig-quiz-clock.is-low + .ig-quiz-time-progress { accent-color: #cb840e; }
+.ig-quiz .ig-quiz-clock.is-expired + .ig-quiz-time-progress { accent-color: #c33d49; }
+@media (max-width: 520px) {
+  .ig-quiz .ig-quiz-clock { padding: 9px 10px; font-size: 11px; }
+}

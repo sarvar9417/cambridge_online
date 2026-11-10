@@ -121,7 +121,13 @@ export function chapterMatchesGameSearch(chapter: LiveGameChapter, query: string
   return visible.topics.length > 0 || visible.sections.length > 0;
 }
 
-export const GAME_LENGTHS = [8, 16, 29] as const;
+/** Default to a 30-term round; preset sizes can go much higher than 29.
+ * Custom counts use the actual selected vocabulary pool rather than a fixed ceiling.
+ */
+export const DEFAULT_GAME_LENGTH = 30;
+export const GAME_LENGTHS = [
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 400, 500,
+] as const;
 export type GameLength = typeof GAME_LENGTHS[number];
 
 /** Keep spaces and punctuation visible while arranging letters and digits. */

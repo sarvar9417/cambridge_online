@@ -50,3 +50,28 @@
   .ig-data-controls label { width: 100%; }
   .ig-data-refresh { width: 100%; }
 }
+
+.ig-data-controls .ig-round-custom {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #bdc9df;
+  border-radius: 9px;
+  background: #fff;
+  color: #1b2c4e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ig-data-controls .ig-round-custom:focus-visible {
+  outline: 3px solid #f39c5a;
+  outline-offset: 2px;
+}
+.ig-data-controls .ig-round-available {
+  color: #495d7e;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}

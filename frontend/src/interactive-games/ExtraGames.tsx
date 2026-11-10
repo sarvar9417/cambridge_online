@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { useGameAdvance, useGameSignal, type RecordAnswer } from './game-session';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { formatClock, useGameAdvance, useGameSignal, type RecordAnswer } from './game-session';
 import { AnswerCards } from './AnswerCards';
 import {
   chapter7Pilot, findMatchOptions, scrambleTerm, shuffleItems,
@@ -32,12 +32,18 @@ export function SpeakingCards({ prompts }: { prompts: readonly SpeakingPrompt[] 
   </div>;
 }
 
+/** A Quiz question has its own clock, independently of the optional whole-round timer. */
+export const QUIZ_QUESTION_SECONDS = 30;
+const QUIZ_QUESTION_MS = QUIZ_QUESTION_SECONDS * 1000;
+
+type QuizResponse = { first: number | null; answer: number | null };
+
 export function Quiz({ questions, blocked, recordAnswer }: {
   questions: readonly QuizQuestion[]; blocked: boolean; recordAnswer: RecordAnswer;
 }) {
   const signal = useGameSignal();
   const [index, setIndex] = useState(0);
-  const [responses, setResponses] = useState<Record<string, { first: number; answer: number | null }>>({});
+  const [responses, setResponses] = useState<Record<string, QuizResponse>>({});
   const [correct, setCorrect] = useState(0);
   const [auto, setAuto] = useState(true);
   const [retry, setRetry] = useState(false);
@@ -48,6 +54,13 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   const response = question ? responses[question.id] : undefined;
   const firstChoice = response?.first ?? null;
   const answer = response?.answer ?? null;
+  const [clock, setClock] = useState({ id: questions[0]?.id ?? '', remainingMs: QUIZ_QUESTION_MS });
+  const remainingByQuestion = useRef<Record<string, number>>({});
+  const activeDeadline = useRef<{ id: string; value: number } | null>(null);
+  const recordedTimeouts = useRef(new Set<string>());
+  const remainingMs = question
+    ? clock.id === question.id ? clock.remainingMs : remainingByQuestion.current[question.id] ?? QUIZ_QUESTION_MS
+    : 0;
   const options = useMemo(() => {
     const indexes = question?.options.map((_, i) => i) ?? [];
     return shuffleAnswers ? shuffleItems(indexes) : indexes;
@@ -55,15 +68,57 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   const last = index === questions.length - 1;
   const configuring = index === 0 && Object.keys(responses).length === 0;
   const next = () => {
-    if (blocked || (last && answer === null)) return;
+    if (blocked || answer === null) return;
     setIndex((previous) => previous + 1);
     if (last) signal('complete');
   };
   useGameAdvance(auto && answer !== null && !blocked, next, undefined, index);
+
+  // Keep a separate per-question deadline. Pausing and revisiting a question
+  // preserves its remaining time; background-tab delays do not grant extra time.
+  useEffect(() => {
+    if (!question || blocked || answer !== null) return;
+    const id = question.id;
+    const initial = remainingByQuestion.current[id] ?? QUIZ_QUESTION_MS;
+    const deadline = Date.now() + initial;
+    activeDeadline.current = { id, value: deadline };
+    setClock({ id, remainingMs: initial });
+    signal('start');
+    const tick = () => {
+      const ms = Math.max(0, deadline - Date.now());
+      remainingByQuestion.current[id] = ms;
+      setClock({ id, remainingMs: ms });
+    };
+    const timer = window.setInterval(tick, 200);
+    return () => {
+      window.clearInterval(timer);
+      remainingByQuestion.current[id] = Math.max(0, deadline - Date.now());
+      if (activeDeadline.current?.id === id) activeDeadline.current = null;
+    };
+  }, [question?.id, blocked, answer, signal]);
+
+  useEffect(() => {
+    if (!question || blocked || answer !== null || remainingMs > 0 ||
+        recordedTimeouts.current.has(question.id)) return;
+    recordedTimeouts.current.add(question.id);
+    if (firstChoice === null) {
+      recordAnswer({ id: question.id, prompt: question.prompt, submitted: 'Time expired',
+        expected: question.options[question.answerIndex]!, correct: false });
+      signal('incorrect');
+    }
+    setResponses((previous) => {
+      const stored = previous[question.id];
+      if (stored && stored.answer !== null) return previous;
+      return { ...previous, [question.id]: { first: stored?.first ?? null, answer: -1 } };
+    });
+  }, [question, answer, firstChoice, blocked, remainingMs, recordAnswer, signal]);
+
   if (!question) return <div className="ig-complete" role="status"><h3>Quiz completed!</h3><p>{correct} / {questions.length} correct on first attempt.</p></div>;
 
   function choose(optionIndex: number) {
-    if (blocked || !question || answer !== null || firstChoice === optionIndex) return;
+    if (blocked || !question || answer !== null || firstChoice === optionIndex ||
+        recordedTimeouts.current.has(question.id) ||
+        (activeDeadline.current?.id === question.id && Date.now() >= activeDeadline.current.value)) return;
     const isCorrect = optionIndex === question.answerIndex;
     if (firstChoice === null) {
       recordAnswer({ id: question.id, prompt: question.prompt, submitted: question.options[optionIndex]!,
@@ -78,7 +133,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   }
 
   return <div className="ig-content ig-quiz">
-    <p className="ig-instruction">Choose an answer to see it marked immediately. Review your first answers at the end.</p>
+    <p className="ig-instruction">Each question has 30 seconds. Choose an answer before time runs out; unanswered questions count as incorrect. Review your first answers at the end.</p>
     <div className="ig-template-options" role="group" aria-label="Quiz options">
       <label><input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Automatically proceed</label>
       <label><input type="checkbox" disabled={!configuring} checked={retry} onChange={(event) => setRetry(event.target.checked)} /> Allow one retry</label>
@@ -86,18 +141,26 @@ export function Quiz({ questions, blocked, recordAnswer }: {
       <label><input type="checkbox" disabled={!configuring} checked={shuffleAnswers} onChange={(event) => setShuffleAnswers(event.target.checked)} /> Shuffle answers</label>
     </div>
     <div className="ig-score">Question {index + 1} / {questions.length} · {correct} correct on first attempt</div>
+    <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
+      role="timer" aria-label="Quiz question countdown">
+      <span>⏱ Time per question · 30 seconds</span>
+      <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
+    </div>
+    <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
+      aria-label="Question time remaining" />
     <div className="ig-question" aria-live="polite">{question.prompt}</div>
     <AnswerCards options={question.options} order={options} answer={answer} correctIndex={question.answerIndex}
-      firstWrong={firstChoice !== question.answerIndex ? firstChoice : null} blocked={blocked}
-      onChoose={choose} />
-    {firstChoice !== null && answer === null && <p className="ig-feedback" role="status">Incorrect. Choose a different answer for your one retry.</p>}
+      firstWrong={firstChoice !== null && firstChoice !== question.answerIndex ? firstChoice : null}
+      blocked={blocked || remainingMs === 0} onChoose={choose} />
+    {firstChoice !== null && answer === null && <p className="ig-feedback" role="status">Incorrect. Choose a different answer for your one retry before time runs out.</p>}
     {answer !== null && <div className="ig-answer-feedback" role="status">
-      <strong>{answer === question.answerIndex ? 'Correct!' : 'Correct answer'}</strong> {question.options[question.answerIndex]}
+      <strong>{answer === -1 ? "Time's up!" : answer === question.answerIndex ? 'Correct!' : 'Correct answer'}</strong>
+      {' '}{question.options[question.answerIndex]}
       {auto && <button type="button" onClick={next}>{last ? 'See results →' : 'Next question →'}</button>}
     </div>}
     {!auto && <div className="ig-card-controls" role="group" aria-label="Quiz navigation">
       <button type="button" disabled={index === 0} onClick={() => setIndex((previous) => previous - 1)}>← Previous question</button>
-      <button type="button" disabled={last && answer === null} onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
+      <button type="button" disabled={answer === null} onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
     </div>}
   </div>;
 }

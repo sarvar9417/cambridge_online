@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
-  GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
+  DEFAULT_GAME_LENGTH, GAME_LENGTHS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
   selectGamePairs, validGameScopes, normalizeGameScopes,
   type GameScope, type LiveGameCatalog, type LiveGamePack,
 } from './remote-games';
@@ -32,7 +32,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [boxMode, setBoxMode] = useState<BoxMode>('simple');
   const [round, setRound] = useState(0);
   const [playSession, setPlaySession] = useState(0);
-  const [questionCount, setQuestionCount] = useState(29);
+  const [questionCount, setQuestionCount] = useState(DEFAULT_GAME_LENGTH);
+  const [customRoundSize, setCustomRoundSize] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [timeLimit, setTimeLimit] = useState(0);
   const [started, setStarted] = useState(false);
@@ -141,6 +142,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);
   const activeGame = GAME_CATALOG.find((game) => game.id === currentMode)!;
   const ready = Boolean(pack && pairs.length);
+  const maxSelectableRoundSize = Math.max(DEFAULT_GAME_LENGTH, eligiblePairs.length);
   const isWheel = currentMode === 'spin-wheel';
   const boxQuestions = gameIsAvailable('quiz', pairs) ? questions : [];
   const effectiveBoxMode = boxQuestions.length ? boxMode : 'simple';
@@ -177,6 +179,13 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setScopes(normalized);
     setPack(null);
     setPackError('');
+    setRound(0);
+    setPlaySession((value) => value + 1);
+    clearSession();
+  }
+  function changeRoundSize(next: number) {
+    if (!Number.isSafeInteger(next) || next < 10 || next === questionCount) return;
+    setQuestionCount(next);
     setRound(0);
     setPlaySession((value) => value + 1);
     clearSession();
@@ -238,15 +247,28 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
     <div className="ig-data-controls" role="group" aria-label="Game setup">
       <label>Round size
-        <select aria-label="Round size" value={questionCount} disabled={!ready}
+        <select aria-label="Round size" value={customRoundSize ? 'custom' : String(questionCount)} disabled={!ready}
           onChange={(event) => {
-            setQuestionCount(Number(event.target.value));
-            setRound(0);
-            setPlaySession((value) => value + 1);
-            clearSession();
+            if (event.target.value === 'custom') {
+              setCustomRoundSize(true);
+            } else {
+              setCustomRoundSize(false);
+              changeRoundSize(Number(event.target.value));
+            }
           }}>
           {GAME_LENGTHS.map((size) => <option key={size} value={size}>{size} terms</option>)}
+          <option value="custom">Custom number…</option>
         </select>
+        {customRoundSize && <input className="ig-round-custom" aria-label="Custom round size"
+          type="number" inputMode="numeric" min={10} max={maxSelectableRoundSize}
+          step={1} value={questionCount} disabled={!ready}
+          onChange={(event) => {
+            const value = Number(event.target.value);
+            if (Number.isSafeInteger(value) && value >= 10) changeRoundSize(Math.min(value, maxSelectableRoundSize));
+          }} />}
+        {ready && questionCount > eligiblePairs.length && <small className="ig-round-available" role="status">
+          This selection has {eligiblePairs.length} suitable terms. All available terms will be used without repeats.
+        </small>}
       </label>
       <button className="ig-data-refresh" type="button" onClick={refresh}>↻ Refresh database</button>
     </div>

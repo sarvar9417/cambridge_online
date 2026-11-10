@@ -3,6 +3,7 @@ import type { IconProps } from '@phosphor-icons/react/lib';
 import { Archive } from '@phosphor-icons/react/Archive';
 import { BookOpenText } from '@phosphor-icons/react/BookOpenText';
 import { CaretDown } from '@phosphor-icons/react/CaretDown';
+import { SidebarSimple } from '@phosphor-icons/react/SidebarSimple';
 import { ChartBar } from '@phosphor-icons/react/ChartBar';
 import { CheckSquare } from '@phosphor-icons/react/CheckSquare';
 import { CirclesFour } from '@phosphor-icons/react/CirclesFour';
@@ -57,8 +58,19 @@ const NAV_ICONS: Array<[RegExp, ComponentType<IconProps>]> = [
 ];
 const iconFor = (path: string) => NAV_ICONS.find(([pattern]) => pattern.test(path))?.[1] ?? SquaresFour;
 
+const SIDEBAR_STORAGE_KEY = 'campath.sidebar.collapsed';
+function savedSidebarCollapsed(): boolean {
+  try { return typeof window !== 'undefined' && window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'; }
+  catch { return false; }
+}
+
 export function AppShell({ user, route, groups, onLogout, children }: { user: User; route: Route; groups: NavGroup[]; onLogout: () => void; children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(savedSidebarCollapsed);
+  useEffect(() => {
+    try { window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed)); }
+    catch { /* Storage may be disabled; keep the control functional in this session. */ }
+  }, [sidebarCollapsed]);
   useEffect(() => { setMenuOpen(false); }, [route.path]);
   // The class switcher is contextual navigation, not permanent chrome. Keeping
   // it open on every route steals 232px from question banks and lesson pages.
@@ -77,9 +89,9 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
   }, []);
   const pageTitle = route.page === 'holat' || route.page === 'uy' ? 'Ish stoli' : primaryGroups.flatMap((g) => g.items).find((i) => route.path === i.path)?.label ?? 'CamPath';
 
-  return <div className={`shell${classGroup ? ' shell--with-context' : ''}`}>
+  return <div className={`shell${classGroup ? ' shell--with-context' : ''}${sidebarCollapsed ? ' shell--nav-collapsed' : ''}`}>
     <a className="shell-skip" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Asosiy qismga o‘tish</a>
-    <nav className={`shell-rail${menuOpen ? ' is-open' : ''}`} aria-label="Asosiy navigatsiya">
+    <nav id="shell-navigation" className={`shell-rail${menuOpen ? ' is-open' : ''}`} aria-label="Asosiy navigatsiya">
       <div className="shell-primary">
         <div className="shell-brand"><span className="shell-mark" aria-hidden="true" /><span>CamPath<small>Cambridge 9618</small></span></div>
         <div className="shell-nav-groups">{primaryGroups.map((group) => <div className="shell-group" key={group.label}>
@@ -95,7 +107,13 @@ export function AppShell({ user, route, groups, onLogout, children }: { user: Us
         <button type="button" className="shell-archive" onClick={() => navigate('oqitish/sinf')}><Archive size={18} /> Arxivlangan sinflar</button>
       </aside> : null}
     </nav>
-    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div>
+    <div className="shell-body"><header className="shell-top"><button type="button" className="shell-rail-toggle"
+      aria-label={sidebarCollapsed ? 'Chap menyuni ochish' : 'Chap menyuni yopish'}
+      title={sidebarCollapsed ? 'Chap menyuni ochish' : 'Chap menyuni yopish'}
+      aria-controls="shell-navigation" aria-expanded={!sidebarCollapsed}
+      onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+      <SidebarSimple size={21} aria-hidden="true" />
+      </button><button type="button" className="shell-burger" aria-expanded={menuOpen} aria-label="Menyu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <CirclesFour size={21} />}</button><div className="shell-page-title">{pageTitle}</div>
       <a className="shell-games-shortcut" href={`#${gameRoute}`}
         aria-label="Interactive Games — O‘yinlar (8 ta)"
         aria-current={route.path === gameRoute ? 'page' : undefined}
