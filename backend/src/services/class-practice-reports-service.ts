@@ -89,7 +89,9 @@ export class ClassPracticeReportsService {
          join glossary_terms gt on gt.id::text=attempt.value->>'termId'
          join subtopics st on st.id=gt.subtopic_id
          join topics t on t.id=st.topic_id
-        where r.course_code=$2 and r.created_at >= now()-interval '30 days'
+         join syllabi sy on sy.id=t.syllabus_id
+        where r.course_code=$2 and sy.code=$2 and sy.is_active=true
+          and gt.is_glossary_visible=true and r.created_at >= now()-interval '30 days'
           and r.game_kind in ('match-up','quiz','find-the-match','anagram')
           and attempt.value ? 'firstCorrect'
         group by gt.id, gt.term, t.number
