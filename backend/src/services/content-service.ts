@@ -439,16 +439,64 @@ export class ContentService {
          (id,student_id,course_code,game_kind,selected_scopes,attempts,
           correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
        values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
-       on conflict (id) do update set id=excluded.id
-         where interactive_game_practice_runs.student_id=excluded.student_id
-       returning id`,
+       on conflict (id) do nothing returning id`,
       [input.runId, actor.id, input.courseCode, input.mode,
         JSON.stringify(input.scopes), JSON.stringify(input.attempts),
         input.correctFirstAttempts, input.incorrectFirstAttempts,
         input.reviewedCount, input.durationSeconds],
     );
-    if (!result.rowCount) throw new DomainError('practice_run_id_conflict', 409);
-    return { runId: input.runId, saved: true as const, assessed: false as const };
+    if (!result.rowCount) {
+      const existing = await this.pool.query(
+        `select 1 from interactive_game_practice_runs where id=$1 and student_id=$2`,
+        [input.runId, actor.id],
+      );
+      if (!existing.rowCount) throw new DomainError('practice_run_id_conflict', 409);
+      return { runId: input.runId, saved: true as const, alreadySaved: true as const, assessed: false as const };
+    }
+    for (const attempt of input.attempts) {
+      await this.pool.query(
+        `insert into interactive_game_practice_schedule
+           (student_id,course_code,term_id,interval_days,repetitions,ease_factor,due_at,
+            last_reviewed_at,last_first_correct,updated_at)
+         values (
+           $1,$2,$3,
+           case when $4::boolean then 1 else 0 end,
+           case when $4::boolean then 1 else 0 end,
+           2.50,
+           now() + case when $4::boolean then interval '1 day' else interval '10 minutes' end,
+           now(),$4,now()
+         )
+         on conflict (student_id,course_code,term_id) do update set
+           interval_days = case
+             when excluded.last_first_correct=false then 0
+             when interactive_game_practice_schedule.repetitions=0 then 1
+             when interactive_game_practice_schedule.repetitions=1 then 3
+             else least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor
+             ,2))
+           end,
+           repetitions = case when excluded.last_first_correct
+             then least(10000,interactive_game_practice_schedule.repetitions+1) else 0 end,
+           ease_factor = greatest(1.30,least(3.00,
+             interactive_game_practice_schedule.ease_factor +
+             case when excluded.last_first_correct then 0.10 else -0.20 end)),
+           due_at = now() + case
+             when excluded.last_first_correct=false then interval '10 minutes'
+             when interactive_game_practice_schedule.repetitions=0 then interval '1 day'
+             when interactive_game_practice_schedule.repetitions=1 then interval '3 days'
+             else make_interval(days => least(3650,round(
+               interactive_game_practice_schedule.interval_days *
+               interactive_game_practice_schedule.ease_factor
+             )::int))
+           end,
+           last_reviewed_at=now(),
+           last_first_correct=excluded.last_first_correct,
+           updated_at=now()`,
+        [actor.id, input.courseCode, attempt.termId, attempt.firstCorrect],
+      );
+    }
+    return { runId: input.runId, saved: true as const, alreadySaved: false as const, assessed: false as const };
   }
 
   /** Last completed first-attempt outcome for each term determines whether
@@ -457,7 +505,7 @@ export class ContentService {
   async interactiveGamePracticeHistory(actor: Actor, courseCode: '9618' | '0478') {
     this.student(actor);
     await this.interactiveGamesAccess(actor, courseCode);
-    const [runs, weaknesses] = await Promise.all([
+    const [runs, weaknesses, due] = await Promise.all([
       this.pool.query(
         `select id,game_kind,correct_first_attempts,incorrect_first_attempts,
                 reviewed_count,duration_seconds,created_at
@@ -483,6 +531,12 @@ export class ContentService {
          order by term_id limit 500`,
         [actor.id, courseCode],
       ),
+      this.pool.query(
+        `select term_id from interactive_game_practice_schedule
+          where student_id=$1 and course_code=$2 and due_at<=now()
+          order by due_at asc,term_id asc limit 500`,
+        [actor.id, courseCode],
+      ),
     ]);
     return {
       assessed: false as const,
@@ -496,6 +550,7 @@ export class ContentService {
         createdAt: row.created_at,
       })),
       needsReviewIds: weaknesses.rows.map((row) => String(row.term_id)),
+      dueReviewIds: due.rows.map((row) => String(row.term_id)),
     };
   }
 
