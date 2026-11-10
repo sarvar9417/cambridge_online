@@ -153,3 +153,9 @@
 .live-neon-arena.live-projector-overlay>header>div:nth-child(2) small,
 .live-neon-arena.live-projector-overlay .live-projector-brand small{color:#d5e5ff}
 .live-neon-arena.live-projector-overlay>header .live-projector-session-info time{color:#f7fbff}
+
+/* Backward-compatible class names keep existing question-workspace contracts. */
+.live-review-workspace:has(> .live-neon-arena-strip),
+.live-student-result:has(> .live-neon-arena-strip){
+  background:radial-gradient(ellipse at 100% 0%,rgba(116,95,241,.09),transparent 50%);
+}
