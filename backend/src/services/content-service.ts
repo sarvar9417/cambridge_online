@@ -435,37 +435,26 @@ export class ContentService {
       }
     }
     const result = await this.pool.query(
-      `insert into interactive_game_practice_runs
-         (id,student_id,course_code,game_kind,selected_scopes,attempts,
-          correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
-       values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
-       on conflict (id) do nothing returning id`,
-      [input.runId, actor.id, input.courseCode, input.mode,
-        JSON.stringify(input.scopes), JSON.stringify(input.attempts),
-        input.correctFirstAttempts, input.incorrectFirstAttempts,
-        input.reviewedCount, input.durationSeconds],
-    );
-    if (!result.rowCount) {
-      const existing = await this.pool.query(
-        `select 1 from interactive_game_practice_runs where id=$1 and student_id=$2`,
-        [input.runId, actor.id],
-      );
-      if (!existing.rowCount) throw new DomainError('practice_run_id_conflict', 409);
-      return { runId: input.runId, saved: true as const, alreadySaved: true as const, assessed: false as const };
-    }
-    for (const attempt of input.attempts) {
-      await this.pool.query(
-        `insert into interactive_game_practice_schedule
+      `with inserted_run as (
+         insert into interactive_game_practice_runs
+           (id,student_id,course_code,game_kind,selected_scopes,attempts,
+            correct_first_attempts,incorrect_first_attempts,reviewed_count,duration_seconds)
+         values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10)
+         on conflict (id) do nothing returning id
+       ), input_attempts as (
+         select * from jsonb_to_recordset($6::jsonb)
+           as x("termId" uuid,"firstCorrect" boolean)
+       ), scheduled as (
+         insert into interactive_game_practice_schedule
            (student_id,course_code,term_id,interval_days,repetitions,ease_factor,due_at,
             last_reviewed_at,last_first_correct,updated_at)
-         values (
-           $1,$2,$3,
-           case when $4::boolean then 1 else 0 end,
-           case when $4::boolean then 1 else 0 end,
+         select $2,$3,a."termId",
+           case when a."firstCorrect" then 1 else 0 end,
+           case when a."firstCorrect" then 1 else 0 end,
            2.50,
-           now() + case when $4::boolean then interval '1 day' else interval '10 minutes' end,
-           now(),$4,now()
-         )
+           now() + case when a."firstCorrect" then interval '1 day' else interval '10 minutes' end,
+           now(),a."firstCorrect",now()
+         from input_attempts a cross join inserted_run
          on conflict (student_id,course_code,term_id) do update set
            interval_days = case
              when excluded.last_first_correct=false then 0
@@ -473,8 +462,7 @@ export class ContentService {
              when interactive_game_practice_schedule.repetitions=1 then 3
              else least(3650,round(
                interactive_game_practice_schedule.interval_days *
-               interactive_game_practice_schedule.ease_factor
-             ,2))
+               interactive_game_practice_schedule.ease_factor,2))
            end,
            repetitions = case when excluded.last_first_correct
              then least(10000,interactive_game_practice_schedule.repetitions+1) else 0 end,
@@ -492,11 +480,27 @@ export class ContentService {
            end,
            last_reviewed_at=now(),
            last_first_correct=excluded.last_first_correct,
-           updated_at=now()`,
-        [actor.id, input.courseCode, attempt.termId, attempt.firstCorrect],
-      );
-    }
-    return { runId: input.runId, saved: true as const, alreadySaved: false as const, assessed: false as const };
+           updated_at=now()
+         returning term_id
+       )
+       select id, true as inserted, (select count(*) from scheduled)::int as scheduled_count
+         from inserted_run
+       union all
+       select id, false as inserted, 0 as scheduled_count
+         from interactive_game_practice_runs
+        where id=$1 and student_id=$2
+          and not exists (select 1 from inserted_run)`,
+      [input.runId, actor.id, input.courseCode, input.mode,
+        JSON.stringify(input.scopes), JSON.stringify(input.attempts),
+        input.correctFirstAttempts, input.incorrectFirstAttempts,
+        input.reviewedCount, input.durationSeconds],
+    );
+    if (!result.rowCount) throw new DomainError('practice_run_id_conflict', 409);
+    const inserted = result.rows[0]?.inserted === true;
+    return {
+      runId: input.runId, saved: true as const,
+      alreadySaved: !inserted, assessed: false as const,
+    };
   }
 
   /** Last completed first-attempt outcome for each term determines whether
