@@ -49,6 +49,7 @@ describe('Source-backed multi-selection queries for Interactive Games', () => {
     expect(query.mock.calls[3]?.[0]).toContain('jsonb_to_recordset($2::jsonb)');
     expect(query.mock.calls[3]?.[0]).toContain("selection.kind='topic'");
     expect(query.mock.calls[3]?.[0]).toContain("selection.kind='section'");
+    expect(query.mock.calls[3]?.[0]).toContain("when gt.is_official_key_term or gt.definition_evidence_status='official_textbook_definition' then 0");
     expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[1]))).toEqual([
       { chapter_no: 1, kind: 'chapter', code: null },
       { chapter_no: 2, kind: 'topic', code: '2.1' },
