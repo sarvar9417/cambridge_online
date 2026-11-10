@@ -1,4 +1,4 @@
-import { findMatchOptions, type GamePair, type GameKind, type QuizQuestion, type SpeakingPrompt } from './game-content';
+import { findMatchOptions, gamePairProvenance, type GamePair, type GameKind, type QuizQuestion, type SpeakingPrompt } from './game-content';
 
 /** Authenticated game catalogue and packs are sourced directly from PostgreSQL. */
 export interface LiveGameSection {
@@ -178,9 +178,12 @@ export function gameIsAvailable(mode: GameKind, pairs: readonly GamePair[]) {
 }
 
 export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): LiveGameTerm[] {
-  if (mode === 'anagram') return pairs.filter((pair) => isAnagramEligible(pair.term));
-  if (mode === 'quiz' || mode === 'find-the-match') return uniqueAnswerPairs(pairs);
-  return [...pairs];
+  // All chapter-specific meanings remain accessible in reveal-only cards.
+  // In games with a single answer key, duplicated terms or definitions would
+  // otherwise introduce competing, indistinguishable correct choices.
+  if (mode === 'flash-cards' || mode === 'speaking-cards') return [...pairs];
+  if (mode === 'anagram') return uniqueAnswerPairs(pairs.filter((pair) => isAnagramEligible(pair.term)));
+  return uniqueAnswerPairs(pairs);
 }
 
 /** Big banks stay selectable while the visual stage has a manageable workload.
@@ -211,6 +214,7 @@ export function createSpeakingPrompts(pairs: readonly GamePair[]): SpeakingPromp
     id: 'speaking-' + pair.id,
     prompt: pair.definition,
     talkingPoints: pair.term,
+    sourceContext: gamePairProvenance(pair) || undefined,
   }));
 }
 
@@ -233,6 +237,7 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
       options: choices.map((choice) => choice.term),
       answerIndex,
       explanation: pair.term + ' — ' + pair.definition,
+      sourceContext: gamePairProvenance(pair) || undefined,
     };
   });
 }
