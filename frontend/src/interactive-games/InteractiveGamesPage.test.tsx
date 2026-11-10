@@ -138,6 +138,37 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('switches between 9618 and 0478 without leaking chapter scopes across syllabuses', async () => {
+    mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/content/interactive-games/catalog?courseCode=0478') {
+        return { data: {
+          courseCode: '0478', chapters: [{
+            chapterNo: 1, title: 'Data representation', termCount: 8, approvedCount: 0,
+            topics: [{ code: '1.1', title: 'Number systems', termCount: 8 }],
+            sections: [{ code: '1.1.1', title: 'Binary number systems', termCount: 8, parentCode: '1.1' }],
+          }],
+        } satisfies LiveGameCatalog };
+      }
+      if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
+        const input = JSON.parse(String(init.body)) as { courseCode: '9618' | '0478'; scopes: GameScope[] };
+        return { data: { ...pack(input.scopes), courseCode: input.courseCode } };
+      }
+      return respond(path, init);
+    });
+    await render(true);
+    expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+    await change('select[aria-label="Syllabus"]', '0478');
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('CAMBRIDGE 0478');
+    expect(container.textContent).toContain('Data representation');
+    expect(container.textContent).not.toContain('Information representation');
+    expect(lastScopes()).toEqual({ courseCode: '0478', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+    await change('select[aria-label="Syllabus"]', '9618');
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('CAMBRIDGE 9618');
+    expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
+  });
+
   it('shows fullscreen only inside the active game and switches to exit mode after entering', async () => {
     await render(true);
     expect(container.querySelector('.ig-session-bar .ig-fullscreen-toggle')).toBeNull();
