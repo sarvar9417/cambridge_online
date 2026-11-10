@@ -248,7 +248,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       correctFirstAttempts: Math.min(500, correctCount),
       incorrectFirstAttempts: Math.min(500, wrongCount),
       reviewedCount: Math.min(500, reviewedCount),
-      attempts: practiceAttempts(answers, pairs),
+      attempts: practiceAttempts(answers, pairs, currentMode === 'flash-cards' ? 'self_rating' : 'scored_response'),
     };
     setPracticeSaveState('saving');
     setPracticeSaveError('');
@@ -396,8 +396,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         {practiceHistory?.recent.length ? <details>
           <summary>Recent practice results</summary>
           <ol>{practiceHistory.recent.map((run) => <li key={run.runId}>
-            {run.mode} · {run.correctFirstAttempts} first-try correct ·
-            {run.incorrectFirstAttempts} mistakes · {run.reviewedCount} reviewed
+            {run.mode} · {run.correctFirstAttempts} {run.mode === 'flash-cards' ? 'self-rated as known' : 'first-try correct'} ·
+            {run.incorrectFirstAttempts} {run.mode === 'flash-cards' ? 'self-rated for revision' : 'mistakes'} · {run.reviewedCount} reviewed
           </li>)}</ol>
         </details> : null}
         {reviewOnly ? <button type="button" onClick={() => { setMistakesOnly(false); setDueOnly(false); resetGame(); }}>
