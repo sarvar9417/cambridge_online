@@ -21,9 +21,9 @@ describe('Interactive Games limited formative evidence', () => {
       answer('quiz-bad-id', 'not a glossary term', false),
       answer(c, 'another answer', false),
     ], pairs)).toEqual([
-      { termId: a, firstCorrect: false },
-      { termId: b, firstCorrect: true },
-      { termId: c, firstCorrect: false },
+      { termId: a, firstCorrect: false, evidenceType: 'scored_response' },
+      { termId: b, firstCorrect: true, evidenceType: 'scored_response' },
+      { termId: c, firstCorrect: false, evidenceType: 'scored_response' },
     ]);
     expect(JSON.stringify(practiceAttempts([answer(a, 'a long typed answer', false)], pairs)))
       .not.toContain('a long typed answer');
