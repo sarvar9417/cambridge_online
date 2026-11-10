@@ -298,3 +298,19 @@
   text-align: center;
   text-wrap: balance;
 }
+
+/* Classroom fullscreen belongs to the active game, not the setup toolbar. */
+.ig-workspace-head { flex-wrap: wrap; }
+.ig-workspace-head-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:10px; }
+.ig-fullscreen-toggle {
+  min-height:43px; border-radius:10px; border:1px solid #414ab0;
+  background:#414ab0; color:white; font-weight:800; padding:10px 14px;
+  white-space:nowrap;
+}
+.ig-fullscreen-toggle:not(:disabled):hover { background:#2f398d; }
+.ig-page:fullscreen .ig-games { display:none; }
+.ig-page:fullscreen .ig-workspace { margin-top:0; }
+@media (max-width:640px) {
+  .ig-workspace-head-actions { justify-content:flex-start; width:100%; }
+  .ig-workspace-head-actions button { flex:1 1 140px; }
+}
