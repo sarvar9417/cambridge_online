@@ -101,6 +101,21 @@ describe('Live Card Board',()=>{
     expect(api).not.toHaveBeenCalled();
   });
 
+  it('keeps review cards locked until explicit teacher approval, then permits the next pick',async()=>{
+    const snapshot=makeSnapshot({status:'review',currentQuestionIndex:0});
+    snapshot.cards![0]!.used=true;
+    await act(async()=>root.render(<LiveCardBoard snapshot={snapshot} interactive/>));
+    expect([...container.querySelectorAll<HTMLButtonElement>('.live-card-tile')]
+      .every(button=>button.disabled)).toBe(true);
+    expect(container.textContent).toContain('Avval o‘quvchilar baholarini ko‘rib, tasdiqlang.');
+
+    snapshot.session.settings.cardReviewConfirmedPosition=0;
+    await act(async()=>root.render(<LiveCardBoard snapshot={{...snapshot,session:{...snapshot.session}}} interactive/>));
+    const available=container.querySelector<HTMLButtonElement>('[aria-label="5 ballik karta 1"]');
+    expect(available?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 1"]')?.disabled).toBe(true);
+  });
+
   it('does not claim a second card on version conflict, and shows a recoverable error',async()=>{
     const refresh=vi.fn().mockResolvedValue(undefined);
     vi.mocked(api).mockRejectedValue(new Error('live_state_conflict'));
