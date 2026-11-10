@@ -248,8 +248,18 @@
 .ig-answer-review ol { padding-left: 1.5rem; }
 .ig-answer-review li { margin-bottom: 10px; overflow-wrap: anywhere; }
 
-.ig-match-definitions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 0 14px; }
+/* Keep matching definitions readable: never more than two columns. */
+.ig-match-definitions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 22px;
+}
 .ig-match-definitions > h3 { grid-column: 1 / -1; }
+.ig-match-definitions .ig-match-row { min-width: 0; }
+.ig-match-definitions .ig-match-description { overflow-wrap: break-word; line-height: 1.5; }
+@media (max-width: 1280px) {
+  .ig-match-definitions { grid-template-columns: minmax(0, 1fr); }
+}
 .ig-find-gap { min-height: 80px; }
 .ig-box-clock { color: #475575; font-size: .85rem; font-weight: 700; }
 .ig-box-clock { display: block; margin-top: 6px; }
@@ -287,4 +297,20 @@
   line-height: 1.22;
   text-align: center;
   text-wrap: balance;
+}
+
+/* Classroom fullscreen belongs to the active game, not the setup toolbar. */
+.ig-workspace-head { flex-wrap: wrap; }
+.ig-workspace-head-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:10px; }
+.ig-fullscreen-toggle {
+  min-height:43px; border-radius:10px; border:1px solid #414ab0;
+  background:#414ab0; color:white; font-weight:800; padding:10px 14px;
+  white-space:nowrap;
+}
+.ig-fullscreen-toggle:not(:disabled):hover { background:#2f398d; }
+.ig-page:fullscreen .ig-games { display:none; }
+.ig-page:fullscreen .ig-workspace { margin-top:0; }
+@media (max-width:640px) {
+  .ig-workspace-head-actions { justify-content:flex-start; width:100%; }
+  .ig-workspace-head-actions button { flex:1 1 140px; }
 }

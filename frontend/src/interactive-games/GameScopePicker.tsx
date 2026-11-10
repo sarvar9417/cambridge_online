@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  normalizeGameScopes, selectWholeChapter, toggleNarrowScope, chapterMatchesGameSearch,
+  normalizeGameScopes, selectWholeChapter, toggleNarrowScope, chapterMatchesGameSearch, visibleGameCatalogEntries,
   type GameScope, type LiveGameCatalog,
 } from './remote-games';
 import './game-scope-picker.css';
@@ -33,8 +33,8 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
   return <div className="ig-scope-picker">
     <div className="ig-scope-header">
       <div>
-        <strong>Select chapters and topics</strong>
-        <p>Combine several complete chapters or individual syllabus topics and Hodder sections in one game.</p>
+        <strong>Select chapters and curriculum sections</strong>
+        <p>Choose whole chapters, broad Cambridge syllabus subtopics or specific Hodder coursebook sections. The same printed code can mean different coverage in the two sources.</p>
       </div>
       <div className="ig-scope-summary" role="status">
         <strong>{selectedChapters.size}</strong> chapters · <strong>{scopes.length}</strong> selections
@@ -43,7 +43,14 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
     <div className="ig-scope-toolbar">
       <label className="ig-scope-search">Search curriculum
         <input type="search" aria-label="Search chapters and topics" placeholder="Chapter, topic or section…" value={filter}
-          onChange={(event) => setFilter(event.target.value)} />
+          onChange={(event) => {
+            const next = event.target.value;
+            setFilter(next);
+            if (next.trim()) {
+              const matches = catalog.chapters.filter((chapter) => chapterMatchesGameSearch(chapter, next));
+              setExpanded((current) => new Set([...current, ...matches.map((chapter) => chapter.chapterNo)]));
+            }
+          }} />
       </label>
       <button type="button" disabled={disabled} onClick={() => {
         const all: GameScope[] = catalog.chapters.filter((chapter) => chapter.termCount > 0)
@@ -60,6 +67,7 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
       {chapters.map((chapter) => {
         const isFull = full.has(chapter.chapterNo);
         const included = scopes.filter((scope) => scope.chapterNo === chapter.chapterNo);
+        const visible = visibleGameCatalogEntries(chapter, filter);
         return <div className={'ig-scope-chapter' + (included.length ? ' is-selected' : '')}
           key={chapter.chapterNo}>
           <div className="ig-scope-chapter-head">
@@ -78,12 +86,13 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
                   else next.add(chapter.chapterNo);
                   return next;
                 });
-              }}>Chapter {chapter.chapterNo}: {isFull ? 'Entire chapter · Choose topics and sections' : included.length ? included.length + ' selected' : 'Choose topics and sections'}</summary>
+              }}>Chapter {chapter.chapterNo}: {isFull ? 'Entire chapter · Refine selection' : included.length ? included.length + ' selected' : 'Choose sections'}</summary>
               <div className="ig-scope-detail-content">
                 {isFull && <p className="ig-scope-hint">Choose a topic or section to narrow this chapter. Selections in other chapters stay selected.</p>}
-                <strong>Syllabus topics</strong>
+                <strong>Syllabus topics (broad subtopics)</strong>
+                <p className="ig-scope-explainer">These are Cambridge syllabus groupings. A code such as 17.1 may cover several different Hodder sections.</p>
                 <div className="ig-scope-subchoices">
-                  {chapter.topics.length ? chapter.topics.map((topic) =>
+                  {visible.topics.length ? visible.topics.map((topic) =>
                     <label key={'topic-' + topic.code}>
                       <input type="checkbox" disabled={disabled} aria-label={'Topic ' + topic.code + ' · Chapter ' + chapter.chapterNo}
                         checked={included.some((scope) => scope.kind === 'topic' && scope.code === topic.code)}
@@ -91,20 +100,23 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
                       <span>{topic.code} · {topic.title}</span>
                       <small>{topic.termCount}</small>
                     </label>,
-                  ) : <p>No glossary-linked syllabus topics yet.</p>}
+                  ) : <p>{filter.trim() ? 'No syllabus subtopic matches this search.' : 'No glossary-linked syllabus topics yet.'}</p>}
                 </div>
-                <strong>Hodder book sections</strong>
+                <strong>Hodder book sections (precise book structure)</strong>
+                <p className="ig-scope-explainer">Book section codes follow the Hodder chapter outline; parent sections include their child sections. The root book chapter is selected using the Chapter checkbox above.</p>
                 <div className="ig-scope-subchoices">
-                  {chapter.sections.length ? chapter.sections.map((section) =>
-                    <label key={'section-' + section.code}>
+                  {visible.sections.length ? visible.sections.map((section) =>
+                    <label key={'section-' + section.code} className={section.parentCode && section.parentCode !== String(chapter.chapterNo) ? 'ig-scope-book-child' : 'ig-scope-book-parent'}>
                       <input type="checkbox" disabled={disabled}
                         aria-label={'Hodder section ' + section.code + ' · Chapter ' + chapter.chapterNo}
                         checked={included.some((scope) => scope.kind === 'section' && scope.code === section.code)}
                         onChange={(event) => narrow({ chapterNo: chapter.chapterNo, kind: 'section', code: section.code }, event.target.checked)} />
                       <span>{section.code} · {section.title}</span>
-                      <small>{section.termCount}</small>
+                      <small>{section.termCount}{included.some((scope) =>
+                        scope.kind === 'section' && Boolean(scope.code && section.code.startsWith(scope.code + '.')))
+                        ? ' · included by selected parent' : ''}</small>
                     </label>,
-                  ) : <p>No Hodder glossary links available yet.</p>}
+                  ) : <p>{filter.trim() ? 'No Hodder section matches this search.' : 'No Hodder glossary links available yet.'}</p>}
                 </div>
               </div>
             </details>
@@ -115,6 +127,6 @@ export function GameScopePicker({ catalog, scopes, onChange, disabled = false }:
     {!chapters.length && <p className="ig-data-message">No matching chapters or topics. Clear the search to see available content.</p>}
     {!scopes.length && <p className="ig-scope-empty" role="status">Select at least one chapter, topic or section to create an Interactive Games round.</p>}
     {scopes.length >= 100 && <p className="ig-scope-empty">Maximum 100 individual selections. You can select an entire chapter instead.</p>}
-    <p className="ig-scope-hint">Overlapping terms are counted once. New database imports appear after Refresh database.</p>
+    <p className="ig-scope-hint">Counts beside sections are linked glossary entries, not additive totals: parent and child selections overlap. Each term appears at most once in the combined game bank. New database imports appear after Refresh database.</p>
   </div>;
 }

@@ -15,6 +15,9 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
         { chapter_no: 3, title: 'Hardware', term_count: 273, approved_count: 0 },
       ] })
       .mockResolvedValueOnce({ rows: [
+        { chapter_no: 1, section_code: '1', title: 'Information representation', parent_code: null, term_count: 137 },
+        { chapter_no: 1, section_code: '1.10', title: 'Tenth section', parent_code: '1', term_count: 3 },
+        { chapter_no: 1, section_code: '1.2', title: 'Second section', parent_code: '1', term_count: 4 },
         { chapter_no: 1, section_code: '1.1.1', title: 'Number systems', parent_code: '1.1', term_count: 5 },
         { chapter_no: 2, section_code: '2.1.1', title: 'Networking devices', parent_code: '2.1', term_count: 23 },
       ] })
@@ -37,7 +40,8 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     const service = new ContentService({ query } as unknown as Pool);
     const before = await service.interactiveGameCatalog(teacher);
     expect(before.chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3]);
-    expect(before.chapters[0]?.sections[0]?.code).toBe('1.1.1');
+    expect(before.chapters[0]?.sections.map((section) => section.code)).toEqual(['1.1.1', '1.2', '1.10']);
+    expect(before.chapters[0]?.sections.some((section) => section.code === '1')).toBe(false);
     expect(before.chapters[0]?.topics[0]?.code).toBe('1.1');
     const after = await service.interactiveGameCatalog(teacher);
     expect(after.chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3, 4]);
@@ -45,6 +49,7 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls[0]?.[0]).toContain('from topics t');
     expect(query.mock.calls[1]?.[0]).toContain('hodder_glossary_section_links');
+    expect(query.mock.calls[1]?.[0]).toContain('bs.section_code <> bs.chapter_number::text');
     expect(query.mock.calls[2]?.[0]).toContain('subtopics st');
   });
 

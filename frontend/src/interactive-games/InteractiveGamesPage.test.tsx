@@ -126,6 +126,36 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('shows fullscreen only inside the active game and switches to exit mode after entering', async () => {
+    await render(true);
+    expect(container.querySelector('.ig-session-bar .ig-fullscreen-toggle')).toBeNull();
+    const button = container.querySelector<HTMLButtonElement>('.ig-workspace-head .ig-fullscreen-toggle')!;
+    expect(button?.textContent).toContain('Full screen');
+    const page = container.querySelector<HTMLElement>('.ig-page')!;
+    const request = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(page, 'requestFullscreen', { configurable: true, value: request });
+    await click(button);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(button.textContent).toContain('Exit full screen');
+  });
+
+  it('searches within chapter sections instead of showing unrelated subtopics', async () => {
+    await render(true);
+    const search = container.querySelector<HTMLInputElement>('input[aria-label="Search chapters and topics"]')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setValue.call(search, '2.1.1');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await Promise.resolve();
+    });
+    const cards = [...container.querySelectorAll<HTMLElement>('.ig-scope-chapter')];
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.textContent).toContain('Chapter 2');
+    expect(cards[0]!.querySelector('details')?.open).toBe(true);
+    expect(cards[0]!.querySelector('input[aria-label="Topic 2.1 · Chapter 2"]')).toBeNull();
+    expect(cards[0]!.querySelector('input[aria-label="Hodder section 2.1.1 · Chapter 2"]')).not.toBeNull();
+  });
+
   it('gives Spin the Wheel a choice of no timer, count up, or a timed round', async () => {
     await render(true);
     await game('Spin the Wheel');
@@ -344,10 +374,10 @@ describe('database-backed Interactive Games multi-selection', () => {
       await change('.ig-template-options label:nth-child(3) select', '15');
       await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
       expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
-      await click(button('Ⅱ Pause timer'));
+      await click(button('Ⅱ Pause game'));
       await act(async () => { vi.advanceTimersByTime(15000); });
       expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
-      await click(button('▶ Resume timer'));
+      await click(button('▶ Resume game'));
       await act(async () => { vi.advanceTimersByTime(15000); });
       expect(container.querySelector('.ig-box-question .ig-reveal')?.textContent).toContain("Time's up!");
       await act(async () => { vi.advanceTimersByTime(1100); });
@@ -380,10 +410,10 @@ describe('database-backed Interactive Games multi-selection', () => {
       expect(container.querySelector('.ig-choice-card.is-correct')).toBeNull();
       await click(button('ALegal'));
       expect(container.querySelector('.ig-choice-card.is-correct')?.textContent).toContain('Legal');
-      await click(button('Ⅱ Pause timer'));
+      await click(button('Ⅱ Pause game'));
       await act(async () => { vi.advanceTimersByTime(1500); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 1');
-      await click(button('▶ Resume timer'));
+      await click(button('▶ Resume game'));
       await act(async () => { vi.advanceTimersByTime(1100); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
       await click(button('■ Finish game'));
@@ -452,9 +482,9 @@ describe('database-backed Interactive Games multi-selection', () => {
 
   it('pauses and expires a 30-second round without treating it as an assessment', async () => {
     await render();
-    await click(button('Ⅱ Pause timer'));
+    await click(button('Ⅱ Pause game'));
     expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(true);
-    await click(button('▶ Resume timer'));
+    await click(button('▶ Resume game'));
     expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(false);
     vi.useFakeTimers();
     try {
