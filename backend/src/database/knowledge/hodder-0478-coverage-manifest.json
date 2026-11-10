@@ -7,8 +7,8 @@
   "isbn": "9781398318281",
   "courseCode": "0478",
   "syllabusVersion": "2026-2028",
-  "dataStatus": "partially_verified",
-  "sourceNote": "Hodder 0478 Student Book (2021), chapter-end Key terms checked against original provided PDF, 10 chapters. All 354 official Key Terms records are editorially reviewed. Twelve previously omitted official entries were inserted, two names aligned to the book and six records reclassified as official. Three publisher/source typos in Chapter 3 are tracked as corrected concepts. Thirty-five supplementary concepts still need source-specific editorial verification; do not present this dataset as fully verified. No book definitions are reproduced in this public manifest.",
+  "dataStatus": "verified",
+  "sourceNote": "Editorial audit completed 2026-11-10 for the scoped 0478 Interactive Games keyword dataset. Chapter-end Hodder Key Terms were compared against the user's original second-edition PDF across all 10 chapters. The 357 printed Key Terms occurrences are represented by 354 corrected official entries (three source typos are documented with corrected concepts). All 35 supplementary concept definitions were reviewed for technical accuracy; they are not claimed to be verbatim textbook Key Terms. Missing Chapter 4 entries, classifier errors and OCR contamination were corrected. The private database contains 389 approved records; no copyrighted textbook definition corpus is reproduced in this public manifest. Syllabus activation and PR merge require separate approval.",
   "numberingNote": "Subsection page bounds are containing section ranges based on the Hodder printed contents, not claimed precise start pages.",
   "chapters": [
     {
@@ -3713,10 +3713,10 @@
     "officialKeyTerms": 354,
     "officialVerified": 354,
     "supplementaryTerms": 35,
-    "supplementaryVerified": 0,
+    "supplementaryVerified": 35,
     "sourceChapterCount": 10,
     "sourceKeyTermOccurrences": 357,
     "sourceErrataAliases": 3,
-    "scope": "Source verification, not release authorization"
+    "scope": "Editorially verified scoped keyword dataset, not syllabus activation or release authorization"
   }
 }
