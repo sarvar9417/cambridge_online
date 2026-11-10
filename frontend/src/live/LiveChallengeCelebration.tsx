@@ -200,7 +200,7 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
     </div>
     {cue?<aside key={cue.key} className={`live-neon-cue live-neon-cue--${cue.tier} live-neon-cue--${prefs.intensity}`} aria-live="polite" aria-label="Celebration message">
       {prefs.intensity!=='calm'?<div className="live-neon-particles" aria-hidden="true">{Array.from({length:prefs.intensity==='spectacular'?18:10},(_,i)=><i key={i}/>)}</div>:null}
-      <LiveMascot3D tier={cue.tier} fallback={<NeonMascot tier={cue.tier}/>} animate={prefs.intensity!=='calm'}/>
+      <LiveMascot3D tier={cue.tier} fallback={<NeonMascot tier={cue.tier}/>} animate={prefs.intensity!=='calm'} ornament={summary.reviewed>=10?'wings':summary.reviewed>=5?'crown':summary.reviewed>=3?'star':undefined}/>
       <div className="live-neon-cue-copy"><small>CAMBRIDGE LIVE CHALLENGE</small><strong>{COPY[cue.tier].title}</strong><span className="live-neon-points">+{cue.score} <small>/ {cue.possible} marks</small></span><p>{COPY[cue.tier].detail}</p>
         {cue.streak>=2?<span className="live-neon-streak"><Lightning weight="fill"/> {cue.streak} ANSWERS STREAK</span>:null}
         {cue.newBadges.map(badge=><span className="live-neon-award" key={badge}>{REWARD_LABELS[badge].icon} ACHIEVEMENT: {REWARD_LABELS[badge].title}</span>)}
@@ -222,6 +222,9 @@ export function LiveChallengeFinalCeremony({title,earned,possible,results,childr
     <div><span className="live-neon-final-eyebrow"><Medal weight="fill"/> FINAL CEREMONY</span><h2>{title}</h2>
       <p>{percentage===null?'Challenge completed. Cambridge marks determine the results.':'Your Cambridge results are ready. Well played!'}</p>
       {percentage!==null?<strong className="live-neon-final-percent">{earned} / {possible} <small>marks · {percentage}%</small></strong>:null}
+      {completed.reviewed>=3?<p className="live-neon-final-ornament" aria-label="Earned avatar ornament">
+        ✦ Equipped avatar ornament: {completed.reviewed>=10?'Galaxy Wings':completed.reviewed>=5?'Crystal Crown':'Neon Star'}
+      </p>:null}
       {completed.badges.length?<div className="live-neon-final-badges">{completed.badges.map(badge=><span key={badge} title={REWARD_LABELS[badge].description}>{REWARD_LABELS[badge].icon} {REWARD_LABELS[badge].title}</span>)}</div>:null}
     </div>
     {children}
