@@ -179,6 +179,13 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
     if(path==='/assignments'||path==='/results'||path==='/exports'){void json(request,{data:[]});return;}
     if(path==='/analytics/mastery'||path==='/analytics/command-words'||path==='/content/flashcards/due'){void json(request,{data:[]});return;}
     if(path==='/content/games'){void json(request,{data:{termMatch:[],sequence:[],spotTheGap:[]}});return;}
+    if(path==='/content/interactive-games/practice' && request.method()==='GET'){
+      void json(request,{data:{assessed:false,recent:[],needsReviewIds:[]}});return;
+    }
+    if(path==='/content/interactive-games/practice' && request.method()==='POST'){
+      const payload=JSON.parse(request.postData()||'{}') as {runId:string};
+      void json(request,{data:{runId:payload.runId,saved:true,assessed:false}});return;
+    }
     if(path==='/content/interactive-games/catalog'){void json(request,{data:gameCatalog});return;}
     if(path==='/content/interactive-games/collection' && request.method()==='POST'){
       const body=JSON.parse(request.postData()||'{}') as {
