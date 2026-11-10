@@ -1,0 +1,30 @@
+CHAPTER 8 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 22 Chapter 8 quarantine candidates against the uploaded Hodder 9618 Chapter 8 PDF and the Cambridge 9618 Syllabus 2027–2029, §§8.1–8.3, pp.25–26.
+- Four records were promoted to supplementary_targeted_verified and Core:
+  1. Database approach
+  2. One-to-one relationship (renamed from One and only one cardinality)
+  3. SQL data type
+  4. TIME
+- The other 18 candidates remain hidden.
+
+Why the four were promoted
+- Database approach is the coursebook's named alternative to the file-based approach and directly addresses the syllabus outcome on file-based limitations.
+- One-to-one relationship is explicitly listed in the syllabus; the coursebook explains relationship cardinality on p.202.
+- SQL data type and TIME are required in the syllabus's SQL table-definition data types on p.26.
+
+Why the other 18 remain hidden
+- Query processing workflow duplicates the official Query processor Key Term.
+- REAL duplicates the official REAL term in Chapter 10.
+- Normalised schema and Reduced redundancy are already covered by official Normalisation and 1NF/2NF/3NF terms.
+- The coursebook does not use or define the generated labels Insert anomaly, Delete anomaly or Updating inconsistency; these are worked examples rather than source-named terms.
+- Centralised data storage, Shared database and Shared validation rules are features of the Database approach, not separate concepts.
+- Scheduled backup is a DBMS feature; backup is covered by the broader Backup concept.
+- SQL command forms, WHERE filtering, table prefixes and script execution are syntax/examples rather than independent glossary terms.
+- Fixed-length record and TeacherName dependency are details/examples not required as separate syllabus terms.
+
+Changes
+- 4 records promoted; 18 Chapter 8 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

@@ -1,0 +1,35 @@
+CHAPTER 18 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 38 Chapter 18 quarantine candidates against the uploaded Hodder 9618 Chapter 18 PDF, pp.425–443, and the Cambridge 9618 Syllabus 2027–2029, §18.1, p.36.
+- Seven entries were promoted to supplementary_targeted_verified and Core:
+  1. Weighted graph
+  2. Edge weight
+  3. Dijkstra versus A*
+  4. A* evaluation function (renamed from f(n) = g(n) + h(n))
+  5. Machine learning categories (renamed from Learning type comparison)
+  6. Machine learning versus deep learning
+  7. Automatic feature learning
+- The other 31 candidates remain hidden.
+
+Why the seven were promoted
+- The syllabus requires understanding graph structure and using A* and Dijkstra to search graphs; weighted graphs and edge weights explain the costs used by both algorithms.
+- The Dijkstra/A* comparison captures the central difference between shortest-known-distance selection and adding a heuristic estimate.
+- The A* evaluation function f(n)=g(n)+h(n) is central to the coursebook's A* worked method.
+- The syllabus requires understanding machine-learning categories; the consolidated definition covers supervised, unsupervised and reinforcement learning. Semi-supervised learning appears in the coursebook but is not included in the Core definition because it is not named in the syllabus.
+- The syllabus requires machine learning, deep learning and artificial neural networks; the comparison and automatic feature-learning concepts clarify the distinction.
+
+Why the other 31 remain hidden
+- Heuristic approach duplicates official Heuristic and visible Heuristic value h(n).
+- Evaluation value f(n) is consolidated into A* evaluation function.
+- Manhattan distance/method is one specific worked heuristic, not a separate syllabus requirement.
+- A* neighbouring nodes, route reconstruction, equal f-value, minimum f-value choice, previous node, unvisited vertex, path-cost accumulation and working-value update are algorithm steps rather than glossary concepts.
+- Reward optimisation duplicates official Reward and punishment; learning from examples and past-experience learning are covered by official Machine learning, Supervised learning and Reinforcement learning.
+- Data-labelling cost and training/error-curve details are examples or model-training sub-steps.
+- Cancer detection, predictive crime analysis, chatbot, facial-feature, translation and robotics entries are application examples; AI future predictions are dated 2019 projections and are not treated as current facts.
+- Grid matrix, route map and multiple candidate routes are worked-example representations.
+
+Changes
+- 7 records promoted; 31 Chapter 18 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

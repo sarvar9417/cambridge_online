@@ -89,7 +89,10 @@ Quyidagi blok CI tomonidan tekshiriladi. P0 item faqat acceptance evidence bilan
     "p0": [],
     "p1": [],
     "p2": [
-      { "id": "LG-P2-03", "title": "Team and house modes" }
+      {
+        "id": "LG-P2-03",
+        "title": "Team and house modes"
+      }
     ]
   },
   "acceptance": {

@@ -1,0 +1,32 @@
+CHAPTER 15 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 25 Chapter 15 quarantine candidates against the uploaded Hodder 9618 Chapter 15 PDF, pp.354–356, and the Cambridge 9618 Syllabus 2027–2029, §15.2, p.34.
+- Five entries were promoted to supplementary_targeted_verified and Core:
+  1. AND operator
+  2. OR operator
+  3. Boolean expression
+  4. Boolean variable
+  5. Boolean simplification
+- The other 20 candidates remain hidden.
+
+Why the five were promoted
+- The coursebook defines AND and OR as Boolean operators and gives their notation on p.355.
+- Boolean variables and Boolean expressions are the basic elements used to describe logic-circuit outputs (p.354).
+- The syllabus explicitly requires Boolean algebra and simplification of logic circuits/expressions (p.34); the coursebook demonstrates simplification on pp.355–356.
+
+Why the other 20 remain hidden
+- Interrupt priority duplicates the official Chapter 4 term.
+- Array processor is represented by official SIMD/MIMD architecture terms.
+- Bistable circuit duplicates official Flip-flop circuits.
+- Fixed/variable instruction length are RISC/CISC comparison details.
+- Karnaugh-map cell/grouping/Gray-code/wraparound details are already covered by official Karnaugh maps and visible K-map grouping concepts.
+- Multi-bit addition is covered by Half adder and Full adder terms.
+- Multiple data sources duplicates SIMD/MIMD.
+- Sequential/pipelined cycle-count comparison is already covered by Pipelining.
+- Remaining entries are circuit-pin details, expression rules or worked examples rather than separate Core terms.
+
+Changes
+- 5 records promoted; 20 Chapter 15 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

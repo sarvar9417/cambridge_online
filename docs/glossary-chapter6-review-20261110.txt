@@ -1,0 +1,28 @@
+CHAPTER 6 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed the 47 Chapter 6 quarantine candidates against the uploaded Hodder 9618 Chapter 6 PDF and the Cambridge 9618 Syllabus 2027–2029, §§6.1–6.2, p.24.
+- Four entries were promoted to supplementary_targeted_verified and Core:
+  1. Backup
+  2. Data recovery
+  3. Worm
+  4. Validation versus verification
+- The other 43 candidates remain hidden.
+
+Why the four were promoted
+- Backup and Data recovery are the central concepts in the coursebook's §6.1.4 and align with the syllabus requirement for back-up software.
+- Worm is explicitly defined in §6.1.3 as a stand-alone self-replicating malware type.
+- Validation versus verification is a central distinction in §6.2 and the syllabus requires both methods; the definition now explains the different purpose of each.
+
+Why the other 43 remain hidden
+- Duplicates: Access level/user access hierarchy (Access rights), Quarantine, Cross-field validation (Consistency check), and data accuracy/completeness/consistency (the official Data integrity definition).
+- Backup schedule/destination, automatic/manual/off-site/cloud/removable-drive backup, and infected-backup entries are settings, types or risks rather than separate Core concepts.
+- Phishing links, fake websites, phishing attachments and compromised-DNS examples are already covered by Phishing/Pharming.
+- Check-digit X, checksum remainder/modulo-256 calculations, weighted sums, multiple-bit errors and undetected parity patterns are worked values or limitations covered by Check digit, Checksum and Parity check.
+- Data subject rights, legal responsibility, retinal imaging, UPS and other specific examples are not required as stand-alone terms by the syllabus.
+- Validation-versus-correctness is already explained by the official Validation definition; the separate candidate remains hidden.
+
+Changes
+- 4 records promoted; 43 Chapter 6 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.
