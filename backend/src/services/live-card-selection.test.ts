@@ -147,7 +147,7 @@ describe('Live Challenge teacher-controlled card mode',()=>{
     const result=await service.openCard(actor,SESSION,cards[1]!.id,6);
     expect(result.status).toBe('question_open');
     expect(session.current_question_index).toBe(1);
-    expect(queries.some(item=>item.sql.includes("card.review.confirmed"))).toBe(true);
+    expect(queries.some(item=>item.params.includes('card.review.confirmed'))).toBe(true);
   });
 
   it('requires re-confirmation if the teacher changes a grade after approving a card round',async()=>{
