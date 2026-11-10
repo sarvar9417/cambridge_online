@@ -374,10 +374,10 @@ describe('database-backed Interactive Games multi-selection', () => {
       await change('.ig-template-options label:nth-child(3) select', '15');
       await click(container.querySelector<HTMLButtonElement>('.ig-box:nth-child(1)')!);
       expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
-      await click(button('Ⅱ Pause timer'));
+      await click(button('Ⅱ Pause game'));
       await act(async () => { vi.advanceTimersByTime(15000); });
       expect(container.querySelector('.ig-box-clock')?.textContent).toContain('00:15');
-      await click(button('▶ Resume timer'));
+      await click(button('▶ Resume game'));
       await act(async () => { vi.advanceTimersByTime(15000); });
       expect(container.querySelector('.ig-box-question .ig-reveal')?.textContent).toContain("Time's up!");
       await act(async () => { vi.advanceTimersByTime(1100); });
@@ -410,10 +410,10 @@ describe('database-backed Interactive Games multi-selection', () => {
       expect(container.querySelector('.ig-choice-card.is-correct')).toBeNull();
       await click(button('ALegal'));
       expect(container.querySelector('.ig-choice-card.is-correct')?.textContent).toContain('Legal');
-      await click(button('Ⅱ Pause timer'));
+      await click(button('Ⅱ Pause game'));
       await act(async () => { vi.advanceTimersByTime(1500); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 1');
-      await click(button('▶ Resume timer'));
+      await click(button('▶ Resume game'));
       await act(async () => { vi.advanceTimersByTime(1100); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
       await click(button('■ Finish game'));
@@ -482,9 +482,9 @@ describe('database-backed Interactive Games multi-selection', () => {
 
   it('pauses and expires a 30-second round without treating it as an assessment', async () => {
     await render();
-    await click(button('Ⅱ Pause timer'));
+    await click(button('Ⅱ Pause game'));
     expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(true);
-    await click(button('▶ Resume timer'));
+    await click(button('▶ Resume game'));
     expect(container.querySelector('fieldset.ig-game-stage')?.hasAttribute('disabled')).toBe(false);
     vi.useFakeTimers();
     try {
