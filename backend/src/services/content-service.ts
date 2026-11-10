@@ -415,7 +415,7 @@ export class ContentService {
   }) {
     this.student(actor);
     await this.interactiveGamesAccess(actor, input.courseCode);
-    const ids = input.attempts.map((item) => item.termId);
+    const ids = input.attempts.map((item) => item.termId.toLowerCase());
     if (new Set(ids).size !== ids.length) throw new DomainError('duplicate_practice_attempt', 400);
     if (ids.length) {
       const found = await this.pool.query(
