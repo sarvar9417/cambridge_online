@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
-import { scrambleTerm, shuffleItems, type GamePair, type SpeakingPrompt } from './game-content';
+import { gamePairProvenance, scrambleTerm, shuffleItems, type GamePair, type SpeakingPrompt } from './game-content';
 import { isAnagramTile } from './remote-games';
 import { useGameAdvance, useGameSignal, type RecordAnswer } from './game-session';
 import './wordwall-modes.css';
@@ -205,7 +205,9 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
           const show = revealed.includes(item.id);
           return <div className="ig-dealt-card" key={item.id}>
             <span className="ig-eyebrow">YOUR SPEAKING PROMPT</span><p>{item.prompt}</p>
-            {show && <div className="ig-reveal"><strong>Matching term</strong><p>{item.talkingPoints}</p></div>}
+            {show && <div className="ig-reveal"><strong>Matching term</strong><p>{item.talkingPoints}</p>
+              {item.sourceContext && <small className="ig-source-context">{item.sourceContext}</small>}
+            </div>}
             <button type="button" aria-expanded={show} onClick={() => {
               if (!show) signal('flip');
               setRevealed((previous) => show ? previous.filter((id) => id !== item.id) : [...previous, item.id]);
@@ -435,6 +437,7 @@ function AnagramWord({ item, progress, last, instant, auto, showClue, rearrange,
     })}</div>
     {feedback && <p className="ig-feedback" role="status">{feedback}</p>}
     {outcome && <p className="ig-feedback" role="status">{outcome === 'correct' ? 'Correct!' : 'Answer revealed.'} {item.term}</p>}
+    {outcome && gamePairProvenance(item) && <p className="ig-source-context">{gamePairProvenance(item)}</p>}
     <div className="ig-card-controls">
       {!instant && <>
         <button type="button" disabled={Boolean(outcome) || history.length < 2} onClick={() => {
