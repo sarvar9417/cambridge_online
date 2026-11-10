@@ -332,11 +332,19 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
     )).rows[0]?.request_count).toBe(1);
   });
   it('schedules real PostgreSQL spaced review only from first attempts and ignores retries', async () => {
-    const topic = await client.query<{id:string}>(
-      `insert into topics(syllabus_id,number,title,level,sort_order)
-       select syllabus_id,91,'Spaced-review acceptance','A2',91 from classes where id=$1
-       returning id`, [classId],
+    // The isolated live-test schema omits topics.level whereas the production
+    // syllabus schema keeps it. Test the real SRS trigger against either layout.
+    const hasLevel = await client.query<{present:boolean}>(
+      "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='topics' and column_name='level') as present",
     );
+    const topicSql = hasLevel.rows[0]?.present
+      ? `insert into topics(syllabus_id,number,title,level,sort_order)
+         select syllabus_id,91,'Spaced-review acceptance','A2',91 from classes where id=$1
+         returning id`
+      : `insert into topics(syllabus_id,number,title,sort_order)
+         select syllabus_id,91,'Spaced-review acceptance',91 from classes where id=$1
+         returning id`;
+    const topic = await client.query<{id:string}>(topicSql,[classId]);
     const subtopic = await client.query<{id:string}>(
       `insert into subtopics(topic_id,code,title,sort_order)
        values ($1,'91.1','Spaced revision',1) returning id`, [topic.rows[0]!.id],
