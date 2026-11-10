@@ -244,7 +244,7 @@ try {
   await firstStudent.page.waitForFunction((sessionId) =>
     Object.entries(localStorage).some(([key, raw]) => {
       if (!key.startsWith('campath:live-draft:v1:') || !key.includes(`:${sessionId}:`)) return false;
-      try { return JSON.parse(raw).text === 'Uses base 2 and digits 0 and 1. QA learner 1 offline draft.'; } catch { return false; }
+      try { return JSON.parse(raw).text?.includes('Uses base 2 and digits 0 and 1. QA learner 1 offline draft.'); } catch { return false; }
     }), { timeout: 10000 }, id);
   const localDraft = await firstStudent.page.evaluate((sessionId) => {
     const entries = Object.entries(localStorage)
@@ -253,7 +253,7 @@ try {
   }, id);
   await qa.check(
     'Live E2E: failed autosave leaves one versioned per-user/session/question draft',
-    localDraft.length === 1 && localDraft[0]?.value?.version === 1 && localDraft[0]?.value?.text === firstTabAnswer,
+    localDraft.length === 1 && localDraft[0]?.value?.version === 1 && localDraft[0]?.value?.text?.startsWith('@@LIVE_RICH_V1@@') && localDraft[0]?.value?.text?.includes(firstTabAnswer),
     localDraft,
   );
 
@@ -261,7 +261,7 @@ try {
   await firstStudent.page.waitForSelector('#live-answer', { timeout: 45000 });
   await qa.check(
     'Live E2E: local draft survives reload before server acknowledgement',
-    await firstStudent.page.$eval('#live-answer', (el) => el.value) === firstTabAnswer,
+    await firstStudent.page.$eval('#live-answer', (el) => el.textContent) === firstTabAnswer,
   );
 
   const secondTab = await firstStudent.context.newPage();
@@ -274,14 +274,14 @@ try {
   await secondTab.waitForSelector('#live-answer', { timeout: 45000 });
   await qa.check(
     'Live E2E: second tab sees the same pending local draft',
-    await secondTab.$eval('#live-answer', (el) => el.value) === firstTabAnswer,
+    await secondTab.$eval('#live-answer', (el) => el.textContent) === firstTabAnswer,
   );
   await qa.fill(secondTab, '#live-answer', `${firstTabAnswer} changed in tab B`);
   await qa.waitText(firstStudent.page, 'Ikki tabdagi javob farq qiladi');
   await qa.check(
     'Live E2E: unresolved two-tab conflict blocks submit and preserves tab A text',
-    await firstStudent.page.$eval('#live-answer', (el) => el.value) === firstTabAnswer
-      && await firstStudent.page.$eval('.live-answer-box button', (el) => el.disabled),
+    await firstStudent.page.$eval('#live-answer', (el) => el.textContent) === firstTabAnswer
+      && await firstStudent.page.$eval('.live-answer-box>button', (el) => el.disabled),
   );
 
   secondTab.off('request', blockedAutosave);
@@ -298,7 +298,7 @@ try {
   }, id);
   await qa.check(
     'Live E2E: explicit conflict resolution persists the chosen tab A answer',
-    recoveredServerAnswer === firstTabAnswer,
+    recoveredServerAnswer.startsWith('@@LIVE_RICH_V1@@') && recoveredServerAnswer.includes(firstTabAnswer),
     { recoveredServerAnswer },
   );
 
