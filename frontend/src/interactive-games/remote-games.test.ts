@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
   createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
-  isAnagramEligible, poolForMode, selectGamePairs, selectModeStage, normalizeGameScopes, toggleNarrowScope,
+  isAnagramEligible, poolForMode, selectGamePairs, selectModeStage, normalizeGameScopes, toggleNarrowScope, selectQualityGameTerms,
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, type LiveGameTerm,
 } from './remote-games';
 
@@ -249,4 +249,28 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(questions.every((question) => new Set(question.options).size === 4)).toBe(true);
   });
 
+});
+
+describe('Evidence-graded glossary vocabulary selection', () => {
+  const entries:LiveGameTerm[]=[
+    {...term(1,'Firewall'),status:'approved',isOfficialKeyTerm:true,definitionEvidenceStatus:'official_textbook_definition'},
+    {...term(2,'Packet switching'),status:'approved',isOfficialKeyTerm:false,definitionEvidenceStatus:'supplementary_targeted_verified'},
+    {...term(3,'Diagram arrow label'),status:'approved',isOfficialKeyTerm:false,definitionEvidenceStatus:'supplementary_source_screened'},
+    {...term(4,'Example calculation step'),status:'approved',isOfficialKeyTerm:false,definitionEvidenceStatus:'supplementary_manual_review_required'},
+    {...term(5,'Unapproved term'),status:'needs_review',isOfficialKeyTerm:true,definitionEvidenceStatus:'official_textbook_definition'},
+  ];
+  it('defaults to textbook-backed and individually verified concepts',()=>{
+    expect(selectQualityGameTerms(entries,'core').map(x=>x.term)).toEqual(['Firewall','Packet switching']);
+  });
+  it('includes source-screened concepts only on an explicit extended choice',()=>{
+    expect(selectQualityGameTerms(entries,'extended').map(x=>x.term)).toEqual(['Firewall','Packet switching','Diagram arrow label']);
+  });
+  it('does not return manually flagged or unapproved entries in either quality bank',()=>{
+    expect(selectQualityGameTerms(entries,'core').some(x=>x.id==='4'||x.id==='5')).toBe(false);
+    expect(selectQualityGameTerms(entries,'extended').some(x=>x.id==='4'||x.id==='5')).toBe(false);
+  });
+  it('does not discard prior API content missing all provenance metadata',()=>{
+    const legacy=[term(1,'Binary'),term(2,'Router')];
+    expect(selectQualityGameTerms(legacy,'core')).toEqual(legacy);
+  });
 });
