@@ -98,7 +98,9 @@ export function MatchUpBoard({ pairs, recordAnswer }: { pairs: readonly GamePair
     <p className="ig-instruction">Drag each term beside its definition or select a term and then a slot. Place every term to submit.</p>
     <div className="ig-template-options" role="group" aria-label="Match Up options">
       <label>Matches per page <select value={pageSize} disabled={started} onChange={(event) => setPageSize(Number(event.target.value))}>
-        <option value="5">5</option><option value="10">10</option><option value="29">All</option>
+        <option value="5">5</option><option value="10">10</option><option value="20">20</option>
+        <option value="30">30</option>
+        <option value={pairs.length}>All ({pairs.length})</option>
       </select></label>
       <label><input type="checkbox" checked={randomLayout} disabled={started} onChange={(event) => setRandomLayout(event.target.checked)} /> Shuffle layout</label>
       <label><input type="checkbox" checked={retryEnabled} disabled={started} onChange={(event) => setRetryEnabled(event.target.checked)} /> Allow one retry</label>
