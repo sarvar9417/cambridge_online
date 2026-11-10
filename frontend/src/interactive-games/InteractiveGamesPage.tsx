@@ -280,9 +280,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
       <strong>{pack.pairs.length} unique glossary terms loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
+        ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
       {pack.contentStatus === 'needs_review'
-        ? ' Some terms are pending review. Use for provisional practice only, not approved exam answers.'
-        : ' All selected terms have been approved.'}
+        ? ' Some supplementary definitions are pending review and need individual source verification. Use for provisional practice only.'
+        : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
       {' '}Results are temporary practice feedback, not official assessment grades.
     </div>}
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">

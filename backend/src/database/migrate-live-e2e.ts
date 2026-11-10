@@ -56,6 +56,7 @@ const selected=[
   '0207_live_question_readiness_cache.sql',
   '0210_student_live_practice_isolation.sql',
   '0211_live_0478_paper2_syllabus_isolation.sql',
+  '0213_hodder_glossary_visibility_and_quality.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');

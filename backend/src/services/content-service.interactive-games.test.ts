@@ -48,9 +48,13 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     expect(after.chapters[3]?.termCount).toBe(145);
     expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls[0]?.[0]).toContain('from topics t');
+    expect(query.mock.calls[0]?.[0]).toContain('gt.is_glossary_visible=true');
+    expect(query.mock.calls[0]?.[0]).toContain('supplementary_manual_review_required');
     expect(query.mock.calls[1]?.[0]).toContain('hodder_glossary_section_links');
+    expect(query.mock.calls[1]?.[0]).toContain('g.is_glossary_visible=true');
     expect(query.mock.calls[1]?.[0]).toContain('bs.section_code <> bs.chapter_number::text');
     expect(query.mock.calls[2]?.[0]).toContain('subtopics st');
+    expect(query.mock.calls[2]?.[0]).toContain('gt.is_glossary_visible=true');
   });
 
   it('loads unapproved glossary only for provisional practice and deduplicates terms', async () => {
@@ -65,6 +69,9 @@ describe('Interactive Games PostgreSQL chapter and section integration', () => {
     expect(result.contentStatus).toBe('needs_review');
     expect(result.assessed).toBe(false);
     expect(query.mock.calls[0]?.[0]).toContain("gt.status in ('approved','needs_review')");
+    expect(query.mock.calls[0]?.[0]).toContain('gt.is_glossary_visible=true');
+    expect(query.mock.calls[0]?.[0]).toContain('gt.definition_evidence_status');
+    expect(query.mock.calls[0]?.[0]).toContain("sy.code='9618'");
     expect(query.mock.calls[0]?.[1]).toEqual(['9618', 1, null]);
   });
 
