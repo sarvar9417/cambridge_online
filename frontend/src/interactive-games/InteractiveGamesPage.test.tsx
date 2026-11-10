@@ -126,6 +126,36 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
+  it('shows fullscreen only inside the active game and switches to exit mode after entering', async () => {
+    await render(true);
+    expect(container.querySelector('.ig-session-bar .ig-fullscreen-toggle')).toBeNull();
+    const button = container.querySelector<HTMLButtonElement>('.ig-workspace-head .ig-fullscreen-toggle')!;
+    expect(button?.textContent).toContain('Full screen');
+    const page = container.querySelector<HTMLElement>('.ig-page')!;
+    const request = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(page, 'requestFullscreen', { configurable: true, value: request });
+    await click(button);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(button.textContent).toContain('Exit full screen');
+  });
+
+  it('searches within chapter sections instead of showing unrelated subtopics', async () => {
+    await render(true);
+    const search = container.querySelector<HTMLInputElement>('input[aria-label="Search chapters and topics"]')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setValue.call(search, '2.1.1');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await Promise.resolve();
+    });
+    const cards = [...container.querySelectorAll<HTMLElement>('.ig-scope-chapter')];
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.textContent).toContain('Chapter 2');
+    expect(cards[0]!.querySelector('details')?.open).toBe(true);
+    expect(cards[0]!.querySelector('input[aria-label="Topic 2.1 · Chapter 2"]')).toBeNull();
+    expect(cards[0]!.querySelector('input[aria-label="Hodder section 2.1.1 · Chapter 2"]')).not.toBeNull();
+  });
+
   it('gives Spin the Wheel a choice of no timer, count up, or a timed round', async () => {
     await render(true);
     await game('Spin the Wheel');
