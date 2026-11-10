@@ -363,7 +363,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
-      <strong>{allPairs.length} classroom vocabulary entries selected from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      <strong>{allPairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
       {allPairs.length > distinctTermLabels
         ? ` ${allPairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
       {allPairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
