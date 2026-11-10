@@ -147,7 +147,7 @@ describe('database-backed Interactive Games multi-selection', () => {
   it('shows private student history, reviews first-attempt mistakes, and returns to all terms', async () => {
     mockPracticeHistory.needsReviewIds = ['1:' + baseTerms[0]!.id];
     await render(false);
-    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 terms to revisit');
+    expect(container.querySelector('.ig-practice-history')?.textContent).toContain('1 term to revisit');
     await click(button('Review my mistakes (1) in Flash Cards'));
     expect(container.querySelector('.ig-game-tile[aria-pressed="true"] strong')?.textContent).toBe('Flash Cards');
     expect(container.querySelector('.ig-workspace-head')?.textContent).toContain('1 terms in this round');
@@ -680,7 +680,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await click(button('Start timed round'));
       await act(async () => { vi.advanceTimersByTime(30_000); await Promise.resolve(); });
       expect(container.textContent).toContain("Time's up!");
-      expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Scores are not saved');
+      expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Only student-submitted formative results can be saved');
     } finally { vi.useRealTimers(); }
   });
 });
