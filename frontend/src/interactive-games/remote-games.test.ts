@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scrambleTerm } from './game-content';
 import {
   createQuizQuestions, createSpeakingPrompts, chapterMatchesGameSearch, visibleGameCatalogEntries, gameIsAvailable,
-  isAnagramEligible, poolForMode, selectGamePairs, type LiveGameTerm,
+  isAnagramEligible, poolForMode, selectGamePairs, normalizeGameScopes, toggleNarrowScope, type LiveGameTerm,
 } from './remote-games';
 
 const term = (id: number, word: string): LiveGameTerm => ({
@@ -51,6 +51,21 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(visibleGameCatalogEntries(chapter, '17.1').topics).toHaveLength(1);
     expect(visibleGameCatalogEntries(chapter, '').sections.some((section) => section.code === '17')).toBe(false);
     expect(visibleGameCatalogEntries(chapter, 'Security').sections.some((section) => section.code === '17')).toBe(false);
+  });
+
+  it('keeps overlapping syllabus codes separate but canonicalizes Hodder parent and child selections', () => {
+    const broad = { chapterNo: 17, kind: 'topic' as const, code: '17.1' };
+    const parent = { chapterNo: 17, kind: 'section' as const, code: '17.1' };
+    const child = { chapterNo: 17, kind: 'section' as const, code: '17.1.2' };
+    const other = { chapterNo: 17, kind: 'section' as const, code: '17.2' };
+    const normalized = normalizeGameScopes([child, parent, broad, other]);
+    expect(normalized).toContainEqual(broad);
+    expect(normalized).toContainEqual(parent);
+    expect(normalized).toContainEqual(other);
+    expect(normalized).not.toContainEqual(child);
+    expect(toggleNarrowScope([parent, broad], child, true)).toEqual(
+      normalizeGameScopes([child, broad]));
+    expect(normalizeGameScopes([parent, { ...child, code: '17.10' }])).toHaveLength(2);
   });
 
   it('builds valid Anagram rounds even when the first 29 terms have no playable words', () => {
