@@ -1,0 +1,21 @@
+CHAPTER 14 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 31 Chapter 14 quarantine candidates against the uploaded Hodder 9618 Chapter 14 PDF, pp.329–342, and the Cambridge 9618 Syllabus 2027–2029, §14.1–14.2, pp.33–34.
+- No database changes were necessary: all 31 candidates remain hidden.
+
+Why they remain hidden
+- Circuit switching advantages/disadvantages, bandwidth cost and real-time suitability are features already covered by the official Circuit switching term and the textbook comparison table.
+- Packet division, independent routing, rerouting and packet loss are features/drawbacks already covered by the official Packet switching term.
+- Even/odd parity agreements are covered by official Parity check and Parity bit terms.
+- TCP handshake stages and acknowledgements duplicate the visible TCP handshake and Handshake acknowledgement segment terms.
+- Layered software implementation duplicates the visible Layered protocol stack and TCP/IP model concepts.
+- WLAN duplicates the official WLAN Key Term in Chapter 2.
+- Netmask duplicates Subnet mask in Chapter 2.
+- Packet hop limit/deletion, routing loops and payload are packet-header/forwarding details; the coursebook does not define Packet payload as a separate Key Term.
+- FTP credentials and sender/recipient mail servers are protocol-workflow examples already covered by FTP, SMTP, POP3 and IMAP.
+- Media-player handoff and video-stream interruption are examples rather than standalone concepts.
+
+Changes
+- 31 entries reviewed; 0 promoted; 31 remain hidden.
+- No live database records were changed.
