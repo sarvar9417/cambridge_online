@@ -1,0 +1,26 @@
+Chapter 17 supplementary glossary source-screening (10 November 2026)
+
+Source: user-provided Hodder Cambridge International AS & A Level Computer Science 9618, Chapter 17 PDF, 15 PDF pages (printed pp. 410–424). The copyrighted chapter PDF is not committed.
+
+Scope: all 36 Chapter 17 supplementary records currently flagged supplementary_manual_review_required. This is a source-content screening, not a final glossary inclusion decision.
+
+Method:
+- Read the relevant paragraph, diagram, table or numbered process on the printed page recorded in the companion CSV.
+- Check whether the existing supplementary concept is supported by that passage.
+- Distinguish direct concept support from contextual paraphrases, historical claims and unsupported method specificity.
+- Do not infer that a source-supported example should automatically be a learner-facing core glossary term.
+- Do not rewrite official Key Terms or their definitions.
+- Keep every screened record hidden pending separate curriculum relevance and wording review.
+
+Results:
+- 28 records have direct concept support in the chapter.
+- 3 records are textbook examples or application contexts rather than independent glossary terms.
+- 2 records are context-specific paraphrases rather than named Key Terms.
+- 1 record is explicitly historical, not a current factual limit (QKD distance limitation).
+- 1 record is a plausible inference needing more precise source confirmation (Certificate-supported signature verification).
+- 1 record is not established as phrased: the text mentions cracking a short key, but does not specify brute-force key cracking.
+- All 36 Chapter 17 manual-review records have now been screened for source support; no automatic promotion is recommended.
+
+No live database rows were modified, no term was promoted, and no source_ref or private Drive path is included in this artifact.
+
+Next: separately decide which source-supported concepts are valuable, non-redundant syllabus vocabulary; record individual decisions before any reversible, approved database update.

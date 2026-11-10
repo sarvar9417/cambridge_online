@@ -1,0 +1,27 @@
+MICRODETAIL REVALIDATION — 10 November 2026
+
+Scope
+- Original hidden-label manifest: 95 records.
+- Source PDFs available in this Project: Chapters 2–8 and 14–18.
+- Source PDFs not available: Chapters 1, 9, 10, 11, 12, 13, 19 and 20.
+
+Result
+- 53 of 95 records were rechecked against the available Hodder 2019 chapter PDFs and compared with the active 9618 glossary.
+- All 53 remain hidden from the learner catalogue. No records were restored, deleted or rewritten in this pass.
+- 42 records remain pending because their chapter PDFs are not available. Their current hidden state is unchanged.
+- This is a partial review, not a completed 95-record audit.
+
+Representative source checks
+- Chapter 3: OLED anode/cathode are components shown in the OLED diagram; the standalone Organic LED (OLED) term already exists.
+- Chapter 4: the Von Neumann diagram label and accumulator-operation details are not separate terms; Von Neumann architecture and accumulator concepts already exist.
+- Chapter 6: the X check-digit value and checksum arithmetic are worked examples; Check digit and Checksum already exist.
+- Chapter 8: the desk/employee illustration is an example of optionality; Optional relationship, Mandatory relationship and Cardinality are already represented. SQL ALTER TABLE examples are syntax for the existing Primary key and Foreign key concepts.
+- Chapter 14: packet count and sequence number are fields in a packet header; Header (data packet) and Packet sequence number are represented separately. BitTorrent terms such as Swarm, Seed, Leech and Tracker are already standalone entries.
+- Chapter 15: the K-map, six-instruction pipeline and Space Shuttle MISD items are worked examples; Karnaugh maps, Pipelining and MISD are separate concepts.
+- Chapter 18: the A-to-G route and grid movement costs are worked examples; Dijkstra's algorithm and A* algorithm are separate concepts. Vehicle examples illustrate labelled/unlabelled data and learning types.
+
+Decision
+The 53 reviewed labels remain hidden because the underlying concept is already captured in a separate glossary entry or the label is a worked example, diagram annotation, specific value, or implementation detail. No distinct syllabus-level term was identified in this batch that required restoration.
+
+Next required source material
+Upload or make accessible the 9618 Hodder 2019 PDFs for Chapters 1, 9, 10, 11, 12, 13, 19 and 20 to complete the remaining 42 checks. The Google Drive connector is currently disabled by the workspace administrator, so those files cannot be retrieved directly from the configured PIMA Drive folder in this session.

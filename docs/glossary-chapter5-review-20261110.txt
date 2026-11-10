@@ -1,0 +1,23 @@
+CHAPTER 5 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed the 25 Chapter 5 quarantine candidates against the uploaded Hodder 9618 Chapter 5 PDF and Cambridge 9618 Syllabus 2027–2029.
+- Two records were promoted to supplementary_targeted_verified and Core:
+  1. Disk contents repair → renamed to Disk contents analysis/repair software, matching the syllabus wording.
+  2. Memory swapping → retained as a distinct memory-management process and given a clearer definition.
+- The other 23 candidates remain hidden.
+
+Source basis
+- The coursebook lists disk contents analysis/repair software as an operating-system utility on p.143; the syllabus explicitly names disk contents analysis/disk repair software in §5.1, p.23.
+- The coursebook explains that memory management swaps data to and from HDD/SSD on p.140. This is the swapping process; it is distinct from the Memory swap file entry in Chapter 16.
+
+Why the other candidates remain hidden
+- Duplicates: ROM, User account, Data confidentiality, Restore point/System restore, Library routine/Prewritten subroutine, Bootstrap/boot-startup software, Antivirus software/background scanning.
+- Backup destination, schedule, changed-file backup and file snapshots are utility settings/features rather than stand-alone concepts.
+- Dormant virus is duplicated in Chapter 6 and is not a separate syllabus Key Term.
+- Other items describe benefits of assembly, program libraries, interpreters or IDE debugging rather than independent terms.
+
+Changes
+- 2 records promoted; 23 Chapter 5 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.

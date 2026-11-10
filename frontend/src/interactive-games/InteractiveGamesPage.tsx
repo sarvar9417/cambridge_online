@@ -4,8 +4,8 @@ import { randomId } from '../lib/random-id';
 import { GAME_CATALOG, type GameKind } from './game-content';
 import {
   DEFAULT_GAME_LENGTH, GAME_LENGTHS, GAME_STAGE_LIMITS, createQuizQuestions, createSpeakingPrompts, gameIsAvailable, poolForMode,
-  selectModeStage, validGameScopes, normalizeGameScopes,
-  type GameScope, type LiveGameCatalog, type LiveGamePack,
+  selectModeStage, validGameScopes, normalizeGameScopes, selectQualityGameTerms,
+  type GameScope, type LiveGameCatalog, type LiveGamePack, type GameVocabularyQuality,
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
 import { missedPracticePairs, practiceAttempts, type PracticeHistory, type SavePracticeRequest } from './practice-history';
@@ -23,6 +23,7 @@ import './game-polish.css';
 export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
+  const [vocabularyQuality, setVocabularyQuality] = useState<GameVocabularyQuality>('core');
   const [scopes, setScopes] = useState<GameScope[]>([]);
   const initializedScopes = useRef(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -150,14 +151,14 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     if (soundOn && kind !== 'start') soundEffect(kind);
   }, [soundOn]);
 
-  const allPairs = pack?.pairs ?? [];
-  const missedPairs = useMemo(() => missedPracticePairs(pack?.pairs ?? [], practiceHistory?.needsReviewIds ?? []),
-    [pack, practiceHistory]);
+  const allPairs = useMemo(() => selectQualityGameTerms(pack?.pairs ?? [],vocabularyQuality),[pack,vocabularyQuality]);
+  const missedPairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.needsReviewIds ?? []),
+    [allPairs, practiceHistory]);
   const currentMode = mistakesOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const eligiblePairs = useMemo(
-    () => poolForMode(mistakesOnly ? missedPairs : (pack?.pairs ?? []), currentMode),
-    [pack, currentMode, mistakesOnly, missedPairs]);
+    () => poolForMode(mistakesOnly ? missedPairs : allPairs, currentMode),
+    [allPairs, currentMode, mistakesOnly, missedPairs]);
   const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
     [eligiblePairs, questionCount, round, currentMode]);
   const selectedCount = Math.min(eligiblePairs.length, questionCount);
@@ -179,7 +180,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
   const time = formatClock(timeLimit > 0 ? timeLimit - seconds : seconds);
   const chosenChapterCount = new Set(scopes.map((scope) => scope.chapterNo)).size;
-  const distinctTermLabels = new Set((pack?.pairs ?? []).map((pair) => pair.term.trim().toLocaleLowerCase('en'))).size;
+  const distinctTermLabels = new Set(allPairs.map((pair) => pair.term.trim().toLocaleLowerCase('en'))).size;
 
   const recordAnswer = useCallback((answer: AnswerReview) => {
     setAnswers((previous) => previous.some((item) => item.id === answer.id) ? previous : [...previous, answer]);
@@ -319,6 +320,16 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
     {catalog && <GameScopePicker catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
     <div className="ig-data-controls" role="group" aria-label="Game setup">
+      <label>Vocabulary quality
+        <select aria-label="Vocabulary quality" value={vocabularyQuality} onChange={event=>{
+          setVocabularyQuality(event.target.value as GameVocabularyQuality);
+          setMistakesOnly(false);
+          setRound(0);setPlaySession(value=>value+1);clearSession();
+        }}>
+          <option value="core">Core · textbook and verified terms</option>
+          <option value="extended">Extended · additional source-screened concepts</option>
+        </select>
+      </label>
       <label>Round size
         <select aria-label="Round size" value={customRoundSize ? 'custom' : String(questionCount)} disabled={!ready}
           onChange={(event) => {
@@ -352,18 +363,24 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     {packError && <p className="ig-data-error" role="alert">Selected content failed: {packError} <button type="button" onClick={refresh}>Retry</button></p>}
     {catalog && catalog.chapters.length === 0 && !catalogLoading && <p className="ig-data-message" role="status">No glossary-ready chapters are available yet.</p>}
     {pack && <div className="ig-notice" role="note">
-      <strong>{pack.pairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
-      {pack.pairs.length > distinctTermLabels
-        ? ` ${pack.pairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
-      {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
-        ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
-      {pack.contentStatus === 'needs_review'
-        ? ' Some supplementary definitions are pending review and need individual source verification. Use for provisional practice only.'
-        : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
+      <strong>{allPairs.length} glossary entries loaded from {chosenChapterCount} chapters.</strong> Playing {pairs.length} this round.
+      {allPairs.length > distinctTermLabels
+        ? ` ${allPairs.length - distinctTermLabels} additional chapter-specific entries are preserved; scored games avoid ambiguous duplicate answer labels.` : ''}
+      {allPairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
+        ` (${allPairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${allPairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
+      {pack.pairs.some(pair=>pair.definitionEvidenceStatus!==undefined||pair.isOfficialKeyTerm!==undefined)
+        ? ` ${Math.max(0,pack.pairs.length-allPairs.length)} less-verified or review-pending entries excluded from this ${vocabularyQuality==='core'?'core':'extended'} bank.`
+        : ' Source verification flags are unavailable for this legacy bank; pending review content is for provisional practice only.'}
+      {vocabularyQuality==='core'
+        ? ' Core contains official textbook definitions and individually verified supplementary concepts; original source wording is preserved.'
+        : ' Extended includes supplementary source-screened concepts that are not all individually expert-verified.'}
       {' '}Results are formative practice only, not official assessment grades.
     </div>}
     {pack && pack.pairs.length === 0 && <p className="ig-data-message">
       This selection currently has no linked glossary terms. Select more topics, sections or complete chapters.
+    </p>}
+    {pack && pack.pairs.length>0 && allPairs.length===0 && <p className="ig-data-message" role="status">
+      No verified core vocabulary is available for this narrow selection. Choose a broader Chapter or explicitly switch to Extended source-screened concepts.
     </p>}
     {pack && ready && <>
       {!isTeacher && <section className="ig-practice-history" aria-label="My practice history">

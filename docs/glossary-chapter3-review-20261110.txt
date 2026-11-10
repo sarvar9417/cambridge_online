@@ -1,0 +1,26 @@
+CHAPTER 3 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 35 Chapter 3 entries in the manual-review quarantine manifest against the uploaded Hodder 9618 Chapter 3 PDF and the Cambridge 9618 syllabus for 2027–2029.
+- Five entries were source-supported, syllabus-relevant concepts; 30 remain hidden.
+- No official Key Term flags or official textbook definitions were changed.
+
+Promoted concepts
+1. Logic expression — renamed from Boolean expression to match the coursebook's wording; definition now states the variables, operators and TRUE/FALSE result.
+2. Magnetic storage — a distinct secondary-storage category; the source explains magnetised recording areas and read/write heads.
+3. Real-time response (embedded system) — a benefit of embedded systems described in the coursebook.
+4. Monitoring and control systems — the syllabus requires the distinction; the source explains sensors, feedback and actuators.
+5. Infrared/motion sensor — the source table and syllabus support infrared sensors.
+
+Why the other 30 remain hidden
+- Component-level details: OLED anode/conductive layer, loudspeaker coil, permanent magnet, EPROM quartz window.
+- Duplicates of existing concepts: AND/OR/XOR gates, CAD, sampling rate, flip-flop circuits, fetch-execute cycle.
+- Diagram notation or worked logic examples: Boolean overbar, circuit junction, OFF=0 convention, multiple OR branches, scenario-to-logic conversion, multi-input gate equivalence.
+- Specific device examples or specifications: gas/light sensors, field of view, stereoscopic display, stylus, track pitch, flash block erase.
+- The fetch–decode–execute entry cites a 2021 edition rather than the uploaded 2019 coursebook and duplicates the Chapter 4 Fetch-execute cycle entry; it remains hidden pending source reconciliation.
+
+Changes
+- 5 existing records promoted to supplementary_targeted_verified and made visible.
+- 30 Chapter 3 quarantine entries remain hidden.
+- No records created or deleted.
+- UUID-scoped forward and rollback SQL are included.

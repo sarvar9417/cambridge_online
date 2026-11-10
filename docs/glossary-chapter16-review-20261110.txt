@@ -1,0 +1,39 @@
+CHAPTER 16 MANUAL-REVIEW BATCH — 10 November 2026
+
+Scope
+- Reviewed all 31 Chapter 16 quarantine candidates against the uploaded Hodder 9618 Chapter 16 PDF and the Cambridge 9618 Syllabus 2027–2029, §§15.1 and 16.1–16.2, pp.34–36.
+- Ten entries were promoted to supplementary_targeted_verified and Core:
+  1. CPU scheduling
+  2. System throughput
+  3. External fragmentation
+  4. Hardware abstraction
+  5. Kernel interrupt handling
+  6. Cross-platform application compatibility
+  7. VM performance overhead
+  8. Operator precedence
+  9. Input/output (I/O) management
+  10. Command-line interface (CLI)
+- The other 21 candidates remain hidden.
+
+Why the ten were promoted
+- CPU scheduling and kernel interrupt handling are explicit syllabus requirements.
+- Hardware abstraction explains how the OS interface hides hardware complexity, also explicit in the syllabus.
+- External fragmentation is a distinct memory-management issue described alongside internal fragmentation and is relevant to segmentation.
+- System throughput is a named scheduling objective in the coursebook.
+- Cross-platform compatibility and performance overhead are major virtual-machine benefit/limitation concepts required by the syllabus.
+- Operator precedence is a source-defined expression-evaluation rule.
+- I/O management and CLI are major OS/user-interface concepts explicitly described in the coursebook; these are supplementary textbook terms rather than separately named syllabus outcomes.
+
+Why the other 21 remain hidden
+- Page eviction duplicates official Page replacement; Waiting time duplicates official Average waiting time; preemption by shorter job is covered by Shortest remaining time first scheduling.
+- Virtual memory versus virtual machines is already visible; the virtualisation software layer is covered by Hypervisor and Virtual machine.
+- ROM, HDD, SSD and flash memory duplicate Chapter 3 storage terms.
+- Concurrent processes are covered by Process and Multitasking; interrupt-based process management is covered by Kernel interrupt handling and scheduling.
+- Device controller and process priority are implementation/parameter details.
+- BNF brackets/digit rules, syntax diagram alternatives, token mapping, infix-to-postfix conversion and stack push steps are notation or worked steps covered by official BNF, Syntax diagram, Tokenisation and RPN terms.
+- Other entries are sub-steps or examples rather than standalone concepts.
+
+Changes
+- 10 records promoted; 21 Chapter 16 quarantine candidates remain hidden.
+- No official Key Term flags or official definitions were changed.
+- UUID-scoped forward and rollback SQL are included.
