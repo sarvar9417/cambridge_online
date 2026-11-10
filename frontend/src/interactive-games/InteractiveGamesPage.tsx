@@ -310,7 +310,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       {pack.pairs.some((pair) => pair.isOfficialKeyTerm !== undefined) &&
         ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
       {pack.contentStatus === 'needs_review'
-        ? ' Some supplementary definitions are pending review and need individual source verification. Use for provisional practice only.'
+        ? ' Some entries are pending source verification. Use this set for provisional practice only.'
         : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
       {' '}Results are temporary practice feedback, not official assessment grades.
     </div>}
