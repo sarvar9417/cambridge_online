@@ -1,0 +1,142 @@
+/* Live Challenge 2.0 completion: scoped skin, never overrides source/mark-scheme content. */
+.live-neon-arena.live-page,.live-neon-arena.live-student-workspace,
+.live-neon-arena.live-student-result,.live-neon-arena.live-review-workspace{
+  background:
+    radial-gradient(ellipse at 78% -8%,rgba(125,83,243,.095),transparent 45%),
+    radial-gradient(ellipse at 6% 3%,rgba(35,192,243,.075),transparent 40%);
+}
+.live-neon-arena.live-room{padding:10px 4px 22px;border-radius:18px}
+.live-neon-arena-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin:0 0 14px;padding:10px 18px;border-radius:12px;
+  background:linear-gradient(107deg,#0c173a,#22184d 63%,#142853);
+  border:1px solid rgba(120,178,255,.35);color:#dcecff;box-shadow:0 8px 28px rgba(18,24,84,.13);
+}
+.live-neon-arena-strip>span{display:flex;align-items:center;gap:7px;font-weight:900;letter-spacing:.13em;font-size:12px;color:#91f1ff}
+.live-neon-arena-strip>small{display:inline-flex;gap:7px;align-items:center;white-space:nowrap;font-weight:800;letter-spacing:.075em;color:#ffe7a0}
+.live-neon-arena-progress{width:clamp(64px,30%,270px);height:7px;overflow:hidden;border-radius:999px;background:#33466e;box-shadow:inset 0 1px 3px #0e143c}
+.live-neon-arena-progress>i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#37deff,#a78bfa,#ffce6f);box-shadow:0 0 16px #54dcff;transition:width 550ms cubic-bezier(.2,.7,.2,1)}
+.live-neon-arena.live-projector-overlay{background:radial-gradient(ellipse at 80% -30%,#33236a 0%,transparent 60%),radial-gradient(ellipse at 5% 80%,#102c58,transparent 55%),#080f2a;color:#e9f0ff}
+.live-neon-arena.live-projector-overlay>header{background:#0e1736;color:#f3f7ff;border-color:rgba(141,180,255,.22)}
+.live-neon-arena.live-projector-overlay>main{align-content:start;min-width:0}
+.live-neon-arena.live-projector-overlay .live-question-card,
+.live-neon-arena.live-projector-overlay .live-scheme,
+.live-neon-arena.live-projector-overlay .live-leaderboard,
+.live-neon-arena.live-projector-overlay .live-card-board{color:var(--text)}
+.live-neon-projector-sound{display:inline-flex;justify-content:center;align-items:center;gap:5px;min-height:34px;
+  white-space:normal;font-size:11px;line-height:1.25;border:1px solid rgba(129,196,255,.55);
+  border-radius:9px;padding:5px 8px;background:#19315e;color:#d2f4ff}
+.live-neon-projector-sound:hover{background:#254574}
+.live-neon-arena.live-projector-overlay>header{grid-template-columns:155px minmax(0,1fr) auto}
+.live-neon-arena .live-projector-session-info{gap:9px;justify-content:flex-end}
+.live-neon-arena .live-projector-session-info>.live-projector-join{padding:5px 8px}
+.live-neon-arena .live-projector-session-info .live-projector-join>strong{font-size:28px}
+.live-neon-arena .live-projector-session-info time{font-size:26px}
+/* Real WebGL 3D is layered over the last-resort vector mascot. */
+.live-neon-cue .live-neon-mascot-real3d{position:relative;display:block;isolation:isolate;width:150px;height:164px;min-width:0}
+.live-neon-mascot-canvas,.live-neon-mascot-fallback{position:absolute;inset:0;width:100%;height:100%}
+.live-neon-mascot-canvas{display:block;object-fit:contain;z-index:2;opacity:0;transition:opacity .2s}
+.live-neon-mascot-fallback{z-index:1;display:grid;place-items:center}
+.live-neon-mascot-fallback svg{width:100%;height:100%;object-fit:contain}
+.live-neon-mascot-real3d.is-webgl-ready .live-neon-mascot-canvas{opacity:1}
+.live-neon-mascot-real3d.is-webgl-ready .live-neon-mascot-fallback{visibility:hidden}
+.live-neon-shared-cue{z-index:1250}
+.live-neon-shared-cue .live-neon-points{font-size:clamp(15px,2vw,22px)}
+/* A real clickable chest with articulated lid and reveal; cosmetic only. */
+.live-mystery-reward{display:flex;align-items:center;gap:10px;margin-top:9px;padding:7px 9px;
+  border:1px solid #fcd34d80;border-radius:12px;background:linear-gradient(115deg,#583269,#271949);
+  color:#fff;pointer-events:auto;max-width:220px}
+.live-chest-button{position:relative;display:block;flex:0 0 52px;width:52px;height:49px;
+  padding:0;border:0;background:transparent;cursor:pointer;perspective:160px}
+.live-chest-button:focus-visible{outline:3px solid #fff3bb;outline-offset:4px}
+.live-chest-body{position:absolute;left:6px;right:5px;bottom:3px;height:27px;border:2px solid #fce39a;border-radius:3px 3px 8px 8px;
+  background:linear-gradient(115deg,#ba6a38,#f4b453 48%,#8f3c35);
+  box-shadow:inset 4px 0 #fce8a455,0 6px 10px #0d09258c}
+.live-chest-body>span{display:grid;place-items:center;position:absolute;left:45%;top:4px;color:#fff9d9}
+.live-chest-lid{position:absolute;z-index:2;left:3px;top:12px;width:47px;height:15px;
+  background:linear-gradient(100deg,#f7d68f,#c4722e);border:2px solid #fde2a6;border-radius:7px 7px 2px 2px;
+  transform-origin:50% 100%;transform-style:preserve-3d;transition:transform .75s cubic-bezier(.1,.7,.3,1)}
+.live-mystery-reward.is-open .live-chest-lid{transform:rotateX(-115deg) translateY(-5px)}
+.live-chest-shine{position:absolute;inset:5px 10px 0;border-radius:50%;opacity:0;
+  background:radial-gradient(circle,#fff1b4 4%,#f5c04466 40%,transparent 70%);filter:blur(3px);
+  transform:scale(.3);transition:transform 1s,opacity 1s}
+.live-mystery-reward.is-open .live-chest-shine{opacity:1;transform:scale(2.5)}
+.live-chest-reveal{display:grid;gap:2px;min-width:0;line-height:1.15}
+.live-chest-reveal>strong{font-size:11px;color:#ffe6a1}
+.live-chest-reveal>small{font-size:9px;color:#e4d9fb}
+/* Teacher-wide effects are durable server policy, not a local per-device illusion. */
+.live-neon-teacher-controls{margin:10px 0 16px;border:1px solid #87aaf255;border-radius:16px;
+  background:linear-gradient(110deg,rgba(26,44,106,.055),rgba(143,89,255,.065))}
+.live-neon-teacher-controls>summary{cursor:pointer;display:flex;align-items:center;gap:9px;
+  padding:13px 17px;font-weight:800;font-size:13px}
+.live-neon-teacher-controls>summary svg{color:#656ee2}
+.live-neon-teacher-control-body{padding:2px 17px 18px}
+.live-neon-teacher-control-body>p{font-size:12px;color:var(--text-muted)}
+.live-neon-teacher-toggles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.live-neon-teacher-toggles>label{display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.4}
+.live-neon-teacher-toggles>label:last-child{justify-content:space-between}
+.live-neon-teacher-toggles input{accent-color:#705dd7}
+.live-neon-teacher-toggles select{min-width:130px;padding:8px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text)}
+.live-neon-teacher-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.live-neon-teacher-actions button{display:inline-flex;align-items:center;gap:7px}
+.live-neon-teacher-control-body>small{display:block;margin-top:8px;color:var(--awarded)}
+/* Live rank swaps with meaningful direction, no artificial rankings. */
+.live-leaderboard--neon{border-color:rgba(107,121,244,.38);box-shadow:0 14px 32px rgba(32,25,107,.1)}
+.live-leaderboard--neon .live-leaderboard-list li{animation:live-rank-slide .45s cubic-bezier(.16,.8,.26,1) both}
+.live-leaderboard--neon .live-leaderboard-list li.is-rank-up{outline:1px solid #4ddab98a;box-shadow:0 0 18px #50eab824}
+.live-leaderboard--neon .live-leaderboard-list li.is-rank-down{opacity:.89}
+.live-rank-change{color:#10a77e;font-size:12px;font-weight:850;margin-left:5px}
+.live-leaderboard--neon .live-leaderboard-list li:nth-child(2){animation-delay:.07s}
+.live-leaderboard--neon .live-leaderboard-list li:nth-child(3){animation-delay:.13s}
+.live-leaderboard--neon .live-leaderboard-list li:nth-child(4){animation-delay:.18s}
+/* Podium is derived only from the server's marks-first standings. */
+.live-neon-podium{display:grid;gap:12px;border-radius:18px;padding:19px 18px 15px;
+  border:1px solid #8c82d677;background:radial-gradient(ellipse at 50% 25%,#493a9560,transparent 60%),linear-gradient(135deg,#121e4b,#21184e);color:#edf5ff}
+.live-neon-podium>header{display:flex;align-items:center;gap:10px;justify-content:center}
+.live-neon-podium>header>svg{color:#ffd776}
+.live-neon-podium>header>div{text-align:center}
+.live-neon-podium>header small{font-size:9px;font-weight:800;letter-spacing:.2em;color:#c3acff}
+.live-neon-podium>header h3{margin:3px 0;color:#fff;font-size:19px}
+.live-neon-podium-stands{display:flex;align-items:flex-end;justify-content:center;gap:10px;
+  padding:8px 0 0;margin:0;list-style:none;min-height:155px}
+.live-neon-podium-place{display:grid;justify-items:center;align-content:end;gap:5px;
+  flex:1;min-width:0;text-align:center;animation:live-podium-arrive .8s cubic-bezier(.16,.9,.2,1) both}
+.live-neon-podium-place--1{order:2;animation-delay:.16s}
+.live-neon-podium-place--2{order:1;animation-delay:.28s}
+.live-neon-podium-place--3{order:3;animation-delay:.4s}
+.live-neon-podium-medal{display:grid;place-items:center;color:#fbd16e;font-size:20px}
+.live-neon-podium-place--2 .live-neon-podium-medal{color:#cad8ef}
+.live-neon-podium-place--3 .live-neon-podium-medal{color:#e4ae8d}
+.live-neon-podium-place>strong{overflow:hidden;max-width:100%;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
+.live-neon-podium-place>small{color:#b8daf2;font-size:11px}
+.live-neon-podium-plinth{display:grid;place-items:center;min-height:53px;width:100%;max-width:190px;border-radius:8px 8px 3px 3px;
+  border:1px solid #fbd77899;background:linear-gradient(130deg,#d8973d,#f5d781,#a16f43);box-shadow:0 0 25px #e1c55b33}
+.live-neon-podium-place--1 .live-neon-podium-plinth{min-height:95px}
+.live-neon-podium-place--2 .live-neon-podium-plinth{min-height:73px;border-color:#b8cbe4;background:linear-gradient(120deg,#8399b9,#d7e7f8,#7a89a6)}
+.live-neon-podium-place--3 .live-neon-podium-plinth{border-color:#c99a7e;background:linear-gradient(120deg,#946148,#d8a47d,#7e554a)}
+.live-neon-podium-plinth b{color:#17234a;font:900 29px/1 var(--font-mono,monospace)}
+.live-neon-podium>p{text-align:center;margin:0;font-size:10px;color:#bcccee}
+@keyframes live-rank-slide{from{opacity:.45;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes live-podium-arrive{from{opacity:0;transform:translateY(45px) scale(.89)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:760px){
+  .live-neon-teacher-toggles{grid-template-columns:1fr}
+  .live-neon-arena.live-projector-overlay>header{grid-template-columns:minmax(0,1fr);gap:9px;padding:8px 13px}
+  .live-neon-arena.live-projector-overlay .live-projector-session-info{justify-content:space-between;flex-wrap:wrap}
+  .live-neon-arena.live-projector-overlay .live-neon-projector-sound{max-width:150px}
+}
+@media(max-width:560px){
+  .live-neon-arena-strip{padding:10px;gap:7px}
+  .live-neon-arena-strip>span{font-size:10px}
+  .live-neon-arena-strip>small{font-size:10px}
+  .live-neon-arena-progress{width:22%;height:5px}
+  .live-neon-cue .live-neon-mascot-real3d{width:102px;height:119px}
+  .live-neon-podium-stands{gap:5px}
+  .live-neon-podium-place>strong{font-size:10px}
+  .live-neon-podium-place>small{font-size:9px}
+  .live-neon-podium{padding:12px 9px}
+  .live-neon-podium>header h3{font-size:15px}
+  .live-mystery-reward{max-width:190px}
+}
+@media(prefers-reduced-motion:reduce){
+  .live-neon-arena-progress>i,.live-chest-shine,.live-chest-lid{transition:none!important}
+  .live-leaderboard--neon .live-leaderboard-list li,.live-neon-podium-place{animation:none!important}
+}
