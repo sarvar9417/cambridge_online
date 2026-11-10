@@ -32,6 +32,12 @@ export interface LiveGameCatalog {
 export interface LiveGameTerm extends GamePair {
   status: 'approved' | 'needs_review';
   source: string | null;
+  /** Verified book-defined term, not merely a curriculum concept. */
+  isOfficialKeyTerm?: boolean;
+  /** Independent content-QA state, separate from database workflow approval. */
+  definitionEvidenceStatus?: 'official_textbook_definition'
+    | 'supplementary_source_screened' | 'supplementary_targeted_verified'
+    | 'supplementary_manual_review_required' | 'unclassified';
 }
 export interface LiveGamePack {
   courseCode: '9618' | '0478';
