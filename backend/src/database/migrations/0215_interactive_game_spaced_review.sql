@@ -48,6 +48,11 @@ BEGIN
     selected_term := (entry->>'termId')::uuid;
     first_correct := (entry->>'firstCorrect')::boolean;
     IF selected_term IS NULL OR first_correct IS NULL THEN CONTINUE; END IF;
+    -- Historical practice JSON can outlive glossary entries removed by content
+    -- clean-up. Ignore stale IDs while preserving the original practice run.
+    IF NOT EXISTS (SELECT 1 FROM public.glossary_terms WHERE id=selected_term) THEN
+      CONTINUE;
+    END IF;
 
     INSERT INTO public.interactive_game_review_schedule AS review
       (student_id,course_code,term_id,interval_stage,due_at,last_reviewed_at,last_run_id)
