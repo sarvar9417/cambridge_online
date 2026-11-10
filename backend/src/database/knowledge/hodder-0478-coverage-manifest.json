@@ -8,7 +8,7 @@
   "courseCode": "0478",
   "syllabusVersion": "2026-2028",
   "dataStatus": "needs_review",
-  "sourceNote": "Extracted from the chapter-end Key terms in the user-provided Hodder PDF; supplementary terms identified from coursebook sections. Original textbook definitions are not stored in this public manifest; they must be privately checked before approval.",
+  "sourceNote": "Extracted from the chapter-end Key terms in the user-provided Hodder PDF; supplementary terms identified from coursebook sections. Original textbook definitions are not stored in this public manifest; they must be privately checked before approval. Eight additional glossary candidates were added after a zero-count section coverage audit.",
   "numberingNote": "Subsection page bounds are containing section ranges based on the Hodder printed contents, not claimed precise start pages.",
   "chapters": [
     {
@@ -360,6 +360,18 @@
           "term": "denary number system",
           "subtopic_code": "1.1",
           "book_section": "1.1.2",
+          "official": false
+        },
+        {
+          "term": "byte",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.1",
+          "official": false
+        },
+        {
+          "term": "file size",
+          "subtopic_code": "1.3",
+          "book_section": "1.3.2",
           "official": false
         }
       ]
@@ -1439,6 +1451,12 @@
           "subtopic_code": "3.3",
           "book_section": "3.3.3",
           "official": false
+        },
+        {
+          "term": "secondary storage",
+          "subtopic_code": "3.3",
+          "book_section": "3.3.2",
+          "official": false
         }
       ]
     },
@@ -2217,6 +2235,12 @@
           "subtopic_code": "5.3",
           "book_section": "5.3.2",
           "official": true
+        },
+        {
+          "term": "hypertext transfer protocol (HTTP)",
+          "subtopic_code": "5.1",
+          "book_section": "5.1.3",
+          "official": false
         }
       ]
     },
@@ -2908,6 +2932,24 @@
           "subtopic_code": "7",
           "book_section": "7.7",
           "official": false
+        },
+        {
+          "term": "average",
+          "subtopic_code": "7",
+          "book_section": "7.4.3",
+          "official": false
+        },
+        {
+          "term": "logic error",
+          "subtopic_code": "7",
+          "book_section": "7.8",
+          "official": false
+        },
+        {
+          "term": "syntax error",
+          "subtopic_code": "7",
+          "book_section": "7.8",
+          "official": false
         }
       ]
     },
@@ -3251,6 +3293,12 @@
           "term": "two-dimensional array",
           "subtopic_code": "8.2",
           "book_section": "8.2.1",
+          "official": false
+        },
+        {
+          "term": "maintainable program",
+          "subtopic_code": "8.1",
+          "book_section": "8.1.8",
           "official": false
         }
       ]
