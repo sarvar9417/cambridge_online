@@ -34,4 +34,3 @@
 @media (max-width: 760px) {
   .ig-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.ig-choice-grid .ig-choice-card > span { flex: initial; background: none; color: inherit; }

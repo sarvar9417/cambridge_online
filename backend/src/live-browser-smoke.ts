@@ -530,10 +530,10 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await clickMode(6);
   for(let index=0;index<9;index++){
     await teacher.waitForFunction((number)=>document.querySelector('.ig-quiz .ig-score')?.textContent?.startsWith(`Question ${number} /`),{},index+1);
-    const answerRows=await teacher.$$eval('.ig-quiz .ig-answer-button',(nodes)=>nodes.map((node)=>(node as HTMLElement).offsetTop));
+    const answerRows=await teacher.$$eval('.ig-quiz .ig-choice-card',(nodes)=>nodes.map((node)=>(node as HTMLElement).offsetTop));
     if(answerRows.length!==4||new Set(answerRows).size!==1)throw new Error('Quiz did not display four cards in one desktop row: '+answerRows.join(', '));
-    await clickGameControl('.ig-quiz .ig-answer-button:nth-child('+(index%4+1)+')');
-    await teacher.waitForSelector('.ig-answer-button.is-correct');
+    await clickGameControl('.ig-quiz .ig-choice-card:nth-child('+(index%4+1)+')');
+    await teacher.waitForSelector('.ig-choice-card.is-correct');
   }
   await teacher.waitForSelector('.ig-result-panel');
   await assertText('.ig-session-metrics','9 correct');

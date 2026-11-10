@@ -89,7 +89,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
     <div className="ig-question" aria-live="polite">{question.prompt}</div>
     <AnswerCards options={question.options} order={options} answer={answer} correctIndex={question.answerIndex}
       firstWrong={firstChoice !== question.answerIndex ? firstChoice : null} blocked={blocked}
-      cardClass="ig-answer-button" onChoose={choose} />
+      onChoose={choose} />
     {firstChoice !== null && answer === null && <p className="ig-feedback" role="status">Incorrect. Choose a different answer for your one retry.</p>}
     {answer !== null && <div className="ig-answer-feedback" role="status">
       <strong>{answer === question.answerIndex ? 'Correct!' : 'Correct answer'}</strong> {question.options[question.answerIndex]}

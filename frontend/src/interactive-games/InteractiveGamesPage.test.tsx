@@ -148,7 +148,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     ]);
     expect(container.textContent).toContain('16 unique glossary terms loaded');
     await game('Quiz');
-    expect(container.querySelectorAll('.ig-quiz .ig-answer-button')).toHaveLength(4);
+    expect(container.querySelectorAll('.ig-quiz .ig-choice-card')).toHaveLength(4);
     expect(lastScopes().scopes).toHaveLength(2);
     await game('Speaking Cards');
     await click(button('Deal'));
@@ -365,8 +365,8 @@ describe('database-backed Interactive Games multi-selection', () => {
     await click(button('Next question →'));
     expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 2');
     await click(button('← Previous question'));
-    expect(container.querySelector('.ig-quiz .ig-answer-button.is-correct')?.textContent).toContain('Legal');
-    expect(container.querySelectorAll('.ig-quiz .ig-answer-button:disabled')).toHaveLength(4);
+    expect(container.querySelector('.ig-quiz .ig-choice-card.is-correct')?.textContent).toContain('Legal');
+    expect(container.querySelectorAll('.ig-quiz .ig-choice-card:disabled')).toHaveLength(4);
   });
 
   it('marks the quiz immediately, allows one retry, and pauses automatic advancement', async () => {
@@ -376,10 +376,10 @@ describe('database-backed Interactive Games multi-selection', () => {
       await game('Quiz');
       await toggleOption('Allow one retry');
       await click(button('BMorality'));
-      expect(container.querySelector('.ig-answer-button.is-wrong')?.textContent).toContain('Morality');
-      expect(container.querySelector('.ig-answer-button.is-correct')).toBeNull();
+      expect(container.querySelector('.ig-choice-card.is-wrong')?.textContent).toContain('Morality');
+      expect(container.querySelector('.ig-choice-card.is-correct')).toBeNull();
       await click(button('ALegal'));
-      expect(container.querySelector('.ig-answer-button.is-correct')?.textContent).toContain('Legal');
+      expect(container.querySelector('.ig-choice-card.is-correct')?.textContent).toContain('Legal');
       await click(button('Ⅱ Pause timer'));
       await act(async () => { vi.advanceTimersByTime(1500); });
       expect(container.querySelector('.ig-quiz .ig-score')?.textContent).toContain('Question 1');
