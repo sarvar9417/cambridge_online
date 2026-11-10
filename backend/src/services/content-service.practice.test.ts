@@ -34,7 +34,7 @@ describe('Interactive Games private student practice history', () => {
       .mockResolvedValueOnce({ rowCount: 1, rows: [] });
     const service = new ContentService({ query } as unknown as Pool);
     expect(await service.saveInteractiveGamePractice(learner, request()))
-      .toEqual({ runId, saved: true, assessed: false });
+      .toEqual({ runId, saved: true, alreadySaved: false, assessed: false });
     expect(query).toHaveBeenCalledTimes(5);
     expect(String(query.mock.calls[1]?.[0])).toContain('gt.is_glossary_visible=true');
     expect(query.mock.calls[1]?.[1]).toEqual(['9618', [a, b]]);
