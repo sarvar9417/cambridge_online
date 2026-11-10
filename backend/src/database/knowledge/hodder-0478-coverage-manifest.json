@@ -2950,6 +2950,18 @@
           "subtopic_code": "7",
           "book_section": "7.8",
           "official": false
+        },
+        {
+          "term": "totalling",
+          "subtopic_code": "7",
+          "book_section": "7.4.1",
+          "official": false
+        },
+        {
+          "term": "counting",
+          "subtopic_code": "7",
+          "book_section": "7.4.2",
+          "official": false
         }
       ]
     },
