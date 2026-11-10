@@ -107,10 +107,10 @@ void main(){
   gl_FragColor=vec4(color,1.0);
 }`;
 
-type Props={tier:CelebrationTier;fallback:ReactNode;animate?:boolean};
+type Props={tier:CelebrationTier;fallback:ReactNode;animate?:boolean;ornament?:'star'|'crown'|'wings'};
 const MOOD:Record<CelebrationTier,number>={support:0,steady:1,spark:2,gold:3};
 
-export function LiveMascot3D({tier,fallback,animate=true}:Props){
+export function LiveMascot3D({tier,fallback,animate=true,ornament}:Props){
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const [ready,setReady]=useState(false);
   useEffect(()=>{
@@ -176,5 +176,8 @@ export function LiveMascot3D({tier,fallback,animate=true}:Props){
   return <div className={`live-neon-mascot live-neon-mascot-real3d${ready?' is-webgl-ready':''}`} aria-hidden="true">
     <canvas ref={canvasRef} className="live-neon-mascot-canvas" width="180" height="190"/>
     <span className="live-neon-mascot-fallback">{fallback}</span>
+    {ornament?<span className={`live-mascot-equipped live-mascot-equipped--${ornament}`} title={`Equipped ${ornament} avatar reward`}>
+      {ornament==='crown'?'♛':ornament==='wings'?'✦✦':'✦'}
+    </span>:null}
   </div>;
 }
