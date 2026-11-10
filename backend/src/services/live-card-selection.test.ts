@@ -6,8 +6,10 @@ import { LiveExamService } from './live-exam-service.js';
 
 const SESSION='11111111-1111-4111-8111-111111111111';
 const STUDENT='22222222-2222-4222-8222-222222222222';
+const TEACHER='44444444-4444-4444-8444-444444444444';
 const SCHOOL='33333333-3333-4333-8333-333333333333';
-const actor={id:STUDENT,role:'student',schoolId:SCHOOL} as Actor;
+const actor={id:TEACHER,role:'teacher',schoolId:SCHOOL} as Actor;
+const learner={id:STUDENT,role:'student',schoolId:SCHOOL} as Actor;
 const cards=[
   {id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',question_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',position:0,marks:1},
   {id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',question_id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',position:1,marks:2},
@@ -22,6 +24,7 @@ function fixture(options:{status?:string;currentIndex?:number;version?:number;au
     version:options.version??5,
     settings:{
       playMode:'cards',cardColumns:5,practiceMode:null,rehearsalMode:false,
+      cardReviewConfirmedPosition:null as number|null,
       defaultQuestionTimeLimitS:240,
       questionTimeLimits:{[cards[2]!.question_id]:90},
     },
@@ -37,6 +40,18 @@ function fixture(options:{status?:string;currentIndex?:number;version?:number;au
       return {rowCount:0,rows:[]};
     if(normalized.includes('from live_exam_sessions les join classes c'))
       return options.authorized===false?{rowCount:0,rows:[]}:{rowCount:1,rows:[{...session}]};
+    if(normalized.startsWith('update live_exam_sessions')&&normalized.includes('settings=jsonb_set')){
+      session.settings.cardReviewConfirmedPosition=Number(params[1]);
+      return {rowCount:1,rows:[]};
+    }
+    if(normalized.startsWith('update live_exam_sessions')&&normalized.includes("settings=coalesce(settings,'{}'::jsonb)-")){
+      session.settings.cardReviewConfirmedPosition=null;
+      return {rowCount:1,rows:[]};
+    }
+    if(normalized.startsWith('update live_exam_answers a set final_score='))
+      return {rowCount:1,rows:[{id:params[0],mark_scheme_snapshot:{schemeType:'all_required',levels:[]}}]};
+    if(normalized.startsWith("update live_exam_reviews set status='moderated'"))
+      return {rowCount:1,rows:[]};
     if(normalized.includes('from live_exam_participants')&&normalized.includes('count(*)'))
       return {rowCount:1,rows:[{count:2}]};
     if(normalized.includes('from live_exam_questions')&&normalized.includes('for update'))
@@ -70,7 +85,27 @@ function fixture(options:{status?:string;currentIndex?:number;version?:number;au
   return {service,positions,session,queries,client};
 }
 
-describe('Live Challenge participant card mode',()=>{
+describe('Live Challenge teacher-controlled card mode',()=>{
+  it('rejects student card picks before opening a database transaction',async()=>{
+    const {service,positions,queries,client}=fixture();
+    await expect(service.openCard(learner,SESSION,cards[1]!.id,5))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+    expect(client.query).not.toHaveBeenCalled();
+    expect(queries).toHaveLength(0);
+    expect(positions.map((row)=>row.position)).toEqual([0,1,2]);
+  });
+
+  it('rejects learner-created Card Mode rooms; Random practice remains available',async()=>{
+    const {service,client}=fixture();
+    await expect(service.create(learner,{
+      classId:SESSION,syllabusCode:'9618',title:'Learner card room',
+      topicIds:[],subtopicIds:[],coursebookSectionCodes:['7.1'],
+      questionCount:3,markingMode:'self',practiceMode:'solo',playMode:'cards',
+      includeDiagrams:true,excludeSeen:true,
+    } as Parameters<LiveExamService['create']>[1]))
+      .rejects.toMatchObject({code:'live_card_teacher_only',status:403});
+    expect(client.query).not.toHaveBeenCalled();
+  });
   it('opens a selected 5-point card at position zero without changing its scoring marks',async()=>{
     const {service,positions,queries,session,client}=fixture();
     const result=await service.openCard(actor,SESSION,cards[2]!.id,5);
@@ -88,18 +123,43 @@ describe('Live Challenge participant card mode',()=>{
 
   it('does not reopen a used card or alter an already reviewed question',async()=>{
     const {service,positions,queries}=fixture({status:'review',currentIndex:0});
-    await expect(service.openCard(actor,SESSION,cards[0]!.id,5))
+    await service.confirmCardReview(actor,SESSION,5);
+    await expect(service.openCard(actor,SESSION,cards[0]!.id,6))
       .rejects.toMatchObject({code:'live_card_unavailable',status:409});
     expect(positions.map((row)=>row.position)).toEqual([0,1,2]);
     expect(queries.some((item)=>item.sql.includes('update live_exam_questions'))).toBe(false);
     expect(queries.at(-1)?.sql).toBe('rollback');
   });
 
-  it('lets a learner open a remaining card after review',async()=>{
-    const {service,session}=fixture({status:'review',currentIndex:0});
-    const result=await service.openCard(actor,SESSION,cards[1]!.id,5);
+  it('blocks the next card until the teacher has reviewed and explicitly confirmed the scores',async()=>{
+    const {service,session,queries}=fixture({status:'review',currentIndex:0});
+    await expect(service.openCard(actor,SESSION,cards[1]!.id,5))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    expect(queries.some(item=>item.sql.includes('insert into live_exam_answers'))).toBe(false);
+    await expect(service.nextQuestion(actor,SESSION,5))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    await expect(service.confirmCardReview(learner,SESSION,5))
+      .rejects.toMatchObject({code:'staff_only',status:403});
+
+    const confirmed=await service.confirmCardReview(actor,SESSION,5);
+    expect(confirmed).toMatchObject({position:0,version:6,confirmed:true});
+    expect(session.settings.cardReviewConfirmedPosition).toBe(0);
+    const result=await service.openCard(actor,SESSION,cards[1]!.id,6);
     expect(result.status).toBe('question_open');
     expect(session.current_question_index).toBe(1);
+    expect(queries.some(item=>item.params.includes('card.review.confirmed'))).toBe(true);
+  });
+
+  it('requires re-confirmation if the teacher changes a grade after approving a card round',async()=>{
+    const {service,session}=fixture({status:'review',currentIndex:0});
+    await service.confirmCardReview(actor,SESSION,5);
+    await service.moderateAnswer(actor,SESSION,cards[0]!.id,{score:0},6);
+    expect(session.settings.cardReviewConfirmedPosition).toBeNull();
+    await expect(service.openCard(actor,SESSION,cards[1]!.id,7))
+      .rejects.toMatchObject({code:'live_card_review_confirmation_required',status:409});
+    await service.confirmCardReview(actor,SESSION,7);
+    await expect(service.openCard(actor,SESSION,cards[1]!.id,8))
+      .resolves.toMatchObject({status:'question_open'});
   });
 
   it('rejects stale concurrent claims before any card is mutated',async()=>{

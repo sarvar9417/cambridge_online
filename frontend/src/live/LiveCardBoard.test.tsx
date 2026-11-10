@@ -66,10 +66,20 @@ describe('Live Card Board',()=>{
     expect(container.textContent).not.toContain('Cambridge question stem');
   });
 
-  it('sends a version-checked claim for the selected card and refreshes server state',async()=>{
+  it('makes student card boards read-only even in an otherwise pickable lobby',async()=>{
+    await act(async()=>root.render(<LiveCardBoard snapshot={makeSnapshot()}/>));
+    const buttons=[...container.querySelectorAll<HTMLButtonElement>('.live-card-tile')];
+    expect(buttons).toHaveLength(3);
+    expect(buttons.every(button=>button.disabled)).toBe(true);
+    expect(container.textContent).toContain('Kartani faqat o‘qituvchi tanlaydi');
+    await act(async()=>buttons[0]!.dispatchEvent(new MouseEvent('click',{bubbles:true})));
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it('sends a version-checked teacher claim for the selected card and refreshes server state',async()=>{
     const refresh=vi.fn().mockResolvedValue(undefined);
     vi.mocked(api).mockResolvedValue({status:'question_open'} as never);
-    await act(async()=>root.render(<LiveCardBoard snapshot={makeSnapshot()} refresh={refresh}/>));
+    await act(async()=>root.render(<LiveCardBoard snapshot={makeSnapshot()} refresh={refresh} interactive/>));
     const first2Point=container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 1"]')!;
     expect(first2Point.disabled).toBe(false);
     await act(async()=>first2Point.dispatchEvent(new MouseEvent('click',{bubbles:true})));
@@ -91,10 +101,26 @@ describe('Live Card Board',()=>{
     expect(api).not.toHaveBeenCalled();
   });
 
+  it('keeps review cards locked until explicit teacher approval, then permits the next pick',async()=>{
+    const snapshot=makeSnapshot({status:'review',currentQuestionIndex:0});
+    snapshot.cards![0]!.used=true;
+    await act(async()=>root.render(<LiveCardBoard snapshot={snapshot} interactive/>));
+    expect([...container.querySelectorAll<HTMLButtonElement>('.live-card-tile')]
+      .every(button=>button.disabled)).toBe(true);
+    expect(container.textContent).toContain('Avval o‘quvchilar baholarini ko‘rib, tasdiqlang.');
+
+    snapshot.session.settings.cardReviewConfirmedPosition=0;
+    await act(async()=>root.render(<LiveCardBoard snapshot={{...snapshot,session:{...snapshot.session}}} interactive/>));
+    const available=container.querySelector<HTMLButtonElement>('[aria-label="5 ballik karta 1"]');
+    expect(available?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 1"]')?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>('.live-card-tile.is-used')?.disabled).toBe(true);
+  });
+
   it('does not claim a second card on version conflict, and shows a recoverable error',async()=>{
     const refresh=vi.fn().mockResolvedValue(undefined);
     vi.mocked(api).mockRejectedValue(new Error('live_state_conflict'));
-    await act(async()=>root.render(<LiveCardBoard snapshot={makeSnapshot()} refresh={refresh}/>));
+    await act(async()=>root.render(<LiveCardBoard snapshot={makeSnapshot()} refresh={refresh} interactive/>));
     await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="5 ballik karta 1"]')!
       .dispatchEvent(new MouseEvent('click',{bubbles:true})));
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('live_state_conflict');

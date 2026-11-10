@@ -9,7 +9,14 @@ describe('Live answer review question context',()=>{
   it('shows the active question during student marking and result review',()=>{
     expect(page).toContain('<ReviewQuestionContext question={snapshot.question}/>');
     expect(page).toContain("if(session.status==='marking'&&snapshot.markScheme)return <div className=\"live-review-workspace\">");
-    expect(page).toContain("if(session.status==='review')return <section className=\"live-student-result\">{session.settings.playMode==='cards'?<LiveCardBoard snapshot={snapshot} refresh={refresh}/>:null}<ReviewQuestionContext question={snapshot.question}/>");
+    expect(page).toContain("if(session.status==='review')return <section className=\"live-student-result\">{session.settings.playMode==='cards'?<LiveCardBoard snapshot={snapshot} refresh={refresh} interactive={false}/>:null}<ReviewQuestionContext question={snapshot.question}/>");
+  });
+
+  it('keeps the learner view read-only while teacher cards remain interactive',()=>{
+    expect(page).toContain("session.status==='lobby'&&session.settings.playMode==='cards')return <div className=\"live-card-student-lobby\"><LiveCardBoard snapshot={snapshot} refresh={refresh} interactive={false}/>");
+    expect(page).toContain("session.settings.playMode==='cards'&&session.status==='lobby'?<LiveCardBoard snapshot={snapshot} refresh={refresh} interactive/>");
+    expect(page).toContain("session.settings.playMode==='cards'&&cardReviewConfirmed&&session.currentQuestionIndex+1<session.questionCount?<LiveCardBoard snapshot={snapshot} refresh={refresh} interactive/>");
+    expect(page).toContain("Baholarni tekshirdim · kartalarni ochish");
   });
 
   it('shows the active question during teacher marking, fallback and override review',()=>{
