@@ -169,6 +169,14 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.textContent).toContain('CAMBRIDGE 0478');
     expect(container.textContent).toContain('Data representation');
     expect(container.textContent).toContain('completed editorial review against the Hodder source');
+    const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
+    expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
+      'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+    ]);
+    expect(gameTiles.every((tile) => !tile.disabled)).toBe(true);
+    await game('Quiz');
+    expect(container.querySelector('.ig-quiz')).not.toBeNull();
     expect(container.textContent).not.toContain('source-screened definitions are not individually expert-verified');
     expect(container.textContent).not.toContain('Information representation');
     expect(lastScopes()).toEqual({ courseCode: '0478', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
