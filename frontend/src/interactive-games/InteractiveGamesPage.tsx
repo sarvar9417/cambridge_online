@@ -311,6 +311,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         ` (${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === true).length} official Key Terms; ${pack.pairs.filter((pair) => pair.isOfficialKeyTerm === false).length} supplementary concepts.)`}
       {pack.contentStatus === 'needs_review'
         ? ' Some entries are pending review for source verification. Use this set for provisional practice only.'
+        : courseCode === '0478'
+        ? ' All selected 0478 keywords and definitions have completed editorial review against the Hodder source. Supplementary definitions are editor-reviewed explanations, not verbatim Key Terms.'
         : ' All selected entries are available for practice; source-screened definitions are not individually expert-verified.'}
       {' '}Results are temporary practice feedback, not official assessment grades.
     </div>}
