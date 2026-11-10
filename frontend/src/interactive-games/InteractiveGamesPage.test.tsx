@@ -143,7 +143,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       if (path === '/content/interactive-games/catalog?courseCode=0478') {
         return { data: {
           courseCode: '0478', chapters: [{
-            chapterNo: 1, title: 'Data representation', termCount: 8, approvedCount: 0,
+            chapterNo: 1, title: 'Data representation', termCount: 8, approvedCount: 8,
             topics: [{ code: '1.1', title: 'Number systems', termCount: 8 }],
             sections: [{ code: '1.1.1', title: 'Binary number systems', termCount: 8, parentCode: '1.1' }],
           }],
@@ -151,7 +151,14 @@ describe('database-backed Interactive Games multi-selection', () => {
       }
       if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
         const input = JSON.parse(String(init.body)) as { courseCode: '9618' | '0478'; scopes: GameScope[] };
-        return { data: { ...pack(input.scopes), courseCode: input.courseCode } };
+        const fixture = pack(input.scopes);
+        return { data: {
+          ...fixture, courseCode: input.courseCode,
+          contentStatus: input.courseCode === '0478' ? 'approved' : 'needs_review',
+          pairs: input.courseCode === '0478'
+            ? fixture.pairs.map((pair) => ({ ...pair, status: 'approved' as const, isOfficialKeyTerm: true }))
+            : fixture.pairs,
+        } };
       }
       return respond(path, init);
     }) as typeof api);
@@ -161,11 +168,14 @@ describe('database-backed Interactive Games multi-selection', () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('CAMBRIDGE 0478');
     expect(container.textContent).toContain('Data representation');
+    expect(container.textContent).toContain('completed editorial review against the Hodder source');
+    expect(container.textContent).not.toContain('source-screened definitions are not individually expert-verified');
     expect(container.textContent).not.toContain('Information representation');
     expect(lastScopes()).toEqual({ courseCode: '0478', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
     await change('select[aria-label="Syllabus"]', '9618');
     await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('CAMBRIDGE 9618');
+    expect(container.textContent).toContain('pending review');
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
 
