@@ -24,6 +24,7 @@ type Manifest = {
   syllabusVersion: string;
   sourceTitle: string;
   dataStatus: string;
+  editorialAudit: {datasetRows: number; officialVerified: number; supplementaryVerified: number};
   chapters: Chapter[];
 };
 const dirnameHere = dirname(fileURLToPath(import.meta.url));
@@ -38,7 +39,7 @@ describe('Hodder 0478 Interactive Games coverage manifest', () => {
   it('uses the distinct 0478 syllabus and explicit review evidence', () => {
     expect(manifest.courseCode).toBe('0478');
     expect(manifest.syllabusVersion).toBe('2026-2028');
-    expect(manifest.dataStatus).toBe('partially_verified');
+    expect(manifest.dataStatus).toBe('verified');
     expect(chapters.map((chapter) => chapter.chapterNo)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
@@ -46,6 +47,9 @@ describe('Hodder 0478 Interactive Games coverage manifest', () => {
     expect(terms).toHaveLength(389);
     expect(terms.filter((term) => term.official)).toHaveLength(354);
     expect(terms.filter((term) => !term.official)).toHaveLength(35);
+    expect(manifest.editorialAudit.datasetRows).toBe(389);
+    expect(manifest.editorialAudit.officialVerified).toBe(354);
+    expect(manifest.editorialAudit.supplementaryVerified).toBe(35);
     expect(sections).toHaveLength(142);
     expect(new Set(sections.map((section) => section.section_code)).size).toBe(142);
   });
