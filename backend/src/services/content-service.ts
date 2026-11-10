@@ -91,7 +91,7 @@ export class ContentService {
       `select distinct gt.id,gt.term,gt.definition_en definition
        from glossary_terms gt join subtopics st on st.id=gt.subtopic_id join topics t on t.id=st.topic_id
        join classes c on c.syllabus_id=t.syllabus_id join enrollments e on e.class_id=c.id and e.left_at is null
-       where e.student_id=$1 and gt.status='approved' order by gt.term limit 8`,
+       where e.student_id=$1 and gt.is_glossary_visible=true and gt.status='approved' order by gt.term limit 8`,
       [actor.id],
     );
     const objectives = await this.pool.query(
@@ -137,15 +137,15 @@ export class ContentService {
     const [chaptersResult, sectionsResult, topicsResult] = await Promise.all([
       this.pool.query(
         `select t.number as chapter_no,min(t.title) title,
-                count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count,
-                count(distinct gt.id) filter (where gt.status='approved')::int approved_count
+                count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review'))::int term_count,
+                count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status='approved' and NOT (sy.code='9618' and gt.definition_evidence_status='supplementary_manual_review_required'))::int approved_count
          from topics t
          join syllabi sy on sy.id=t.syllabus_id
          left join subtopics st on st.topic_id=t.id
          left join glossary_terms gt on gt.subtopic_id=st.id
          where sy.code=$1 and sy.is_active=true
          group by t.number
-         having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
+         having count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review')) > 0
          order by t.number`,
         [courseCode],
       ),
@@ -158,7 +158,7 @@ export class ContentService {
                  where child.syllabus_id=bs.syllabus_id
                    and child.chapter_number=bs.chapter_number
                    and (child.section_code=bs.section_code or child.section_code like bs.section_code || '.%')
-                   and g.status in ('approved','needs_review')) term_count
+                   and g.is_glossary_visible=true and g.status in ('approved','needs_review')) term_count
          from hodder_book_sections bs
          join syllabi sy on sy.id=bs.syllabus_id
          where sy.code=$1 and sy.is_active=true
@@ -168,14 +168,14 @@ export class ContentService {
       ),
       this.pool.query(
         `select t.number chapter_no,st.code,st.title,
-                count(distinct gt.id) filter (where gt.status in ('approved','needs_review'))::int term_count
+                count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review'))::int term_count
          from topics t
          join syllabi sy on sy.id=t.syllabus_id
          join subtopics st on st.topic_id=t.id
          left join glossary_terms gt on gt.subtopic_id=st.id
          where sy.code=$1 and sy.is_active=true
          group by t.number,st.code,st.title,st.sort_order
-         having count(distinct gt.id) filter (where gt.status in ('approved','needs_review')) > 0
+         having count(distinct gt.id) filter (where gt.is_glossary_visible=true and gt.status in ('approved','needs_review')) > 0
          order by t.number,st.sort_order,st.code`,
         [courseCode],
       ),
@@ -242,13 +242,15 @@ export class ContentService {
          select r.chapter_no,r.kind,r.code
          from jsonb_to_recordset($2::jsonb) as r(chapter_no int,kind text,code text)
        )
-       select gt.id,gt.term,gt.definition_en definition,gt.status::text status
+       select gt.id,gt.term,gt.definition_en definition,
+              case when sy.code='9618' and gt.definition_evidence_status='supplementary_manual_review_required' then 'needs_review' else gt.status::text end status,
+              gt.is_official_key_term,gt.definition_evidence_status
        from glossary_terms gt
        join subtopics st on st.id=gt.subtopic_id
        join topics t on t.id=st.topic_id
        join syllabi sy on sy.id=t.syllabus_id
        where sy.code=$1 and sy.is_active=true
-         and gt.status in ('approved','needs_review')
+         and gt.is_glossary_visible=true and gt.status in ('approved','needs_review')
          and nullif(trim(gt.term),'') is not null
          and nullif(trim(gt.definition_en),'') is not null
          and exists (
@@ -287,6 +289,8 @@ export class ContentService {
       return [{
         id: String(row.id),term,definition,
         status: String(row.status) as 'approved' | 'needs_review',
+        isOfficialKeyTerm: Boolean(row.is_official_key_term),
+        definitionEvidenceStatus: String(row.definition_evidence_status ?? 'unclassified'),
         source: null as null,
       }];
     });
@@ -320,13 +324,15 @@ export class ContentService {
       if (!exists.rowCount) throw new DomainError('game_section_not_found', 404);
     }
     const result = await this.pool.query(
-      `select gt.id,gt.term,gt.definition_en definition,gt.status::text status,
+      `select gt.id,gt.term,gt.definition_en definition,
+              case when sy.code='9618' and gt.definition_evidence_status='supplementary_manual_review_required' then 'needs_review' else gt.status::text end status,
+              gt.is_official_key_term,gt.definition_evidence_status,
               st.code subtopic_code
        from glossary_terms gt
        join subtopics st on st.id=gt.subtopic_id
        join topics t on t.id=st.topic_id
        join syllabi sy on sy.id=t.syllabus_id
-       where sy.code=$1 and sy.is_active=true and t.number=$2 and gt.status in ('approved','needs_review')
+       where sy.code=$1 and sy.is_active=true and t.number=$2 and gt.is_glossary_visible=true and gt.status in ('approved','needs_review')
          and nullif(trim(gt.term),'') is not null
          and nullif(trim(gt.definition_en),'') is not null
          and ($3::text is null or exists (
@@ -356,6 +362,8 @@ export class ContentService {
       return [{
         id: String(row.id), term, definition: String(row.definition).trim(),
         status: String(row.status) as 'approved' | 'needs_review',
+        isOfficialKeyTerm: Boolean(row.is_official_key_term),
+        definitionEvidenceStatus: String(row.definition_evidence_status ?? 'unclassified'),
         source: null, // Private Drive source references are not exposed to students.
       }];
     });
