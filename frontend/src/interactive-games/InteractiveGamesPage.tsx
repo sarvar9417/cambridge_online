@@ -287,7 +287,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
               aria-pressed={isFullscreen}>{isFullscreen ? '⤢ Exit full screen' : '⛶ Full screen'}</button>
             <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
           </div>
-          {fullscreenError && <span role="alert">{fullscreenError}</span>
+          {fullscreenError && <span role="alert">{fullscreenError}</span>}
         </div>
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
           {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
