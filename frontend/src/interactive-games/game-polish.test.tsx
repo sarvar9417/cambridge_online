@@ -61,9 +61,9 @@ describe('Classroom wheel', () => {
     expect(signal).toHaveBeenCalledWith('tick');
     expect(rotation()).toBeCloseTo(360 / 29);
     expect(result()).toContain('Cambridge term 29');
-    expect(container.querySelector('.ig-wheel-camera.is-zoomed')).toBeTruthy();
+    expect(container.querySelector('.ig-wheel-viewport[hidden]')).toBeTruthy();
     await click(findButton('Resume'));
-    expect(container.querySelector('.ig-wheel-camera.is-zoomed')).toBeNull();
+    expect(container.querySelector('.ig-wheel-viewport[hidden]')).toBeNull();
     expect(container.querySelectorAll('.ig-wheel-label')).toHaveLength(29);
     await click(findButton('Spin It'));
     await advance(2400);
@@ -73,6 +73,7 @@ describe('Classroom wheel', () => {
     await click(findButton('Spin It'));
     await advance(2400);
     expect(result()).toContain('Cambridge term 28');
+    expect(container.querySelectorAll('.ig-wheel-choice')).toHaveLength(4);
   });
 
   it('supports a touch flick and uses the final pointer angle for the result', async () => {
@@ -96,6 +97,31 @@ describe('Classroom wheel', () => {
     await advance(2400);
     const indexAtPointer = (29 - Math.round(rotation() / (360 / 29))) % 29;
     expect(result()).toBe(pairs[indexAtPointer]?.definition);
+  });
+
+  it('opens the selected definition as a four-choice test and marks the first answer', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    vi.spyOn(Math, 'random').mockReturnValue(.999);
+    await render(pairs.slice(0, 5));
+    await click(findButton('Spin It'));
+    const choices = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-wheel-choice')];
+    expect(result()).toBe(pairs[4]?.definition);
+    expect(choices().map((button) => button.querySelector('span')?.textContent)).toEqual(['A', 'B', 'C', 'D']);
+    expect(new Set(choices().map((button) => button.querySelector('strong')?.textContent)).size).toBe(4);
+    expect(container.querySelector('.ig-wheel-choice.is-correct')).toBeNull();
+    await click(choices().find((button) => button.querySelector('strong')?.textContent !== pairs[4]?.term)!);
+    expect(container.querySelector('.ig-wheel-choice.is-wrong')).toBeTruthy();
+    expect(container.querySelector('.ig-wheel-choice.is-correct strong')?.textContent).toBe(pairs[4]?.term);
+    expect(choices().every((button) => button.disabled)).toBe(true);
+    expect(signal.mock.calls.filter(([kind]) => kind === 'review')).toHaveLength(1);
+    await click(findButton('Resume'));
+    await click(findButton('Terms'));
+    await click(findButton('Spin It'));
+    expect(result()).toBe(pairs[4]?.term);
+    const correct = choices().find((button) => button.querySelector('strong')?.textContent === pairs[4]?.definition)!;
+    expect(correct.disabled).toBe(false);
+    await click(correct);
+    expect(container.querySelector('.ig-wheel-answer-status')?.textContent).toBe('Correct!');
   });
 
   it('shows the full answer and completes when the last segment is eliminated', async () => {

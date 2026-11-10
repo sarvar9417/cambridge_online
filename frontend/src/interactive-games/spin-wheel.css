@@ -30,6 +30,7 @@
   overflow: hidden;
   padding: 16px 0;
 }
+.ig-wheel-viewport[hidden] { display: none; }
 .ig-wheel-camera {
   position: relative;
   width: min(76%, 380px, 56vh);
@@ -97,6 +98,56 @@
 .ig-wheel-result h3:focus { outline: none; }
 .ig-wheel-result button { padding: 9px 14px; border: 1px solid #bcc7e4; background: white; color: #3d4498; border-radius: 9px; font-weight: 700; }
 .ig-wheel-result .ig-reveal { margin: 10px 0 0; overflow-wrap: anywhere; }
+.ig-wheel-result.ig-wheel-quiz {
+  width: min(100%, 1180px);
+  padding: clamp(14px, 3vw, 36px);
+  border: 0;
+  background: transparent;
+}
+.ig-wheel-quiz h3 {
+  margin: 12px auto clamp(20px, 4vw, 48px);
+  max-width: 32ch;
+  color: #161b28;
+  font-size: clamp(1.3rem, 3.5vw, 3rem);
+  line-height: 1.22;
+  text-wrap: balance;
+}
+.ig-wheel-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: clamp(8px, 1.25vw, 16px);
+}
+.ig-wheel-result .ig-wheel-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: clamp(96px, 14vw, 172px);
+  padding: 10px clamp(6px, 1.5vw, 18px) 16px;
+  border: 4px solid rgb(255 255 255 / 25%);
+  border-radius: 8px;
+  background: #bb390c;
+  color: white;
+  box-shadow: inset 0 -12px rgb(0 0 0 / 10%), 0 3px 6px rgb(23 34 60 / 16%);
+  font-size: clamp(.9rem, 2vw, 1.5rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.ig-wheel-result .ig-wheel-choice:nth-child(2) { background: #7325c3; }
+.ig-wheel-result .ig-wheel-choice:nth-child(3) { background: #066e9e; }
+.ig-wheel-result .ig-wheel-choice:nth-child(4) { background: #b81735; }
+.ig-wheel-choice span { font-weight: 600; }
+.ig-wheel-choice strong { margin: auto 0; font-weight: 700; }
+.ig-wheel-result .ig-wheel-choice:not(:disabled):hover { filter: brightness(1.08); }
+.ig-wheel-result .ig-wheel-choice.is-correct { background: #16743e; }
+.ig-wheel-result .ig-wheel-choice.is-wrong { background: #972642; }
+.ig-wheel-result .ig-wheel-choice:disabled { opacity: 1; }
+.ig-wheel-answer-status { color: #26345d; font-size: .95rem; }
+.ig-wheel-answer-status:empty { margin: 0; }
+@media (max-width: 760px) {
+  .ig-wheel-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .ig-wheel-stage .ig-complete { margin: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .ig-wheel-camera { transition: none; }
