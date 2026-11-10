@@ -74,18 +74,43 @@ export function validGameScopes(scopes: readonly GameScope[], catalog: LiveGameC
   }));
 }
 
-/** Search chapter, syllabus topic and book-section *codes* as well as names.
- * A teacher searching "17.2" expects the actual curriculum section to appear.
+/** Syllabus subtopic codes and Hodder section codes can overlap while naming
+ * different scopes. Keep each source's entries separate and exclude the book's
+ * root chapter item, which duplicates the existing whole-Chapter checkbox.
+ */
+export function visibleGameCatalogEntries(chapter: LiveGameChapter, query: string) {
+  const needle = query.trim().toLocaleLowerCase('en');
+  const wholeChapter = !needle || needle === String(chapter.chapterNo)
+    || needle === 'chapter ' + chapter.chapterNo
+    || chapter.title.toLocaleLowerCase('en').includes(needle);
+  const codeOnly = /^\d+(?:\.\d+)+$/.test(needle);
+  const matches = (entry: { code: string; title: string }) => {
+    if (wholeChapter) return true;
+    const code = entry.code.toLocaleLowerCase('en');
+    return codeOnly
+      ? code === needle || code.startsWith(needle + '.')
+      : code.includes(needle) || entry.title.toLocaleLowerCase('en').includes(needle);
+  };
+  return {
+    topics: chapter.topics.filter(matches),
+    sections: chapter.sections.filter((section) =>
+      section.code !== String(chapter.chapterNo) && matches(section)),
+  };
+}
+
+/** Numeric chapter search is exact ("1" must not match Chapters 10–19).
+ * A specific curriculum code filters its entries rather than merely revealing
+ * every subtopic within a matching chapter.
  */
 export function chapterMatchesGameSearch(chapter: LiveGameChapter, query: string): boolean {
   const needle = query.trim().toLocaleLowerCase('en');
   if (!needle) return true;
-  const values = [
-    String(chapter.chapterNo), 'chapter ' + chapter.chapterNo, chapter.title,
-    ...chapter.topics.flatMap((topic) => [topic.code, topic.title]),
-    ...chapter.sections.flatMap((section) => [section.code, section.title]),
-  ];
-  return values.some((value) => value.toLocaleLowerCase('en').includes(needle));
+  if (/^(?:chapter\s+)?\d+$/.test(needle)) {
+    return needle === String(chapter.chapterNo) || needle === 'chapter ' + chapter.chapterNo;
+  }
+  if (chapter.title.toLocaleLowerCase('en').includes(needle)) return true;
+  const visible = visibleGameCatalogEntries(chapter, needle);
+  return visible.topics.length > 0 || visible.sections.length > 0;
 }
 
 export const GAME_LENGTHS = [8, 16, 29] as const;
