@@ -84,7 +84,9 @@ describe('Interactive Games private student practice history', () => {
     expect(query).toHaveBeenCalledTimes(2);
   });
 
-  it('loads only the current student history and the most recent independent first attempts', async () => {
+  it('loads student-only history and due intervals separately from official mastery', async () => {
+    const overdue = new Date(Date.now() - 3_600_000);
+    const upcoming = new Date(Date.now() + 86_400_000);
     const query = vi.fn()
       .mockResolvedValueOnce({ rowCount: 1, rows: [{}] })
       .mockResolvedValueOnce({ rows: [{
@@ -92,17 +94,28 @@ describe('Interactive Games private student practice history', () => {
         incorrect_first_attempts: 1, reviewed_count: 0,
         duration_seconds: 62, created_at: '2026-11-10T09:00:00Z',
       }] })
-      .mockResolvedValueOnce({ rows: [{ term_id: a }] });
+      .mockResolvedValueOnce({ rows: [{ term_id: a }] })
+      .mockResolvedValueOnce({ rows: [
+        { term_id: a, interval_stage: 0, due_at: overdue },
+        { term_id: b, interval_stage: 2, due_at: upcoming },
+      ] });
     const history = await new ContentService({ query } as unknown as Pool)
       .interactiveGamePracticeHistory(learner, '9618');
     expect(history).toMatchObject({
       assessed: false,
       needsReviewIds: [a],
+      dueReviewIds: [a],
+      scheduledTermCount: 2,
+      nextReviewAt: upcoming.toISOString(),
+      assessed: false,
       recent: [{ runId, mode: 'quiz', correctFirstAttempts: 2, incorrectFirstAttempts: 1 }],
     });
     expect(String(query.mock.calls[1]?.[0])).toContain('where student_id=$1 and course_code=$2');
     expect(String(query.mock.calls[2]?.[0])).toContain('distinct on');
     expect(String(query.mock.calls[2]?.[0])).toContain('first_correct=false');
     expect(query.mock.calls[2]?.[1]).toEqual([learner.id, '9618']);
+    expect(String(query.mock.calls[3]?.[0])).toContain('interactive_game_review_schedule');
+    expect(String(query.mock.calls[3]?.[0])).toContain('where student_id=$1 and course_code=$2');
+    expect(query.mock.calls[3]?.[1]).toEqual([learner.id, '9618']);
   });
 });
