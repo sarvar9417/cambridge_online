@@ -33,7 +33,7 @@ export function LiveChallengeMoment({eventId,score,possible,context,policy,publi
 }){
   const effects=policy??DEFAULT_LIVE_POLICY;
   const [visible,setVisible]=useState(false);
-  const tier=isValidScore(score,possible)?celebrationTier(score,possible):null;
+  const tier=isValidScore(score,possible)?celebrationTier(score,Number(possible)):null;
   useEffect(()=>{
     if(!tier||!effects.animations||(publicView&&!effects.publicCelebrations))return;
     const key=`cambridge-live-moment:${eventId}`;
