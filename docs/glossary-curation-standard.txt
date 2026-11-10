@@ -4,16 +4,16 @@
 
 The glossary supports Interactive Games, classroom revision and key-term lookup. A large list of micro-facts, code snippets, figure labels, example-specific descriptions or incomplete definitions is **not** the same as a useful term–definition bank.
 
-Read-only production audit on **2026-11-10**, project `cambridge_online`, PostgreSQL `glossary_terms`:
+Production audit **2026-11-10**, project `cambridge_online`, PostgreSQL `glossary_terms`: a separate concurrent official-key-term import increased this table from **4,287 to 4,664** records during the audit. The following is the verified **post-curation snapshot**:
 
-- Total: **4,287** (all `status=approved`, all `is_glossary_visible=true`).
-- Official textbook definitions: **591**.
-- Individually verified supplementary terms: **132**.
-- Supplementary source-screened, **not individually verified**: **2,814**.
-- Supplementary terms marked **manual review required**: **750**.
-- Definition shorter than 60 characters: **458** (includes legitimate concise official definitions; this is a **review signal**, not a deletion criterion).
-- Same-subtopic normalized duplicate terms: **0**; across all chapters, **289 repeated-term groups** covering **633 rows**, of which **16 groups** mix official textbook definitions with records marked manual-review-required. Repeated normalized definitions across terms: **2 groups**.
-- Duplicate resolution must prioritize workflow-approved rows and then official/individually verified definitions over unverified or manual-review-required alternatives; never assume alphabetical/UUID order implies quality.
+- **4,664** total records; **3,827** visible, **837** non-destructively hidden.
+- **925** records flagged official textbook Key Term (of which **923** have evidence status `official_textbook_definition`; **2** require manual evidence review).
+- **132** individually verified supplementary entries; **2,854** source-screened supplementary entries without independent expert verification; **755** records in manual-review evidence status (two official).
+- **723** records currently satisfy both workflow approval and textbook / individually verified evidence for the baseline `Core` game bank.
+- **95** explicitly reviewed micro-detail/example-specific entries and **742** remaining non-official manual-review-required entries were hidden with UUID-level rollback manifests.
+- **40** source-associated supplementary English definitions were rewritten for clarity (2 per Chapter); exact before/after text and restoration SQL are retained.
+- The initial 4,287-row profile found **289 repeated-term groups** covering 633 rows, including 16 groups mixing official and manual-review versions. Re-run duplicate metrics after imports before claiming up-to-date counts.
+- Treat short definitions and duplicate words as **review signals, not deletion criteria**. Preserve source-backed formula/rule names as genuine terms when they are concepts in the curriculum.
 
 **Do not equate** `glossary_terms.status=approved` with a source-verified or classroom-appropriate definition. `definition_evidence_status` is the independent quality indicator.
 
@@ -76,4 +76,12 @@ join public.topics t on t.id=st.topic_id
 group by t.number order by t.number;
 ```
 
-No production glossary rows were modified by this audit or the Core/Extended code change.
+## Applied 20-chapter, reversible learner-catalogue curation
+
+The **Core/Extended frontend code change itself** does not rewrite database data. In separate user-authorised database actions (same day), **837** visibility changes and **40** supplementary-definition rewrites were applied and independently read back.
+
+- `docs/glossary-curation-20261110-reviewed.csv` plus the matching rollback SQL document 95 individually selected textbook examples and micro-details.
+- `docs/glossary-manual-review-quarantine-20261110.csv` plus rollback SQL document 742 supplemental entries already marked manual review required. **Quarantine does not imply these 742 concepts are incorrect.** Their previous source/evidence/status remain untouched.
+- `docs/glossary-definitions-20261110-reviewed.csv` and rollback SQL record the exact 40 old and new definitions. All edited entries were non-official and remain in their original evidence tier; they must not be described as newly expert-certified.
+- All **925** officially flagged textbook-term definitions and all source references were left unchanged.
+- Full content verification of the remaining 3,827 visible records and separate clear student explanations for terse official definitions **remain outstanding**. No blanket claim of completion or full textbook-level verification is justified.
