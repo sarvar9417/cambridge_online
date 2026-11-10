@@ -523,7 +523,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   if((await teacher.$$('.ig-box-question .ig-choice-card')).length!==4)throw new Error('A question box is missing answer cards');
   const boxPrompt=await teacher.$eval('.ig-box-question h3',(node)=>node.textContent);
   const boxTerm=gameTerms.find((term)=>term.definition===boxPrompt)?.term;
-  const boxChoices=await teacher.$eval('.ig-box-question .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
+  const boxChoices=await teacher.$$eval('.ig-box-question .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
   const boxChoiceIndex=boxChoices.indexOf(boxTerm??'');
   if(boxChoiceIndex<0)throw new Error('Question box is missing its source-backed correct term');
   await clickGameControl('.ig-box-question .ig-choice-card:nth-child('+(boxChoiceIndex+1)+')');
@@ -539,7 +539,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
     if(answerRows.length!==4||new Set(answerRows).size!==1)throw new Error('Quiz did not display four cards in one desktop row: '+answerRows.join(', '));
     const prompt=await teacher.$eval('.ig-quiz .ig-question',(node)=>node.textContent);
     const expectedTerm=gameTerms.find((term)=>term.definition===prompt)?.term;
-    const options=await teacher.$eval('.ig-quiz .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
+    const options=await teacher.$$eval('.ig-quiz .ig-choice-card strong',(nodes)=>nodes.map((node)=>node.textContent));
     const answerIndex=options.indexOf(expectedTerm??'');
     if(answerIndex<0)throw new Error('Quiz item does not contain its correct glossary answer');
     await clickGameControl('.ig-quiz .ig-choice-card:nth-child('+(answerIndex+1)+')');
