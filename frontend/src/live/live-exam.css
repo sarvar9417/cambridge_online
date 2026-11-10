@@ -346,3 +346,9 @@
 .live-review-extra>summary{cursor:pointer;padding:14px 16px;font-weight:750;color:var(--text)}
 .live-review-extra>.live-scheme{margin:0 12px 12px}
 @media(max-width:640px){.live-setup-switch>span{flex-basis:100%;margin-left:0}.live-room-more>div{right:auto;left:0}.live-room-actions{row-gap:8px}}
+
+.live-review-next-step{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:6px 0 18px;padding:20px;border:1px solid var(--border);border-radius:var(--radius-xl);background:var(--accent-soft)}
+.live-review-next-step h3{margin:4px 0 0;font-size:18px;color:var(--text)}
+.live-review-next-step button{min-height:48px}
+.live-review-next-step>p{margin:0;color:var(--text-muted);font-size:13px}
+@media(max-width:640px){.live-review-next-step{align-items:stretch;flex-direction:column}.live-review-next-step button{width:100%}}
