@@ -331,4 +331,90 @@ describeLive('Live Challenge real PostgreSQL acceptance', () => {
       [key],
     )).rows[0]?.request_count).toBe(1);
   });
+  it('schedules real PostgreSQL spaced review only from first attempts and ignores retries', async () => {
+    const topic = await client.query<{id:string}>(
+      `insert into topics(syllabus_id,number,title,level,sort_order)
+       select syllabus_id,91,'Spaced-review acceptance','A2',91 from classes where id=$1
+       returning id`, [classId],
+    );
+    const subtopic = await client.query<{id:string}>(
+      `insert into subtopics(topic_id,code,title,sort_order)
+       values ($1,'91.1','Spaced revision',1) returning id`, [topic.rows[0]!.id],
+    );
+    const entry = await client.query<{id:string}>(
+      `insert into glossary_terms(subtopic_id,term,definition_en)
+       values ($1,'Spaced-review acceptance word','Study reminder definition') returning id`,
+      [subtopic.rows[0]!.id],
+    );
+    const termId = entry.rows[0]!.id;
+    const start = Date.parse('2026-11-01T12:00:00.000Z');
+    const day = (value:number) => new Date(start + value * 86_400_000).toISOString();
+    const record = async (studentId:string,firstCorrect:boolean,at:string) =>
+      (await client.query<{id:string}>(
+        `insert into interactive_game_practice_runs
+           (id,student_id,course_code,game_kind,selected_scopes,attempts,created_at)
+         values (gen_random_uuid(),$1,'9618','quiz','[{"chapterNo":17,"kind":"chapter"}]'::jsonb,
+           $2::jsonb,$3::timestamptz) returning id`,
+        [studentId,JSON.stringify([{ termId, firstCorrect }]),at],
+      )).rows[0]!.id;
+    const state = async (studentId:string) => {
+      const result = await client.query<{interval_stage:number;due_at:Date;last_run_id:string}>(
+        `select interval_stage,due_at,last_run_id
+           from interactive_game_review_schedule
+          where student_id=$1 and course_code='9618' and term_id=$2`,
+        [studentId,termId],
+      );
+      return result.rows[0]!;
+    };
+
+    await record(studentA,false,day(0));
+    expect((await state(studentA)).interval_stage).toBe(0);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(0));
+
+    await record(studentA,true,day(1));
+    expect((await state(studentA)).interval_stage).toBe(1);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(2));
+
+    await record(studentA,true,day(1.5)); // Too early: must not inflate.
+    expect((await state(studentA)).interval_stage).toBe(1);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(2));
+
+    await record(studentA,true,day(2.5));
+    expect((await state(studentA)).interval_stage).toBe(2);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(5.5));
+
+    const id = await record(studentA,true,day(6));
+    expect((await state(studentA)).interval_stage).toBe(3);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(13));
+    // API retry updates the run ID only; AFTER INSERT trigger must not refire.
+    await client.query(
+      `insert into interactive_game_practice_runs
+         (id,student_id,course_code,game_kind,selected_scopes,attempts,created_at)
+       values ($1,$2,'9618','quiz','[{"chapterNo":17,"kind":"chapter"}]'::jsonb,
+         $3::jsonb,$4::timestamptz)
+       on conflict (id) do update set id=excluded.id
+         where interactive_game_practice_runs.student_id=excluded.student_id`,
+      [id,studentA,JSON.stringify([{ termId,firstCorrect:true }]),day(6)],
+    );
+    expect((await state(studentA)).interval_stage).toBe(3);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(13));
+
+    await record(studentA,false,day(6.5));
+    expect((await state(studentA)).interval_stage).toBe(0);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(6.5));
+    await record(studentA,true,day(7));
+    expect((await state(studentA)).interval_stage).toBe(1);
+    expect(new Date((await state(studentA)).due_at).toISOString()).toBe(day(8));
+
+    await record(studentB,false,day(7));
+    expect((await state(studentB)).interval_stage).toBe(0);
+    expect((await state(studentA)).interval_stage).toBe(1);
+    const interval = await client.query<{value:number}>(
+      'select public.interactive_game_interval_days(7) as value');
+    expect(interval.rows[0]?.value).toBe(120);
+    const table = await client.query<{rowsecurity:boolean}>(
+      "select relrowsecurity as rowsecurity from pg_class where oid='public.interactive_game_review_schedule'::regclass");
+    expect(table.rows[0]?.rowsecurity).toBe(true);
+  });
+
 });
