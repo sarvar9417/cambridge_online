@@ -295,6 +295,11 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     return mutation(req,res,()=>service.setLateJoin(req.actor!,id(req.params),body.allowLateJoin,body.expectedVersion));
   });
 
+  router.post('/:id/cards/review/confirm', durableStaffLimit, async (req,res) => {
+    const body=versionInput.parse(req.body ?? {});
+    return mutation(req,res,()=>service.confirmCardReview(req.actor!,id(req.params),body.expectedVersion));
+  });
+
   router.post('/:id/cards/:cardId/open', durableStaffLimit, async (req,res) => {
     const body=versionInput.parse(req.body ?? {});
     return mutation(req,res,()=>service.openCard(req.actor!,id(req.params),id(req.params,'cardId'),body.expectedVersion));
