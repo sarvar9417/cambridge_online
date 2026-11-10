@@ -336,6 +336,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'|'balanced'>('balanced');
   const [playMode,setPlayMode]=useState<'random'|'cards'>('random');
+  const [setupMode,setSetupMode]=useState<'quick'|'advanced'>('quick');
   const [cardColumns,setCardColumns]=useState(5);
   const [includeDiagrams,setIncludeDiagrams]=useState(true);
   const [excludeSeen,setExcludeSeen]=useState(true);
@@ -426,6 +427,25 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     setQuestionPool([]);setSelectedQuestionIds([]);setQuestionTimeLimits({});setSelectionPreview(null);setReplacingQuestionId('');setPoolPage(0);setPoolTotal(null);
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
+  const chooseQuickChapter=(value:string)=>{
+    const chapter=Number(value);
+    const codes=chapter?coursebookSections.filter((item)=>item.chapter_number===chapter).map((item)=>item.section_code):[];
+    (syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes)(codes);
+    clearManualPool();
+  };
+  const quickChapter=chapters.find((chapter)=>{
+    const codes=coursebookSections.filter(item=>item.chapter_number===chapter.chapter_number).map(item=>item.section_code);
+    return codes.length>0&&codes.length===selectedBookCodes.length&&codes.every(code=>selectedBookCodes.includes(code));
+  })?.chapter_number??'';
+  const chooseSetupMode=(mode:'quick'|'advanced')=>{
+    setSetupMode(mode);
+    if(mode!=='quick')return;
+    setSelectionMode('auto');setQuestionOrder('balanced');
+    setDifficulty('');setMarksMin('');setMarksMax('');setYearFrom('');setYearTo('');
+    setSeries([]);setComponents(syllabusCode==='0478'?[2]:[]);
+    setIncludeDiagrams(true);setExcludeSeen(true);
+    clearManualPool();
+  };
   const toggleCoursebookSection=(code:string)=>{
     const setter=syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes;
     setter(current=>current.includes(code)?current.filter(item=>item!==code):[...current,code]);
@@ -634,6 +654,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   return <div className="live-page live-landing">
     <header className="live-page-head"><div><span className="live-eyebrow"><Broadcast size={18}/> CAMBRIDGE {syllabusCode}</span><h1>Live Challenge</h1><p>Past-paper savolini bir vaqtda ishlang, so‘ng official mark scheme bilan baholang.</p></div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
+    {user.role!=='student'?<nav className="live-setup-switch" aria-label="Sessiya yaratish usuli">
+      <button type="button" className={setupMode==='quick'?'is-active':''} aria-pressed={setupMode==='quick'} onClick={()=>chooseSetupMode('quick')}>Tez boshlash</button>
+      <button type="button" className={setupMode==='advanced'?'is-active':''} aria-pressed={setupMode==='advanced'} onClick={()=>chooseSetupMode('advanced')}>Kengaytirilgan sozlamalar</button>
+      <span>{setupMode==='quick'?'Sinf → bob → savollar soni → o‘yin':'Filtrlar, qo‘lda tanlash va qo‘shimcha qoidalar'}</span>
+    </nav>:null}
     {user.role==='student'?<section className="live-join-card">
       <div><span className="live-eyebrow">XONAGA KIRISH</span><h2>Do‘stingiz yoki o‘qituvchingiz bergan 6 xonali kodni kiriting</h2></div>
       {/^\d{6}$/.test(sharedJoinCode)?<p className="live-shared-code-note" role="status">QR yoki ulashilgan havoladagi xona kodi tayyor: <strong>{sharedJoinCode}</strong></p>:null}
@@ -652,7 +677,14 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder={syllabusCode==='0478'?'0478 Paper 2 Algorithms revision':'Chapter 14 revision'}/></label>
         </div>
         {syllabusCode==='0478'?<p className="live-create-semantics live-book-help">Hodder IGCSE Coursebook (2021) · Section 2 — Algorithms, Programming and Logic. Chapter yoki Section tanlang. Belgilanmasa barcha Live-ready Paper 2 savollaridan foydalaniladi. 2015–2022 savollari yangi kitob Sectionlariga tasdiqsiz moslashtirilmaydi.</p>:null}
-        <div className="live-topic-grid" data-syllabus={syllabusCode}>
+        {user.role!=='student'&&setupMode==='quick'?<label className="live-quick-chapter">Chapter / Bob
+          <select aria-label="Tez boshlash uchun Chapter" value={quickChapter} onChange={event=>chooseQuickChapter(event.target.value)}>
+            <option value="">Bobni tanlang</option>
+            {chapters.map(chapter=><option key={chapter.chapter_number} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.chapter_title}</option>)}
+          </select>
+          <small>Tanlangan bobning barcha bo‘limlari olinadi. Alohida Section tanlash uchun «Kengaytirilgan sozlamalar»ni oching.</small>
+        </label>:null}
+        <div className="live-topic-grid" data-syllabus={syllabusCode} hidden={user.role!=='student'&&setupMode==='quick'}>
           <fieldset><legend>{syllabusCode==='0478'?'IGCSE Book Chapter':'Chapter'}</legend>{chapters.map(chapter=>{
             const codes=coursebookSections.filter(item=>item.chapter_number===chapter.chapter_number).map(item=>item.section_code);
             const checked=codes.length>0&&codes.every(code=>selectedBookCodes.includes(code));
@@ -664,7 +696,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           </label>)}</fieldset>
         </div>
         {syllabusCode==='0478'&&!coursebookSections.length?<p className="live-warning">IGCSE kitob boblari yuklanmadi. Sahifani yangilang.</p>:null}
-        <section className="live-builder-filters">
+        <section className="live-builder-filters" hidden={user.role!=='student'&&setupMode==='quick'}>
           <header><div><h3>Advanced filters</h3><p>Source va marks bo‘yicha poolni toraytiring.</p></div></header>
           <div className="live-builder-filter-grid">
             <label>Murakkablik
@@ -682,7 +714,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
             <fieldset><legend>Paper</legend>{(syllabusCode==='0478'?[2]:[1,2,3,4]).map((value)=><label key={value}><input type="checkbox" checked={components.includes(value)} onChange={()=>toggleComponent(value)}/><span>Paper {value}</span></label>)}</fieldset>
           </div>
         </section>
-        <section className="live-question-picker">
+        <section className="live-question-picker" hidden={user.role!=='student'&&setupMode==='quick'}>
           <header><div><h3>Savol tanlash</h3><p>Automatic pool yoki source-ready savollarni qo‘lda tanlang.</p><strong className="live-eligible-total">{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleCounts?`Jami bazada: ${eligibleCounts.database} · Live-ready: ${eligibleCounts.liveReady} · Hozir tanlash mumkin: ${eligibleCounts.available}`:eligibleTotal!==null?`Hozir tanlash mumkin: ${eligibleTotal}`:(syllabusCode==='0478'?'0478 Paper 2 tanlangan':'Chapter yoki Chapter section tanlang')}</strong></div><select aria-label="Savol tanlash usuli" value={selectionMode} onChange={(event)=>{const mode=event.target.value as 'auto'|'manual';setSelectionMode(mode);setQuestionOrder(mode==='manual'?'fixed':'balanced');setReplacingQuestionId('')}}><option value="auto">Automatic</option><option value="manual">Manual</option></select></header>
           {eligibleError?<p role="alert" className="live-warning">Savollar sonini olish vaqtincha muvaffaqiyatsiz: {eligibleError} <button type="button" className="live-link-button" onClick={()=>setEligibleRetryKey(key=>key+1)}>Qayta tekshirish</button></p>:null}
           {selectionMode==='manual'?<>
@@ -707,11 +739,17 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
             {poolTotal!==null?<nav className="live-pool-pages" aria-label="Savol pool sahifalari"><button type="button" className="live-secondary" disabled={busy||poolPage===0} onClick={()=>void loadQuestionPool(Math.max(0,poolPage-1),poolSearch)}>← Oldingi</button><span>{poolTotal?poolPage+1:0} / {Math.max(1,Math.ceil(poolTotal/20))} · {poolTotal} natija</span><button type="button" className="live-secondary" disabled={busy||(poolPage+1)*20>=poolTotal} onClick={()=>void loadQuestionPool(poolPage+1,poolSearch)}>Keyingi →</button></nav>:null}
           </>:null}
         </section>
+        {user.role!=='student'&&setupMode==='quick'?<div className="live-quick-pool-status" role="status">
+          <strong>{eligibleLoading?'Mos savollar hisoblanmoqda…':eligibleTotal!==null?`${eligibleTotal} ta savol mavjud`:'Boshlash uchun bobni tanlang'}</strong>
+          {eligibleError?<span>Savollar sonini tekshirishda xato: {eligibleError} <button type="button" className="live-link-button" onClick={()=>setEligibleRetryKey(key=>key+1)}>Qayta urinish</button></span>:<small>Savollar avtomatik tanlanadi. Alohida savol tanlash — kengaytirilgan rejimda.</small>}
+        </div>:null}
       </section>
       <aside className="live-create-side"><span className="live-step">2</span><h2>O‘yin qoidalari</h2>
         <label>Savollar soni<input name="questionCount" type="number" min={1} max={user.role==='student'?Math.min(12,eligibleTotal??12):eligibleTotal??undefined} value={questionCount} disabled={selectionMode==='manual'||eligibleLoading||eligibleTotal===null||eligibleTotal===0} onChange={(event)=>setQuestionCount(Math.max(1,Math.min(Number(event.target.value)||1,eligibleTotal??Number.MAX_SAFE_INTEGER,user.role==='student'?12:Number.MAX_SAFE_INTEGER)))}/><small>{eligibleLoading?'Hisoblanmoqda…':eligibleTotal!==null?`Maximum: ${user.role==='student'?Math.min(12,eligibleTotal):eligibleTotal}`:'Mavzu tanlang'}</small></label>
         <label>O‘yin turi<select aria-label="Savol ochish rejimi" value={playMode} onChange={(event)=>{setPlayMode(event.target.value as 'random'|'cards');clearManualPool()}}><option value="random">Random / navbatli · mavjud rejim</option>{user.role!=='student'?<option value="cards">Card Selection · kartani o‘qituvchi tanlaydi</option>:null}</select><small>Card rejimini faqat o‘qituvchi boshqaradi; o‘quvchilar tanlangan savolga javob beradi.</small></label>
         {playMode==='cards'?<label>Ball ustunlari<select aria-label="Kartochka ustunlari soni" value={cardColumns} onChange={(event)=>{setCardColumns(Number(event.target.value));clearManualPool()}}>{[1,2,3,4,5].map((value)=><option key={value} value={value}>{value} ta · 1–{value} ball</option>)}</select><small>Eng ko‘pi bilan 5 ta ustun. Faqat mustaqil Cambridge savollari tanlanadi.</small></label>:null}
+        <p className="live-quick-defaults">Standart: 5 daqiqa · O‘qituvchi baholaydi · Anonim reyting</p>
+        <details className="live-advanced-options"><summary>Qo‘shimcha o‘yin qoidalari <span>Vaqt, baholash, xavfsizlik</span></summary><div className="live-advanced-options-content">
         <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Balanced Random · IGCSE Chapter va Section':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?(syllabusCode==='0478'?'Tanlangan IGCSE Chapter’lar va Section’lar o‘rtasida muvozanatli tasodifiy tanlanadi; filtr belgilanmasa barcha Paper 2 savollaridan random olinadi.':'Avval tanlangan Chapter’lar o‘rtasida, keyin ularning Section’lari ichida muvozanat saqlanadi. Bitta Section bo‘lsa oddiy random ishlaydi.'):questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         {user.role!=='student'?<label className="live-check"><input name="rehearsalMode" type="checkbox" checked={rehearsalMode} onChange={(event)=>setRehearsalMode(event.target.checked)}/><span>Rehearsal / Demo — o‘quvchisiz sinab ko‘rish</span></label>:null}
@@ -729,6 +767,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         {user.role==='student'?<small className="live-create-semantics">Ishtirokchilar faqat Start bosilguncha qo‘shila oladi; bu cheklov Mark Scheme va peer-review adolatliligini himoya qiladi.</small>:!rehearsalMode?<label className="live-check"><input name="allowLateJoin" type="checkbox" defaultChecked/><span>Boshlanganidan keyin qo‘shilishga ruxsat</span></label>:null}
         {!rehearsalMode?<label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>:null}
         {user.role!=='student'?(playMode==='cards'?<p className="live-create-semantics">Card rejimida o‘qituvchi har bir raund baholarini ko‘rib, kerak bo‘lsa tuzatadi va keyingi kartaga ruxsat beradi.</p>:<label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>):null}
+        </div></details>
         <button disabled={busy||(playMode==='cards'&&selectionMode==='manual'&&(!selectionPreview||selectionPreview.dependencyCount>0||selectionPreview.selected.some((item)=>item.marks>cardColumns||item.marks<1)))||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
         <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi. {playMode==='cards'?'Card rejimida o‘qituvchi kartani tanlagach savol hammaga ochiladi.':'Random rejimida Start bosilgach savol ochiladi.'}</small>
         {!classes.length?<small className="live-warning">Mashq yaratish uchun faol sinfga biriktirilgan bo‘lishingiz kerak.</small>:null}
@@ -1147,10 +1186,10 @@ function TeacherRoom({snapshot,refresh}:{snapshot:LiveExamSnapshot;refresh:()=>P
   const copyJoinLink=()=>void navigator.clipboard?.writeText(liveJoinUrl(session.joinCode));
   const openProjector=()=>window.open(`${window.location.href.split('#')[0]}#oqitish/live?id=${session.id}&projector=1`,'campath-projector','noopener,noreferrer');
 
-  return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></header>
+  return <div className="live-page live-room"><header className="live-room-head"><button className="live-icon-button" onClick={()=>navigate('oqitish/live')} aria-label="Live sessiyalarga qaytish"><ArrowLeft/></button><div><span className={`live-state live-state--${session.status}`}>{session.pausedAt?'Pauzada':STATUS_LABEL[session.status]}</span><h1>{session.title}</h1><p>{session.className} · {MODE_LABEL[session.markingMode]}</p></div><div className="live-room-actions"><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektor</button>{['question_open','marking','review'].includes(session.status)?<button className="live-secondary" disabled={busy} onClick={()=>void act(session.pausedAt?'/resume':'/pause',{expectedVersion:session.version})}>{session.pausedAt?'Davom ettirish':'Pauza'}</button>:null}<details className="live-room-more"><summary>⋯ Boshqa amallar</summary><div><button className="live-secondary" onClick={()=>void refresh()}><ArrowsClockwise/> Yangilash</button>{!['finished','cancelled'].includes(session.status)?<button className="live-danger" disabled={busy} onClick={()=>{if(window.confirm('Live sessiyani bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo‘lmaydi.'))void act('/cancel')}}>Bekor qilish</button>:null}</div></details></div></header>
     {error?<p className="live-error" role="alert">{error}</p>:null}
     {session.settings.playMode==='cards'&&session.status==='lobby'?<LiveCardBoard snapshot={snapshot} refresh={refresh} interactive/>:null}
-    {!rehearsal&&['question_open','marking','review'].includes(session.status)?<section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div>{session.settings.allowLateJoin?<LiveJoinQr code={session.joinCode} className="is-compact"/>:null}<div className="live-active-join-actions"><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Kod</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join link</button></div><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section>:null}
+    {!rehearsal&&['question_open','marking','review'].includes(session.status)?<details className="live-join-details"><summary>O‘quvchi qo‘shish · xona kodi {session.joinCode}</summary><section className="live-active-join" aria-label="Challenge kirish kodi"><div><span>KIRISH KODI · JOIN CODE</span><strong>{session.joinCode}</strong><small>{session.settings.allowLateJoin?'Kechikkan o‘quvchilar qo‘shilishi mumkin':'Kechikib kirish o‘chirilgan'}</small></div>{session.settings.allowLateJoin?<LiveJoinQr code={session.joinCode} className="is-compact"/>:null}<div className="live-active-join-actions"><button type="button" className="live-secondary" onClick={copyCode}><Copy/> Kod</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join link</button></div><label className="live-active-join-toggle"><input type="checkbox" checked={session.settings.allowLateJoin} disabled={busy} onChange={(e)=>void act('/late-join',{allowLateJoin:e.target.checked,expectedVersion:session.version})}/> Kechikib qo‘shilish</label></section></details>:null}
     {session.pausedAt?<section className="live-paused-banner"><strong>Challenge pauzada</strong><span>Student javobi va baholash bloklangan; timer muzlatilgan.</span></section>:null}
     {session.status==='lobby'&&session.settings.playMode!=='cards'&&snapshot.questions.length?<section className="live-lobby-order-preview" aria-label="Boshlashdan oldingi yakuniy savollar tartibi"><header><div><span className="live-eyebrow">TEACHER-ONLY · FINAL ORDER</span><h2>Challenge savollari tartibi</h2><p><strong>Tartib:</strong> {session.settings.questionOrder==='balanced'?'Balanced Random':session.settings.questionOrder==='fixed'?'Fixed · Source tartibi':'Random'}</p><p>Bu haqiqiy saqlangan ketma-ketlik. O‘quvchilar Start bosilguncha savollarni ko‘ra olmaydi.</p></div><strong>{snapshot.questions.length} savol</strong></header><details open><summary>Yakuniy savollarni ko‘rish</summary><ol>{snapshot.questions.map(item=><li key={item.id}><span>{item.position+1}.</span><strong>{item.displayRef}</strong><small>{item.marks} ball</small></li>)}</ol></details><p className="live-order-preview-note">Tartib mos kelmasa, Challenge’ni bekor qilib boshqa tartibda qayta yarating. Boshlangan sessiyaning savollari almashtirilmaydi.</p></section>:null}
     {session.status==='lobby'?(rehearsal?<section className="live-rehearsal-card"><span className="live-eyebrow">REHEARSAL · DEMO</span><h2>Challenge’ni o‘quvchilarsiz tekshiring</h2><p>Savol, timer, projector va Mark Scheme oqimini oldindan ko‘rasiz. Bu dry run sinf “seen” tarixiga, mastery yoki assessment evidence’ga yozilmaydi.</p><div><button className="live-secondary" onClick={openProjector}><Monitor/> Proyektorni ochish</button>{session.settings.playMode==='cards'?<p>Kartani tanlab rehearsalni boshlang.</p>:<button className="live-start" disabled={busy} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'Rehearsalni boshlash'}</button>}</div></section>:<div className="live-lobby-layout"><section className="live-code-card"><span>JOIN CODE</span><strong>{session.joinCode}</strong><LiveJoinQr code={session.joinCode}/><div className="live-code-share-actions"><button onClick={copyCode}><Copy/> Kodni nusxalash</button><button type="button" className="live-secondary" onClick={copyJoinLink}><Copy/> Join linkni nusxalash</button></div><p>QR kodni skanerlang yoki havolani ulashing. O‘quvchi akkauntga kirgach xona kodi avtomatik tayyor bo‘ladi.</p>{session.settings.playMode==='cards'?<p>O‘quvchilar qo‘shilgach birinchi kartani tanlang.</p>:<button className="live-start" disabled={busy||session.participantCount<1} onClick={()=>void act('/start')}>{busy?'Boshlanmoqda…':'O‘yinni boshlash'}</button>}</section><LobbyParticipants snapshot={snapshot} busy={busy} onRemove={(studentId,fullName)=>void removeParticipant(studentId,fullName)}/></div>):null}
