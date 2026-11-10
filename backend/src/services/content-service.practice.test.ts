@@ -29,19 +29,18 @@ describe('Interactive Games private student practice history', () => {
     const query = vi.fn()
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ present: 1 }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ term_count: 2 }] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: runId }] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: runId, inserted: true, scheduled_count: 2 }] });
     const service = new ContentService({ query } as unknown as Pool);
     expect(await service.saveInteractiveGamePractice(learner, request()))
       .toEqual({ runId, saved: true, alreadySaved: false, assessed: false });
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(3);
     expect(String(query.mock.calls[1]?.[0])).toContain('gt.is_glossary_visible=true');
     expect(query.mock.calls[1]?.[1]).toEqual(['9618', [a, b]]);
     expect(String(query.mock.calls[2]?.[0])).toContain('on conflict (id) do nothing');
-    expect(String(query.mock.calls[3]?.[0])).toContain('interactive_game_practice_schedule');
-    expect(String(query.mock.calls[3]?.[0])).toContain("interval '10 minutes'");
-    expect(String(query.mock.calls[4]?.[0])).toContain("interval '1 day'");
+    expect(String(query.mock.calls[2]?.[0])).toContain('interactive_game_practice_schedule');
+    expect(String(query.mock.calls[2]?.[0])).toContain("interval '10 minutes'");
+    expect(String(query.mock.calls[2]?.[0])).toContain("interval '1 day'");
+    expect(String(query.mock.calls[2]?.[0])).toContain('with inserted_run as');
     const values = query.mock.calls[2]?.[1] as unknown[];
     expect(values[0]).toBe(runId);
     expect(values[1]).toBe(learner.id);
@@ -81,25 +80,23 @@ describe('Interactive Games private student practice history', () => {
   it('rejects another learner reusing a run UUID without leaking their data', async () => {
     const query = vi.fn()
       .mockResolvedValueOnce({ rowCount: 1, rows: [{}] })
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] });
     const service = new ContentService({ query } as unknown as Pool);
     await expect(service.saveInteractiveGamePractice(learner, request([])))
       .rejects.toMatchObject({ status: 409 });
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('does not advance SRS intervals when the same practice run is submitted twice', async () => {
     const query = vi.fn()
       .mockResolvedValueOnce({ rowCount: 1, rows: [{}] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ term_count: 1 }] })
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: runId, inserted: false, scheduled_count: 0 }] });
     const result = await new ContentService({ query } as unknown as Pool)
       .saveInteractiveGamePractice(learner, request([{ termId: a, firstCorrect: true }]));
     expect(result).toMatchObject({ alreadySaved: true, assessed: false });
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(String(query.mock.calls[3]?.[0])).toContain('where id=$1 and student_id=$2');
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(String(query.mock.calls[2]?.[0])).toContain('on conflict (id) do nothing');
   });
 
   it('loads only the current student history and the most recent independent first attempts', async () => {
