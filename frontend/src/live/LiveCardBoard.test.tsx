@@ -113,7 +113,8 @@ describe('Live Card Board',()=>{
     await act(async()=>root.render(<LiveCardBoard snapshot={{...snapshot,session:{...snapshot.session}}} interactive/>));
     const available=container.querySelector<HTMLButtonElement>('[aria-label="5 ballik karta 1"]');
     expect(available?.disabled).toBe(false);
-    expect(container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 1"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 1"]')?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="2 ballik karta 2"]')?.disabled).toBe(true);
   });
 
   it('does not claim a second card on version conflict, and shows a recoverable error',async()=>{
