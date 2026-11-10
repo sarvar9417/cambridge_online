@@ -104,7 +104,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       body: JSON.stringify({ courseCode, scopes: normalizeGameScopes(scopes) }),
     })
       .then(({ data }) => {
-        if (!active) return;
+        if (!active || data.courseCode !== courseCode) return;
         setPack(data);
       })
       .catch((cause) => {
