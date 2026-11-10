@@ -295,6 +295,22 @@ export function createLiveExamsRouter(service: LiveExamService, pool?: Pool) {
     return mutation(req,res,()=>service.setLateJoin(req.actor!,id(req.params),body.allowLateJoin,body.expectedVersion));
   });
 
+  router.post('/:id/effects', durableStaffLimit, async(req,res)=>{
+    const body=z.object({
+      animations:z.boolean(),
+      sound:z.boolean(),
+      intensity:z.enum(['calm','balanced','spectacular']),
+      publicCelebrations:z.boolean(),
+      expectedVersion:z.number().int().positive(),
+    }).strict().parse(req.body);
+    return mutation(req,res,()=>service.setLiveEffects(req.actor!,id(req.params),{
+      animations:body.animations,
+      sound:body.sound,
+      intensity:body.intensity,
+      publicCelebrations:body.publicCelebrations,
+    },body.expectedVersion));
+  });
+
   router.post('/:id/cards/review/confirm', durableStaffLimit, async (req,res) => {
     const body=versionInput.parse(req.body ?? {});
     return mutation(req,res,()=>service.confirmCardReview(req.actor!,id(req.params),body.expectedVersion));
