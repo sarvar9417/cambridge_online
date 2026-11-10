@@ -119,6 +119,18 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(selectGamePairs(terms, 29, 999)).toHaveLength(29);
   });
 
+  it('samples large alphabetic banks evenly instead of using only the first few terms', () => {
+    const terms = Array.from({ length: 186 }, (_, index) => term(index, 'Vocabulary ' + index));
+    const selected = selectGamePairs(terms, 30, 0);
+    const positions = selected.map((item) => Number(item.id));
+    expect(new Set(positions).size).toBe(30);
+    expect(positions.some((position) => position >= 140)).toBe(true);
+    expect(positions.some((position) => position < 40)).toBe(true);
+    const allStages = Array.from({ length: 7 }, (_, index) =>
+      selectGamePairs(terms, 30, index).map((item) => item.id)).flat();
+    expect(new Set(allStages).size).toBe(186);
+  });
+
   it('generates review-only speaking prompts and a single correct quiz option per definition', () => {
     const pairs = ['Legal', 'Ethics', 'Culture', 'Morality', 'Privacy', 'Plagiarism'].map((x, i) => term(i, x));
     const prompts = createSpeakingPrompts(pairs);
