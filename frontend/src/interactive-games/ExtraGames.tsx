@@ -156,6 +156,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
     {answer !== null && <div className="ig-answer-feedback" role="status">
       <strong>{answer === -1 ? "Time's up!" : answer === question.answerIndex ? 'Correct!' : 'Correct answer'}</strong>
       {' '}{question.options[question.answerIndex]}
+      {question.sourceContext && <small className="ig-source-context">{question.sourceContext}</small>}
       {auto && <button type="button" onClick={next}>{last ? 'See results →' : 'Next question →'}</button>}
     </div>}
     {!auto && <div className="ig-card-controls" role="group" aria-label="Quiz navigation">
