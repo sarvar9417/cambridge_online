@@ -156,6 +156,53 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(cards[0]!.querySelector('input[aria-label="Hodder section 2.1.1 · Chapter 2"]')).not.toBeNull();
   });
 
+  it('defaults to 30, scales to 40/50, permits custom counts and makes Match Up All genuinely all', async () => {
+    const terms = Array.from({ length: 65 }, (_, index) => ({
+      id: 'long-' + index,
+      term: 'Study term ' + index,
+      definition: 'Distinct source-backed definition ' + index,
+      status: 'needs_review' as const,
+      source: null,
+    }));
+    mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.includes('/catalog')) return { data: catalog() };
+      if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
+        const scopes = (JSON.parse(String(init.body)) as { scopes: GameScope[] }).scopes;
+        return { data: { ...pack(scopes), pairs: terms } };
+      }
+      throw new Error('Unexpected request ' + path);
+    });
+    await render();
+    const roundSelect = container.querySelector<HTMLSelectElement>('select[aria-label="Round size"]')!;
+    expect(roundSelect.value).toBe('30');
+    expect(container.textContent).toContain('Playing 30 this round');
+    expect(roundSelect.querySelector('option[value="10"]')).not.toBeNull();
+    expect(roundSelect.querySelector('option[value="20"]')).not.toBeNull();
+    expect(roundSelect.querySelector('option[value="40"]')).not.toBeNull();
+    await change('select[aria-label="Round size"]', '40');
+    expect(container.textContent).toContain('Playing 40 this round');
+    const perPage = [...container.querySelectorAll<HTMLSelectElement>('.ig-template-options select')][0]!;
+    expect(perPage.querySelector('option[value="40"]')?.textContent).toBe('All (40)');
+    await act(async () => { perPage.value = '40'; perPage.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(container.querySelectorAll('.ig-match-row')).toHaveLength(40);
+    await change('select[aria-label="Round size"]', '50');
+    expect(container.textContent).toContain('Playing 50 this round');
+    await change('select[aria-label="Round size"]', 'custom');
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Custom round size"]')!;
+    expect(input).not.toBeNull();
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setter.call(input, '37');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('Playing 37 this round');
+    await change('select[aria-label="Round size"]', '100');
+    expect(container.textContent).toContain('Playing 65 this round');
+    expect(container.textContent).toContain('65 suitable terms');
+    expect(container.querySelectorAll('.ig-match-row')).toHaveLength(10);
+  });
+
   it('gives Spin the Wheel a choice of no timer, count up, or a timed round', async () => {
     await render(true);
     await game('Spin the Wheel');
