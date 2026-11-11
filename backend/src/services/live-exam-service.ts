@@ -484,6 +484,12 @@ export class LiveExamService {
       from live_question_readiness_state state
       where state.singleton=true
     ),false)`;
+    // canonical_mark_schemes expands all source questions via a lateral sort.
+    // With 0478 section filters this made a pool-count query take ~69 seconds.
+    // mark_schemes.question_id is UNIQUE: its approved MS row + MS source
+    // constraint is equivalent to the canonical view for an individual question.
+    // Keep the full liveMarkSchemeCapabilitySql gate intact.
+    const direct0478Scheme=syllabusCode==='0478';
     const cachedReadiness = `exists(
       select 1
       from classes readiness_class
@@ -493,7 +499,10 @@ export class LiveExamService {
       where readiness_class.id=${classParameter}
         and readiness.live_ready
         and exists(
-          select 1 from canonical_mark_schemes readiness_ms
+          select 1 from ${direct0478Scheme?'mark_schemes':'canonical_mark_schemes'} readiness_ms
+          ${direct0478Scheme?`join source_papers readiness_ms_source
+            on readiness_ms_source.id=readiness_ms.source_paper_id
+           and readiness_ms_source.kind='MS'`:''}
           where readiness_ms.question_id=q.id
             and readiness_ms.status='approved'
             and ${liveMarkSchemeCapabilitySql('readiness_ms')}
@@ -680,7 +689,10 @@ export class LiveExamService {
          join source_papers sp on sp.id=q.source_paper_id
          join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
          join components source_component on source_component.id=sp.component_id
-         join canonical_mark_schemes ms on ms.question_id=q.id
+         join ${direct0478Scheme?'mark_schemes':'canonical_mark_schemes'} ms on ms.question_id=q.id
+         ${direct0478Scheme?`join source_papers dynamic_ms_source
+           on dynamic_ms_source.id=ms.source_paper_id
+          and dynamic_ms_source.kind='MS'`:''}
          where not ${readinessCacheFresh}
            and ${dynamicReadinessFilters.join(' and ')}
            ${filters.length ? `and ${filters.join(' and ')}` : ''}
