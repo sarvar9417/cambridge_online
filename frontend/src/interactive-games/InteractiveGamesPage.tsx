@@ -16,6 +16,7 @@ import { FlashCards } from './FlashCards';
 import { SpinWheel, type WheelOptions } from './SpinWheel';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type AnswerReview, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
+import { ConceptCompareGame } from './ConceptCompareGame';
 import './interactive-games.css';
 import './remote-games.css';
 import './game-polish.css';
@@ -167,7 +168,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     [allPairs, practiceHistory]);
   const reviewOnly = mistakesOnly || dueOnly;
   const reviewPairs = dueOnly ? duePairs : missedPairs;
-  const currentMode = reviewOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
+  const currentMode = reviewOnly ? 'flash-cards' : courseCode === '0478' && mode === 'concept-compare' ? 'match-up' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const sourcePairs = reviewOnly ? reviewPairs : allPairs;
   const eligiblePairs = useMemo(
@@ -194,7 +195,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const isWheel = currentMode === 'spin-wheel';
   const boxQuestions = gameIsAvailable('quiz', pairs) ? questions : [];
   const effectiveBoxMode = boxQuestions.length ? boxMode : 'simple';
-  const isScored = ['match-up', 'quiz', 'find-the-match', 'anagram'].includes(currentMode) ||
+  const isScored = ['match-up', 'quiz', 'find-the-match', 'anagram', 'concept-compare'].includes(currentMode) ||
     (currentMode === 'open-box' && effectiveBoxMode === 'questions');
   const showClock = timeLimit > 0 || stopwatch;
   const stageDisabled = paused || roundEnded || (timeLimit > 0 && !started);
@@ -238,6 +239,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setMistakesOnly(false);
     setDueOnly(false);
     setClassroomMode(false);
+    if (next === '0478') setMode('match-up');
     setRound(0);
     setPlaySession((value) => value + 1);
     clearSession();
@@ -271,7 +273,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     resetGame();
   }
   async function savePractice() {
-    if (isTeacher || !pack || !roundEnded || practiceSaveState === 'saving' ||
+    if (isTeacher || currentMode === 'concept-compare' || !pack || !roundEnded || practiceSaveState === 'saving' ||
       practiceSaveState === 'saved') return;
     const payload: SavePracticeRequest = {
       runId: practiceRunId,
@@ -362,14 +364,14 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       <div>
         <span className="ig-eyebrow">CAMBRIDGE {courseCode} · LIVE CURRICULUM BANK</span>
         <h1>Learn by playing.</h1>
-        <p>Select any combination of chapters, syllabus topics and Hodder sections. Play all eight games from the combined source-backed vocabulary bank.</p>
+        <p>Select any combination of chapters, syllabus topics and Hodder sections. Play nine game modes: eight glossary games plus Concept Compare, a curated two-term challenge.</p>
         <div className="ig-pills">
           <span>{chosenChapterCount ? chosenChapterCount + ' chapters selected' : 'Select chapters'}</span>
           <span>{scopes.length} curriculum selections</span>
           <span>{isTeacher ? 'Teacher preview' : 'Student practice'}</span>
         </div>
       </div>
-      <div className="ig-hero-mark" aria-hidden="true">8<span>play modes</span></div>
+      <div className="ig-hero-mark" aria-hidden="true">9<span>play modes</span></div>
     </div>
 
     {catalog?.courseCode === courseCode && <GameScopePicker key={courseCode} catalog={catalog} scopes={scopes} onChange={changeScopes} disabled={catalogLoading} />}
@@ -392,7 +394,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           <option value="extended">Extended · additional source-screened concepts</option>
         </select>
       </label>
-      <label>Round size
+      {currentMode !== 'concept-compare' && <label>Round size
         <select aria-label="Round size" value={customRoundSize ? 'custom' : String(questionCount)} disabled={!ready}
           onChange={(event) => {
             if (event.target.value === 'custom') {
@@ -415,7 +417,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         {ready && questionCount >= eligiblePairs.length && <small className="ig-round-available" role="status">
           This selection has {eligiblePairs.length} suitable terms. No unseen terms remain; the next round reshuffles the same vocabulary. Select more chapters or choose Extended vocabulary for a larger bank.
         </small>}
-      </label>
+      </label>}
       <button className="ig-data-refresh" type="button" onClick={refresh}>↻ Refresh database</button>
     </div>
 
@@ -481,18 +483,18 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={(reviewOnly && game.id !== 'flash-cards') || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
+          disabled={(reviewOnly && game.id !== 'flash-cards') || (courseCode === '0478' && game.id === 'concept-compare') || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{courseCode === '0478' && game.id === 'concept-compare' ? 'This curated comparison bank currently covers 9618 only.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
         <div className="ig-workspace-head">
           <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
-            <p>{chosenChapterCount} chapters · {scopes.length} selections · {pairs.length} terms in this round
+            <p>{chosenChapterCount} chapters · {scopes.length} selections · {currentMode === 'concept-compare' ? 'curated comparison deck' : pairs.length + ' terms in this round'}
               {staged ? ` · Stage ${stageNumber} of ${stageTotal} (${selectedCount} selected)` : ''}</p>
           </div>
           <div className="ig-workspace-head-actions">
@@ -521,6 +523,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <fieldset className="ig-game-stage" disabled={stageDisabled}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} recordAnswer={recordAnswer} />}
+          {currentMode === 'concept-compare' && <ConceptCompareGame courseCode={courseCode} scopes={scopes} />}
           {currentMode === 'flash-cards' && <FlashCards
             key={dueOnly ? 'spaced-review' : mistakesOnly ? 'mistake-review' : 'all-cards'}
             pairs={pairs}
@@ -562,7 +565,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </details>}
           <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery.
             Only student-submitted formative results can be saved; they are not official grades.</p>
-          {!isTeacher && <div className="ig-practice-save">
+          {!isTeacher && currentMode !== 'concept-compare' && <div className="ig-practice-save">
             <button type="button" disabled={practiceSaveState === 'saving' || practiceSaveState === 'saved'}
               onClick={() => void savePractice()}>
               {practiceSaveState === 'saved' ? '✓ Practice saved'
@@ -580,7 +583,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </div>
         </div>}
       </div>
-      <p className="ig-source">Source: {pack.source}. Pending-review vocabulary is clearly labelled.</p>
+      <p className="ig-source">{currentMode === 'concept-compare' ? 'Source: curated Hodder 9618 comparison statements. Full Mark Scheme point-by-point audit is still pending; results stay in this session.' : 'Source: ' + pack.source + '. Pending-review vocabulary is clearly labelled.'}</p>
     </>)}
   </section></GameSignalContext.Provider>;
 }
