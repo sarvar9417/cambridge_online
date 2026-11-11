@@ -119,6 +119,41 @@ describe('Live Challenge saved question ordering',()=>{
     expect(result.ids).toEqual(['q-b','q-a']);
   });
 
+  it('counts 0478 topic sections from indexed MS rows without the expensive canonical view',async()=>{
+    const {service,calls}=picker([{total:32}]);
+    const result=await service.chooseQuestionIds(teacher,{
+      ...base,syllabusCode:'0478',coursebookSectionCodes:[],
+      igcseBookSectionCodes:['8.1'],components:[2],questionCount:1,
+    },false,true);
+    expect(result).toEqual({ids:[],total:32});
+    expect(calls).toHaveLength(1);
+    const {sql,params}=calls[0]!;
+    expect(sql).toContain('select count(*)::int total');
+    expect(sql).toContain('from mark_schemes readiness_ms');
+    expect(sql).toContain('join source_papers readiness_ms_source');
+    expect(sql).toContain("readiness_ms_source.kind='MS'");
+    expect(sql).toContain('readiness_ms.scheme_type::text');
+    expect(sql).not.toContain('from canonical_mark_schemes readiness_ms');
+    expect(sql).toContain('join mark_schemes ms on ms.question_id=q.id');
+    expect(sql).toContain('join source_papers dynamic_ms_source');
+    expect(params[0]).toBe(base.classId);
+    expect(params).toContainEqual([2]);
+    expect(params).toContainEqual(['8.1-lo-01','8.1-lo-02','8.1-lo-03','8.1-lo-04','8.1-lo-05','8.1-lo-06','8.1-lo-07','8.1-lo-08']);
+  });
+
+  it('keeps legacy 9618 MS selection unchanged',async()=>{
+    const {service,calls}=picker([{total:12}]);
+    const result=await service.chooseQuestionIds(teacher,{
+      ...base,questionCount:1,
+    },false,true);
+    expect(result.total).toBe(12);
+    const sql=calls[0]!.sql;
+    expect(sql).toContain('from canonical_mark_schemes readiness_ms');
+    expect(sql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
+    expect(sql).not.toContain('join source_papers readiness_ms_source');
+    expect(sql).not.toContain('join source_papers dynamic_ms_source');
+  });
+
   it('keeps related parts adjacent and in their authentic part order, not across papers',()=>{
     const {service}=picker([]);
     const ids=service.groupSourceQuestionParts([
