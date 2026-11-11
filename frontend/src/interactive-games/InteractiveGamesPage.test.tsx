@@ -212,7 +212,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-practice-save')).toBeNull();
   });
 
-  it('loads chapters, syllabus topics and Hodder sections with the eight game templates', async () => {
+  it('loads chapters, syllabus topics and Hodder sections with the nine game templates', async () => {
     await render(true);
     expect(container.textContent).toContain('Chapter 1');
     expect(container.textContent).toContain('137 terms');
@@ -223,7 +223,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.textContent).toContain('pending review');
     expect([...container.querySelectorAll('.ig-game-tile strong')].map((el) => el.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
@@ -262,7 +262,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
     expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
     expect(gameTiles.every((tile) => !tile.disabled)).toBe(true);
     await game('Quiz');
@@ -337,7 +337,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     const shown = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')]
       .map((item) => item.textContent);
     const first = shown();
-    expect(first).toHaveLength(8);
+    expect(first).toHaveLength(9);
     expect(container.textContent).toContain('No unseen terms remain');
     await click(button('■ Finish game'));
     await click(button('↻ Reshuffle same vocabulary'));
@@ -468,7 +468,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);
     mockApi.mockImplementation(respond as typeof api);
     await click(button('Retry'));
-    expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(8);
+    expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(9);
   });
 
   it('removes stale content errors as soon as the user clears a failed multi-selection', async () => {
@@ -588,7 +588,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await click(secondBox);
       expect(secondBox.classList.contains('is-opened')).toBe(true);
       expect(secondBox.textContent).toContain('Morality');
-      expect(container.querySelectorAll('.ig-box')).toHaveLength(8);
+      expect(container.querySelectorAll('.ig-box')).toHaveLength(9);
       await click(secondBox);
       expect(secondBox.textContent).toContain(baseTerms[1]!.definition);
       await game('Open the Box');
