@@ -110,25 +110,30 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(new Set(selectGamePairs(terms, 100, 0).map((pair) => pair.id)).size).toBe(75);
   });
 
-  it('cycles each supplied vocabulary term through fair limited rounds', () => {
+  it('draws a genuinely randomized subset of the full selected bank without repetitions', () => {
     const terms = Array.from({ length: 75 }, (_, index) => term(index, 'TERM' + index));
-    const pages = [0, 1, 2].flatMap((round) => selectGamePairs(terms, 29, round).map((pair) => pair.id));
-    expect(new Set(pages).size).toBe(75);
-    expect(pages).toHaveLength(87);
-    expect(selectGamePairs(terms, 29, 0)).toHaveLength(29);
-    expect(selectGamePairs(terms, 29, 999)).toHaveLength(29);
+    const first = selectGamePairs(terms, 29, 0, 12345);
+    const next = selectGamePairs(terms, 29, 1, 12345);
+    expect(first).toEqual(selectGamePairs(terms, 29, 0, 12345));
+    expect(first).toHaveLength(29);
+    expect(new Set(first.map((item) => item.id)).size).toBe(29);
+    expect(first.map((item) => item.id)).not.toEqual(terms.slice(0, 29).map((item) => item.id));
+    expect(next.map((item) => item.id)).not.toEqual(first.map((item) => item.id));
+    expect(selectGamePairs(terms, 29, 999, 12345)).toHaveLength(29);
+    expect(selectGamePairs(terms, 100, 0, 12345)).toHaveLength(75);
   });
 
-  it('samples large alphabetic banks evenly instead of using only the first few terms', () => {
+  it('samples early and late source terms, not a sorted prefix with its order shuffled', () => {
     const terms = Array.from({ length: 186 }, (_, index) => term(index, 'Vocabulary ' + index));
-    const selected = selectGamePairs(terms, 30, 0);
+    const selected = selectGamePairs(terms, 30, 0, 17);
     const positions = selected.map((item) => Number(item.id));
     expect(new Set(positions).size).toBe(30);
     expect(positions.some((position) => position >= 140)).toBe(true);
     expect(positions.some((position) => position < 40)).toBe(true);
-    const allStages = Array.from({ length: 7 }, (_, index) =>
-      selectGamePairs(terms, 30, index).map((item) => item.id)).flat();
-    expect(new Set(allStages).size).toBe(186);
+    expect(selected.map((item) => item.id)).not.toEqual(terms.slice(0, 30).map((item) => item.id));
+    const allSamples = Array.from({ length: 100 }, (_, index) =>
+      selectGamePairs(terms, 30, index, 123).map((item) => item.id)).flat();
+    expect(new Set(allSamples).size).toBe(186);
   });
 
   it('keeps different chapter meanings in review cards but prevents ambiguous scored answers', () => {
@@ -220,12 +225,12 @@ describe('Interactive Games robust production catalogue selection', () => {
   });
   it('stages 500 selected questions in readable blocks while preserving each source term once', () => {
     const terms = Array.from({ length: 520 }, (_, index) => term(index, 'Term ' + index));
-    const blocks = Array.from({ length: 10 }, (_, round) => selectModeStage(terms, 500, round, 'quiz'));
+    const blocks = Array.from({ length: 10 }, (_, round) => selectModeStage(terms, 500, round, 'quiz', 12345));
     expect(blocks.map((items) => items.length)).toEqual(Array(10).fill(50));
     expect(new Set(blocks.flat().map((item) => item.id)).size).toBe(500);
-    expect(selectModeStage(terms, 500, 10, 'quiz').map((item) => item.id))
-      .toEqual(blocks[0]!.map((item) => item.id));
-    const wheelBlocks = [0, 1, 2, 3].map((round) => selectModeStage(terms, 100, round, 'spin-wheel'));
+    expect(selectModeStage(terms, 500, 10, 'quiz', 12345).map((item) => item.id))
+      .not.toEqual(blocks[0]!.map((item) => item.id));
+    const wheelBlocks = [0, 1, 2, 3].map((round) => selectModeStage(terms, 100, round, 'spin-wheel', 12345));
     expect(wheelBlocks.map((items) => items.length)).toEqual([30, 30, 30, 10]);
     expect(new Set(wheelBlocks.flat().map((item) => item.id)).size).toBe(100);
     expect(selectModeStage(terms, 20, 0, 'quiz')).toHaveLength(20);

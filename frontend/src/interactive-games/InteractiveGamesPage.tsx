@@ -156,9 +156,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }, [soundOn]);
 
   const allPairs = useMemo(() => selectQualityGameTerms(pack?.pairs ?? [], vocabularyQuality), [pack, vocabularyQuality]);
+  const classroomSelectionSeed = useMemo(
+    () => Math.floor(Math.random() * 0x100000000), [allPairs, questionCount, round]);
   const classroomPairs = useMemo(
-    () => selectModeStage(allPairs, Math.min(questionCount, 50), round, 'flash-cards'),
-    [allPairs, questionCount, round]);
+    () => selectModeStage(allPairs, Math.min(questionCount, 50), round, 'flash-cards', classroomSelectionSeed),
+    [allPairs, questionCount, round, classroomSelectionSeed]);
   const missedPairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.needsReviewIds ?? []),
     [allPairs, practiceHistory]);
   const duePairs = useMemo(() => missedPracticePairs(allPairs, practiceHistory?.dueReviewIds ?? []),
@@ -167,15 +169,23 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const reviewPairs = dueOnly ? duePairs : missedPairs;
   const currentMode = reviewOnly ? 'flash-cards' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
+  const sourcePairs = reviewOnly ? reviewPairs : allPairs;
   const eligiblePairs = useMemo(
-    () => poolForMode(reviewOnly ? reviewPairs : allPairs, currentMode),
-    [allPairs, currentMode, reviewOnly, reviewPairs]);
-  const pairs = useMemo(() => selectModeStage(eligiblePairs, questionCount, round, currentMode),
-    [eligiblePairs, questionCount, round, currentMode]);
+    () => poolForMode(sourcePairs, currentMode),
+    [sourcePairs, currentMode]);
   const selectedCount = Math.min(eligiblePairs.length, questionCount);
   const staged = Boolean(GAME_STAGE_LIMITS[currentMode] && selectedCount > GAME_STAGE_LIMITS[currentMode]!);
   const stageSize = GAME_STAGE_LIMITS[currentMode] ?? selectedCount;
   const stageTotal = staged ? Math.ceil(selectedCount / stageSize) : 1;
+  const selectionCycle = Math.floor(round / stageTotal);
+  // Re-sample from all eligible terms for a new vocabulary cycle, but keep the
+  // draw fixed while advancing through the stages of that same cycle.
+  const selectionSeed = useMemo(
+    () => Math.floor(Math.random() * 0x100000000),
+    [eligiblePairs, questionCount, currentMode, selectionCycle]);
+  const pairs = useMemo(
+    () => selectModeStage(eligiblePairs, questionCount, round, currentMode, selectionSeed),
+    [eligiblePairs, questionCount, round, currentMode, selectionSeed]);
   const stageNumber = staged ? round % stageTotal + 1 : 1;
   const speaking = useMemo(() => createSpeakingPrompts(pairs), [pairs]);
   const questions = useMemo(() => createQuizQuestions(pairs), [pairs]);

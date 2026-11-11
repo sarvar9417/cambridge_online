@@ -224,7 +224,8 @@ export function poolForMode(pairs: readonly LiveGameTerm[], mode: GameKind): Liv
 }
 
 /** Big banks stay selectable while the visual stage has a manageable workload.
- * The next-stage control advances within the requested subset without repeats.
+ * A full requested subset is sampled from the ENTIRE selected bank first.
+ * Consecutive stages share the same sampled subset without repeats.
  */
 export const GAME_STAGE_LIMITS: Partial<Record<GameKind, number>> = {
   'match-up': 30,
@@ -236,13 +237,17 @@ export const GAME_STAGE_LIMITS: Partial<Record<GameKind, number>> = {
   'flash-cards': 50,
   'speaking-cards': 50,
 };
-export function selectModeStage(pairs: readonly LiveGameTerm[], requested: number, round: number, mode: GameKind) {
+export function selectModeStage(
+  pairs: readonly LiveGameTerm[], requested: number, round: number, mode: GameKind, selectionSeed?: number,
+) {
   const limit = GAME_STAGE_LIMITS[mode];
-  if (!limit || requested <= limit) return selectGamePairs(pairs, requested, round);
-  const selected = selectGamePairs(pairs, requested, 0);
-  if (!selected.length) return [];
-  const start = (round * limit) % selected.length;
-  return selected.slice(start, start + limit);
+  const count = Math.min(requested, pairs.length);
+  if (!limit || count <= limit) return selectGamePairs(pairs, requested, round, selectionSeed);
+  const stages = Math.ceil(count / limit);
+  const cycle = Math.floor(round / stages);
+  const stage = ((round % stages) + stages) % stages;
+  const selected = selectGamePairs(pairs, requested, cycle, selectionSeed);
+  return selected.slice(stage * limit, (stage + 1) * limit);
 }
 
 /** Same source terms, different game mechanics. No generated false definitions. */
@@ -279,17 +284,36 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
   });
 }
 
-/** Prefer vocabulary from across the selected bank, not only consecutive
- * alphabetically sorted words. A coprime stride permutes the whole bank:
- * rotating consecutive windows covers every eligible item without repeats
- * until the vocabulary pool cycles.
+/** A local PRNG allows a sampled game to remain stable while its stages advance.
+ * A fresh random seed is chosen when the eligible selection or vocabulary cycle changes.
  */
-export function selectGamePairs(pairs: readonly LiveGameTerm[], length: number, round: number): LiveGameTerm[] {
+function seededGameRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+
+/** Randomly sample WITHOUT replacement from the entire eligible vocabulary bank.
+ * Shuffling only a previously truncated prefix would exclude later key terms.
+ * The optional seed makes a single multi-stage draw reproducible across stages.
+ */
+export function selectGamePairs(
+  pairs: readonly LiveGameTerm[], length: number, round: number, selectionSeed?: number,
+): LiveGameTerm[] {
   if (length <= 0 || !pairs.length) return [];
   if (pairs.length <= length) return [...pairs];
-  const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
-  let stride = Math.max(2, Math.ceil(pairs.length / length));
-  while (gcd(stride, pairs.length) !== 1) stride += 1;
-  const start = (round * length) % pairs.length;
-  return Array.from({ length }, (_, index) => pairs[((start + index) * stride) % pairs.length]!);
+  const random = selectionSeed === undefined
+    ? Math.random
+    : seededGameRandom((selectionSeed ^ Math.imul(round + 1, 0x9E3779B9)) >>> 0);
+  const shuffled = [...pairs];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const other = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other]!, shuffled[index]!];
+  }
+  return shuffled.slice(0, length);
 }
