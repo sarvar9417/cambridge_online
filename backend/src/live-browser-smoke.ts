@@ -624,7 +624,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
     if(anagramSeen.has(term.term))throw new Error('Anagram repeated a term before exhausting this round: '+term.term);
     anagramSeen.add(term.term);
     for(const letter of term.term.toUpperCase().replace(/[^A-Z0-9]/g,'')){
-      const tile=await teacher.$eval('.ig-anagram-letter',(buttons,char)=>
+      const tile=await teacher.$$eval('.ig-anagram-letter',(buttons,char)=>
         buttons.findIndex((button)=>button.textContent===char && !(button as HTMLButtonElement).disabled),letter);
       if(tile<0)throw new Error('Missing anagram tile '+letter);
       await clickGameControl('.ig-anagram-letter:nth-child('+(tile+1)+')');
