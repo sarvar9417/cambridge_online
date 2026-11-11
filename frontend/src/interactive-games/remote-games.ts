@@ -325,15 +325,15 @@ export function selectGamePairs(
   }
 
   if (size <= length) {
-    // Keep the initial all-terms board, but never leave its Next button
-    // appearing broken just because the selected vocabulary was exhausted.
-    if (index === 0) return [...pairs];
+    // Always shuffle even on the FIRST round. Source rows arrive alphabetically
+    // ordered; returning [...pairs] here made an 8-Chapter Match Up start at A.
     if (size === 1) return shuffled;
-    // Guarantee the first reshuffle differs from the source even for two terms.
+    // An unlikely identity permutation should not leave a full-bank round
+    // looking alphabetically sorted.
     if (shuffled.every((pair, i) => pair.id === pairs[i]!.id)) {
       shuffled.push(shuffled.shift()!);
     }
-    const offset = (index - 1) % size;
+    const offset = index % size;
     return [...shuffled.slice(offset), ...shuffled.slice(0, offset)];
   }
 

@@ -75,7 +75,7 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(gameIsAvailable('anagram', chapter.slice(0, 29))).toBe(false);
     expect(gameIsAvailable('anagram', chapter)).toBe(true);
     const selected = selectGamePairs(poolForMode(chapter, 'anagram'), 8, 0);
-    expect(selected.map((pair) => pair.term)).toEqual(['DATABASE', 'BINARY', 'ETHICS']);
+    expect(selected.map((pair) => pair.term).sort()).toEqual(['BINARY', 'DATABASE', 'ETHICS']);
     expect(selected.every((pair) => isAnagramEligible(pair.term))).toBe(true);
     expect(poolForMode(chapter, 'match-up')).toHaveLength(38);
   });
@@ -138,10 +138,35 @@ describe('Interactive Games robust production catalogue selection', () => {
     const first = selectGamePairs(terms, 30, 0, 12345);
     const second = selectGamePairs(terms, 30, 1, 12345);
     const third = selectGamePairs(terms, 30, 2, 12345);
-    expect(first).toEqual(terms);
+    expect(new Set(first.map((item) => item.id))).toEqual(new Set(terms.map((item) => item.id)));
+    expect(first.map((item) => item.id)).not.toEqual(terms.map((item) => item.id));
     expect(second.map((item) => item.id)).not.toEqual(first.map((item) => item.id));
     expect(third.map((item) => item.id)).not.toEqual(second.map((item) => item.id));
     expect(new Set(second.map((item) => item.id))).toEqual(new Set(first.map((item) => item.id)));
+  });
+
+  it('randomizes the FIRST Match Up round across Chapters 1–8 even when all terms fit', () => {
+    const terms = Array.from({ length: 24 }, (_, index) => ({
+      ...term(index, 'Keyword ' + String(index).padStart(2, '0')),
+      chapterNo: Math.floor(index / 3) + 1,
+    }));
+    const selected = selectModeStage(poolForMode(terms, 'match-up'), 30, 0, 'match-up', 12345);
+    expect(selected).toHaveLength(24);
+    expect(new Set(selected.map((pair) => pair.chapterNo))).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8]));
+    expect(selected.map((pair) => pair.id)).not.toEqual(terms.map((pair) => pair.id));
+    expect(selectModeStage(terms, 30, 0, 'match-up', 12345)).toEqual(selected);
+  });
+
+  it('randomizes all eligible vocabulary before taking a limited Match Up round', () => {
+    const terms = Array.from({ length: 160 }, (_, index) => ({
+      ...term(index, 'Keyword ' + String(index).padStart(3, '0')),
+      chapterNo: Math.floor(index / 20) + 1,
+    }));
+    const selected = selectModeStage(poolForMode(terms, 'match-up'), 30, 0, 'match-up', 12345);
+    expect(selected).toHaveLength(30);
+    expect(new Set(selected.map((pair) => pair.id)).size).toBe(30);
+    expect(selected.some((pair) => Number(pair.id) >= 100)).toBe(true);
+    expect(selected.map((pair) => pair.id)).not.toEqual(terms.slice(0, 30).map((pair) => pair.id));
   });
 
   it('samples early and late source terms, not a sorted prefix with its order shuffled', () => {
