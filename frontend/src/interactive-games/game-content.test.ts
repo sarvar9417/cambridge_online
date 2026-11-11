@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { chapter7Pilot, GAME_CATALOG, findMatchOptions, gamePairProvenance, isCorrectPair, scrambleTerm } from './game-content';
 
 describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
-  it('has unique glossary IDs and eight requested modes in the specified order', () => {
+  it('has unique glossary IDs and nine requested modes in the specified order', () => {
     expect(chapter7Pilot.courseCode).toBe('9618');
     expect(chapter7Pilot.chapterNo).toBe(7);
     expect(chapter7Pilot.sectionCode).toBe('7.1');
@@ -10,7 +10,7 @@ describe('Interactive Games Cambridge 9618 Chapter 7.1 pilot', () => {
     expect(chapter7Pilot.pairs.length).toBeGreaterThanOrEqual(8);
     expect(GAME_CATALOG.map((item) => item.label)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
     for (const item of chapter7Pilot.pairs) {
       expect(item.term.length).toBeGreaterThan(0);
