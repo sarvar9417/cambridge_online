@@ -267,13 +267,19 @@ export interface ContentGames {termMatch:Array<{id:string;term:string;definition
 export interface LessonProgress {courseCode:'9618'|'0478';chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
 export interface ExportItem {id:string;file_format?:'pdf'|'docx';kind:'question_paper'|'mark_scheme'|'combined'|'feedback';status:'queued'|'running'|'succeeded'|'failed';error:string|null;expires_at:string|null;created_at:string;finished_at:string|null}
 
+export interface LiveEffectSettings {
+  animations:boolean;
+  sound:boolean;
+  intensity:'calm'|'balanced'|'spectacular';
+  publicCelebrations:boolean;
+}
 export type LiveExamStatus = 'lobby'|'question_open'|'marking'|'review'|'finished'|'cancelled';
 export type LiveExamMarkingMode = 'teacher'|'peer'|'self';
 export interface LiveExamSummary {
   id:string;classId:string;className:string;title:string;joinCode:string;status:LiveExamStatus;
   markingMode:LiveExamMarkingMode;questionTimeLimitS:number|null;version:number;
   pausedAt:string|null;pauseRemainingS:number|null;
-  settings:{playMode?:'random'|'cards';cardColumns?:number;cardReviewConfirmedPosition?:number|null;questionOrder?:'fixed'|'shuffled'|'balanced';practiceMode?:'solo'|'group'|'collaborative'|null;rehearsalMode?:boolean;allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number};
+  settings:{playMode?:'random'|'cards';cardColumns?:number;cardReviewConfirmedPosition?:number|null;questionOrder?:'fixed'|'shuffled'|'balanced';practiceMode?:'solo'|'group'|'collaborative'|null;rehearsalMode?:boolean;allowLateJoin:boolean;autoCloseWhenAllSubmitted:boolean;teacherOverrideEnabled:boolean;leaderboardMode:'marks'|'marks_speed_tiebreak';displayNameMode:'full'|'first_name'|'initials'|'anonymous_alias';peerCalibrationPercent?:number;peerDisagreementThreshold?:number;liveEffects?:LiveEffectSettings};
   questionCount:number;participantCount:number;currentQuestionIndex?:number;createdAt:string;updatedAt:string;
 }
 export interface LiveExamRealtimeEvent {version:number;type:string;createdAt:string}

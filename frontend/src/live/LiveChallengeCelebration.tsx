@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import type {LiveEffectSettings} from '../lib/api';
+import {LiveMascot3D} from './LiveMascot3D';
 import { GearSix, Lightning, Medal, Sparkle, SpeakerHigh, SpeakerSlash, Trophy } from '@phosphor-icons/react';
 import {
   celebrationTier, getRewardSummary, isRewardEntry, REWARD_LABELS,
@@ -43,7 +45,7 @@ function readProgress(key:string):RewardEntry[] {
   } catch {return [];}
 }
 
-function playResultSound(tier:CelebrationTier) {
+export function playResultSound(tier:CelebrationTier) {
   try {
     type AudioContextConstructor = typeof AudioContext;
     const win=window as typeof window&{webkitAudioContext?:AudioContextConstructor};
@@ -71,8 +73,8 @@ function playResultSound(tier:CelebrationTier) {
 }
 
 /** An original vector mascot, rendered with highlights/shadows and 3D-style depth. */
-function NeonMascot({tier}:{tier:CelebrationTier}) {
-  return <svg viewBox="0 0 176 182" width="156" height="162" aria-hidden="true" className={`live-neon-mascot live-neon-mascot--${tier}`}>
+export function NeonMascot({tier}:{tier:CelebrationTier}) {
+  return <svg viewBox="0 0 176 182" width="156" height="162" aria-hidden="true" className={`live-neon-mascot-svg live-neon-mascot--${tier}`}>
     <defs>
       <linearGradient id="robot-body" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#f2faff"/><stop offset=".45" stopColor="#98c8ff"/><stop offset="1" stopColor="#3a52b8"/></linearGradient>
       <linearGradient id="robot-face" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#18275b"/><stop offset="1" stopColor="#080e29"/></linearGradient>
@@ -105,10 +107,35 @@ function NeonMascot({tier}:{tier:CelebrationTier}) {
   </svg>;
 }
 
-type Cue={key:string;tier:CelebrationTier;score:number;possible:number;streak:number;newBadges:RewardBadge[]};
+type MysteryPrize={title:string;detail:string};
+const MYSTERY_PRIZES:Record<number,MysteryPrize>={
+  3:{title:'Neon Star',detail:'Three reviewed questions — a new avatar star!'},
+  5:{title:'Crystal Crown',detail:'Five reviewed questions — your avatar earned a crown!'},
+  10:{title:'Galaxy Wings',detail:'Ten reviewed questions — your avatar earned wings!'},
+};
+type Cue={key:string;tier:CelebrationTier;score:number;possible:number;streak:number;newBadges:RewardBadge[];mystery?:MysteryPrize};
 
-export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,possible}:{
-  sessionId:string;userId:string;questionIndex:number;score:number|null|undefined;possible:number|null|undefined;
+export function MysteryRewardChest({reward}:{reward:MysteryPrize}) {
+  const [open,setOpen]=useState(false);
+  useEffect(()=>{
+    const timer=window.setTimeout(()=>setOpen(true),650);
+    return()=>window.clearTimeout(timer);
+  },[]);
+  return <div className={`live-mystery-reward${open?' is-open':''}`} aria-label="Mystery Reward">
+    <button type="button" className="live-chest-button" onClick={()=>setOpen(true)} aria-expanded={open} aria-label="Open mystery reward chest">
+      <span className="live-chest-shine" aria-hidden="true"/>
+      <span className="live-chest-lid" aria-hidden="true"/>
+      <span className="live-chest-body" aria-hidden="true"><span>✦</span></span>
+    </button>
+    <div className="live-chest-reveal" role="status">
+      <strong>{open?reward.title:'Mystery Reward'}</strong>
+      <small>{open?reward.detail:'Opening your achievement chest…'}</small>
+    </div>
+  </div>;
+}
+
+export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,possible,policy}:{
+  sessionId:string;userId:string;questionIndex:number;score:number|null|undefined;possible:number|null|undefined;policy?:LiveEffectSettings;
 }) {
   const key=rewardKey(sessionId,userId);
   const [prefs,setPrefs]=useState<EffectsPreferences>(readPrefs);
@@ -140,12 +167,13 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
     } catch { /* still show feedback in private browsing */ }
     setEntries(next);
     if(announced)return;
-    if(prefs.sound)playResultSound(tier);
-    if(!prefs.animation)return;
+    if(prefs.sound && policy?.sound!==false && policy?.publicCelebrations!==false)playResultSound(tier);
+    if(!prefs.animation || policy?.animations===false || policy?.publicCelebrations===false)return;
     const newBadges=after.badges.filter(badge=>!before.badges.includes(badge));
-    const nextCue={key:`${questionIndex}:${signature}`,tier,score:entry.score,possible:entry.possible,streak:after.streak,newBadges};
+    const mystery=after.reviewed!==before.reviewed?MYSTERY_PRIZES[after.reviewed]:undefined;
+    const nextCue={key:`${questionIndex}:${signature}`,tier,score:entry.score,possible:entry.possible,streak:after.streak,newBadges,mystery};
     setCue(nextCue);
-  },[key,questionIndex,score,possible,prefs.animation,prefs.intensity,prefs.sound]);
+  },[key,questionIndex,score,possible,prefs.animation,prefs.intensity,prefs.sound,policy?.animations,policy?.sound,policy?.publicCelebrations]);
 
   useEffect(()=>{
     if(!cue)return;
@@ -162,8 +190,8 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
       </div>
       <details className="live-fx-settings"><summary><GearSix/> Effects</summary>
         <div>
-          <label><input type="checkbox" checked={prefs.animation} onChange={event=>changePrefs({...prefs,animation:event.target.checked})}/> Animations</label>
-          <label><input type="checkbox" checked={prefs.sound} onChange={event=>{const sound=event.target.checked;changePrefs({...prefs,sound});if(sound)playResultSound('steady')}}/> {prefs.sound?<SpeakerHigh/>:<SpeakerSlash/>} Sound</label>
+          <label><input type="checkbox" checked={prefs.animation} disabled={policy?.animations===false} onChange={event=>changePrefs({...prefs,animation:event.target.checked})}/> Animations</label>
+          <label><input type="checkbox" checked={prefs.sound} disabled={policy?.sound===false} onChange={event=>{const sound=event.target.checked;changePrefs({...prefs,sound});if(sound)playResultSound('steady')}}/> {prefs.sound?<SpeakerHigh/>:<SpeakerSlash/>} Sound</label>
           <label>Intensity <select disabled={!prefs.animation} value={prefs.intensity} onChange={event=>changePrefs({...prefs,intensity:event.target.value as CelebrationIntensity})}>
             <option value="calm">Calm</option><option value="balanced">Balanced</option><option value="spectacular">Spectacular</option>
           </select></label>
@@ -172,10 +200,11 @@ export function LiveChallengeCelebration({sessionId,userId,questionIndex,score,p
     </div>
     {cue?<aside key={cue.key} className={`live-neon-cue live-neon-cue--${cue.tier} live-neon-cue--${prefs.intensity}`} aria-live="polite" aria-label="Celebration message">
       {prefs.intensity!=='calm'?<div className="live-neon-particles" aria-hidden="true">{Array.from({length:prefs.intensity==='spectacular'?18:10},(_,i)=><i key={i}/>)}</div>:null}
-      <NeonMascot tier={cue.tier}/>
+      <LiveMascot3D tier={cue.tier} fallback={<NeonMascot tier={cue.tier}/>} animate={prefs.intensity!=='calm'} ornament={summary.reviewed>=10?'wings':summary.reviewed>=5?'crown':summary.reviewed>=3?'star':undefined}/>
       <div className="live-neon-cue-copy"><small>CAMBRIDGE LIVE CHALLENGE</small><strong>{COPY[cue.tier].title}</strong><span className="live-neon-points">+{cue.score} <small>/ {cue.possible} marks</small></span><p>{COPY[cue.tier].detail}</p>
         {cue.streak>=2?<span className="live-neon-streak"><Lightning weight="fill"/> {cue.streak} ANSWERS STREAK</span>:null}
         {cue.newBadges.map(badge=><span className="live-neon-award" key={badge}>{REWARD_LABELS[badge].icon} ACHIEVEMENT: {REWARD_LABELS[badge].title}</span>)}
+        {cue.mystery?<MysteryRewardChest key={cue.key} reward={cue.mystery}/>:null}
       </div>
     </aside>:null}
   </>;
@@ -193,6 +222,9 @@ export function LiveChallengeFinalCeremony({title,earned,possible,results,childr
     <div><span className="live-neon-final-eyebrow"><Medal weight="fill"/> FINAL CEREMONY</span><h2>{title}</h2>
       <p>{percentage===null?'Challenge completed. Cambridge marks determine the results.':'Your Cambridge results are ready. Well played!'}</p>
       {percentage!==null?<strong className="live-neon-final-percent">{earned} / {possible} <small>marks · {percentage}%</small></strong>:null}
+      {completed.reviewed>=3?<p className="live-neon-final-ornament" aria-label="Earned avatar ornament">
+        ✦ Equipped avatar ornament: {completed.reviewed>=10?'Galaxy Wings':completed.reviewed>=5?'Crystal Crown':'Neon Star'}
+      </p>:null}
       {completed.badges.length?<div className="live-neon-final-badges">{completed.badges.map(badge=><span key={badge} title={REWARD_LABELS[badge].description}>{REWARD_LABELS[badge].icon} {REWARD_LABELS[badge].title}</span>)}</div>:null}
     </div>
     {children}

@@ -14,6 +14,7 @@ import { liveMarkSchemeCapabilityReady, liveMarkSchemeCapabilitySql } from '../l
 import { normalizeCollapsedLiveMarkScheme } from '../lib/live-mark-scheme-normalization.js';
 import { sanitizeLiveProjectorSnapshot } from '../lib/live-projector-privacy.js';
 import { liveAnswerWordCount } from '../lib/live-rich-answer.js';
+import { normalizeLiveEffects, type LiveEffectSettings } from '../lib/live-challenge-effects.js';
 import { assignPeerReviewersWithHistory, peerScoreDisagreement, selectPeerCalibrationAnswers, type PeerAnswer } from '../lib/peer-marking-quality.js';
 
 export type LiveExamMarkingMode = 'teacher' | 'peer' | 'self';
@@ -2206,6 +2207,36 @@ export class LiveExamService {
     } finally {client.release();}
   }
 
+  /**
+   * Teacher-owned effects policy is stored in the existing session JSONB.
+   * Students and shared displays consume the same versioned snapshot. No
+   * unreleased score, learner ID, or other grade data enters the event.
+   */
+  async setLiveEffects(actor:Actor,sessionId:string,effects:LiveEffectSettings,expectedVersion:number) {
+    this.assertStaff(actor);
+    const client=await this.pool.connect();
+    try {
+      await client.query('begin');
+      const session=await this.lockControlledSession(client,actor,sessionId);
+      this.assertExpectedVersion(session,expectedVersion);
+      if(!['lobby','question_open','marking','review'].includes(String(session.status)))
+        throw new DomainError('live_invalid_state',409);
+      const policy=normalizeLiveEffects(effects);
+      await client.query(
+        `update live_exam_sessions
+         set settings=jsonb_set(coalesce(settings,'{}'::jsonb),'{liveEffects}',$2::jsonb,true)
+         where id=$1`,
+        [sessionId,JSON.stringify(policy)],
+      );
+      const version=await this.bump(client,sessionId,actor.id,'session.effects_changed',{effects:policy});
+      await client.query('commit');
+      return {sessionId,liveEffects:policy,version};
+    } catch(error) {
+      await client.query('rollback');
+      throw error;
+    } finally {client.release();}
+  }
+
   async saveAnswer(actor: Actor, sessionId: string, text: string, questionId?: string) {
     if (actor.role !== 'student') throw new DomainError('students_only', 403);
     // A late write is also a reconciliation signal. Close the round first so
@@ -2993,6 +3024,7 @@ export class LiveExamService {
     const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     return {
       questionOrder:raw.questionOrder==='balanced'||raw.questionOrder==='fixed'?raw.questionOrder:'shuffled',
+      liveEffects:normalizeLiveEffects(raw.liveEffects),
       playMode:raw.playMode==='cards'?'cards' as const:'random' as const,
       cardColumns:raw.playMode==='cards'&&Number.isInteger(Number(raw.cardColumns))&&Number(raw.cardColumns)>=1&&Number(raw.cardColumns)<=5?Number(raw.cardColumns):5,
       cardReviewConfirmedPosition: typeof raw.cardReviewConfirmedPosition==='number'
