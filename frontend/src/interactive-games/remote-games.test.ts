@@ -138,8 +138,7 @@ describe('Interactive Games robust production catalogue selection', () => {
     const first = selectGamePairs(terms, 30, 0, 12345);
     const second = selectGamePairs(terms, 30, 1, 12345);
     const third = selectGamePairs(terms, 30, 2, 12345);
-    expect(new Set(first.map((item) => item.id))).toEqual(new Set(terms.map((item) => item.id)));
-    expect(first.map((item) => item.id)).not.toEqual(terms.map((item) => item.id));
+    expect(first).toEqual(terms);
     expect(second.map((item) => item.id)).not.toEqual(first.map((item) => item.id));
     expect(third.map((item) => item.id)).not.toEqual(second.map((item) => item.id));
     expect(new Set(second.map((item) => item.id))).toEqual(new Set(first.map((item) => item.id)));

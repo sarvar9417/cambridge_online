@@ -242,11 +242,11 @@ export function selectModeStage(
 ) {
   const limit = GAME_STAGE_LIMITS[mode];
   const count = Math.min(requested, pairs.length);
-  if (!limit || count <= limit) return selectGamePairs(pairs, requested, round, selectionSeed);
+  if (!limit || count <= limit) return selectGamePairs(pairs, requested, round, selectionSeed, mode === 'match-up');
   const stages = Math.ceil(count / limit);
   const cycle = Math.floor(round / stages);
   const stage = ((round % stages) + stages) % stages;
-  const selected = selectGamePairs(pairs, requested, cycle, selectionSeed);
+  const selected = selectGamePairs(pairs, requested, cycle, selectionSeed, mode === 'match-up');
   return selected.slice(stage * limit, (stage + 1) * limit);
 }
 
@@ -309,6 +309,7 @@ function seededGameRandom(seed: number): () => number {
  */
 export function selectGamePairs(
   pairs: readonly LiveGameTerm[], length: number, round: number, selectionSeed?: number,
+  shuffleFullBankOnFirstRound = false,
 ): LiveGameTerm[] {
   if (length <= 0 || !pairs.length) return [];
   const size = pairs.length;
@@ -325,15 +326,14 @@ export function selectGamePairs(
   }
 
   if (size <= length) {
-    // Always shuffle even on the FIRST round. Source rows arrive alphabetically
-    // ordered; returning [...pairs] here made an 8-Chapter Match Up start at A.
+    // Match Up must mix even the FIRST full-bank round (including Chapters 1–8).
+    // Other game modes preserve their established starting order and controls.
+    if (index === 0 && !shuffleFullBankOnFirstRound) return [...pairs];
     if (size === 1) return shuffled;
-    // An unlikely identity permutation should not leave a full-bank round
-    // looking alphabetically sorted.
     if (shuffled.every((pair, i) => pair.id === pairs[i]!.id)) {
       shuffled.push(shuffled.shift()!);
     }
-    const offset = index % size;
+    const offset = (index - (shuffleFullBankOnFirstRound ? 0 : 1)) % size;
     return [...shuffled.slice(offset), ...shuffled.slice(0, offset)];
   }
 
