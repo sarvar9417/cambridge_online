@@ -76,7 +76,7 @@
 .ig-session-bar [role=alert]{color:#bd3333;font-size:12px;width:100%}
 .ig-page:fullscreen{background:#f8faff;padding:20px;overflow:auto;width:100%;max-width:none}
 .ig-page:fullscreen .ig-hero{display:none}
-.ig-page:fullscreen .ig-games{grid-template-columns:repeat(8,minmax(0,1fr))}
+.ig-page:fullscreen .ig-games{grid-template-columns:repeat(9,minmax(0,1fr))}
 .ig-page:fullscreen .ig-game-tile{min-height:70px;padding:9px}
 .ig-page:fullscreen .ig-game-tile small{display:none}
 .ig-wheel-switch{display:flex;gap:7px;margin:0 0 15px}
