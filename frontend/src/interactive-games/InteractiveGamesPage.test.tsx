@@ -264,7 +264,8 @@ describe('database-backed Interactive Games multi-selection', () => {
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
       'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
-    expect(gameTiles.every((tile) => !tile.disabled)).toBe(true);
+    expect(gameTiles.slice(0, 8).every((tile) => !tile.disabled)).toBe(true);
+    expect(gameTiles[8]?.disabled).toBe(true);
     await game('Quiz');
     expect(container.querySelector('.ig-quiz')).not.toBeNull();
     expect(container.textContent).not.toContain('source-screened definitions are not individually expert-verified');
@@ -337,7 +338,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     const shown = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')]
       .map((item) => item.textContent);
     const first = shown();
-    expect(first).toHaveLength(9);
+    expect(first).toHaveLength(8);
     expect(container.textContent).toContain('No unseen terms remain');
     await click(button('■ Finish game'));
     await click(button('↻ Reshuffle same vocabulary'));
@@ -438,7 +439,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     ]);
     expect(container.textContent).toContain('9 glossary entries loaded');
     await game('Find the Match');
-    expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(9);
+    expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(8);
   });
 
   it('keeps a full-chapter choice canonical rather than double-adding nested subtopics', async () => {
@@ -588,7 +589,7 @@ describe('database-backed Interactive Games multi-selection', () => {
       await click(secondBox);
       expect(secondBox.classList.contains('is-opened')).toBe(true);
       expect(secondBox.textContent).toContain('Morality');
-      expect(container.querySelectorAll('.ig-box')).toHaveLength(9);
+      expect(container.querySelectorAll('.ig-box')).toHaveLength(8);
       await click(secondBox);
       expect(secondBox.textContent).toContain(baseTerms[1]!.definition);
       await game('Open the Box');
