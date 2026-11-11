@@ -689,7 +689,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   if(!headerShortcut)throw new Error('Interactive Games is missing from the mobile header');
   await student.click('.shell-games-shortcut');
   await student.waitForSelector('.ig-game-tile',{timeout:15_000});
-  await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
+  await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===9);
   const mobileOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   if(mobileOverflow>3)throw new Error('Interactive Games mobile horizontal overflow: '+mobileOverflow);
   await assertAxe(student,'Interactive Games student mobile');
