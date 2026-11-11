@@ -1,0 +1,72 @@
+Cambridge 0478 Hodder Index + diagram-caption vocabulary follow-up
+Audit date: 2026-11-11
+
+Source:
+Cambridge IGCSE and O Level Computer Science, Second Edition (Hodder, 2021),
+David Watson / Helen Williams, ISBN 9781398318281, 403-page user-provided PDF.
+
+Sequence:
+1. The initial official Key Terms audit verified 354 publisher terms and 35 supplementary concepts (389 total).
+2. An all-text / book Index pass added 58 source-anchored inline concepts, bringing 0478 to 571 terms.
+3. This targeted follow-up examined the 403-page book Index again, selected unmatched technical concepts, and checked relevant prose, tables, diagram text and publisher-flagged Extension material.
+4. The follow-up added 35 more terms, bringing live 0478 to 606.
+
+Live Supabase integrity result (at audit time):
+* 0478 2026–2028 records: 606, all approved.
+* Official Hodder Key Terms: 354 (unchanged).
+* Supplementary terms: 252.
+* New entries in this follow-up: 35; 22 targeted-verified core-body items,
+  10 explicitly labelled Extension items, 3 source-bound AI classification items.
+* No blank definitions, no orphaned glossary-to-Hodder-section links, no duplicate
+  within-chapter term names among the 606 records.
+* 9618 2026–2028 glossary: 4,287 approved terms (unchanged).
+
+Newly indexed material includes:
+* Ch1: hertz / frequency unit for digital sound samples.
+* Ch2: ISBN-13 and modulo-11 check-digit methods.
+* Ch3: barcode scanner, digital camera, RGB colour model, microphone,
+  additive manufacturing, 3D printer, specific acoustic/gas/proximity/flow/level
+  sensors, ABS, Wi-Fi, network switch.
+* Ch4: object code and linker.
+* Ch5: ethical hacking and keylogging.
+* Ch6: source-specific narrow/general/strong-AI wording.
+* Ch7: the book's explicitly A Level-targeted ADT/stack/queue Extension and
+  push/pop/enqueue/dequeue operations.
+* Ch8: program comments and string concatenation.
+* Ch9: relational database (Extension).
+* Ch10: NAND as universal gate (Extension).
+
+Evidence and safety:
+* docs/hodder-0478-deep-index-20261111.csv stores the 35-page/source
+  chapter+subsection ledger with short original editorial definitions.
+* backend/src/database/migrations/0217_0478_hodder_deep_index_glossary.sql
+  repeats exactly these 35 records as an idempotent database change.
+* For each row, source_ref includes printed page, PDF page (+12) and Hodder
+  book subsection. The 35 live inserts were preflight checked: 35/35 mappings
+  and zero already-existing same-chapter labels.
+* is_official_key_term=false for all 35. Ten Extension and three
+  context-limited AI classification rows are tagged
+  supplementary_source_screened and should be excluded from the Core game
+  bank; available only through the Extended bank.
+* Narrow/general/strong AI definitions are explicitly attributed to Hodder's
+  2021 categorisation, not claimed as universal current AI terminology.
+* Do not copy entire protected textbook pages into this repository.
+
+Limitations:
+* Index extraction returned 587 raw locator lines / 501 normalised labels;
+  231 label strings did not exactly match existing canonical glossary names
+  before filtering. Many are nested subheadings, cross-references, alternate
+  spellings and examples, not independently missing exam vocabulary.
+* Available PDF text includes many table and figure labels; this follow-up
+  checked specific diagrams' extracted text, but raw page images could not be
+  materialised for a full visual audit. Do not label the 403-page illustration
+  inspection 100% complete.
+* There is no claim that every possible learning concept in the full textbook
+  is part of the 606-term glossary. Further row-by-row semantic classification
+  of unmatched Index items and images is still optional follow-up work.
+
+Release discipline:
+* Database rows are already present.
+* PR migration restores these additional rows in other environments.
+* The 0478 syllabus remains globally inactive; this does not activate it.
+* Do not change 9618 or publisher-approved Key Terms classifications.
