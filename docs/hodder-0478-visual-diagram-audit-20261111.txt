@@ -1,0 +1,56 @@
+CAMBRIDGE 0478 HODDER — TABULAR & DIAGRAM VOCABULARY ROUND
+Audit date: 2026-11-11
+Source: David Watson / Helen Williams, Cambridge IGCSE and O Level Computer
+Science, 2nd edition (Hodder 2021), ISBN 9781398318281.
+Full original PDF located in the owner's Google Drive and opened as 404
+physical PDF pages (including cover/supporting leaves); Hodder book printed
+page +12 corresponds to the content PDF page.
+
+Source review:
+- Previously scanned complete extracted text and Index; the new pass
+  inspected selected original page renders, especially the sensor types table
+  (printed p112), system-software schematic (p150), stack/queue illustrations
+  (pp292–293), and logic-gate figures (pp378–380).
+- Structured text snippets were also checked at source pages 53, 67, 85, 92,
+  97, 102, 111, 112, 150, 183, 218 and 293.
+- 19 distinct non-Key-Term concepts were screened against the 606 existing
+  terms; all 19 mapped to an available 0478 Hodder book section, 0 duplicates.
+
+New terms by chapter:
+Chapter 2: 4 (USB hub and quantum cryptography Extension vocabulary)
+Chapter 3: 8 (set-top box, photodiode, 3D scanner, LCD projector,
+           analogue/digital data, active/passive infrared sensors)
+Chapter 4: 1 (program module)
+Chapter 5: 1 (web server)
+Chapter 6: 1 (microprocessor in automated systems)
+Chapter 7: 4 (stack and queue diagram pointers, Extension)
+Total: 19. Core-targeted definitions: 12. Extended-only source-screened
+publisher Extension concepts: 7.
+
+Safety:
+- No 9618 changes.
+- Original 354 official 0478 Key Terms classifications preserved.
+- Definitions are concise editor-written clarifications; do not treat them as
+  verbatim textbook passages or an exhaustive transcription of diagrams.
+- Source metadata includes chapter, Hodder subsection, printed and PDF page.
+- 0478 global active flag unchanged and remains off.
+- The original PDF and its page renders are not copied into the public repo.
+
+Reproducibility:
+docs/hodder-0478-visual-diagram-20261111.csv
+backend/src/database/migrations/0218_0478_hodder_visual_figure_glossary.sql
+
+Remaining QA scope:
+A complete human visual inspection of every PDF page/figure has not been
+performed; only targeted figure and source-page renders were examined.
+Additional concepts may remain in graphics and in subentries of the Index.
+
+Publisher errata correction surfaced during quality control:
+The printed chapter 3 Key Terms pages (pp.141–142) use the incorrect labels
+"Fetch–Execute–Decode", "computer sided design (CAD)" and "snode".
+Their editorially corrected supplementary terms already existed in Supabase,
+but were incorrectly marked invisible. The corresponding three correct forms
+"fetch–decode–execute cycle", "computer-aided design (CAD)" and "anode"
+are now visible while remaining non-official editorial equivalents.
+After this correction, live 0478 contains 625 approved visible terms:
+Core game eligibility 586; Extended eligibility 625; no hidden records.
