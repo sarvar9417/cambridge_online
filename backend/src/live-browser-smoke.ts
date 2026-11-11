@@ -486,9 +486,11 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   await clickMode(2);
   await teacher.waitForSelector('.ig-flashcard',{timeout:8_000});
-  await assertText('.ig-flashcard','Relating to what is permitted');
+  const firstCardPrompt=await teacher.$eval('.ig-flashcard',(node)=>node.textContent??'');
+  const firstCardTerm=gameTerms.find((term)=>firstCardPrompt.includes(term.definition));
+  if(!firstCardTerm)throw new Error('Flash Cards opened with a non-source-backed definition: '+firstCardPrompt);
   await clickGameControl('.ig-flashcard');
-  await assertText('.ig-flashcard','Legal');
+  await assertText('.ig-flashcard',firstCardTerm.term);
   await clickGameControl('.ig-card-controls button:nth-child(2)');
   await clickGameControl('.ig-flashcard');
   await assertText('.ig-session-metrics','1 reviewed');
@@ -545,9 +547,11 @@ async function assertInteractiveGames(browser:Browser,base:string){
     await clickGameControl('.ig-box:nth-child('+box+')');
     await teacher.waitForSelector('.ig-box.is-opened:nth-child('+box+')');
     if(box===1){
-      await assertText('.ig-box:nth-child(1)','Legal');
+      const openedText=await teacher.$eval('.ig-box:nth-child(1)',(node)=>node.textContent??'');
+      const openedTerm=gameTerms.find((term)=>openedText.includes(term.term));
+      if(!openedTerm)throw new Error('Open the Box revealed an unknown term: '+openedText);
       await clickGameControl('.ig-box:nth-child(1)');
-      await assertText('.ig-box:nth-child(1)','Relating to what is permitted');
+      await assertText('.ig-box:nth-child(1)',openedTerm.definition);
     }
   }
   await clickGameControl('.ig-box-actions button');
@@ -611,11 +615,16 @@ async function assertInteractiveGames(browser:Browser,base:string){
 
   await clickMode(8);
   await teacher.waitForSelector('.ig-anagram-letter',{timeout:8_000});
-  await assertText('.ig-anagram-hint','Relating to what is permitted');
   await clickGameControl('.ig-anagram .ig-template-options input[type=checkbox]');
-  for(const term of gameTerms){
+  const anagramSeen=new Set<string>();
+  for(let index=0;index<gameTerms.length;index++){
+    const hint=await teacher.$eval('.ig-anagram-hint',(node)=>node.textContent??'');
+    const term=gameTerms.find((entry)=>hint.includes(entry.definition));
+    if(!term)throw new Error('Anagram displayed a non-source-backed clue: '+hint);
+    if(anagramSeen.has(term.term))throw new Error('Anagram repeated a term before exhausting this round: '+term.term);
+    anagramSeen.add(term.term);
     for(const letter of term.term.toUpperCase().replace(/[^A-Z0-9]/g,'')){
-      const tile=await teacher.$$eval('.ig-anagram-letter',(buttons,char)=>
+      const tile=await teacher.$eval('.ig-anagram-letter',(buttons,char)=>
         buttons.findIndex((button)=>button.textContent===char && !(button as HTMLButtonElement).disabled),letter);
       if(tile<0)throw new Error('Missing anagram tile '+letter);
       await clickGameControl('.ig-anagram-letter:nth-child('+(tile+1)+')');
