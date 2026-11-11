@@ -56,3 +56,27 @@ WITH src(ch,section_code,printed_page,term,definition_en,is_extension) AS (VALUE
 INSERT INTO public.hodder_glossary_section_links(glossary_term_id,book_section_id)
 SELECT added.id,mapped.book_section_id FROM added JOIN mapped ON added.term=mapped.term
 ON CONFLICT DO NOTHING;
+
+-- Publisher errata in Hodder printed chapter 3 Key Terms (pp. 141–142):
+-- "Fetch–Execute–Decode", "computer sided design" and "snode".
+-- Correct forms already exist as editorial supplementary records; the
+-- previous curation accidentally left all three hidden, preventing access
+-- through either Core or Extended games. Make ONLY the corrected labels
+-- visible; never assert they reproduce the printed publisher Key Terms.
+UPDATE public.glossary_terms gt
+SET is_glossary_visible=true,
+    source_ref=CASE
+      WHEN gt.source_ref LIKE '%corrected visible alias%' THEN gt.source_ref
+      ELSE gt.source_ref ||
+        '; corrected visible alias for publisher typo; not a verbatim official Key Term'
+    END
+FROM public.subtopics st
+JOIN public.topics t ON t.id=st.topic_id
+JOIN public.syllabi sy ON sy.id=t.syllabus_id
+WHERE gt.subtopic_id=st.id AND sy.code='0478'
+  AND sy.version_label='2026-2028' AND t.number=3
+  AND gt.term IN (
+    'fetch–decode–execute cycle',
+    'computer-aided design (CAD)',
+    'anode'
+  ) AND gt.is_official_key_term=false;
