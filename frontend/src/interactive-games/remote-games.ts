@@ -284,8 +284,9 @@ export function createQuizQuestions(pairs: readonly GamePair[]): QuizQuestion[] 
   });
 }
 
-/** A local PRNG allows a sampled game to remain stable while its stages advance.
- * A fresh random seed is chosen when the eligible selection or vocabulary cycle changes.
+/** A local PRNG keeps a full-bank shuffle stable across consecutive rounds.
+ * The source selection determines the seed; only a completed bank starts a
+ * fresh randomized traversal.
  */
 function seededGameRandom(seed: number): () => number {
   let state = seed >>> 0;
@@ -298,22 +299,44 @@ function seededGameRandom(seed: number): () => number {
   };
 }
 
-/** Randomly sample WITHOUT replacement from the entire eligible vocabulary bank.
- * Shuffling only a previously truncated prefix would exclude later key terms.
- * The optional seed makes a single multi-stage draw reproducible across stages.
+/** Draw from one randomly shuffled FULL bank, rather than reshuffling the same
+ * alphabetic prefix on every round. Consecutive rounds visit fresh entries
+ * before wrapping; staged games take consecutive, non-overlapping slices of
+ * the same random draw.
+ *
+ * When the selected bank fits entirely in a round, it cannot yield different
+ * vocabulary. A new round still visibly reshuffles the same terms.
  */
 export function selectGamePairs(
   pairs: readonly LiveGameTerm[], length: number, round: number, selectionSeed?: number,
 ): LiveGameTerm[] {
   if (length <= 0 || !pairs.length) return [];
-  if (pairs.length <= length) return [...pairs];
+  const size = pairs.length;
+  const count = Math.min(size, length);
+  const index = Math.max(0, Math.floor(round));
+  const epoch = size <= length ? 0 : Math.floor(index * count / size);
   const random = selectionSeed === undefined
     ? Math.random
-    : seededGameRandom((selectionSeed ^ Math.imul(round + 1, 0x9E3779B9)) >>> 0);
+    : seededGameRandom((selectionSeed ^ Math.imul(epoch + 1, 0x9E3779B9)) >>> 0);
   const shuffled = [...pairs];
-  for (let index = shuffled.length - 1; index > 0; index--) {
-    const other = Math.floor(random() * (index + 1));
-    [shuffled[index], shuffled[other]] = [shuffled[other]!, shuffled[index]!];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const other = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[other]] = [shuffled[other]!, shuffled[i]!];
   }
-  return shuffled.slice(0, length);
+
+  if (size <= length) {
+    // Keep the initial all-terms board, but never leave its Next button
+    // appearing broken just because the selected vocabulary was exhausted.
+    if (index === 0) return [...pairs];
+    if (size === 1) return shuffled;
+    // Guarantee the first reshuffle differs from the source even for two terms.
+    if (shuffled.every((pair, i) => pair.id === pairs[i]!.id)) {
+      shuffled.push(shuffled.shift()!);
+    }
+    const offset = (index - 1) % size;
+    return [...shuffled.slice(offset), ...shuffled.slice(0, offset)];
+  }
+
+  const start = (index * count) % size;
+  return Array.from({ length: count }, (_, i) => shuffled[(start + i) % size]!);
 }

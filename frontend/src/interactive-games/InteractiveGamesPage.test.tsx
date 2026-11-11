@@ -307,6 +307,45 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(cards[0]!.querySelector('input[aria-label="Hodder section 2.1.1 · Chapter 2"]')).not.toBeNull();
   });
 
+  it('Match Up Next vocabulary round advances to unseen terms instead of repeating the previous draw', async () => {
+    const terms = Array.from({ length: 65 }, (_, index) => ({
+      id: 'vocab-' + index, term: 'Study term ' + index,
+      definition: 'Definition ' + index, status: 'needs_review' as const, source: null,
+    }));
+    mockApi.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.includes('/catalog')) return { data: catalog() };
+      if (path === '/content/interactive-games/collection' && init?.method === 'POST') {
+        const scopes = (JSON.parse(String(init.body)) as { scopes: GameScope[] }).scopes;
+        return { data: { ...pack(scopes), pairs: terms } };
+      }
+      throw new Error('Unexpected request ' + path);
+    });
+    await render();
+    const shown = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')]
+      .map((item) => item.textContent);
+    const first = shown();
+    expect(first).toHaveLength(10);
+    await click(button('■ Finish game'));
+    await click(button('Next vocabulary round →'));
+    const next = shown();
+    expect(next).toHaveLength(10);
+    expect(next.every((word) => !first.includes(word))).toBe(true);
+  });
+
+  it('Match Up explains an exhausted selection and reshuffles it on the next round', async () => {
+    await render();
+    const shown = () => [...container.querySelectorAll<HTMLButtonElement>('.ig-bank-term')]
+      .map((item) => item.textContent);
+    const first = shown();
+    expect(first).toHaveLength(8);
+    expect(container.textContent).toContain('No unseen terms remain');
+    await click(button('■ Finish game'));
+    await click(button('↻ Reshuffle same vocabulary'));
+    const next = shown();
+    expect(next).not.toEqual(first);
+    expect(new Set(next)).toEqual(new Set(first));
+  });
+
   it('defaults to 30, scales to 40/50, permits custom counts and makes Match Up All genuinely all', async () => {
     const terms = Array.from({ length: 65 }, (_, index) => ({
       id: 'long-' + index,

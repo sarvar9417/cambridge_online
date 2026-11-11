@@ -177,12 +177,11 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const staged = Boolean(GAME_STAGE_LIMITS[currentMode] && selectedCount > GAME_STAGE_LIMITS[currentMode]!);
   const stageSize = GAME_STAGE_LIMITS[currentMode] ?? selectedCount;
   const stageTotal = staged ? Math.ceil(selectedCount / stageSize) : 1;
-  const selectionCycle = Math.floor(round / stageTotal);
-  // Re-sample from all eligible terms for a new vocabulary cycle, but keep the
-  // draw fixed while advancing through the stages of that same cycle.
+  // Keep the shuffled bank stable while Next vocabulary round advances
+  // through it. A new selection, game mode or round size gets a fresh seed.
   const selectionSeed = useMemo(
     () => Math.floor(Math.random() * 0x100000000),
-    [eligiblePairs, questionCount, currentMode, selectionCycle]);
+    [eligiblePairs, questionCount, currentMode]);
   const pairs = useMemo(
     () => selectModeStage(eligiblePairs, questionCount, round, currentMode, selectionSeed),
     [eligiblePairs, questionCount, round, currentMode, selectionSeed]);
@@ -413,8 +412,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
             const value = Number(event.target.value);
             if (Number.isSafeInteger(value) && value >= 10) changeRoundSize(Math.min(value, maxSelectableRoundSize));
           }} />}
-        {ready && questionCount > eligiblePairs.length && <small className="ig-round-available" role="status">
-          This selection has {eligiblePairs.length} suitable terms. All available terms will be used without repeats.
+        {ready && questionCount >= eligiblePairs.length && <small className="ig-round-available" role="status">
+          This selection has {eligiblePairs.length} suitable terms. No unseen terms remain; the next round reshuffles the same vocabulary. Select more chapters or choose Extended vocabulary for a larger bank.
         </small>}
       </label>
       <button className="ig-data-refresh" type="button" onClick={refresh}>↻ Refresh database</button>
@@ -574,7 +573,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           </div>}
           <div className="ig-result-actions">
             <button type="button" onClick={() => resetGame()}>↻ Play this round again</button>
-            <button type="button" onClick={() => resetGame(undefined, true)}>Next vocabulary round →</button>
+            <button type="button" onClick={() => resetGame(undefined, true)}>
+              {eligiblePairs.length <= questionCount && stageNumber === stageTotal
+                ? '↻ Reshuffle same vocabulary' : 'Next vocabulary round →'}
+            </button>
           </div>
         </div>}
       </div>

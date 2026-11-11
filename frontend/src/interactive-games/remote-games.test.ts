@@ -123,6 +123,27 @@ describe('Interactive Games robust production catalogue selection', () => {
     expect(selectGamePairs(terms, 100, 0, 12345)).toHaveLength(75);
   });
 
+  it('advances through a randomly permuted bank before repeating vocabulary', () => {
+    const terms = Array.from({ length: 90 }, (_, index) => term(index, 'Vocabulary ' + index));
+    const draws = [0, 1, 2].map((round) => selectGamePairs(terms, 30, round, 12345));
+    expect(draws.every((draw) => draw.length === 30)).toBe(true);
+    expect(new Set(draws.flat().map((item) => item.id)).size).toBe(90);
+    expect(selectGamePairs(terms, 30, 0, 12345)).toEqual(draws[0]);
+    expect(selectGamePairs(terms, 30, 3, 12345).map((item) => item.id))
+      .not.toEqual(draws[0]!.map((item) => item.id));
+  });
+
+  it('reshuffles the entire vocabulary when all available terms already fit in one round', () => {
+    const terms = Array.from({ length: 8 }, (_, index) => term(index, 'Term ' + index));
+    const first = selectGamePairs(terms, 30, 0, 12345);
+    const second = selectGamePairs(terms, 30, 1, 12345);
+    const third = selectGamePairs(terms, 30, 2, 12345);
+    expect(first).toEqual(terms);
+    expect(second.map((item) => item.id)).not.toEqual(first.map((item) => item.id));
+    expect(third.map((item) => item.id)).not.toEqual(second.map((item) => item.id));
+    expect(new Set(second.map((item) => item.id))).toEqual(new Set(first.map((item) => item.id)));
+  });
+
   it('samples early and late source terms, not a sorted prefix with its order shuffled', () => {
     const terms = Array.from({ length: 186 }, (_, index) => term(index, 'Vocabulary ' + index));
     const selected = selectGamePairs(terms, 30, 0, 17);
