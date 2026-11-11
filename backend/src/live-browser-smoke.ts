@@ -398,7 +398,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.$eval('.shell-nav-groups a[href="#oqitish/oyinlar"]',(node)=>node.scrollIntoView({block:'center'}));
   await teacher.click('.shell-nav-groups a[href="#oqitish/oyinlar"]');
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
-  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===8);
+  await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===9);
   const clickGameControl=async(selector:string)=>{
     await teacher.$eval(selector,(node)=>node.scrollIntoView({block:'center',behavior:'auto'}));
     await teacher.click(selector);
