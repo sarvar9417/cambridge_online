@@ -44,3 +44,13 @@ Remaining QA scope:
 A complete human visual inspection of every PDF page/figure has not been
 performed; only targeted figure and source-page renders were examined.
 Additional concepts may remain in graphics and in subentries of the Index.
+
+Publisher errata correction surfaced during quality control:
+The printed chapter 3 Key Terms pages (pp.141–142) use the incorrect labels
+"Fetch–Execute–Decode", "computer sided design (CAD)" and "snode".
+Their editorially corrected supplementary terms already existed in Supabase,
+but were incorrectly marked invisible. The corresponding three correct forms
+"fetch–decode–execute cycle", "computer-aided design (CAD)" and "anode"
+are now visible while remaining non-official editorial equivalents.
+After this correction, live 0478 contains 625 approved visible terms:
+Core game eligibility 586; Extended eligibility 625; no hidden records.
