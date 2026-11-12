@@ -443,6 +443,18 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(9);
   });
 
+  it('offers Concept Compare for a matching syllabus topic or Hodder section', async () => {
+    await render(true);
+    await choose('Topic 2.1 · Chapter 2');
+    await game('Concept Compare');
+    expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(10);
+    expect([...container.querySelectorAll('.ig-compare-category')].some(element => element.textContent === 'Definition')).toBe(true);
+    expect(container.textContent).toContain('sections 2.1.1');
+    await choose('Hodder section 2.1.1 · Chapter 2');
+    expect(container.querySelector('.ig-compare')).not.toBeNull();
+    expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(10);
+  });
+
   it('plays a two-concept comparison with shared placements and penalises selecting both indiscriminately', async () => {
     await render(true);
     const compareTile = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')]

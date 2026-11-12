@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { COMPARE_DECKS, type CompareDeck } from './concept-compare-bank';
+import { COMPARE_DECKS, compareCategoryFor, compareDeckMatchesScope, type CompareDeck } from './concept-compare-bank';
 import { useGameSignal } from './game-session';
 import type { GameScope } from './remote-games';
 import './concept-compare.css';
@@ -24,9 +24,8 @@ export function ConceptCompareGame({ courseCode, scopes }: {
   courseCode: '9618' | '0478'; scopes: readonly GameScope[];
 }) {
   const signal = useGameSignal();
-  // Chapter membership is currently the only comparison-bank scope.
-  const chapters = new Set(scopes.filter(scope => scope.kind === 'chapter').map(scope => scope.chapterNo));
-  const available = COMPARE_DECKS.filter(deck => chapters.has(deck.chapterNo));
+  // A selected Cambridge topic uses its syllabus code; a Hodder section uses its own book code.
+  const available = COMPARE_DECKS.filter(deck => scopes.some(scope => compareDeckMatchesScope(deck, scope)));
   const [deckId, setDeckId] = useState<string>('');
   const [quick, setQuick] = useState(false);
   const [shuffleRevision, setShuffleRevision] = useState(0);
@@ -84,8 +83,7 @@ export function ConceptCompareGame({ courseCode, scopes }: {
   </div>;
   if (!deck) return <div className="ig-content ig-compare-empty" role="status">
     <h3>No comparison pairs in this selection yet.</h3>
-    <p>Select an entire chapter with a curated comparison deck: 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17 or 18.</p>
-    <p>Current content is chapter-filtered; section-level comparison mapping is not yet verified.</p>
+    <p>Select a matching 9618 chapter, Cambridge syllabus topic or Hodder book section.</p>
   </div>;
 
   return <div className="ig-content ig-compare">
@@ -134,7 +132,7 @@ export function ConceptCompareGame({ courseCode, scopes }: {
           onDragStart={event => { event.dataTransfer.setData('text/plain', String(item.index)); setActiveCard(item.index); }}
           onDragEnd={() => setActiveCard(null)}>
           <div className="ig-compare-card-text"><span className="ig-compare-number">{item.index + 1}</span>
-            <strong>{item.statement}</strong></div>
+            <strong>{item.statement}</strong><small className="ig-compare-category">{compareCategoryFor(deck, item.index)}</small></div>
           <div className="ig-compare-side-buttons">
             {(['A','B'] as const).map(side => <button key={side} type="button" disabled={submitted}
               className={chosen[side] ? 'is-placed' : ''}
@@ -157,9 +155,11 @@ export function ConceptCompareGame({ courseCode, scopes }: {
     </button> : <div className="ig-compare-summary" role="status">
       <h3>{totalScore} / {possible} points · {Math.round(totalScore / possible * 100)}%</h3>
       <p>{fullyCorrect} of {items.length} statements fully matched. Each A/B decision is scored separately — incorrectly selecting both cannot earn full marks.</p>
-      <p>Source: Hodder 9618, Chapter {deck.chapterNo}, pp. {deck.pages}. Curated learning statements, not a complete official Mark Scheme audit.</p>
+      <p>Source: Hodder 9618, Chapter {deck.chapterNo}, sections {deck.sectionCodes.join(', ')}, pp. {deck.pages}. Curated textbook statements, not complete official Mark Scheme marking points.</p>
+      {deck.markSchemeExamples?.length ? <p>Checked topic-level Cambridge Mark Scheme examples: {deck.markSchemeExamples.join(' · ')}. These do not independently verify every card.</p> : null}
+      {deck.extensionOnly ? <p>Supplementary textbook practice: this comparison includes material that Hodder identifies as outside the required syllabus.</p> : null}
       <p>First submission is the assessment. Use the parent “Play this round again” control for a fresh practice run.</p>
     </div>}
-    {!submitted && <p className="ig-compare-provenance">Source: Hodder 9618, Chapter {deck.chapterNo}, pp. {deck.pages}. Statements are paraphrased for formative practice; individual MS point verification remains pending.</p>}
+    {!submitted && <p className="ig-compare-provenance">Source: Hodder 9618, Chapter {deck.chapterNo}, sections {deck.sectionCodes.join(', ')}, pp. {deck.pages}. Source-based formative practice, not official grading. {deck.extensionOnly ? 'Some source material is outside syllabus requirements.' : 'Full per-card MS verification remains pending.'}</p>}
   </div>;
 }
