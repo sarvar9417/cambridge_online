@@ -448,7 +448,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     await choose('Topic 2.1 · Chapter 2');
     await game('Concept Compare');
     expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(10);
-    expect(container.querySelector('.ig-compare-category')?.textContent).toContain('Definition');
+    expect([...container.querySelectorAll('.ig-compare-category')].some(element => element.textContent === 'Definition')).toBe(true);
     expect(container.textContent).toContain('sections 2.1.1');
     await choose('Hodder section 2.1.1 · Chapter 2');
     expect(container.querySelector('.ig-compare')).not.toBeNull();
