@@ -430,11 +430,97 @@ function ERProgressive() {
     </section>
   );
 }
+function FirstTableExplorer() {
+  const [step, setStep] = useState(0);
+  const definitions = [
+    {
+      name: "1 · Class table",
+      code: "CREATE TABLE Class (\\n  ClassID VARCHAR(4) PRIMARY KEY,\\n  Location VARCHAR(60)\\n);",
+      why: "The parent Class table defines the allowed class IDs, such as 7A and 7B.",
+    },
+    {
+      name: "2 · Student table",
+      code: "CREATE TABLE Student (\\n  StudentID VARCHAR(5) PRIMARY KEY,\\n  FirstName VARCHAR(40),\\n  ClassID VARCHAR(4),\\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\\n);",
+      why: "Student.ClassID now refers to Class.ClassID. Students in 7A can share the same foreign-key value.",
+    },
+  ];
+  const selected = definitions[step];
+  return (
+    <section className="c8-explorer">
+      <span className="c8-kicker">BUILD TWO TABLES · ONE AT A TIME</span>
+      <h3>{selected.name}</h3>
+      <div className="c8-segments" role="group" aria-label="Choose table to build">
+        {definitions.map((item, index) => (
+          <button
+            key={item.name}
+            type="button"
+            aria-pressed={step === index}
+            onClick={() => setStep(index)}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+      <pre><code>{selected.code.replaceAll("\\n", "\n")}</code></pre>
+      <p role="status">{selected.why}</p>
+      <p>In the SQLite practice database, foreign-key enforcement is enabled before testing the relationship.</p>
+    </section>
+  );
+}
+function FirstSelectExplorer() {
+  const [classId, setClassId] = useState("7A");
+  const [revealed, setRevealed] = useState(false);
+  const students = [
+    ["S1276", "Noor", "Baig", "7A"],
+    ["S1277", "Ahmad", "Sayed", "7B"],
+    ["S1299", "Tahir", "Hassan", "7A"],
+  ];
+  const rows = students
+    .filter((student) => student[3] === classId)
+    .sort((a, b) => a[2].localeCompare(b[2]))
+    .map((student) => [student[1], student[2]]);
+  return (
+    <section className="c8-explorer">
+      <span className="c8-kicker">PREDICT THE RESULT BEFORE REVEALING</span>
+      <h3>Who belongs to this class?</h3>
+      <DataTable caption="Our three students" headers={["StudentID", "FirstName", "SecondName", "ClassID"]} rows={students} />
+      <label>
+        Choose the WHERE condition
+        <select
+          aria-label="Filter by class"
+          value={classId}
+          onChange={(event) => { setClassId(event.target.value); setRevealed(false); }}
+        >
+          <option value="7A">Class 7A</option>
+          <option value="7B">Class 7B</option>
+        </select>
+      </label>
+      <pre><code>{`SELECT FirstName, SecondName
+FROM Student
+WHERE ClassID = '${classId}'
+ORDER BY SecondName ASC;`}</code></pre>
+      <button
+        className="c8-button"
+        type="button"
+        aria-expanded={revealed}
+        onClick={() => setRevealed((value) => !value)}
+      >
+        {revealed ? "Hide result" : "Reveal expected rows"}
+      </button>
+      {revealed ? (
+        <>
+          <DataTable caption={`Students in ${classId}`} headers={["FirstName", "SecondName"]} rows={rows} />
+          <p role="status">WHERE keeps only {classId} rows; ORDER BY sorts their surnames.</p>
+        </>
+      ) : <p>Predict which students remain after WHERE and in what order.</p>}
+    </section>
+  );
+}
 export function Visual({ name }: { name: string }) {
   if (name === "keys") return <KeyExplorer />;
   if (name === "table") return <TableExplorer />;
   if (name === "er") return <ERProgressive />;
-  if (name === "schema") return <ERDiagram />;
+  if (name === "schema") return <ERDiagram />;\n  if (name === "create-table") return <FirstTableExplorer />;\n  if (name === "sql-where") return <FirstSelectExplorer />;
   if (name === "normalise") return <NormalisationExplorer />;
   if (name === "queries") return <QueryExplorer />;
   const cards: Record<string, { label: string; text: string }[]> = {
@@ -448,17 +534,18 @@ export function Visual({ name }: { name: string }) {
       { label: "EXAMS", text: "Reads the same current class" },
     ],
     dictionary: [
-      { label: "DATA", text: "Noor · 7A · 2010-09-22" },
-      { label: "METADATA", text: "Types · keys · constraints" },
-      { label: "DBMS", text: "Enforces rules and manages access" },
+      { label: "STUDENT DATA", text: "Noor belongs to 7A" },
+      { label: "DATA DICTIONARY", text: "StudentID is the primary key" },
+      { label: "DBMS SOFTWARE", text: "Checks permissions and manages changes" },
     ],
     processor: [
-      { label: "DDL", text: "Interpreter → data dictionary" },
-      { label: "DML", text: "Compiler + optimiser → evaluation engine" },
+      { label: "DEVELOPER INTERFACE", text: "SQL question: show Class 7A" },
+      { label: "QUERY PROCESSOR", text: "Prepares and executes the request" },
+      { label: "RESULT", text: "Noor and Tahir" },
     ],
     types: [
-      { label: "DDL", text: "Define the container" },
-      { label: "DML", text: "Work with its contents" },
+      { label: "DDL · STRUCTURE", text: "CREATE TABLE Student" },
+      { label: "DML · RECORDS", text: "INSERT INTO Student" },
     ],
     recap: [
       { label: "DESIGN", text: "Entities → keys → normalisation" },
