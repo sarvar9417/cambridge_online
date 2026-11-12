@@ -171,7 +171,7 @@
   "lessons": [
     {
       "number": 1,
-      "title": "Why separate files cause problems",
+      "title": "When two school files disagree",
       "source_pages": [
         196,
         197,
@@ -186,7 +186,7 @@
     },
     {
       "number": 2,
-      "title": "One shared relational database",
+      "title": "Replace copies with one shared database",
       "source_pages": [
         196,
         198,
@@ -199,7 +199,7 @@
     },
     {
       "number": 3,
-      "title": "Read a table like a database designer",
+      "title": "Read one database table confidently",
       "source_pages": [
         196,
         197,
@@ -213,7 +213,7 @@
     },
     {
       "number": 4,
-      "title": "Keys that identify and connect",
+      "title": "Identify students and connect classes",
       "source_pages": [
         197,
         200,
@@ -230,7 +230,7 @@
     },
     {
       "number": 5,
-      "title": "Make relationships visible",
+      "title": "Draw the school relationships",
       "source_pages": [
         202,
         203,
@@ -246,7 +246,7 @@
     },
     {
       "number": 6,
-      "title": "Normalisation starts with 1NF",
+      "title": "Normalisation, step 1: reach 1NF",
       "source_pages": [
         203,
         204,
@@ -259,7 +259,7 @@
     },
     {
       "number": 7,
-      "title": "From 1NF to a complete 3NF design",
+      "title": "Normalisation, steps 2 and 3: reach 3NF",
       "source_pages": [
         205,
         206,
