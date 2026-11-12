@@ -17,7 +17,7 @@ import { SpinWheel, type WheelOptions } from './SpinWheel';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type AnswerReview, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import { ConceptCompareGame } from './ConceptCompareGame';
-import { COMPARE_DECKS } from './concept-compare-bank';
+import { COMPARE_DECKS, compareDeckMatchesScope } from './concept-compare-bank';
 import './interactive-games.css';
 import './remote-games.css';
 import './game-polish.css';
@@ -169,8 +169,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     [allPairs, practiceHistory]);
   const reviewOnly = mistakesOnly || dueOnly;
   const reviewPairs = dueOnly ? duePairs : missedPairs;
-  const hasCompareDeck = courseCode === '9618' && scopes.some(scope => scope.kind === 'chapter' &&
-    COMPARE_DECKS.some(deck => deck.chapterNo === scope.chapterNo));
+  const hasCompareDeck = courseCode === '9618' &&
+    COMPARE_DECKS.some(deck => scopes.some(scope => compareDeckMatchesScope(deck, scope)));
   const currentMode = reviewOnly ? 'flash-cards' : mode === 'concept-compare' && !hasCompareDeck ? 'match-up' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const sourcePairs = reviewOnly ? reviewPairs : allPairs;
@@ -491,7 +491,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{game.id === 'concept-compare' && !hasCompareDeck ? 'Select an entire supported 9618 chapter to play.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{game.id === 'concept-compare' && !hasCompareDeck ? 'Select a supported 9618 chapter, topic or Hodder section.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
