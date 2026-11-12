@@ -168,18 +168,66 @@ describe("Chapter 8 source-backed course", () => {
     expect(state[lessons[0].id].completed).toBe(false);
     expect(loadState(storageKey("b"))).toEqual({});
   });
-  it("keeps old Chapter 8.1 evidence archived and migrates unchanged lessons", () => {
-    const oldKey = storageKey("legacy").replace(":v2:", ":v1:");
-    const oldLesson = lessons[0];
-    const unchangedLesson = lessons[7];
-    localStorage.setItem(oldKey, JSON.stringify({
-      [oldLesson.id]: { seen: [0], completed: true },
+  it("preserves unchanged 8.1 and review progress while archiving revised 8.2/8.3", () => {
+    const v2Key = storageKey("legacy").replace(":v3:", ":v2:");
+    const unchangedLesson = lessons[0];
+    const changedLesson = lessons[7];
+    const review = lessons[13];
+    localStorage.setItem(v2Key, JSON.stringify({
       [unchangedLesson.id]: { seen: [0], completed: false },
+      [changedLesson.id]: { seen: [0], completed: false },
+      [review.id]: { seen: [0], completed: false },
     }));
     const loaded = loadState(storageKey("legacy"));
-    expect(loaded[oldLesson.id]).toBeUndefined();
     expect(loaded[unchangedLesson.id].seen).toEqual([0]);
-    expect(localStorage.getItem(oldKey)).toContain(oldLesson.id);
+    expect(loaded[changedLesson.id]).toBeUndefined();
+    expect(loaded[review.id].seen).toEqual([0]);
+    expect(localStorage.getItem(v2Key)).toContain(changedLesson.id);
+  });
+  it("does not migrate replaced 8.1 records from legacy v1 directly", () => {
+    const v1Key = storageKey("legacy").replace(":v3:", ":v1:");
+    localStorage.setItem(v1Key, JSON.stringify({
+      [lessons[0].id]: { seen: [0] },
+      [lessons[7].id]: { seen: [0] },
+      [lessons[13].id]: { seen: [0] },
+    }));
+    const loaded = loadState(storageKey("legacy"));
+    expect(loaded[lessons[0].id]).toBeUndefined();
+    expect(loaded[lessons[7].id]).toBeUndefined();
+    expect(loaded[lessons[13].id].seen).toEqual([0]);
+  });
+  it("teaches 8.2 management before 8.3 SQL and preserves Hodder terms", () => {
+    expect(lessons[7].title).toContain("DBMS");
+    expect(lessons[8].blocks[0].title).toContain("permissions");
+    expect(lessons[9].blocks[0].title).toContain("two jobs");
+    expect(lessons[10].blocks[0].title).toContain("Step 1");
+    expect(lessons[11].visual).toBe("sql-where");
+    expect(lessons[12].blocks[0].title).toContain("exam-mark");
+    expect(lessons[7].terms).toContain("Data dictionary");
+    expect(lessons[8].terms).toContain("Query processor");
+    expect(lessons[9].terms).toContain("Data manipulation language (DML)");
+    expect(lessons.slice(7, 13).every((lesson) => lesson.blocks.length >= 5)).toBe(true);
+  });
+  it("shows Class and Student CREATE TABLE definitions one at a time", () => {
+    window.location.hash = "oqitish/darslar?course=9618&chapter=8&lesson=11";
+    render();
+    expect(host.textContent).toContain("The parent Class table");
+    click("2 · Student table");
+    expect(host.textContent).toContain("REFERENCES Class(ClassID)");
+  });
+  it("makes WHERE and ORDER BY results inspectable for each class", () => {
+    window.location.hash = "oqitish/darslar?course=9618&chapter=8&lesson=12";
+    render();
+    const select = host.querySelector('select[aria-label="Filter by class"]') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    act(() => {
+      select.value = "7B";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    click("Reveal expected rows");
+    const result = Array.from(host.querySelectorAll(".c8-table-scroll")).at(-1);
+    expect(result?.textContent).toContain("Ahmad");
+    expect(result?.querySelectorAll("tbody tr")).toHaveLength(1);
   });
   it("resolves deep links and the older topic links without crossing courses", () => {
     expect(resolveLesson(new URLSearchParams("lesson=12"))?.number).toBe(12);
