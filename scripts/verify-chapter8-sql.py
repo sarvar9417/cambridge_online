@@ -34,7 +34,7 @@ maintenance=next(b['text'] for b in blocks if b['title']=='Update or delete only
 db.execute(maintenance[0]);assert db.execute("SELECT ClassID FROM Student WHERE StudentID='S1301'").fetchone()==('7B',)
 db.execute(maintenance[1]);assert db.execute('SELECT COUNT(*) FROM Student').fetchone()==(3,)
 # Integrity and compound uniqueness must be genuine constraints.
-for sql in ["INSERT INTO Student VALUES ('S9999','A','B','2010-01-01','9Z')", "INSERT INTO StudentSubject VALUES ('S1276','Maths',50)","DELETE FROM Class WHERE ClassID='7A'"]:
+for sql in ["INSERT INTO Student VALUES ('S9999','A','B','2010-01-01','9Z')", "INSERT INTO StudentSubject VALUES ('S1276','Maths',50)","DELETE FROM Class WHERE ClassID='7A'", "INSERT INTO StudentSubject VALUES (NULL,'Maths',50)", "INSERT INTO StudentSubject VALUES ('S1276',NULL,50)", "INSERT INTO Student VALUES (NULL,'A','B','2010-01-01','7A')"]:
     try: db.execute(sql)
     except sqlite3.IntegrityError: pass
     else: raise AssertionError('Expected integrity failure: '+sql)
