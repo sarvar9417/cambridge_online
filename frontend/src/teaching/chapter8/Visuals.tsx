@@ -520,7 +520,9 @@ export function Visual({ name }: { name: string }) {
   if (name === "keys") return <KeyExplorer />;
   if (name === "table") return <TableExplorer />;
   if (name === "er") return <ERProgressive />;
-  if (name === "schema") return <ERDiagram />;\n  if (name === "create-table") return <FirstTableExplorer />;\n  if (name === "sql-where") return <FirstSelectExplorer />;
+  if (name === "schema") return <ERDiagram />;
+  if (name === "create-table") return <FirstTableExplorer />;
+  if (name === "sql-where") return <FirstSelectExplorer />;
   if (name === "normalise") return <NormalisationExplorer />;
   if (name === "queries") return <QueryExplorer />;
   const cards: Record<string, { label: string; text: string }[]> = {
