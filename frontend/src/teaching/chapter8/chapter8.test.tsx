@@ -168,6 +168,19 @@ describe("Chapter 8 source-backed course", () => {
     expect(state[lessons[0].id].completed).toBe(false);
     expect(loadState(storageKey("b"))).toEqual({});
   });
+  it("keeps old Chapter 8.1 evidence archived and migrates unchanged lessons", () => {
+    const oldKey = storageKey("legacy").replace(":v2:", ":v1:");
+    const oldLesson = lessons[0];
+    const unchangedLesson = lessons[7];
+    localStorage.setItem(oldKey, JSON.stringify({
+      [oldLesson.id]: { seen: [0], completed: true },
+      [unchangedLesson.id]: { seen: [0], completed: false },
+    }));
+    const loaded = loadState(storageKey("legacy"));
+    expect(loaded[oldLesson.id]).toBeUndefined();
+    expect(loaded[unchangedLesson.id].seen).toEqual([0]);
+    expect(localStorage.getItem(oldKey)).toContain(oldLesson.id);
+  });
   it("resolves deep links and the older topic links without crossing courses", () => {
     expect(resolveLesson(new URLSearchParams("lesson=12"))?.number).toBe(12);
     expect(resolveLesson(new URLSearchParams("topic=8.2"))?.number).toBe(8);
