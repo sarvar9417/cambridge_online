@@ -25,7 +25,7 @@ export function ConceptCompareGame({ courseCode, scopes }: {
 }) {
   const signal = useGameSignal();
   // Chapter membership is currently the only comparison-bank scope.
-  const chapters = new Set(scopes.map(scope => scope.chapterNo));
+  const chapters = new Set(scopes.filter(scope => scope.kind === 'chapter').map(scope => scope.chapterNo));
   const available = COMPARE_DECKS.filter(deck => chapters.has(deck.chapterNo));
   const [deckId, setDeckId] = useState<string>('');
   const [quick, setQuick] = useState(false);
@@ -84,7 +84,7 @@ export function ConceptCompareGame({ courseCode, scopes }: {
   </div>;
   if (!deck) return <div className="ig-content ig-compare-empty" role="status">
     <h3>No comparison pairs in this selection yet.</h3>
-    <p>Select a chapter with a curated comparison deck: 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17 or 18.</p>
+    <p>Select an entire chapter with a curated comparison deck: 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17 or 18.</p>
     <p>Current content is chapter-filtered; section-level comparison mapping is not yet verified.</p>
   </div>;
 

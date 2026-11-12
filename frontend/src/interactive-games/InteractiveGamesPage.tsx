@@ -17,6 +17,7 @@ import { SpinWheel, type WheelOptions } from './SpinWheel';
 import { formatClock, GameSignalContext, GAME_TIMER_OPTIONS, soundEffect, type AnswerReview, type GameSignal } from './game-session';
 import { MatchUpBoard, SpeakingDeck, FindMatchBoard, AnagramTiles } from './WordwallStyleModes';
 import { ConceptCompareGame } from './ConceptCompareGame';
+import { COMPARE_DECKS } from './concept-compare-bank';
 import './interactive-games.css';
 import './remote-games.css';
 import './game-polish.css';
@@ -168,7 +169,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     [allPairs, practiceHistory]);
   const reviewOnly = mistakesOnly || dueOnly;
   const reviewPairs = dueOnly ? duePairs : missedPairs;
-  const currentMode = reviewOnly ? 'flash-cards' : courseCode === '0478' && mode === 'concept-compare' ? 'match-up' : gameIsAvailable(mode, allPairs)
+  const hasCompareDeck = courseCode === '9618' && scopes.some(scope => scope.kind === 'chapter' &&
+    COMPARE_DECKS.some(deck => deck.chapterNo === scope.chapterNo));
+  const currentMode = reviewOnly ? 'flash-cards' : mode === 'concept-compare' && !hasCompareDeck ? 'match-up' : gameIsAvailable(mode, allPairs)
     ? mode : GAME_CATALOG.find((game) => gameIsAvailable(game.id, allPairs))?.id ?? mode;
   const sourcePairs = reviewOnly ? reviewPairs : allPairs;
   const eligiblePairs = useMemo(
@@ -483,12 +486,12 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={(reviewOnly && game.id !== 'flash-cards') || (courseCode === '0478' && game.id === 'concept-compare') || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
+          disabled={(reviewOnly && game.id !== 'flash-cards') || (game.id === 'concept-compare' && !hasCompareDeck) || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
           onClick={() => resetGame(game.id)}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
-          <small>{courseCode === '0478' && game.id === 'concept-compare' ? 'This curated comparison bank currently covers 9618 only.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
+          <small>{game.id === 'concept-compare' && !hasCompareDeck ? 'Select an entire supported 9618 chapter to play.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
       </div>
       <div className="ig-workspace">
