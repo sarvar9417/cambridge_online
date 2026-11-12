@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft';
 import { ArrowRight } from '@phosphor-icons/react/ArrowRight';
 import { ArrowsOut } from '@phosphor-icons/react/ArrowsOut';
@@ -36,6 +36,8 @@ import { realSlideDeckFor } from './real-slide-decks';
 import './lesson-experience.css';
 import './presentation-hodder-benchmark.css';
 
+const Chapter8Course = lazy(() => import('./chapter8/Chapter8Course').then(module => ({default: module.Chapter8Course})));
+
 type LessonExperienceProps = {audience:LessonAudience;userId:string};
 type LessonCourseCode = '9618' | '0478';
 
@@ -63,6 +65,7 @@ function mergeProgress(current:LessonProgress[],saved:LessonProgress[]){
 function pageSlideIds(page:TopicPage){return [...new Set(page.slides.map(slide=>slide.id))];}
 
 function completedPageIds(progress:LessonProgress[],chapter:LessonExperienceChapter){
+  if(courseCode(chapter)==='9618'&&chapter.number===8)return new Set(progress.filter(item=>item.courseCode==='9618'&&item.chapterNo===8&&item.completedAt&&/^h8-rewrite-v1-(0[1-9]|1[0-4])$/.test(item.slideId)).map(item=>item.slideId));
   const complete=new Set(progress.filter(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number&&item.completedAt).map(item=>item.slideId));
   const topics=buildTopicPlan(chapter.slides,chapter.subtopics);
   return new Set(topics.flatMap(topic=>topic.pages).filter(page=>page.kind==='study'&&pageSlideIds(page).every(id=>complete.has(id))).map(page=>page.id));
@@ -97,7 +100,7 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
     const page=firstStudyPage(topic);
     navigate(lessonUrl(audience,syllabus,chapter.number,topic.code,Math.max(0,topic.pages.indexOf(page!)),mode));
   };
-  const totalSections=LESSON_COURSE_CATALOG.reduce((sum,chapter)=>sum+chapterStats(chapter).studyPages.length,0);
+  const totalSections=LESSON_COURSE_CATALOG.reduce((sum,chapter)=>sum+(courseCode(chapter)==='9618'&&chapter.number===8?14:chapterStats(chapter).studyPages.length),0);
   const completedSections=LESSON_COURSE_CATALOG.reduce((sum,chapter)=>sum+completedPageIds(progress,chapter).size,0);
   const startedChapters=LESSON_COURSE_CATALOG.filter(chapter=>progress.some(item=>item.courseCode===courseCode(chapter)&&item.chapterNo===chapter.number)).length;
   const overallPercent=totalSections?Math.round((completedSections/totalSections)*100):0;
@@ -115,8 +118,9 @@ function LessonLibrary({audience,progress}:{audience:LessonAudience;progress:Les
       return <section className="lx-course-group" key={group.code}><header><span>{group.code}</span><div><h2>{group.title}</h2><p>{group.code==='9618'?'AS and A Level lessons':'IGCSE and O Level lessons'}</p></div></header><div className="lx-chapter-list">{chapters.map(chapter=>{
         const {topics,studyPages}=chapterStats(chapter);
         const complete=completedPageIds(progress,chapter).size;
-        const percent=studyPages.length?Math.round((complete/studyPages.length)*100):0;
-        return <article className="lx-chapter-row" key={`${group.code}-${chapter.number}`}><div className="lx-chapter-number"><span>CHAPTER</span><strong>{String(chapter.number).padStart(2,'0')}</strong></div><div className="lx-chapter-copy"><div><span>{chapter.level}</span><span>{topics.filter(topic=>topic.code!=='overview').length} topics</span><span>{studyPages.length} study sections</span></div><h3>{chapter.title}</h3><p>{chapter.subtopics.join(' · ')}</p>{audience==='student'?<div className="lx-card-progress"><span><i style={{width:`${percent}%`}}/></span><small>{complete}/{studyPages.length} sections completed</small></div>:null}</div><div className="lx-chapter-actions"><button type="button" className="lx-primary" onClick={()=>open(chapter,'study')}><BookOpenText size={20}/>{audience==='student'&&complete?'Continue':'Study'}</button>{audience==='teacher'?<button type="button" onClick={()=>open(chapter,'present')}><ChalkboardTeacher size={20}/>Present</button>:null}<button type="button" onClick={()=>open(chapter,'exam')}><FileText size={20}/>Past Papers</button></div></article>;
+        const sectionCount=group.code==='9618'&&chapter.number===8?14:studyPages.length;
+        const percent=sectionCount?Math.round((complete/sectionCount)*100):0;
+        return <article className="lx-chapter-row" key={`${group.code}-${chapter.number}`}><div className="lx-chapter-number"><span>CHAPTER</span><strong>{String(chapter.number).padStart(2,'0')}</strong></div><div className="lx-chapter-copy"><div><span>{chapter.level}</span><span>{topics.filter(topic=>topic.code!=='overview').length} topics</span><span>{group.code==='9618'&&chapter.number===8?14:studyPages.length} study sections</span></div><h3>{chapter.title}</h3><p>{chapter.subtopics.join(' · ')}</p>{audience==='student'?<div className="lx-card-progress"><span><i style={{width:`${percent}%`}}/></span><small>{complete}/{sectionCount} sections completed</small></div>:null}</div><div className="lx-chapter-actions"><button type="button" className="lx-primary" onClick={()=>open(chapter,'study')}><BookOpenText size={20}/>{audience==='student'&&complete?'Continue':'Study'}</button>{audience==='teacher'?<button type="button" onClick={()=>open(chapter,'present')}><ChalkboardTeacher size={20}/>Present</button>:null}<button type="button" onClick={()=>open(chapter,'exam')}><FileText size={20}/>Past Papers</button></div></article>;
       })}</div></section>;
     })}
     {!filtered.length?<div className="lx-empty"><strong>No lessons found.</strong><p>Change the search term or course filter.</p></div>:null}
@@ -208,7 +212,15 @@ function SourceAudit({page}:{page:TopicPage}){
   return <details className="lx-source-audit"><summary>Teacher source audit</summary><div>{pages.length?<p><strong>Source pages:</strong> {pages.join(', ')}</p>:null}{elements.length?<section><strong>Covered elements</strong><ul>{elements.map(item=><li key={item}>{item}</li>)}</ul></section>:null}{atoms.length?<section><strong>Verified source atoms</strong><ul>{atoms.map(atom=><li key={atom.id}><span>{atom.kind}</span>{atom.sourceRef}</li>)}</ul></section>:null}{bulletEvidence.length?<section><strong>Extraction evidence</strong><ul>{bulletEvidence.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul></section>:null}</div></details>;
 }
 
-export function LessonExperience({audience,userId}:LessonExperienceProps){
+export function LessonExperience(props:LessonExperienceProps){
+  const route=useRoute();
+  if(route.params.get('course')!=='0478'&&route.params.get('chapter')==='8'&&route.params.get('mode')!=='exam'){
+    return <Suspense fallback={<section className="lx-empty" role="status">Loading Chapter 8…</section>}><Chapter8Course key={props.userId+':'+props.audience} {...props}/></Suspense>;
+  }
+  return <StandardLessonExperience {...props}/>;
+}
+
+function StandardLessonExperience({audience,userId}:LessonExperienceProps){
   const route=useRoute();
   const rootRef=useRef<HTMLElement|null>(null);
   const chapterNumber=Number(route.params.get('chapter')||0);

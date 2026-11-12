@@ -1,0 +1,421 @@
+{
+  "source": "9618_Chapter_8.pdf (Hodder Education), printed pp.196–216",
+  "scope": "Original teaching explanations and adapted practice; not a verbatim replacement of the book or an official mark scheme.",
+  "key_terms": [
+    {
+      "term": "Database",
+      "source_page": 196,
+      "lesson": 2
+    },
+    {
+      "term": "Relational database",
+      "source_page": 196,
+      "lesson": 2
+    },
+    {
+      "term": "Table",
+      "source_page": 196,
+      "lesson": 3
+    },
+    {
+      "term": "Record",
+      "source_page": 196,
+      "lesson": 3
+    },
+    {
+      "term": "Field",
+      "source_page": 197,
+      "lesson": 3
+    },
+    {
+      "term": "Tuple",
+      "source_page": 197,
+      "lesson": 3
+    },
+    {
+      "term": "Entity",
+      "source_page": 197,
+      "lesson": 3
+    },
+    {
+      "term": "Attribute",
+      "source_page": 197,
+      "lesson": 3
+    },
+    {
+      "term": "Candidate key",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Primary key",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Secondary key",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Foreign key",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Relationship",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Referential integrity",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Index",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Entity-relationship (E-R) model or E-R diagram",
+      "source_page": 197,
+      "lesson": 5
+    },
+    {
+      "term": "Normalisation",
+      "source_page": 197,
+      "lesson": 6
+    },
+    {
+      "term": "First normal form (1NF)",
+      "source_page": 197,
+      "lesson": 6
+    },
+    {
+      "term": "Second normal form (2NF)",
+      "source_page": 197,
+      "lesson": 7
+    },
+    {
+      "term": "Third normal form (3NF)",
+      "source_page": 197,
+      "lesson": 7
+    },
+    {
+      "term": "Composite key",
+      "source_page": 197,
+      "lesson": 4
+    },
+    {
+      "term": "Database management system (DBMS)",
+      "source_page": 208,
+      "lesson": 8
+    },
+    {
+      "term": "Data management",
+      "source_page": 208,
+      "lesson": 8
+    },
+    {
+      "term": "Data dictionary",
+      "source_page": 208,
+      "lesson": 8
+    },
+    {
+      "term": "Data modelling",
+      "source_page": 208,
+      "lesson": 8
+    },
+    {
+      "term": "Logical schema",
+      "source_page": 208,
+      "lesson": 8
+    },
+    {
+      "term": "Access rights",
+      "source_page": 208,
+      "lesson": 9
+    },
+    {
+      "term": "Developer interface",
+      "source_page": 209,
+      "lesson": 9
+    },
+    {
+      "term": "Structured query language (SQL)",
+      "source_page": 209,
+      "lesson": 10
+    },
+    {
+      "term": "Query processor",
+      "source_page": 209,
+      "lesson": 9
+    },
+    {
+      "term": "Data definition language (DDL)",
+      "source_page": 211,
+      "lesson": 10
+    },
+    {
+      "term": "Data manipulation language (DML)",
+      "source_page": 211,
+      "lesson": 10
+    },
+    {
+      "term": "SQL script",
+      "source_page": 211,
+      "lesson": 10
+    }
+  ],
+  "lessons": [
+    {
+      "number": 1,
+      "title": "Why separate files cause problems",
+      "source_pages": [
+        196,
+        197,
+        198
+      ],
+      "source_elements": [
+        "8.1 prior knowledge",
+        "8.1.1",
+        "Figure 8.1",
+        "Activity 8A"
+      ]
+    },
+    {
+      "number": 2,
+      "title": "One shared relational database",
+      "source_pages": [
+        196,
+        198,
+        199
+      ],
+      "source_elements": [
+        "8.1.2",
+        "Figure 8.2"
+      ]
+    },
+    {
+      "number": 3,
+      "title": "Read a table like a database designer",
+      "source_pages": [
+        196,
+        197,
+        199,
+        200
+      ],
+      "source_elements": [
+        "8.1.3",
+        "Tables 8.1–8.2"
+      ]
+    },
+    {
+      "number": 4,
+      "title": "Keys that identify and connect",
+      "source_pages": [
+        197,
+        200,
+        201,
+        202,
+        205
+      ],
+      "source_elements": [
+        "8.1.3",
+        "Tables 8.3–8.6",
+        "Index example",
+        "Composite key in Table 8.9"
+      ]
+    },
+    {
+      "number": 5,
+      "title": "Make relationships visible",
+      "source_pages": [
+        202,
+        203,
+        207
+      ],
+      "source_elements": [
+        "8.1.4",
+        "Figures 8.3–8.4",
+        "Activity 8B",
+        "Extension 8A",
+        "Activity 8C"
+      ]
+    },
+    {
+      "number": 6,
+      "title": "Normalisation starts with 1NF",
+      "source_pages": [
+        203,
+        204,
+        205
+      ],
+      "source_elements": [
+        "8.1.5",
+        "Tables 8.7–8.9"
+      ]
+    },
+    {
+      "number": 7,
+      "title": "From 1NF to a complete 3NF design",
+      "source_pages": [
+        205,
+        206,
+        207,
+        208
+      ],
+      "source_elements": [
+        "8.1.5",
+        "Tables 8.10–8.12",
+        "Activities 8C–8E",
+        "Extension 8B"
+      ]
+    },
+    {
+      "number": 8,
+      "title": "What the DBMS manages",
+      "source_pages": [
+        208,
+        209,
+        210
+      ],
+      "source_elements": [
+        "8.2 prior knowledge",
+        "8.2.1",
+        "Data dictionary",
+        "Data modelling and logical schema"
+      ]
+    },
+    {
+      "number": 9,
+      "title": "Secure access and process queries",
+      "source_pages": [
+        208,
+        209,
+        210
+      ],
+      "source_elements": [
+        "8.2.1 security",
+        "8.2.2",
+        "Activity 8F"
+      ]
+    },
+    {
+      "number": 10,
+      "title": "SQL: structure or data?",
+      "source_pages": [
+        209,
+        211,
+        212
+      ],
+      "source_elements": [
+        "8.3 prior knowledge",
+        "8.3.1",
+        "Table 8.14"
+      ]
+    },
+    {
+      "number": 11,
+      "title": "Build the school database",
+      "source_pages": [
+        211,
+        212
+      ],
+      "source_elements": [
+        "8.3.2",
+        "Tables 8.13–8.14",
+        "Activity 8G"
+      ]
+    },
+    {
+      "number": 12,
+      "title": "Ask precise questions with SELECT",
+      "source_pages": [
+        213,
+        214
+      ],
+      "source_elements": [
+        "8.3.3 query commands",
+        "Table 8.15",
+        "Activity 8H"
+      ]
+    },
+    {
+      "number": 13,
+      "title": "Summarise and maintain data",
+      "source_pages": [
+        213,
+        214
+      ],
+      "source_elements": [
+        "8.3.3",
+        "Table 8.15",
+        "Activity 8I"
+      ]
+    },
+    {
+      "number": 14,
+      "title": "Connect the whole chapter",
+      "source_pages": [
+        196,
+        208,
+        214,
+        215,
+        216
+      ],
+      "source_elements": [
+        "Chapter objectives recap",
+        "Activity 8E recap",
+        "End-of-chapter Q1",
+        "End-of-chapter Q2 (9608 June 2016 adaptation)"
+      ]
+    }
+  ],
+  "corrections": [
+    {
+      "page": 206,
+      "issue": "Repeated teacher primary key and a duplicate Maths subject label in Table 8.11",
+      "treatment": "Use unique teacher keys and consistent illustrative subject rows; do not copy the anomalous printed rows."
+    },
+    {
+      "page": 207,
+      "issue": "Abbreviated STUDENT relation omits ClassID",
+      "treatment": "Retain ClassID FK to preserve the Student–Class relationship."
+    },
+    {
+      "page": 212,
+      "issue": "CHRACTER typo, inconsistent Licence Number spelling and incomplete FK syntax",
+      "treatment": "Use consistent identifiers, explicit types and parenthesised FOREIGN KEY columns."
+    },
+    {
+      "page": 213,
+      "issue": "AND in SELECT output list and NUL in COUNT explanation",
+      "treatment": "Use comma-separated column expressions and distinguish COUNT(*) from COUNT(column), excluding NULL values from the latter."
+    },
+    {
+      "page": 214,
+      "issue": "Unquoted strings/ambiguous date literals and DELETE described as deleting the whole table",
+      "treatment": "Quote text, use ISO-formatted dates, and distinguish deleting rows from dropping the structure."
+    }
+  ],
+  "technical_references": [
+    "https://www.sqlite.org/lang_aggfunc.html",
+    "https://www.sqlite.org/foreignkeys.html",
+    "https://www.sqlite.org/lang_altertable.html",
+    "https://dev.mysql.com/doc/refman/8.4/en/create-database.html"
+  ],
+  "verification": {
+    "sql": "python3 scripts/verify-chapter8-sql.py",
+    "frontend": "npm run test -w frontend -- src/teaching/chapter8/chapter8.test.tsx src/teaching/lesson-course-catalog.test.ts src/teaching/lesson-experience-model.test.ts src/teaching/chapter8-final-source-completeness.test.ts",
+    "build": "npm run build -w frontend",
+    "browser": "Desktop route, 390px iframe/mobile viewport, SQL result reveal, FK rejection explanation, presentation E-R diagram, wrong first answer -> corrected retry -> unchanged first-attempt score, completion gating."
+  },
+  "limitations": [
+    "Written explanations use explicitly labelled self-assessment, not automatic grading.",
+    "Detailed attempts are saved in browser storage under the signed-in user ID. Successful student completion is also sent to the existing progress endpoint.",
+    "SQL result walkthroughs show SQLite-verified fixed examples; they are not a live query editor.",
+    "The prior Chapter 8 source layers remain for the existing Past Papers route; Study and Presentation use the new course."
+  ]
+}
