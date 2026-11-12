@@ -135,20 +135,24 @@ export function loadState(key: string): CourseState {
     const stored = localStorage.getItem(key);
     const raw = JSON.parse(stored ?? "{}");
     if (!raw || typeof raw !== "object") return {};
-    // Revised Chapter 8.1 tasks need fresh evidence. Keep the v1 record as
-    // an untouched archive; migrate only unchanged lessons 8–14.
-    if (stored === null && key.includes(":v2:")) {
+    // 8.2–8.3 have new teaching blocks and new checks. Store their evidence
+    // separately, preserving older attempts in previous storage namespaces.
+    // Only unchanged 8.1 lessons (v2) and Chapter review (v1/v2) migrate.
+    if (stored === null && key.includes(":v3:")) {
+      const previousV2 = localStorage.getItem(key.replace(":v3:", ":v2:"));
+      const previousV1 = localStorage.getItem(key.replace(":v3:", ":v1:"));
       try {
-        const previous = JSON.parse(
-          localStorage.getItem(key.replace(":v2:", ":v1:")) ?? "{}",
-        );
+        const previous = JSON.parse(previousV2 ?? previousV1 ?? "{}");
         if (previous && typeof previous === "object") {
-          for (const lesson of lessons.filter((item) => item.number >= 8)) {
+          const unchanged = previousV2 !== null
+            ? lessons.filter((item) => item.number <= 7 || item.number === 14)
+            : lessons.filter((item) => item.number === 14);
+          for (const lesson of unchanged) {
             if (previous[lesson.id]) raw[lesson.id] = previous[lesson.id];
           }
         }
       } catch {
-        // A corrupt legacy record cannot block the new chapter.
+        // A corrupt historical record cannot block the updated chapter.
       }
     }
     const clean: CourseState = {};
@@ -201,7 +205,7 @@ export function loadState(key: string): CourseState {
   }
 }
 export function storageKey(userId: string) {
-  return `campath:chapter8:v2:${userId}`;
+  return `campath:chapter8:v3:${userId}`;
 }
 export function resolveLesson(params: URLSearchParams) {
   const n = Number(params.get("lesson"));
