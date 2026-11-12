@@ -374,7 +374,7 @@ function CourseOverview({
               <b>FK</b> ClassID
             </p>
           </div>
-          <div className="c8-art-link">RELATED BY KEYS</div>
+          <div className="c8-art-link">ONE SHARED RECORD</div>
           <div className="c8-mini-table c8-mini-table--second">
             <span>CLASS</span>
             <p>
