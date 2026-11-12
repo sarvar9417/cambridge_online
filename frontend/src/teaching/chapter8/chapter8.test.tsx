@@ -97,21 +97,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(lessons.slice(7, 9).every((l) => l.section === "8.2")).toBe(true);
     expect(lessons.slice(9, 13).every((l) => l.section === "8.3")).toBe(true);
   });
-  it("introduces school data before keys and uses one problem per Chapter 8.1 lesson", () => {
-    expect(lessons[0].title).toBe("When two school files disagree");
-    expect(lessons[0].blocks[0].kind).toBe("table");
-    expect(lessons[0].blocks[0].rows?.[0]).toEqual([
-      "StudentID: S1276",
-      "StudentID: S1276",
-    ]);
-    expect(lessons[1].blocks[0].title).toContain("One source");
-    expect(lessons[2].blocks[0].title).toContain("Student table");
-    expect(lessons[3].hook).toContain("Two students are called");
-    expect(lessons[5].title).toContain("1NF");
-    expect(lessons[6].title).toContain("3NF");
-    expect(lessons.slice(0, 7).every((lesson) => lesson.blocks.length >= 4)).toBe(true);
-  });
-  it("does not complete a lesson with unattempted or only-revealed tasks", () => {
+  it("records study after reading, attempts and recap without requiring a perfect score", () => {
     const l = lessons[0];
     const r = emptyRecord(l);
     r.seen = l.blocks.map((_, i) => i);
@@ -134,6 +120,8 @@ describe("Chapter 8 source-backed course", () => {
       choice: t.correct,
     }));
     expect(readyToComplete(l, r)).toBe(true);
+    r.checks[0].choice = 0;
+    expect(readyToComplete(l, r)).toBe(true);
     r.seen = [];
     expect(readyToComplete(l, r)).toBe(false);
   });
@@ -142,7 +130,7 @@ describe("Chapter 8 source-backed course", () => {
     const e: Evidence = {
       draft: "",
       first: "wrong",
-      firstChoice: t.correct === 0 ? 1 : 0,
+      firstChoice: 0,
       choice: t.correct,
       revealed: true,
       submitted: true,
@@ -168,71 +156,49 @@ describe("Chapter 8 source-backed course", () => {
     expect(state[lessons[0].id].completed).toBe(false);
     expect(loadState(storageKey("b"))).toEqual({});
   });
-  it("preserves unchanged 8.1 and review progress while archiving revised 8.2/8.3", () => {
-    const v2Key = storageKey("legacy").replace(":v3:", ":v2:");
-    const unchangedLesson = lessons[0];
-    const changedLesson = lessons[7];
-    const review = lessons[13];
-    localStorage.setItem(v2Key, JSON.stringify({
-      [unchangedLesson.id]: { seen: [0], completed: false },
-      [changedLesson.id]: { seen: [0], completed: false },
-      [review.id]: { seen: [0], completed: false },
-    }));
-    const loaded = loadState(storageKey("legacy"));
-    expect(loaded[unchangedLesson.id].seen).toEqual([0]);
-    expect(loaded[changedLesson.id]).toBeUndefined();
-    expect(loaded[review.id].seen).toEqual([0]);
-    expect(localStorage.getItem(v2Key)).toContain(changedLesson.id);
+  it("resolves deep links and the older topic links without crossing courses", () => {
+    expect(resolveLesson(new URLSearchParams("lesson=12"))?.number).toBe(12);
+    expect(resolveLesson(new URLSearchParams("topic=8.2"))?.number).toBe(8);
+    expect(resolveLesson(new URLSearchParams("lesson=999"))).toBeNull();
   });
-  it("does not migrate replaced 8.1 records from legacy v1 directly", () => {
-    const v1Key = storageKey("legacy").replace(":v3:", ":v1:");
-    localStorage.setItem(v1Key, JSON.stringify({
-      [lessons[0].id]: { seen: [0] },
-      [lessons[7].id]: { seen: [0] },
-      [lessons[13].id]: { seen: [0] },
-    }));
-    const loaded = loadState(storageKey("legacy"));
-    expect(loaded[lessons[0].id]).toBeUndefined();
-    expect(loaded[lessons[7].id]).toBeUndefined();
-    expect(loaded[lessons[13].id].seen).toEqual([0]);
+  it("keeps previous question evidence archived instead of reusing it for rewritten checks", () => {
+    for (const version of ["v1", "v2", "v3"]) {
+      const oldKey = storageKey("legacy").replace(":v4:", `:${version}:`);
+      const oldValue = JSON.stringify({
+        [lessons[0].id]: { seen: [0], checks: [{ first: "old answer" }] },
+      });
+      localStorage.setItem(oldKey, oldValue);
+      expect(loadState(storageKey("legacy"))).toEqual({});
+      expect(localStorage.getItem(oldKey)).toBe(oldValue);
+    }
   });
-  it("teaches 8.2 management before 8.3 SQL and preserves Hodder terms", () => {
-    expect(lessons[7].title).toContain("DBMS");
-    expect(lessons[8].blocks[0].title).toContain("permissions");
-    expect(lessons[9].blocks[0].title).toContain("two jobs");
-    expect(lessons[10].blocks[0].title).toContain("Step 1");
-    expect(lessons[11].visual).toBe("sql-where");
-    expect(lessons[12].blocks[0].title).toContain("exam-mark");
-    expect(lessons[7].terms).toContain("Data dictionary");
-    expect(lessons[8].terms).toContain("Query processor");
-    expect(lessons[9].terms).toContain("Data manipulation language (DML)");
-    expect(lessons.slice(7, 13).every((lesson) => lesson.blocks.length >= 5)).toBe(true);
-  });
-  it("shows Class and Student CREATE TABLE definitions one at a time", () => {
-    window.location.hash = "oqitish/darslar?course=9618&chapter=8&lesson=11";
+  it("retains the class filter explorer after the SELECT explanation", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=12";
     render();
-    expect(host.textContent).toContain("The parent Class table");
-    click("2 · Student table");
-    expect(host.textContent).toContain("REFERENCES Class(ClassID)");
-  });
-  it("makes WHERE and ORDER BY results inspectable for each class", () => {
-    window.location.hash = "oqitish/darslar?course=9618&chapter=8&lesson=12";
-    render();
-    const select = host.querySelector('select[aria-label="Filter by class"]') as HTMLSelectElement;
+    for (let i = 0; i < 5; i++) click("Next →");
+    const select = host.querySelector(
+      'select[aria-label="Filter by class"]',
+    ) as HTMLSelectElement;
     expect(select).toBeTruthy();
     act(() => {
       select.value = "7B";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     click("Reveal expected rows");
-    const result = Array.from(host.querySelectorAll(".c8-table-scroll")).at(-1);
+    const result = host.querySelector(
+      '.c8-screen [aria-label="Students in 7B"]',
+    );
     expect(result?.textContent).toContain("Ahmad");
     expect(result?.querySelectorAll("tbody tr")).toHaveLength(1);
   });
-  it("resolves deep links and the older topic links without crossing courses", () => {
-    expect(resolveLesson(new URLSearchParams("lesson=12"))?.number).toBe(12);
-    expect(resolveLesson(new URLSearchParams("topic=8.2"))?.number).toBe(8);
-    expect(resolveLesson(new URLSearchParams("lesson=999"))).toBeNull();
+  it("retains the two-table DDL explorer after explaining columns and keys", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=11";
+    render();
+    for (let i = 0; i < 3; i++) click("Next →");
+    click("2 · Student table");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "REFERENCES Class(ClassID)",
+    );
   });
   it("renders all lessons and the searchable glossary", () => {
     render();
@@ -241,22 +207,83 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.querySelectorAll(".c8-terms article")).toHaveLength(33);
     expect(host.textContent).toContain("Referential integrity");
   });
-  it("keeps learner completion gated and provides the interactive foreign-key explanation", () => {
+  it("introduces keys before showing the foreign-key explorer", () => {
     window.location.hash = "oqitish/darslar?chapter=8&lesson=4";
     render();
+    expect(host.querySelector("select")).toBeNull();
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "Two students can have the same name",
+    );
+    click("Next →");
+    click("Next →");
+    click("Next →");
     const select = host.querySelector("select")!;
     act(() => {
       select.value = "9Z";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(host.textContent).toContain("No matching parent key");
-    click("Recap");
+    for (let i = 0; i < 6; i++) click("Next →");
     expect(
       (
         Array.from(host.querySelectorAll("button")).find(
-          (b) => b.textContent === "Complete lesson",
+          (b) => b.textContent === "Mark as studied",
         ) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
+  });
+  it("starts with the actual table and follows a single linear route through example and feedback", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=1";
+    render();
+    expect(host.querySelector('[aria-label="Lesson stages"]')).toBeNull();
+    expect(host.querySelector(".c8-screen table")?.textContent).toContain(
+      "Noor",
+    );
+    click("Next →");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "One row tells us about one student",
+    );
+    click("← Previous");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "Start with three students",
+    );
+    for (let i = 0; i < 5; i++) click("Next →");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "The record is the whole row",
+    );
+    expect(host.querySelector(".c8-screen textarea")).toBeNull();
+    click("Next →");
+    act(() =>
+      (host.querySelector('input[value="0"]') as HTMLInputElement).click(),
+    );
+    click("Check my answer");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "Review the reason",
+    );
+    click("Revise answer");
+    act(() =>
+      (host.querySelector('input[value="1"]') as HTMLInputElement).click(),
+    );
+    click("Check revised answer");
+    click("Next →");
+    act(() =>
+      (host.querySelector('input[value="2"]') as HTMLInputElement).click(),
+    );
+    click("Check my answer");
+    click("Next →");
+    expect(host.querySelector(".c8-screen")?.textContent).toContain(
+      "1 / 2 choice questions correct on your first independent attempt.",
+    );
+    act(() =>
+      (
+        host.querySelector(
+          '.c8-completion input[type="checkbox"]',
+        ) as HTMLInputElement
+      ).click(),
+    );
+    click("Mark as studied");
+    expect(host.querySelector(".c8-completion")?.textContent).toContain(
+      "Lesson studied",
+    );
   });
 });

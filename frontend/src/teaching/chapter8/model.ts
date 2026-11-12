@@ -6,6 +6,9 @@ export type Block = {
   text?: string;
   uz?: string;
   note?: string;
+  remember?: string;
+  visual?: string;
+  relatedTable?: Table & { caption: string };
   headers?: string[];
   rows?: string[][];
   items?: { title: string; text: string }[];
@@ -37,6 +40,8 @@ export type Lesson = {
   objectives: string[];
   hook: string;
   blocks: Block[];
+  details: Block[];
+  extension: { worked: Task; checks: Task[] };
   worked: Task;
   checks: Task[];
   recap: string[];
@@ -115,9 +120,13 @@ export function taskReady(task: Task, e: Evidence) {
 export function readyToComplete(lesson: Lesson, record: RecordState) {
   return (
     record.seen.length === lesson.blocks.length &&
-    taskReady(lesson.worked, record.worked) &&
     lesson.checks.every((task, i) =>
-      taskReady(task, record.checks[i] ?? emptyEvidence()),
+      Boolean(
+        record.checks[i]?.submitted &&
+        (task.kind === "choice"
+          ? Number.isInteger(record.checks[i]?.choice)
+          : record.checks[i]?.draft.trim()),
+      ),
     ) &&
     record.recap
   );
@@ -132,29 +141,8 @@ export function firstAttemptCorrect(task: Task, e: Evidence) {
 }
 export function loadState(key: string): CourseState {
   try {
-    const stored = localStorage.getItem(key);
-    const raw = JSON.parse(stored ?? "{}");
+    const raw = JSON.parse(localStorage.getItem(key) ?? "{}");
     if (!raw || typeof raw !== "object") return {};
-    // 8.2–8.3 have new teaching blocks and new checks. Store their evidence
-    // separately, preserving older attempts in previous storage namespaces.
-    // Only unchanged 8.1 lessons (v2) and Chapter review (v1/v2) migrate.
-    if (stored === null && key.includes(":v3:")) {
-      const previousV2 = localStorage.getItem(key.replace(":v3:", ":v2:"));
-      const previousV1 = localStorage.getItem(key.replace(":v3:", ":v1:"));
-      try {
-        const previous = JSON.parse(previousV2 ?? previousV1 ?? "{}");
-        if (previous && typeof previous === "object") {
-          const unchanged = previousV2 !== null
-            ? lessons.filter((item) => item.number <= 7 || item.number === 14)
-            : lessons.filter((item) => item.number === 14);
-          for (const lesson of unchanged) {
-            if (previous[lesson.id]) raw[lesson.id] = previous[lesson.id];
-          }
-        }
-      } catch {
-        // A corrupt historical record cannot block the updated chapter.
-      }
-    }
     const clean: CourseState = {};
     const readEvidence = (x: unknown): Evidence => {
       if (!x || typeof x !== "object") return emptyEvidence();
@@ -204,8 +192,10 @@ export function loadState(key: string): CourseState {
     return {};
   }
 }
+// Every walkthrough/check changed in v4. Keep prior evidence in its original
+// v1/v2/v3 namespace instead of assigning it to a different question.
 export function storageKey(userId: string) {
-  return `campath:chapter8:v3:${userId}`;
+  return `campath:chapter8:v4:${userId}`;
 }
 export function resolveLesson(params: URLSearchParams) {
   const n = Number(params.get("lesson"));

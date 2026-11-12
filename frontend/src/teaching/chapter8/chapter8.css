@@ -1242,3 +1242,122 @@
     scroll-behavior: auto !important;
   }
 }
+/* The short walkthrough has one route, with detail available on demand. */
+.c8-reading-progress {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 30px;
+  color: var(--c8-muted, #52635e);
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid #dce4dc;
+}
+.c8-reading-progress progress {
+  width: 100%;
+  height: 5px;
+  border: 0;
+  border-radius: 5px;
+  accent-color: #22684f;
+}
+.c8-reading-progress progress::-webkit-progress-bar {
+  background: #e8eee7;
+  border-radius: 5px;
+}
+.c8-reading-progress progress::-webkit-progress-value {
+  background: #22684f;
+  border-radius: 5px;
+}
+.c8-remember {
+  display: grid;
+  gap: 8px;
+  padding: 18px 22px;
+  border-left: 4px solid #22684f;
+  background: #eff5ed;
+  border-radius: 0 12px 12px 0;
+}
+.c8-remember b {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #22684f;
+}
+.c8-worked-example h2 {
+  line-height: 1.4;
+}
+.c8-worked-example > div {
+  margin: 24px 0;
+  padding: 24px;
+  background: #eff5ed;
+  border-radius: 16px;
+  line-height: 1.85;
+}
+.c8-worked-example > div p {
+  margin-bottom: 0;
+}
+.c8-deeper-study {
+  padding: 8px 30px 26px;
+}
+.c8-deeper-study details,
+.c8-review-terms {
+  border-top: 1px solid #dce4dc;
+  padding: 17px 0;
+}
+.c8-deeper-study summary,
+.c8-review-terms summary {
+  cursor: pointer;
+  color: #275541;
+  font-weight: 650;
+  line-height: 1.6;
+}
+.c8-deeper-study details > p {
+  color: #52635e;
+  line-height: 1.7;
+}
+.c8-deeper-study details details {
+  margin-left: 12px;
+}
+.c8-deeper-study .c8-block {
+  padding: 18px 0;
+}
+.c8-extension-task {
+  margin: 24px 0;
+  line-height: 1.7;
+}
+.c8-completion > .c8-link {
+  display: block;
+  margin-top: 14px;
+}
+.c8-hero-example {
+  display: block;
+  height: auto;
+  min-height: 0;
+  padding: 28px;
+  background: #edf3e9;
+  border-radius: 24px;
+  transform: none;
+}
+.c8-hero-example > p {
+  margin: 18px 0 0;
+  font-size: 17px;
+  color: #365c48;
+}
+.c8-hero-example .c8-table-scroll {
+  margin-top: 18px;
+  background: white;
+}
+.c8-present .c8-deeper-study {
+  font-size: 16px;
+}
+@media (max-width: 780px) {
+  .c8-reading-progress {
+    padding: 16px 20px;
+  }
+  .c8-deeper-study {
+    padding: 6px 20px 22px;
+  }
+  .c8-worked-example > div {
+    padding: 18px;
+  }
+}
