@@ -275,7 +275,7 @@
     },
     {
       "number": 8,
-      "title": "What the DBMS manages",
+      "title": "Meet the DBMS: who manages the Student table?",
       "source_pages": [
         208,
         209,
@@ -284,13 +284,14 @@
       "source_elements": [
         "8.2 prior knowledge",
         "8.2.1",
-        "Data dictionary",
-        "Data modelling and logical schema"
+        "p.208 key terms",
+        "p.209 data dictionary",
+        "p.210 data modelling"
       ]
     },
     {
       "number": 9,
-      "title": "Secure access and process queries",
+      "title": "Protect student data and process a request",
       "source_pages": [
         208,
         209,
@@ -298,61 +299,65 @@
       ],
       "source_elements": [
         "8.2.1 security",
-        "8.2.2",
+        "8.2.2 developer interface and query processor",
         "Activity 8F"
       ]
     },
     {
       "number": 10,
-      "title": "SQL: structure or data?",
+      "title": "Your first SQL: structure versus data",
       "source_pages": [
-        209,
         211,
         212
       ],
       "source_elements": [
         "8.3 prior knowledge",
         "8.3.1",
+        "Table 8.13",
         "Table 8.14"
       ]
     },
     {
       "number": 11,
-      "title": "Build the school database",
+      "title": "Build two linked tables, then extend the design",
       "source_pages": [
         211,
         212
       ],
       "source_elements": [
         "8.3.2",
-        "Tables 8.13–8.14",
+        "Table 8.13",
+        "Table 8.14",
         "Activity 8G"
       ]
     },
     {
       "number": 12,
-      "title": "Ask precise questions with SELECT",
+      "title": "Find and sort students with SELECT",
       "source_pages": [
+        211,
         213,
         214
       ],
       "source_elements": [
-        "8.3.3 query commands",
-        "Table 8.15",
+        "8.3 prior knowledge",
+        "8.3.3",
+        "Table 8.15 SELECT/WHERE/ORDER BY/INNER JOIN",
         "Activity 8H"
       ]
     },
     {
       "number": 13,
-      "title": "Summarise and maintain data",
+      "title": "Count marks and make safe data changes",
       "source_pages": [
         213,
         214
       ],
       "source_elements": [
         "8.3.3",
-        "Table 8.15",
-        "Activity 8I"
+        "Table 8.15 SUM/COUNT/AVG/GROUP BY",
+        "Activity 8I",
+        "INSERT INTO / UPDATE / DELETE FROM"
       ]
     },
     {
@@ -408,9 +413,10 @@
   ],
   "verification": {
     "sql": "python3 scripts/verify-chapter8-sql.py",
-    "frontend": "npm run test -w frontend -- src/teaching/chapter8/chapter8.test.tsx src/teaching/lesson-course-catalog.test.ts src/teaching/lesson-experience-model.test.ts src/teaching/chapter8-final-source-completeness.test.ts",
+    "frontend": "npm run test -w frontend -- src/teaching/chapter8/chapter8.test.tsx",
     "build": "npm run build -w frontend",
-    "browser": "Desktop route, 390px iframe/mobile viewport, SQL result reveal, FK rejection explanation, presentation E-R diagram, wrong first answer -> corrected retry -> unchanged first-attempt score, completion gating."
+    "browser": "Interactive one-table DDL and WHERE results; current review remains separate",
+    "data_contract": "33 Hodder key terms mapped to 14 lessons; printed pp.196–216 covered; 8.2/8.3 examples grounded in pp.208–214"
   },
   "limitations": [
     "Written explanations use explicitly labelled self-assessment, not automatic grading.",
