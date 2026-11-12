@@ -399,21 +399,53 @@ export function QueryExplorer() {
     </section>
   );
 }
+function ERProgressive() {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <section className="c8-explorer">
+      <span className="c8-kicker">START WITH ONE RELATIONSHIP</span>
+      <h3>One class can have many students</h3>
+      <div className="c8-concept-cards">
+        <article>
+          <span>CLASS</span>
+          <strong>7A</strong>
+          <p>ClassID identifies the class.</p>
+        </article>
+        <article>
+          <span>STUDENTS IN 7A</span>
+          <strong>Noor · Tahir</strong>
+          <p>Each student has ClassID = 7A.</p>
+        </article>
+      </div>
+      <p>Class (one) → Student (many). Every Student row points to its Class.</p>
+      <button
+        type="button"
+        className="c8-button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        {expanded ? "Hide five-table E-R diagram" : "Explore the full five-table E-R diagram"}
+      </button>
+      {expanded ? <ERDiagram /> : null}
+    </section>
+  );
+}
 export function Visual({ name }: { name: string }) {
   if (name === "keys") return <KeyExplorer />;
   if (name === "table") return <TableExplorer />;
-  if (name === "er" || name === "schema") return <ERDiagram />;
+  if (name === "er") return <ERProgressive />;
+  if (name === "schema") return <ERDiagram />;
   if (name === "normalise") return <NormalisationExplorer />;
   if (name === "queries") return <QueryExplorer />;
   const cards: Record<string, { label: string; text: string }[]> = {
     files: [
-      { label: "PAYROLL FILE", text: "Staff 42 → updated to 84" },
-      { label: "SALES FILE", text: "Staff 42 → still unchanged" },
+      { label: "ATTENDANCE FILE", text: "Noor · ClassID 7A" },
+      { label: "EXAM FILE", text: "Noor · ClassID 7B" },
     ],
     shared: [
-      { label: "PAYROLL", text: "Reads shared staff data" },
-      { label: "ONE DATABASE", text: "Controlled records and links" },
-      { label: "SALES", text: "Reads the same updated data" },
+      { label: "ATTENDANCE", text: "Reads Noor’s class" },
+      { label: "ONE STUDENT DATABASE", text: "ClassID changes in one place" },
+      { label: "EXAMS", text: "Reads the same current class" },
     ],
     dictionary: [
       { label: "DATA", text: "Noor · 7A · 2010-09-22" },

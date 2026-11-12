@@ -132,8 +132,25 @@ export function firstAttemptCorrect(task: Task, e: Evidence) {
 }
 export function loadState(key: string): CourseState {
   try {
-    const raw = JSON.parse(localStorage.getItem(key) ?? "{}");
+    const stored = localStorage.getItem(key);
+    const raw = JSON.parse(stored ?? "{}");
     if (!raw || typeof raw !== "object") return {};
+    // Revised Chapter 8.1 tasks need fresh evidence. Keep the v1 record as
+    // an untouched archive; migrate only unchanged lessons 8–14.
+    if (stored === null && key.includes(":v2:")) {
+      try {
+        const previous = JSON.parse(
+          localStorage.getItem(key.replace(":v2:", ":v1:")) ?? "{}",
+        );
+        if (previous && typeof previous === "object") {
+          for (const lesson of lessons.filter((item) => item.number >= 8)) {
+            if (previous[lesson.id]) raw[lesson.id] = previous[lesson.id];
+          }
+        }
+      } catch {
+        // A corrupt legacy record cannot block the new chapter.
+      }
+    }
     const clean: CourseState = {};
     const readEvidence = (x: unknown): Evidence => {
       if (!x || typeof x !== "object") return emptyEvidence();
@@ -184,7 +201,7 @@ export function loadState(key: string): CourseState {
   }
 }
 export function storageKey(userId: string) {
-  return `campath:chapter8:v1:${userId}`;
+  return `campath:chapter8:v2:${userId}`;
 }
 export function resolveLesson(params: URLSearchParams) {
   const n = Number(params.get("lesson"));

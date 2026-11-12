@@ -238,8 +238,8 @@
       "id": "h8-rewrite-v1-01",
       "number": 1,
       "section": "8.1",
-      "title": "Why separate files cause problems",
-      "subtitle": "Start with a familiar problem: two copies of the same person.",
+      "title": "When two school files disagree",
+      "subtitle": "See one simple problem before learning its technical name.",
       "pages": [
         196,
         197,
@@ -252,120 +252,119 @@
         "Activity 8A"
       ],
       "objectives": [
-        "Describe records and fields in a file.",
-        "Distinguish redundancy, inconsistency and data dependency.",
-        "Explain a concrete consequence of each limitation."
+        "Identify a record and a field in a simple school file.",
+        "Explain why two copies of the same fact can cause a problem.",
+        "Distinguish data redundancy, data inconsistency and data dependency."
       ],
-      "hook": "Payroll changes a teacher’s staff number. Sales still uses the old number. Which record is now correct?",
+      "hook": "Attendance says Noor is in 7A. The exam list says Noor is in 7B. Can both be right?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "A program expects a particular structure",
-          "text": "A file is a collection of data. It may contain records, each made of fields about one thing. Records can have fixed or variable length; some carry structural information such as field count or record length. A program must know how to read that structure. If it changes, another program using it may need rewriting.",
-          "uz": "File ichidagi field tartibi yoki uzunligi o‘zgarsa, eski tartibni kutayotgan dastur ma’lumotni noto‘g‘ri o‘qishi mumkin."
-        },
-        {
           "kind": "table",
-          "title": "Same staff member, different file structures",
+          "title": "Two files about the same student",
           "headers": [
-            "Payroll file",
-            "Sales file"
+            "Attendance file",
+            "Exam file"
           ],
           "rows": [
             [
-              "FirstName: Amina",
-              "Name: Amina Karim"
+              "StudentID: S1276",
+              "StudentID: S1276"
             ],
             [
-              "SecondName: Karim",
-              "StaffNumber: 42"
+              "Name: Noor Baig",
+              "Name: Noor Baig"
             ],
             [
-              "Address: School House 1",
-              "TargetSales: 100"
-            ],
-            [
-              "PhoneNumber: 5550101",
-              "ActualSales: 90"
-            ],
-            [
-              "StaffNumber: 42",
-              "—"
+              "ClassID: 7A",
+              "ClassID: 7B"
             ]
           ]
         },
         {
+          "kind": "text",
+          "title": "First, notice the duplicate",
+          "text": "Both files describe the same student. StudentID, name and ClassID were copied. The ClassID values now disagree. A record is one student's complete row; a field stores one kind of fact, such as ClassID.",
+          "uz": "Bir o‘quvchi haqidagi ma’lumot ikki joyga yozilgan. ClassID qiymatlari turlicha bo‘lib qolgan."
+        },
+        {
           "kind": "table",
-          "title": "Name the problem, then explain its effect",
+          "title": "Three names for three different problems",
           "headers": [
-            "Limitation",
-            "Cause",
-            "Consequence"
+            "Term",
+            "What it means HERE"
           ],
           "rows": [
             [
               "Data redundancy",
-              "The same staff facts are stored in both files.",
-              "Storage is wasted and updates must be repeated."
+              "The same student facts are stored in both files."
             ],
             [
               "Data inconsistency",
-              "One copy changes while another remains unchanged.",
-              "Applications disagree about the same person."
+              "One file says 7A and another says 7B."
             ],
             [
               "Data dependency",
-              "Each program relies on its own record layout.",
-              "A structural change can require program changes."
+              "A program expects fields in a particular order or structure; changing it may require changing the program."
             ]
           ]
         },
         {
-          "kind": "text",
-          "title": "Before you move on",
-          "text": "Think of three systems storing data about you. For one system, identify a record and two fields. Then explain what could happen if a separate copy of your address is not updated.",
-          "uz": ""
+          "kind": "steps",
+          "title": "What happened? Read the cause, then the effect",
+          "items": [
+            {
+              "title": "Copy",
+              "text": "The school stores Noor's details in two separate files."
+            },
+            {
+              "title": "Change",
+              "text": "A staff member changes ClassID in Attendance only."
+            },
+            {
+              "title": "Result",
+              "text": "Exam still shows the old class. This is inconsistency caused by duplicated data."
+            }
+          ]
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Activity 8A adaptation: Payroll stores staff number 84 after an update; Sales still stores 42. Name the immediate problem and the underlying duplication problem.",
-        "answer": "The two files now disagree: data inconsistency. Storing the staff number twice is data redundancy. A changed field position would instead illustrate data dependency.",
+        "prompt": "The address is updated in the Attendance file but not in the Exam file. Explain the problem in two sentences.",
+        "answer": "The address was stored twice, which is data redundancy. Only one copy was updated, so the files now contain inconsistent addresses.",
         "criteria": [
-          "Name inconsistency.",
-          "Explain the conflicting values.",
-          "Distinguish redundancy from dependency."
+          "Identify the repeated information.",
+          "Explain how the two values became inconsistent."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "A new field is inserted before StaffNumber, and a program reads the wrong field. Which limitation is illustrated?",
+          "prompt": "The two files still have identical copies of Noor's address. What problem already exists?",
           "options": [
-            "Data inconsistency only",
-            "Data dependency",
-            "An optional relationship"
+            "Data redundancy",
+            "Data inconsistency",
+            "Referential integrity"
           ],
-          "correct": 1,
-          "why": "The program depends on a particular record structure."
+          "correct": 0,
+          "why": "Unnecessary copies are redundancy even before they disagree."
         },
         {
           "kind": "written",
-          "prompt": "Explain why “files are bad” would not be a useful exam answer.",
-          "answer": "It gives no mechanism or consequence. A useful answer says that separate files duplicate staff details, so a change must be applied to every copy or the values can become inconsistent.",
+          "prompt": "The Exam program stops reading correctly after a new column is inserted into its file. Name the limitation and explain why it happened.",
+          "answer": "Data dependency. The program expects a particular record structure, so inserting a column can cause it to read the wrong field.",
           "criteria": [
-            "State a specific limitation.",
-            "Link it to a consequence."
+            "Name data dependency.",
+            "Connect the error to the changed file structure."
           ]
         }
       ],
       "recap": [
-        "Redundancy means unnecessary duplication.",
-        "Inconsistency means copies disagree.",
-        "Dependency connects the program to a particular data structure."
+        "Redundancy = the same fact stored unnecessarily more than once.",
+        "Inconsistency = copies of the fact disagree.",
+        "Dependency = a program relies on a particular file structure."
       ],
-      "mistake": "Repeated data is redundancy even before any copy becomes incorrect. Inconsistency occurs when copies disagree.",
-      "next": "Next, replace those separate copies with shared relational data.",
+      "mistake": "Redundancy and inconsistency are not synonyms. Duplication can exist even when both copies match.",
+      "next": "Next, see how one shared database reduces these problems.",
       "visual": "files",
       "terms": []
     },
@@ -373,8 +372,8 @@
       "id": "h8-rewrite-v1-02",
       "number": 2,
       "section": "8.1",
-      "title": "One shared relational database",
-      "subtitle": "Connect each database benefit to the problem it solves.",
+      "title": "Replace copies with one shared database",
+      "subtitle": "One student record can serve more than one school application.",
       "pages": [
         196,
         198,
@@ -385,134 +384,15 @@
         "Figure 8.2"
       ],
       "objectives": [
-        "Define database and relational database.",
-        "Match the database approach to the three file-based limitations.",
-        "Explain data independence without claiming that every change is harmless."
+        "Explain a database in everyday language.",
+        "Describe why sharing one controlled source reduces duplication.",
+        "Relate a database benefit to each file-based limitation."
       ],
-      "hook": "What if Payroll and Sales read the same staff record?",
+      "hook": "What changes if Attendance and Exams both read Noor's class from the same database?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "A shared source of data",
-          "text": "A database is an organised collection of data accessible to different applications. A relational database organises related data into tables. Tables are linked using key values: a ClassID points logically to a matching class, rather than copying every class detail into every student.",
-          "uz": "Turli dasturlar bir xil ma’lumotdan foydalanadi. Bir joydagi to‘g‘ri yangilanish boshqa dasturlarga ham ko‘rinadi."
-        },
-        {
           "kind": "table",
-          "title": "Problem → design → benefit",
-          "headers": [
-            "File-based limitation",
-            "Database design",
-            "Benefit"
-          ],
-          "rows": [
-            [
-              "Duplicate staff details",
-              "Keep one controlled staff record.",
-              "Less redundant storage."
-            ],
-            [
-              "Different copies disagree",
-              "Applications use the same updated value.",
-              "Improved consistency."
-            ],
-            [
-              "Program-specific layouts",
-              "The DBMS manages structure and access.",
-              "Greater data independence."
-            ]
-          ]
-        },
-        {
-          "kind": "text",
-          "title": "Data independence has a boundary",
-          "text": "An application that does not use a newly added field can continue working. An application that explicitly needs a deleted field may still require a change. Independence reduces coupling; it does not make every possible schema change invisible.",
-          "uz": ""
-        },
-        {
-          "kind": "text",
-          "title": "A relational database still repeats some values",
-          "text": "Student.ClassID may appear in many rows because several students belong to the same class. This repetition implements a relationship. The avoidable duplication is copying the whole class location and teacher profile into every student record.",
-          "uz": ""
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Amina’s address changes. Describe the update in the shared database approach.",
-        "answer": "Update the one staff record. Both authorised applications retrieve the same new address, reducing the risk of conflicting copies.",
-        "criteria": [
-          "One controlled record.",
-          "Both applications access the change.",
-          "Consistency improves."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "Which repeated value is useful in the school design?",
-          "options": [
-            "The full teacher address in every student row",
-            "ClassID as a foreign key in each student row",
-            "Three separate copies of every student"
-          ],
-          "correct": 1,
-          "why": "A repeated foreign key represents membership without copying all the class details."
-        },
-        {
-          "kind": "written",
-          "prompt": "Explain one benefit of a relational database over separate payroll and sales files.",
-          "answer": "Shared staff data need not be duplicated in each application file, so a single controlled update keeps the applications consistent.",
-          "criteria": [
-            "Identify shared data.",
-            "Explain the benefit rather than just naming it."
-          ]
-        }
-      ],
-      "recap": [
-        "A database can serve several applications.",
-        "Relations are represented as linked tables.",
-        "Controlled shared data reduces redundancy and inconsistency."
-      ],
-      "mistake": "“All data is stored exactly once” is too absolute. Foreign-key values repeat legitimately.",
-      "next": "Next, learn the precise names for the parts of a relational table.",
-      "visual": "shared",
-      "terms": [
-        "Database",
-        "Relational database"
-      ]
-    },
-    {
-      "id": "h8-rewrite-v1-03",
-      "number": 3,
-      "section": "8.1",
-      "title": "Read a table like a database designer",
-      "subtitle": "One example, two vocabularies: record/field and tuple/attribute.",
-      "pages": [
-        196,
-        197,
-        199,
-        200
-      ],
-      "sourceRefs": [
-        "8.1.3",
-        "Tables 8.1–8.2"
-      ],
-      "objectives": [
-        "Identify entity, table, record, field, tuple and attribute.",
-        "Distinguish an attribute name from a value.",
-        "Describe one entity instance using its row."
-      ],
-      "hook": "Is “Noor” an attribute, a record, or the value of an attribute?",
-      "blocks": [
-        {
-          "kind": "text",
-          "title": "Start with the thing being modelled",
-          "text": "Student is the entity type: the kind of thing we store data about. One particular student is an entity instance. The Student table stores the instances as rows. Each named column describes an attribute.",
-          "uz": ""
-        },
-        {
-          "kind": "table",
-          "title": "Student — adapted school data",
+          "title": "One source, two applications",
           "headers": [
             "StudentID",
             "FirstName",
@@ -541,81 +421,258 @@
           ]
         },
         {
+          "kind": "text",
+          "title": "Now the meaning",
+          "text": "A database is an organised collection of data that different applications can access. Attendance and Exams can read the same Student row. A relational database uses related tables to organise facts; the connections between tables will be explained later.",
+          "uz": "Endi ikkita dastur ma’lumotni alohida nusxalardan emas, bitta umumiy bazadan oladi."
+        },
+        {
+          "kind": "steps",
+          "title": "Change one fact",
+          "items": [
+            {
+              "title": "Before",
+              "text": "Noor belongs to 7A in the shared Student table."
+            },
+            {
+              "title": "Update",
+              "text": "An authorised user changes that one ClassID value to 7B."
+            },
+            {
+              "title": "After",
+              "text": "Attendance and Exams both read the new value from the same row."
+            }
+          ]
+        },
+        {
           "kind": "table",
-          "title": "Translate the vocabulary, not the meaning",
+          "title": "Old problem → database benefit",
           "headers": [
-            "Everyday table language",
-            "Relational language",
-            "Example"
+            "Earlier problem",
+            "What improves"
           ],
           "rows": [
             [
-              "Row / record",
-              "Tuple / entity instance",
-              "All four values for S1276"
+              "Redundancy",
+              "Avoid keeping a separate copy of each student in every application."
             ],
             [
-              "Column / field",
-              "Attribute",
-              "FirstName"
+              "Inconsistency",
+              "Controlled changes become available to all authorised applications."
             ],
             [
-              "Cell value",
-              "Value of an attribute for one instance",
-              "Noor"
-            ],
-            [
-              "Table",
-              "Collection of similar entity instances",
-              "Student"
+              "Data dependency",
+              "The DBMS provides structured access instead of each program owning its own file layout."
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "The distinction that prevents confusion",
-          "text": "FirstName is the attribute name. Noor is a value of that attribute. The complete Noor row is a tuple. “Student” names the entity being modelled; it is not an attribute like DateOfBirth.",
-          "uz": "FirstName — attribute nomi; Noor — shu attribute qiymati; Noor haqidagi butun qator — record yoki tuple."
+          "title": "One sensible limit",
+          "text": "Data independence does not mean every possible database change is harmless. A program that still needs a deleted column may need changing. The database approach reduces this dependency.",
+          "uz": ""
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "For the S1277 row, identify the entity type, one attribute, its value, and the tuple.",
-        "answer": "Entity type: Student. Attribute: FirstName. Value: Ahmad. Tuple: (S1277, Ahmad, Sayed, 7B).",
+        "prompt": "Noor changes from 7A to 7B. Explain how the shared database helps Attendance and Exams.",
+        "answer": "Change Noor's ClassID once in the shared Student row. Both authorised applications read the same updated value, reducing the risk of inconsistent copies.",
         "criteria": [
-          "Separate name from value.",
-          "Include every value when identifying the tuple."
+          "Describe one controlled update.",
+          "Explain why both applications obtain the same value."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which is an attribute?",
+          "prompt": "Which setup best avoids two conflicting ClassID values?",
           "options": [
-            "The entire S1276 row",
-            "FirstName",
-            "Noor"
+            "One shared Student table read by both apps",
+            "Two separate copies that staff must update manually",
+            "A third independent copy"
           ],
-          "correct": 1,
-          "why": "An attribute names a property; Noor is one value and the row is a tuple."
+          "correct": 0,
+          "why": "One controlled source reduces the risk of conflicting updates."
         },
         {
           "kind": "written",
-          "prompt": "Explain the relationship between record and tuple, and between field and attribute.",
-          "answer": "In this relational-table context, record and tuple refer to a row; field and attribute refer to a column.",
+          "prompt": "Give one reason why the database approach is better than separate student files.",
+          "answer": "The same student details need not be stored separately for every application, reducing redundant data and the risk of inconsistent updates.",
           "criteria": [
-            "Row equivalence.",
-            "Column equivalence."
+            "Name one clear benefit.",
+            "Explain the consequence for the school."
           ]
         }
       ],
       "recap": [
-        "Entity: the thing being modelled.",
-        "Tuple/record: one row.",
-        "Attribute/field: one column."
+        "Database: organised data accessed by different applications.",
+        "Relational database: data organised into linked tables.",
+        "Shared controlled records reduce repeated copies and conflicting changes."
       ],
-      "mistake": "Do not describe a single cell as a record or confuse an attribute with its value.",
-      "next": "Next, choose keys that distinguish rows and connect tables.",
+      "mistake": "A relational database can legitimately repeat ClassID values in several student rows. Repeating a link value is not the same as copying all the class details.",
+      "next": "Next, learn exactly what a table, row, column and value mean.",
+      "visual": "shared",
+      "terms": [
+        "Database",
+        "Relational database"
+      ]
+    },
+    {
+      "id": "h8-rewrite-v1-03",
+      "number": 3,
+      "section": "8.1",
+      "title": "Read one database table confidently",
+      "subtitle": "Six important words, explained using the same three students.",
+      "pages": [
+        196,
+        197,
+        199,
+        200
+      ],
+      "sourceRefs": [
+        "8.1.3",
+        "Tables 8.1–8.2"
+      ],
+      "objectives": [
+        "Identify a table, record and field.",
+        "Explain entity, attribute and tuple using one example.",
+        "Separate a column name from the value it contains."
+      ],
+      "hook": "In the Student table, is 'Noor' a field name, a value, or a complete record?",
+      "blocks": [
+        {
+          "kind": "table",
+          "title": "Student table — start here",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "SecondName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "Baig",
+              "7A"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "Sayed",
+              "7B"
+            ],
+            [
+              "S1299",
+              "Tahir",
+              "Hassan",
+              "7A"
+            ]
+          ]
+        },
+        {
+          "kind": "steps",
+          "title": "Look at one part at a time",
+          "items": [
+            {
+              "title": "Table",
+              "text": "Student is the name of this whole collection of student rows."
+            },
+            {
+              "title": "Record / tuple",
+              "text": "S1276 | Noor | Baig | 7A is one complete row about one student."
+            },
+            {
+              "title": "Field / attribute",
+              "text": "FirstName is a column; its name tells us what kind of data is stored there."
+            },
+            {
+              "title": "Value",
+              "text": "Noor is one value in the FirstName column, not the name of a field."
+            }
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "Entity: what are we describing?",
+          "text": "An entity is something we store information about, for example a student or a class. Student describes the entity type. An individual student is one instance, represented by a row (tuple). An attribute is one named fact about that entity, such as FirstName.",
+          "uz": "Student — kim haqidagi ma’lumot saqlanayotganini bildiradi. FirstName — attribute; Noor — shu attribute qiymati."
+        },
+        {
+          "kind": "table",
+          "title": "Six terms on one screen",
+          "headers": [
+            "Term",
+            "Point to it"
+          ],
+          "rows": [
+            [
+              "Table",
+              "The entire Student grid"
+            ],
+            [
+              "Record",
+              "One complete row"
+            ],
+            [
+              "Field",
+              "One named column"
+            ],
+            [
+              "Tuple",
+              "A row, in relational-database language"
+            ],
+            [
+              "Entity",
+              "Student: the thing being described"
+            ],
+            [
+              "Attribute",
+              "FirstName: a named property of Student"
+            ]
+          ]
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Using the Student table, explain what FirstName, Noor and the complete S1276 row represent.",
+        "answer": "FirstName is a field or attribute. Noor is a value of that attribute. The entire S1276 row is one record or tuple representing a student.",
+        "criteria": [
+          "Identify FirstName as a field/attribute.",
+          "Identify Noor as a value.",
+          "Identify the S1276 row as a record/tuple."
+        ]
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "What does the complete row for S1299 represent?",
+          "options": [
+            "One attribute",
+            "One tuple / record",
+            "One table"
+          ],
+          "correct": 1,
+          "why": "A row stores one instance of an entity."
+        },
+        {
+          "kind": "written",
+          "prompt": "A school wants to store teachers. Name the entity and two possible attributes.",
+          "answer": "Teacher is an entity. Possible attributes include LicenceNumber and TeacherName.",
+          "criteria": [
+            "Name the entity Teacher.",
+            "Give two sensible named attributes."
+          ]
+        }
+      ],
+      "recap": [
+        "One table contains rows and columns.",
+        "One row = record = tuple.",
+        "A column name = field = attribute; a cell contains a value.",
+        "An entity is the thing about which we store data."
+      ],
+      "mistake": "Noor is a value, not an attribute. FirstName is the attribute.",
+      "next": "Next, see why a student needs an identifier even when two students share the same name.",
       "visual": "table",
       "terms": [
         "Table",
@@ -630,8 +687,8 @@
       "id": "h8-rewrite-v1-04",
       "number": 4,
       "section": "8.1",
-      "title": "Keys that identify and connect",
-      "subtitle": "Follow a student’s ClassID to the correct class.",
+      "title": "Identify students and connect classes",
+      "subtitle": "Learn keys through the problem of two students with the same name.",
       "pages": [
         197,
         200,
@@ -646,111 +703,134 @@
         "Composite key in Table 8.9"
       ],
       "objectives": [
-        "Distinguish all five key types used in this chapter.",
-        "Check referential integrity.",
-        "Explain what an index does."
+        "Explain candidate key, primary key and secondary key.",
+        "Use foreign keys to connect Student and Class.",
+        "Recognise composite keys, referential integrity and indexes."
       ],
-      "hook": "Two students can share a name. What should identify each student?",
+      "hook": "Two students are called Noor Baig. Which one should the computer update?",
       "blocks": [
         {
           "kind": "table",
-          "title": "Choose an identifier deliberately",
+          "title": "Names can repeat. Student IDs cannot.",
           "headers": [
-            "Key",
-            "Decision",
-            "School example"
+            "StudentID",
+            "FirstName",
+            "SecondName",
+            "ClassID"
           ],
           "rows": [
             [
-              "Candidate key",
-              "Minimal attribute set guaranteed to be unique",
-              "StudentID; SchoolEmail if guaranteed unique"
+              "S1276",
+              "Noor",
+              "Baig",
+              "7A"
             ],
             [
-              "Primary key (PK)",
-              "Select one candidate key",
-              "Student.StudentID"
+              "S1302",
+              "Noor",
+              "Baig",
+              "7B"
             ],
             [
-              "Secondary key",
-              "Hodder: another candidate key",
-              "SchoolEmail when StudentID is the PK"
-            ],
-            [
-              "Foreign key (FK)",
-              "Reference a key in another table",
-              "Student.ClassID → Class.ClassID"
-            ],
-            [
-              "Composite key",
-              "Combine attributes to identify a row",
-              "StudentSubject: (StudentID, SubjectName)"
+              "S1299",
+              "Tahir",
+              "Hassan",
+              "7A"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "Uniqueness is a rule, not a coincidence",
-          "text": "A name is not a safe key merely because the three displayed names differ. A candidate key must remain unique for every valid row allowed by the rules. Minimal means that removing an attribute would destroy uniqueness. A primary key cannot be null. A composite primary key is still one key, made from several attributes.",
-          "uz": ""
+          "title": "Primary key: one reliable identifier",
+          "text": "StudentID uniquely identifies a student. Even if two students have the same name, StudentID must not repeat. We choose it as the primary key (PK). A candidate key is any minimal attribute or combination that could uniquely identify a row. If SchoolEmail is also guaranteed unique, it could be another candidate key. In this Hodder chapter, an unchosen alternative is called a secondary key.",
+          "uz": "Ikkita o‘quvchining ismi bir xil bo‘lishi mumkin. StudentID esa har birini alohida aniqlaydi."
+        },
+        {
+          "kind": "table",
+          "title": "Follow a foreign key",
+          "headers": [
+            "Student (child table)",
+            "Class (parent table)"
+          ],
+          "rows": [
+            [
+              "Student.ClassID = 7A",
+              "Class.ClassID = 7A → Room 3"
+            ],
+            [
+              "Student.ClassID = 7B",
+              "Class.ClassID = 7B → Room 4"
+            ],
+            [
+              "Student.ClassID = 9Z",
+              "No matching class"
+            ]
+          ]
         },
         {
           "kind": "text",
-          "title": "The Elements example",
-          "text": "Hodder’s small Elements table treats Symbol, Name and Atomic Weight as unique candidate keys, chooses Symbol as the primary key, and calls the others secondary keys. That is the example’s assumption. In a real design, validate uniqueness and stability rather than inferring them from a short sample.",
-          "uz": ""
+          "title": "Foreign key and referential integrity",
+          "text": "Student.ClassID is a foreign key (FK) because it refers to Class.ClassID (the primary key). Many students may use the same ClassID. Referential integrity means a non-null FK must match an existing parent key. In our example, 9Z is invalid because Class has only 7A and 7B.",
+          "uz": "Foreign key boshqa jadvaldagi primary key bilan bog‘laydi. 9Z mavjud bo‘lmagani uchun mos yozuv topilmaydi."
         },
         {
-          "kind": "text",
-          "title": "Referential integrity",
-          "text": "A non-null Student.ClassID must match an existing Class.ClassID. It need not be unique in Student: many students can be in 7A. If membership is mandatory, make the field NOT NULL too. Removing a referenced Class requires an explicit policy; the DBMS must not leave orphaned references.",
-          "uz": "Foreign key takrorlanishi mumkin. Ammo uning bo‘sh bo‘lmagan qiymati bog‘langan jadvalda mavjud bo‘lishi kerak."
-        },
-        {
-          "kind": "text",
-          "title": "Index: a faster way to find rows",
-          "text": "An index is an extra structure based on one or more columns. For example, indexing ClassID, SecondName and FirstName can help retrieve class lists. An index is not itself a relationship or necessarily a unique key. It uses storage and must be maintained when indexed data changes.",
-          "uz": ""
+          "kind": "table",
+          "title": "Two remaining key ideas",
+          "headers": [
+            "Term",
+            "One example"
+          ],
+          "rows": [
+            [
+              "Composite key",
+              "In StudentSubject, (StudentID, SubjectName) together uniquely identify one subject choice."
+            ],
+            [
+              "Index",
+              "An index on ClassID and SecondName can speed up searching and sorting student lists. It does not replace the primary key."
+            ]
+          ]
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "StudentSubject contains (S1276, Maths), (S1276, History) and (S1277, Maths). Why use a composite primary key?",
-        "answer": "StudentID repeats and SubjectName repeats, so neither alone identifies a choice. The pair uniquely identifies each student–subject choice, assuming a student takes each subject once.",
+        "prompt": "Two students have the same name but StudentID values S1276 and S1302. Explain how the database updates the correct student and finds their class.",
+        "answer": "Use StudentID as the primary key to select the correct student. The student's ClassID is a foreign key referencing the matching primary key in Class.",
         "criteria": [
-          "Both single columns can repeat.",
-          "The pair is unique under the rule."
+          "Explain why StudentID identifies a single student.",
+          "Explain how ClassID refers to the Class table."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Class contains 7A and 7B. Which new Student.ClassID violates referential integrity?",
+          "prompt": "A new Student row has ClassID 9Z, but Class contains only 7A and 7B. What goes wrong?",
           "options": [
-            "7A",
-            "7B",
-            "9Z"
+            "Candidate keys become composite",
+            "Referential integrity is violated",
+            "An index is deleted"
           ],
-          "correct": 2,
-          "why": "9Z has no matching parent key in Class."
+          "correct": 1,
+          "why": "A non-null foreign key must match an existing referenced key."
         },
         {
           "kind": "written",
-          "prompt": "Can ClassID be both a primary key and a foreign key in this database? Explain where.",
-          "answer": "ClassID is the primary key in Class and a foreign key in Student. These are roles in different tables; the Student value may repeat.",
+          "prompt": "A student chooses both Maths and History. Why can (StudentID, SubjectName) be a composite key in StudentSubject?",
+          "answer": "The same StudentID can appear in several choices, and the same SubjectName can belong to several students. The pair identifies one student–subject choice uniquely.",
           "criteria": [
-            "Name both tables.",
-            "Distinguish uniqueness in the parent from repetition in the child."
+            "Explain why StudentID alone is not enough.",
+            "Explain why the combination identifies the row."
           ]
         }
       ],
       "recap": [
-        "Candidate = possible; primary = chosen; secondary = alternative in Hodder.",
-        "Foreign keys connect tables; composite keys combine attributes.",
-        "Referential integrity protects links; indexes speed searches."
+        "Primary key identifies one row uniquely.",
+        "Candidate keys are possible minimal identifiers; an alternative can be a secondary key in this book.",
+        "Foreign key points to a key in another table.",
+        "Composite key uses multiple attributes together; an index speeds up lookup."
       ],
-      "mistake": "A foreign key is not automatically unique. “Secondary key” can have other meanings elsewhere; this course uses Hodder’s definition.",
-      "next": "Next, draw the relationships and read how many instances may participate.",
+      "mistake": "Foreign keys are not required to be unique in the child table. Many Student rows can reference ClassID 7A.",
+      "next": "Next, draw the relationships that these key values create.",
       "visual": "keys",
       "terms": [
         "Candidate key",
@@ -767,8 +847,8 @@
       "id": "h8-rewrite-v1-05",
       "number": 5,
       "section": "8.1",
-      "title": "Make relationships visible",
-      "subtitle": "Read each end of an E-R relationship in words.",
+      "title": "Draw the school relationships",
+      "subtitle": "Start with one class and its students, then expand the model.",
       "pages": [
         202,
         203,
@@ -782,113 +862,131 @@
         "Activity 8C"
       ],
       "objectives": [
-        "Read 1:1, 1:m, m:1 and m:m relationships.",
-        "Distinguish optional from mandatory participation.",
-        "Resolve a many-to-many relationship with a linking table."
+        "Read a simple entity-relationship (E-R) diagram.",
+        "Distinguish one-to-many and many-to-many relationships.",
+        "Explain mandatory and optional participation with the school example."
       ],
-      "hook": "One class has many students. Does that mean one student has many classes in this tutor-group model?",
+      "hook": "Class 7A contains Noor and Tahir. What does 'one-to-many' mean here?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "Always read both directions",
-          "text": "For this tutor-group model, each Student belongs to one Class, while a Class can contain many Students. Class → Student is one-to-many; Student → Class is many-to-one. They describe the same link from opposite directions. Assumptions about class membership belong in the design.",
-          "uz": "Cardinality ikki narsani ko‘rsatadi: eng kam va eng ko‘p nechta instance qatnashishi mumkin. 0 — optional; 1 dan boshlanishi — mandatory. Har ikki yo‘nalishni alohida o‘qing."
-        },
-        {
           "kind": "table",
-          "title": "Cardinality: maximum and minimum participation",
+          "title": "First, say the relationship in words",
           "headers": [
-            "Notation",
-            "Meaning",
-            "Example under stated rules"
+            "Class",
+            "Student"
           ],
           "rows": [
             [
-              "1 / many",
-              "Basic maximum cardinality",
-              "One class relates to many students."
+              "7A",
+              "Noor (S1276)"
             ],
             [
-              "1..1",
-              "Exactly one; mandatory",
-              "Every student must have exactly one tutor class."
+              "7A",
+              "Tahir (S1299)"
             ],
             [
-              "0..1",
-              "Zero or one; optional",
-              "A desk may have no employee or one employee."
-            ],
-            [
-              "1..many",
-              "At least one; mandatory",
-              "An occupied class must have one or more students."
-            ],
-            [
-              "0..many",
-              "None or many; optional",
-              "A newly created class may initially have no students."
+              "7B",
+              "Ahmad (S1277)"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "How the picture encodes the rules",
-          "text": "In crow’s-foot notation, a bar means one, a circle means zero (optional), and a fork means many. Combined end markers express 0..1, 1..1, 0..many or 1..many. Read the marker beside Student as the number of students allowed for one Class.",
-          "uz": ""
+          "title": "One-to-many is not a difficult formula",
+          "text": "One Class can have many Students. In this model, each Student belongs to one Class. We draw two entities, Class and Student, with a line showing that relationship. An E-R diagram is simply a picture of entities and how they relate.",
+          "uz": "Bir Class ichida bir nechta Student bo‘lishi mumkin; har bir Student bitta Classga tegishli."
+        },
+        {
+          "kind": "table",
+          "title": "Cardinality: how many can be connected?",
+          "headers": [
+            "Notation in words",
+            "Example"
+          ],
+          "rows": [
+            [
+              "One-to-many",
+              "One Class → many Students"
+            ],
+            [
+              "Zero-to-many (optional at that end)",
+              "A new Class may have no Students yet"
+            ],
+            [
+              "Exactly one (mandatory)",
+              "Each Student must belong to one Class in this model"
+            ],
+            [
+              "Many-to-many",
+              "Many Students ↔ many Subjects"
+            ]
+          ]
+        },
+        {
+          "kind": "steps",
+          "title": "Make the school diagram in three small moves",
+          "items": [
+            {
+              "title": "Draw Class → Student",
+              "text": "Class has ClassID (PK). Student stores ClassID (FK). Label the relationship one-to-many."
+            },
+            {
+              "title": "Add Teacher",
+              "text": "Teacher has LicenceNumber (PK). Class stores LicenceNumber (FK). One Teacher may teach several Classes."
+            },
+            {
+              "title": "Connect subjects",
+              "text": "A Student may study several Subjects. Put one row per choice into StudentSubject to resolve the many-to-many relationship."
+            }
+          ]
         },
         {
           "kind": "text",
-          "title": "Add Teacher — Activity 8B",
-          "text": "Teacher needs LicenceNumber (PK), TeacherName, TeacherDateOfBirth and Address. Store LicenceNumber as an FK in Class instead of repeating the teacher profile. One teacher may teach several classes; each class has one tutor in this model.",
-          "uz": ""
-        },
-        {
-          "kind": "text",
-          "title": "Resolve many-to-many",
-          "text": "A student studies several subjects; a subject has several students. StudentSubject stores one row per pair, with both attributes forming its primary key and each acting as a foreign key. This replaces one many-to-many relationship with two one-to-many relationships.",
+          "title": "Optional and mandatory must follow the scenario",
+          "text": "Mandatory means a related record is required; optional means it may be absent. These are assumptions of the school model, not universal rules for every school database. Hodder Figure 8.3 shows the initial Class–Student relationship; Activity 8B adds Teacher.",
           "uz": ""
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Draw the teacher–class relationship and explain optionality for a newly recruited teacher with no class yet.",
-        "answer": "TEACHER(LicenceNumber PK) → CLASS(ClassID PK, LicenceNumber FK). Each class has exactly one tutor; a teacher may have zero or many classes. The class end is 0..many when read from one teacher.",
+        "prompt": "Draw or describe the simplest E-R relationship between Class and Student, and state where the foreign key belongs.",
+        "answer": "Class (ClassID PK) has a one-to-many relationship with Student (StudentID PK, ClassID FK). Put ClassID as a foreign key in Student.",
         "criteria": [
-          "PK/FK link.",
-          "One tutor per class.",
-          "Zero classes permitted for the teacher."
+          "Identify Class and Student as entities.",
+          "State one-to-many.",
+          "Place ClassID FK in Student."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which structure implements Student ↔ Subject many-to-many membership?",
+          "prompt": "One class has 26 students. One student belongs to one class. Which relationship describes Class → Student?",
           "options": [
-            "Put all subject names in one Student cell",
-            "Use StudentSubject(StudentID, SubjectName)",
-            "Make FirstName the linking key"
+            "One-to-one",
+            "One-to-many",
+            "Many-to-many"
           ],
           "correct": 1,
-          "why": "The linking table stores one pair per row and preserves both one-to-many links."
+          "why": "A single Class row can be referenced by many Student rows."
         },
         {
           "kind": "written",
-          "prompt": "Give a 0..1 example and a 1..many example. State the rule that makes each valid.",
-          "answer": "A desk may be unassigned or assigned to one employee (0..1). An active team must contain at least one player (1..many). Different rules could change these cardinalities.",
+          "prompt": "A student can study several subjects, and each subject can have many students. Which extra table should be created and why?",
+          "answer": "Create StudentSubject with StudentID and SubjectName to store each student–subject pairing, resolving a many-to-many relationship.",
           "criteria": [
-            "One optional example.",
-            "One mandatory example.",
-            "Explicit assumptions."
+            "Recognise many-to-many.",
+            "Name the StudentSubject linking table and its purpose."
           ]
         }
       ],
       "recap": [
-        "Relationship direction matters.",
-        "Minimum participation tells you whether a link is optional.",
-        "A linking table resolves many-to-many membership."
+        "E-R diagram = entities plus the relationships between them.",
+        "Cardinality describes how many related rows are allowed.",
+        "Class → Student is one-to-many in our school model.",
+        "A linking table resolves Student ↔ Subject many-to-many."
       ],
-      "mistake": "Do not infer minimum participation from “many” alone. A newly created class may allow zero students.",
-      "next": "Next, repair a table that stores repeated groups and duplicated facts.",
+      "mistake": "The number of students in a class today does not define cardinality. Cardinality describes the relationship rules, not the current row count.",
+      "next": "Next, remove repeated subject lists from one student row.",
       "visual": "er",
       "terms": [
         "Entity-relationship (E-R) model or E-R diagram"
@@ -898,8 +996,8 @@
       "id": "h8-rewrite-v1-06",
       "number": 6,
       "section": "8.1",
-      "title": "Normalisation starts with 1NF",
-      "subtitle": "Separate repeating subject choices without losing who chose them.",
+      "title": "Normalisation, step 1: reach 1NF",
+      "subtitle": "Fix one repeated subject list before dealing with harder dependencies.",
       "pages": [
         203,
         204,
@@ -910,54 +1008,48 @@
         "Tables 8.7–8.9"
       ],
       "objectives": [
-        "Identify repeating groups and update/deletion problems.",
-        "Convert the school example to 1NF.",
-        "Choose keys for the resulting tables."
+        "Explain why repeated groups are problematic.",
+        "Convert a repeating subject list into 1NF rows.",
+        "Identify the composite key of the subject-choice table."
       ],
-      "hook": "Noor studies Maths, History and Geography. Should all three be stored in one SubjectName cell?",
+      "hook": "Noor studies Maths and History. Is 'Maths, History' one value or two subject choices?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "Why normalise?",
-          "text": "Copying class and teacher details into every student row creates repeated work. A teacher’s address change requires many updates. Adding a student repeats existing teacher facts. Removing the last student in a class may accidentally lose the only stored class information. Normalisation separates facts according to their dependencies.",
-          "uz": "Bir teacher ma’lumoti ko‘p student qatorida qaytarilsa, har bir nusxani yangilash kerak bo‘ladi. Normalisation shu ortiqcha takrorlashni kamaytiradi."
-        },
-        {
           "kind": "table",
-          "title": "Before: an un-normalised repeating group",
+          "title": "Before: a repeating group (UNF)",
           "headers": [
             "StudentID",
             "FirstName",
-            "Subjects",
-            "Subject teachers"
+            "SubjectName",
+            "SubjectTeacher"
           ],
           "rows": [
             [
               "S1276",
               "Noor",
-              "Maths, History, Geography",
-              "Mr Yee, Miss Wu, Mr Khan"
+              "Maths, History",
+              "Mr Yee, Miss Wu"
             ],
             [
               "S1277",
               "Ahmad",
-              "Maths, Science, Geography",
-              "Mr Yee, Miss Yo, Mr Khan"
+              "Maths",
+              "Mr Yee"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "1NF: one value per attribute, no repeating groups",
-          "text": "Move repeated SubjectName/SubjectTeacher pairs into a separate relation. Include StudentID in each new row to preserve ownership. In this chapter’s route, the original Student table still holds class and teacher details at 1NF; those are dealt with later.",
-          "uz": ""
+          "title": "Why this causes trouble",
+          "text": "The first row contains a list of subjects and a parallel list of teachers. Searching for one subject or changing one teacher is awkward. Normalisation means reorganising data into suitable tables so unnecessary repetition and problematic dependencies are reduced.",
+          "uz": "Bitta katakda bir nechta subject saqlash o‘rniga har bir tanlovni alohida qatorda yozamiz."
         },
         {
           "kind": "table",
-          "title": "After: StudentSubject in 1NF",
+          "title": "After: one student–subject choice per row",
           "headers": [
-            "StudentID (PK part, FK)",
-            "SubjectName (PK part)",
+            "StudentID",
+            "SubjectName",
             "SubjectTeacher"
           ],
           "rows": [
@@ -972,73 +1064,81 @@
               "Miss Wu"
             ],
             [
-              "S1276",
-              "Geography",
-              "Mr Khan"
-            ],
-            [
               "S1277",
               "Maths",
               "Mr Yee"
-            ],
-            [
-              "S1277",
-              "Science",
-              "Miss Yo"
-            ],
-            [
-              "S1277",
-              "Geography",
-              "Mr Khan"
             ]
           ]
         },
         {
-          "kind": "code",
-          "title": "Relations after the first step",
-          "text": "STUDENT(StudentID PK, FirstName, SecondName, DateOfBirth,\n        ClassID, Location, TeacherName, LicenceNumber,\n        Address, TeacherDateOfBirth)\nSTUDENTSUBJECT(StudentID PK/FK, SubjectName PK, SubjectTeacher)",
-          "note": "PK/FK labels are design notation, not executable SQL."
+          "kind": "steps",
+          "title": "How to reach First normal form (1NF)",
+          "items": [
+            {
+              "title": "Find a repeated group",
+              "text": "SubjectName contains the list 'Maths, History'."
+            },
+            {
+              "title": "Separate the choices",
+              "text": "Create one row for each StudentID and SubjectName pair."
+            },
+            {
+              "title": "Keep the link",
+              "text": "Retain StudentID in every subject-choice row so we know who chose each subject."
+            },
+            {
+              "title": "Check the key",
+              "text": "(StudentID, SubjectName) identifies one row when a student cannot select the same subject twice."
+            }
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "What 1NF has NOT solved yet",
+          "text": "The teacher for Maths still appears on multiple rows. 1NF removes repeating groups, but other dependencies remain. They are addressed by 2NF and 3NF in the next lesson.",
+          "uz": ""
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Noor adds Science. What is stored, and what stays unchanged?",
-        "answer": "Add (S1276, Science, Miss Yo) to StudentSubject. Do not add a new Subject4 column or a second full Student record. The StudentSubject key is (StudentID, SubjectName).",
+        "prompt": "Convert S1299 | Tahir | Geography, History into 1NF subject-choice rows. Write the two rows.",
+        "answer": "S1299 | Geography\nS1299 | History\nEach row holds one student–subject choice.",
         "criteria": [
-          "One new child row.",
-          "No new repeating column.",
-          "Preserve StudentID and composite key."
+          "Give one row for Geography.",
+          "Give one row for History.",
+          "Repeat S1299 to preserve the student link."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which design still breaks 1NF?",
+          "prompt": "Which SubjectName entry violates the no-repeating-groups rule?",
           "options": [
-            "One StudentSubject row per choice",
-            "Subject1, Subject2, Subject3 columns for an arbitrary list of choices",
-            "StudentID repeating in the child table"
+            "Maths",
+            "Maths, History, Geography",
+            "Science"
           ],
           "correct": 1,
-          "why": "A fixed series of subject columns is a repeating group; repeating an FK across separate rows is allowed."
+          "why": "One cell contains several separate subject choices."
         },
         {
           "kind": "written",
-          "prompt": "Does reaching 1NF remove all redundancy? Use SubjectTeacher to explain.",
-          "answer": "No. Mr Yee still repeats for every Maths enrolment. SubjectTeacher depends only on SubjectName, which is only part of the composite key; that is the next problem to remove.",
+          "prompt": "Why is StudentID alone not a suitable primary key for the StudentSubject table?",
+          "answer": "A student can choose several subjects, so StudentID must repeat. The pair (StudentID, SubjectName) identifies each choice uniquely.",
           "criteria": [
-            "1NF is not the final step.",
-            "Identify the remaining dependency."
+            "Show that StudentID can repeat.",
+            "Give the composite key."
           ]
         }
       ],
       "recap": [
-        "Normalisation addresses redundant facts and harmful dependencies.",
-        "1NF removes repeating groups.",
-        "Keep linking keys when splitting a table."
+        "UNF can contain repeating groups.",
+        "1NF removes repeated groups and keeps one value for each attribute per row.",
+        "A student–subject pair can use (StudentID, SubjectName) as a composite key.",
+        "1NF is only the first step, not the final design."
       ],
-      "mistake": "1NF does not mean every value is unique. It means no repeating groups and atomic attribute values.",
-      "next": "Next, use dependencies to reach 2NF and 3NF.",
+      "mistake": "One row per subject choice does not mean we have reached 3NF. Teacher details may still be duplicated.",
+      "next": "Next, remove partial dependencies (2NF) and non-key dependencies (3NF).",
       "visual": "normalise",
       "terms": [
         "Normalisation",
@@ -1049,8 +1149,8 @@
       "id": "h8-rewrite-v1-07",
       "number": 7,
       "section": "8.1",
-      "title": "From 1NF to a complete 3NF design",
-      "subtitle": "The key, the whole key, and nothing but the key.",
+      "title": "Normalisation, steps 2 and 3: reach 3NF",
+      "subtitle": "Ask one question: what does this fact actually depend on?",
       "pages": [
         205,
         206,
@@ -1064,101 +1164,167 @@
         "Extension 8B"
       ],
       "objectives": [
-        "Remove a partial dependency to reach 2NF.",
-        "Remove non-key dependencies to reach 3NF.",
-        "Transfer the method to a new scenario."
+        "Recognise a partial dependency in a composite-key table.",
+        "Explain why class and teacher details are separated in 3NF.",
+        "Show the final five-table school design from Hodder."
       ],
-      "hook": "Does the Maths teacher depend on which student takes Maths?",
+      "hook": "Maths has the same teacher for every student. Why is that teacher name repeated?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "2NF: depend on the whole key",
-          "text": "StudentSubject has the composite key (StudentID, SubjectName). Under Hodder’s assumption that each subject has one teacher, SubjectName alone determines SubjectTeacher. This is a partial dependency. Move it to SUBJECT(SubjectName PK, SubjectTeacher). Leave the pair in STUDENTSUBJECT. A single-attribute candidate key cannot have a dependency on only part of that key.",
-          "uz": ""
-        },
-        {
-          "kind": "text",
-          "title": "3NF: remove non-key dependencies",
-          "text": "In Student, StudentID determines ClassID, but ClassID determines Location and the class teacher. Those class facts belong in Class. LicenceNumber determines the teacher’s name, address and date of birth, so those facts belong in Teacher. Use LicenceNumber in both Class and Subject to link to that teacher.",
-          "uz": "2NF: non-key attribute kalitning faqat bir qismiga bog‘lanmasin. 3NF: non-key attribute boshqa non-key attribute orqali aniqlanmasin."
-        },
-        {
-          "kind": "code",
-          "title": "Final school relations — PK/FK design notation",
-          "text": "STUDENT(StudentID PK, FirstName, SecondName, DateOfBirth, ClassID FK)\nCLASS(ClassID PK, Location, LicenceNumber FK)\nTEACHER(LicenceNumber PK, TeacherName, Address, TeacherDateOfBirth)\nSTUDENTSUBJECT(StudentID PK/FK, SubjectName PK/FK)\nSUBJECT(SubjectName PK, LicenceNumber FK)",
-          "note": "ClassID is retained in STUDENT so the student–class relationship survives. The abbreviated list on Hodder p.207 omits it."
-        },
-        {
-          "kind": "steps",
-          "title": "Why each split is justified",
-          "items": [
-            {
-              "title": "1NF",
-              "text": "Remove repeated subject groups; link each subject-choice row back to Student."
-            },
-            {
-              "title": "2NF",
-              "text": "Move SubjectTeacher out of the composite-key relation because SubjectName alone determines it."
-            },
-            {
-              "title": "3NF",
-              "text": "Move class and teacher facts to their own relations; keep the required foreign keys."
-            }
+          "kind": "table",
+          "title": "Start with the 1NF subject choices",
+          "headers": [
+            "StudentID (key part)",
+            "SubjectName (key part)",
+            "SubjectTeacher"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "S1299",
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "S1276",
+              "History",
+              "Miss Wu"
+            ]
           ]
         },
         {
           "kind": "text",
-          "title": "The model depends on the rules — Extension 8B",
-          "text": "If the same subject can have several teachers or levels, SubjectName → LicenceNumber is no longer a valid dependency. Introduce CourseOffering(OfferingID, SubjectName, Level, LicenceNumber) and link enrolments to OfferingID. This is an extension of the simplified source model.",
-          "uz": ""
+          "title": "2NF: the fact must depend on the whole key",
+          "text": "The key here is (StudentID, SubjectName). Under the book's example, SubjectTeacher depends on SubjectName only, not on which student chose it. This is a partial dependency. Put SubjectName and SubjectTeacher into a separate Subject table. Keep only StudentID and SubjectName in StudentSubject.",
+          "uz": "Maths o‘qituvchisi StudentIDga emas, SubjectNamega bog‘liq. Shuning uchun SubjectTeacher alohida Subject jadvaliga o‘tadi."
+        },
+        {
+          "kind": "table",
+          "title": "After 2NF: split the repeated teacher fact",
+          "headers": [
+            "StudentSubject (StudentID, SubjectName)",
+            "Subject (SubjectName, SubjectTeacher)"
+          ],
+          "rows": [
+            [
+              "S1276 | Maths",
+              "Maths | Mr Yee"
+            ],
+            [
+              "S1299 | Maths",
+              "History | Miss Wu"
+            ],
+            [
+              "S1276 | History",
+              "—"
+            ]
+          ]
         },
         {
           "kind": "text",
-          "title": "Transfer to employees and contacts — Activity 8D",
-          "text": "An employee can have several contacts, and one contact can belong to several employees. Store EMPLOYEE(EmployeeNumber PK, EmployeeName, Position), CONTACT(ContactNumber PK, ContactName, ContactEmailAddress), and EMPLOYEECONTACT(EmployeeNumber PK/FK, ContactNumber PK/FK). The linking table resolves the many-to-many relationship.",
-          "uz": ""
+          "title": "3NF: remove dependencies between non-key facts",
+          "text": "In the wide Student table, StudentID determines ClassID, while ClassID determines Location. Location belongs to Class, not directly to Student. Similarly, a teacher's address belongs to Teacher, identified by LicenceNumber. Splitting these facts into their own tables removes non-key dependencies.",
+          "uz": "Classning xonasi Studentning o‘ziga emas, ClassIDga bog‘liq. Locationni Class jadvaliga ajratamiz."
+        },
+        {
+          "kind": "table",
+          "title": "Final design — one job for each table",
+          "headers": [
+            "Table",
+            "What it stores",
+            "Key / link"
+          ],
+          "rows": [
+            [
+              "Student",
+              "A student's own details",
+              "StudentID PK; ClassID FK"
+            ],
+            [
+              "Class",
+              "Class location and class teacher",
+              "ClassID PK; LicenceNumber FK"
+            ],
+            [
+              "Teacher",
+              "Teacher details",
+              "LicenceNumber PK"
+            ],
+            [
+              "Subject",
+              "Subject and its teacher",
+              "SubjectName PK; LicenceNumber FK"
+            ],
+            [
+              "StudentSubject",
+              "Which student studies which subject",
+              "(StudentID, SubjectName) composite PK; both FKs"
+            ]
+          ]
+        },
+        {
+          "kind": "steps",
+          "title": "One test for each normal form",
+          "items": [
+            {
+              "title": "1NF",
+              "text": "Do any fields contain repeating groups? If yes, separate them."
+            },
+            {
+              "title": "2NF",
+              "text": "For a composite key, does a non-key fact depend on only part of it? If yes, move that fact."
+            },
+            {
+              "title": "3NF",
+              "text": "Does a non-key fact depend on another non-key fact? If yes, move it to the appropriate table."
+            }
+          ]
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Activity 8E adaptation: each warehouse part has one manufacturer. Design relations for PartNumber, Description, DateLastOrdered, MinimumOrderLevel, ManufacturerName, ManufacturerAddress, ManufacturerContact, WarehousePosition and StockCount.",
-        "answer": "PART(PartNumber PK, Description, DateLastOrdered, MinimumOrderLevel, ManufacturerID FK, WarehousePosition, StockCount); MANUFACTURER(ManufacturerID PK, ManufacturerName, ManufacturerAddress, ManufacturerContact). One manufacturer supplies many parts. ManufacturerID is an added stable identifier; using a guaranteed-unique ManufacturerName is another defensible stated assumption.",
+        "prompt": "Student has StudentID, ClassID and Location. Explain why Location belongs in Class rather than Student.",
+        "answer": "StudentID determines ClassID, and ClassID determines Location. Location is a class fact, so store Class(ClassID, Location) and let Student.ClassID reference it.",
         "criteria": [
-          "Part facts depend on PartNumber.",
-          "Manufacturer facts stored separately.",
-          "FK and one-to-many relationship.",
-          "State the one-manufacturer assumption."
+          "Identify ClassID → Location.",
+          "Explain that Location should be stored in Class.",
+          "Keep ClassID as the Student foreign key."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which dependency prevents StudentSubject(StudentID, SubjectName, SubjectTeacher) from being in 2NF?",
+          "prompt": "SubjectTeacher depends only on SubjectName, which is part of (StudentID, SubjectName). What must be removed to reach 2NF?",
           "options": [
-            "(StudentID, SubjectName) identifies a row",
-            "SubjectName determines SubjectTeacher",
-            "StudentID is a foreign key"
+            "A partial dependency",
+            "A valid primary key",
+            "A foreign-key relationship"
           ],
-          "correct": 1,
-          "why": "The non-key teacher depends on only part of the composite key."
+          "correct": 0,
+          "why": "The teacher fact depends on only part of the composite key."
         },
         {
           "kind": "written",
-          "prompt": "Why must Student keep ClassID after class details move out?",
-          "answer": "ClassID is the foreign key that records which class a student belongs to. Removing it would lose the relationship even though the Class table still exists.",
+          "prompt": "A teacher changes their address. Which table should be updated in the final 3NF design, and why?",
+          "answer": "Update Teacher once using LicenceNumber. Address depends on the teacher, not on any individual student, class or subject choice.",
           "criteria": [
-            "Explain the FK.",
-            "Explain the information lost without it."
+            "Choose the Teacher table.",
+            "Explain why one update is sufficient."
           ]
         }
       ],
       "recap": [
-        "2NF removes partial dependencies.",
-        "3NF removes non-key dependencies.",
-        "Splitting tables must preserve keys, links and meaning."
+        "1NF: no repeating groups.",
+        "2NF: no partial dependencies on part of a composite key.",
+        "3NF: no non-key dependencies; facts belong with the keys that determine them.",
+        "Final school model uses Student, Class, Teacher, Subject and StudentSubject."
       ],
-      "mistake": "Do not split tables without identifying a dependency. Normalisation follows the business rules, not just the appearance of the data.",
-      "next": "Next, learn how the DBMS manages this design and its stored data.",
+      "mistake": "Do not just memorise the letters 1NF → 2NF → 3NF. For every split, explain which fact depends on which key.",
+      "next": "You can now follow the Chapter 8 database design. Next is the DBMS that manages it.",
       "visual": "normalise",
       "terms": [
         "Second normal form (2NF)",

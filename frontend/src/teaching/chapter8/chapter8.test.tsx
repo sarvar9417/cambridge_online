@@ -97,6 +97,20 @@ describe("Chapter 8 source-backed course", () => {
     expect(lessons.slice(7, 9).every((l) => l.section === "8.2")).toBe(true);
     expect(lessons.slice(9, 13).every((l) => l.section === "8.3")).toBe(true);
   });
+  it("introduces school data before keys and uses one problem per Chapter 8.1 lesson", () => {
+    expect(lessons[0].title).toBe("When two school files disagree");
+    expect(lessons[0].blocks[0].kind).toBe("table");
+    expect(lessons[0].blocks[0].rows?.[0]).toEqual([
+      "StudentID: S1276",
+      "StudentID: S1276",
+    ]);
+    expect(lessons[1].blocks[0].title).toContain("One source");
+    expect(lessons[2].blocks[0].title).toContain("Student table");
+    expect(lessons[3].hook).toContain("Two students are called");
+    expect(lessons[5].title).toContain("1NF");
+    expect(lessons[6].title).toContain("3NF");
+    expect(lessons.slice(0, 7).every((lesson) => lesson.blocks.length >= 4)).toBe(true);
+  });
   it("does not complete a lesson with unattempted or only-revealed tasks", () => {
     const l = lessons[0];
     const r = emptyRecord(l);
@@ -128,7 +142,7 @@ describe("Chapter 8 source-backed course", () => {
     const e: Evidence = {
       draft: "",
       first: "wrong",
-      firstChoice: 0,
+      firstChoice: t.correct === 0 ? 1 : 0,
       choice: t.correct,
       revealed: true,
       submitted: true,
@@ -153,6 +167,19 @@ describe("Chapter 8 source-backed course", () => {
     expect(state[lessons[0].id].seen).toEqual([0]);
     expect(state[lessons[0].id].completed).toBe(false);
     expect(loadState(storageKey("b"))).toEqual({});
+  });
+  it("keeps old Chapter 8.1 evidence archived and migrates unchanged lessons", () => {
+    const oldKey = storageKey("legacy").replace(":v2:", ":v1:");
+    const oldLesson = lessons[0];
+    const unchangedLesson = lessons[7];
+    localStorage.setItem(oldKey, JSON.stringify({
+      [oldLesson.id]: { seen: [0], completed: true },
+      [unchangedLesson.id]: { seen: [0], completed: false },
+    }));
+    const loaded = loadState(storageKey("legacy"));
+    expect(loaded[oldLesson.id]).toBeUndefined();
+    expect(loaded[unchangedLesson.id].seen).toEqual([0]);
+    expect(localStorage.getItem(oldKey)).toContain(oldLesson.id);
   });
   it("resolves deep links and the older topic links without crossing courses", () => {
     expect(resolveLesson(new URLSearchParams("lesson=12"))?.number).toBe(12);
