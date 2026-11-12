@@ -18,7 +18,6 @@ import {
   readyToComplete,
   resolveLesson,
   storageKey,
-  taskReady,
   terms,
   type Block,
   type CourseState,
@@ -30,7 +29,6 @@ import {
 import "./chapter8.css";
 
 type Props = { audience: "teacher" | "student"; userId: string };
-const phases = ["Start", "Learn", "Practice", "Check", "Recap"];
 function courseUrl(
   audience: Props["audience"],
   lesson?: number,
@@ -52,11 +50,14 @@ function BlockView({ block }: { block: Block }) {
       {block.kind === "text" ? (
         <p>{block.text}</p>
       ) : block.kind === "table" ? (
-        <DataTable
-          caption={block.title}
-          headers={block.headers ?? []}
-          rows={block.rows ?? []}
-        />
+        <>
+          <DataTable
+            caption={block.title}
+            headers={block.headers ?? []}
+            rows={block.rows ?? []}
+          />
+          {block.text ? <p>{block.text}</p> : null}
+        </>
       ) : block.kind === "code" ? (
         <>
           <pre>
@@ -77,6 +78,14 @@ function BlockView({ block }: { block: Block }) {
           ))}
         </ol>
       )}
+      {block.relatedTable ? <DataTable {...block.relatedTable} /> : null}
+      {block.visual ? <Visual name={block.visual} /> : null}
+      {block.remember ? (
+        <p className="c8-remember">
+          <b>Remember</b>
+          {block.remember}
+        </p>
+      ) : null}
       {block.uz ? (
         <details className="c8-uz">
           <summary>O‘zbekcha tushuntirish</summary>
@@ -154,7 +163,7 @@ function TaskCard({
             }
             onClick={submit}
           >
-            Save {e.first === undefined ? "first attempt" : "revision"}
+            {e.first === undefined ? "Check my answer" : "Check revised answer"}
           </button>
           {task.kind === "written" && !e.revealed ? (
             <button
@@ -344,11 +353,11 @@ function CourseOverview({
           <h1>
             Databases.
             <br />
-            <em>Make the connections.</em>
+            <em>Start with one table.</em>
           </h1>
           <p>
-            From scattered files to a carefully designed system. Learn the
-            ideas, see them work, then explain them yourself.
+            One school example, one idea at a time. Read a simple table, connect
+            related facts, then learn how to design and query a database.
           </p>
           <button
             type="button"
@@ -360,31 +369,21 @@ function CourseOverview({
             {done ? "Continue learning" : "Start with lesson 01"} <span>→</span>
           </button>
         </div>
-        <div
-          className="c8-hero-art"
-          aria-label="A database connects related entities"
-        >
-          <div className="c8-mini-table">
-            <span>STUDENT</span>
-            <p>
-              <b>PK</b> StudentID
-            </p>
-            <p>FirstName</p>
-            <p>
-              <b>FK</b> ClassID
-            </p>
-          </div>
-          <div className="c8-art-link">ONE SHARED RECORD</div>
-          <div className="c8-mini-table c8-mini-table--second">
-            <span>CLASS</span>
-            <p>
-              <b>PK</b> ClassID
-            </p>
-            <p>Location</p>
-            <p>
-              <b>FK</b> LicenceNumber
-            </p>
-          </div>
+        <div className="c8-hero-art c8-hero-example">
+          <span className="c8-kicker">YOUR FIRST EXAMPLE</span>
+          <DataTable
+            caption="Student"
+            headers={["StudentID", "FirstName", "ClassID"]}
+            rows={[
+              ["S1276", "Noor", "7A"],
+              ["S1277", "Ahmad", "7B"],
+            ]}
+          />
+          <p>
+            One row. One student.
+            <br />
+            Start here — the rest builds on this.
+          </p>
         </div>
       </header>
       <div className="c8-metrics">
@@ -399,9 +398,7 @@ function CourseOverview({
         </span>
         <span>
           <b>{done}/14</b>{" "}
-          {audience === "student"
-            ? "lessons completed"
-            : "practice sessions completed"}
+          {audience === "student" ? "lessons studied" : "lessons studied"}
         </span>
       </div>
       <section className="c8-path">
@@ -457,7 +454,6 @@ function LessonReader({
   setState,
   present,
   audience,
-  userId,
   onOpen,
 }: {
   lesson: Lesson;
@@ -468,28 +464,39 @@ function LessonReader({
   userId: string;
   onOpen: (n: number) => void;
 }) {
-  const [phase, setPhase] = useState(0);
-  const [block, setBlock] = useState(0);
-  const [check, setCheck] = useState(0);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
   const record = state[lesson.id] ?? emptyRecord(lesson);
+  const exampleStep = lesson.blocks.length;
+  const checkStart = exampleStep + 1;
+  const lastStep = checkStart + lesson.checks.length;
+  const checkIndex = step - checkStart;
+  const isCheck = checkIndex >= 0 && checkIndex < lesson.checks.length;
+  const stage =
+    step < exampleStep
+      ? "Understand"
+      : step === exampleStep
+        ? "Worked example"
+        : isCheck
+          ? "Try it"
+          : "Remember";
   const update = (fn: (r: RecordState) => RecordState) =>
     setState((current) => ({
       ...current,
       [lesson.id]: fn(current[lesson.id] ?? emptyRecord(lesson)),
     }));
   useEffect(() => {
-    if (phase === 1 && !present)
+    if (step < lesson.blocks.length && !present)
       setState((current) => {
         const r = current[lesson.id] ?? emptyRecord(lesson);
-        return r.seen.includes(block)
+        return r.seen.includes(step)
           ? current
-          : { ...current, [lesson.id]: { ...r, seen: [...r.seen, block] } };
+          : { ...current, [lesson.id]: { ...r, seen: [...r.seen, step] } };
       });
-  }, [phase, block, lesson, present, setState]);
+  }, [step, lesson, present, setState]);
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
@@ -497,18 +504,7 @@ function LessonReader({
     }
     contentRef.current?.focus({ preventScroll: true });
     contentRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
-  }, [phase, block, check]);
-  const next = () => {
-    if (phase === 1 && block < lesson.blocks.length - 1) setBlock((n) => n + 1);
-    else if (phase === 3 && check < lesson.checks.length - 1)
-      setCheck((n) => n + 1);
-    else setPhase((p) => Math.min(4, p + 1));
-  };
-  const prev = () => {
-    if (phase === 1 && block > 0) setBlock((n) => n - 1);
-    else if (phase === 3 && check > 0) setCheck((n) => n - 1);
-    else setPhase((p) => Math.max(0, p - 1));
-  };
+  }, [step]);
   useEffect(() => {
     if (!present) return;
     const handler = (event: KeyboardEvent) => {
@@ -520,16 +516,16 @@ function LessonReader({
         return;
       if (event.key === "ArrowRight" || event.key === "PageDown") {
         event.preventDefault();
-        next();
+        setStep((s) => Math.min(lastStep, s + 1));
       }
       if (event.key === "ArrowLeft" || event.key === "PageUp") {
         event.preventDefault();
-        prev();
+        setStep((s) => Math.max(0, s - 1));
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  });
+  }, [present, lastStep]);
   const finish = async () => {
     if (!readyToComplete(lesson, record) || saving) return;
     setSaving(true);
@@ -548,26 +544,21 @@ function LessonReader({
       update((r) => ({ ...r, completed: true }));
     } catch {
       setError(
-        "Progress could not sync. Your answers remain on this device. Retry when connected.",
+        "Progress could not sync. Your answers remain on this device. Please retry.",
       );
     } finally {
       setSaving(false);
     }
   };
-  const missing = [
-    record.seen.length < lesson.blocks.length
-      ? `Read ${lesson.blocks.length - record.seen.length} remaining concept screens`
-      : null,
-    !taskReady(lesson.worked, record.worked)
-      ? "Finish the worked practice and self-check"
-      : null,
-    !lesson.checks.every((task, i) => taskReady(task, record.checks[i]))
-      ? "Finish or revise the checks"
-      : null,
-    !record.recap ? "Confirm the recap" : null,
-  ].filter(Boolean);
+  const missingReading = lesson.blocks.findIndex(
+    (_, i) => !record.seen.includes(i),
+  );
+  const missingCheck = lesson.checks.findIndex(
+    (_, i) => !record.checks[i]?.submitted,
+  );
+  const choiceCount = lesson.checks.filter((t) => t.kind === "choice").length;
   return (
-    <div className="c8-reader-layout">
+    <div className="c8-reader-layout c8-linear">
       <aside className="c8-outline">
         <span className="c8-kicker">CHAPTER CONTENTS</span>
         {groups.map((group) => (
@@ -604,123 +595,55 @@ function LessonReader({
           <h1>{lesson.title}</h1>
           <p>{lesson.subtitle}</p>
         </header>
-        <nav className="c8-phases" aria-label="Lesson stages">
-          {phases.map((p, i) => (
-            <button
-              type="button"
-              key={p}
-              aria-current={phase === i ? "step" : undefined}
-              onClick={() => setPhase(i)}
-            >
-              <span>{i + 1}</span>
-              {p}
-            </button>
-          ))}
-        </nav>
-        <div
-          ref={contentRef}
-          tabIndex={-1}
-          className="c8-screen"
-          key={lesson.id}
-        >
-          {phase === 0 ? (
-            <>
-              <div className="c8-hook">
-                <span className="c8-kicker">THINK FIRST</span>
-                <h2>{lesson.hook}</h2>
-              </div>
-              <Visual name={lesson.visual} />
-              <section className="c8-objectives">
-                <h2>By the end, you can…</h2>
-                <ul>
-                  {lesson.objectives.map((o) => (
-                    <li key={o}>{o}</li>
-                  ))}
-                </ul>
-                <p>
-                  To complete: read each concept, attempt the practice, check
-                  your answers and finish the recap. Written responses are
-                  self-assessed.
-                </p>
-              </section>
-            </>
+        <div className="c8-reading-progress">
+          <span>{stage}</span>
+          <span>
+            Step {step + 1} of {lastStep + 1}
+          </span>
+          <progress
+            aria-label="Position in lesson"
+            value={step + 1}
+            max={lastStep + 1}
+          />
+        </div>
+        <div ref={contentRef} tabIndex={-1} className="c8-screen">
+          {step < exampleStep ? (
+            <BlockView key={step} block={lesson.blocks[step]} />
           ) : null}
-          {phase === 1 ? (
-            <>
-              <div className="c8-concept-nav">
-                <span>
-                  CONCEPT {block + 1} / {lesson.blocks.length}
-                </span>
-                <div role="group" aria-label="Concept screens">
-                  {lesson.blocks.map((b, i) => (
-                    <button
-                      type="button"
-                      key={b.title}
-                      aria-label={`Concept ${i + 1}: ${b.title}`}
-                      aria-pressed={block === i}
-                      onClick={() => setBlock(i)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
+          {step === exampleStep ? (
+            <section className="c8-worked-example">
+              <span className="c8-kicker">LET’S WORK THROUGH ONE</span>
+              <h2>{lesson.worked.prompt}</h2>
+              <div>
+                <b>Explanation</b>
+                <p>{lesson.worked.answer}</p>
               </div>
-              <BlockView block={lesson.blocks[block]} />
-              <aside className="c8-mistake">
-                <b>Avoid this mistake</b>
-                <p>{lesson.mistake}</p>
-              </aside>
-            </>
+              <p className="c8-code-note">
+                Next, try a short question yourself. You can return to this
+                explanation.
+              </p>
+            </section>
           ) : null}
-          {phase === 2 ? (
+          {isCheck ? (
             <TaskCard
-              label="WORKED PRACTICE · TRY, THEN COMPARE"
-              task={lesson.worked}
-              evidence={record.worked}
+              key={checkIndex}
+              label={`QUESTION ${checkIndex + 1} OF ${lesson.checks.length}`}
+              task={lesson.checks[checkIndex]}
+              evidence={record.checks[checkIndex]}
               onChange={(e) =>
-                update((r) => ({ ...r, worked: e, completed: false }))
+                update((r) => ({
+                  ...r,
+                  checks: r.checks.map((x, i) => (i === checkIndex ? e : x)),
+                  completed: false,
+                }))
               }
             />
           ) : null}
-          {phase === 3 ? (
-            <>
-              <div className="c8-concept-nav">
-                <span>
-                  CHECK {check + 1} / {lesson.checks.length}
-                </span>
-                <div role="group" aria-label="Assessment tasks">
-                  {lesson.checks.map((_, i) => (
-                    <button
-                      type="button"
-                      aria-label={`Check ${i + 1}`}
-                      aria-pressed={check === i}
-                      key={i}
-                      onClick={() => setCheck(i)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <TaskCard
-                label={`CHECK ${check + 1} · ${lesson.number === 14 ? "INDEPENDENT ASSESSMENT" : "RETRIEVE AND APPLY"}`}
-                task={lesson.checks[check]}
-                evidence={record.checks[check]}
-                onChange={(e) =>
-                  update((r) => ({
-                    ...r,
-                    checks: r.checks.map((x, i) => (i === check ? e : x)),
-                    completed: false,
-                  }))
-                }
-              />
-            </>
-          ) : null}
-          {phase === 4 ? (
+          {step === lastStep ? (
             <>
               <section className="c8-recap">
-                <span className="c8-kicker">TAKE THESE IDEAS WITH YOU</span>
-                <h2>Remember the reason.</h2>
+                <span className="c8-kicker">THE MAIN IDEAS</span>
+                <h2>What to remember</h2>
                 <ul>
                   {lesson.recap.map((r) => (
                     <li key={r}>{r}</li>
@@ -729,8 +652,10 @@ function LessonReader({
                 <p className="c8-next-idea">{lesson.next}</p>
               </section>
               {lesson.terms.length ? (
-                <section>
-                  <h2>Key terms in this lesson</h2>
+                <details className="c8-review-terms">
+                  <summary>
+                    Review this lesson’s {lesson.terms.length} key terms
+                  </summary>
                   <div className="c8-terms">
                     {terms
                       .filter((t) => lesson.terms.includes(t.name))
@@ -742,68 +667,81 @@ function LessonReader({
                         </article>
                       ))}
                   </div>
-                </section>
+                </details>
               ) : null}
-              <section className="c8-completion">
-                <h2>
-                  {record.completed ? "Lesson completed" : "Finish this lesson"}
-                </h2>
-                <p>
-                  {
-                    lesson.checks.filter((t, i) =>
-                      firstAttemptCorrect(t, record.checks[i]),
-                    ).length
-                  }{" "}
-                  / {lesson.checks.filter((t) => t.kind === "choice").length}{" "}
-                  choice checks correct on the independent first attempt.
-                  Written answers are self-assessed; completion is not a mastery
-                  grade.
-                </p>
-                <label className="c8-criterion">
-                  <input
-                    type="checkbox"
-                    checked={record.recap}
-                    onChange={(e) =>
-                      update((r) => ({
-                        ...r,
-                        recap: e.target.checked,
-                        completed: false,
-                      }))
+              {!present ? (
+                <section className="c8-completion">
+                  <h2>
+                    {record.completed ? "Lesson studied" : "Save your progress"}
+                  </h2>
+                  {choiceCount > 0 ? (
+                    <p>
+                      {
+                        lesson.checks.filter((t, i) =>
+                          firstAttemptCorrect(t, record.checks[i]),
+                        ).length
+                      }{" "}
+                      / {choiceCount} choice questions correct on your first
+                      independent attempt.
+                    </p>
+                  ) : null}
+                  <p>
+                    This records study, not mastery. Review the explanation for
+                    any answer you missed.
+                  </p>
+                  <label className="c8-criterion">
+                    <input
+                      type="checkbox"
+                      checked={record.recap}
+                      onChange={(e) =>
+                        update((r) => ({
+                          ...r,
+                          recap: e.target.checked,
+                          completed: false,
+                        }))
+                      }
+                    />
+                    I have reviewed the main ideas and my answers.
+                  </label>
+                  <button
+                    type="button"
+                    className="c8-button c8-button--primary"
+                    disabled={
+                      !readyToComplete(lesson, record) ||
+                      saving ||
+                      record.completed
                     }
-                  />
-                  I can explain the recap and have reviewed the key terms.
-                </label>
-                {!present ? (
-                  <>
+                    onClick={finish}
+                  >
+                    {record.completed
+                      ? "✓ Studied"
+                      : saving
+                        ? "Saving…"
+                        : "Mark as studied"}
+                  </button>
+                  {missingReading >= 0 ? (
                     <button
                       type="button"
-                      className="c8-button c8-button--primary"
-                      disabled={
-                        !readyToComplete(lesson, record) ||
-                        saving ||
-                        record.completed
-                      }
-                      onClick={finish}
+                      className="c8-link"
+                      onClick={() => setStep(missingReading)}
                     >
-                      {record.completed
-                        ? "✓ Completed"
-                        : saving
-                          ? "Saving…"
-                          : "Complete lesson"}
+                      Return to the unread explanation →
                     </button>
-                    {missing.length && !record.completed ? (
-                      <p className="c8-pending">
-                        <strong>Still to do:</strong> {missing.join(" · ")}
-                      </p>
-                    ) : null}
-                    {error ? <p role="alert">{error}</p> : null}
-                  </>
-                ) : (
-                  <p>
-                    Presentation rehearsal does not submit student progress.
-                  </p>
-                )}
-              </section>
+                  ) : null}
+                  {missingCheck >= 0 ? (
+                    <button
+                      type="button"
+                      className="c8-link"
+                      onClick={() => setStep(checkStart + missingCheck)}
+                    >
+                      Try question {missingCheck + 1} →
+                    </button>
+                  ) : null}
+                  {error ? <p role="alert">{error}</p> : null}
+                </section>
+              ) : (
+                <p>Discuss the recap with the class before moving on.</p>
+              )}
             </>
           ) : null}
         </div>
@@ -811,98 +749,133 @@ function LessonReader({
           <button
             type="button"
             className="c8-button"
-            disabled={phase === 0}
-            onClick={prev}
+            disabled={step === 0}
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
           >
             ← Previous
           </button>
           <span>
-            {phases[phase]}
-            {phase === 1
-              ? ` · ${block + 1}/${lesson.blocks.length}`
-              : phase === 3
-                ? ` · ${check + 1}/${lesson.checks.length}`
-                : ""}
+            {step + 1} / {lastStep + 1}
           </span>
-          {phase === 4 ? (
-            <button
-              type="button"
-              className="c8-button c8-button--primary"
-              onClick={() =>
-                lesson.number < 14
+          <button
+            type="button"
+            className="c8-button c8-button--primary"
+            onClick={() =>
+              step < lastStep
+                ? setStep((s) => s + 1)
+                : lesson.number < 14
                   ? onOpen(lesson.number + 1)
                   : navigate(courseUrl(audience))
-              }
-            >
-              {lesson.number < 14 ? "Next lesson →" : "Chapter overview"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="c8-button c8-button--primary"
-              onClick={next}
-            >
-              Continue →
-            </button>
-          )}
+            }
+          >
+            {step < lastStep
+              ? "Next →"
+              : lesson.number < 14
+                ? "Next lesson →"
+                : "Chapter overview"}
+          </button>
         </footer>
-        <details className="c8-source">
-          <summary>Source and teaching notes</summary>
-          <p>
-            Hodder Education · Chapter 8 · printed pages{" "}
-            {lesson.pages.join(", ")}.
-          </p>
-          <p>
-            {lesson.sourceRefs.join(" · ")}. Explanations and tasks are
-            rewritten for learning. The school example uses consistent synthetic
-            values; sample rows vary between the normalisation and SQL
-            exercises.
-          </p>
-          <p>
-            SQL corrections: commas between SELECT columns; quoted literals; ISO
-            date strings; consistent LicenceNumber; retain Student.ClassID;
-            DELETE removes rows, not the table definition. Repeated teacher keys
-            and the duplicate Maths label in Table 8.11 are not reproduced.
-          </p>
-          <p>
-            Technical references:{" "}
-            <a
-              href="https://www.sqlite.org/lang_aggfunc.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              SQLite aggregates
-            </a>{" "}
-            ·{" "}
-            <a
-              href="https://www.sqlite.org/foreignkeys.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Foreign keys
-            </a>{" "}
-            ·{" "}
-            <a
-              href="https://www.sqlite.org/lang_altertable.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              ALTER TABLE
-            </a>{" "}
-            ·{" "}
-            <a
-              href="https://dev.mysql.com/doc/refman/8.4/en/create-database.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              MySQL CREATE DATABASE
-            </a>
-          </p>
-        </details>
+        <section className="c8-deeper-study" aria-label="Further study">
+          <details>
+            <summary>
+              {lesson.number === 11
+                ? "Full school SQL and further explanations"
+                : "Full explanations and further examples"}
+            </summary>
+            <p>
+              Use these after the short walkthrough to study the complete topic
+              in more detail.
+            </p>
+            {lesson.details.map((b, i) => (
+              <details key={i}>
+                <summary>{b.title}</summary>
+                <BlockView block={b} />
+              </details>
+            ))}
+          </details>
+          <details>
+            <summary>More practice — explain and apply</summary>
+            {[lesson.extension.worked, ...lesson.extension.checks].map(
+              (task, i) => (
+                <article key={i} className="c8-extension-task">
+                  <h3>{task.prompt}</h3>
+                  {task.options ? (
+                    <ol>
+                      {task.options.map((option) => (
+                        <li key={option}>{option}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  <details>
+                    <summary>Compare with the answer</summary>
+                    <p>{task.answer ?? task.options?.[task.correct ?? -1]}</p>
+                    {task.why ? <p>{task.why}</p> : null}
+                  </details>
+                </article>
+              ),
+            )}
+          </details>
+          <details className="c8-source">
+            <summary>
+              Source notes · Hodder pp.{Math.min(...lesson.pages)}–
+              {Math.max(...lesson.pages)}
+            </summary>
+            <p>
+              Hodder Education, Chapter 8. Printed pages{" "}
+              {lesson.pages.join(", ")}. {lesson.sourceRefs.join(" · ")}.
+            </p>
+            <p>
+              Explanations and practice are adapted for learning. Small examples
+              isolate one idea before the complete school design. The full
+              school SQL uses consistent illustrative records.
+            </p>
+            <p>
+              Printed errors corrected: consistent LicenceNumber;
+              Student.ClassID retained; unique teacher keys; commas between
+              SELECT columns; quoted text and dates; DELETE removes rows, not
+              the table definition. SQL support varies by DBMS.
+            </p>
+            <p>
+              Technical references:{" "}
+              <a
+                href="https://www.sqlite.org/lang_aggfunc.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                SQLite aggregates
+              </a>{" "}
+              ·{" "}
+              <a
+                href="https://www.sqlite.org/foreignkeys.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Foreign keys
+              </a>{" "}
+              ·{" "}
+              <a
+                href="https://www.sqlite.org/lang_altertable.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                ALTER TABLE
+              </a>{" "}
+              ·{" "}
+              <a
+                href="https://dev.mysql.com/doc/refman/8.4/en/create-database.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MySQL CREATE DATABASE
+              </a>
+            </p>
+          </details>
+        </section>
       </main>
     </div>
   );
 }
+
 export function Chapter8Course({ audience, userId }: Props) {
   const route = useRoute();
   const present =

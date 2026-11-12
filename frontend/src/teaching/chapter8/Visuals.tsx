@@ -78,8 +78,8 @@ export function KeyExplorer() {
           <span className="c8-badge c8-badge--pk">PK</span>
           <h4>Class</h4>
           {[
-            ["7A", "Floor 2 Room 3"],
-            ["7B", "Floor 2 Room 4"],
+            ["7A", "Room 12"],
+            ["7B", "Room 14"],
           ].map(([id, room]) => (
             <p className={selected === id ? "c8-highlight" : ""} key={id}>
               <b>{id}</b>
@@ -417,14 +417,18 @@ function ERProgressive() {
           <p>Each student has ClassID = 7A.</p>
         </article>
       </div>
-      <p>Class (one) → Student (many). Every Student row points to its Class.</p>
+      <p>
+        Class (one) → Student (many). Every Student row points to its Class.
+      </p>
       <button
         type="button"
         className="c8-button"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
       >
-        {expanded ? "Hide five-table E-R diagram" : "Explore the full five-table E-R diagram"}
+        {expanded
+          ? "Hide five-table E-R diagram"
+          : "Explore the full five-table E-R diagram"}
       </button>
       {expanded ? <ERDiagram /> : null}
     </section>
@@ -435,12 +439,12 @@ function FirstTableExplorer() {
   const definitions = [
     {
       name: "1 · Class table",
-      code: "CREATE TABLE Class (\\n  ClassID VARCHAR(4) PRIMARY KEY,\\n  Location VARCHAR(60)\\n);",
+      code: "CREATE TABLE Class (\\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY,\\n  Location VARCHAR(60)\\n);",
       why: "The parent Class table defines the allowed class IDs, such as 7A and 7B.",
     },
     {
       name: "2 · Student table",
-      code: "CREATE TABLE Student (\\n  StudentID VARCHAR(5) PRIMARY KEY,\\n  FirstName VARCHAR(40),\\n  ClassID VARCHAR(4),\\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\\n);",
+      code: "CREATE TABLE Student (\\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\\n  FirstName VARCHAR(40),\\n  ClassID VARCHAR(4),\\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\\n);",
       why: "Student.ClassID now refers to Class.ClassID. Students in 7A can share the same foreign-key value.",
     },
   ];
@@ -449,7 +453,11 @@ function FirstTableExplorer() {
     <section className="c8-explorer">
       <span className="c8-kicker">BUILD TWO TABLES · ONE AT A TIME</span>
       <h3>{selected.name}</h3>
-      <div className="c8-segments" role="group" aria-label="Choose table to build">
+      <div
+        className="c8-segments"
+        role="group"
+        aria-label="Choose table to build"
+      >
         {definitions.map((item, index) => (
           <button
             key={item.name}
@@ -461,9 +469,14 @@ function FirstTableExplorer() {
           </button>
         ))}
       </div>
-      <pre><code>{selected.code.replaceAll("\\n", "\n")}</code></pre>
+      <pre>
+        <code>{selected.code.replaceAll("\\n", "\n")}</code>
+      </pre>
       <p role="status">{selected.why}</p>
-      <p>In the SQLite practice database, foreign-key enforcement is enabled before testing the relationship.</p>
+      <p>
+        In the SQLite practice database, foreign-key enforcement is enabled
+        before testing the relationship.
+      </p>
     </section>
   );
 }
@@ -483,22 +496,31 @@ function FirstSelectExplorer() {
     <section className="c8-explorer">
       <span className="c8-kicker">PREDICT THE RESULT BEFORE REVEALING</span>
       <h3>Who belongs to this class?</h3>
-      <DataTable caption="Our three students" headers={["StudentID", "FirstName", "SecondName", "ClassID"]} rows={students} />
+      <DataTable
+        caption="Our three students"
+        headers={["StudentID", "FirstName", "SecondName", "ClassID"]}
+        rows={students}
+      />
       <label>
         Choose the WHERE condition
         <select
           aria-label="Filter by class"
           value={classId}
-          onChange={(event) => { setClassId(event.target.value); setRevealed(false); }}
+          onChange={(event) => {
+            setClassId(event.target.value);
+            setRevealed(false);
+          }}
         >
           <option value="7A">Class 7A</option>
           <option value="7B">Class 7B</option>
         </select>
       </label>
-      <pre><code>{`SELECT FirstName, SecondName
+      <pre>
+        <code>{`SELECT FirstName, SecondName
 FROM Student
 WHERE ClassID = '${classId}'
-ORDER BY SecondName ASC;`}</code></pre>
+ORDER BY SecondName ASC;`}</code>
+      </pre>
       <button
         className="c8-button"
         type="button"
@@ -509,14 +531,94 @@ ORDER BY SecondName ASC;`}</code></pre>
       </button>
       {revealed ? (
         <>
-          <DataTable caption={`Students in ${classId}`} headers={["FirstName", "SecondName"]} rows={rows} />
-          <p role="status">WHERE keeps only {classId} rows; ORDER BY sorts their surnames.</p>
+          <DataTable
+            caption={`Students in ${classId}`}
+            headers={["FirstName", "SecondName"]}
+            rows={rows}
+          />
+          <p role="status">
+            WHERE keeps only {classId} rows; ORDER BY sorts their surnames.
+          </p>
         </>
-      ) : <p>Predict which students remain after WHERE and in what order.</p>}
+      ) : (
+        <p>Predict which students remain after WHERE and in what order.</p>
+      )}
     </section>
   );
 }
 export function Visual({ name }: { name: string }) {
+  if (name === "relationship")
+    return (
+      <figure className="c8-simple-relation">
+        <svg
+          viewBox="0 0 620 180"
+          role="img"
+          aria-labelledby="c8-simple-er-title"
+          style={{ width: "100%", height: "auto" }}
+        >
+          <title id="c8-simple-er-title">
+            One class has many students. Each student belongs to one class.
+          </title>
+          <rect
+            x="10"
+            y="40"
+            width="180"
+            height="90"
+            rx="14"
+            fill="#edf5e9"
+            stroke="#22684f"
+          />
+          <rect
+            x="430"
+            y="40"
+            width="180"
+            height="90"
+            rx="14"
+            fill="#edf5e9"
+            stroke="#22684f"
+          />
+          <g
+            fill="#173c2d"
+            fontFamily="inherit"
+            textAnchor="middle"
+            fontSize="22"
+            fontWeight="600"
+          >
+            <text x="100" y="92">
+              Class
+            </text>
+            <text x="520" y="92">
+              Student
+            </text>
+            <text x="215" y="68">
+              1
+            </text>
+            <text x="395" y="68">
+              many
+            </text>
+          </g>
+          <path
+            d="M190 85 H430 M205 72 V98 M410 85 L430 70 M410 85 L430 100"
+            fill="none"
+            stroke="#22684f"
+            strokeWidth="2.5"
+          />
+          <text
+            x="310"
+            y="155"
+            fill="#52635e"
+            textAnchor="middle"
+            fontFamily="inherit"
+            fontSize="17"
+          >
+            One Class → many Students
+          </text>
+        </svg>
+        <figcaption>
+          The marker beside Student counts the students for one Class.
+        </figcaption>
+      </figure>
+    );
   if (name === "keys") return <KeyExplorer />;
   if (name === "table") return <TableExplorer />;
   if (name === "er") return <ERProgressive />;
@@ -538,7 +640,10 @@ export function Visual({ name }: { name: string }) {
     dictionary: [
       { label: "STUDENT DATA", text: "Noor belongs to 7A" },
       { label: "DATA DICTIONARY", text: "StudentID is the primary key" },
-      { label: "DBMS SOFTWARE", text: "Checks permissions and manages changes" },
+      {
+        label: "DBMS SOFTWARE",
+        text: "Checks permissions and manages changes",
+      },
     ],
     processor: [
       { label: "DEVELOPER INTERFACE", text: "SQL question: show Class 7A" },

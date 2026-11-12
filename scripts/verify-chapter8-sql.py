@@ -19,7 +19,7 @@ def database():
     return db
 
 def find_block(lesson, title):
-    return next(block["text"] for block in lesson["blocks"] if block["title"] == title)
+    return next(block["text"] for block in lesson["blocks"] + lesson["details"] if block["title"] == title)
 
 # The existing interactive SQL examples must return their displayed tables.
 for query in course["queries"]:
@@ -55,6 +55,37 @@ db.execute("INSERT INTO Teacher VALUES (37952, 'Mr Khan')")
 db.execute("INSERT INTO Class VALUES ('7A', 'Room 3', 37952)")
 db.close()
 
+# The linear walkthrough isolates the three SQL building blocks.
+db = sqlite3.connect(":memory:")
+db.execute("PRAGMA foreign_keys = ON")
+for block in lesson11["blocks"]:
+    if block["kind"] == "code": db.executescript(block["text"])
+db.execute("INSERT INTO LessonClass VALUES ('7A')")
+db.execute("INSERT INTO LessonMember VALUES ('S1276','7A')")
+db.execute("INSERT INTO LessonChoice VALUES ('S1276','Maths')")
+db.execute("INSERT INTO LessonChoice VALUES ('S1276','History')")
+for sql in ["INSERT INTO LessonMember VALUES ('S1277','9Z')", "INSERT INTO LessonChoice VALUES ('S1276','Maths')", "INSERT INTO LessonStudent VALUES (NULL,'Noor')"]:
+    try: db.execute(sql)
+    except sqlite3.IntegrityError: pass
+    else: raise AssertionError("Introductory constraint was not enforced: " + sql)
+db.close()
+
+# Run the complete five-table DDL shown in further study, not just the fixture.
+db = sqlite3.connect(":memory:")
+db.execute("PRAGMA foreign_keys = ON")
+for title in ["First create the referenced Teacher table", "Then create Class and Student", "Create the subject-choice relationship"]:
+    db.executescript(find_block(lesson11, title))
+assert {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")} == {"Teacher","Class","Student","Subject","StudentSubject"}
+db.close()
+
+# The extra first-SQL example defines a separate small Student table.
+db = sqlite3.connect(":memory:")
+for block in course["lessons"][9]["details"]:
+    if block["kind"] == "code" and block["text"].lstrip().startswith(("CREATE TABLE", "INSERT INTO")):
+        db.executescript(block["text"])
+assert db.execute("SELECT COUNT(*) FROM Student").fetchone() == (1,)
+db.close()
+
 # The fixture holds the final complete 3NF model and its realistic rows.
 db = database()
 tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -63,7 +94,7 @@ db.close()
 
 # Every displayed standalone SELECT in the refreshed lessons must execute.
 for lesson in course["lessons"]:
-    for block in lesson["blocks"]:
+    for block in lesson["blocks"] + lesson["details"]:
         if block["kind"] == "code" and block.get("text", "").lstrip().startswith("SELECT"):
             db = database()
             db.execute(block["text"]).fetchall()
@@ -73,7 +104,10 @@ for lesson in course["lessons"]:
 db = database()
 db.executescript(find_block(lesson13, "INSERT INTO — add a new student row"))
 assert db.execute("SELECT ClassID FROM Student WHERE StudentID='S1301'").fetchone() == ("7A",)
-db.executescript(find_block(lesson13, "UPDATE and DELETE FROM — change only the right row"))
+maintenance = find_block(lesson13, "UPDATE and DELETE FROM — change only the right row").split(";")
+db.execute(maintenance[0])
+assert db.execute("SELECT ClassID FROM Student WHERE StudentID='S1301'").fetchone() == ("7B",)
+db.execute(maintenance[1])
 assert db.execute("SELECT COUNT(*) FROM Student").fetchone() == (3,)
 
 # Referential integrity, uniqueness, and NULL behaviour are real constraints.

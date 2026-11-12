@@ -1,60 +1,60 @@
 {
-  "version": 1,
+  "version": 4,
   "terms": [
     {
       "name": "Database",
       "definition": "An organised collection of data that can be accessed by different application programs.",
       "example": "The school attendance and reporting applications use the same student database.",
-      "lesson": 2,
+      "lesson": 3,
       "page": 196
     },
     {
       "name": "Relational database",
       "definition": "A database that represents data in related tables; matching key values implement links between them.",
       "example": "Student.ClassID links a student to a row in Class.",
-      "lesson": 2,
+      "lesson": 3,
       "page": 196
     },
     {
       "name": "Table",
       "definition": "A collection of rows about one kind of entity, organised into named columns.",
       "example": "Student stores one row per student.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 196
     },
     {
       "name": "Record",
       "definition": "A row in a database table.",
       "example": "The complete row for Noor is one record.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 196
     },
     {
       "name": "Field",
       "definition": "A column in a database table.",
       "example": "DateOfBirth is a field in Student.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 197
     },
     {
       "name": "Tuple",
       "definition": "One instance of an entity represented by a row in a relational table.",
       "example": "The S1276 row is a tuple; it is also a record.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 197
     },
     {
       "name": "Entity",
       "definition": "Something about which data is stored, such as a person, place, object or event.",
       "example": "Student, Class and Teacher are entity types in our school model.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 197
     },
     {
       "name": "Attribute",
       "definition": "A named data item stored about an entity.",
       "example": "A student has the attributes StudentID and FirstName.",
-      "lesson": 3,
+      "lesson": 1,
       "page": 197
     },
     {
@@ -201,7 +201,7 @@
       "name": "Structured query language (SQL)",
       "definition": "A standard language used to define relational structures and retrieve or modify their data.",
       "example": "CREATE TABLE defines a table; SELECT retrieves rows.",
-      "lesson": 10,
+      "lesson": 9,
       "page": 209
     },
     {
@@ -235,294 +235,11 @@
   ],
   "lessons": [
     {
-      "id": "h8-rewrite-v1-01",
+      "id": "h8-rewrite-v1-03",
       "number": 1,
       "section": "8.1",
-      "title": "When two school files disagree",
-      "subtitle": "See one simple problem before learning its technical name.",
-      "pages": [
-        196,
-        197,
-        198
-      ],
-      "sourceRefs": [
-        "8.1 prior knowledge",
-        "8.1.1",
-        "Figure 8.1",
-        "Activity 8A"
-      ],
-      "objectives": [
-        "Identify a record and a field in a simple school file.",
-        "Explain why two copies of the same fact can cause a problem.",
-        "Distinguish data redundancy, data inconsistency and data dependency."
-      ],
-      "hook": "Attendance says Noor is in 7A. The exam list says Noor is in 7B. Can both be right?",
-      "blocks": [
-        {
-          "kind": "table",
-          "title": "Two files about the same student",
-          "headers": [
-            "Attendance file",
-            "Exam file"
-          ],
-          "rows": [
-            [
-              "StudentID: S1276",
-              "StudentID: S1276"
-            ],
-            [
-              "Name: Noor Baig",
-              "Name: Noor Baig"
-            ],
-            [
-              "ClassID: 7A",
-              "ClassID: 7B"
-            ]
-          ]
-        },
-        {
-          "kind": "text",
-          "title": "First, notice the duplicate",
-          "text": "Both files describe the same student. StudentID, name and ClassID were copied. The ClassID values now disagree. A record is one student's complete row; a field stores one kind of fact, such as ClassID.",
-          "uz": "Bir o‘quvchi haqidagi ma’lumot ikki joyga yozilgan. ClassID qiymatlari turlicha bo‘lib qolgan."
-        },
-        {
-          "kind": "table",
-          "title": "Three names for three different problems",
-          "headers": [
-            "Term",
-            "What it means HERE"
-          ],
-          "rows": [
-            [
-              "Data redundancy",
-              "The same student facts are stored in both files."
-            ],
-            [
-              "Data inconsistency",
-              "One file says 7A and another says 7B."
-            ],
-            [
-              "Data dependency",
-              "A program expects fields in a particular order or structure; changing it may require changing the program."
-            ]
-          ]
-        },
-        {
-          "kind": "steps",
-          "title": "What happened? Read the cause, then the effect",
-          "items": [
-            {
-              "title": "Copy",
-              "text": "The school stores Noor's details in two separate files."
-            },
-            {
-              "title": "Change",
-              "text": "A staff member changes ClassID in Attendance only."
-            },
-            {
-              "title": "Result",
-              "text": "Exam still shows the old class. This is inconsistency caused by duplicated data."
-            }
-          ]
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "The address is updated in the Attendance file but not in the Exam file. Explain the problem in two sentences.",
-        "answer": "The address was stored twice, which is data redundancy. Only one copy was updated, so the files now contain inconsistent addresses.",
-        "criteria": [
-          "Identify the repeated information.",
-          "Explain how the two values became inconsistent."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "The two files still have identical copies of Noor's address. What problem already exists?",
-          "options": [
-            "Data redundancy",
-            "Data inconsistency",
-            "Referential integrity"
-          ],
-          "correct": 0,
-          "why": "Unnecessary copies are redundancy even before they disagree."
-        },
-        {
-          "kind": "written",
-          "prompt": "The Exam program stops reading correctly after a new column is inserted into its file. Name the limitation and explain why it happened.",
-          "answer": "Data dependency. The program expects a particular record structure, so inserting a column can cause it to read the wrong field.",
-          "criteria": [
-            "Name data dependency.",
-            "Connect the error to the changed file structure."
-          ]
-        }
-      ],
-      "recap": [
-        "Redundancy = the same fact stored unnecessarily more than once.",
-        "Inconsistency = copies of the fact disagree.",
-        "Dependency = a program relies on a particular file structure."
-      ],
-      "mistake": "Redundancy and inconsistency are not synonyms. Duplication can exist even when both copies match.",
-      "next": "Next, see how one shared database reduces these problems.",
-      "visual": "files",
-      "terms": []
-    },
-    {
-      "id": "h8-rewrite-v1-02",
-      "number": 2,
-      "section": "8.1",
-      "title": "Replace copies with one shared database",
-      "subtitle": "One student record can serve more than one school application.",
-      "pages": [
-        196,
-        198,
-        199
-      ],
-      "sourceRefs": [
-        "8.1.2",
-        "Figure 8.2"
-      ],
-      "objectives": [
-        "Explain a database in everyday language.",
-        "Describe why sharing one controlled source reduces duplication.",
-        "Relate a database benefit to each file-based limitation."
-      ],
-      "hook": "What changes if Attendance and Exams both read Noor's class from the same database?",
-      "blocks": [
-        {
-          "kind": "table",
-          "title": "One source, two applications",
-          "headers": [
-            "StudentID",
-            "FirstName",
-            "SecondName",
-            "ClassID"
-          ],
-          "rows": [
-            [
-              "S1276",
-              "Noor",
-              "Baig",
-              "7A"
-            ],
-            [
-              "S1277",
-              "Ahmad",
-              "Sayed",
-              "7B"
-            ],
-            [
-              "S1299",
-              "Tahir",
-              "Hassan",
-              "7A"
-            ]
-          ]
-        },
-        {
-          "kind": "text",
-          "title": "Now the meaning",
-          "text": "A database is an organised collection of data that different applications can access. Attendance and Exams can read the same Student row. A relational database uses related tables to organise facts; the connections between tables will be explained later.",
-          "uz": "Endi ikkita dastur ma’lumotni alohida nusxalardan emas, bitta umumiy bazadan oladi."
-        },
-        {
-          "kind": "steps",
-          "title": "Change one fact",
-          "items": [
-            {
-              "title": "Before",
-              "text": "Noor belongs to 7A in the shared Student table."
-            },
-            {
-              "title": "Update",
-              "text": "An authorised user changes that one ClassID value to 7B."
-            },
-            {
-              "title": "After",
-              "text": "Attendance and Exams both read the new value from the same row."
-            }
-          ]
-        },
-        {
-          "kind": "table",
-          "title": "Old problem → database benefit",
-          "headers": [
-            "Earlier problem",
-            "What improves"
-          ],
-          "rows": [
-            [
-              "Redundancy",
-              "Avoid keeping a separate copy of each student in every application."
-            ],
-            [
-              "Inconsistency",
-              "Controlled changes become available to all authorised applications."
-            ],
-            [
-              "Data dependency",
-              "The DBMS provides structured access instead of each program owning its own file layout."
-            ]
-          ]
-        },
-        {
-          "kind": "text",
-          "title": "One sensible limit",
-          "text": "Data independence does not mean every possible database change is harmless. A program that still needs a deleted column may need changing. The database approach reduces this dependency.",
-          "uz": ""
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Noor changes from 7A to 7B. Explain how the shared database helps Attendance and Exams.",
-        "answer": "Change Noor's ClassID once in the shared Student row. Both authorised applications read the same updated value, reducing the risk of inconsistent copies.",
-        "criteria": [
-          "Describe one controlled update.",
-          "Explain why both applications obtain the same value."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "Which setup best avoids two conflicting ClassID values?",
-          "options": [
-            "One shared Student table read by both apps",
-            "Two separate copies that staff must update manually",
-            "A third independent copy"
-          ],
-          "correct": 0,
-          "why": "One controlled source reduces the risk of conflicting updates."
-        },
-        {
-          "kind": "written",
-          "prompt": "Give one reason why the database approach is better than separate student files.",
-          "answer": "The same student details need not be stored separately for every application, reducing redundant data and the risk of inconsistent updates.",
-          "criteria": [
-            "Name one clear benefit.",
-            "Explain the consequence for the school."
-          ]
-        }
-      ],
-      "recap": [
-        "Database: organised data accessed by different applications.",
-        "Relational database: data organised into linked tables.",
-        "Shared controlled records reduce repeated copies and conflicting changes."
-      ],
-      "mistake": "A relational database can legitimately repeat ClassID values in several student rows. Repeating a link value is not the same as copying all the class details.",
-      "next": "Next, learn exactly what a table, row, column and value mean.",
-      "visual": "shared",
-      "terms": [
-        "Database",
-        "Relational database"
-      ]
-    },
-    {
-      "id": "h8-rewrite-v1-03",
-      "number": 3,
-      "section": "8.1",
-      "title": "Read one database table confidently",
-      "subtitle": "Six important words, explained using the same three students.",
+      "title": "Read one simple table",
+      "subtitle": "Rows, columns and values — before database design.",
       "pages": [
         196,
         197,
@@ -534,12 +251,143 @@
         "Tables 8.1–8.2"
       ],
       "objectives": [
-        "Identify a table, record and field.",
-        "Explain entity, attribute and tuple using one example.",
-        "Separate a column name from the value it contains."
+        "Identify entity, table, record, field, tuple and attribute.",
+        "Distinguish an attribute name from a value.",
+        "Describe one entity instance using its row."
       ],
-      "hook": "In the Student table, is 'Noor' a field name, a value, or a complete record?",
+      "hook": "Is “Noor” an attribute, a record, or the value of an attribute?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Start with three students",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "7A"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "7B"
+            ],
+            [
+              "S1299",
+              "Tahir",
+              "7A"
+            ]
+          ],
+          "text": "The school needs to remember each student’s name and class. This table organises those facts into rows and columns.",
+          "uz": "Maktab har bir o‘quvchining ismi va sinfini saqlamoqchi. Jadvalga qarang: Noor 7A da, Ahmad 7B da, Tahir 7A da o‘qiydi. Hozircha faqat jadvalni o‘qishni o‘rganamiz."
+        },
+        {
+          "kind": "table",
+          "title": "One row tells us about one student",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "7A"
+            ]
+          ],
+          "text": "Read across: S1276, Noor, 7A. Together these values describe one student. The whole row is a record. In a relational table, another name for a row is tuple.",
+          "uz": "Bitta katak emas, Noor haqidagi butun qator record deyiladi. Relational database da shu qatorning yana bir nomi — tuple.",
+          "remember": "Record = row. Tuple is another name for that row."
+        },
+        {
+          "kind": "table",
+          "title": "One column stores one kind of fact",
+          "headers": [
+            "FirstName"
+          ],
+          "rows": [
+            [
+              "Noor"
+            ],
+            [
+              "Ahmad"
+            ],
+            [
+              "Tahir"
+            ]
+          ],
+          "text": "Read down: every value is a first name. FirstName is a field (column). Its name tells us what kind of fact belongs here. Noor is one value in that field.",
+          "uz": "FirstName ustunida faqat ismlar turibdi. Field — ustun, Noor esa shu ustundagi bitta qiymat. Ustun nomi bilan katakdagi qiymatni aralashtirmang.",
+          "remember": "Field = column. Noor = a value."
+        },
+        {
+          "kind": "text",
+          "title": "Now name the thing and its properties",
+          "text": "An entity is a thing we store data about, such as a student. An attribute is a property of that thing, such as FirstName. Student names the entity type; Noor is one particular student. The table stores many students of that type.",
+          "uz": "Nima haqida ma’lumot saqlayapmiz? O‘quvchi haqida — bu entity. Uning qaysi xususiyatini saqlayapmiz? Ismini — bu attribute. Jadvalda attribute ustun orqali ifodalanadi.",
+          "remember": "Student → entity. FirstName → attribute. Noor → value."
+        },
+        {
+          "kind": "text",
+          "title": "Point to a row, a column and a value",
+          "text": "Use the buttons below. Each highlight shows a different part of the same table. Say what the highlighted part tells you before moving on.",
+          "uz": "Tugmalarni bosib qator, ustun va katakni solishtiring. Har safar “bu bitta o‘quvchimi, bitta xususiyatmi yoki bitta qiymatmi?” deb o‘zingizga savol bering.",
+          "remember": "",
+          "visual": "table"
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "In (S1277, Ahmad, 7B), what is the record and what is the FirstName value?",
+        "answer": "The record is the whole row: (S1277, Ahmad, 7B). FirstName is the column name. Ahmad is the value in that column.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which is the name of a column?",
+          "options": [
+            "The whole Noor row",
+            "FirstName",
+            "Noor"
+          ],
+          "correct": 1,
+          "why": "FirstName labels a field. Noor is a value; the whole row is a record."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Which gives all the stored facts about one student?",
+          "options": [
+            "One column",
+            "The table title",
+            "One complete row"
+          ],
+          "correct": 2,
+          "why": "A record is one complete row. Tuple is another name for that row."
+        }
+      ],
+      "recap": [
+        "Record = row. Tuple is another name for that row.",
+        "Field = column. Noor = a value.",
+        "Student → entity. FirstName → attribute. Noor → value."
+      ],
+      "mistake": "Do not describe a single cell as a record or confuse an attribute with its value.",
+      "next": "Next: Why repeated files cause problems.",
+      "visual": "table",
+      "terms": [
+        "Table",
+        "Record",
+        "Field",
+        "Tuple",
+        "Entity",
+        "Attribute"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "Student table — start here",
@@ -633,62 +481,551 @@
           ]
         }
       ],
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "For the S1277 row, identify the entity type, one attribute, its value, and the tuple.",
+          "answer": "Entity type: Student. Attribute: FirstName. Value: Ahmad. Tuple: (S1277, Ahmad, Sayed, 7B).",
+          "criteria": [
+            "Separate name from value.",
+            "Include every value when identifying the tuple."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "What does the complete row for S1299 represent?",
+            "options": [
+              "One attribute",
+              "One tuple / record",
+              "One table"
+            ],
+            "correct": 1,
+            "why": "A row stores one instance of an entity."
+          },
+          {
+            "kind": "written",
+            "prompt": "A school wants to store teachers. Name the entity and two possible attributes.",
+            "answer": "Teacher is an entity. Possible attributes include LicenceNumber and TeacherName.",
+            "criteria": [
+              "Name the entity Teacher.",
+              "Give two sensible named attributes."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "h8-rewrite-v1-01",
+      "number": 2,
+      "section": "8.1",
+      "title": "Why repeated files cause problems",
+      "subtitle": "Follow one address change in two offices.",
+      "pages": [
+        196,
+        197,
+        198
+      ],
+      "sourceRefs": [
+        "8.1 prior knowledge",
+        "8.1.1",
+        "Figure 8.1",
+        "Activity 8A"
+      ],
+      "objectives": [
+        "Describe records and fields in a file.",
+        "Distinguish redundancy, inconsistency and data dependency.",
+        "Explain a concrete consequence of each limitation."
+      ],
+      "hook": "Payroll changes a teacher’s staff number. Sales still uses the old number. Which record is now correct?",
+      "blocks": [
+        {
+          "kind": "table",
+          "title": "Two offices keep Noor’s address",
+          "headers": [
+            "Copy",
+            "StudentID",
+            "Address"
+          ],
+          "rows": [
+            [
+              "School office",
+              "S1276",
+              "12 Green Street"
+            ],
+            [
+              "Library",
+              "S1276",
+              "12 Green Street"
+            ]
+          ],
+          "text": "Both offices store the same address. Keeping unnecessary copies of the same fact is data redundancy.",
+          "uz": "Bitta manzil ikki faylda saqlangan. Shu bir xil ma’lumotni ortiqcha takrorlab saqlash data redundancy deyiladi. Hali ikkala nusxa ham to‘g‘ri."
+        },
+        {
+          "kind": "table",
+          "title": "Noor moves. Only one copy is updated.",
+          "headers": [
+            "Copy",
+            "StudentID",
+            "Address"
+          ],
+          "rows": [
+            [
+              "School office",
+              "S1276",
+              "48 Park Road"
+            ],
+            [
+              "Library",
+              "S1276",
+              "12 Green Street"
+            ]
+          ],
+          "text": "Now the copies disagree. This is data inconsistency. The library may send a letter to the old address because its copy was missed.",
+          "uz": "Noor ko‘chdi. Maktab manzilni yangiladi, kutubxona esa yangilamadi. Endi nusxalar bir-biriga mos emas: bu data inconsistency. Sababi — bir o‘zgarishni ikki joyga kiritish kerak edi.",
+          "remember": "Redundancy: repeated facts. Inconsistency: conflicting facts."
+        },
+        {
+          "kind": "table",
+          "title": "A program expects a fixed field order",
+          "headers": [
+            "Version",
+            "Field 1",
+            "Field 2",
+            "Field 3"
+          ],
+          "rows": [
+            [
+              "Old file",
+              "StudentID",
+              "Address",
+              "—"
+            ],
+            [
+              "Changed file",
+              "StudentID",
+              "Phone",
+              "Address"
+            ]
+          ],
+          "text": "The old program reads field 2 as the address. After Phone is inserted, field 2 contains a phone number. The program must change because it depends on the file layout. This is data dependency.",
+          "uz": "Dastur “2-o‘rinda manzil turadi” deb ishlaydi. Oldiga Phone qo‘shilsa, manzil 3-o‘ringa o‘tadi. Dastur eski tartibga bog‘liq bo‘lgani uchun uni ham o‘zgartirish kerak. Bu — data dependency."
+        },
+        {
+          "kind": "text",
+          "title": "Three problems, three different questions",
+          "text": "Is the same fact stored unnecessarily more than once? Redundancy. Do its copies disagree? Inconsistency. Must a program change when the file layout changes? Dependency. The next lesson shows how a database helps.",
+          "uz": "Takror saqlanganmi — redundancy. Nusxalar farqlanib qolganmi — inconsistency. Fayl tuzilishi o‘zgarsa dastur ham o‘zgaradimi — dependency. Uchalasini bitta muammo deb yodlamang.",
+          "remember": ""
+        }
+      ],
       "worked": {
         "kind": "written",
-        "prompt": "Using the Student table, explain what FirstName, Noor and the complete S1276 row represent.",
-        "answer": "FirstName is a field or attribute. Noor is a value of that attribute. The entire S1276 row is one record or tuple representing a student.",
-        "criteria": [
-          "Identify FirstName as a field/attribute.",
-          "Identify Noor as a value.",
-          "Identify the S1276 row as a record/tuple."
-        ]
+        "prompt": "The office has Noor’s new address, but the library has the old address. What went wrong?",
+        "answer": "The copies disagree: data inconsistency. Keeping two copies created the risk: data redundancy. Updating only one copy caused the disagreement.",
+        "criteria": []
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "What does the complete row for S1299 represent?",
+          "prompt": "Two address copies now disagree. What is this?",
           "options": [
-            "One attribute",
-            "One tuple / record",
-            "One table"
+            "Data redundancy only",
+            "Data inconsistency",
+            "Data dependency"
           ],
           "correct": 1,
-          "why": "A row stores one instance of an entity."
+          "why": "Inconsistency means the values disagree. Redundancy means storing unnecessary copies."
         },
         {
-          "kind": "written",
-          "prompt": "A school wants to store teachers. Name the entity and two possible attributes.",
-          "answer": "Teacher is an entity. Possible attributes include LicenceNumber and TeacherName.",
-          "criteria": [
-            "Name the entity Teacher.",
-            "Give two sensible named attributes."
-          ]
+          "kind": "choice",
+          "prompt": "A file’s field order changes and the program must change. What is this?",
+          "options": [
+            "Data dependency",
+            "Referential integrity",
+            "A new record"
+          ],
+          "correct": 0,
+          "why": "The program depends on the file layout."
         }
       ],
       "recap": [
-        "One table contains rows and columns.",
-        "One row = record = tuple.",
-        "A column name = field = attribute; a cell contains a value.",
-        "An entity is the thing about which we store data."
+        "Redundancy: repeated facts. Inconsistency: conflicting facts."
       ],
-      "mistake": "Noor is a value, not an attribute. FirstName is the attribute.",
-      "next": "Next, see why a student needs an identifier even when two students share the same name.",
-      "visual": "table",
+      "mistake": "Repeated data is redundancy even before any copy becomes incorrect. Inconsistency occurs when copies disagree.",
+      "next": "Next: Connect two small tables.",
+      "visual": "files",
+      "terms": [],
+      "details": [
+        {
+          "kind": "table",
+          "title": "Two files about the same student",
+          "headers": [
+            "Attendance file",
+            "Exam file"
+          ],
+          "rows": [
+            [
+              "StudentID: S1276",
+              "StudentID: S1276"
+            ],
+            [
+              "Name: Noor Baig",
+              "Name: Noor Baig"
+            ],
+            [
+              "ClassID: 7A",
+              "ClassID: 7B"
+            ]
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "First, notice the duplicate",
+          "text": "Both files describe the same student. StudentID, name and ClassID were copied. The ClassID values now disagree. A record is one student's complete row; a field stores one kind of fact, such as ClassID.",
+          "uz": "Bir o‘quvchi haqidagi ma’lumot ikki joyga yozilgan. ClassID qiymatlari turlicha bo‘lib qolgan."
+        },
+        {
+          "kind": "table",
+          "title": "Three names for three different problems",
+          "headers": [
+            "Term",
+            "What it means HERE"
+          ],
+          "rows": [
+            [
+              "Data redundancy",
+              "The same student facts are stored in both files."
+            ],
+            [
+              "Data inconsistency",
+              "One file says 7A and another says 7B."
+            ],
+            [
+              "Data dependency",
+              "A program expects fields in a particular order or structure; changing it may require changing the program."
+            ]
+          ]
+        },
+        {
+          "kind": "steps",
+          "title": "What happened? Read the cause, then the effect",
+          "items": [
+            {
+              "title": "Copy",
+              "text": "The school stores Noor's details in two separate files."
+            },
+            {
+              "title": "Change",
+              "text": "A staff member changes ClassID in Attendance only."
+            },
+            {
+              "title": "Result",
+              "text": "Exam still shows the old class. This is inconsistency caused by duplicated data."
+            }
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "A program expects a particular structure",
+          "text": "A file is a collection of data. It may contain records, each made of fields about one thing. Records can have fixed or variable length; some carry structural information such as field count or record length. A program must know how to read that structure. If it changes, another program using it may need rewriting.",
+          "uz": "File ichidagi field tartibi yoki uzunligi o‘zgarsa, eski tartibni kutayotgan dastur ma’lumotni noto‘g‘ri o‘qishi mumkin."
+        }
+      ],
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Activity 8A adaptation: Payroll stores staff number 84 after an update; Sales still stores 42. Name the immediate problem and the underlying duplication problem.",
+          "answer": "The two files now disagree: data inconsistency. Storing the staff number twice is data redundancy. A changed field position would instead illustrate data dependency.",
+          "criteria": [
+            "Name inconsistency.",
+            "Explain the conflicting values.",
+            "Distinguish redundancy from dependency."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "The two files still have identical copies of Noor's address. What problem already exists?",
+            "options": [
+              "Data redundancy",
+              "Data inconsistency",
+              "Referential integrity"
+            ],
+            "correct": 0,
+            "why": "Unnecessary copies are redundancy even before they disagree."
+          },
+          {
+            "kind": "written",
+            "prompt": "The Exam program stops reading correctly after a new column is inserted into its file. Name the limitation and explain why it happened.",
+            "answer": "Data dependency. The program expects a particular record structure, so inserting a column can cause it to read the wrong field.",
+            "criteria": [
+              "Name data dependency.",
+              "Connect the error to the changed file structure."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "h8-rewrite-v1-02",
+      "number": 3,
+      "section": "8.1",
+      "title": "Connect two small tables",
+      "subtitle": "Find a student’s room without copying class details.",
+      "pages": [
+        196,
+        198,
+        199
+      ],
+      "sourceRefs": [
+        "8.1.2",
+        "Figure 8.2"
+      ],
+      "objectives": [
+        "Define database and relational database.",
+        "Match the database approach to the three file-based limitations.",
+        "Explain data independence without claiming that every change is harmless."
+      ],
+      "hook": "What if Payroll and Sales read the same staff record?",
+      "blocks": [
+        {
+          "kind": "text",
+          "title": "Keep one controlled student record",
+          "text": "Instead of each office keeping its own address file, both applications can read the same student record. Update Noor’s address once; both see the new value. A database is an organised collection of data that applications can access.",
+          "uz": "Maktab va kutubxona alohida manzil nusxalarini saqlash o‘rniga bitta boshqariladigan yozuvdan foydalanadi. Manzil bir marta yangilanadi. Database — tartiblangan, dasturlar foydalanishi mumkin bo‘lgan ma’lumotlar to‘plami.",
+          "remember": ""
+        },
+        {
+          "kind": "table",
+          "title": "Students still need their own table",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "7A"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "7B"
+            ],
+            [
+              "S1299",
+              "Tahir",
+              "7A"
+            ]
+          ],
+          "text": "The Student table answers: who is the student, and which class are they in? It does not need to store the classroom address in every row.",
+          "uz": "Bu jadval o‘quvchining kimligini va qaysi sinfga tegishliligini saqlaydi. Sinfxona joylashuvini har bir o‘quvchi qatoriga qayta yozish shart emas."
+        },
+        {
+          "kind": "table",
+          "title": "Class facts belong in a Class table",
+          "headers": [
+            "ClassID",
+            "Location"
+          ],
+          "rows": [
+            [
+              "7A",
+              "Room 12"
+            ],
+            [
+              "7B",
+              "Room 14"
+            ]
+          ],
+          "text": "To find Noor’s room, read 7A from Noor’s row, then find 7A here. The answer is Room 12. ClassID connects the two tables. A relational database stores related data in tables linked by key values.",
+          "uz": "Noorning qatoridan 7A ni oldik. Class jadvalidan 7A ni topdik: xona — Room 12. Shu mos qiymat orqali jadvallar bog‘landi. Bunday jadvallardan tuzilgan baza relational database deyiladi.",
+          "remember": "Noor → 7A → Room 12."
+        },
+        {
+          "kind": "text",
+          "title": "What if 7A moves to Room 20?",
+          "text": "Change Location once in the Class table. Noor and Tahir still have ClassID 7A, so both now link to Room 20. Repeating 7A in Student is useful: it records class membership. Repeating every class detail would be unnecessary.",
+          "uz": "Faqat Class jadvalidagi 7A xonasini Room 20 ga almashtiramiz. Noor va Tahirning sinfi 7A bo‘lib qoladi. 7A takrorlanishi kerak: u o‘quvchining sinfini bildiradi. Xonaning manzilini qayta-qayta saqlash esa kerak emas.",
+          "remember": ""
+        },
+        {
+          "kind": "text",
+          "title": "The programs no longer read raw field positions",
+          "text": "Database management software handles storage and access. Applications request named data instead of managing their own file layouts. This reduces data dependency. A program that needs a deleted field may still need changing.",
+          "uz": "Ma’lumotni saqlash va olish ishini maxsus boshqaruv dasturi bajaradi. Ilova o‘z faylidagi ustun o‘rniga qattiq bog‘lanmaydi. Lekin ilovaga kerak bo‘lgan ustun o‘chirib yuborilsa, ilovani tuzatish baribir zarur bo‘lishi mumkin.",
+          "remember": ""
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Tahir belongs to 7A. Class 7A now has Location = Room 20. Where does Tahir go?",
+        "answer": "Read Tahir’s ClassID: 7A. Find 7A in Class. Read its Location: Room 20. No change to Tahir’s own row was needed.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "7A moves room. Which value should change?",
+          "options": [
+            "Location in the Class row for 7A",
+            "Every student’s name",
+            "Every student’s StudentID"
+          ],
+          "correct": 0,
+          "why": "Location is stored once with the class. Student rows keep their class link."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Why is 7A allowed to repeat in Student?",
+          "options": [
+            "It stores every class detail",
+            "It records that several students belong to 7A",
+            "Every value in a database must repeat"
+          ],
+          "correct": 1,
+          "why": "Repeated ClassID values express membership without repeating all class details."
+        }
+      ],
+      "recap": [
+        "Noor → 7A → Room 12."
+      ],
+      "mistake": "“All data is stored exactly once” is too absolute. Foreign-key values repeat legitimately.",
+      "next": "Next: Identify a row, then link it.",
+      "visual": "shared",
       "terms": [
-        "Table",
-        "Record",
-        "Field",
-        "Tuple",
-        "Entity",
-        "Attribute"
-      ]
+        "Database",
+        "Relational database"
+      ],
+      "details": [
+        {
+          "kind": "table",
+          "title": "One source, two applications",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "SecondName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "Baig",
+              "7A"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "Sayed",
+              "7B"
+            ],
+            [
+              "S1299",
+              "Tahir",
+              "Hassan",
+              "7A"
+            ]
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "Now the meaning",
+          "text": "A database is an organised collection of data that different applications can access. Attendance and Exams can read the same Student row. A relational database uses related tables to organise facts; the connections between tables will be explained later.",
+          "uz": "Endi ikkita dastur ma’lumotni alohida nusxalardan emas, bitta umumiy bazadan oladi."
+        },
+        {
+          "kind": "steps",
+          "title": "Change one fact",
+          "items": [
+            {
+              "title": "Before",
+              "text": "Noor belongs to 7A in the shared Student table."
+            },
+            {
+              "title": "Update",
+              "text": "An authorised user changes that one ClassID value to 7B."
+            },
+            {
+              "title": "After",
+              "text": "Attendance and Exams both read the new value from the same row."
+            }
+          ]
+        },
+        {
+          "kind": "table",
+          "title": "Old problem → database benefit",
+          "headers": [
+            "Earlier problem",
+            "What improves"
+          ],
+          "rows": [
+            [
+              "Redundancy",
+              "Avoid keeping a separate copy of each student in every application."
+            ],
+            [
+              "Inconsistency",
+              "Controlled changes become available to all authorised applications."
+            ],
+            [
+              "Data dependency",
+              "The DBMS provides structured access instead of each program owning its own file layout."
+            ]
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "One sensible limit",
+          "text": "Data independence does not mean every possible database change is harmless. A program that still needs a deleted column may need changing. The database approach reduces this dependency.",
+          "uz": ""
+        }
+      ],
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Amina’s address changes. Describe the update in the shared database approach.",
+          "answer": "Update the one staff record. Both authorised applications retrieve the same new address, reducing the risk of conflicting copies.",
+          "criteria": [
+            "One controlled record.",
+            "Both applications access the change.",
+            "Consistency improves."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "Which setup best avoids two conflicting ClassID values?",
+            "options": [
+              "One shared Student table read by both apps",
+              "Two separate copies that staff must update manually",
+              "A third independent copy"
+            ],
+            "correct": 0,
+            "why": "One controlled source reduces the risk of conflicting updates."
+          },
+          {
+            "kind": "written",
+            "prompt": "Give one reason why the database approach is better than separate student files.",
+            "answer": "The same student details need not be stored separately for every application, reducing redundant data and the risk of inconsistent updates.",
+            "criteria": [
+              "Name one clear benefit.",
+              "Explain the consequence for the school."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-04",
       "number": 4,
       "section": "8.1",
-      "title": "Identify students and connect classes",
-      "subtitle": "Learn keys through the problem of two students with the same name.",
+      "title": "Identify a row, then link it",
+      "subtitle": "Primary keys first; foreign and composite keys next.",
       "pages": [
         197,
         200,
@@ -703,12 +1040,135 @@
         "Composite key in Table 8.9"
       ],
       "objectives": [
-        "Explain candidate key, primary key and secondary key.",
-        "Use foreign keys to connect Student and Class.",
-        "Recognise composite keys, referential integrity and indexes."
+        "Distinguish all five key types used in this chapter.",
+        "Check referential integrity.",
+        "Explain what an index does."
       ],
-      "hook": "Two students are called Noor Baig. Which one should the computer update?",
+      "hook": "Two students can share a name. What should identify each student?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Two students can have the same name",
+          "headers": [
+            "StudentID",
+            "FirstName"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor"
+            ],
+            [
+              "S1300",
+              "Noor"
+            ]
+          ],
+          "text": "“Find Noor” is ambiguous. “Find S1276” identifies exactly one row. We choose StudentID as the primary key: the identifier for each row. It must be unique and cannot be missing.",
+          "uz": "“Noorni top” desak, ikki qator chiqadi. “S1276 ni top” desak, bittasi chiqadi. Qatorni aniq ajratish uchun tanlangan kalit primary key deyiladi. U takrorlanmaydi va bo‘sh bo‘lmaydi.",
+          "remember": "Primary key: which exact row?"
+        },
+        {
+          "kind": "text",
+          "title": "Choose from the possible identifiers",
+          "text": "Suppose the school guarantees that StudentID and SchoolEmail are each unique. Either could identify a student: each is a candidate key. Choose StudentID as the primary key. Hodder calls the unused candidate SchoolEmail a secondary key. A candidate key uses only the attributes needed for uniqueness.",
+          "uz": "Maktab StudentID ham, SchoolEmail ham takrorlanmasligini kafolatlasa, ikkalasi candidate key bo‘la oladi. Ulardan StudentID ni asosiy kalit qilib tanlaymiz. Hodderdagi atama bo‘yicha qolgan SchoolEmail — secondary key. Ismlar bir namunada farqli ko‘ringani ularni kalit qilmaydi.",
+          "remember": ""
+        },
+        {
+          "kind": "text",
+          "title": "A foreign key points to a related row",
+          "text": "Student.ClassID means the ClassID column in Student. It points to Class.ClassID, the primary key in Class. This makes Student.ClassID a foreign key. The link records a relationship: a student belongs to a class. Many students may have the same ClassID.",
+          "uz": "Student.ClassID — Student jadvalidagi ClassID ustuni degani. U Class jadvalidagi 7A kabi kalitga murojaat qiladi: shuning uchun foreign key. Class jadvalida 7A bir marta, Student jadvalida esa ko‘p marta kelishi mumkin.",
+          "remember": "Primary key identifies this row. Foreign key links to another table."
+        },
+        {
+          "kind": "text",
+          "title": "Can a student join class 9Z?",
+          "text": "Only 7A and 7B exist below. Try choosing 9Z. A supplied foreign-key value must match an existing referenced key. This rule is referential integrity: a link must not point to a missing class.",
+          "uz": "Quyida faqat 7A va 7B mavjud. 9Z ni tanlab ko‘ring: topilmaydi. Foreign key mavjud yozuvga bog‘lanishi shart. Referential integrity shu moslikni saqlaydi.",
+          "remember": "",
+          "visual": "keys"
+        },
+        {
+          "kind": "table",
+          "title": "Sometimes one identifier needs two columns",
+          "headers": [
+            "StudentID",
+            "SubjectName"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths"
+            ],
+            [
+              "S1276",
+              "History"
+            ],
+            [
+              "S1277",
+              "Maths"
+            ]
+          ],
+          "text": "S1276 appears twice. Maths appears twice. But each student–subject pair is different. If a student takes each subject once, (StudentID, SubjectName) identifies a row. This is a composite key: one key made from more than one attribute.",
+          "uz": "StudentID yolg‘iz yetmaydi: S1276 ikki marta bor. SubjectName yolg‘iz yetmaydi: Maths ikki marta bor. Ikkalasini birga olsak, aniq tanlovni topamiz. Bu — composite key."
+        },
+        {
+          "kind": "text",
+          "title": "An index helps us find rows faster",
+          "text": "A book index helps you find a topic without reading every page. A database index is an extra lookup structure that can help locate rows, for example by ClassID. It can contain repeated values. It speeds some searches but needs storage and updates when data changes.",
+          "uz": "Kitob oxiridagi ko‘rsatkich mavzuni tez topishga yordam beradi. Database index ham qatorni topish uchun yordamchi tuzilma. Index — qatorning primary key ekanini yoki boshqa jadval bilan bog‘langanini o‘z-o‘zidan bildirmaydi.",
+          "remember": ""
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Which key identifies Noor’s student row, and which key tells us Noor’s class?",
+        "answer": "StudentID identifies the row: it is Student’s primary key. ClassID links that row to Class: it is a foreign key in Student.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Class contains 7A and 7B. Which new Student.ClassID violates referential integrity?",
+          "options": [
+            "7A",
+            "7B",
+            "9Z"
+          ],
+          "correct": 2,
+          "why": "9Z has no matching parent key in Class."
+        },
+        {
+          "kind": "choice",
+          "prompt": "In StudentSubject, why use (StudentID, SubjectName) as the key?",
+          "options": [
+            "Both columns must separately be unique",
+            "Either column alone always identifies the row",
+            "Each column can repeat, but the pair identifies one choice"
+          ],
+          "correct": 2,
+          "why": "S1276 can take several subjects and Maths can have several students. The pair identifies one choice."
+        }
+      ],
+      "recap": [
+        "Primary key: which exact row?",
+        "Primary key identifies this row. Foreign key links to another table."
+      ],
+      "mistake": "A foreign key is not automatically unique. “Secondary key” can have other meanings elsewhere; this course uses Hodder’s definition.",
+      "next": "Next: One-to-many, step by step.",
+      "visual": "keys",
+      "terms": [
+        "Candidate key",
+        "Primary key",
+        "Secondary key",
+        "Foreign key",
+        "Relationship",
+        "Referential integrity",
+        "Index",
+        "Composite key"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "Names can repeat. Student IDs cannot.",
@@ -790,65 +1250,54 @@
               "An index on ClassID and SecondName can speed up searching and sorting student lists. It does not replace the primary key."
             ]
           ]
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Two students have the same name but StudentID values S1276 and S1302. Explain how the database updates the correct student and finds their class.",
-        "answer": "Use StudentID as the primary key to select the correct student. The student's ClassID is a foreign key referencing the matching primary key in Class.",
-        "criteria": [
-          "Explain why StudentID identifies a single student.",
-          "Explain how ClassID refers to the Class table."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "A new Student row has ClassID 9Z, but Class contains only 7A and 7B. What goes wrong?",
-          "options": [
-            "Candidate keys become composite",
-            "Referential integrity is violated",
-            "An index is deleted"
-          ],
-          "correct": 1,
-          "why": "A non-null foreign key must match an existing referenced key."
         },
         {
-          "kind": "written",
-          "prompt": "A student chooses both Maths and History. Why can (StudentID, SubjectName) be a composite key in StudentSubject?",
-          "answer": "The same StudentID can appear in several choices, and the same SubjectName can belong to several students. The pair identifies one student–subject choice uniquely.",
-          "criteria": [
-            "Explain why StudentID alone is not enough.",
-            "Explain why the combination identifies the row."
-          ]
+          "kind": "text",
+          "title": "The Elements example",
+          "text": "Hodder’s small Elements table treats Symbol, Name and Atomic Weight as unique candidate keys, chooses Symbol as the primary key, and calls the others secondary keys. That is the example’s assumption. In a real design, validate uniqueness and stability rather than inferring them from a short sample.",
+          "uz": ""
         }
       ],
-      "recap": [
-        "Primary key identifies one row uniquely.",
-        "Candidate keys are possible minimal identifiers; an alternative can be a secondary key in this book.",
-        "Foreign key points to a key in another table.",
-        "Composite key uses multiple attributes together; an index speeds up lookup."
-      ],
-      "mistake": "Foreign keys are not required to be unique in the child table. Many Student rows can reference ClassID 7A.",
-      "next": "Next, draw the relationships that these key values create.",
-      "visual": "keys",
-      "terms": [
-        "Candidate key",
-        "Primary key",
-        "Secondary key",
-        "Foreign key",
-        "Relationship",
-        "Referential integrity",
-        "Index",
-        "Composite key"
-      ]
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "StudentSubject contains (S1276, Maths), (S1276, History) and (S1277, Maths). Why use a composite primary key?",
+          "answer": "StudentID repeats and SubjectName repeats, so neither alone identifies a choice. The pair uniquely identifies each student–subject choice, assuming a student takes each subject once.",
+          "criteria": [
+            "Both single columns can repeat.",
+            "The pair is unique under the rule."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "A new Student row has ClassID 9Z, but Class contains only 7A and 7B. What goes wrong?",
+            "options": [
+              "Candidate keys become composite",
+              "Referential integrity is violated",
+              "An index is deleted"
+            ],
+            "correct": 1,
+            "why": "A non-null foreign key must match an existing referenced key."
+          },
+          {
+            "kind": "written",
+            "prompt": "A student chooses both Maths and History. Why can (StudentID, SubjectName) be a composite key in StudentSubject?",
+            "answer": "The same StudentID can appear in several choices, and the same SubjectName can belong to several students. The pair identifies one student–subject choice uniquely.",
+            "criteria": [
+              "Explain why StudentID alone is not enough.",
+              "Explain why the combination identifies the row."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-05",
       "number": 5,
       "section": "8.1",
-      "title": "Draw the school relationships",
-      "subtitle": "Start with one class and its students, then expand the model.",
+      "title": "One-to-many, step by step",
+      "subtitle": "Count both directions before drawing a relationship.",
       "pages": [
         202,
         203,
@@ -862,12 +1311,150 @@
         "Activity 8C"
       ],
       "objectives": [
-        "Read a simple entity-relationship (E-R) diagram.",
-        "Distinguish one-to-many and many-to-many relationships.",
-        "Explain mandatory and optional participation with the school example."
+        "Read 1:1, 1:m, m:1 and m:m relationships.",
+        "Distinguish optional from mandatory participation.",
+        "Resolve a many-to-many relationship with a linking table."
       ],
-      "hook": "Class 7A contains Noor and Tahir. What does 'one-to-many' mean here?",
+      "hook": "One class has many students. Does that mean one student has many classes in this tutor-group model?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Count the link in both directions",
+          "headers": [
+            "Start with…",
+            "Ask…",
+            "Answer in this school"
+          ],
+          "rows": [
+            [
+              "One class",
+              "How many students?",
+              "Many students"
+            ],
+            [
+              "One student",
+              "How many tutor classes?",
+              "One class"
+            ]
+          ],
+          "text": "A relationship describes how entities are connected. Here one Class has many Students: a one-to-many relationship. Read the same link backwards: many Students belong to one Class.",
+          "uz": "Bitta sinfda nechta o‘quvchi? Ko‘p. Bitta o‘quvchi nechta asosiy sinfga tegishli? Bu misolda bitta. Demak Class dan Student ga — one-to-many. Yo‘nalishni almashtirsak — many-to-one."
+        },
+        {
+          "kind": "text",
+          "title": "An E-R diagram draws these rules",
+          "text": "An entity-relationship (E-R) diagram represents entities and the links between them. Label the Class–Student link “one” at Class and “many” at Student. Cardinality tells us how many instances may participate. For example, one student has exactly one tutor class in this model.",
+          "uz": "E-R diagram entity lar va ularning aloqasini chizib ko‘rsatadi. Class tomoniga 1, Student tomoniga many qo‘yiladi. Cardinality — bog‘lanishda nechta obyekt qatnashishi mumkinligi.",
+          "remember": "",
+          "visual": "relationship"
+        },
+        {
+          "kind": "table",
+          "title": "Can there be none?",
+          "headers": [
+            "Notation",
+            "Plain meaning",
+            "Rule"
+          ],
+          "rows": [
+            [
+              "0..1",
+              "None or one",
+              "A desk may be empty or assigned to one employee."
+            ],
+            [
+              "1..1",
+              "Exactly one",
+              "A student must have one tutor class."
+            ],
+            [
+              "0..many",
+              "None, one or several",
+              "A new class can initially have no students."
+            ],
+            [
+              "1..many",
+              "At least one",
+              "An active team must have at least one player."
+            ]
+          ],
+          "text": "The first number is the minimum. Zero means optional; one means required. The second part is the maximum. Crow’s-foot diagrams use a circle for zero, a bar for one and a fork for many.",
+          "uz": "Birinchi son — eng kam miqdor. 0 bo‘lsa qatnashmasligi ham mumkin, 1 bo‘lsa kamida bittasi shart. Oxirgi belgi — eng ko‘p miqdor. Crow’s-foot chizmada doira 0, chiziq 1, uch shox esa many ni bildiradi."
+        },
+        {
+          "kind": "table",
+          "title": "Students and subjects work differently",
+          "headers": [
+            "StudentID",
+            "SubjectName"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths"
+            ],
+            [
+              "S1276",
+              "History"
+            ],
+            [
+              "S1277",
+              "Maths"
+            ]
+          ],
+          "text": "Noor has several subjects. Maths has several students. That is many-to-many. Store each pair in StudentSubject. Now Student → StudentSubject is one-to-many, and Subject → StudentSubject is one-to-many.",
+          "uz": "Bitta o‘quvchi ko‘p fan oladi; bitta fanni ko‘p o‘quvchi oladi. O‘rtada StudentSubject jadvali har bir juftlikni saqlaydi. Natijada ikkita one-to-many aloqa hosil bo‘ladi."
+        },
+        {
+          "kind": "text",
+          "title": "Add the teacher using the same idea",
+          "text": "Give each teacher a unique LicenceNumber. Store that value in Class to say who teaches the class. In this model, each class has one tutor; a teacher may have zero or several classes. Teacher.LicenceNumber is the primary key, and Class.LicenceNumber is a foreign key.",
+          "uz": "O‘qituvchi uchun LicenceNumber yagona raqam bo‘lsin. Sinfga qaysi o‘qituvchi biriktirilganini Class ichidagi shu raqam orqali yozamiz. Yangi o‘qituvchida hali sinf bo‘lmasligi mumkin: uning sinflari 0..many.",
+          "remember": ""
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Noor and Ahmad take Maths; Noor also takes History. Why do we need StudentSubject?",
+        "answer": "One student has several subjects and one subject has several students. StudentSubject stores the three pairs separately, linking each student to each choice.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which structure implements Student ↔ Subject many-to-many membership?",
+          "options": [
+            "Put all subject names in one Student cell",
+            "Use StudentSubject(StudentID, SubjectName)",
+            "Make FirstName the linking key"
+          ],
+          "correct": 1,
+          "why": "The linking table stores one pair per row and preserves both one-to-many links."
+        },
+        {
+          "kind": "choice",
+          "prompt": "A new class can have no students yet. What is its student count range?",
+          "options": [
+            "Exactly 1",
+            "0..many",
+            "1..1"
+          ],
+          "correct": 1,
+          "why": "Zero is permitted, and later the class can have several students."
+        }
+      ],
+      "recap": [
+        "Relationship direction matters.",
+        "Minimum participation tells you whether a link is optional.",
+        "A linking table resolves many-to-many membership."
+      ],
+      "mistake": "Do not infer minimum participation from “many” alone. A newly created class may allow zero students.",
+      "next": "Next: 1NF: remove the subject list.",
+      "visual": "er",
+      "terms": [
+        "Entity-relationship (E-R) model or E-R diagram"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "First, say the relationship in words",
@@ -945,59 +1532,55 @@
           "title": "Optional and mandatory must follow the scenario",
           "text": "Mandatory means a related record is required; optional means it may be absent. These are assumptions of the school model, not universal rules for every school database. Hodder Figure 8.3 shows the initial Class–Student relationship; Activity 8B adds Teacher.",
           "uz": ""
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Draw or describe the simplest E-R relationship between Class and Student, and state where the foreign key belongs.",
-        "answer": "Class (ClassID PK) has a one-to-many relationship with Student (StudentID PK, ClassID FK). Put ClassID as a foreign key in Student.",
-        "criteria": [
-          "Identify Class and Student as entities.",
-          "State one-to-many.",
-          "Place ClassID FK in Student."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "One class has 26 students. One student belongs to one class. Which relationship describes Class → Student?",
-          "options": [
-            "One-to-one",
-            "One-to-many",
-            "Many-to-many"
-          ],
-          "correct": 1,
-          "why": "A single Class row can be referenced by many Student rows."
         },
         {
-          "kind": "written",
-          "prompt": "A student can study several subjects, and each subject can have many students. Which extra table should be created and why?",
-          "answer": "Create StudentSubject with StudentID and SubjectName to store each student–subject pairing, resolving a many-to-many relationship.",
-          "criteria": [
-            "Recognise many-to-many.",
-            "Name the StudentSubject linking table and its purpose."
-          ]
+          "kind": "text",
+          "title": "Explore the wider school model",
+          "text": "Start with the class–student link, then open the five-table diagram when you are ready.",
+          "visual": "er"
         }
       ],
-      "recap": [
-        "E-R diagram = entities plus the relationships between them.",
-        "Cardinality describes how many related rows are allowed.",
-        "Class → Student is one-to-many in our school model.",
-        "A linking table resolves Student ↔ Subject many-to-many."
-      ],
-      "mistake": "The number of students in a class today does not define cardinality. Cardinality describes the relationship rules, not the current row count.",
-      "next": "Next, remove repeated subject lists from one student row.",
-      "visual": "er",
-      "terms": [
-        "Entity-relationship (E-R) model or E-R diagram"
-      ]
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Draw the teacher–class relationship and explain optionality for a newly recruited teacher with no class yet.",
+          "answer": "TEACHER(LicenceNumber PK) → CLASS(ClassID PK, LicenceNumber FK). Each class has exactly one tutor; a teacher may have zero or many classes. The class end is 0..many when read from one teacher.",
+          "criteria": [
+            "PK/FK link.",
+            "One tutor per class.",
+            "Zero classes permitted for the teacher."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "One class has 26 students. One student belongs to one class. Which relationship describes Class → Student?",
+            "options": [
+              "One-to-one",
+              "One-to-many",
+              "Many-to-many"
+            ],
+            "correct": 1,
+            "why": "A single Class row can be referenced by many Student rows."
+          },
+          {
+            "kind": "written",
+            "prompt": "A student can study several subjects, and each subject can have many students. Which extra table should be created and why?",
+            "answer": "Create StudentSubject with StudentID and SubjectName to store each student–subject pairing, resolving a many-to-many relationship.",
+            "criteria": [
+              "Recognise many-to-many.",
+              "Name the StudentSubject linking table and its purpose."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-06",
       "number": 6,
       "section": "8.1",
-      "title": "Normalisation, step 1: reach 1NF",
-      "subtitle": "Fix one repeated subject list before dealing with harder dependencies.",
+      "title": "1NF: remove the subject list",
+      "subtitle": "Move one repeating group, keeping the student link.",
       "pages": [
         203,
         204,
@@ -1008,12 +1591,139 @@
         "Tables 8.7–8.9"
       ],
       "objectives": [
-        "Explain why repeated groups are problematic.",
-        "Convert a repeating subject list into 1NF rows.",
-        "Identify the composite key of the subject-choice table."
+        "Identify repeating groups and update/deletion problems.",
+        "Convert the school example to 1NF.",
+        "Choose keys for the resulting tables."
       ],
-      "hook": "Noor studies Maths and History. Is 'Maths, History' one value or two subject choices?",
+      "hook": "Noor studies Maths, History and Geography. Should all three be stored in one SubjectName cell?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Noor takes two subjects. Where should they go?",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "Subjects"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "Maths, History"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "Maths"
+            ]
+          ],
+          "text": "The Subjects cell contains a list. Finding every Maths student or adding another subject becomes awkward. Adding Subject1, Subject2 and Subject3 columns creates another repeating group.",
+          "uz": "Noorning Subjects katagida ikkita fan bor. Bu ro‘yxatdan Maths olganlarni topish yoki yangi fan qo‘shish noqulay. Subject1, Subject2 kabi ustunlar ham takrorlanuvchi guruh hosil qiladi."
+        },
+        {
+          "kind": "text",
+          "title": "Normalisation gives the facts a better home",
+          "text": "Normalisation organises tables to reduce unnecessary repetition and the problems it causes. We do it in stages. First normal form (1NF) requires single values and no repeating groups. Start by separating the repeated subject choices.",
+          "uz": "Normalisation — jadvallarni ortiqcha takrorlash va undan keladigan muammolarni kamaytiradigan qilib tartiblash. Birinchi qadam 1NF: har katakda bitta qiymat, takrorlanuvchi guruhlar yo‘q. Hozir faqat shu qadamni bajaramiz.",
+          "remember": ""
+        },
+        {
+          "kind": "table",
+          "title": "Keep each student once in Student",
+          "headers": [
+            "StudentID",
+            "FirstName"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor"
+            ],
+            [
+              "S1277",
+              "Ahmad"
+            ]
+          ],
+          "text": "Keep the student’s own facts here. StudentID remains the primary key. Noor’s name does not need a new copy whenever Noor adds a subject.",
+          "uz": "O‘quvchining o‘ziga tegishli ma’lumotlari Student da qoladi. Fan qo‘shilgani uchun Noorning ismini yana bir qatorga ko‘chirmaymiz."
+        },
+        {
+          "kind": "table",
+          "title": "Put each subject choice on its own row",
+          "headers": [
+            "StudentID",
+            "SubjectName",
+            "SubjectTeacher"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "S1276",
+              "History",
+              "Miss Wu"
+            ],
+            [
+              "S1277",
+              "Maths",
+              "Mr Yee"
+            ]
+          ],
+          "text": "This StudentSubject table has one subject per row. StudentID preserves which student made the choice. The pair (StudentID, SubjectName) is its key. Both tables now have single values and no repeating groups.",
+          "uz": "Har bir fan tanlovi alohida qatorga chiqdi. StudentID kim tanlaganini yo‘qotmaslik uchun saqlandi. Qatorni StudentID va SubjectName birga aniqlaydi. Hozircha Mr Yee takrorlanmoqda — bu keyingi bosqichda tuzatiladi."
+        },
+        {
+          "kind": "text",
+          "title": "Add one subject by adding one row",
+          "text": "If Noor takes Science, add (S1276, Science, Miss Yo) to StudentSubject. Do not add a Subject3 column. 1NF fixes the repeating group; it does not yet remove every repeated fact.",
+          "uz": "Noor Science olsa, StudentSubject ga bitta yangi qator qo‘shamiz. Yangi ustun ochmaymiz. 1NF ga o‘tish barcha ortiqcha takrorlanish tugadi degani emas.",
+          "remember": "1NF: one value per cell; no repeating groups."
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Noor adds Science after the table is in 1NF. What changes?",
+        "answer": "Add one StudentSubject row: (S1276, Science, Miss Yo). Keep Noor’s existing Student row. Do not add a Subject3 column.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which design still breaks 1NF?",
+          "options": [
+            "One StudentSubject row per choice",
+            "Subject1, Subject2, Subject3 columns for an arbitrary list of choices",
+            "StudentID repeating in the child table"
+          ],
+          "correct": 1,
+          "why": "A fixed series of subject columns is a repeating group; repeating an FK across separate rows is allowed."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Noor adds a fourth subject. In the 1NF design, what do you add?",
+          "options": [
+            "A Subject4 column",
+            "A new StudentSubject row linked to S1276",
+            "A second copy of Noor’s whole Student row"
+          ],
+          "correct": 1,
+          "why": "Each subject choice is its own row. StudentID preserves who made the choice."
+        }
+      ],
+      "recap": [
+        "1NF: one value per cell; no repeating groups."
+      ],
+      "mistake": "1NF does not mean every value is unique. It means no repeating groups and atomic attribute values.",
+      "next": "Next: 2NF and 3NF: where does each fact belong?.",
+      "visual": "normalise",
+      "terms": [
+        "Normalisation",
+        "First normal form (1NF)"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "Before: a repeating group (UNF)",
@@ -1097,60 +1807,55 @@
           "title": "What 1NF has NOT solved yet",
           "text": "The teacher for Maths still appears on multiple rows. 1NF removes repeating groups, but other dependencies remain. They are addressed by 2NF and 3NF in the next lesson.",
           "uz": ""
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Convert S1299 | Tahir | Geography, History into 1NF subject-choice rows. Write the two rows.",
-        "answer": "S1299 | Geography\nS1299 | History\nEach row holds one student–subject choice.",
-        "criteria": [
-          "Give one row for Geography.",
-          "Give one row for History.",
-          "Repeat S1299 to preserve the student link."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "Which SubjectName entry violates the no-repeating-groups rule?",
-          "options": [
-            "Maths",
-            "Maths, History, Geography",
-            "Science"
-          ],
-          "correct": 1,
-          "why": "One cell contains several separate subject choices."
         },
         {
-          "kind": "written",
-          "prompt": "Why is StudentID alone not a suitable primary key for the StudentSubject table?",
-          "answer": "A student can choose several subjects, so StudentID must repeat. The pair (StudentID, SubjectName) identifies each choice uniquely.",
-          "criteria": [
-            "Show that StudentID can repeat.",
-            "Give the composite key."
-          ]
+          "kind": "code",
+          "title": "Relations after the first step",
+          "text": "STUDENT(StudentID PK, FirstName, SecondName, DateOfBirth,\n        ClassID, Location, TeacherName, LicenceNumber,\n        Address, TeacherDateOfBirth)\nSTUDENTSUBJECT(StudentID PK/FK, SubjectName PK, SubjectTeacher)",
+          "note": "PK/FK labels are design notation, not executable SQL."
         }
       ],
-      "recap": [
-        "UNF can contain repeating groups.",
-        "1NF removes repeated groups and keeps one value for each attribute per row.",
-        "A student–subject pair can use (StudentID, SubjectName) as a composite key.",
-        "1NF is only the first step, not the final design."
-      ],
-      "mistake": "One row per subject choice does not mean we have reached 3NF. Teacher details may still be duplicated.",
-      "next": "Next, remove partial dependencies (2NF) and non-key dependencies (3NF).",
-      "visual": "normalise",
-      "terms": [
-        "Normalisation",
-        "First normal form (1NF)"
-      ]
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Noor adds Science. What is stored, and what stays unchanged?",
+          "answer": "Add (S1276, Science, Miss Yo) to StudentSubject. Do not add a new Subject4 column or a second full Student record. The StudentSubject key is (StudentID, SubjectName).",
+          "criteria": [
+            "One new child row.",
+            "No new repeating column.",
+            "Preserve StudentID and composite key."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "Which SubjectName entry violates the no-repeating-groups rule?",
+            "options": [
+              "Maths",
+              "Maths, History, Geography",
+              "Science"
+            ],
+            "correct": 1,
+            "why": "One cell contains several separate subject choices."
+          },
+          {
+            "kind": "written",
+            "prompt": "Why is StudentID alone not a suitable primary key for the StudentSubject table?",
+            "answer": "A student can choose several subjects, so StudentID must repeat. The pair (StudentID, SubjectName) identifies each choice uniquely.",
+            "criteria": [
+              "Show that StudentID can repeat.",
+              "Give the composite key."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-07",
       "number": 7,
       "section": "8.1",
-      "title": "Normalisation, steps 2 and 3: reach 3NF",
-      "subtitle": "Ask one question: what does this fact actually depend on?",
+      "title": "2NF and 3NF: where does each fact belong?",
+      "subtitle": "Separate subject facts, then class and teacher facts.",
       "pages": [
         205,
         206,
@@ -1164,12 +1869,203 @@
         "Extension 8B"
       ],
       "objectives": [
-        "Recognise a partial dependency in a composite-key table.",
-        "Explain why class and teacher details are separated in 3NF.",
-        "Show the final five-table school design from Hodder."
+        "Remove a partial dependency to reach 2NF.",
+        "Remove non-key dependencies to reach 3NF.",
+        "Transfer the method to a new scenario."
       ],
-      "hook": "Maths has the same teacher for every student. Why is that teacher name repeated?",
+      "hook": "Does the Maths teacher depend on which student takes Maths?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Start with the 1NF table you just made",
+          "headers": [
+            "StudentID",
+            "SubjectName",
+            "SubjectTeacher"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "S1277",
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "S1276",
+              "History",
+              "Miss Wu"
+            ]
+          ],
+          "text": "The key is (StudentID, SubjectName). Assume each subject has one teacher. Knowing Maths is enough to know Mr Yee; the student’s ID is not needed. SubjectTeacher depends on only part of the key. This is a partial dependency.",
+          "uz": "Kalit ikki qismli: StudentID + SubjectName. Lekin Maths o‘qituvchisini topish uchun StudentID kerak emas. Faqat SubjectName yetadi. Demak o‘qituvchi butun kalitga emas, bir qismiga bog‘liq."
+        },
+        {
+          "kind": "table",
+          "title": "2NF: move the fact that depends on only SubjectName",
+          "headers": [
+            "SubjectName (PK)",
+            "SubjectTeacher"
+          ],
+          "rows": [
+            [
+              "Maths",
+              "Mr Yee"
+            ],
+            [
+              "History",
+              "Miss Wu"
+            ]
+          ],
+          "text": "Create Subject with one teacher per subject. Remove SubjectTeacher from StudentSubject; keep the student–subject pairs there. Second normal form means 1NF with no non-key attribute depending on just part of a candidate key.",
+          "uz": "Subject jadvalida har fan o‘qituvchisini bir marta saqlaymiz. StudentSubject da esa faqat o‘quvchi–fan juftligi qoladi. 2NF uchun 1NF bo‘lishi va non-key attribute kalitning bir qismiga qaram bo‘lmasligi kerak.",
+          "remember": "2NF: a non-key fact must not depend on only part of a key.",
+          "relatedTable": {
+            "caption": "StudentSubject after the 2NF split",
+            "headers": [
+              "StudentID (PK part, FK)",
+              "SubjectName (PK part, FK)"
+            ],
+            "rows": [
+              [
+                "S1276",
+                "Maths"
+              ],
+              [
+                "S1277",
+                "Maths"
+              ],
+              [
+                "S1276",
+                "History"
+              ]
+            ]
+          }
+        },
+        {
+          "kind": "table",
+          "title": "A different problem: the classroom follows the class",
+          "headers": [
+            "StudentID (PK)",
+            "ClassID",
+            "Location"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "7A",
+              "Room 12"
+            ],
+            [
+              "S1299",
+              "7A",
+              "Room 12"
+            ],
+            [
+              "S1277",
+              "7B",
+              "Room 14"
+            ]
+          ],
+          "text": "StudentID tells us the class; ClassID tells us the room. Location therefore depends on ClassID, another non-key attribute in this table. This indirect link is a transitive dependency.",
+          "uz": "StudentID orqali sinfni bilamiz. Sinf orqali xonani bilamiz. Location o‘quvchining o‘ziga emas, ClassID ga tegishli. Bu kalitdan boshqa ustun orqali keladigan bog‘liqlik — transitive dependency."
+        },
+        {
+          "kind": "table",
+          "title": "3NF: store the room with the class",
+          "headers": [
+            "ClassID (PK)",
+            "Location"
+          ],
+          "rows": [
+            [
+              "7A",
+              "Room 12"
+            ],
+            [
+              "7B",
+              "Room 14"
+            ]
+          ],
+          "text": "Move Location into Class. Student keeps StudentID and ClassID, so the link survives. Third normal form means 2NF with no transitive dependency of a non-key attribute on a key.",
+          "uz": "Location ni Class ga ko‘chiramiz. Student da ClassID qolishi shart — aks holda o‘quvchining sinfini yo‘qotamiz. 3NF — 2NF bo‘lishi va non-key attribute ning kalitga boshqa non-key attribute orqali bog‘lanmasligi.",
+          "remember": "3NF: put class facts with Class, and student facts with Student.",
+          "relatedTable": {
+            "caption": "Student after the 3NF split",
+            "headers": [
+              "StudentID (PK)",
+              "ClassID (FK)"
+            ],
+            "rows": [
+              [
+                "S1276",
+                "7A"
+              ],
+              [
+                "S1299",
+                "7A"
+              ],
+              [
+                "S1277",
+                "7B"
+              ]
+            ]
+          }
+        },
+        {
+          "kind": "text",
+          "title": "Apply the same question to teacher details",
+          "text": "A teacher’s address and birth date depend on LicenceNumber. Store them once in Teacher. Class keeps LicenceNumber to identify its tutor; Subject keeps LicenceNumber to identify its teacher. This gives five tables: Student, Class, Teacher, Subject and StudentSubject.",
+          "uz": "O‘qituvchining manzili va tug‘ilgan sanasi LicenceNumber ga bog‘liq. Ular Teacher da saqlanadi. Class va Subject ichida shu o‘qituvchiga bog‘laydigan LicenceNumber qoladi. Endi to‘liq beshta jadval sxemasini ko‘rish mumkin.",
+          "remember": "",
+          "visual": "schema"
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Student contains StudentID, ClassID and Location. Why move Location to Class?",
+        "answer": "The room is a fact about the class. Several students in 7A repeat Room 12. Store (7A, Room 12) once in Class and keep ClassID in Student so the relationship survives.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which dependency prevents StudentSubject(StudentID, SubjectName, SubjectTeacher) from being in 2NF?",
+          "options": [
+            "(StudentID, SubjectName) identifies a row",
+            "SubjectName determines SubjectTeacher",
+            "StudentID is a foreign key"
+          ],
+          "correct": 1,
+          "why": "The non-key teacher depends on only part of the composite key."
+        },
+        {
+          "kind": "choice",
+          "prompt": "After Location moves to Class, what must Student keep?",
+          "options": [
+            "A copy of Location",
+            "All teacher details",
+            "ClassID"
+          ],
+          "correct": 2,
+          "why": "ClassID preserves the link from each student to the correct class."
+        }
+      ],
+      "recap": [
+        "2NF: a non-key fact must not depend on only part of a key.",
+        "3NF: put class facts with Class, and student facts with Student."
+      ],
+      "mistake": "Do not split tables without identifying a dependency. Normalisation follows the business rules, not just the appearance of the data.",
+      "next": "Next: Database or DBMS?.",
+      "visual": "normalise",
+      "terms": [
+        "Second normal form (2NF)",
+        "Third normal form (3NF)"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "Start with the 1NF subject choices",
@@ -1283,60 +2179,68 @@
               "text": "Does a non-key fact depend on another non-key fact? If yes, move it to the appropriate table."
             }
           ]
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Student has StudentID, ClassID and Location. Explain why Location belongs in Class rather than Student.",
-        "answer": "StudentID determines ClassID, and ClassID determines Location. Location is a class fact, so store Class(ClassID, Location) and let Student.ClassID reference it.",
-        "criteria": [
-          "Identify ClassID → Location.",
-          "Explain that Location should be stored in Class.",
-          "Keep ClassID as the Student foreign key."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "SubjectTeacher depends only on SubjectName, which is part of (StudentID, SubjectName). What must be removed to reach 2NF?",
-          "options": [
-            "A partial dependency",
-            "A valid primary key",
-            "A foreign-key relationship"
-          ],
-          "correct": 0,
-          "why": "The teacher fact depends on only part of the composite key."
         },
         {
-          "kind": "written",
-          "prompt": "A teacher changes their address. Which table should be updated in the final 3NF design, and why?",
-          "answer": "Update Teacher once using LicenceNumber. Address depends on the teacher, not on any individual student, class or subject choice.",
-          "criteria": [
-            "Choose the Teacher table.",
-            "Explain why one update is sufficient."
-          ]
+          "kind": "code",
+          "title": "Final school relations — PK/FK design notation",
+          "text": "STUDENT(StudentID PK, FirstName, SecondName, DateOfBirth, ClassID FK)\nCLASS(ClassID PK, Location, LicenceNumber FK)\nTEACHER(LicenceNumber PK, TeacherName, Address, TeacherDateOfBirth)\nSTUDENTSUBJECT(StudentID PK/FK, SubjectName PK/FK)\nSUBJECT(SubjectName PK, LicenceNumber FK)",
+          "note": "ClassID is retained in STUDENT so the student–class relationship survives. The abbreviated list on Hodder p.207 omits it."
+        },
+        {
+          "kind": "text",
+          "title": "The model depends on the rules — Extension 8B",
+          "text": "If the same subject can have several teachers or levels, SubjectName → LicenceNumber is no longer a valid dependency. Introduce CourseOffering(OfferingID, SubjectName, Level, LicenceNumber) and link enrolments to OfferingID. This is an extension of the simplified source model.",
+          "uz": ""
+        },
+        {
+          "kind": "text",
+          "title": "Transfer to employees and contacts — Activity 8D",
+          "text": "An employee can have several contacts, and one contact can belong to several employees. Store EMPLOYEE(EmployeeNumber PK, EmployeeName, Position), CONTACT(ContactNumber PK, ContactName, ContactEmailAddress), and EMPLOYEECONTACT(EmployeeNumber PK/FK, ContactNumber PK/FK). The linking table resolves the many-to-many relationship.",
+          "uz": ""
         }
       ],
-      "recap": [
-        "1NF: no repeating groups.",
-        "2NF: no partial dependencies on part of a composite key.",
-        "3NF: no non-key dependencies; facts belong with the keys that determine them.",
-        "Final school model uses Student, Class, Teacher, Subject and StudentSubject."
-      ],
-      "mistake": "Do not just memorise the letters 1NF → 2NF → 3NF. For every split, explain which fact depends on which key.",
-      "next": "You can now follow the Chapter 8 database design. Next is the DBMS that manages it.",
-      "visual": "normalise",
-      "terms": [
-        "Second normal form (2NF)",
-        "Third normal form (3NF)"
-      ]
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Activity 8E adaptation: each warehouse part has one manufacturer. Design relations for PartNumber, Description, DateLastOrdered, MinimumOrderLevel, ManufacturerName, ManufacturerAddress, ManufacturerContact, WarehousePosition and StockCount.",
+          "answer": "PART(PartNumber PK, Description, DateLastOrdered, MinimumOrderLevel, ManufacturerID FK, WarehousePosition, StockCount); MANUFACTURER(ManufacturerID PK, ManufacturerName, ManufacturerAddress, ManufacturerContact). One manufacturer supplies many parts. ManufacturerID is an added stable identifier; using a guaranteed-unique ManufacturerName is another defensible stated assumption.",
+          "criteria": [
+            "Part facts depend on PartNumber.",
+            "Manufacturer facts stored separately.",
+            "FK and one-to-many relationship.",
+            "State the one-manufacturer assumption."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "SubjectTeacher depends only on SubjectName, which is part of (StudentID, SubjectName). What must be removed to reach 2NF?",
+            "options": [
+              "A partial dependency",
+              "A valid primary key",
+              "A foreign-key relationship"
+            ],
+            "correct": 0,
+            "why": "The teacher fact depends on only part of the composite key."
+          },
+          {
+            "kind": "written",
+            "prompt": "A teacher changes their address. Which table should be updated in the final 3NF design, and why?",
+            "answer": "Update Teacher once using LicenceNumber. Address depends on the teacher, not on any individual student, class or subject choice.",
+            "criteria": [
+              "Choose the Teacher table.",
+              "Explain why one update is sufficient."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-08",
       "number": 8,
       "section": "8.2",
-      "title": "Meet the DBMS: who manages the Student table?",
-      "subtitle": "Understand the data first, then the software and its rules.",
+      "title": "Database or DBMS?",
+      "subtitle": "Data, software, rules and the design.",
       "pages": [
         208,
         209,
@@ -1347,15 +2251,107 @@
         "8.2.1",
         "p.208 key terms",
         "p.209 data dictionary",
-        "p.210 data modelling"
+        "p.210 data modelling",
+        "Data dictionary",
+        "Data modelling and logical schema"
       ],
       "objectives": [
-        "Tell the difference between a database and a DBMS.",
-        "Explain data management and a data dictionary with Student examples.",
-        "Describe a data model and logical schema; connect DBMS benefits to old file problems."
+        "Distinguish a database from a DBMS.",
+        "Identify metadata held in a data dictionary.",
+        "Explain data modelling and a logical schema."
       ],
-      "hook": "Our school keeps Noor's class in a Student table. Who makes sure the correct people can update it?",
+      "hook": "“StudentID is a VARCHAR(5) primary key.” Is that a student’s data, or data about the database?",
       "blocks": [
+        {
+          "kind": "text",
+          "title": "The stored names are not the software",
+          "text": "Noor, Ahmad and their classes are data in a database. The software that stores, retrieves and changes those records is a database management system (DBMS). Data management means organising and maintaining data so it can provide useful information.",
+          "uz": "O‘quvchilar haqidagi ma’lumotlar — database ichida. Ularni saqlaydigan, topadigan va o‘zgartiradigan dastur — DBMS. Ma’lumotni tartibli saqlash va yangilab borish data management deyiladi.",
+          "remember": "Database = organised data. DBMS = software that manages it."
+        },
+        {
+          "kind": "table",
+          "title": "A value is different from a rule about that value",
+          "headers": [
+            "Item",
+            "What is it?"
+          ],
+          "rows": [
+            [
+              "Noor",
+              "Stored data"
+            ],
+            [
+              "FirstName stores text",
+              "A description of the field"
+            ],
+            [
+              "StudentID must be unique",
+              "A rule for the field"
+            ]
+          ],
+          "text": "Descriptions of data are metadata. A data dictionary stores metadata such as table and field names, types, sizes, validation rules, keys, relationships, indexes and storage information.",
+          "uz": "Noor — ma’lumotning o‘zi. “FirstName matn saqlaydi” — ma’lumot haqidagi tavsif. Bunday tavsiflar metadata deyiladi; data dictionary ularning nomi, turi, cheklovi, kaliti va bog‘lanishlarini saqlaydi."
+        },
+        {
+          "kind": "text",
+          "title": "The DBMS checks the recorded rules",
+          "text": "If StudentID must be unique, the DBMS can reject a second S1276. If ClassID must reference Class, it can reject 9Z. These checks protect integrity. They cannot tell whether a plausible but incorrectly typed birth date is the person’s real birthday.",
+          "uz": "DBMS qoidaga qarab takrorlangan StudentID yoki mavjud bo‘lmagan 9Z sinfini rad qiladi. Lekin ko‘rinishidan to‘g‘ri kiritilgan sana haqiqiy tug‘ilgan kun ekanini o‘zi bilmaydi.",
+          "remember": ""
+        },
+        {
+          "kind": "text",
+          "title": "Plan the facts before creating the tables",
+          "text": "Deciding which entities, attributes and relationships the school needs is data modelling. The logical schema is the resulting design: tables, their attributes, keys and constraints. It describes the design without choosing a particular DBMS.",
+          "uz": "Qaysi obyekt, xususiyat va aloqa kerakligini aniqlash — data modelling. Shu rejaning jadvallar, ustunlar, kalitlar va qoidalar ko‘rinishidagi tavsifi — logical schema. U hali aniq DBMS tanlashga bog‘liq emas.",
+          "remember": ""
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Is “Noor” the same kind of information as “StudentID must be unique”?",
+        "answer": "Noor is stored data. “StudentID must be unique” describes a rule: metadata. The data dictionary stores that rule, and the DBMS can enforce it.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which belongs in a data dictionary?",
+          "options": [
+            "Noor’s exam score",
+            "The type and validation rule for ExamMark",
+            "Every student’s surname"
+          ],
+          "correct": 1,
+          "why": "The dictionary describes the structure and rules, not the actual exam results."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Which is the DBMS?",
+          "options": [
+            "Noor’s stored name",
+            "The software that manages records and enforces rules",
+            "A row in Student"
+          ],
+          "correct": 1,
+          "why": "The database contains the data. The DBMS is the software that manages it."
+        }
+      ],
+      "recap": [
+        "Database = organised data. DBMS = software that manages it."
+      ],
+      "mistake": "Do not describe a data dictionary as a list of student records. It describes those records’ structure.",
+      "next": "Next: Who may see or change the data?.",
+      "visual": "dictionary",
+      "terms": [
+        "Database management system (DBMS)",
+        "Data management",
+        "Data dictionary",
+        "Data modelling",
+        "Logical schema"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "The Student data the school already understands",
@@ -1449,61 +2445,47 @@
           "uz": "Yodlashdan oldin sababini ko'ring: bitta to'g'ri yangilanish barcha ruxsatli dasturlarga ko'rinadi."
         }
       ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Class 7A's location changes from Room 3 to Room 5. Explain which fact should change and which software manages it.",
-        "answer": "The class location belongs to the Class table, so its Location value is updated in the existing Class 7A record. The DBMS manages the authorised update; Student rows can keep their ClassID foreign key and see the new location through the relationship.",
-        "criteria": [
-          "Keep the location in the Class table.",
-          "Say what the DBMS does.",
-          "Explain why Student records need not each store Room 5."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "Which item belongs in a data dictionary rather than a Student record?",
-          "options": [
-            "Noor's first name",
-            "ClassID references Class.ClassID",
-            "Noor's current class value 7A"
-          ],
-          "correct": 1,
-          "why": "The dictionary stores definitions and rules. Actual student values belong in tables."
-        },
-        {
+      "extension": {
+        "worked": {
           "kind": "written",
-          "prompt": "Attendance and Exams once stored separate copies of every student's class. Explain one improvement provided by a shared DBMS.",
-          "answer": "The DBMS allows authorised applications to access the same Student record. Updating ClassID once reduces duplicated data and the risk of inconsistent class values across applications.",
+          "prompt": "Classify these items: Noor; StudentID is a primary key; an E-R diagram of Student and Class.",
+          "answer": "Noor is stored application data. The primary-key declaration is metadata in the data dictionary. The E-R diagram is a data model; with detailed relations and constraints it contributes to the logical schema.",
           "criteria": [
-            "Explain one shared record or controlled update.",
-            "Link it to redundancy or inconsistency."
+            "Data value.",
+            "Metadata rule.",
+            "Model representation."
           ]
-        }
-      ],
-      "recap": [
-        "Database stores the records; DBMS manages and controls them.",
-        "Data dictionary stores metadata: table definitions, keys, constraints and more.",
-        "Data modelling defines the design; a logical schema is independent of one DBMS.",
-        "Shared data and managed structures address file-based limitations."
-      ],
-      "mistake": "A data dictionary is not a second list of Noor's records. It contains descriptions such as 'ClassID is a foreign key'.",
-      "next": "Next, protect the Student records and follow a query through the DBMS.",
-      "visual": "dictionary",
-      "terms": [
-        "Database management system (DBMS)",
-        "Data management",
-        "Data dictionary",
-        "Data modelling",
-        "Logical schema"
-      ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "Which item belongs in a data dictionary rather than a Student record?",
+            "options": [
+              "Noor's first name",
+              "ClassID references Class.ClassID",
+              "Noor's current class value 7A"
+            ],
+            "correct": 1,
+            "why": "The dictionary stores definitions and rules. Actual student values belong in tables."
+          },
+          {
+            "kind": "written",
+            "prompt": "Attendance and Exams once stored separate copies of every student's class. Explain one improvement provided by a shared DBMS.",
+            "answer": "The DBMS allows authorised applications to access the same Student record. Updating ClassID once reduces duplicated data and the risk of inconsistent class values across applications.",
+            "criteria": [
+              "Explain one shared record or controlled update.",
+              "Link it to redundancy or inconsistency."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-09",
       "number": 9,
       "section": "8.2",
-      "title": "Protect student data and process a request",
-      "subtitle": "First decide who can do what; then see how SQL requests are handled.",
+      "title": "Who may see or change the data?",
+      "subtitle": "Permissions first; then follow a database request.",
       "pages": [
         208,
         209,
@@ -1512,15 +2494,153 @@
       "sourceRefs": [
         "8.2.1 security",
         "8.2.2 developer interface and query processor",
-        "Activity 8F"
+        "Activity 8F",
+        "8.2.2"
       ],
       "objectives": [
-        "Choose suitable DBMS security features for a school.",
-        "Explain access rights as both permitted actions and visible data.",
-        "Distinguish a developer interface from a query processor and its parts."
+        "Select security measures for a concrete risk.",
+        "Distinguish developer interface from query processor.",
+        "Trace DDL and DML through the query processor."
       ],
-      "hook": "A student may view their own timetable. Should they be allowed to change every pupil's timetable?",
+      "hook": "A pupil needs their timetable. Should their account be able to delete the Student table?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Different people need different permissions",
+          "headers": [
+            "User",
+            "Allowed action"
+          ],
+          "rows": [
+            [
+              "Pupil",
+              "Read their own timetable"
+            ],
+            [
+              "Teacher",
+              "Read authorised class information"
+            ],
+            [
+              "Administrator",
+              "Maintain the timetable"
+            ]
+          ],
+          "text": "Access rights say what a user may read or change. A correct password identifies the account; it does not mean the account may do everything.",
+          "uz": "Access rights foydalanuvchi nimani ko‘rishi va o‘zgartirishini belgilaydi. Parol kim kirganini tekshiradi. To‘g‘ri parol hamma narsani o‘chirishga ruxsat degani emas."
+        },
+        {
+          "kind": "table",
+          "title": "Match each protection to a problem",
+          "headers": [
+            "Problem",
+            "Protection",
+            "Why it helps"
+          ],
+          "rows": [
+            [
+              "An unauthorised change",
+              "Access rights",
+              "Limit who may change records."
+            ],
+            [
+              "Lost or damaged data",
+              "Backup",
+              "Restore a saved copy."
+            ],
+            [
+              "Someone reads stolen data",
+              "Encryption",
+              "Data needs the correct key to be readable."
+            ],
+            [
+              "We need to trace a change",
+              "Audit log",
+              "Record who changed what and when."
+            ]
+          ],
+          "text": "These measures do different jobs. A backup helps recovery; it does not decide who may view the live database.",
+          "uz": "Har himoya turi boshqa vazifani bajaradi. Backup yo‘qolgan ma’lumotni qaytaradi; kim ko‘rishi mumkinligini access rights belgilaydi. Audit log esa kim nima qilganini qayd etadi."
+        },
+        {
+          "kind": "text",
+          "title": "Where do database requests come from?",
+          "text": "SQL means Structured Query Language. It is a language for database commands. A developer interface is where a developer enters those commands. A query processor is the DBMS component that handles them. A query-by-example form lets a user describe a request without writing SQL.",
+          "uz": "SQL — bazaga buyruq berish tili. Developer interface — dasturchi buyruq yozadigan vosita. Query processor — shu buyruqni qayta ishlaydigan DBMS qismi. Oddiy foydalanuvchi esa ayrim so‘rovlarni SQL yozmasdan forma orqali berishi mumkin.",
+          "remember": ""
+        },
+        {
+          "kind": "table",
+          "title": "Follow one request through the processor",
+          "headers": [
+            "Request",
+            "Component",
+            "Job"
+          ],
+          "rows": [
+            [
+              "Define a new table (DDL)",
+              "DDL interpreter",
+              "Read the definition and record metadata."
+            ],
+            [
+              "Retrieve or change data (DML)",
+              "DML compiler",
+              "Translate the request and optimise its execution."
+            ],
+            [
+              "Run the translated instructions",
+              "Query evaluation engine",
+              "Carry out the operation."
+            ]
+          ],
+          "text": "DDL describes structure. DML retrieves or changes stored data. These are two kinds of SQL command. The next lesson compares them with small examples.",
+          "uz": "DDL jadval tuzilishini belgilaydi. DML esa ichidagi ma’lumotni oladi yoki o‘zgartiradi. Query processor da tuzilma ta’rifi interpreter orqali, ma’lumot so‘rovi compiler va execution engine orqali ishlanadi."
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "An administrator accidentally deletes valid data. Which protection helps restore it?",
+        "answer": "A usable backup provides a recovery copy. Access rights restrict who can make changes, but cannot by themselves recreate lost data.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which control helps restore data after loss?",
+          "options": [
+            "Access rights",
+            "A backup",
+            "An index"
+          ],
+          "correct": 1,
+          "why": "A backup is a recovery copy. Permissions and indexes serve different jobs."
+        },
+        {
+          "kind": "written",
+          "prompt": "Trace a SELECT query from the developer’s interface to its result.",
+          "answer": "The interface accepts SQL; the DML compiler translates and optimises it; the query evaluation engine executes the instructions and produces the result.",
+          "criteria": [
+            "Interface.",
+            "Compiler and optimisation.",
+            "Evaluation engine."
+          ]
+        }
+      ],
+      "recap": [
+        "Access rights restrict actions and data visibility.",
+        "Backups, encryption and audit logs serve different purposes.",
+        "DDL records definitions; DML is compiled, optimised and evaluated."
+      ],
+      "mistake": "A query processor is not the same thing as the screen where a developer types SQL.",
+      "next": "Next: SQL: structure or stored data?.",
+      "visual": "processor",
+      "terms": [
+        "Access rights",
+        "Structured query language (SQL)",
+        "Developer interface",
+        "Query processor"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "Three users, three sensible permissions",
@@ -1614,61 +2734,49 @@
           "uz": "Har bir vositaning vazifasini ajrating: ruxsat, maxfiylik, tiklash, tekshirish."
         }
       ],
-      "worked": {
-        "kind": "written",
-        "prompt": "A pupil can view other pupils' home addresses after logging in. Which DBMS feature should be corrected, and why?",
-        "answer": "Correct the access rights and authorised views so the pupil can only see permitted data. Authentication identifies the pupil, but permission rules decide which records they may see.",
-        "criteria": [
-          "Name access rights or views.",
-          "Explain restricted data visibility.",
-          "Distinguish login from permission."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "The database is damaged by an accidental deletion. Which feature helps restore earlier data?",
-          "options": [
-            "Audit trail alone",
-            "Scheduled back-up",
-            "Developer interface"
-          ],
-          "correct": 1,
-          "why": "A backup provides a recovery copy. An audit trail can help investigate what happened."
-        },
-        {
+      "extension": {
+        "worked": {
           "kind": "written",
-          "prompt": "A developer submits SELECT to show 7A students. Explain what the developer interface and query processor each do.",
-          "answer": "The developer interface accepts the SQL request. The query processor uses its DML compiler to prepare and optimise the query, then its query evaluation engine executes it and retrieves the selected data.",
+          "prompt": "Activity 8F adaptation: explain why the school needs both access rights and backups.",
+          "answer": "Access rights limit which users can read or change particular data. Backups provide a recovery copy if data is lost or corrupted. A permission rule cannot restore deleted data; a backup does not prevent unauthorised access to the live database.",
           "criteria": [
-            "Explain the interface accepts SQL.",
-            "Explain query processing.",
-            "Mention execution by the evaluation engine."
+            "Prevent/restrict versus recover.",
+            "Relate each control to a different risk."
           ]
-        }
-      ],
-      "recap": [
-        "Authentication verifies identity; access rights restrict permitted data and actions.",
-        "Backups, encryption, and audit logs protect against different risks.",
-        "The developer interface accepts SQL; the query processor handles execution.",
-        "DDL definitions and DML data requests follow different processing routes."
-      ],
-      "mistake": "Access rights cannot restore deleted data; back-ups cannot themselves prevent an unauthorised user reading the live database.",
-      "next": "Next, learn the two jobs SQL can perform: changing table structure and working with rows.",
-      "visual": "processor",
-      "terms": [
-        "Access rights",
-        "Developer interface",
-        "Query processor"
-      ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "The database is damaged by an accidental deletion. Which feature helps restore earlier data?",
+            "options": [
+              "Audit trail alone",
+              "Scheduled back-up",
+              "Developer interface"
+            ],
+            "correct": 1,
+            "why": "A backup provides a recovery copy. An audit trail can help investigate what happened."
+          },
+          {
+            "kind": "written",
+            "prompt": "A developer submits SELECT to show 7A students. Explain what the developer interface and query processor each do.",
+            "answer": "The developer interface accepts the SQL request. The query processor uses its DML compiler to prepare and optimise the query, then its query evaluation engine executes it and retrieves the selected data.",
+            "criteria": [
+              "Explain the interface accepts SQL.",
+              "Explain query processing.",
+              "Mention execution by the evaluation engine."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-10",
       "number": 10,
       "section": "8.3",
-      "title": "Your first SQL: structure versus data",
-      "subtitle": "Learn DDL and DML with one tiny Student table.",
+      "title": "SQL: structure or stored data?",
+      "subtitle": "Choose the job, command and data type.",
       "pages": [
+        209,
         211,
         212
       ],
@@ -1679,12 +2787,172 @@
         "Table 8.14"
       ],
       "objectives": [
-        "Explain the different purposes of DDL and DML.",
-        "Recognise the key SQL commands in Hodder's Chapter 8.",
-        "Choose appropriate SQL attribute data types and explain an SQL script."
+        "Classify SQL as DDL or DML.",
+        "Choose suitable attribute data types.",
+        "Explain the purpose of an SQL script."
       ],
-      "hook": "We need a new Student table. Later, we need to add Noor to it. Are these the same operation?",
+      "hook": "Is adding a new column the same kind of operation as adding a new student?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Add a column or add a student?",
+          "headers": [
+            "Action",
+            "What changes?",
+            "SQL family"
+          ],
+          "rows": [
+            [
+              "Add an Email column",
+              "The table structure",
+              "DDL"
+            ],
+            [
+              "Add Noor’s record",
+              "The rows inside the table",
+              "DML"
+            ]
+          ],
+          "text": "SQL is Structured Query Language. Data definition language (DDL) defines structures. Data manipulation language (DML) works with stored data. In Hodder’s classification, SELECT also belongs to DML.",
+          "uz": "Yangi Email ustuni ochish — jadval tuzilishini o‘zgartirish, ya’ni DDL. Yangi o‘quvchi qatorini kiritish — ma’lumot bilan ishlash, ya’ni DML. SELECT ma’lumotni o‘zgartirmasa ham bu kitobda DML ga kiradi.",
+          "remember": "DDL: table structure. DML: data in the table."
+        },
+        {
+          "kind": "table",
+          "title": "Each field needs a suitable type",
+          "headers": [
+            "Type",
+            "Plain meaning",
+            "Example"
+          ],
+          "rows": [
+            [
+              "CHAR(5)",
+              "Fixed-length text",
+              "S1276"
+            ],
+            [
+              "VARCHAR(40)",
+              "Variable-length text, up to 40 characters",
+              "Noor"
+            ],
+            [
+              "INTEGER",
+              "Whole number",
+              "78"
+            ],
+            [
+              "REAL",
+              "Number with a fractional part",
+              "36.5"
+            ],
+            [
+              "BOOLEAN",
+              "True or false",
+              "ConsentGranted"
+            ],
+            [
+              "DATE",
+              "Calendar date",
+              "2011-06-06"
+            ],
+            [
+              "TIME",
+              "Time of day",
+              "08:30:00"
+            ]
+          ],
+          "text": "Choose the type for what the value means. A student ID is text even when it contains digits; we do not add two student IDs together.",
+          "uz": "Tur qiymatning ma’nosiga qarab tanlanadi. StudentID ichida raqamlar bor, lekin u bilan hisoblamaymiz. Shuning uchun text turi mos. CHAR uzunligi belgilangan; VARCHAR esa belgilangan maksimumgacha turli uzunlikda bo‘ladi."
+        },
+        {
+          "kind": "table",
+          "title": "Recognise the command’s job",
+          "headers": [
+            "Command",
+            "Job",
+            "Family"
+          ],
+          "rows": [
+            [
+              "CREATE TABLE / ALTER TABLE",
+              "Create or change a table definition",
+              "DDL"
+            ],
+            [
+              "SELECT",
+              "Retrieve data",
+              "DML"
+            ],
+            [
+              "INSERT INTO",
+              "Add rows",
+              "DML"
+            ],
+            [
+              "UPDATE",
+              "Change values in rows",
+              "DML"
+            ],
+            [
+              "DELETE FROM",
+              "Remove rows",
+              "DML"
+            ]
+          ],
+          "text": "Name the intended change before choosing the command. Removing rows with DELETE keeps the table definition.",
+          "uz": "Avval nimani qilmoqchi ekaningizni ayting, keyin buyruqni tanlang. DELETE qatorlarni o‘chiradi; jadvalning tuzilishi qoladi."
+        },
+        {
+          "kind": "text",
+          "title": "Save commands as an SQL script",
+          "text": "A script is a saved sequence of SQL commands. For example, create Teacher first, then Class, then Student. Saving the sequence makes the setup reusable. Commands still need to match the current database state and the chosen DBMS.",
+          "uz": "Bir nechta SQL buyrug‘ini tartibi bilan faylga saqlasak, SQL script bo‘ladi. Keyin shu ishni qayta bajarish mumkin. Ammo mavjud jadvalni yana yaratish kabi buyruqlar joriy holatga mos kelishi kerak.",
+          "remember": ""
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Add a Phone column, then store Noor’s phone number. Are these the same SQL job?",
+        "answer": "Adding the column changes the structure: DDL. Storing the phone number changes a row’s data: DML. The phone number is text because leading zeroes and symbols may matter.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "ALTER TABLE Student ADD Email VARCHAR(120) is…",
+          "options": [
+            "DML because it adds data",
+            "DDL because it changes the structure",
+            "Neither DDL nor DML"
+          ],
+          "correct": 1,
+          "why": "The command defines a new column, rather than inserting a row."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Why store StudentID S1276 as text?",
+          "options": [
+            "It identifies a student and includes a letter",
+            "All numbers must be text",
+            "SQL cannot store integers"
+          ],
+          "correct": 0,
+          "why": "The ID is a label, not an amount for arithmetic. Text preserves its format."
+        }
+      ],
+      "recap": [
+        "DDL: table structure. DML: data in the table."
+      ],
+      "mistake": "Do not choose INTEGER simply because an identifier contains digits.",
+      "next": "Next: Create a table one line at a time.",
+      "visual": "types",
+      "terms": [
+        "Data definition language (DDL)",
+        "Data manipulation language (DML)",
+        "SQL script"
+      ],
+      "details": [
         {
           "kind": "table",
           "title": "The two jobs of SQL",
@@ -1809,63 +3077,55 @@
           "title": "An SQL script is a reusable set of commands",
           "text": "An SQL script is a list of SQL commands for one task, often saved to a file. The database structure must be defined before rows can be added to it. SQL syntax and type handling differ slightly between database products; the following exercises label important SQLite/MySQL differences.",
           "uz": "SQL bir xil til bo'lsa ham ikkita vazifani bajaradi: DDL — jadval tuzilishi; DML — jadval ichidagi ma'lumot."
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "A school needs an Email column and then wants to add an email address to Noor's record. Which action is DDL and which is DML? Explain.",
-        "answer": "Adding the Email column changes the table definition, so it is DDL (for example ALTER TABLE). Updating Noor's email value changes stored data, so it is DML (UPDATE).",
-        "criteria": [
-          "Identify a structural change as DDL.",
-          "Identify a data change as DML.",
-          "Explain the difference."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "A school creates a new Teacher table. Which command is appropriate?",
-          "options": [
-            "INSERT INTO",
-            "CREATE TABLE",
-            "ORDER BY"
-          ],
-          "correct": 1,
-          "why": "CREATE TABLE defines a table. INSERT INTO adds a row to a table that already exists."
         },
         {
-          "kind": "written",
-          "prompt": "Choose a type for StudentID S1276, DateOfBirth 2010-09-22 and ExamMark 80. Explain why StudentID should not be INTEGER.",
-          "answer": "StudentID: VARCHAR(5) or suitable CHARACTER; DateOfBirth: DATE; ExamMark: INTEGER. StudentID includes a letter and is an identifier, not a number for arithmetic.",
-          "criteria": [
-            "Choose character data for StudentID.",
-            "Choose DATE and INTEGER appropriately.",
-            "Explain the StudentID choice."
-          ]
+          "kind": "text",
+          "title": "Dialect note",
+          "text": "SQL implementations differ. CHARACTER length syntax, BOOLEAN storage and schema-alteration support vary by DBMS. The examples below identify portable design intent and separately flag commands SQLite does not support. Use the selected DBMS’s syntax rather than copying a malformed printed example.",
+          "uz": "DDL — tuzilma bilan; DML — saqlangan ma’lumot bilan ishlaydi. Yangi ustun qo‘shish va yangi qator qo‘shish ikki xil vazifa."
         }
       ],
-      "recap": [
-        "SQL is the language used for both structure and data in relational databases.",
-        "DDL: CREATE DATABASE, CREATE TABLE, ALTER TABLE, keys and references.",
-        "DML: SELECT, INSERT, UPDATE, DELETE and query clauses/functions.",
-        "An SQL script saves a sequence of commands for reuse."
-      ],
-      "mistake": "Adding a new column is DDL. Adding a new student row is DML — even though both may use the word 'add' in everyday language.",
-      "next": "Next, create Class and Student properly, including their foreign-key relationship.",
-      "visual": "types",
-      "terms": [
-        "Structured query language (SQL)",
-        "Data definition language (DDL)",
-        "Data manipulation language (DML)",
-        "SQL script"
-      ]
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Choose types for StudentID S1276, FirstName Noor, DateOfBirth, ExamMark 78 and ConsentGranted. Explain one choice.",
+          "answer": "CHAR(5) or VARCHAR(5), VARCHAR(40), DATE, INTEGER, BOOLEAN. StudentID is text because it includes a letter and is an identifier rather than a number to calculate with.",
+          "criteria": [
+            "Suitable types for all five.",
+            "A reason based on meaning."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "A school creates a new Teacher table. Which command is appropriate?",
+            "options": [
+              "INSERT INTO",
+              "CREATE TABLE",
+              "ORDER BY"
+            ],
+            "correct": 1,
+            "why": "CREATE TABLE defines a table. INSERT INTO adds a row to a table that already exists."
+          },
+          {
+            "kind": "written",
+            "prompt": "Choose a type for StudentID S1276, DateOfBirth 2010-09-22 and ExamMark 80. Explain why StudentID should not be INTEGER.",
+            "answer": "StudentID: VARCHAR(5) or suitable CHARACTER; DateOfBirth: DATE; ExamMark: INTEGER. StudentID includes a letter and is an identifier, not a number for arithmetic.",
+            "criteria": [
+              "Choose character data for StudentID.",
+              "Choose DATE and INTEGER appropriately.",
+              "Explain the StudentID choice."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-11",
       "number": 11,
       "section": "8.3",
-      "title": "Build two linked tables, then extend the design",
-      "subtitle": "Start with Class, add Student, then understand Teacher and StudentSubject.",
+      "title": "Create a table one line at a time",
+      "subtitle": "A small table, a link, then the full school design.",
       "pages": [
         211,
         212
@@ -1874,15 +3134,86 @@
         "8.3.2",
         "Table 8.13",
         "Table 8.14",
-        "Activity 8G"
+        "Activity 8G",
+        "Tables 8.13–8.14"
       ],
       "objectives": [
-        "Write a readable CREATE TABLE definition.",
-        "Add PRIMARY KEY and FOREIGN KEY ... REFERENCES constraints.",
-        "Explain CREATE DATABASE, ALTER TABLE and the Teacher relationship."
+        "Read and write CREATE TABLE definitions.",
+        "Declare primary and foreign keys.",
+        "Explain CREATE DATABASE and ALTER TABLE."
       ],
-      "hook": "A student belongs to Class 7A. How do we stop the class code '9Z' being stored if that class does not exist?",
+      "hook": "How can the DBMS stop a student from referring to a class that does not exist?",
       "blocks": [
+        {
+          "kind": "code",
+          "title": "Build a small table first",
+          "text": "CREATE TABLE LessonStudent (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  FirstName VARCHAR(40)\n);",
+          "note": "CREATE TABLE gives the table its name. Inside the brackets, each line defines a column. StudentID stores text and is the required unique key. FirstName stores text. The comma separates the definitions; the semicolon ends the command.",
+          "uz": "Avval ikki ustunli kichik jadval: nomi LessonStudent. StudentID — matn va primary key; FirstName — ism saqlaydigan matn. NOT NULL qiymat bo‘lishi shartligini bildiradi. Har bir satr nima ish qilishini tushunib oling."
+        },
+        {
+          "kind": "code",
+          "title": "Now give each student a class",
+          "text": "CREATE TABLE LessonClass (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY\n);\nCREATE TABLE LessonMember (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  ClassID VARCHAR(4) NOT NULL,\n  FOREIGN KEY (ClassID) REFERENCES LessonClass(ClassID)\n);",
+          "note": "Create the referenced class table first. In LessonMember, FOREIGN KEY (ClassID) names the local column. REFERENCES LessonClass(ClassID) names the table and key it must match. Merely using the same column name does not enforce a relationship.",
+          "uz": "Avval sinflar jadvalini yaratdik. Keyingi jadvaldagi ClassID unga murojaat qiladi. FOREIGN KEY — shu jadvaldagi ustun; REFERENCES — qaysi jadvalning qaysi kalitiga bog‘lanishi. Bir xil nom yozishning o‘zi yetmaydi."
+        },
+        {
+          "kind": "code",
+          "title": "The pair, not each column, is unique",
+          "text": "CREATE TABLE LessonChoice (\n  StudentID VARCHAR(5) NOT NULL,\n  SubjectName VARCHAR(40) NOT NULL,\n  PRIMARY KEY (StudentID, SubjectName)\n);",
+          "note": "This small example isolates the composite-key rule. StudentID may repeat and SubjectName may repeat, but the same pair may not repeat. The full school definition below adds the foreign keys as well.",
+          "uz": "Bu kichik misolda faqat composite key qoidasiga qarang. StudentID takrorlanishi mumkin; SubjectName ham. Lekin aynan bitta juftlik takrorlanmaydi. To‘liq maktab sxemasida ikkalasi foreign key ham bo‘ladi."
+        },
+        {
+          "kind": "text",
+          "title": "Read the full school definition one table at a time",
+          "text": "You have now seen the three building blocks: a column with a type, a primary key, and a foreign-key reference. Open the complete school SQL below to see Teacher, Class, Student, Subject and StudentSubject built from those same parts.",
+          "uz": "Endi uch bo‘lak tanish: ustun va turi, primary key, foreign key. Quyidagi batafsil bo‘limda to‘liq maktab SQL i bor. Har bir jadvalda aynan shu bo‘laklarni topib o‘qing. SQLite da foreign key larni sinashdan oldin PRAGMA foreign_keys = ON yoqiladi.",
+          "remember": "",
+          "visual": "create-table"
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Read FOREIGN KEY (ClassID) REFERENCES Class(ClassID) in ordinary words.",
+        "answer": "The ClassID value in this table must refer to a ClassID that exists in Class (unless NULL is allowed). The first ClassID is local; Class(ClassID) names the referenced table and column.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "Which part states the parent table and key?",
+          "options": [
+            "FOREIGN KEY (ClassID)",
+            "REFERENCES Class(ClassID)",
+            "FirstName VARCHAR(40)"
+          ],
+          "correct": 1,
+          "why": "REFERENCES identifies the referenced table and key; FOREIGN KEY identifies the local columns."
+        },
+        {
+          "kind": "choice",
+          "prompt": "Which definition prevents duplicate student–subject pairs?",
+          "options": [
+            "PRIMARY KEY (StudentID, SubjectName)",
+            "FirstName VARCHAR(40)",
+            "NOT NULL on FirstName"
+          ],
+          "correct": 0,
+          "why": "The composite primary key makes the pair unique while allowing either column to repeat."
+        }
+      ],
+      "recap": [
+        "Create referenced structures and compatible keys.",
+        "PK identifies; FK ... REFERENCES connects.",
+        "Check DBMS-specific CREATE DATABASE and ALTER TABLE support."
+      ],
+      "mistake": "Creating a foreign-key-looking column name alone does not enforce referential integrity; declare the constraint.",
+      "next": "Next: SELECT: build one question at a time.",
+      "visual": "schema",
+      "terms": [],
+      "details": [
         {
           "kind": "code",
           "title": "Step 1 — create the Class table",
@@ -1960,59 +3291,86 @@
           "title": "Complete 3NF design uses five tables",
           "text": "Once the simple link is understood, the full school model has Teacher, Class, Student, Subject and StudentSubject. StudentSubject uses a composite PRIMARY KEY (StudentID, SubjectName), with separate foreign keys to Student and Subject. These extra tables were introduced during 8.1 normalisation; you do not need to memorise five CREATE TABLE scripts before understanding one.",
           "uz": "Birinchi ikki jadvalni tushuning: Class — asosiy jadval, Student — unga ClassID orqali bog'langan. Keyin Teacher qo'shiladi."
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Write the key line that connects Student.ClassID to Class.ClassID and explain its purpose.",
-        "answer": "FOREIGN KEY (ClassID) REFERENCES Class(ClassID). It makes Student.ClassID refer to a matching ClassID in the Class table, helping enforce referential integrity.",
-        "criteria": [
-          "Write FOREIGN KEY (ClassID).",
-          "Write REFERENCES Class(ClassID).",
-          "Explain the matching-class rule."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "Which SQL text identifies the parent table and key in a relationship?",
-          "options": [
-            "FOREIGN KEY (ClassID)",
-            "REFERENCES Class(ClassID)",
-            "FirstName VARCHAR(40)"
-          ],
-          "correct": 1,
-          "why": "REFERENCES names the parent table and its referenced key."
         },
         {
-          "kind": "written",
-          "prompt": "Hodder Activity 8G: create the Teacher link for Class in words or SQL.",
-          "answer": "Create Teacher with LicenceNumber as primary key. Put LicenceNumber in Class as a foreign key with FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber).",
-          "criteria": [
-            "Give Teacher.LicenceNumber as the primary key.",
-            "Give Class.LicenceNumber as the foreign key.",
-            "State which table it references."
-          ]
+          "kind": "code",
+          "title": "First create the referenced Teacher table",
+          "text": "CREATE TABLE Teacher (\n  LicenceNumber INTEGER PRIMARY KEY,\n  TeacherName VARCHAR(60) NOT NULL,\n  Address VARCHAR(120),\n  TeacherDateOfBirth DATE\n);",
+          "note": ""
+        },
+        {
+          "kind": "code",
+          "title": "Then create Class and Student",
+          "text": "CREATE TABLE Class (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY,\n  Location VARCHAR(60),\n  LicenceNumber INTEGER NOT NULL,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);\nCREATE TABLE Student (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  FirstName VARCHAR(40),\n  SecondName VARCHAR(40),\n  DateOfBirth DATE,\n  ClassID VARCHAR(4) NOT NULL,\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\n);",
+          "note": ""
+        },
+        {
+          "kind": "text",
+          "title": "Read a definition in order",
+          "text": "CREATE TABLE names the relation. Each comma-separated entry defines a column or a constraint. PRIMARY KEY selects the identifier. FOREIGN KEY names the local column(s); REFERENCES names the parent table and column(s). NOT NULL makes a value mandatory. The referenced table should be available before dependent data is inserted. In SQLite, enable foreign-key enforcement for the connection with PRAGMA foreign_keys = ON before testing these constraints.",
+          "uz": "PRIMARY KEY qatorni yagona aniqlaydi. FOREIGN KEY (...) REFERENCES ... esa mahalliy ustunni boshqa table kalitiga bog‘laydi. Bir xil ustun nomi yozishning o‘zi relationship qoidasini yaratmaydi."
+        },
+        {
+          "kind": "code",
+          "title": "Create the subject-choice relationship",
+          "text": "CREATE TABLE Subject (\n  SubjectName VARCHAR(40) NOT NULL PRIMARY KEY,\n  LicenceNumber INTEGER NOT NULL,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);\nCREATE TABLE StudentSubject (\n  StudentID VARCHAR(5) NOT NULL,\n  SubjectName VARCHAR(40) NOT NULL,\n  ExamMark INTEGER,\n  PRIMARY KEY (StudentID, SubjectName),\n  FOREIGN KEY (StudentID) REFERENCES Student(StudentID),\n  FOREIGN KEY (SubjectName) REFERENCES Subject(SubjectName)\n);",
+          "note": "ExamMark is an instructional extension used for the aggregate queries."
+        },
+        {
+          "kind": "code",
+          "title": "Structure changes",
+          "text": "CREATE DATABASE School;\nALTER TABLE Student ADD COLUMN Email VARCHAR(120);\nALTER TABLE Student ADD PRIMARY KEY (StudentID);",
+          "note": "These are independent syntax examples, not a script to run after the definitions above. Do not add a second primary key. CREATE DATABASE and ALTER TABLE ... ADD PRIMARY KEY are supported in some DBMSs (for example MySQL); SQLite opens a database file instead and requires keys to be defined during table creation."
+        },
+        {
+          "kind": "text",
+          "title": "Source corrections",
+          "text": "Use CHARACTER or VARCHAR with an appropriate length, consistently spell LicenceNumber, include parentheses around the local foreign-key columns, and keep ClassID in Student. These correct ambiguities and typographical errors in the printed examples.",
+          "uz": ""
         }
       ],
-      "recap": [
-        "CREATE TABLE defines a table and its columns.",
-        "PRIMARY KEY uniquely identifies a row.",
-        "FOREIGN KEY ... REFERENCES ... links a child column to a parent key.",
-        "Build and test a simple Class–Student link before expanding the schema.",
-        "CREATE DATABASE and ALTER TABLE are DDL; syntax varies across DBMS products."
-      ],
-      "mistake": "The Step 3 expanded Class definition is an alternative fresh definition. Do not run CREATE TABLE Class twice in the same database.",
-      "next": "Next, use SELECT to retrieve 7A students, sort them, and then join two tables.",
-      "visual": "create-table",
-      "terms": []
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Activity 8G: explain how to add the teacher relationship to Class.",
+          "answer": "Create Teacher with LicenceNumber as its primary key. Class includes LicenceNumber of a compatible type and FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber). The Class foreign key can repeat when one teacher has several classes.",
+          "criteria": [
+            "Referenced PK.",
+            "Local FK and matching reference.",
+            "One-to-many interpretation."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "Which SQL text identifies the parent table and key in a relationship?",
+            "options": [
+              "FOREIGN KEY (ClassID)",
+              "REFERENCES Class(ClassID)",
+              "FirstName VARCHAR(40)"
+            ],
+            "correct": 1,
+            "why": "REFERENCES names the parent table and its referenced key."
+          },
+          {
+            "kind": "written",
+            "prompt": "Hodder Activity 8G: create the Teacher link for Class in words or SQL.",
+            "answer": "Create Teacher with LicenceNumber as primary key. Put LicenceNumber in Class as a foreign key with FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber).",
+            "criteria": [
+              "Give Teacher.LicenceNumber as the primary key.",
+              "Give Class.LicenceNumber as the foreign key.",
+              "State which table it references."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-12",
       "number": 12,
       "section": "8.3",
-      "title": "Find and sort students with SELECT",
-      "subtitle": "Begin with one table. Add a JOIN only after WHERE and ORDER BY make sense.",
+      "title": "SELECT: build one question at a time",
+      "subtitle": "Choose columns, filter rows, then combine tables.",
       "pages": [
         211,
         213,
@@ -2022,15 +3380,125 @@
         "8.3 prior knowledge",
         "8.3.3",
         "Table 8.15 SELECT/WHERE/ORDER BY/INNER JOIN",
-        "Activity 8H"
+        "Activity 8H",
+        "8.3.3 query commands",
+        "Table 8.15"
       ],
       "objectives": [
-        "Write a SELECT ... FROM query with WHERE and ORDER BY.",
-        "Predict the result using the Student table.",
-        "Use INNER JOIN to obtain data from two linked tables."
+        "Select columns and filter rows.",
+        "Sort a result using ORDER BY.",
+        "Join tables through matching keys."
       ],
-      "hook": "From the three students below, how can we show only those who are in Class 7A?",
+      "hook": "Which students are in 7A, and how can their names be listed alphabetically?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Ask a question before writing SQL",
+          "headers": [
+            "StudentID",
+            "FirstName",
+            "SecondName",
+            "ClassID"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Noor",
+              "Baig",
+              "7A"
+            ],
+            [
+              "S1277",
+              "Ahmad",
+              "Sayed",
+              "7B"
+            ],
+            [
+              "S1299",
+              "Tahir",
+              "Hassan",
+              "7A"
+            ]
+          ],
+          "text": "Question: what are the first names of the students in 7A? Read the table yourself: Noor and Tahir. We will build a query that returns those two names.",
+          "uz": "Savol: 7A dagi o‘quvchilarning ismlari qaysi? Jadvaldan o‘zimiz topamiz — Noor va Tahir. Endi SQL ga aynan shu savolni yozamiz."
+        },
+        {
+          "kind": "code",
+          "title": "First choose the column and table",
+          "text": "SELECT FirstName\nFROM Student;",
+          "note": "SELECT FirstName asks for the FirstName column. FROM Student tells SQL which table to use. There is no filter yet, so the result contains Noor, Ahmad and Tahir. Without ORDER BY, their display order is not guaranteed.",
+          "uz": "SELECT qaysi ustunni chiqarishni, FROM esa qaysi jadvaldan olishni aytadi. Hali shart yo‘q, shuning uchun barcha ismlar chiqadi. ORDER BY yozilmasa, tartib kafolatlanmaydi."
+        },
+        {
+          "kind": "code",
+          "title": "Then keep only the 7A rows",
+          "text": "SELECT FirstName\nFROM Student\nWHERE ClassID = '7A'\nORDER BY FirstName;",
+          "note": "WHERE keeps rows whose ClassID is 7A. ORDER BY FirstName sorts the names. Result: Noor, then Tahir. The text value 7A is inside single quotes.",
+          "uz": "WHERE ClassID 7A bo‘lgan qatorlarni qoldiradi. ORDER BY ismlarni tartiblaydi. Natija: Noor, Tahir. Shartdagi matn qiymati bitta tirnoq ichiga yoziladi."
+        },
+        {
+          "kind": "code",
+          "title": "Add a second output column",
+          "text": "SELECT FirstName, SecondName\nFROM Student\nWHERE ClassID = '7A'\nORDER BY SecondName ASC;",
+          "note": "Separate output columns with commas. ASC sorts ascending; DESC sorts descending. This result is Noor Baig followed by Tahir Hassan.",
+          "uz": "Bir nechta ustun vergul bilan ajratiladi. ASC — o‘sish, DESC — kamayish tartibi. Bu safar familiya bo‘yicha tartiblaymiz: Noor Baig, keyin Tahir Hassan."
+        },
+        {
+          "kind": "code",
+          "title": "JOIN brings matching rows together",
+          "text": "SELECT Student.FirstName, StudentSubject.SubjectName\nFROM Student\nINNER JOIN StudentSubject\n  ON Student.StudentID = StudentSubject.StudentID\nORDER BY Student.FirstName, StudentSubject.SubjectName;",
+          "note": "Student has the name; StudentSubject has the choices. ON matches equal StudentID values. Noor has History and Maths, so Noor appears twice in this result. INNER JOIN includes only matching pairs. TableName.ColumnName makes each column’s origin clear.",
+          "uz": "Ism Student da, fan tanlovi StudentSubject da. ON bir xil StudentID larni bog‘laydi. Noor ikkita fan olgani uchun natijada ikki qator bo‘ladi. INNER JOIN faqat ikkala tomonda mos kelgan yozuvlarni chiqaradi."
+        },
+        {
+          "kind": "text",
+          "title": "Change the class and predict the result",
+          "text": "Choose 7A or 7B below. Read the WHERE condition, predict which students remain, then reveal the rows. Notice that ORDER BY still sorts their surnames.",
+          "uz": "Quyida 7A yoki 7B ni tanlang. WHERE shartiga qarab kimlar qolishini ayting, keyin natijani oching. ORDER BY familiyalarni tartiblashda davom etadi.",
+          "remember": "",
+          "visual": "sql-where"
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Why does the 7A SELECT return Noor and Tahir but not Ahmad?",
+        "answer": "WHERE ClassID = 7A keeps only the 7A rows. Noor and Tahir match. Ahmad belongs to 7B, so his row is excluded. The SQL text value must be written in quotes.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "In SELECT FirstName FROM Student WHERE ClassID = '7A', what does WHERE do?",
+          "options": [
+            "Chooses the table",
+            "Filters rows by class",
+            "Sorts names alphabetically"
+          ],
+          "correct": 1,
+          "why": "WHERE retains rows meeting the condition; ORDER BY sorts results."
+        },
+        {
+          "kind": "written",
+          "prompt": "Write a query to show StudentID and FirstName of students in 7B, sorted by SecondName.",
+          "answer": "SELECT StudentID, FirstName FROM Student WHERE ClassID = '7B' ORDER BY SecondName;",
+          "criteria": [
+            "Select StudentID and FirstName from Student.",
+            "Use WHERE ClassID = '7B'.",
+            "Sort using ORDER BY SecondName."
+          ]
+        }
+      ],
+      "recap": [
+        "SELECT columns; WHERE rows; ORDER BY order.",
+        "JOIN ... ON matches related rows.",
+        "Predict row count as well as column values."
+      ],
+      "mistake": "AND joins logical conditions, not the output column list. Omitting a meaningful join condition can produce incorrect combinations.",
+      "next": "Next: Count marks and change records.",
+      "visual": "queries",
+      "terms": [],
+      "details": [
         {
           "kind": "table",
           "title": "Here are the three Student rows",
@@ -2116,56 +3584,48 @@
           "uz": "Boshlanishida 1 ta jadval bilan ishlang: SELECT → FROM → WHERE → ORDER BY. Shundan keyin JOIN orqali ikkinchi jadvaldan ma'lumot olinadi."
         }
       ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Which names will the 7A query return after ORDER BY SecondName? Explain Ahmad's absence.",
-        "answer": "Noor Baig and Tahir Hassan, in that order. Ahmad is in 7B, so he does not satisfy WHERE ClassID = '7A'.",
-        "criteria": [
-          "Identify both names.",
-          "Put them in surname order.",
-          "Explain the WHERE condition."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "In SELECT FirstName FROM Student WHERE ClassID = '7A', what does WHERE do?",
-          "options": [
-            "Chooses the table",
-            "Filters rows by class",
-            "Sorts names alphabetically"
-          ],
-          "correct": 1,
-          "why": "WHERE retains rows meeting the condition; ORDER BY sorts results."
-        },
-        {
+      "extension": {
+        "worked": {
           "kind": "written",
-          "prompt": "Write a query to show StudentID and FirstName of students in 7B, sorted by SecondName.",
-          "answer": "SELECT StudentID, FirstName FROM Student WHERE ClassID = '7B' ORDER BY SecondName;",
+          "prompt": "Predict the names returned by the 7A query and explain why Ahmad is absent.",
+          "answer": "Noor Baig, then Tahir Hassan. Both have ClassID 7A and the surnames sort Baig before Hassan. Ahmad has ClassID 7B and fails the WHERE condition.",
           "criteria": [
-            "Select StudentID and FirstName from Student.",
-            "Use WHERE ClassID = '7B'.",
-            "Sort using ORDER BY SecondName."
+            "Correct two rows.",
+            "Correct order.",
+            "Filter explanation."
           ]
-        }
-      ],
-      "recap": [
-        "SELECT chooses columns; FROM identifies a table.",
-        "WHERE filters rows; ORDER BY sorts the resulting rows.",
-        "INNER JOIN combines rows where matching keys satisfy the ON condition.",
-        "A student can appear multiple times if they have several matching subject-choice rows."
-      ],
-      "mistake": "WHERE and ORDER BY do different jobs. Filtering 7A students does not automatically put the remaining names in alphabetical order.",
-      "next": "Next, count marks and maintain records safely using SUM, COUNT, AVG, GROUP BY, INSERT, UPDATE and DELETE.",
-      "visual": "sql-where",
-      "terms": []
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "In SELECT FirstName FROM Student WHERE ClassID = '7A', what does WHERE do?",
+            "options": [
+              "Chooses the table",
+              "Filters rows by class",
+              "Sorts names alphabetically"
+            ],
+            "correct": 1,
+            "why": "WHERE retains rows meeting the condition; ORDER BY sorts results."
+          },
+          {
+            "kind": "written",
+            "prompt": "Write a query to show StudentID and FirstName of students in 7B, sorted by SecondName.",
+            "answer": "SELECT StudentID, FirstName FROM Student WHERE ClassID = '7B' ORDER BY SecondName;",
+            "criteria": [
+              "Select StudentID and FirstName from Student.",
+              "Use WHERE ClassID = '7B'.",
+              "Sort using ORDER BY SecondName."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-13",
       "number": 13,
       "section": "8.3",
-      "title": "Count marks and make safe data changes",
-      "subtitle": "Start with four marks, then learn the difference between adding, editing and deleting rows.",
+      "title": "Count marks and change records",
+      "subtitle": "Understand NULL, then INSERT, UPDATE and DELETE.",
       "pages": [
         213,
         214
@@ -2174,15 +3634,117 @@
         "8.3.3",
         "Table 8.15 SUM/COUNT/AVG/GROUP BY",
         "Activity 8I",
-        "INSERT INTO / UPDATE / DELETE FROM"
+        "INSERT INTO / UPDATE / DELETE FROM",
+        "Table 8.15"
       ],
       "objectives": [
-        "Calculate SUM, COUNT and AVG, including a missing mark.",
-        "Explain GROUP BY as one summary per subject.",
-        "Write safe INSERT INTO, UPDATE and DELETE FROM with suitable WHERE conditions."
+        "Use SUM, COUNT, AVG and GROUP BY.",
+        "Distinguish COUNT(*) from COUNT(column).",
+        "Write targeted INSERT, UPDATE and DELETE commands."
       ],
-      "hook": "Maths has three enrolments, but only two recorded marks: 80, 70 and a missing mark. What is the average?",
+      "hook": "Three Maths enrolments exist, but one mark is missing. How many marks should contribute to the average?",
       "blocks": [
+        {
+          "kind": "table",
+          "title": "Two marks are known; one is missing",
+          "headers": [
+            "StudentID",
+            "SubjectName",
+            "ExamMark"
+          ],
+          "rows": [
+            [
+              "S1276",
+              "Maths",
+              "80"
+            ],
+            [
+              "S1277",
+              "Maths",
+              "70"
+            ],
+            [
+              "S1299",
+              "Maths",
+              "NULL"
+            ]
+          ],
+          "text": "NULL means no value is stored here. It is not a mark of zero. We have three student rows but only two recorded marks.",
+          "uz": "NULL — baho hali kiritilmagan. Bu 0 ball degani emas. O‘quvchilar soni uchta, mavjud baholar esa ikkita."
+        },
+        {
+          "kind": "code",
+          "title": "Count rows, then count actual marks",
+          "text": "SELECT COUNT(*) AS Students,\n       COUNT(ExamMark) AS MarksRecorded,\n       SUM(ExamMark) AS Total,\n       AVG(ExamMark) AS Mean\nFROM StudentSubject\nWHERE SubjectName = 'Maths';",
+          "note": "COUNT(*) = 3 rows. COUNT(ExamMark) = 2 non-null marks. SUM = 80 + 70 = 150. AVG = 150 / 2 = 75. AS gives each result column a readable name. NULL is excluded from these numeric inputs.",
+          "uz": "COUNT(*) barcha qatorlarni sanaydi: 3. COUNT(ExamMark) mavjud baholarni: 2. SUM = 150. AVG = 150 / 2 = 75. Kiritilmagan bahoni 0 deb olib uchga bo‘lmang."
+        },
+        {
+          "kind": "text",
+          "title": "GROUP BY repeats the calculation for each subject",
+          "text": "Without grouping, the filtered rows produce one summary. GROUP BY SubjectName makes a separate summary for Maths, History and each other subject. For a group with no recorded marks, COUNT(ExamMark) is 0 and SUM/AVG are NULL.",
+          "uz": "GROUP BY SubjectName bo‘lsa, har fan alohida guruh bo‘ladi va hisob har bir guruh uchun qayta bajariladi. Guruhda birorta baho bo‘lmasa COUNT(ExamMark) 0, SUM va AVG esa NULL bo‘ladi.",
+          "remember": ""
+        },
+        {
+          "kind": "code",
+          "title": "Insert a new student",
+          "text": "INSERT INTO Student\n  (StudentID, FirstName, SecondName, DateOfBirth, ClassID)\nVALUES ('S1301', 'Peter', 'Probert', '2011-06-06', '7A');",
+          "note": "The values match the named columns in the same order. Quote text and ISO-formatted date values. Omitted columns need a default or permission to be NULL; mandatory foreign keys cannot simply be omitted.",
+          "uz": "INSERT INTO qaysi jadvalga qo‘shishni aytadi. Ustunlar tartibi bilan VALUES dagi qiymatlar tartibi mos. Bu misolda yangi o‘quvchi S1301 7A ga qo‘shiladi."
+        },
+        {
+          "kind": "code",
+          "title": "Update or delete only the intended row",
+          "text": "UPDATE Student\nSET ClassID = '7B'\nWHERE StudentID = 'S1301';\n\nDELETE FROM Student\nWHERE StudentID = 'S1301';",
+          "note": "The example student has no subject-choice rows. If other tables reference a row, the FK policy governs whether deletion is allowed.",
+          "uz": "Avval S1301 ning ClassID qiymatini 7B ga o‘zgartiramiz. Keyingi buyruq shu o‘quvchini o‘chiradi. Har ikkala buyruqdagi WHERE faqat S1301 ni tanlaydi. 7B Class jadvalida mavjud bo‘lishi kerak."
+        },
+        {
+          "kind": "text",
+          "title": "Check the target before changing data",
+          "text": "INSERT adds a row. UPDATE changes values in existing rows. DELETE removes rows. WHERE limits which rows UPDATE and DELETE affect. Without WHERE, they target every row. DELETE keeps the table definition; DROP TABLE removes it.",
+          "uz": "INSERT yangi qator qo‘shadi. UPDATE mavjud qiymatni almashtiradi. DELETE qatorni olib tashlaydi. UPDATE yoki DELETE da WHERE bo‘lmasa, barcha qatorlar ta’sirlanadi. Avval shu shartli SELECT bilan qaysi qatorlar tanlanishini tekshiring.",
+          "remember": "Before UPDATE or DELETE, read the WHERE condition."
+        }
+      ],
+      "worked": {
+        "kind": "written",
+        "prompt": "Why is the mean of 80, 70 and NULL equal to 75?",
+        "answer": "Only two marks are recorded. Add 80 + 70 = 150, then divide by 2. NULL is missing, so it does not become an extra zero.",
+        "criteria": []
+      },
+      "checks": [
+        {
+          "kind": "choice",
+          "prompt": "What does DELETE FROM Student; do?",
+          "options": [
+            "Deletes the table definition",
+            "Deletes all rows, retaining the table definition",
+            "Deletes only the first row"
+          ],
+          "correct": 1,
+          "why": "Without WHERE it targets every row, but the table structure remains."
+        },
+        {
+          "kind": "written",
+          "prompt": "Write an UPDATE to change only S1299’s class to 7B, then explain the FK condition.",
+          "answer": "UPDATE Student SET ClassID = '7B' WHERE StudentID = 'S1299'; Class 7B must already exist for the foreign-key constraint to be satisfied.",
+          "criteria": [
+            "UPDATE and SET.",
+            "StudentID filter.",
+            "Existing parent class."
+          ]
+        }
+      ],
+      "recap": [
+        "Before UPDATE or DELETE, read the WHERE condition."
+      ],
+      "mistake": "Do not divide AVG by all rows when some input values are NULL. Do not confuse DELETE with DROP TABLE.",
+      "next": "Next: Use what you have learned.",
+      "visual": "queries",
+      "terms": [],
+      "details": [
         {
           "kind": "table",
           "title": "Start with the actual exam-mark records",
@@ -2275,59 +3837,56 @@
           "title": "Before changing real data, check the filter",
           "text": "Use SELECT with your intended WHERE condition first to inspect the rows you plan to change. Hodder p.214 describes DELETE FROM without WHERE as deleting the whole table; strictly, it deletes all rows, not the table definition. This distinction is corrected in our runnable examples.",
           "uz": "UPDATE va DELETE oldidan WHERE yozilganini tekshiring. WHERE bo'lmasa ko'plab qatorlar o'zgarishi yoki o'chishi mumkin."
-        }
-      ],
-      "worked": {
-        "kind": "written",
-        "prompt": "Hodder Activity 8I adaptation: Maths marks are 80, 70 and NULL. Give COUNT(*), COUNT(ExamMark), SUM and AVG.",
-        "answer": "COUNT(*) = 3. COUNT(ExamMark) = 2. SUM(ExamMark) = 150. AVG(ExamMark) = 75 because NULL is not included as a recorded mark.",
-        "criteria": [
-          "Count three enrolment rows and two recorded marks.",
-          "Give SUM = 150.",
-          "Give AVG = 75 and explain NULL."
-        ]
-      },
-      "checks": [
-        {
-          "kind": "choice",
-          "prompt": "What does DELETE FROM Student; do in SQL?",
-          "options": [
-            "Removes the Student table structure",
-            "Removes all rows while retaining the table definition",
-            "Removes only the first student"
-          ],
-          "correct": 1,
-          "why": "DELETE without WHERE targets every row. DROP TABLE removes the table structure."
         },
         {
-          "kind": "written",
-          "prompt": "Write the SQL command to move only S1299 to Class 7B. Explain one condition needed for the change.",
-          "answer": "UPDATE Student SET ClassID = '7B' WHERE StudentID = 'S1299'; ClassID 7B must exist in the parent Class table, or a checked foreign-key constraint would reject it.",
-          "criteria": [
-            "Use UPDATE ... SET ClassID = '7B'.",
-            "Restrict the change with WHERE StudentID = 'S1299'.",
-            "Explain that the referenced ClassID must exist."
-          ]
+          "kind": "text",
+          "title": "Compare SQL with its result",
+          "text": "These fixed worked examples include joins and grouped totals from the school dataset.",
+          "visual": "queries"
         }
       ],
-      "recap": [
-        "COUNT(*) counts rows; COUNT(column) counts non-NULL values.",
-        "SUM and AVG ignore NULLs; GROUP BY produces summaries per group.",
-        "INSERT INTO adds rows, UPDATE edits rows, DELETE FROM removes rows.",
-        "WHERE prevents unintentional broad changes when used correctly.",
-        "DELETE FROM and DROP TABLE are not the same operation."
-      ],
-      "mistake": "Do not treat a missing mark as zero in AVG. Do not run UPDATE or DELETE without checking WHERE.",
-      "next": "Next is the independent Chapter 8 review — use the same skills on an unfamiliar database problem.",
-      "visual": "queries",
-      "terms": []
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Activity 8I: for Maths marks 80, 70 and NULL, calculate COUNT(*), COUNT(ExamMark), SUM and AVG.",
+          "answer": "COUNT(*) = 3; COUNT(ExamMark) = 2; SUM = 150; AVG = 75. NULL is excluded from the numeric aggregate inputs.",
+          "criteria": [
+            "Three rows but two marks.",
+            "150 total.",
+            "Divide by 2, not 3."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "choice",
+            "prompt": "What does DELETE FROM Student; do in SQL?",
+            "options": [
+              "Removes the Student table structure",
+              "Removes all rows while retaining the table definition",
+              "Removes only the first student"
+            ],
+            "correct": 1,
+            "why": "DELETE without WHERE targets every row. DROP TABLE removes the table structure."
+          },
+          {
+            "kind": "written",
+            "prompt": "Write the SQL command to move only S1299 to Class 7B. Explain one condition needed for the change.",
+            "answer": "UPDATE Student SET ClassID = '7B' WHERE StudentID = 'S1299'; ClassID 7B must exist in the parent Class table, or a checked foreign-key constraint would reject it.",
+            "criteria": [
+              "Use UPDATE ... SET ClassID = '7B'.",
+              "Restrict the change with WHERE StudentID = 'S1299'.",
+              "Explain that the referenced ClassID must exist."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "h8-rewrite-v1-14",
       "number": 14,
       "section": "Review",
-      "title": "Connect the whole chapter",
-      "subtitle": "Design, protect, query, and explain a new database.",
+      "title": "Use what you have learned",
+      "subtitle": "Six questions with explanations to compare afterwards.",
       "pages": [
         196,
         208,
@@ -2349,56 +3908,39 @@
       "hook": "A software company tracks programmers, programs, customers and the days each programmer spends on each program. What belongs in each table?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "Independent assessment",
-          "text": "Answer the six tasks below before opening model answers. These are newly written coursebook-aligned practice tasks, not official Cambridge questions or official mark schemes. Self-check against the criteria afterwards; a corrected answer is useful practice, not evidence of first-attempt mastery.",
-          "uz": "Avval savollarga mustaqil javob bering. Keyin model answer bilan solishtiring. Tuzatilgan javob birinchi mustaqil urinish o‘rnini bosmaydi."
-        },
-        {
-          "kind": "text",
-          "title": "Scenario and assumptions",
-          "text": "Each programmer belongs to one team. Several programmers may work on a program; a programmer may work on several programs. Each program is for one customer. DaysWorked belongs to a particular programmer–program pair. Use unique ProgrammerID and ProgramID values instead of assuming names are unique. This adapts the end-of-chapter design scenario.",
-          "uz": ""
-        },
-        {
           "kind": "table",
-          "title": "The chapter in one route",
+          "title": "A new example: programmers and programs",
           "headers": [
-            "Question",
-            "Tool or concept"
+            "Rule",
+            "What it means"
           ],
           "rows": [
             [
-              "Why change the old files?",
-              "Redundancy, inconsistency, dependency"
+              "One programmer can work on several programs",
+              "ProgrammerID may appear in several work rows."
             ],
             [
-              "What facts belong together?",
-              "Entities, attributes, keys and normalisation"
+              "One program can have several programmers",
+              "ProgramID may appear in several work rows."
             ],
             [
-              "How are entities connected?",
-              "Foreign keys, referential integrity and E-R diagrams"
+              "Each program has one customer",
+              "Store a customer link with the program."
             ],
             [
-              "Who manages and protects data?",
-              "DBMS, data dictionary, access rights and recovery"
-            ],
-            [
-              "How is the design built?",
-              "SQL DDL"
-            ],
-            [
-              "How is information retrieved or changed?",
-              "SQL DML"
+              "DaysWorked belongs to one programmer on one program",
+              "Store it with that pair."
             ]
-          ]
+          ],
+          "text": "Use the same method you used for Student and Subject. A programmer has a unique ProgrammerID and belongs to one team. A program has a unique ProgramID. Names alone are not assumed to be unique.",
+          "uz": "Bu safar o‘quvchi–fan o‘rniga dasturchi–dastur misoli. Har dasturchi bitta jamoaga tegishli. ProgrammerID va ProgramID yagona. DaysWorked aynan shu dasturchining shu dasturga sarflagan kunlari."
         },
         {
           "kind": "text",
-          "title": "After the assessment",
-          "text": "Revisit only the lessons linked to missed criteria. Explain one corrected answer without looking, then attempt a fresh example. Use the platform’s Past Papers tab for the separately maintained Cambridge question bank.",
-          "uz": ""
+          "title": "Use the chapter’s ideas on this new example",
+          "text": "There are six tasks. Read the scenario while answering the first two. The later SQL tasks use the familiar school tables. Try each task before opening its model answer; written work is self-checked against the listed points.",
+          "uz": "Oltita topshiriq bor. Birinchi ikkitasi yuqoridagi yangi vaziyatga oid. Keyingi SQL savollari tanish maktab jadvallaridan foydalanadi. Avval o‘zingiz urinib ko‘ring, keyin javob bilan solishtiring.",
+          "remember": ""
         }
       ],
       "worked": {
@@ -2481,12 +4023,142 @@
         "Check keys, NULL handling and affected rows before trusting SQL."
       ],
       "mistake": "Opening a model answer before attempting the task makes the evidence guided. Keep first attempts separate from revisions.",
-      "next": "Continue with targeted revision and the existing Past Papers question bank.",
+      "next": "Review a missed idea, then try a new question in Past Papers.",
       "visual": "recap",
-      "terms": []
+      "terms": [],
+      "details": [
+        {
+          "kind": "text",
+          "title": "Independent assessment",
+          "text": "Answer the six tasks below before opening model answers. These are newly written coursebook-aligned practice tasks, not official Cambridge questions or official mark schemes. Self-check against the criteria afterwards; a corrected answer is useful practice, not evidence of first-attempt mastery.",
+          "uz": "Avval savollarga mustaqil javob bering. Keyin model answer bilan solishtiring. Tuzatilgan javob birinchi mustaqil urinish o‘rnini bosmaydi."
+        },
+        {
+          "kind": "text",
+          "title": "Scenario and assumptions",
+          "text": "Each programmer belongs to one team. Several programmers may work on a program; a programmer may work on several programs. Each program is for one customer. DaysWorked belongs to a particular programmer–program pair. Use unique ProgrammerID and ProgramID values instead of assuming names are unique. This adapts the end-of-chapter design scenario.",
+          "uz": ""
+        },
+        {
+          "kind": "table",
+          "title": "The chapter in one route",
+          "headers": [
+            "Question",
+            "Tool or concept"
+          ],
+          "rows": [
+            [
+              "Why change the old files?",
+              "Redundancy, inconsistency, dependency"
+            ],
+            [
+              "What facts belong together?",
+              "Entities, attributes, keys and normalisation"
+            ],
+            [
+              "How are entities connected?",
+              "Foreign keys, referential integrity and E-R diagrams"
+            ],
+            [
+              "Who manages and protects data?",
+              "DBMS, data dictionary, access rights and recovery"
+            ],
+            [
+              "How is the design built?",
+              "SQL DDL"
+            ],
+            [
+              "How is information retrieved or changed?",
+              "SQL DML"
+            ]
+          ]
+        },
+        {
+          "kind": "text",
+          "title": "After the assessment",
+          "text": "Revisit only the lessons linked to missed criteria. Explain one corrected answer without looking, then attempt a fresh example. Use the platform’s Past Papers tab for the separately maintained Cambridge question bank.",
+          "uz": ""
+        }
+      ],
+      "extension": {
+        "worked": {
+          "kind": "written",
+          "prompt": "Warm-up: explain why DaysWorked belongs to the programmer–program pair.",
+          "answer": "The same programmer can spend different numbers of days on different programs, and different programmers can spend different numbers of days on the same program. Neither key alone determines DaysWorked.",
+          "criteria": [
+            "Depends on both identifiers.",
+            "Use both directions to justify the composite key."
+          ]
+        },
+        "checks": [
+          {
+            "kind": "written",
+            "prompt": "1 · Normalisation: propose relations, primary keys and foreign keys for the software-company scenario.",
+            "answer": "PROGRAMMER(ProgrammerID PK, ProgrammerName, Team); PROGRAM(ProgramID PK, ProgramName, CustomerID FK); CUSTOMER(CustomerID PK, CustomerName); WORK(ProgrammerID PK/FK, ProgramID PK/FK, DaysWorked). If further team attributes are stored, put them in a TEAM relation with a TeamID FK.",
+            "criteria": [
+              "Separate programmer, program and customer facts.",
+              "Composite PK on WORK.",
+              "Correct FKs.",
+              "DaysWorked depends on the whole pair."
+            ]
+          },
+          {
+            "kind": "written",
+            "prompt": "2 · Relationships: describe the E-R links and the effect of inserting a WORK row for a missing ProgramID.",
+            "answer": "PROGRAMMER 1:m WORK; PROGRAM 1:m WORK; CUSTOMER 1:m PROGRAM. The programmer–program m:m relationship is resolved through WORK. The missing ProgramID violates referential integrity and must be rejected unless a valid parent is created first.",
+            "criteria": [
+              "Two links through WORK.",
+              "Customer link.",
+              "Missing parent rejected."
+            ]
+          },
+          {
+            "kind": "written",
+            "prompt": "3 · DBMS: give two different protections for student data and explain the query processor’s DML path.",
+            "answer": "Access rights restrict which data/actions a user can access; scheduled backups enable recovery after loss. The DML compiler translates and optimises a query, then the query evaluation engine executes it.",
+            "criteria": [
+              "Two distinct controls and purposes.",
+              "Compilation/optimisation.",
+              "Execution."
+            ]
+          },
+          {
+            "kind": "written",
+            "prompt": "4 · SELECT: using Student and StudentSubject, list StudentID, FirstName and SecondName for students taking Maths, ordered by SecondName.",
+            "answer": "SELECT Student.StudentID, Student.FirstName, Student.SecondName FROM Student INNER JOIN StudentSubject ON Student.StudentID = StudentSubject.StudentID WHERE StudentSubject.SubjectName = 'Maths' ORDER BY Student.SecondName;",
+            "criteria": [
+              "Required columns.",
+              "JOIN on StudentID.",
+              "Maths filter.",
+              "Surname sort."
+            ]
+          },
+          {
+            "kind": "choice",
+            "prompt": "5 · Aggregates: marks are 60, NULL and 90. Which pair is COUNT(ExamMark), AVG(ExamMark)?",
+            "options": [
+              "3 and 50",
+              "2 and 75",
+              "3 and 75"
+            ],
+            "correct": 1,
+            "why": "Only two marks are present: (60 + 90) / 2 = 75."
+          },
+          {
+            "kind": "written",
+            "prompt": "6 · Repair: explain the difference between DELETE FROM Student; and dropping the table. Then write a command that deletes only S1301.",
+            "answer": "DELETE removes rows and retains the table definition; DROP TABLE removes the table structure. DELETE FROM Student WHERE StudentID = 'S1301'; Referential constraints still apply.",
+            "criteria": [
+              "Rows versus structure.",
+              "Correct filtered DELETE.",
+              "Acknowledge referenced rows if relevant."
+            ]
+          }
+        ]
+      }
     }
   ],
-  "sqlSetup": "PRAGMA foreign_keys = ON;\nCREATE TABLE Teacher (LicenceNumber INTEGER PRIMARY KEY, TeacherName VARCHAR(60) NOT NULL, Address VARCHAR(120), TeacherDateOfBirth DATE);\nCREATE TABLE Class (ClassID VARCHAR(4) NOT NULL PRIMARY KEY, Location VARCHAR(60), LicenceNumber INTEGER NOT NULL, FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber));\nCREATE TABLE Student (StudentID VARCHAR(5) NOT NULL PRIMARY KEY, FirstName VARCHAR(40), SecondName VARCHAR(40), DateOfBirth DATE, ClassID VARCHAR(4) NOT NULL, FOREIGN KEY (ClassID) REFERENCES Class(ClassID));\nCREATE TABLE Subject (SubjectName VARCHAR(40) NOT NULL PRIMARY KEY, LicenceNumber INTEGER NOT NULL, FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber));\nCREATE TABLE StudentSubject (StudentID VARCHAR(5) NOT NULL, SubjectName VARCHAR(40) NOT NULL, ExamMark INTEGER, PRIMARY KEY (StudentID, SubjectName), FOREIGN KEY (StudentID) REFERENCES Student(StudentID), FOREIGN KEY (SubjectName) REFERENCES Subject(SubjectName));\nINSERT INTO Teacher VALUES (37952,'Mr Khan','School House 1','1985-03-27'),(68943,'Miss Malik','School House 2','1988-12-14'),(35859,'Mr Yee','School House 1','1985-10-07'),(72691,'Miss Wu','School House 2','1989-11-21');\nINSERT INTO Class VALUES ('7A','Floor 2 Room 3',37952),('7B','Floor 2 Room 4',68943);\nINSERT INTO Student VALUES ('S1276','Noor','Baig','2010-09-22','7A'),('S1277','Ahmad','Sayed','2010-06-11','7B'),('S1299','Tahir','Hassan','2011-01-30','7A');\nINSERT INTO Subject VALUES ('Maths',35859),('History',72691);\nINSERT INTO StudentSubject VALUES ('S1276','Maths',80),('S1277','Maths',70),('S1299','Maths',NULL),('S1276','History',90);\n",
+  "sqlSetup": "PRAGMA foreign_keys = ON;\nCREATE TABLE Teacher (LicenceNumber INTEGER PRIMARY KEY, TeacherName VARCHAR(60) NOT NULL, Address VARCHAR(120), TeacherDateOfBirth DATE);\nCREATE TABLE Class (ClassID VARCHAR(4) NOT NULL PRIMARY KEY, Location VARCHAR(60), LicenceNumber INTEGER NOT NULL, FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber));\nCREATE TABLE Student (StudentID VARCHAR(5) NOT NULL PRIMARY KEY, FirstName VARCHAR(40), SecondName VARCHAR(40), DateOfBirth DATE, ClassID VARCHAR(4) NOT NULL, FOREIGN KEY (ClassID) REFERENCES Class(ClassID));\nCREATE TABLE Subject (SubjectName VARCHAR(40) NOT NULL PRIMARY KEY, LicenceNumber INTEGER NOT NULL, FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber));\nCREATE TABLE StudentSubject (StudentID VARCHAR(5) NOT NULL, SubjectName VARCHAR(40) NOT NULL, ExamMark INTEGER, PRIMARY KEY (StudentID, SubjectName), FOREIGN KEY (StudentID) REFERENCES Student(StudentID), FOREIGN KEY (SubjectName) REFERENCES Subject(SubjectName));\nINSERT INTO Teacher VALUES (37952,'Mr Khan','School House 1','1985-03-27'),(68943,'Miss Malik','School House 2','1988-12-14'),(35859,'Mr Yee','School House 1','1985-10-07'),(72691,'Miss Wu','School House 2','1989-11-21');\nINSERT INTO Class VALUES ('7A','Room 12',37952),('7B','Room 14',68943);\nINSERT INTO Student VALUES ('S1276','Noor','Baig','2010-09-22','7A'),('S1277','Ahmad','Sayed','2010-06-11','7B'),('S1299','Tahir','Hassan','2011-01-30','7A');\nINSERT INTO Subject VALUES ('Maths',35859),('History',72691);\nINSERT INTO StudentSubject VALUES ('S1276','Maths',80),('S1277','Maths',70),('S1299','Maths',NULL),('S1276','History',90);\n",
   "queries": [
     {
       "title": "Who is in 7A?",

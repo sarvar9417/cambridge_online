@@ -5,42 +5,42 @@
     {
       "term": "Database",
       "source_page": 196,
-      "lesson": 2
+      "lesson": 3
     },
     {
       "term": "Relational database",
       "source_page": 196,
-      "lesson": 2
+      "lesson": 3
     },
     {
       "term": "Table",
       "source_page": 196,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Record",
       "source_page": 196,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Field",
       "source_page": 197,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Tuple",
       "source_page": 197,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Entity",
       "source_page": 197,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Attribute",
       "source_page": 197,
-      "lesson": 3
+      "lesson": 1
     },
     {
       "term": "Candidate key",
@@ -145,7 +145,7 @@
     {
       "term": "Structured query language (SQL)",
       "source_page": 209,
-      "lesson": 10
+      "lesson": 9
     },
     {
       "term": "Query processor",
@@ -171,7 +171,21 @@
   "lessons": [
     {
       "number": 1,
-      "title": "When two school files disagree",
+      "title": "Read one simple table",
+      "source_pages": [
+        196,
+        197,
+        199,
+        200
+      ],
+      "source_elements": [
+        "8.1.3",
+        "Tables 8.1–8.2"
+      ]
+    },
+    {
+      "number": 2,
+      "title": "Why repeated files cause problems",
       "source_pages": [
         196,
         197,
@@ -185,8 +199,8 @@
       ]
     },
     {
-      "number": 2,
-      "title": "Replace copies with one shared database",
+      "number": 3,
+      "title": "Connect two small tables",
       "source_pages": [
         196,
         198,
@@ -198,22 +212,8 @@
       ]
     },
     {
-      "number": 3,
-      "title": "Read one database table confidently",
-      "source_pages": [
-        196,
-        197,
-        199,
-        200
-      ],
-      "source_elements": [
-        "8.1.3",
-        "Tables 8.1–8.2"
-      ]
-    },
-    {
       "number": 4,
-      "title": "Identify students and connect classes",
+      "title": "Identify a row, then link it",
       "source_pages": [
         197,
         200,
@@ -230,7 +230,7 @@
     },
     {
       "number": 5,
-      "title": "Draw the school relationships",
+      "title": "One-to-many, step by step",
       "source_pages": [
         202,
         203,
@@ -246,7 +246,7 @@
     },
     {
       "number": 6,
-      "title": "Normalisation, step 1: reach 1NF",
+      "title": "1NF: remove the subject list",
       "source_pages": [
         203,
         204,
@@ -259,7 +259,7 @@
     },
     {
       "number": 7,
-      "title": "Normalisation, steps 2 and 3: reach 3NF",
+      "title": "2NF and 3NF: where does each fact belong?",
       "source_pages": [
         205,
         206,
@@ -275,7 +275,7 @@
     },
     {
       "number": 8,
-      "title": "Meet the DBMS: who manages the Student table?",
+      "title": "Database or DBMS?",
       "source_pages": [
         208,
         209,
@@ -286,12 +286,14 @@
         "8.2.1",
         "p.208 key terms",
         "p.209 data dictionary",
-        "p.210 data modelling"
+        "p.210 data modelling",
+        "Data dictionary",
+        "Data modelling and logical schema"
       ]
     },
     {
       "number": 9,
-      "title": "Protect student data and process a request",
+      "title": "Who may see or change the data?",
       "source_pages": [
         208,
         209,
@@ -300,13 +302,15 @@
       "source_elements": [
         "8.2.1 security",
         "8.2.2 developer interface and query processor",
-        "Activity 8F"
+        "Activity 8F",
+        "8.2.2"
       ]
     },
     {
       "number": 10,
-      "title": "Your first SQL: structure versus data",
+      "title": "SQL: structure or stored data?",
       "source_pages": [
+        209,
         211,
         212
       ],
@@ -319,7 +323,7 @@
     },
     {
       "number": 11,
-      "title": "Build two linked tables, then extend the design",
+      "title": "Create a table one line at a time",
       "source_pages": [
         211,
         212
@@ -328,12 +332,13 @@
         "8.3.2",
         "Table 8.13",
         "Table 8.14",
-        "Activity 8G"
+        "Activity 8G",
+        "Tables 8.13–8.14"
       ]
     },
     {
       "number": 12,
-      "title": "Find and sort students with SELECT",
+      "title": "SELECT: build one question at a time",
       "source_pages": [
         211,
         213,
@@ -343,12 +348,14 @@
         "8.3 prior knowledge",
         "8.3.3",
         "Table 8.15 SELECT/WHERE/ORDER BY/INNER JOIN",
-        "Activity 8H"
+        "Activity 8H",
+        "8.3.3 query commands",
+        "Table 8.15"
       ]
     },
     {
       "number": 13,
-      "title": "Count marks and make safe data changes",
+      "title": "Count marks and change records",
       "source_pages": [
         213,
         214
@@ -357,12 +364,13 @@
         "8.3.3",
         "Table 8.15 SUM/COUNT/AVG/GROUP BY",
         "Activity 8I",
-        "INSERT INTO / UPDATE / DELETE FROM"
+        "INSERT INTO / UPDATE / DELETE FROM",
+        "Table 8.15"
       ]
     },
     {
       "number": 14,
-      "title": "Connect the whole chapter",
+      "title": "Use what you have learned",
       "source_pages": [
         196,
         208,
@@ -413,9 +421,9 @@
   ],
   "verification": {
     "sql": "python3 scripts/verify-chapter8-sql.py",
-    "frontend": "npm run test -w frontend -- src/teaching/chapter8/chapter8.test.tsx",
+    "frontend": "npm run test -w frontend -- src/teaching/chapter8/chapter8.test.tsx src/teaching/lesson-course-catalog.test.ts src/teaching/lesson-experience-model.test.ts src/teaching/chapter8-final-source-completeness.test.ts",
     "build": "npm run build -w frontend",
-    "browser": "Interactive one-table DDL and WHERE results; current review remains separate",
+    "browser": "Linear next/previous flow, bilingual explanation, 2NF/3NF before-and-after tables, foreign-key rejection, mobile layout, first-attempt preservation and study completion.",
     "data_contract": "33 Hodder key terms mapped to 14 lessons; printed pp.196–216 covered; 8.2/8.3 examples grounded in pp.208–214"
   },
   "limitations": [
@@ -423,5 +431,13 @@
     "Detailed attempts are saved in browser storage under the signed-in user ID. Successful student completion is also sent to the existing progress endpoint.",
     "SQL result walkthroughs show SQLite-verified fixed examples; they are not a live query editor.",
     "The prior Chapter 8 source layers remain for the existing Past Papers route; Study and Presentation use the new course."
-  ]
+  ],
+  "pedagogy_revision": {
+    "reason": "Learner feedback: explanations and navigation were too difficult.",
+    "sequence": "Table -> separate-file problems -> linked tables -> keys -> relationships -> 1NF -> 2NF/3NF -> DBMS -> security/query processor -> SQL -> DDL -> SELECT -> aggregates/DML -> assessment.",
+    "method": "Concrete example before terminology; short bilingual explanations; worked answer before practice; one linear Next/Previous path.",
+    "coverage": "All 33 terms remain. Full source-aligned explanations, complete SQL, and original extension exercises remain under clearly labelled deeper-study sections.",
+    "completion": "Study completion is reading, attempting checks, and reviewing the recap. It is not a mastery score; first attempts remain separate from revisions.",
+    "integration": "Incorporates fe47f0c: retains refreshed detailed explanations, updated source references, progressive E-R and introductory SQL explorers, and the CI SQL regression runner. v4 isolates rewritten task evidence from previous versions."
+  }
 }
