@@ -106,7 +106,7 @@ describe("Chapter 8 source-backed course", () => {
     ]);
     expect(lessons[1].blocks[0].title).toContain("One source");
     expect(lessons[2].blocks[0].title).toContain("Student table");
-    expect(lessons[3].hook).toContain("same name");
+    expect(lessons[3].hook).toContain("Two students are called");
     expect(lessons[5].title).toContain("1NF");
     expect(lessons[6].title).toContain("3NF");
     expect(lessons.slice(0, 7).every((lesson) => lesson.blocks.length >= 4)).toBe(true);
@@ -142,7 +142,7 @@ describe("Chapter 8 source-backed course", () => {
     const e: Evidence = {
       draft: "",
       first: "wrong",
-      firstChoice: 0,
+      firstChoice: t.correct === 0 ? 1 : 0,
       choice: t.correct,
       revealed: true,
       submitted: true,
