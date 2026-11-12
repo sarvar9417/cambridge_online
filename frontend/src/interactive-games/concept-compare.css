@@ -34,3 +34,6 @@
  .ig-compare-side-buttons { flex:1 1 100%; justify-content:stretch; }
  .ig-compare-side-buttons button { flex:1; }
 }
+/* Compact metadata does not interfere with drag, keyboard or touch targeting. */
+.ig-compare-card-text .ig-compare-category{font-size:10px;font-weight:700;letter-spacing:.025em;color:#505b96;background:#eef0ff;border-radius:999px;padding:4px 7px;white-space:nowrap;align-self:flex-start}
+@media(max-width:720px){.ig-compare-card-text{flex-wrap:wrap}.ig-compare-card-text .ig-compare-category{margin-left:37px}}
