@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/api';
 import { chapter7Pilot, type GamePair } from './game-content';
+import { COMPARE_DECKS } from './concept-compare-bank';
 import type { GameScope, LiveGameCatalog, LiveGamePack } from './remote-games';
 import { InteractiveGamesPage } from './InteractiveGamesPage';
 
@@ -212,7 +213,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-practice-save')).toBeNull();
   });
 
-  it('loads chapters, syllabus topics and Hodder sections with the eight game templates', async () => {
+  it('loads chapters, syllabus topics and Hodder sections with the nine game templates', async () => {
     await render(true);
     expect(container.textContent).toContain('Chapter 1');
     expect(container.textContent).toContain('137 terms');
@@ -223,7 +224,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.textContent).toContain('pending review');
     expect([...container.querySelectorAll('.ig-game-tile strong')].map((el) => el.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
@@ -262,9 +263,10 @@ describe('database-backed Interactive Games multi-selection', () => {
     const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
     expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
     ]);
-    expect(gameTiles.every((tile) => !tile.disabled)).toBe(true);
+    expect(gameTiles.slice(0, 8).every((tile) => !tile.disabled)).toBe(true);
+    expect(gameTiles[8]?.disabled).toBe(true);
     await game('Quiz');
     expect(container.querySelector('.ig-quiz')).not.toBeNull();
     expect(container.textContent).not.toContain('source-screened definitions are not individually expert-verified');
@@ -441,6 +443,37 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-find-tile')).toHaveLength(9);
   });
 
+  it('plays a two-concept comparison with shared placements and penalises selecting both indiscriminately', async () => {
+    await render(true);
+    const compareTile = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')]
+      .find(tile => tile.querySelector('strong')?.textContent === 'Concept Compare')!;
+    expect(compareTile.disabled).toBe(true);
+    await choose('Select entire Chapter 2');
+    await game('Concept Compare');
+    const deck = COMPARE_DECKS.find(item => item.id === 'lan-wan')!;
+    expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(deck.cards.length);
+    for (const card of [...container.querySelectorAll<HTMLElement>('.ig-compare-card')]) {
+      const index = Number(card.querySelector('.ig-compare-number')?.textContent) - 1;
+      const answer = deck.cards[index]?.[1]!;
+      const options = [...card.querySelectorAll<HTMLButtonElement>('.ig-compare-side-buttons button')];
+      if (answer.includes('A')) await click(options[0]!);
+      if (answer.includes('B')) await click(options[1]!);
+    }
+    await click(button('Check Answers · 10/10'));
+    expect(container.querySelector('.ig-compare-summary')?.textContent).toContain('20 / 20 points');
+    expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Round finished');
+
+    await click(button('↻ Play this round again'));
+    for (const card of [...container.querySelectorAll<HTMLElement>('.ig-compare-card')]) {
+      for (const option of [...card.querySelectorAll<HTMLButtonElement>('.ig-compare-side-buttons button')]) {
+        await click(option);
+      }
+    }
+    await click(button('Check Answers · 10/10'));
+    expect(container.querySelector('.ig-compare-summary')?.textContent).toContain('13 / 20 points');
+    expect(container.querySelectorAll('.ig-compare-card.is-wrong').length).toBe(7);
+  });
+
   it('keeps a full-chapter choice canonical rather than double-adding nested subtopics', async () => {
     await render();
     await choose('Topic 1.1 · Chapter 1');
@@ -468,7 +501,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);
     mockApi.mockImplementation(respond as typeof api);
     await click(button('Retry'));
-    expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(8);
+    expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(9);
   });
 
   it('removes stale content errors as soon as the user clears a failed multi-selection', async () => {

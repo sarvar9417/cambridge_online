@@ -12,7 +12,8 @@ export type GameKind =
   | 'open-box'
   | 'quiz'
   | 'find-the-match'
-  | 'anagram';
+  | 'anagram'
+  | 'concept-compare';
 
 export interface GamePair {
   id: string;
@@ -130,6 +131,7 @@ export const GAME_CATALOG: ReadonlyArray<{ id: GameKind; label: string; descript
   { id: 'quiz', label: 'Quiz', description: 'Answer one multiple-choice question at a time.' },
   { id: 'find-the-match', label: 'Find the Match', description: 'Choose the right term for a definition.' },
   { id: 'anagram', label: 'Anagram', description: 'Unscramble computer science vocabulary.' },
+  { id: 'concept-compare', label: 'Concept Compare', description: 'Sort statements between two similar terms; shared traits belong to both.' },
 ];
 
 export function isCorrectPair(termId: string, definitionId: string): boolean {

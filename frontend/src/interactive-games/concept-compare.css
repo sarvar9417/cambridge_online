@@ -1,0 +1,36 @@
+.ig-compare-controls { display:flex; flex-wrap:wrap; gap:12px; align-items:end; margin:0 0 16px; }
+.ig-compare-controls label { min-width:min(100%,260px); display:grid; gap:6px; color:#4c5877; font-size:13px; font-weight:700; }
+.ig-compare-controls select { width:100%; padding:11px; color:#222f5b; background:#fff; border:1px solid #cbd4ea; border-radius:10px; }
+.ig-compare-targets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:16px 0 22px; }
+.ig-compare-target { min-width:0; min-height:160px; border:2px dashed #aebbea; border-radius:16px; padding:16px; background:#f6f8ff; }
+.ig-compare-target:nth-child(2) { background:#fbf7ff; border-color:#c8b2e4; }
+.ig-compare-target h3 { font-size:17px; color:#313c91; margin:0 0 8px; }
+.ig-compare-target p { color:#606c87; font-size:12px; line-height:1.5; margin:0 0 12px; }
+.ig-compare-placement { display:flex; justify-content:space-between; align-items:start; gap:8px; color:#2e416b; background:white; border:1px solid #d6e0ed; border-radius:10px; padding:10px; margin:6px 0; font-size:12px; line-height:1.45; }
+.ig-compare-placement button { flex:0 0 26px; height:26px; border:none; border-radius:7px; background:#e9ecfa; color:#37468b; font-size:18px; }
+.ig-compare-placement.is-correct { border-color:#7dc7a0; background:#e9f9ef; }
+.ig-compare-placement.is-wrong { border-color:#e59b95; background:#fff0ee; }
+.ig-compare-bank h3 { font-size:17px; color:#29355d; margin-bottom:8px; }
+.ig-compare-card { padding:13px; margin:9px 0; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border-radius:12px; background:#fff; border:1px solid #d5ddeb; cursor:grab; }
+.ig-compare-card.is-active { outline:2px solid #575ac8; }
+.ig-compare-card.is-correct { border-color:#7dc7a0; background:#eefaf1; }
+.ig-compare-card.is-wrong { border-color:#e59b95; background:#fff3f0; }
+.ig-compare-card-text { display:flex; align-items:start; gap:12px; flex:1 1 290px; color:#233354; line-height:1.5; }
+.ig-compare-card-text strong { font-size:13px; font-weight:600; }
+.ig-compare-number { flex:0 0 25px; background:#edf0fa; color:#515d97; border-radius:7px; text-align:center; padding:3px 0; font-weight:800; font-size:11px; }
+.ig-compare-side-buttons { flex:0 1 300px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.ig-compare-side-buttons button { padding:8px 10px; background:#f8f9fd; border:1px solid #bfcbe3; border-radius:9px; color:#3e4c79; font-size:12px; font-weight:700; min-width:70px; }
+.ig-compare-side-buttons button.is-placed { background:#dedff9; border-color:#8387d5; color:#32388f; }
+.ig-compare-answer { width:100%; margin:0; font-size:12px; font-weight:700; color:#40506e; }
+.ig-compare-submit { width:100%; margin:18px 0; }
+.ig-compare-summary { padding:20px; border:1px solid #d4ddf0; background:#f4f7ff; border-radius:14px; line-height:1.6; }
+.ig-compare-summary h3 { margin:0 0 8px; color:#253a77; }
+.ig-compare-summary p,.ig-compare-provenance { font-size:12px; color:#5c6882; line-height:1.6; }
+.ig-compare-empty { background:#f8f9fc; color:#4b5675; }
+@media(max-width:700px) {
+ .ig-compare-targets { grid-template-columns:1fr; }
+ .ig-compare-card { align-items:stretch; }
+ .ig-compare-card-text { flex-basis:100%; }
+ .ig-compare-side-buttons { flex:1 1 100%; justify-content:stretch; }
+ .ig-compare-side-buttons button { flex:1; }
+}
