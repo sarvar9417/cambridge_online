@@ -1335,8 +1335,8 @@
       "id": "h8-rewrite-v1-08",
       "number": 8,
       "section": "8.2",
-      "title": "What the DBMS manages",
-      "subtitle": "Separate the data, its description, and the software that manages both.",
+      "title": "Meet the DBMS: who manages the Student table?",
+      "subtitle": "Understand the data first, then the software and its rules.",
       "pages": [
         208,
         209,
@@ -1345,110 +1345,150 @@
       "sourceRefs": [
         "8.2 prior knowledge",
         "8.2.1",
-        "Data dictionary",
-        "Data modelling and logical schema"
+        "p.208 key terms",
+        "p.209 data dictionary",
+        "p.210 data modelling"
       ],
       "objectives": [
-        "Distinguish a database from a DBMS.",
-        "Identify metadata held in a data dictionary.",
-        "Explain data modelling and a logical schema."
+        "Tell the difference between a database and a DBMS.",
+        "Explain data management and a data dictionary with Student examples.",
+        "Describe a data model and logical schema; connect DBMS benefits to old file problems."
       ],
-      "hook": "“StudentID is a VARCHAR(5) primary key.” Is that a student’s data, or data about the database?",
+      "hook": "Our school keeps Noor's class in a Student table. Who makes sure the correct people can update it?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "Data versus management software",
-          "text": "The database is the organised data. The DBMS is the system software that defines structures, controls access, stores new data, retrieves it, changes it and deletes it. Data management covers the organisation and maintenance needed to produce useful information.",
-          "uz": ""
-        },
-        {
           "kind": "table",
-          "title": "The dictionary describes the data",
+          "title": "The Student data the school already understands",
           "headers": [
-            "Metadata category",
-            "School example"
+            "StudentID",
+            "FirstName",
+            "ClassID"
           ],
           "rows": [
             [
-              "Tables and attributes",
-              "Student contains StudentID and FirstName."
+              "S1276",
+              "Noor",
+              "7A"
             ],
             [
-              "Data types and validation",
-              "StudentID is character data; a required key cannot be null."
+              "S1277",
+              "Ahmad",
+              "7B"
             ],
             [
-              "Keys and relationships",
-              "Student.ClassID references Class.ClassID."
-            ],
-            [
-              "Indexes",
-              "An index supports ClassID and surname lookups."
-            ],
-            [
-              "Physical storage information",
-              "Implementation details about how data is stored."
+              "S1299",
+              "Tahir",
+              "7A"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "How a DBMS improves integrity",
-          "text": "The dictionary provides rules the DBMS can enforce. A duplicate primary-key insert can be rejected, and an invalid foreign-key value can be refused. Shared controlled updates improve consistency. Validation helps enforce rules, but cannot prove that a plausible entered date is the true date.",
-          "uz": "Data dictionary ma’lumotning o‘zini emas, uning tuzilishi va qoidalarini saqlaydi: table, attribute, data type, key, relationship va validation."
+          "title": "Database and DBMS are not the same thing",
+          "text": "A database stores organised data, such as the Student rows above. A database management system (DBMS) is the system software that lets authorised applications create, read, change and manage that data. Data management means keeping that data organised and maintained so useful information can be produced.",
+          "uz": "Database — ma'lumotlarning o'zi. DBMS — shu ma'lumotni boshqaradigan dastur. Ular bir narsa emas."
+        },
+        {
+          "kind": "steps",
+          "title": "Follow one ordinary school change",
+          "items": [
+            {
+              "title": "A new class is recorded",
+              "text": "The school creates Class 7C. The DBMS stores the record according to the defined table rules."
+            },
+            {
+              "title": "Noor moves from 7A to 7C",
+              "text": "An authorised user changes Noor's ClassID in the shared Student table."
+            },
+            {
+              "title": "Everyone sees the controlled value",
+              "text": "Attendance and Exams can read the same updated class, rather than separate copies."
+            }
+          ]
+        },
+        {
+          "kind": "table",
+          "title": "Data dictionary: descriptions, not student records",
+          "headers": [
+            "Actual data in Student",
+            "Metadata in the data dictionary"
+          ],
+          "rows": [
+            [
+              "Noor",
+              "FirstName is a named attribute"
+            ],
+            [
+              "S1276",
+              "StudentID is the primary key"
+            ],
+            [
+              "7A",
+              "ClassID is a foreign key to Class"
+            ],
+            [
+              "2010-09-22",
+              "DateOfBirth is defined as a date"
+            ],
+            [
+              "—",
+              "Rules, relationships, indexes and storage details"
+            ]
+          ]
         },
         {
           "kind": "text",
-          "title": "Model before implementing",
-          "text": "Data modelling starts with requirements: what facts must be stored, about which entities, and under which relationships? An E-R diagram expresses a model. A logical schema specifies the particular relations and constraints independently of which DBMS will implement them.",
-          "uz": ""
+          "title": "Data modelling and logical schema",
+          "text": "Before building the database, the designer decides which entities and attributes are needed and how they relate. This is data modelling; an E-R diagram is one way to show the model. A logical schema might say STUDENT(StudentID PK, FirstName, ClassID FK) and CLASS(ClassID PK, Location). It describes the database design independently of whether the school uses MySQL, SQLite or another DBMS.",
+          "uz": "Data modelling — jadval va bog'lanishlarni oldindan rejalash. Logical schema — qaysi jadvallar va kalitlar kerakligini ifodalovchi reja."
         },
         {
           "kind": "text",
-          "title": "Reconnect the three file-based problems",
-          "text": "Reduced duplication limits redundancy. Centralised controlled updates reduce inconsistent copies. DBMS-managed structures and query facilities reduce data dependency. Query-by-example allows users to express a request through a form instead of writing SQL directly.",
-          "uz": ""
+          "title": "Why a DBMS is better than separate files",
+          "text": "Linked tables reduce unnecessary duplicated facts (data redundancy). One controlled update reduces disagreements (data inconsistency). DBMS-managed structures and queries reduce dependence on a particular application's file layout (data dependency). Foreign-key values may legitimately repeat because they provide the links.",
+          "uz": "Yodlashdan oldin sababini ko'ring: bitta to'g'ri yangilanish barcha ruxsatli dasturlarga ko'rinadi."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Classify these items: Noor; StudentID is a primary key; an E-R diagram of Student and Class.",
-        "answer": "Noor is stored application data. The primary-key declaration is metadata in the data dictionary. The E-R diagram is a data model; with detailed relations and constraints it contributes to the logical schema.",
+        "prompt": "Class 7A's location changes from Room 3 to Room 5. Explain which fact should change and which software manages it.",
+        "answer": "The class location belongs to the Class table, so its Location value is updated in the existing Class 7A record. The DBMS manages the authorised update; Student rows can keep their ClassID foreign key and see the new location through the relationship.",
         "criteria": [
-          "Data value.",
-          "Metadata rule.",
-          "Model representation."
+          "Keep the location in the Class table.",
+          "Say what the DBMS does.",
+          "Explain why Student records need not each store Room 5."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which belongs in a data dictionary?",
+          "prompt": "Which item belongs in a data dictionary rather than a Student record?",
           "options": [
-            "Noor’s exam score",
-            "The type and validation rule for ExamMark",
-            "Every student’s surname"
+            "Noor's first name",
+            "ClassID references Class.ClassID",
+            "Noor's current class value 7A"
           ],
           "correct": 1,
-          "why": "The dictionary describes the structure and rules, not the actual exam results."
+          "why": "The dictionary stores definitions and rules. Actual student values belong in tables."
         },
         {
           "kind": "written",
-          "prompt": "Explain one way a DBMS improves consistency and one limit of validation.",
-          "answer": "Controlled updates let applications use the same value. Validation can reject an impossible format or range, but a valid-looking wrong birth date may still pass.",
+          "prompt": "Attendance and Exams once stored separate copies of every student's class. Explain one improvement provided by a shared DBMS.",
+          "answer": "The DBMS allows authorised applications to access the same Student record. Updating ClassID once reduces duplicated data and the risk of inconsistent class values across applications.",
           "criteria": [
-            "Shared/controlled update.",
-            "Validation does not guarantee factual truth."
+            "Explain one shared record or controlled update.",
+            "Link it to redundancy or inconsistency."
           ]
         }
       ],
       "recap": [
-        "Database = data; DBMS = management software.",
-        "Metadata describes structure, relationships and rules.",
-        "A logical schema is independent of a particular DBMS."
+        "Database stores the records; DBMS manages and controls them.",
+        "Data dictionary stores metadata: table definitions, keys, constraints and more.",
+        "Data modelling defines the design; a logical schema is independent of one DBMS.",
+        "Shared data and managed structures address file-based limitations."
       ],
-      "mistake": "Do not describe a data dictionary as a list of student records. It describes those records’ structure.",
-      "next": "Next, examine security permissions and the tools that execute queries.",
+      "mistake": "A data dictionary is not a second list of Noor's records. It contains descriptions such as 'ClassID is a foreign key'.",
+      "next": "Next, protect the Student records and follow a query through the DBMS.",
       "visual": "dictionary",
       "terms": [
         "Database management system (DBMS)",
@@ -1462,8 +1502,8 @@
       "id": "h8-rewrite-v1-09",
       "number": 9,
       "section": "8.2",
-      "title": "Secure access and process queries",
-      "subtitle": "Give each user the access needed for their job.",
+      "title": "Protect student data and process a request",
+      "subtitle": "First decide who can do what; then see how SQL requests are handled.",
       "pages": [
         208,
         209,
@@ -1471,128 +1511,150 @@
       ],
       "sourceRefs": [
         "8.2.1 security",
-        "8.2.2",
+        "8.2.2 developer interface and query processor",
         "Activity 8F"
       ],
       "objectives": [
-        "Select security measures for a concrete risk.",
-        "Distinguish developer interface from query processor.",
-        "Trace DDL and DML through the query processor."
+        "Choose suitable DBMS security features for a school.",
+        "Explain access rights as both permitted actions and visible data.",
+        "Distinguish a developer interface from a query processor and its parts."
       ],
-      "hook": "A pupil needs their timetable. Should their account be able to delete the Student table?",
+      "hook": "A student may view their own timetable. Should they be allowed to change every pupil's timetable?",
       "blocks": [
         {
           "kind": "table",
-          "title": "Security controls solve different problems",
+          "title": "Three users, three sensible permissions",
           "headers": [
-            "Control",
-            "Purpose",
-            "School example"
+            "User",
+            "Can do",
+            "Should not do"
           ],
           "rows": [
             [
-              "Username and password",
-              "Authenticate a user.",
-              "Check who is signing in."
+              "Pupil",
+              "Read their own timetable",
+              "Change another pupil's records"
             ],
             [
-              "Access rights and views",
-              "Restrict actions and visible data.",
-              "A pupil reads their timetable; staff update authorised records."
+              "Teacher",
+              "Read authorised class information",
+              "Delete the entire Student table"
             ],
             [
-              "Scheduled backups",
-              "Recover after corruption or loss.",
-              "Restore a recent valid copy after accidental damage."
-            ],
-            [
-              "Encryption",
-              "Protect data from being read without the key.",
-              "Protect stored sensitive student data."
-            ],
-            [
-              "Audit trail / activity log",
-              "Record who did what and when.",
-              "Investigate which account changed a class assignment."
+              "Administrator",
+              "Maintain authorised school timetables",
+              "Use access beyond their assigned role"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "Permissions have two dimensions",
-          "text": "Control what a user can do (read, append, modify, delete) and which tables, rows or views they may access. Authentication and authorisation are different decisions. A valid login should not automatically grant every privilege. Backups support recovery; they do not themselves block unauthorised reading.",
-          "uz": ""
+          "title": "Logging in is only the first check",
+          "text": "A username and password help identify or authenticate the user. Access rights then decide which tables, rows or views they can see and whether they may read, append, modify or delete data. A successful login does not give unrestricted access.",
+          "uz": "Login: kim kirganini bilish. Access rights: qaysi ma'lumotni ko'rishi yoki o'zgartirishi mumkinligi."
         },
         {
-          "kind": "text",
-          "title": "Developer interface",
-          "text": "A developer writes SQL using the developer interface. SQL supports complex requests beyond a simple query-by-example form. The interface accepts the request; the query processor interprets or compiles and executes it.",
-          "uz": ""
+          "kind": "table",
+          "title": "Every security tool has a different job",
+          "headers": [
+            "DBMS feature",
+            "What it protects against / provides"
+          ],
+          "rows": [
+            [
+              "Access rights and views",
+              "Restrict unauthorised actions and visibility"
+            ],
+            [
+              "Regular scheduled back-ups",
+              "Restore data after loss or corruption"
+            ],
+            [
+              "Encryption",
+              "Make stored sensitive information unreadable without a suitable key"
+            ],
+            [
+              "Audit trail or activity log",
+              "Record user actions for later checking"
+            ],
+            [
+              "Username and password",
+              "Help prevent unauthorised logins"
+            ]
+          ]
         },
         {
           "kind": "steps",
-          "title": "Two paths through the query processor",
+          "title": "A query: from a question to an answer",
           "items": [
             {
-              "title": "DDL interpreter",
-              "text": "Interprets structure definitions and records their metadata in the data dictionary."
+              "title": "Developer interface",
+              "text": "A developer enters an SQL request: show students whose ClassID is '7A'."
             },
             {
-              "title": "DML compiler",
-              "text": "Translates data operations into lower-level instructions and optimises the query."
+              "title": "Query processor",
+              "text": "The DBMS takes the request and prepares it for execution."
             },
             {
-              "title": "Query evaluation engine",
-              "text": "Executes the resulting instructions to retrieve or change data."
+              "title": "Answer",
+              "text": "The system returns Noor and Tahir, the two students in 7A."
             }
           ]
         },
         {
           "kind": "text",
-          "title": "Security in a timetable system",
-          "text": "Administrators may maintain schedules. Teachers may read their teaching timetable and authorised class information. Pupils may read their own timetable. The DBMS applies these restrictions even when users request data through different applications.",
-          "uz": "Login kim ekaningizni tekshiradi; access rights esa nimalarni ko‘rishingiz va o‘zgartirishingiz mumkinligini belgilaydi."
+          "title": "Inside the query processor — two routes",
+          "text": "For a structure command such as CREATE TABLE, the DDL interpreter processes its definition and records metadata in the data dictionary. For a data command such as SELECT, the DML compiler translates and optimises the request; the query evaluation engine executes it. You will learn the exact SQL commands in the next section.",
+          "uz": "Developer interface — so'rov yoziladigan joy. Query processor — so'rovni bajarishga tayyorlaydi va natija olishda ishlaydi."
+        },
+        {
+          "kind": "text",
+          "title": "Activity 8F: apply the whole idea",
+          "text": "In a timetable system, the DBMS must restrict pupils to their permitted records, allow teachers appropriate access, and let administrators update authorised schedules. An audit log can record changes, while scheduled backups help recover lost timetable data.",
+          "uz": "Har bir vositaning vazifasini ajrating: ruxsat, maxfiylik, tiklash, tekshirish."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Activity 8F adaptation: explain why the school needs both access rights and backups.",
-        "answer": "Access rights limit which users can read or change particular data. Backups provide a recovery copy if data is lost or corrupted. A permission rule cannot restore deleted data; a backup does not prevent unauthorised access to the live database.",
+        "prompt": "A pupil can view other pupils' home addresses after logging in. Which DBMS feature should be corrected, and why?",
+        "answer": "Correct the access rights and authorised views so the pupil can only see permitted data. Authentication identifies the pupil, but permission rules decide which records they may see.",
         "criteria": [
-          "Prevent/restrict versus recover.",
-          "Relate each control to a different risk."
+          "Name access rights or views.",
+          "Explain restricted data visibility.",
+          "Distinguish login from permission."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which component records a CREATE TABLE definition in the data dictionary?",
+          "prompt": "The database is damaged by an accidental deletion. Which feature helps restore earlier data?",
           "options": [
-            "DML compiler",
-            "DDL interpreter",
-            "Audit trail"
+            "Audit trail alone",
+            "Scheduled back-up",
+            "Developer interface"
           ],
           "correct": 1,
-          "why": "CREATE TABLE is DDL, handled by the DDL interpreter."
+          "why": "A backup provides a recovery copy. An audit trail can help investigate what happened."
         },
         {
           "kind": "written",
-          "prompt": "Trace a SELECT query from the developer’s interface to its result.",
-          "answer": "The interface accepts SQL; the DML compiler translates and optimises it; the query evaluation engine executes the instructions and produces the result.",
+          "prompt": "A developer submits SELECT to show 7A students. Explain what the developer interface and query processor each do.",
+          "answer": "The developer interface accepts the SQL request. The query processor uses its DML compiler to prepare and optimise the query, then its query evaluation engine executes it and retrieves the selected data.",
           "criteria": [
-            "Interface.",
-            "Compiler and optimisation.",
-            "Evaluation engine."
+            "Explain the interface accepts SQL.",
+            "Explain query processing.",
+            "Mention execution by the evaluation engine."
           ]
         }
       ],
       "recap": [
-        "Access rights restrict actions and data visibility.",
-        "Backups, encryption and audit logs serve different purposes.",
-        "DDL records definitions; DML is compiled, optimised and evaluated."
+        "Authentication verifies identity; access rights restrict permitted data and actions.",
+        "Backups, encryption, and audit logs protect against different risks.",
+        "The developer interface accepts SQL; the query processor handles execution.",
+        "DDL definitions and DML data requests follow different processing routes."
       ],
-      "mistake": "A query processor is not the same thing as the screen where a developer types SQL.",
-      "next": "Next, distinguish SQL commands that change structure from those that work with data.",
+      "mistake": "Access rights cannot restore deleted data; back-ups cannot themselves prevent an unauthorised user reading the live database.",
+      "next": "Next, learn the two jobs SQL can perform: changing table structure and working with rows.",
       "visual": "processor",
       "terms": [
         "Access rights",
@@ -1604,169 +1666,192 @@
       "id": "h8-rewrite-v1-10",
       "number": 10,
       "section": "8.3",
-      "title": "SQL: structure or data?",
-      "subtitle": "Make the DDL/DML distinction before writing commands.",
+      "title": "Your first SQL: structure versus data",
+      "subtitle": "Learn DDL and DML with one tiny Student table.",
       "pages": [
-        209,
         211,
         212
       ],
       "sourceRefs": [
         "8.3 prior knowledge",
         "8.3.1",
+        "Table 8.13",
         "Table 8.14"
       ],
       "objectives": [
-        "Classify SQL as DDL or DML.",
-        "Choose suitable attribute data types.",
-        "Explain the purpose of an SQL script."
+        "Explain the different purposes of DDL and DML.",
+        "Recognise the key SQL commands in Hodder's Chapter 8.",
+        "Choose appropriate SQL attribute data types and explain an SQL script."
       ],
-      "hook": "Is adding a new column the same kind of operation as adding a new student?",
+      "hook": "We need a new Student table. Later, we need to add Noor to it. Are these the same operation?",
       "blocks": [
         {
-          "kind": "text",
-          "title": "One language, two roles",
-          "text": "SQL is used for both data definition and data manipulation. DDL creates, changes or removes structures. DML retrieves, inserts, updates or deletes data within those structures. An SQL script combines commands to perform a task and can be saved for reuse. In this course, SELECT is taught under DML.",
-          "uz": ""
-        },
-        {
           "kind": "table",
-          "title": "Classify the intention",
+          "title": "The two jobs of SQL",
           "headers": [
-            "Task",
-            "Category",
-            "Example"
+            "What we want to do",
+            "SQL category",
+            "Example command"
           ],
           "rows": [
             [
-              "Define a table",
-              "DDL",
+              "Make the Student table",
+              "DDL — Data Definition Language",
               "CREATE TABLE"
             ],
             [
-              "Change a table definition",
-              "DDL",
-              "ALTER TABLE"
+              "Put Noor into Student",
+              "DML — Data Manipulation Language",
+              "INSERT INTO"
             ],
             [
-              "Fetch records",
+              "See Noor's row",
               "DML",
               "SELECT"
             ],
             [
-              "Add a record",
-              "DML",
-              "INSERT INTO"
-            ],
-            [
-              "Change stored values",
+              "Change a value in Noor's row",
               "DML",
               "UPDATE"
+            ]
+          ]
+        },
+        {
+          "kind": "code",
+          "title": "Look at a small table definition",
+          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) PRIMARY KEY,\n  FirstName VARCHAR(40)\n);",
+          "note": "DDL defines two columns and the primary key. This is a teaching subset; the complete school design comes later."
+        },
+        {
+          "kind": "code",
+          "title": "Now put one row into the table",
+          "text": "INSERT INTO Student (StudentID, FirstName)\nVALUES ('S1276', 'Noor');",
+          "note": "DML adds data to the existing table; it does not create new columns."
+        },
+        {
+          "kind": "table",
+          "title": "Every command on Hodder's list",
+          "headers": [
+            "DDL — structure",
+            "DML — stored data"
+          ],
+          "rows": [
+            [
+              "CREATE DATABASE",
+              "SELECT / FROM"
             ],
             [
-              "Remove records",
-              "DML",
-              "DELETE FROM"
+              "CREATE TABLE",
+              "WHERE / ORDER BY"
+            ],
+            [
+              "ALTER TABLE",
+              "GROUP BY / INNER JOIN"
+            ],
+            [
+              "PRIMARY KEY",
+              "SUM / COUNT / AVG"
+            ],
+            [
+              "FOREIGN KEY ... REFERENCES ...",
+              "INSERT INTO / UPDATE / DELETE FROM"
             ]
           ]
         },
         {
           "kind": "table",
-          "title": "Hodder’s attribute types",
+          "title": "Choose a suitable data type — Table 8.14",
           "headers": [
-            "Type",
-            "Stores",
-            "Suitable example"
+            "Data type",
+            "Meaning",
+            "Example"
           ],
           "rows": [
             [
               "CHARACTER / CHAR(n)",
-              "Fixed-length character data",
-              "A fixed-format StudentID"
+              "Fixed-length text",
+              "Fixed-format code"
             ],
             [
               "VARCHAR(n)",
-              "Variable-length text up to a specified limit",
-              "A student’s surname"
+              "Variable-length text",
+              "FirstName"
             ],
             [
               "BOOLEAN",
-              "True/false values",
-              "ConsentGranted"
+              "True or False",
+              "HasPermission"
             ],
             [
               "INTEGER",
-              "Whole numbers",
-              "StockCount"
+              "Whole number",
+              "NumberInStock"
             ],
             [
               "REAL",
-              "Numbers with fractional parts",
-              "A measured temperature"
+              "Decimal number",
+              "MeasuredTemperature"
             ],
             [
               "DATE",
-              "A date",
+              "Date (normally YYYY-MM-DD)",
               "DateOfBirth"
             ],
             [
               "TIME",
-              "A time",
+              "Time (normally HH:MM:SS)",
               "LessonStart"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "Choose by meaning, not appearance",
-          "text": "A phone number or StudentID may contain digits but is usually character data: arithmetic is not meaningful and leading zeroes may matter. Use DATE for a date when the selected DBMS supports it as a distinct type. In SQL literals, use single quotes around text and date strings.",
-          "uz": ""
-        },
-        {
-          "kind": "text",
-          "title": "Dialect note",
-          "text": "SQL implementations differ. CHARACTER length syntax, BOOLEAN storage and schema-alteration support vary by DBMS. The examples below identify portable design intent and separately flag commands SQLite does not support. Use the selected DBMS’s syntax rather than copying a malformed printed example.",
-          "uz": "DDL — tuzilma bilan; DML — saqlangan ma’lumot bilan ishlaydi. Yangi ustun qo‘shish va yangi qator qo‘shish ikki xil vazifa."
+          "title": "An SQL script is a reusable set of commands",
+          "text": "An SQL script is a list of SQL commands for one task, often saved to a file. The database structure must be defined before rows can be added to it. SQL syntax and type handling differ slightly between database products; the following exercises label important SQLite/MySQL differences.",
+          "uz": "SQL bir xil til bo'lsa ham ikkita vazifani bajaradi: DDL — jadval tuzilishi; DML — jadval ichidagi ma'lumot."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Choose types for StudentID S1276, FirstName Noor, DateOfBirth, ExamMark 78 and ConsentGranted. Explain one choice.",
-        "answer": "CHAR(5) or VARCHAR(5), VARCHAR(40), DATE, INTEGER, BOOLEAN. StudentID is text because it includes a letter and is an identifier rather than a number to calculate with.",
+        "prompt": "A school needs an Email column and then wants to add an email address to Noor's record. Which action is DDL and which is DML? Explain.",
+        "answer": "Adding the Email column changes the table definition, so it is DDL (for example ALTER TABLE). Updating Noor's email value changes stored data, so it is DML (UPDATE).",
         "criteria": [
-          "Suitable types for all five.",
-          "A reason based on meaning."
+          "Identify a structural change as DDL.",
+          "Identify a data change as DML.",
+          "Explain the difference."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "ALTER TABLE Student ADD Email VARCHAR(120) is…",
+          "prompt": "A school creates a new Teacher table. Which command is appropriate?",
           "options": [
-            "DML because it adds data",
-            "DDL because it changes the structure",
-            "Neither DDL nor DML"
+            "INSERT INTO",
+            "CREATE TABLE",
+            "ORDER BY"
           ],
           "correct": 1,
-          "why": "The command defines a new column, rather than inserting a row."
+          "why": "CREATE TABLE defines a table. INSERT INTO adds a row to a table that already exists."
         },
         {
           "kind": "written",
-          "prompt": "What makes a saved sequence of SQL commands useful?",
-          "answer": "A script records the commands in order so the setup or maintenance task can be reproduced and reused, subject to the current database state.",
+          "prompt": "Choose a type for StudentID S1276, DateOfBirth 2010-09-22 and ExamMark 80. Explain why StudentID should not be INTEGER.",
+          "answer": "StudentID: VARCHAR(5) or suitable CHARACTER; DateOfBirth: DATE; ExamMark: INTEGER. StudentID includes a letter and is an identifier, not a number for arithmetic.",
           "criteria": [
-            "Ordered commands.",
-            "Reuse/reproduction."
+            "Choose character data for StudentID.",
+            "Choose DATE and INTEGER appropriately.",
+            "Explain the StudentID choice."
           ]
         }
       ],
       "recap": [
-        "DDL changes structures; DML works with their data.",
-        "Choose types from the meaning and operations required.",
-        "SQL scripts preserve a sequence of commands for reuse."
+        "SQL is the language used for both structure and data in relational databases.",
+        "DDL: CREATE DATABASE, CREATE TABLE, ALTER TABLE, keys and references.",
+        "DML: SELECT, INSERT, UPDATE, DELETE and query clauses/functions.",
+        "An SQL script saves a sequence of commands for reuse."
       ],
-      "mistake": "Do not choose INTEGER simply because an identifier contains digits.",
-      "next": "Next, create tables and enforce the links you designed.",
+      "mistake": "Adding a new column is DDL. Adding a new student row is DML — even though both may use the word 'add' in everyday language.",
+      "next": "Next, create Class and Student properly, including their foreign-key relationship.",
       "visual": "types",
       "terms": [
         "Structured query language (SQL)",
@@ -1779,128 +1864,176 @@
       "id": "h8-rewrite-v1-11",
       "number": 11,
       "section": "8.3",
-      "title": "Build the school database",
-      "subtitle": "Define parent keys before referencing them.",
+      "title": "Build two linked tables, then extend the design",
+      "subtitle": "Start with Class, add Student, then understand Teacher and StudentSubject.",
       "pages": [
         211,
         212
       ],
       "sourceRefs": [
         "8.3.2",
-        "Tables 8.13–8.14",
+        "Table 8.13",
+        "Table 8.14",
         "Activity 8G"
       ],
       "objectives": [
-        "Read and write CREATE TABLE definitions.",
-        "Declare primary and foreign keys.",
-        "Explain CREATE DATABASE and ALTER TABLE."
+        "Write a readable CREATE TABLE definition.",
+        "Add PRIMARY KEY and FOREIGN KEY ... REFERENCES constraints.",
+        "Explain CREATE DATABASE, ALTER TABLE and the Teacher relationship."
       ],
-      "hook": "How can the DBMS stop a student from referring to a class that does not exist?",
+      "hook": "A student belongs to Class 7A. How do we stop the class code '9Z' being stored if that class does not exist?",
       "blocks": [
         {
           "kind": "code",
-          "title": "First create the referenced Teacher table",
-          "text": "CREATE TABLE Teacher (\n  LicenceNumber INTEGER PRIMARY KEY,\n  TeacherName VARCHAR(60) NOT NULL,\n  Address VARCHAR(120),\n  TeacherDateOfBirth DATE\n);",
-          "note": ""
+          "title": "Step 1 — create the Class table",
+          "text": "CREATE TABLE Class (\n  ClassID VARCHAR(4) PRIMARY KEY,\n  Location VARCHAR(60)\n);",
+          "note": "ClassID is unique, so it is the primary key. This first example contains only two columns."
         },
         {
           "kind": "code",
-          "title": "Then create Class and Student",
-          "text": "CREATE TABLE Class (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY,\n  Location VARCHAR(60),\n  LicenceNumber INTEGER NOT NULL,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);\nCREATE TABLE Student (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  FirstName VARCHAR(40),\n  SecondName VARCHAR(40),\n  DateOfBirth DATE,\n  ClassID VARCHAR(4) NOT NULL,\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\n);",
-          "note": ""
+          "title": "Step 2 — create Student and link it to Class",
+          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) PRIMARY KEY,\n  FirstName VARCHAR(40),\n  ClassID VARCHAR(4),\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\n);",
+          "note": "FOREIGN KEY names Student's own column; REFERENCES names the table and parent key that must match."
+        },
+        {
+          "kind": "table",
+          "title": "Read each line of that command",
+          "headers": [
+            "SQL part",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "CREATE TABLE Student",
+              "Make a table called Student"
+            ],
+            [
+              "StudentID VARCHAR(5) PRIMARY KEY",
+              "StudentID is short text and uniquely identifies rows"
+            ],
+            [
+              "ClassID VARCHAR(4)",
+              "Store the student's class code"
+            ],
+            [
+              "FOREIGN KEY (ClassID)",
+              "This is the linking column in Student"
+            ],
+            [
+              "REFERENCES Class(ClassID)",
+              "Look for a matching primary key in Class"
+            ]
+          ]
+        },
+        {
+          "kind": "steps",
+          "title": "Test the rule with three simple cases",
+          "items": [
+            {
+              "title": "Class 7A already exists",
+              "text": "Student.ClassID = '7A' can be accepted if other constraints are satisfied."
+            },
+            {
+              "title": "Class 9Z does not exist",
+              "text": "The DBMS can reject the non-null foreign-key value because it has no matching Class row."
+            },
+            {
+              "title": "More than one student in 7A",
+              "text": "This is valid: foreign-key values may repeat in Student even though Class.ClassID is unique."
+            }
+          ]
+        },
+        {
+          "kind": "code",
+          "title": "Step 3 — Hodder Activity 8G: add Teacher",
+          "text": "CREATE TABLE Teacher (\n  LicenceNumber INTEGER PRIMARY KEY,\n  TeacherName VARCHAR(60)\n);\n\nCREATE TABLE Class (\n  ClassID VARCHAR(4) PRIMARY KEY,\n  Location VARCHAR(60),\n  LicenceNumber INTEGER,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);",
+          "note": "This is a fresh, expanded version of Class, not a command to run after the Step 1 CREATE TABLE. The teacher is created first; Class holds the linking foreign key."
+        },
+        {
+          "kind": "code",
+          "title": "Step 4 — change an existing structure",
+          "text": "-- In a MySQL-compatible DBMS:\nCREATE DATABASE School;\n\n-- Add a new column in SQLite or MySQL:\nALTER TABLE Student ADD COLUMN Email VARCHAR(120);",
+          "note": "Hodder Table 8.13 also names CREATE DATABASE and ALTER TABLE. CREATE DATABASE is not supported by SQLite. Add-primary-key and add-foreign-key ALTER syntax varies by DBMS, so declare keys within CREATE TABLE for the runnable exercises."
         },
         {
           "kind": "text",
-          "title": "Read a definition in order",
-          "text": "CREATE TABLE names the relation. Each comma-separated entry defines a column or a constraint. PRIMARY KEY selects the identifier. FOREIGN KEY names the local column(s); REFERENCES names the parent table and column(s). NOT NULL makes a value mandatory. The referenced table should be available before dependent data is inserted. In SQLite, enable foreign-key enforcement for the connection with PRAGMA foreign_keys = ON before testing these constraints.",
-          "uz": "PRIMARY KEY qatorni yagona aniqlaydi. FOREIGN KEY (...) REFERENCES ... esa mahalliy ustunni boshqa table kalitiga bog‘laydi. Bir xil ustun nomi yozishning o‘zi relationship qoidasini yaratmaydi."
-        },
-        {
-          "kind": "code",
-          "title": "Create the subject-choice relationship",
-          "text": "CREATE TABLE Subject (\n  SubjectName VARCHAR(40) NOT NULL PRIMARY KEY,\n  LicenceNumber INTEGER NOT NULL,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);\nCREATE TABLE StudentSubject (\n  StudentID VARCHAR(5) NOT NULL,\n  SubjectName VARCHAR(40) NOT NULL,\n  ExamMark INTEGER,\n  PRIMARY KEY (StudentID, SubjectName),\n  FOREIGN KEY (StudentID) REFERENCES Student(StudentID),\n  FOREIGN KEY (SubjectName) REFERENCES Subject(SubjectName)\n);",
-          "note": "ExamMark is an instructional extension used for the aggregate queries."
-        },
-        {
-          "kind": "code",
-          "title": "Structure changes",
-          "text": "CREATE DATABASE School;\nALTER TABLE Student ADD COLUMN Email VARCHAR(120);\nALTER TABLE Student ADD PRIMARY KEY (StudentID);",
-          "note": "These are independent syntax examples, not a script to run after the definitions above. Do not add a second primary key. CREATE DATABASE and ALTER TABLE ... ADD PRIMARY KEY are supported in some DBMSs (for example MySQL); SQLite opens a database file instead and requires keys to be defined during table creation."
-        },
-        {
-          "kind": "text",
-          "title": "Source corrections",
-          "text": "Use CHARACTER or VARCHAR with an appropriate length, consistently spell LicenceNumber, include parentheses around the local foreign-key columns, and keep ClassID in Student. These correct ambiguities and typographical errors in the printed examples.",
-          "uz": ""
+          "title": "Complete 3NF design uses five tables",
+          "text": "Once the simple link is understood, the full school model has Teacher, Class, Student, Subject and StudentSubject. StudentSubject uses a composite PRIMARY KEY (StudentID, SubjectName), with separate foreign keys to Student and Subject. These extra tables were introduced during 8.1 normalisation; you do not need to memorise five CREATE TABLE scripts before understanding one.",
+          "uz": "Birinchi ikki jadvalni tushuning: Class — asosiy jadval, Student — unga ClassID orqali bog'langan. Keyin Teacher qo'shiladi."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Activity 8G: explain how to add the teacher relationship to Class.",
-        "answer": "Create Teacher with LicenceNumber as its primary key. Class includes LicenceNumber of a compatible type and FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber). The Class foreign key can repeat when one teacher has several classes.",
+        "prompt": "Write the key line that connects Student.ClassID to Class.ClassID and explain its purpose.",
+        "answer": "FOREIGN KEY (ClassID) REFERENCES Class(ClassID). It makes Student.ClassID refer to a matching ClassID in the Class table, helping enforce referential integrity.",
         "criteria": [
-          "Referenced PK.",
-          "Local FK and matching reference.",
-          "One-to-many interpretation."
+          "Write FOREIGN KEY (ClassID).",
+          "Write REFERENCES Class(ClassID).",
+          "Explain the matching-class rule."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Which part states the parent table and key?",
+          "prompt": "Which SQL text identifies the parent table and key in a relationship?",
           "options": [
             "FOREIGN KEY (ClassID)",
             "REFERENCES Class(ClassID)",
             "FirstName VARCHAR(40)"
           ],
           "correct": 1,
-          "why": "REFERENCES identifies the referenced table and key; FOREIGN KEY identifies the local columns."
+          "why": "REFERENCES names the parent table and its referenced key."
         },
         {
           "kind": "written",
-          "prompt": "Why does StudentSubject use PRIMARY KEY (StudentID, SubjectName) instead of making each column independently unique?",
-          "answer": "Each student has several subjects and each subject has several students. The pair is unique; either column by itself must be allowed to repeat.",
+          "prompt": "Hodder Activity 8G: create the Teacher link for Class in words or SQL.",
+          "answer": "Create Teacher with LicenceNumber as primary key. Put LicenceNumber in Class as a foreign key with FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber).",
           "criteria": [
-            "Many-to-many membership.",
-            "Uniqueness of the pair only."
+            "Give Teacher.LicenceNumber as the primary key.",
+            "Give Class.LicenceNumber as the foreign key.",
+            "State which table it references."
           ]
         }
       ],
       "recap": [
-        "Create referenced structures and compatible keys.",
-        "PK identifies; FK ... REFERENCES connects.",
-        "Check DBMS-specific CREATE DATABASE and ALTER TABLE support."
+        "CREATE TABLE defines a table and its columns.",
+        "PRIMARY KEY uniquely identifies a row.",
+        "FOREIGN KEY ... REFERENCES ... links a child column to a parent key.",
+        "Build and test a simple Class–Student link before expanding the schema.",
+        "CREATE DATABASE and ALTER TABLE are DDL; syntax varies across DBMS products."
       ],
-      "mistake": "Creating a foreign-key-looking column name alone does not enforce referential integrity; declare the constraint.",
-      "next": "Next, retrieve rows and combine related tables with SELECT.",
-      "visual": "schema",
+      "mistake": "The Step 3 expanded Class definition is an alternative fresh definition. Do not run CREATE TABLE Class twice in the same database.",
+      "next": "Next, use SELECT to retrieve 7A students, sort them, and then join two tables.",
+      "visual": "create-table",
       "terms": []
     },
     {
       "id": "h8-rewrite-v1-12",
       "number": 12,
       "section": "8.3",
-      "title": "Ask precise questions with SELECT",
-      "subtitle": "Predict the result before revealing it.",
+      "title": "Find and sort students with SELECT",
+      "subtitle": "Begin with one table. Add a JOIN only after WHERE and ORDER BY make sense.",
       "pages": [
+        211,
         213,
         214
       ],
       "sourceRefs": [
-        "8.3.3 query commands",
-        "Table 8.15",
+        "8.3 prior knowledge",
+        "8.3.3",
+        "Table 8.15 SELECT/WHERE/ORDER BY/INNER JOIN",
         "Activity 8H"
       ],
       "objectives": [
-        "Select columns and filter rows.",
-        "Sort a result using ORDER BY.",
-        "Join tables through matching keys."
+        "Write a SELECT ... FROM query with WHERE and ORDER BY.",
+        "Predict the result using the Student table.",
+        "Use INNER JOIN to obtain data from two linked tables."
       ],
-      "hook": "Which students are in 7A, and how can their names be listed alphabetically?",
+      "hook": "From the three students below, how can we show only those who are in Class 7A?",
       "blocks": [
         {
           "kind": "table",
-          "title": "Student — consistent teaching dataset",
+          "title": "Here are the three Student rows",
           "headers": [
             "StudentID",
             "FirstName",
@@ -1930,13 +2063,25 @@
         },
         {
           "kind": "code",
-          "title": "Filter, select and sort",
+          "title": "1. SELECT the columns you want",
+          "text": "SELECT FirstName, SecondName\nFROM Student;",
+          "note": "This request returns the names of all three students. SELECT chooses columns; FROM names the table."
+        },
+        {
+          "kind": "code",
+          "title": "2. WHERE keeps only Class 7A",
+          "text": "SELECT FirstName, SecondName\nFROM Student\nWHERE ClassID = '7A';",
+          "note": "WHERE is a condition. Ahmad is excluded because ClassID is 7B. Quote the text value '7A'."
+        },
+        {
+          "kind": "code",
+          "title": "3. ORDER BY sorts the result",
           "text": "SELECT FirstName, SecondName\nFROM Student\nWHERE ClassID = '7A'\nORDER BY SecondName ASC;",
-          "note": "SELECT names the output columns. FROM identifies the source table. WHERE keeps matching rows. ORDER BY sorts the result; ASC is ascending, DESC is descending."
+          "note": "Result in surname order: Noor Baig, then Tahir Hassan. This is Hodder's p.213 school query with a clear ASC direction."
         },
         {
           "kind": "table",
-          "title": "Expected result",
+          "title": "Check the output before learning JOIN",
           "headers": [
             "FirstName",
             "SecondName"
@@ -1954,91 +2099,93 @@
         },
         {
           "kind": "code",
-          "title": "Join Teacher to Subject",
-          "text": "SELECT Teacher.TeacherName, Subject.SubjectName\nFROM Teacher\nINNER JOIN Subject\n  ON Teacher.LicenceNumber = Subject.LicenceNumber\nORDER BY Subject.SubjectName;",
-          "note": "INNER JOIN keeps matching pairs. Qualifying columns with their table name makes their origin clear. Separate SELECT columns with commas, not AND."
+          "title": "4. INNER JOIN connects the related tables",
+          "text": "SELECT Student.FirstName, Class.Location\nFROM Student\nINNER JOIN Class\n  ON Student.ClassID = Class.ClassID\nWHERE Student.StudentID = 'S1276';",
+          "note": "Student supplies Noor's name, Class supplies Room 3. ON tells SQL which key values should match."
         },
         {
           "kind": "code",
-          "title": "Activity 8H: students and their subject choices",
-          "text": "SELECT Student.FirstName, Student.SecondName,\n       StudentSubject.SubjectName\nFROM Student\nINNER JOIN StudentSubject\n  ON Student.StudentID = StudentSubject.StudentID\nORDER BY Student.SecondName, StudentSubject.SubjectName;",
-          "note": "One student can appear in several result rows because the join returns one row per matched subject choice."
+          "title": "5. Activity 8H — students and subjects",
+          "text": "SELECT Student.FirstName, Student.SecondName,\n       StudentSubject.SubjectName\nFROM Student\nINNER JOIN StudentSubject\n  ON Student.StudentID = StudentSubject.StudentID\nORDER BY Student.SecondName;",
+          "note": "One student may appear more than once: a row is returned for each matching subject choice. The source exercise asks for student names and subjects."
         },
         {
           "kind": "text",
-          "title": "Reason about the result",
-          "text": "Mentally identify the source rows, match the join condition, apply the filter, choose the requested columns and sort the output. This is a learning method; the DBMS may optimise its physical execution order. A student with no StudentSubject row is absent from an INNER JOIN result.",
-          "uz": "WHERE qatorlarni tanlaydi; SELECT ustunlarni tanlaydi; ORDER BY natijani tartiblaydi. INNER JOIN faqat mos juftliklarni qaytaradi."
+          "title": "Check the meaning in this order",
+          "text": "First locate the table(s), then match the join keys if there is a JOIN, apply the WHERE filter, choose the SELECT columns and inspect the ORDER BY sort. This is a way to reason about a result, not a claim that SQL databases always physically execute clauses in that order.",
+          "uz": "Boshlanishida 1 ta jadval bilan ishlang: SELECT → FROM → WHERE → ORDER BY. Shundan keyin JOIN orqali ikkinchi jadvaldan ma'lumot olinadi."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Predict the names returned by the 7A query and explain why Ahmad is absent.",
-        "answer": "Noor Baig, then Tahir Hassan. Both have ClassID 7A and the surnames sort Baig before Hassan. Ahmad has ClassID 7B and fails the WHERE condition.",
+        "prompt": "Which names will the 7A query return after ORDER BY SecondName? Explain Ahmad's absence.",
+        "answer": "Noor Baig and Tahir Hassan, in that order. Ahmad is in 7B, so he does not satisfy WHERE ClassID = '7A'.",
         "criteria": [
-          "Correct two rows.",
-          "Correct order.",
-          "Filter explanation."
+          "Identify both names.",
+          "Put them in surname order.",
+          "Explain the WHERE condition."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "Why can one student appear three times after joining to StudentSubject?",
+          "prompt": "In SELECT FirstName FROM Student WHERE ClassID = '7A', what does WHERE do?",
           "options": [
-            "The primary key is invalid",
-            "There are three matching subject-choice rows",
-            "ORDER BY duplicates rows"
+            "Chooses the table",
+            "Filters rows by class",
+            "Sorts names alphabetically"
           ],
           "correct": 1,
-          "why": "A one-to-many join returns one result row for each matching child row."
+          "why": "WHERE retains rows meeting the condition; ORDER BY sorts results."
         },
         {
           "kind": "written",
-          "prompt": "Write a query for StudentID and FirstName in class 7B, ordered by SecondName.",
+          "prompt": "Write a query to show StudentID and FirstName of students in 7B, sorted by SecondName.",
           "answer": "SELECT StudentID, FirstName FROM Student WHERE ClassID = '7B' ORDER BY SecondName;",
           "criteria": [
-            "Correct selected columns and table.",
-            "Quoted class filter.",
-            "Surname ordering."
+            "Select StudentID and FirstName from Student.",
+            "Use WHERE ClassID = '7B'.",
+            "Sort using ORDER BY SecondName."
           ]
         }
       ],
       "recap": [
-        "SELECT columns; WHERE rows; ORDER BY order.",
-        "JOIN ... ON matches related rows.",
-        "Predict row count as well as column values."
+        "SELECT chooses columns; FROM identifies a table.",
+        "WHERE filters rows; ORDER BY sorts the resulting rows.",
+        "INNER JOIN combines rows where matching keys satisfy the ON condition.",
+        "A student can appear multiple times if they have several matching subject-choice rows."
       ],
-      "mistake": "AND joins logical conditions, not the output column list. Omitting a meaningful join condition can produce incorrect combinations.",
-      "next": "Next, calculate summaries and change stored rows.",
-      "visual": "queries",
+      "mistake": "WHERE and ORDER BY do different jobs. Filtering 7A students does not automatically put the remaining names in alphabetical order.",
+      "next": "Next, count marks and maintain records safely using SUM, COUNT, AVG, GROUP BY, INSERT, UPDATE and DELETE.",
+      "visual": "sql-where",
       "terms": []
     },
     {
       "id": "h8-rewrite-v1-13",
       "number": 13,
       "section": "8.3",
-      "title": "Summarise and maintain data",
-      "subtitle": "Know exactly which rows a command affects.",
+      "title": "Count marks and make safe data changes",
+      "subtitle": "Start with four marks, then learn the difference between adding, editing and deleting rows.",
       "pages": [
         213,
         214
       ],
       "sourceRefs": [
         "8.3.3",
-        "Table 8.15",
-        "Activity 8I"
+        "Table 8.15 SUM/COUNT/AVG/GROUP BY",
+        "Activity 8I",
+        "INSERT INTO / UPDATE / DELETE FROM"
       ],
       "objectives": [
-        "Use SUM, COUNT, AVG and GROUP BY.",
-        "Distinguish COUNT(*) from COUNT(column).",
-        "Write targeted INSERT, UPDATE and DELETE commands."
+        "Calculate SUM, COUNT and AVG, including a missing mark.",
+        "Explain GROUP BY as one summary per subject.",
+        "Write safe INSERT INTO, UPDATE and DELETE FROM with suitable WHERE conditions."
       ],
-      "hook": "Three Maths enrolments exist, but one mark is missing. How many marks should contribute to the average?",
+      "hook": "Maths has three enrolments, but only two recorded marks: 80, 70 and a missing mark. What is the average?",
       "blocks": [
         {
           "kind": "table",
-          "title": "StudentSubject sample",
+          "title": "Start with the actual exam-mark records",
           "headers": [
             "StudentID",
             "SubjectName",
@@ -2068,103 +2215,110 @@
           ]
         },
         {
+          "kind": "text",
+          "title": "COUNT, SUM and AVG — do the maths",
+          "text": "For Maths, 3 rows exist but only 2 marks are recorded. COUNT(*) is 3; COUNT(ExamMark) is 2; SUM(ExamMark) is 150; AVG(ExamMark) is 150 ÷ 2 = 75. A NULL mark is missing, not zero. COUNT(column), SUM and AVG ignore NULL inputs.",
+          "uz": "NULL — baho qo'yilmagan. O'rtacha 150 ÷ 3 emas, 150 ÷ 2 = 75."
+        },
+        {
           "kind": "code",
-          "title": "Summarise each subject",
-          "text": "SELECT SubjectName, COUNT(*) AS Enrolments,\n       COUNT(ExamMark) AS MarksRecorded,\n       SUM(ExamMark) AS Total, AVG(ExamMark) AS Mean\nFROM StudentSubject\nGROUP BY SubjectName\nORDER BY SubjectName;",
-          "note": "GROUP BY forms groups; each aggregate is evaluated separately per group. Include grouping columns alongside aggregates."
+          "title": "Ask SQL to calculate Maths statistics",
+          "text": "SELECT COUNT(*) AS Enrolments,\n       COUNT(ExamMark) AS MarksRecorded,\n       SUM(ExamMark) AS Total,\n       AVG(ExamMark) AS Mean\nFROM StudentSubject\nWHERE SubjectName = 'Maths';",
+          "note": "Expected: Enrolments 3, MarksRecorded 2, Total 150, Mean 75."
+        },
+        {
+          "kind": "code",
+          "title": "GROUP BY makes a summary for each subject",
+          "text": "SELECT SubjectName,\n       COUNT(ExamMark) AS MarksRecorded,\n       AVG(ExamMark) AS Mean\nFROM StudentSubject\nGROUP BY SubjectName\nORDER BY SubjectName;",
+          "note": "History: 1 recorded mark, mean 90. Maths: 2 recorded marks, mean 75. GROUP BY forms subject groups before each aggregate is calculated."
+        },
+        {
+          "kind": "code",
+          "title": "INSERT INTO — add a new student row",
+          "text": "INSERT INTO Student\n  (StudentID, FirstName, SecondName, DateOfBirth, ClassID)\nVALUES ('S1301', 'Peter', 'Probert', '2011-06-06', '7A');",
+          "note": "A new row is inserted. Class 7A must exist to satisfy the foreign-key reference."
+        },
+        {
+          "kind": "code",
+          "title": "UPDATE and DELETE FROM — change only the right row",
+          "text": "UPDATE Student\nSET ClassID = '7B'\nWHERE StudentID = 'S1301';\n\nDELETE FROM Student\nWHERE StudentID = 'S1301';",
+          "note": "The WHERE clauses limit the changes to Peter's record. A referenced row may not be deletable until related rows are handled according to the database constraint policy."
         },
         {
           "kind": "table",
-          "title": "Expected grouped result",
+          "title": "Do not confuse rows with table structure",
           "headers": [
-            "SubjectName",
-            "Enrolments",
-            "MarksRecorded",
-            "Total",
-            "Mean"
+            "Command",
+            "Effect"
           ],
           "rows": [
             [
-              "History",
-              "1",
-              "1",
-              "90",
-              "90"
+              "DELETE FROM Student WHERE StudentID = 'S1301'",
+              "Removes the selected Student row"
             ],
             [
-              "Maths",
-              "3",
-              "2",
-              "150",
-              "75"
+              "DELETE FROM Student",
+              "Removes ALL Student rows; retains the table definition"
+            ],
+            [
+              "DROP TABLE Student",
+              "Removes the table definition (DDL), subject to DBMS restrictions"
+            ],
+            [
+              "UPDATE Student SET ClassID = '7B'",
+              "Changes ClassID in every row unless a WHERE clause limits it"
             ]
           ]
         },
         {
           "kind": "text",
-          "title": "Missing is not zero",
-          "text": "COUNT(*) counts rows. COUNT(ExamMark) counts non-null marks. SUM and AVG ignore NULL inputs; an absent mark does not count as zero in AVG. If no non-null values exist, SUM and AVG return NULL, while COUNT returns 0. WHERE can filter source rows before they are grouped.",
-          "uz": "NULL — qiymat noma’lum yoki kiritilmagan. COUNT(*) barcha qatorlarni, COUNT(ExamMark) esa faqat bo‘sh bo‘lmagan marklarni sanaydi. AVG NULL ni hisobga olmaydi."
-        },
-        {
-          "kind": "code",
-          "title": "Insert a new student",
-          "text": "INSERT INTO Student\n  (StudentID, FirstName, SecondName, DateOfBirth, ClassID)\nVALUES ('S1301', 'Peter', 'Probert', '2011-06-06', '7A');",
-          "note": "The values match the named columns in the same order. Quote text and ISO-formatted date values. Omitted columns need a default or permission to be NULL; mandatory foreign keys cannot simply be omitted."
-        },
-        {
-          "kind": "code",
-          "title": "Update or delete only the intended row",
-          "text": "UPDATE Student\nSET ClassID = '7B'\nWHERE StudentID = 'S1301';\n\nDELETE FROM Student\nWHERE StudentID = 'S1301';",
-          "note": "The example student has no subject-choice rows. If other tables reference a row, the FK policy governs whether deletion is allowed."
-        },
-        {
-          "kind": "text",
-          "title": "Read the WHERE clause before changing data",
-          "text": "Without WHERE, UPDATE affects every row and DELETE FROM Student removes every row. DELETE does not remove the table definition. DROP TABLE removes the structure and is a different DDL operation. First use SELECT with the intended filter to inspect the target rows.",
-          "uz": ""
+          "title": "Before changing real data, check the filter",
+          "text": "Use SELECT with your intended WHERE condition first to inspect the rows you plan to change. Hodder p.214 describes DELETE FROM without WHERE as deleting the whole table; strictly, it deletes all rows, not the table definition. This distinction is corrected in our runnable examples.",
+          "uz": "UPDATE va DELETE oldidan WHERE yozilganini tekshiring. WHERE bo'lmasa ko'plab qatorlar o'zgarishi yoki o'chishi mumkin."
         }
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Activity 8I: for Maths marks 80, 70 and NULL, calculate COUNT(*), COUNT(ExamMark), SUM and AVG.",
-        "answer": "COUNT(*) = 3; COUNT(ExamMark) = 2; SUM = 150; AVG = 75. NULL is excluded from the numeric aggregate inputs.",
+        "prompt": "Hodder Activity 8I adaptation: Maths marks are 80, 70 and NULL. Give COUNT(*), COUNT(ExamMark), SUM and AVG.",
+        "answer": "COUNT(*) = 3. COUNT(ExamMark) = 2. SUM(ExamMark) = 150. AVG(ExamMark) = 75 because NULL is not included as a recorded mark.",
         "criteria": [
-          "Three rows but two marks.",
-          "150 total.",
-          "Divide by 2, not 3."
+          "Count three enrolment rows and two recorded marks.",
+          "Give SUM = 150.",
+          "Give AVG = 75 and explain NULL."
         ]
       },
       "checks": [
         {
           "kind": "choice",
-          "prompt": "What does DELETE FROM Student; do?",
+          "prompt": "What does DELETE FROM Student; do in SQL?",
           "options": [
-            "Deletes the table definition",
-            "Deletes all rows, retaining the table definition",
-            "Deletes only the first row"
+            "Removes the Student table structure",
+            "Removes all rows while retaining the table definition",
+            "Removes only the first student"
           ],
           "correct": 1,
-          "why": "Without WHERE it targets every row, but the table structure remains."
+          "why": "DELETE without WHERE targets every row. DROP TABLE removes the table structure."
         },
         {
           "kind": "written",
-          "prompt": "Write an UPDATE to change only S1299’s class to 7B, then explain the FK condition.",
-          "answer": "UPDATE Student SET ClassID = '7B' WHERE StudentID = 'S1299'; Class 7B must already exist for the foreign-key constraint to be satisfied.",
+          "prompt": "Write the SQL command to move only S1299 to Class 7B. Explain one condition needed for the change.",
+          "answer": "UPDATE Student SET ClassID = '7B' WHERE StudentID = 'S1299'; ClassID 7B must exist in the parent Class table, or a checked foreign-key constraint would reject it.",
           "criteria": [
-            "UPDATE and SET.",
-            "StudentID filter.",
-            "Existing parent class."
+            "Use UPDATE ... SET ClassID = '7B'.",
+            "Restrict the change with WHERE StudentID = 'S1299'.",
+            "Explain that the referenced ClassID must exist."
           ]
         }
       ],
       "recap": [
-        "GROUP BY produces one result group per distinct grouping value.",
-        "COUNT(*) and COUNT(column) differ when values are NULL.",
-        "INSERT adds, UPDATE changes, DELETE removes rows."
+        "COUNT(*) counts rows; COUNT(column) counts non-NULL values.",
+        "SUM and AVG ignore NULLs; GROUP BY produces summaries per group.",
+        "INSERT INTO adds rows, UPDATE edits rows, DELETE FROM removes rows.",
+        "WHERE prevents unintentional broad changes when used correctly.",
+        "DELETE FROM and DROP TABLE are not the same operation."
       ],
-      "mistake": "Do not divide AVG by all rows when some input values are NULL. Do not confuse DELETE with DROP TABLE.",
-      "next": "Next, apply the whole chapter to a new design and query problem.",
+      "mistake": "Do not treat a missing mark as zero in AVG. Do not run UPDATE or DELETE without checking WHERE.",
+      "next": "Next is the independent Chapter 8 review — use the same skills on an unfamiliar database problem.",
       "visual": "queries",
       "terms": []
     },
