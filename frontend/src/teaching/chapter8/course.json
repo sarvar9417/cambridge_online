@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "terms": [
     {
       "name": "Database",
@@ -80,7 +80,7 @@
     },
     {
       "name": "Foreign key",
-      "definition": "Attribute(s) whose values refer to a key in another table; this chapter uses references to primary keys.",
+      "definition": "An attribute or set of attributes in one table referring to the primary key of another table in this chapter’s relational model.",
       "example": "Student.ClassID references Class.ClassID.",
       "lesson": 4,
       "page": 197
@@ -143,7 +143,7 @@
     },
     {
       "name": "Composite key",
-      "definition": "A key made from two or more attributes used together to identify a row.",
+      "definition": "Two or more attributes combined to form one primary key that uniquely identifies each row in the table.",
       "example": "(StudentID, SubjectName) identifies one subject choice per student.",
       "lesson": 4,
       "page": 197
@@ -618,6 +618,12 @@
           "text": "Is the same fact stored unnecessarily more than once? Redundancy. Do its copies disagree? Inconsistency. Must a program change when the file layout changes? Dependency. The next lesson shows how a database helps.",
           "uz": "Takror saqlanganmi — redundancy. Nusxalar farqlanib qolganmi — inconsistency. Fayl tuzilishi o‘zgarsa dastur ham o‘zgaradimi — dependency. Uchalasini bitta muammo deb yodlamang.",
           "remember": ""
+        },
+        {
+          "kind": "text",
+          "title": "Hodder’s payroll and sales example · pp.197–199",
+          "text": "The book uses two business applications. Payroll stores FirstName, SecondName, Address, PhoneNumber and StaffNumber. Sales stores Name, StaffNumber, TargetSales and ActualSales. StaffNumber is fifth in Payroll but second in Sales. Storing the staff identity twice creates redundancy; changing only one copy creates inconsistency; different record layouts tie each program to its own file structure. In the database approach, both applications access the shared staff facts.",
+          "uz": "Kitob misolida Payroll va Sales dasturlari bir xodim haqidagi ma’lumotni ikki faylda saqlaydi. StaffNumber birida 5-, ikkinchisida 2-o‘rinda. Takror saqlash — redundancy; faqat bir nusxani yangilash — inconsistency; dastur fayl tartibiga bog‘lanishi — dependency. Baza yondashuvida ikkala dastur umumiy ma’lumotdan foydalanadi."
         }
       ],
       "worked": {
@@ -859,6 +865,12 @@
           "text": "Database management software handles storage and access. Applications request named data instead of managing their own file layouts. This reduces data dependency. A program that needs a deleted field may still need changing.",
           "uz": "Ma’lumotni saqlash va olish ishini maxsus boshqaruv dasturi bajaradi. Ilova o‘z faylidagi ustun o‘rniga qattiq bog‘lanmaydi. Lekin ilovaga kerak bo‘lgan ustun o‘chirib yuborilsa, ilovani tuzatish baribir zarur bo‘lishi mumkin.",
           "remember": ""
+        },
+        {
+          "kind": "text",
+          "title": "Connect the wording to Hodder · pp.196, 198–199",
+          "text": "Hodder describes relational data as linked by “internal pointers”. In the school example, follow matching key values: Student.ClassID refers to Class.ClassID. This describes a logical link, not a memory address that you type into SQL. The benefit is that enquiries need not depend on each application’s private file layout. Repeated foreign-key values remain necessary to record relationships.",
+          "uz": "Kitobdagi “internal pointers” iborasini maktab misoliga bog‘lang: Student.ClassID qiymati Class.ClassID ga murojaat qiladi. SQL ga xotira manzilini yozmaymiz. Bu jadvallar orasidagi mantiqiy bog‘lanish. Foreign key ning takrorlanishi shu aloqani saqlaydi."
         }
       ],
       "worked": {
@@ -1341,6 +1353,39 @@
           "uz": "Bitta sinfda nechta o‘quvchi? Ko‘p. Bitta o‘quvchi nechta asosiy sinfga tegishli? Bu misolda bitta. Demak Class dan Student ga — one-to-many. Yo‘nalishni almashtirsak — many-to-one."
         },
         {
+          "kind": "table",
+          "title": "All four relationship types · p.201",
+          "headers": [
+            "Type",
+            "Read it in both directions",
+            "Example and assumption"
+          ],
+          "rows": [
+            [
+              "1:1",
+              "At most one on each side",
+              "One employee is assigned one desk; each desk is assigned to at most one employee."
+            ],
+            [
+              "1:m",
+              "One on this side, many on the other",
+              "One class has many students; each student has one tutor class."
+            ],
+            [
+              "m:1",
+              "The reverse of that same link",
+              "Many students belong to one class."
+            ],
+            [
+              "m:m",
+              "Many on both sides",
+              "Students take several subjects; subjects have several students."
+            ]
+          ],
+          "text": "Maximum cardinality and minimum participation are different. A desk may be unassigned, so the employee at that desk is optional (0..1). Hodder’s mother–child example is mandatory at the child end: a mother has one or more children under that example’s meaning of mother.",
+          "uz": "1:1 da ikkala yo‘nalishda ham eng ko‘pi bitta. Ammo mavjud bo‘lishi shartmi — bu alohida savol. Bo‘sh stol bo‘lishi mumkin: 0..1. Kitobdagi ona–bola misolida esa ona deb atalgan shaxsning kamida bitta bolasi bor: 1..many."
+        },
+        {
           "kind": "text",
           "title": "An E-R diagram draws these rules",
           "text": "An entity-relationship (E-R) diagram represents entities and the links between them. Label the Class–Student link “one” at Class and “many” at Student. Cardinality tells us how many instances may participate. For example, one student has exactly one tutor class in this model.",
@@ -1598,6 +1643,12 @@
       "hook": "Noor studies Maths, History and Geography. Should all three be stored in one SubjectName cell?",
       "blocks": [
         {
+          "kind": "text",
+          "title": "Why the original school table causes trouble · p.203",
+          "text": "Hodder first puts student, class and teacher facts in one table. Adding a student repeats the class location and the teacher’s name, licence number, address and birth date. Replacing Mr Khan requires changing every student row containing his details. If all students in 7B leave, deleting their rows also loses the only stored facts about class 7B. Normalisation addresses these insertion, update and deletion problems.",
+          "uz": "Kitobning dastlabki jadvalida o‘quvchi, sinf va o‘qituvchi ma’lumotlari birga. Yangi o‘quvchida o‘qituvchi tafsilotlari yana yoziladi; o‘qituvchi almashsa ko‘p qator yangilanadi; 7B dagi barcha o‘quvchilar o‘chirilsa, sinf ma’lumoti ham yo‘qoladi. Normalisation aynan shu muammolarni kamaytiradi."
+        },
+        {
           "kind": "table",
           "title": "Noor takes two subjects. Where should they go?",
           "headers": [
@@ -1681,6 +1732,13 @@
           "text": "If Noor takes Science, add (S1276, Science, Miss Yo) to StudentSubject. Do not add a Subject3 column. 1NF fixes the repeating group; it does not yet remove every repeated fact.",
           "uz": "Noor Science olsa, StudentSubject ga bitta yangi qator qo‘shamiz. Yangi ustun ochmaymiz. 1NF ga o‘tish barcha ortiqcha takrorlanish tugadi degani emas.",
           "remember": "1NF: one value per cell; no repeating groups."
+        },
+        {
+          "kind": "code",
+          "title": "What remains at 1NF · pp.204–205",
+          "text": "STUDENT(StudentID PK, FirstName, SecondName, DateOfBirth,\n        ClassID, Location, TeacherName, LicenceNumber,\n        Address, TeacherDateOfBirth)\nSTUDENTSUBJECT(StudentID PK/FK, SubjectName PK, SubjectTeacher)",
+          "note": "This is table-design notation, not SQL. At 1NF only the repeating subject choices have moved out. Class and tutor details still remain in Student. Do not jump straight to the final five-table design. The StudentSubject key is the pair (StudentID, SubjectName).",
+          "uz": "Bu SQL buyrug‘i emas, jadvallar tarkibi. 1NF da faqat takrorlanuvchi fan tanlovlari ajratildi. Sinf va sinf o‘qituvchisi tafsilotlari Student ichida hali qolgan. StudentSubject kaliti ikkala ustundan birga tuziladi."
         }
       ],
       "worked": {
@@ -2022,6 +2080,12 @@
           "uz": "O‘qituvchining manzili va tug‘ilgan sanasi LicenceNumber ga bog‘liq. Ular Teacher da saqlanadi. Class va Subject ichida shu o‘qituvchiga bog‘laydigan LicenceNumber qoladi. Endi to‘liq beshta jadval sxemasini ko‘rish mumkin.",
           "remember": "",
           "visual": "schema"
+        },
+        {
+          "kind": "text",
+          "title": "Follow the book’s exact sequence · pp.205–207",
+          "text": "At 2NF, separate SubjectTeacher because it depends on SubjectName alone; the Student table is still unchanged. At 3NF, move Location and the class-teacher link to Class, and teacher details to Teacher. The final Subject table uses LicenceNumber to reference Teacher. Student retains ClassID; StudentSubject retains both StudentID and SubjectName. Splitting a table must preserve every fact and the links needed to reconstruct it.",
+          "uz": "2NF da SubjectTeacher alohida Subject ga o‘tadi, Student esa hali o‘zgarmaydi. 3NF da sinf tafsilotlari Class ga, o‘qituvchi tafsilotlari Teacher ga ajratiladi. Student ichida ClassID, StudentSubject ichida ikkala kalit qoladi. Qaysi ma’lumot kimga tegishli ekanini yo‘qotmaslik shart."
         }
       ],
       "worked": {
@@ -2529,6 +2593,12 @@
           "uz": "Access rights foydalanuvchi nimani ko‘rishi va o‘zgartirishini belgilaydi. Parol kim kirganini tekshiradi. To‘g‘ri parol hamma narsani o‘chirishga ruxsat degani emas."
         },
         {
+          "kind": "text",
+          "title": "Two separate decisions about access · p.210",
+          "text": "Access rights control both permitted actions and permitted data. Read-only allows viewing; append-only allows adding records; read/write/delete allows those specified operations. Views can expose selected data while hiding other tables or rows. Regular backups and audit trails can be created automatically; a backup provides recovery and an audit trail records users’ actions.",
+          "uz": "Ruxsat ikki savolga javob beradi: nima qila oladi va qaysi ma’lumotga kira oladi? Read-only — o‘qish; append-only — yangi yozuv qo‘shish; read/write/delete — belgilangan amallar. View orqali faqat kerakli ma’lumot ko‘rsatiladi. Backup tiklash, audit trail esa bajarilgan ishlarni qayd etish uchun."
+        },
+        {
           "kind": "table",
           "title": "Match each protection to a problem",
           "headers": [
@@ -2862,8 +2932,8 @@
               "08:30:00"
             ]
           ],
-          "text": "Choose the type for what the value means. A student ID is text even when it contains digits; we do not add two student IDs together.",
-          "uz": "Tur qiymatning ma’nosiga qarab tanlanadi. StudentID ichida raqamlar bor, lekin u bilan hisoblamaymiz. Shuning uchun text turi mos. CHAR uzunligi belgilangan; VARCHAR esa belgilangan maksimumgacha turli uzunlikda bo‘ladi."
+          "text": "Choose the type for what the value means. A student ID is text even when it contains digits; we do not add two student IDs together. Hodder Table 8.14 represents BOOLEAN using 1 and 0. Boolean storage and enforcement depend on the DBMS; the logical values are true and false.",
+          "uz": "Tur qiymatning ma’nosiga qarab tanlanadi. StudentID ichida raqamlar bor, lekin u bilan hisoblamaymiz. Shuning uchun text turi mos. CHAR uzunligi belgilangan; VARCHAR esa belgilangan maksimumgacha turli uzunlikda bo‘ladi. Hodder BOOLEAN uchun 1 va 0 ni ko‘rsatadi. Mantiqiy ma’no true/false; qanday saqlanishi DBMS ga bog‘liq."
         },
         {
           "kind": "table",
@@ -2987,7 +3057,7 @@
         {
           "kind": "code",
           "title": "Look at a small table definition",
-          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) PRIMARY KEY,\n  FirstName VARCHAR(40)\n);",
+          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  FirstName VARCHAR(40)\n);",
           "note": "DDL defines two columns and the primary key. This is a teaching subset; the complete school design comes later."
         },
         {
@@ -3217,13 +3287,13 @@
         {
           "kind": "code",
           "title": "Step 1 — create the Class table",
-          "text": "CREATE TABLE Class (\n  ClassID VARCHAR(4) PRIMARY KEY,\n  Location VARCHAR(60)\n);",
+          "text": "CREATE TABLE Class (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY,\n  Location VARCHAR(60)\n);",
           "note": "ClassID is unique, so it is the primary key. This first example contains only two columns."
         },
         {
           "kind": "code",
           "title": "Step 2 — create Student and link it to Class",
-          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) PRIMARY KEY,\n  FirstName VARCHAR(40),\n  ClassID VARCHAR(4),\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\n);",
+          "text": "CREATE TABLE Student (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  FirstName VARCHAR(40),\n  ClassID VARCHAR(4),\n  FOREIGN KEY (ClassID) REFERENCES Class(ClassID)\n);",
           "note": "FOREIGN KEY names Student's own column; REFERENCES names the table and parent key that must match."
         },
         {
@@ -3277,7 +3347,7 @@
         {
           "kind": "code",
           "title": "Step 3 — Hodder Activity 8G: add Teacher",
-          "text": "CREATE TABLE Teacher (\n  LicenceNumber INTEGER PRIMARY KEY,\n  TeacherName VARCHAR(60)\n);\n\nCREATE TABLE Class (\n  ClassID VARCHAR(4) PRIMARY KEY,\n  Location VARCHAR(60),\n  LicenceNumber INTEGER,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);",
+          "text": "CREATE TABLE Teacher (\n  LicenceNumber INTEGER PRIMARY KEY,\n  TeacherName VARCHAR(60)\n);\n\nCREATE TABLE Class (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY,\n  Location VARCHAR(60),\n  LicenceNumber INTEGER,\n  FOREIGN KEY (LicenceNumber) REFERENCES Teacher(LicenceNumber)\n);",
           "note": "This is a fresh, expanded version of Class, not a command to run after the Step 1 CREATE TABLE. The teacher is created first; Class holds the linking foreign key."
         },
         {
@@ -3327,6 +3397,13 @@
           "title": "Source corrections",
           "text": "Use CHARACTER or VARCHAR with an appropriate length, consistently spell LicenceNumber, include parentheses around the local foreign-key columns, and keep ClassID in Student. These correct ambiguities and typographical errors in the printed examples.",
           "uz": ""
+        },
+        {
+          "kind": "code",
+          "title": "Adding keys after table creation · p.212",
+          "text": "ALTER TABLE Student ADD PRIMARY KEY (StudentID);\nALTER TABLE Student ADD FOREIGN KEY (ClassID)\n  REFERENCES Class(ClassID);",
+          "note": "MySQL-style alternatives for tables created without these constraints. These are not commands to run after the earlier complete CREATE TABLE script, which already defines the keys. Class must exist, and existing data must satisfy the constraints. SQLite requires a different table-rebuild procedure for adding such constraints.",
+          "uz": "Kitob kalitlarni jadval yaratilgandan keyin qo‘shishni ham ko‘rsatadi. Bu yerda kalit hali yo‘q deb olinadi. Oldingi to‘liq CREATE TABLE dan keyin takror bajarmang. SQLite bu ALTER ko‘rinishini qo‘llamaydi."
         }
       ],
       "extension": {
@@ -3909,31 +3986,39 @@
       "blocks": [
         {
           "kind": "table",
-          "title": "A new example: programmers and programs",
+          "title": "Hodder’s ProgDev scenario · pp.214–215",
           "headers": [
-            "Rule",
-            "What it means"
+            "Source rule",
+            "Meaning for the design"
           ],
           "rows": [
             [
-              "One programmer can work on several programs",
-              "ProgrammerID may appear in several work rows."
+              "Each programmer has a unique FirstName",
+              "FirstName can identify a programmer in this question."
             ],
             [
-              "One program can have several programmers",
-              "ProgramID may appear in several work rows."
+              "Each programmer belongs to one Team",
+              "Store Team with the programmer."
             ],
             [
-              "Each program has one customer",
-              "Store a customer link with the program."
+              "A team has one or more programmers",
+              "Team membership is mandatory for that stated model."
             ],
             [
-              "DaysWorked belongs to one programmer on one program",
-              "Store it with that pair."
+              "Each program is for one Customer",
+              "Customer depends on ProgramName."
+            ],
+            [
+              "A programmer can work on any program",
+              "Use a programmer–program linking table."
+            ],
+            [
+              "NoOfDays is recorded for each programmer on a program",
+              "NoOfDays belongs to that pair."
             ]
           ],
-          "text": "Use the same method you used for Student and Subject. A programmer has a unique ProgrammerID and belongs to one team. A program has a unique ProgramID. Names alone are not assumed to be unique.",
-          "uz": "Bu safar o‘quvchi–fan o‘rniga dasturchi–dastur misoli. Har dasturchi bitta jamoaga tegishli. ProgrammerID va ProgramID yagona. DaysWorked aynan shu dasturchining shu dasturga sarflagan kunlari."
+          "text": "Follow the question’s explicit assumptions. In this exercise FirstName is unique; do not replace it with an invented ProgrammerID when answering the book’s question. ProgramName identifies the programs in the supplied data. The solutions here are teaching explanations, not an official mark scheme.",
+          "uz": "Kitob aynan FirstName yagona deb shart qo‘ygan. Shu masalada uni kalit sifatida ishlatamiz. Hayotda ismlar takrorlanishi mumkin, lekin bu savolning shartini o‘zgartirmaymiz. NoOfDays — bitta dasturchining bitta dasturga sarflagan kunlari."
         },
         {
           "kind": "text",
@@ -3945,33 +4030,30 @@
       ],
       "worked": {
         "kind": "written",
-        "prompt": "Warm-up: explain why DaysWorked belongs to the programmer–program pair.",
-        "answer": "The same programmer can spend different numbers of days on different programs, and different programmers can spend different numbers of days on the same program. Neither key alone determines DaysWorked.",
-        "criteria": [
-          "Depends on both identifiers.",
-          "Use both directions to justify the composite key."
-        ]
+        "prompt": "Alice works on TV control for 3 days and Ice alert for 2 days. Ahmad works on TV control for 2 days. What identifies one work record?",
+        "answer": "The pair (FirstName, ProgramName). Alice alone does not identify which program. TV control alone does not identify which programmer. NoOfDays depends on the whole pair.",
+        "criteria": []
       },
       "checks": [
         {
           "kind": "written",
-          "prompt": "1 · Normalisation: propose relations, primary keys and foreign keys for the software-company scenario.",
-          "answer": "PROGRAMMER(ProgrammerID PK, ProgrammerName, Team); PROGRAM(ProgramID PK, ProgramName, CustomerID FK); CUSTOMER(CustomerID PK, CustomerName); WORK(ProgrammerID PK/FK, ProgramID PK/FK, DaysWorked). If further team attributes are stored, put them in a TEAM relation with a TeamID FK.",
+          "prompt": "1 · Normalise the ProgDev scenario using its stated unique-FirstName rule. Give the final tables and keys.",
+          "answer": "PROGRAMMER(FirstName PK, Team); PROGRAM(ProgramName PK, Customer); WORK(FirstName PK/FK, ProgramName PK/FK, NoOfDays). WORK has one composite primary key. The customer belongs with the program; the days belong with the programmer–program pair. A separate Customer table is not needed when no further customer attributes are supplied.",
           "criteria": [
-            "Separate programmer, program and customer facts.",
-            "Composite PK on WORK.",
-            "Correct FKs.",
-            "DaysWorked depends on the whole pair."
+            "FirstName identifies Programmer under the stated rule.",
+            "ProgramName identifies Program and determines Customer.",
+            "WORK uses a composite PK and two FKs.",
+            "NoOfDays depends on the whole pair."
           ]
         },
         {
           "kind": "written",
-          "prompt": "2 · Relationships: describe the E-R links and the effect of inserting a WORK row for a missing ProgramID.",
-          "answer": "PROGRAMMER 1:m WORK; PROGRAM 1:m WORK; CUSTOMER 1:m PROGRAM. The programmer–program m:m relationship is resolved through WORK. The missing ProgramID violates referential integrity and must be rejected unless a valid parent is created first.",
+          "prompt": "2 · Explain the Programmer–Work and Program–Work links. What happens if a Work row names a program that does not exist?",
+          "answer": "PROGRAMMER 1:m WORK and PROGRAM 1:m WORK. WORK.FirstName references PROGRAMMER.FirstName; WORK.ProgramName references PROGRAM.ProgramName. A missing referenced program violates referential integrity. In the book’s intermediate table, Customer depends only on ProgramName, part of the composite key; it therefore fails 2NF and consequently cannot be in 3NF.",
           "criteria": [
-            "Two links through WORK.",
-            "Customer link.",
-            "Missing parent rejected."
+            "Identify both PK/FK links.",
+            "Explain the missing-parent violation.",
+            "Explain why Customer must leave the intermediate work table."
           ]
         },
         {
@@ -4034,10 +4116,40 @@
           "uz": "Avval savollarga mustaqil javob bering. Keyin model answer bilan solishtiring. Tuzatilgan javob birinchi mustaqil urinish o‘rnini bosmaydi."
         },
         {
-          "kind": "text",
-          "title": "Scenario and assumptions",
-          "text": "Each programmer belongs to one team. Several programmers may work on a program; a programmer may work on several programs. Each program is for one customer. DaysWorked belongs to a particular programmer–program pair. Use unique ProgrammerID and ProgramID values instead of assuming names are unique. This adapts the end-of-chapter design scenario.",
-          "uz": ""
+          "kind": "table",
+          "title": "Hodder’s ProgDev scenario · pp.214–215",
+          "headers": [
+            "Source rule",
+            "Meaning for the design"
+          ],
+          "rows": [
+            [
+              "Each programmer has a unique FirstName",
+              "FirstName can identify a programmer in this question."
+            ],
+            [
+              "Each programmer belongs to one Team",
+              "Store Team with the programmer."
+            ],
+            [
+              "A team has one or more programmers",
+              "Team membership is mandatory for that stated model."
+            ],
+            [
+              "Each program is for one Customer",
+              "Customer depends on ProgramName."
+            ],
+            [
+              "A programmer can work on any program",
+              "Use a programmer–program linking table."
+            ],
+            [
+              "NoOfDays is recorded for each programmer on a program",
+              "NoOfDays belongs to that pair."
+            ]
+          ],
+          "text": "Follow the question’s explicit assumptions. In this exercise FirstName is unique; do not replace it with an invented ProgrammerID when answering the book’s question. ProgramName identifies the programs in the supplied data. The solutions here are teaching explanations, not an official mark scheme.",
+          "uz": "Kitob aynan FirstName yagona deb shart qo‘ygan. Shu masalada uni kalit sifatida ishlatamiz. Hayotda ismlar takrorlanishi mumkin, lekin bu savolning shartini o‘zgartirmaymiz. NoOfDays — bitta dasturchining bitta dasturga sarflagan kunlari."
         },
         {
           "kind": "table",
@@ -4083,33 +4195,30 @@
       "extension": {
         "worked": {
           "kind": "written",
-          "prompt": "Warm-up: explain why DaysWorked belongs to the programmer–program pair.",
-          "answer": "The same programmer can spend different numbers of days on different programs, and different programmers can spend different numbers of days on the same program. Neither key alone determines DaysWorked.",
-          "criteria": [
-            "Depends on both identifiers.",
-            "Use both directions to justify the composite key."
-          ]
+          "prompt": "Alice works on TV control for 3 days and Ice alert for 2 days. Ahmad works on TV control for 2 days. What identifies one work record?",
+          "answer": "The pair (FirstName, ProgramName). Alice alone does not identify which program. TV control alone does not identify which programmer. NoOfDays depends on the whole pair.",
+          "criteria": []
         },
         "checks": [
           {
             "kind": "written",
-            "prompt": "1 · Normalisation: propose relations, primary keys and foreign keys for the software-company scenario.",
-            "answer": "PROGRAMMER(ProgrammerID PK, ProgrammerName, Team); PROGRAM(ProgramID PK, ProgramName, CustomerID FK); CUSTOMER(CustomerID PK, CustomerName); WORK(ProgrammerID PK/FK, ProgramID PK/FK, DaysWorked). If further team attributes are stored, put them in a TEAM relation with a TeamID FK.",
+            "prompt": "1 · Normalise the ProgDev scenario using its stated unique-FirstName rule. Give the final tables and keys.",
+            "answer": "PROGRAMMER(FirstName PK, Team); PROGRAM(ProgramName PK, Customer); WORK(FirstName PK/FK, ProgramName PK/FK, NoOfDays). WORK has one composite primary key. The customer belongs with the program; the days belong with the programmer–program pair. A separate Customer table is not needed when no further customer attributes are supplied.",
             "criteria": [
-              "Separate programmer, program and customer facts.",
-              "Composite PK on WORK.",
-              "Correct FKs.",
-              "DaysWorked depends on the whole pair."
+              "FirstName identifies Programmer under the stated rule.",
+              "ProgramName identifies Program and determines Customer.",
+              "WORK uses a composite PK and two FKs.",
+              "NoOfDays depends on the whole pair."
             ]
           },
           {
             "kind": "written",
-            "prompt": "2 · Relationships: describe the E-R links and the effect of inserting a WORK row for a missing ProgramID.",
-            "answer": "PROGRAMMER 1:m WORK; PROGRAM 1:m WORK; CUSTOMER 1:m PROGRAM. The programmer–program m:m relationship is resolved through WORK. The missing ProgramID violates referential integrity and must be rejected unless a valid parent is created first.",
+            "prompt": "2 · Explain the Programmer–Work and Program–Work links. What happens if a Work row names a program that does not exist?",
+            "answer": "PROGRAMMER 1:m WORK and PROGRAM 1:m WORK. WORK.FirstName references PROGRAMMER.FirstName; WORK.ProgramName references PROGRAM.ProgramName. A missing referenced program violates referential integrity. In the book’s intermediate table, Customer depends only on ProgramName, part of the composite key; it therefore fails 2NF and consequently cannot be in 3NF.",
             "criteria": [
-              "Two links through WORK.",
-              "Customer link.",
-              "Missing parent rejected."
+              "Identify both PK/FK links.",
+              "Explain the missing-parent violation.",
+              "Explain why Customer must leave the intermediate work table."
             ]
           },
           {
