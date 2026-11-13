@@ -192,10 +192,10 @@ export function loadState(key: string): CourseState {
     return {};
   }
 }
-// Every walkthrough/check changed in v4. Keep prior evidence in its original
+// Every walkthrough/check changed in v5. Keep prior evidence in its original
 // v1/v2/v3 namespace instead of assigning it to a different question.
 export function storageKey(userId: string) {
-  return `campath:chapter8:v4:${userId}`;
+  return `campath:chapter8:v5:${userId}`;
 }
 export function resolveLesson(params: URLSearchParams) {
   const n = Number(params.get("lesson"));

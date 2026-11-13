@@ -162,8 +162,8 @@ describe("Chapter 8 source-backed course", () => {
     expect(resolveLesson(new URLSearchParams("lesson=999"))).toBeNull();
   });
   it("keeps previous question evidence archived instead of reusing it for rewritten checks", () => {
-    for (const version of ["v1", "v2", "v3"]) {
-      const oldKey = storageKey("legacy").replace(":v4:", `:${version}:`);
+    for (const version of ["v1", "v2", "v3", "v4"]) {
+      const oldKey = storageKey("legacy").replace(":v5:", `:${version}:`);
       const oldValue = JSON.stringify({
         [lessons[0].id]: { seen: [0], checks: [{ first: "old answer" }] },
       });

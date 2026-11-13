@@ -439,5 +439,22 @@
     "coverage": "All 33 terms remain. Full source-aligned explanations, complete SQL, and original extension exercises remain under clearly labelled deeper-study sections.",
     "completion": "Study completion is reading, attempting checks, and reviewing the recap. It is not a mastery score; first attempts remain separate from revisions.",
     "integration": "Incorporates fe47f0c: retains refreshed detailed explanations, updated source references, progressive E-R and introductory SQL explorers, and the CI SQL regression runner. v4 isolates rewritten task evidence from previous versions."
+  },
+  "source_precision_review": {
+    "date": "2026-11-13",
+    "source": "9618_Chapter_8.pdf, all printed pp.196–216",
+    "fixes": [
+      "Payroll/Sales original example and field order",
+      "Explain internal pointers in the relational context",
+      "Explicit 1:1 and all four relationship types",
+      "All three original normalisation anomalies and full 1NF intermediate schema",
+      "2NF/3NF transition and retained links",
+      "Action permissions, views, automatic backups/audit trails",
+      "BOOLEAN 1/0 convention and DBMS caveat",
+      "ALTER ADD PRIMARY KEY and FOREIGN KEY variants",
+      "Restore unique FirstName and NoOfDays in original ProgDev assumptions",
+      "Enforce NOT NULL in all displayed introductory text PK definitions"
+    ],
+    "limits": "Small walkthrough datasets remain labelled adaptations; printed typographical errors are corrected and documented. No claim that self-written answers are official mark schemes."
   }
 }
