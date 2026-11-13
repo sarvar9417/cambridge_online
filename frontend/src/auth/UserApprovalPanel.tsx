@@ -65,6 +65,7 @@ interface ActOptions {
   remove?: boolean;
   patch?: Partial<ManagedUser>;
   invalidateResetLink?: boolean;
+  keepInspector?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -154,6 +155,10 @@ export function UserApprovalPanel({ classes, currentUserId }: {
   const [groups, setGroups] = useState<Record<string, Array<{ id: string; name: string }>>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // The inspector is deliberately independent of the current directory page.
+  // A background refresh can briefly omit the account being edited; that must
+  // not silently switch a credential operation to the first row (often admin).
+  const [inspectedUser, setInspectedUser] = useState<ManagedUser | null>(null);
   const [activeTab, setActiveTab] = useState<ManageTab>('profile');
   const [showCreate, setShowCreate] = useState(false);
   const [createDraft, setCreateDraft] = useState<CreateDraft>(emptyCreate());
@@ -162,14 +167,30 @@ export function UserApprovalPanel({ classes, currentUserId }: {
   const requestSequence = useRef(0);
   const groupRequests = useRef(new Set<string>());
 
+  const resetInspector = () => {
+    setSelectedUserId(null);
+    setInspectedUser(null);
+  };
+
+  const changeDirectory = (update: () => void) => {
+    // An in-flight GET from the old filter/page must not restore its selection.
+    requestSequence.current += 1;
+    resetInspector();
+    setIssuedCode(null);
+    setActiveTab('profile');
+    update();
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const next = search.trim();
-      setOffset(0);
-      setDebouncedSearch(next);
+      if (next !== debouncedSearch) changeDirectory(() => {
+        setOffset(0);
+        setDebouncedSearch(next);
+      });
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch]);
 
   const invalidateAudit = (userId: string) => setAudit((current) => {
     if (!(userId in current)) return current;
@@ -220,7 +241,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
           setUsers([]);
           setTotal(nextTotal);
           setSelected(new Set());
-          setSelectedUserId(null);
+          resetInspector();
           setOffset(lastOffset);
           if (!query.preserveFeedback) setError(null);
           return true;
@@ -229,9 +250,14 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       setUsers(result.users);
       setTotal(nextTotal);
       setSelected((current) => new Set([...current].filter((id) => result.users.some((user) => user.id === id))));
-      if (query.preferredId && result.users.some((user) => user.id === query.preferredId)) {
-        setSelectedUserId(query.preferredId);
-      }
+      const preferred = query.preferredId
+        ? result.users.find((user) => user.id === query.preferredId)
+        : undefined;
+      setSelectedUserId((current) => preferred?.id ?? current ?? result.users[0]?.id ?? null);
+      setInspectedUser((current) => {
+        const id = preferred?.id ?? current?.id;
+        return result.users.find((user) => user.id === id) ?? current ?? result.users[0] ?? null;
+      });
       if (!query.preserveFeedback) setError(null);
       return true;
     } catch (cause) {
@@ -250,20 +276,10 @@ export function UserApprovalPanel({ classes, currentUserId }: {
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    if (users.length === 0) {
-      setSelectedUserId(null);
-      return;
-    }
-    if (!selectedUserId || !users.some((user) => user.id === selectedUserId)) {
-      setSelectedUserId(users[0].id);
-      setActiveTab(users[0].status === 'pending' ? 'access' : 'profile');
-    }
-  }, [users, selectedUserId]);
-
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedUserId) ?? null,
-    [users, selectedUserId],
+    () => users.find((user) => user.id === selectedUserId)
+      ?? (inspectedUser?.id === selectedUserId ? inspectedUser : null),
+    [users, selectedUserId, inspectedUser],
   );
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(pageCount, Math.floor(offset / PAGE_SIZE) + 1);
@@ -311,7 +327,9 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       next.delete(userId);
       return next;
     });
-    setSelectedUserId((current) => current === userId ? null : current);
+    const replacement = users.find((user) => user.id !== userId) ?? null;
+    setSelectedUserId((current) => current === userId ? replacement?.id ?? null : current);
+    setInspectedUser((current) => current?.id === userId ? replacement : current);
     setIssuedCode((current) => current?.userId === userId ? null : current);
     clearDraftFor(userId);
     setAudit((current) => {
@@ -323,13 +341,20 @@ export function UserApprovalPanel({ classes, currentUserId }: {
     return wasVisible;
   };
 
-  const reconcileLocalUser = (user: ManagedUser) => {
+  const reconcileLocalUser = (user: ManagedUser, keepInspector = false) => {
     const wasVisible = users.some((item) => item.id === user.id);
     if (!matchesCurrentQuery(user)) {
       removeLocalUser(user.id);
+      // Renaming a username/email can invalidate the search that found this
+      // account. Keep the edited profile open rather than switching to admin.
+      if (keepInspector && selectedUserId === user.id) {
+        setSelectedUserId(user.id);
+        setInspectedUser(user);
+      }
       return wasVisible;
     }
     setUsers((current) => current.map((item) => item.id === user.id ? user : item));
+    setInspectedUser((current) => current?.id === user.id ? user : current);
     return false;
   };
 
@@ -361,7 +386,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
         removedFromPage = removeLocalUser(id);
       } else if (resultUser) {
         clearDraftFor(id);
-        removedFromPage = reconcileLocalUser(resultUser);
+        removedFromPage = reconcileLocalUser(resultUser, options.keepInspector);
       } else if (options.patch) {
         const currentUser = users.find((user) => user.id === id);
         if (currentUser) removedFromPage = reconcileLocalUser({ ...currentUser, ...options.patch });
@@ -472,6 +497,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
       setOffset(0);
       setNotice('Yangi foydalanuvchi yaratildi.');
       setSelectedUserId(result.user.id);
+      setInspectedUser(result.user);
       setActiveTab('profile');
       await fetchUsers({
         status: 'all', role: 'all', q: '', offset: 0, preferredId: result.user.id,
@@ -498,6 +524,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
 
   const selectUser = (user: ManagedUser) => {
     setSelectedUserId(user.id);
+    setInspectedUser(user);
     setActiveTab(user.status === 'pending' ? 'access' : 'profile');
     setIssuedCode(null);
   };
@@ -544,8 +571,8 @@ export function UserApprovalPanel({ classes, currentUserId }: {
 
       <section className="ua-toolbar">
         <label className="ua-search"><span className="sr-only">Qidirish</span><span className="ua-search-icon" aria-hidden="true">⌕</span><input placeholder="Ism, email yoki username bo‘yicha qidiring…" value={search} onChange={(e) => setSearch(e.target.value)}/></label>
-        <div className="ua-filters" role="tablist" aria-label="Holat bo‘yicha filtr">{(['pending', 'active', 'suspended', 'rejected', 'all'] as const).map((value) => <button type="button" key={value} role="tab" aria-selected={filter === value} className={filter === value ? 'is-active' : ''} onClick={() => { setFilter(value); setOffset(0); }}>{value === 'all' ? 'Hammasi' : STATUS_LABEL[value]}</button>)}</div>
-        <label className="ua-select-wrap"><span>Rol</span><select className="ua-role-filter" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value as Role | 'all'); setOffset(0); }}><option value="all">Barcha rollar</option>{(Object.keys(ROLE_LABEL) as Role[]).map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}</select></label>
+        <div className="ua-filters" role="tablist" aria-label="Holat bo‘yicha filtr">{(['pending', 'active', 'suspended', 'rejected', 'all'] as const).map((value) => <button type="button" key={value} role="tab" aria-selected={filter === value} className={filter === value ? 'is-active' : ''} onClick={() => changeDirectory(() => { setFilter(value); setOffset(0); })}>{value === 'all' ? 'Hammasi' : STATUS_LABEL[value]}</button>)}</div>
+        <label className="ua-select-wrap"><span>Rol</span><select className="ua-role-filter" value={roleFilter} onChange={(e) => { const nextRole = e.target.value as Role | 'all'; changeDirectory(() => { setRoleFilter(nextRole); setOffset(0); }); }}><option value="all">Barcha rollar</option>{(Object.keys(ROLE_LABEL) as Role[]).map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}</select></label>
       </section>
 
       {selected.size > 0 ? <div className="ua-bulk" role="region" aria-label="Tanlangan foydalanuvchilar uchun amallar"><div><strong>{selected.size} ta tanlandi</strong><span>Faqat amal uchun mos holatdagi userlar o‘zgartiriladi.</span></div><div className="ua-bulk-actions"><button type="button" className="ua-button ua-button--small" onClick={() => void bulkAct('suspend')}>To‘xtatish</button><button type="button" className="ua-button ua-button--small" onClick={() => void bulkAct('activate')}>Faollashtirish</button><button type="button" className="ua-button ua-button--small" onClick={() => void bulkAct('revoke')}>Sessiyalarni yopish</button><button type="button" className="ua-button ua-button--small" onClick={() => setSelected(new Set())}>Bekor qilish</button></div></div> : null}
@@ -566,7 +593,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
               </button>
             </div></li>;
           })}</ul>}
-          <div className="ua-pagination" aria-label="Sahifalash"><span>{total ? `${rangeStart}–${rangeEnd} / ${total}` : 'Natija yo‘q'}</span><div><button type="button" className="ua-button ua-button--small" disabled={loading || offset === 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>← Oldingi</button><span className="ua-page-info">{currentPage} / {pageCount}</span><button type="button" className="ua-button ua-button--small" disabled={loading || offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>Keyingi →</button></div></div>
+          <div className="ua-pagination" aria-label="Sahifalash"><span>{total ? `${rangeStart}–${rangeEnd} / ${total}` : 'Natija yo‘q'}</span><div><button type="button" className="ua-button ua-button--small" disabled={loading || offset === 0} onClick={() => changeDirectory(() => setOffset((value) => Math.max(0, value - PAGE_SIZE)))}>← Oldingi</button><span className="ua-page-info">{currentPage} / {pageCount}</span><button type="button" className="ua-button ua-button--small" disabled={loading || offset + PAGE_SIZE >= total} onClick={() => changeDirectory(() => setOffset((value) => value + PAGE_SIZE))}>Keyingi →</button></div></div>
         </div>
 
         <aside className="ua-inspector">
@@ -592,7 +619,7 @@ export function UserApprovalPanel({ classes, currentUserId }: {
                 <nav className="ua-tabs" role="tablist" aria-label="Foydalanuvchini boshqarish bo‘limlari">{(Object.keys(TAB_LABEL) as ManageTab[]).map((tab) => <button type="button" role="tab" aria-selected={activeTab === tab} key={tab} className={activeTab === tab ? 'is-active' : ''} onClick={() => { setActiveTab(tab); if (tab === 'audit') void loadAudit(selectedUser.id); }}>{TAB_LABEL[tab]}</button>)}</nav>
                 {selectedSelf ? <div className="ua-callout"><strong>Bu sizning hisobingiz</strong><span>Profil va xavfsizlik amallari mavjud. O‘z rolingiz, holatingiz yoki hisobingizni o‘chirish bloklangan.</span></div> : null}
 
-                {activeTab === 'profile' ? <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Identity</span><h3>Profil ma’lumotlari</h3></div><span className="ua-card-hint">Email yoki username o‘zgarsa eski sessiya va reset havolalari bekor qilinadi. Yangi email qayta tasdiqlanishi kerak.</span></div><div className="ua-form-grid"><label className="ua-control"><span>To‘liq ism</span><input value={selectedCurrent.fullName} onChange={(e) => setDraftFor(selectedUser, { fullName: e.target.value })}/></label><label className="ua-control"><span>Email</span><input type="email" value={selectedCurrent.email} onChange={(e) => setDraftFor(selectedUser, { email: e.target.value })}/></label><label className="ua-control"><span>Username</span><input value={selectedCurrent.username} onChange={(e) => setDraftFor(selectedUser, { username: e.target.value })}/></label></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.fullName.trim() || (!selectedCurrent.email.trim() && !selectedCurrent.username.trim())} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'PATCH', body: JSON.stringify({ fullName: selectedCurrent.fullName.trim(), email: selectedCurrent.email.trim() || null, username: selectedCurrent.username.trim() || null }) }), 'Profil yangilandi.', { invalidateResetLink: true })}>O‘zgarishlarni saqlash</button></div></section> : null}
+                {activeTab === 'profile' ? <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Identity</span><h3>Profil ma’lumotlari</h3></div><span className="ua-card-hint">Email yoki username o‘zgarsa eski sessiya va reset havolalari bekor qilinadi. Yangi email qayta tasdiqlanishi kerak.</span></div><div className="ua-form-grid"><label className="ua-control"><span>To‘liq ism</span><input value={selectedCurrent.fullName} onChange={(e) => setDraftFor(selectedUser, { fullName: e.target.value })}/></label><label className="ua-control"><span>Email</span><input type="email" value={selectedCurrent.email} onChange={(e) => setDraftFor(selectedUser, { email: e.target.value })}/></label><label className="ua-control"><span>Username</span><input value={selectedCurrent.username} onChange={(e) => setDraftFor(selectedUser, { username: e.target.value })}/></label></div><div className="ua-card-actions"><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.fullName.trim() || (!selectedCurrent.email.trim() && !selectedCurrent.username.trim())} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}`, { method: 'PATCH', body: JSON.stringify({ fullName: selectedCurrent.fullName.trim(), email: selectedCurrent.email.trim() || null, username: selectedCurrent.username.trim() || null }) }), 'Profil yangilandi.', { invalidateResetLink: true, keepInspector: true })}>O‘zgarishlarni saqlash</button></div></section> : null}
 
                 {activeTab === 'access' ? <div className="ua-panel-stack"><section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Authorization</span><h3>Rol</h3></div><span className="ua-card-hint">Rol o‘zgarsa eski sessiyalar avtomatik bekor qilinadi.</span></div><div className="ua-inline-form"><label className="ua-control"><span>Joriy rol</span><select value={selectedCurrent.role} disabled={selectedSelf || !['active', 'suspended'].includes(selectedUser.status)} onChange={(e) => setDraftFor(selectedUser, { role: e.target.value as Role, groupId: '' })}>{(Object.keys(ROLE_LABEL) as Role[]).map((role) => <option key={role} value={role}>{ROLE_LABEL[role]}</option>)}</select></label><button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || selectedSelf || !['active', 'suspended'].includes(selectedUser.status) || selectedCurrent.role === selectedUser.role} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/role`, { method: 'POST', body: JSON.stringify({ role: selectedCurrent.role }) }), 'Rol yangilandi.')}>Rolni yangilash</button></div></section>
                   <section className="ua-card"><div className="ua-card-heading"><div><span className="ua-eyebrow">Membership</span><h3>Sinf va guruhlar</h3></div></div><div className="ua-memberships">{memberships.length ? memberships.map((m) => <span key={`${m.kind}-${m.classId}`} className="ua-class-chip">{m.className}{m.groupName ? ` · ${m.groupName}` : ''}</span>) : <span className="ua-no-class">Sinf biriktirilmagan</span>}</div>{!selectedSelf && ['active', 'suspended'].includes(selectedUser.status) ? <div className="ua-inline-form ua-inline-form--top"><label className="ua-control"><span>{selectedCurrent.role === 'student' ? 'Sinfga ko‘chirish' : 'Sinfga qo‘shish'}</span><select value={selectedCurrent.classId} onChange={(e) => { const classId = e.target.value; setDraftFor(selectedUser, { classId, groupId: '' }); void loadGroups(classId); }}><option value="">— sinfni tanlang —</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{selectedCurrent.role === 'student' && selectedCurrent.classId && (groups[selectedCurrent.classId]?.length ?? 0) > 0 ? <label className="ua-control"><span>Guruh</span><select value={selectedCurrent.groupId} onChange={(e) => setDraftFor(selectedUser, { groupId: e.target.value })}><option value="">— tanlanmagan —</option>{groups[selectedCurrent.classId]!.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label> : null}<button type="button" className="ua-button ua-button--primary" disabled={selectedBusy || !selectedCurrent.classId} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/classes`, { method: 'POST', body: JSON.stringify({ classId: selectedCurrent.classId, ...(selectedCurrent.role === 'student' && selectedCurrent.groupId ? { groupId: selectedCurrent.groupId } : {}) }) }), 'Sinf biriktirildi.')}>Biriktirish</button></div> : selectedUser.status === 'rejected' ? <div className="ua-muted-box">Rad etilgan hisobni avval “Danger zone” orqali navbatga qaytaring va qayta tasdiqlang.</div> : null}{memberships.length > 0 && !selectedSelf && ['active', 'suspended'].includes(selectedUser.status) ? <div className="ua-membership-list">{memberships.map((m) => <div key={`${m.kind}-${m.classId}`}><div><strong>{m.className}</strong><span>{m.groupName ?? (m.kind === 'teacher' ? 'O‘qituvchi' : 'Guruhsiz')}</span></div><button type="button" className="ua-button ua-button--danger-ghost ua-button--small" disabled={selectedBusy} onClick={() => void act(selectedUser.id, () => api(`/admin/users/${selectedUser.id}/classes/${m.classId}`, { method: 'DELETE' }), 'Sinfdan chiqarildi.')}>Chiqarish</button></div>)}</div> : null}</section></div> : null}
