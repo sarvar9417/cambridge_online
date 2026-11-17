@@ -2085,7 +2085,8 @@
           "kind": "text",
           "title": "Follow the book’s exact sequence · pp.205–207",
           "text": "At 2NF, separate SubjectTeacher because it depends on SubjectName alone; the Student table is still unchanged. At 3NF, move Location and the class-teacher link to Class, and teacher details to Teacher. The final Subject table uses LicenceNumber to reference Teacher. Student retains ClassID; StudentSubject retains both StudentID and SubjectName. Splitting a table must preserve every fact and the links needed to reconstruct it.",
-          "uz": "2NF da SubjectTeacher alohida Subject ga o‘tadi, Student esa hali o‘zgarmaydi. 3NF da sinf tafsilotlari Class ga, o‘qituvchi tafsilotlari Teacher ga ajratiladi. Student ichida ClassID, StudentSubject ichida ikkala kalit qoladi. Qaysi ma’lumot kimga tegishli ekanini yo‘qotmaslik shart."
+          "uz": "2NF da SubjectTeacher alohida Subject ga o‘tadi, Student esa hali o‘zgarmaydi. 3NF da sinf tafsilotlari Class ga, o‘qituvchi tafsilotlari Teacher ga ajratiladi. Student ichida ClassID, StudentSubject ichida ikkala kalit qoladi. Qaysi ma’lumot kimga tegishli ekanini yo‘qotmaslik shart.",
+          "visual": "normalise"
         }
       ],
       "worked": {
@@ -3224,9 +3225,9 @@
         {
           "kind": "code",
           "title": "Now give each student a class",
-          "text": "CREATE TABLE LessonClass (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY\n);\nCREATE TABLE LessonMember (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  ClassID VARCHAR(4) NOT NULL,\n  FOREIGN KEY (ClassID) REFERENCES LessonClass(ClassID)\n);",
-          "note": "Create the referenced class table first. In LessonMember, FOREIGN KEY (ClassID) names the local column. REFERENCES LessonClass(ClassID) names the table and key it must match. Merely using the same column name does not enforce a relationship.",
-          "uz": "Avval sinflar jadvalini yaratdik. Keyingi jadvaldagi ClassID unga murojaat qiladi. FOREIGN KEY — shu jadvaldagi ustun; REFERENCES — qaysi jadvalning qaysi kalitiga bog‘lanishi. Bir xil nom yozishning o‘zi yetmaydi."
+          "text": "CREATE TABLE LessonClass (\n  ClassID VARCHAR(4) NOT NULL PRIMARY KEY\n);\nCREATE TABLE LessonMember (\n  StudentID VARCHAR(5) NOT NULL PRIMARY KEY,\n  ClassID VARCHAR(4) NOT NULL,\n  FOREIGN KEY (StudentID) REFERENCES LessonStudent(StudentID),\n  FOREIGN KEY (ClassID) REFERENCES LessonClass(ClassID)\n);",
+          "note": "LessonStudent was created in the previous step; create LessonClass before LessonMember too. Each FOREIGN KEY names a local column, and REFERENCES names the matching parent table and key. Both the student and the class must exist before their link can be inserted.",
+          "uz": "Oldin LessonStudent yaratildi; endi LessonClass ham yaratildi. LessonMember ikki jadvalga bog‘lanadi: StudentID mavjud o‘quvchiga, ClassID mavjud sinfga murojaat qilishi shart. Bir xil ustun nomi o‘zi bog‘lanish yaratmaydi."
         },
         {
           "kind": "code",
@@ -3761,7 +3762,8 @@
           "title": "GROUP BY repeats the calculation for each subject",
           "text": "Without grouping, the filtered rows produce one summary. GROUP BY SubjectName makes a separate summary for Maths, History and each other subject. For a group with no recorded marks, COUNT(ExamMark) is 0 and SUM/AVG are NULL.",
           "uz": "GROUP BY SubjectName bo‘lsa, har fan alohida guruh bo‘ladi va hisob har bir guruh uchun qayta bajariladi. Guruhda birorta baho bo‘lmasa COUNT(ExamMark) 0, SUM va AVG esa NULL bo‘ladi.",
-          "remember": ""
+          "remember": "",
+          "visual": "queries"
         },
         {
           "kind": "code",

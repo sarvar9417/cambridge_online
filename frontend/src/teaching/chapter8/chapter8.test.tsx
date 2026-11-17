@@ -125,6 +125,27 @@ describe("Chapter 8 source-backed course", () => {
     r.seen = [];
     expect(readyToComplete(l, r)).toBe(false);
   });
+  it("requires model comparison for written checks but preserves older completed study", () => {
+    const l = lessons[11];
+    const r = emptyRecord(l);
+    r.seen = l.blocks.map((_, i) => i);
+    r.recap = true;
+    r.checks = l.checks.map((task) => ({
+      draft: task.kind === "written" ? "my first explanation" : "",
+      first: "my first explanation",
+      submitted: true,
+      choice: task.kind === "choice" ? task.correct : undefined,
+      criteria: [],
+    }));
+    expect(readyToComplete(l, r)).toBe(false);
+    r.checks[1].revealed = true;
+    expect(readyToComplete(l, r)).toBe(true);
+
+    r.checks[1].revealed = false;
+    localStorage.setItem(storageKey("earlier"), JSON.stringify({ [l.id]: { ...r, completed: true } }));
+    expect(loadState(storageKey("earlier"))[l.id].completed).toBe(true);
+    expect(readyToComplete(l, loadState(storageKey("earlier"))[l.id])).toBe(false);
+  });
   it("preserves a wrong first attempt when a corrected retry succeeds", () => {
     const t = lessons[0].checks[0];
     const e: Evidence = {
@@ -184,12 +205,61 @@ describe("Chapter 8 source-backed course", () => {
       select.value = "7B";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    const prediction = host.querySelector('select[aria-label="Predict filtered student count"]') as HTMLSelectElement;
+    expect(Array.from(host.querySelectorAll("button")).find((b) => b.textContent === "Reveal expected rows")?.disabled).toBe(true);
+    act(() => {
+      prediction.value = "2";
+      prediction.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     click("Reveal expected rows");
     const result = host.querySelector(
       '.c8-screen [aria-label="Students in 7B"]',
     );
     expect(result?.textContent).toContain("Ahmad");
     expect(result?.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(host.querySelector('.c8-screen [role="status"]')?.textContent).toContain("You predicted 2");
+  });
+  it("shows objectives, a source question and readable definitions at the start", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=8";
+    render();
+    const orientation = host.querySelector(".c8-lesson-orientation")!;
+    expect(orientation.textContent).toContain("Is that a student’s data");
+    expect(orientation.textContent).toContain("Data dictionary");
+    expect(host.querySelector(".c8-source-line")?.textContent).toContain("209");
+    const term = Array.from(orientation.querySelectorAll("details")).find((d) => d.textContent?.includes("Data dictionary"));
+    expect(term?.textContent).toContain("metadata");
+    click("Next →");
+    expect(host.querySelector(".c8-lesson-orientation")).toBeNull();
+  });
+  it("makes the GROUP BY results predictable before revealing them", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=13";
+    render();
+    click("Next →");
+    click("Next →");
+    const sqlSelect = host.querySelector('select[aria-label="Choose a SQL example"]') as HTMLSelectElement;
+    expect(sqlSelect).toBeTruthy();
+    const button = Array.from(host.querySelectorAll("button")).find((b) => b.textContent === "Reveal expected result")!;
+    expect(button.disabled).toBe(true);
+    const prediction = host.querySelector('select[aria-label="Predict SQL result rows"]') as HTMLSelectElement;
+    act(() => {
+      prediction.value = "2";
+      prediction.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    click("Reveal expected result");
+    expect(host.querySelector('.c8-screen [aria-label="Expected result"]')).toBeTruthy();
+  });
+  it("keeps both relations visible when moving from 1NF to 2NF", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=7";
+    render();
+    for (let i = 0; i < lessons[6].blocks.length - 1; i++) click("Next →");
+    expect(host.querySelector('[aria-label="Normal form"]')).toBeTruthy();
+    act(() =>
+      (
+        Array.from(host.querySelectorAll('[aria-label="Normal form"] button')).find((b) => b.textContent === "2NF") as HTMLButtonElement
+      ).click(),
+    );
+    expect(host.querySelector('.c8-screen [aria-label="The other 2NF table: StudentSubject"]')).toBeTruthy();
+    expect(host.querySelector('.c8-screen [aria-label="2NF · remove a partial dependency"]')).toBeTruthy();
   });
   it("retains the two-table DDL explorer after explaining columns and keys", () => {
     window.location.hash = "oqitish/darslar?chapter=8&lesson=11";

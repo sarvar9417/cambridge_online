@@ -337,6 +337,17 @@ export function NormalisationExplorer() {
         headers={current.headers}
         rows={current.rows}
       />
+      {step === 2 ? (
+        <DataTable
+          caption="The other 2NF table: StudentSubject"
+          headers={["StudentID (PK part)", "SubjectName (PK part)"]}
+          rows={[
+            ["S1276", "Maths"],
+            ["S1276", "History"],
+            ["S1277", "Maths"],
+          ]}
+        />
+      ) : null}
       <p role="status">{current.reason}</p>
     </section>
   );
@@ -344,6 +355,7 @@ export function NormalisationExplorer() {
 export function QueryExplorer() {
   const [index, setIndex] = useState(0);
   const [show, setShow] = useState(false);
+  const [prediction, setPrediction] = useState("");
   const q = queries[index];
   return (
     <section className="c8-explorer">
@@ -362,6 +374,7 @@ export function QueryExplorer() {
           onChange={(e) => {
             setIndex(Number(e.target.value));
             setShow(false);
+            setPrediction("");
           }}
         >
           {queries.map((q, i) => (
@@ -376,11 +389,30 @@ export function QueryExplorer() {
           {q.sql.replace(/ (FROM|WHERE|INNER JOIN|GROUP BY|ORDER BY)/g, "\n$1")}
         </code>
       </pre>
+      <label>
+        Predict how many result rows this query produces
+        <select
+          aria-label="Predict SQL result rows"
+          value={prediction}
+          onChange={(event) => {
+            setPrediction(event.target.value);
+            setShow(false);
+          }}
+        >
+          <option value="">Choose a row count…</option>
+          {Array.from({ length: 11 }, (_, i) => (
+            <option key={i} value={String(i)}>
+              {i}
+            </option>
+          ))}
+        </select>
+      </label>
       <button
         type="button"
         className="c8-button"
         onClick={() => setShow(!show)}
         aria-expanded={show}
+        disabled={!prediction}
       >
         {show ? "Hide result" : "Reveal expected result"}
       </button>
@@ -391,10 +423,27 @@ export function QueryExplorer() {
             headers={q.headers}
             rows={q.rows}
           />
+          <p
+            role="status"
+            className={
+              Number(prediction) === q.rows.length
+                ? "c8-feedback"
+                : "c8-feedback is-wrong"
+            }
+          >
+            Your prediction: {prediction} rows. Actual result: {q.rows.length}{" "}
+            rows.
+            {Number(prediction) === q.rows.length
+              ? " Correct!"
+              : " Review WHERE, JOIN or GROUP BY to see why."}
+          </p>
           <p>{q.why}</p>
         </div>
       ) : (
-        <p>Before revealing: how many rows and columns do you expect?</p>
+        <p>
+          Count the expected rows before revealing; also predict which columns
+          will appear.
+        </p>
       )}
     </section>
   );
@@ -483,6 +532,7 @@ function FirstTableExplorer() {
 function FirstSelectExplorer() {
   const [classId, setClassId] = useState("7A");
   const [revealed, setRevealed] = useState(false);
+  const [prediction, setPrediction] = useState("");
   const students = [
     ["S1276", "Noor", "Baig", "7A"],
     ["S1277", "Ahmad", "Sayed", "7B"],
@@ -509,6 +559,7 @@ function FirstSelectExplorer() {
           onChange={(event) => {
             setClassId(event.target.value);
             setRevealed(false);
+            setPrediction("");
           }}
         >
           <option value="7A">Class 7A</option>
@@ -521,11 +572,30 @@ FROM Student
 WHERE ClassID = '${classId}'
 ORDER BY SecondName ASC;`}</code>
       </pre>
+      <label>
+        How many students will remain after WHERE?
+        <select
+          aria-label="Predict filtered student count"
+          value={prediction}
+          onChange={(event) => {
+            setPrediction(event.target.value);
+            setRevealed(false);
+          }}
+        >
+          <option value="">Choose a number…</option>
+          {[0, 1, 2, 3].map((n) => (
+            <option key={n} value={String(n)}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
       <button
         className="c8-button"
         type="button"
         aria-expanded={revealed}
         onClick={() => setRevealed((value) => !value)}
+        disabled={!prediction}
       >
         {revealed ? "Hide result" : "Reveal expected rows"}
       </button>
@@ -536,12 +606,25 @@ ORDER BY SecondName ASC;`}</code>
             headers={["FirstName", "SecondName"]}
             rows={rows}
           />
+          <p
+            role="status"
+            className={
+              Number(prediction) === rows.length
+                ? "c8-feedback"
+                : "c8-feedback is-wrong"
+            }
+          >
+            You predicted {prediction}; the query returned {rows.length} student
+            {rows.length === 1 ? "" : "s"}.
+          </p>
           <p role="status">
             WHERE keeps only {classId} rows; ORDER BY sorts their surnames.
           </p>
         </>
       ) : (
-        <p>Predict which students remain after WHERE and in what order.</p>
+        <p>
+          Predict the number of rows and the alphabetical order before revealing.
+        </p>
       )}
     </section>
   );

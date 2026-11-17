@@ -61,10 +61,11 @@ db.execute("PRAGMA foreign_keys = ON")
 for block in lesson11["blocks"]:
     if block["kind"] == "code": db.executescript(block["text"])
 db.execute("INSERT INTO LessonClass VALUES ('7A')")
+db.execute("INSERT INTO LessonStudent VALUES ('S1276','Noor')")
 db.execute("INSERT INTO LessonMember VALUES ('S1276','7A')")
 db.execute("INSERT INTO LessonChoice VALUES ('S1276','Maths')")
 db.execute("INSERT INTO LessonChoice VALUES ('S1276','History')")
-for sql in ["INSERT INTO LessonMember VALUES ('S1277','9Z')", "INSERT INTO LessonChoice VALUES ('S1276','Maths')", "INSERT INTO LessonStudent VALUES (NULL,'Noor')"]:
+for sql in ["INSERT INTO LessonMember VALUES ('S1277','7A')", "INSERT INTO LessonMember VALUES ('S1277','9Z')", "INSERT INTO LessonChoice VALUES ('S1276','Maths')", "INSERT INTO LessonStudent VALUES (NULL,'Noor')"]:
     try: db.execute(sql)
     except sqlite3.IntegrityError: pass
     else: raise AssertionError("Introductory constraint was not enforced: " + sql)
