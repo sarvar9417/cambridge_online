@@ -34,6 +34,13 @@ const adminUser = {
 };
 
 const activeUser = { ...pendingUser, fullName: 'Student User', status: 'active' as const };
+const anotherUser = {
+  ...activeUser,
+  id: '00000000-0000-4000-8000-000000000003',
+  fullName: 'Another Student',
+  email: 'another@example.com',
+  username: 'another',
+};
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -169,6 +176,7 @@ describe('UserApprovalPanel mutation reconciliation', () => {
       if (url.endsWith(`/admin/users/${targetId}/password`) && init?.method === 'POST') {
         return new Response(null, { status: 204 });
       }
+      if (url.endsWith(`/admin/users/${targetId}`) && !init?.method) return json({ user: activeUser });
       throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -200,6 +208,7 @@ describe('UserApprovalPanel mutation reconciliation', () => {
           ? { users: [adminUser, activeUser], total: 2 }
           : { users: [adminUser], total: 1 });
       }
+      if (String(input).endsWith(`/admin/users/${targetId}`)) return json({ user: activeUser });
       throw new Error('Unexpected request');
     }));
     await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
@@ -225,6 +234,7 @@ describe('UserApprovalPanel mutation reconciliation', () => {
       if (url.endsWith(`/admin/users/${targetId}`) && init?.method === 'PATCH') {
         return json({ user: renamedUser });
       }
+      if (url.endsWith(`/admin/users/${targetId}`) && !init?.method) return json({ user: renamedUser });
       throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -277,6 +287,9 @@ describe('UserApprovalPanel mutation reconciliation', () => {
         renamed = true;
         return json({ user: { ...activeUser, username: 'new-login' } });
       }
+      if (url.endsWith(`/admin/users/${targetId}`) && !init?.method) {
+        return json({ user: { ...activeUser, username: 'new-login' } });
+      }
       throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
     }));
 
@@ -296,5 +309,196 @@ describe('UserApprovalPanel mutation reconciliation', () => {
     await waitFor(() => renamed, 'login update did not run');
     expect(container.querySelector('.ua-inspector-identity h3')?.textContent).toBe('Student User');
     expect(container.textContent).toContain('Profil yangilandi');
+  });
+
+  it('does not lose the selected user when the active status filter is clicked again', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/admin/users?')) return json({ users: [pendingUser], total: 1 });
+      throw new Error(`Unexpected request: ${input}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => container.querySelector('.ua-inspector-identity h3')?.textContent === 'Delete Me', 'user did not load');
+    const previousCount = fetchMock.mock.calls.length;
+    await act(async () => { findButton(container, 'Kutilmoqda')!.click(); await flush(); });
+    expect(container.querySelector('.ua-inspector-identity h3')?.textContent).toBe('Delete Me');
+    expect(fetchMock).toHaveBeenCalledTimes(previousCount);
+  });
+
+  it('clears an unsubmitted password when switching between accounts', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/admin/users?')) return json({ users: [adminUser, activeUser], total: 2 });
+      throw new Error(`Unexpected request: ${input}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'user did not load');
+    await act(async () => { findButton(container, 'Hammasi')!.click(); await flush(); });
+    await act(async () => { findUser(container, 'Student User')!.click(); findButton(container, 'Xavfsizlik')!.click(); });
+    await act(async () => {
+      setInputValue(container.querySelector<HTMLInputElement>('.ua-inspector input[type="password"]')!, 'unsubmitted-password');
+    });
+    await act(async () => { findUser(container, 'Admin')!.click(); findUser(container, 'Student User')!.click(); findButton(container, 'Xavfsizlik')!.click(); });
+    expect(container.querySelector<HTMLInputElement>('.ua-inspector input[type="password"]')?.value).toBe('');
+  });
+
+  it('does not switch the inspector back when an earlier profile request completes late', async () => {
+    let finishUpdate!: (response: Response) => void;
+    const delayedUpdate = new Promise<Response>((resolve) => { finishUpdate = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/users?')) {
+        const isSearching = new URL(url, 'http://localhost').searchParams.has('q');
+        return isSearching
+          ? json({ users: [activeUser, anotherUser], total: 2 })
+          : json({ users: [adminUser, activeUser, anotherUser], total: 3 });
+      }
+      if (url.endsWith(`/admin/users/${targetId}`) && init?.method === 'PATCH') return delayedUpdate;
+      if (url.endsWith(`/admin/users/${targetId}`) && !init?.method) return json({ user: { ...activeUser, fullName: 'Renamed User' } });
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'user did not load');
+    await act(async () => { findButton(container, 'Hammasi')!.click(); await flush(); });
+    await act(async () => { setInputValue(container.querySelector<HTMLInputElement>('.ua-search input')!, 'Student'); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 280)); await flush(); });
+    await act(async () => { findUser(container, 'Student User')!.click(); });
+    const input = [...container.querySelectorAll<HTMLInputElement>('.ua-inspector input')]
+      .find((node) => node.value === 'Student User')!;
+    await act(async () => { setInputValue(input, 'Renamed User'); });
+    await act(async () => { findButton(container, 'O‘zgarishlarni saqlash')!.click(); await flush(); });
+    await act(async () => { findUser(container, 'Another Student')!.click(); });
+    await act(async () => { finishUpdate(json({ user: { ...activeUser, fullName: 'Renamed User' } })); await flush(); });
+    expect(container.querySelector('.ua-inspector-identity h3')?.textContent).toBe('Another Student');
+  });
+
+  it('removes a stale inspector when the server confirms that account no longer exists', async () => {
+    let listCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/admin/users?')) {
+        listCalls += 1;
+        return json(listCalls <= 2
+          ? { users: [adminUser, activeUser], total: 2 }
+          : { users: [adminUser], total: 1 });
+      }
+      if (url.endsWith(`/admin/users/${targetId}`)) {
+        return json({ error: { code: 'user_not_found', message: 'Foydalanuvchi topilmadi.' } }, 404);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'user did not load');
+    await act(async () => { findButton(container, 'Hammasi')!.click(); await flush(); });
+    await act(async () => { findUser(container, 'Student User')!.click(); });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ro‘yxatni yangilash"]')!.click();
+      await flush();
+    });
+    await waitFor(() => container.textContent?.includes('Tanlangan foydalanuvchi topilmadi') === true, 'deleted user was not invalidated');
+    expect(container.querySelector('.ua-inspector-identity h3')).toBeNull();
+  });
+
+  it('serializes account changes so a second user cannot be changed during a pending request', async () => {
+    let finishUpdate!: (response: Response) => void;
+    const delayedUpdate = new Promise<Response>((resolve) => { finishUpdate = resolve; });
+    let patchCount = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/users?')) return json({ users: [adminUser, activeUser, anotherUser], total: 3 });
+      if (url.endsWith(`/admin/users/${targetId}`) && init?.method === 'PATCH') {
+        patchCount += 1;
+        return delayedUpdate;
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'user did not load');
+    await act(async () => { findButton(container, 'Hammasi')!.click(); await flush(); });
+    await act(async () => { findUser(container, 'Student User')!.click(); });
+    await act(async () => {
+      findButton(container, 'O‘zgarishlarni saqlash')!.click();
+      findButton(container, 'O‘zgarishlarni saqlash')!.click();
+      await flush();
+    });
+    expect(patchCount).toBe(1);
+    await act(async () => { findUser(container, 'Another Student')!.click(); });
+    expect(findButton(container, 'O‘zgarishlarni saqlash')?.disabled).toBe(true);
+    expect(findButton(container, 'Hammasi')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('.ua-search input')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>('.ua-role-filter')?.disabled).toBe(true);
+    await act(async () => { finishUpdate(json({ user: activeUser })); await flush(); });
+    expect(findButton(container, 'O‘zgarishlarni saqlash')?.disabled).toBe(false);
+    expect(findButton(container, 'Hammasi')?.disabled).toBe(false);
+    expect(container.querySelector('.ua-inspector-identity h3')?.textContent).toBe('Another Student');
+  });
+
+  it('does not retain an initial password when a new-account form is closed and reopened', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/admin/users?')) return json({ users: [pendingUser], total: 1 });
+      throw new Error(`Unexpected request: ${input}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await waitFor(() => findButton(container, '+ Yangi foydalanuvchi') !== undefined, 'create action missing');
+    await act(async () => { findButton(container, '+ Yangi foydalanuvchi')!.click(); });
+    await act(async () => {
+      setInputValue(container.querySelector<HTMLInputElement>('.ua-create input[type="password"]')!, 'secret-in-progress');
+    });
+    await act(async () => { findButton(container, 'Yaratishni yopish')!.click(); });
+    await act(async () => { findButton(container, '+ Yangi foydalanuvchi')!.click(); });
+    expect(container.querySelector<HTMLInputElement>('.ua-create input[type="password"]')?.value).toBe('');
+  });
+
+  it('does not select an already removed account after a bulk suspension', async () => {
+    const suspended = new Set<string>();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/users?')) {
+        const status = new URL(url, 'http://localhost').searchParams.get('status');
+        const matches = status === 'active'
+          ? [activeUser, anotherUser].filter((user) => !suspended.has(user.id))
+          : [];
+        return json({ users: matches, total: matches.length });
+      }
+      const match = url.match(/\/admin\/users\/([^/]+)\/status$/);
+      if (match && init?.method === 'POST') {
+        suspended.add(match[1]);
+        return json({ user: { ...[activeUser, anotherUser].find((user) => user.id === match[1]), status: 'suspended' } });
+      }
+      if (url.endsWith(`/admin/users/${targetId}`)) return json({ user: { ...activeUser, status: 'suspended' } });
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await act(async () => { findButton(container, 'Faol')!.click(); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'active users did not load');
+    const checkboxes = [...container.querySelectorAll<HTMLInputElement>('.ua-check')];
+    await act(async () => { checkboxes.forEach((checkbox) => checkbox.click()); });
+    await act(async () => { findButton(container, 'To‘xtatish')!.click(); await flush(); });
+    await waitFor(() => suspended.size === 2, 'not all accounts were suspended');
+    expect(container.querySelector('.ua-inspector-identity h3')).toBeNull();
+    expect(container.textContent).toContain('2 ta foydalanuvchida amal bajarildi');
+  });
+
+  it('clears old bulk selections while a new filter is still loading', async () => {
+    let resolveActive!: (response: Response) => void;
+    const activeResponse = new Promise<Response>((resolve) => { resolveActive = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (!url.includes('/admin/users?')) throw new Error(`Unexpected request: ${url}`);
+      const status = new URL(url, 'http://localhost').searchParams.get('status');
+      if (status === 'pending') return json({ users: [pendingUser], total: 1 });
+      if (status === 'active') return activeResponse;
+      return json({ users: [adminUser, activeUser], total: 2 });
+    }));
+    await act(async () => { root.render(<UserApprovalPanel classes={[]} currentUserId={ownerId} />); await flush(); });
+    await act(async () => { findButton(container, 'Hammasi')!.click(); await flush(); });
+    await waitFor(() => findUser(container, 'Student User') !== undefined, 'users did not load');
+    await act(async () => { container.querySelector<HTMLInputElement>('.ua-check:not(:disabled)')!.click(); });
+    expect(container.querySelector('.ua-bulk')).not.toBeNull();
+
+    await act(async () => { findButton(container, 'Faol')!.click(); await flush(); });
+    expect(container.querySelector('.ua-bulk')).toBeNull();
+    expect(container.querySelectorAll('.ua-user-button')).toHaveLength(0);
+    await act(async () => { resolveActive(json({ users: [activeUser], total: 1 })); await flush(); });
+    expect(findUser(container, 'Student User')).toBeDefined();
   });
 });

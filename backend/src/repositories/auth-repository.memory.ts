@@ -34,6 +34,7 @@ interface ResetToken {
 const toPending = (user: MemoryUser): PendingUser => ({
   id: user.id,
   schoolId: user.schoolId,
+  role: user.role,
   fullName: user.fullName,
   email: user.email,
   username: user.username,
@@ -194,7 +195,8 @@ export class MemoryAuthRepository implements AuthRepository {
       .map((user) => ({ ...toPending(user), note: user.note }));
   }
 
-  async listGroups(classId: string) {
+  async listGroups(classId: string, schoolId?: string) {
+    if (schoolId && this.classes.get(classId)?.schoolId !== schoolId) return [];
     return [...this.groups.entries()]
       .filter(([, group]) => group.classId === classId)
       .map(([id, group]) => ({ id, name: group.name }));

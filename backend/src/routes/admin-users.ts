@@ -4,6 +4,7 @@ import {
   approveUserSchema, rejectUserSchema, setUserRoleSchema, setUserStatusSchema,
 } from '../lib/auth-schemas.js';
 import { validateBody } from '../lib/validation.js';
+import type { Actor } from '../lib/actor.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import type { AuthRepository } from '../repositories/auth-repository.js';
 import type { AuthService } from '../services/auth-service.js';
@@ -121,6 +122,22 @@ export function createAdminUsersRouter(
     return true;
   };
 
+  // The database-backed management service already enforces tenant scope.
+  // Keep the memory/offline compatibility paths from bypassing it: they used
+  // to enumerate and mutate active accounts belonging to another school.
+  const legacyVisible = (actor: Actor, user: { schoolId?: string | null; status: string }) =>
+    Boolean(actor.schoolId && (
+      user.schoolId === actor.schoolId
+      || (user.schoolId == null && ['pending', 'rejected'].includes(user.status))
+    ));
+
+  const legacyDenied = async (actor: Actor, res: Response, id: string) => {
+    const target = (await repository.listUsers({})).find((user) => user.id === id);
+    if (target && legacyVisible(actor, target)) return false;
+    res.status(404).json({ error: { code: 'user_not_found', message: 'Foydalanuvchi topilmadi.' } });
+    return true;
+  };
+
   router.get('/', requireRoles('owner'), async (req, res) => {
     const query = z.object({
       status: statusSchema.optional(),
@@ -135,7 +152,15 @@ export function createAdminUsersRouter(
       } catch (error) { if (!managementError(res, error)) throw error; }
       return;
     }
-    res.json({ users: await repository.listUsers({ status: query.status }) });
+    const fallbackUsers = await repository.listUsers({ status: query.status });
+    const needle = query.q?.toLocaleLowerCase('uz-UZ');
+    const visibleUsers = fallbackUsers.filter((user) => legacyVisible(req.actor!, user)
+      && (!query.role || user.role === query.role)
+      && (!needle || [user.fullName, user.email ?? '', user.username ?? '']
+        .some((value) => value.toLocaleLowerCase('uz-UZ').includes(needle))));
+    const offset = query.offset ?? 0;
+    const limit = query.limit ?? 50;
+    res.json({ users: visibleUsers.slice(offset, offset + limit), total: visibleUsers.length });
   });
 
   router.post('/', requireRoles('owner'), validateBody(createManagedUserSchema), async (req, res) => {
@@ -153,7 +178,21 @@ export function createAdminUsersRouter(
       } catch (error) { if (!managementError(res, error)) throw error; }
       return;
     }
-    res.json({ groups: await repository.listGroups(classId) });
+    const schoolId = req.actor!.schoolId;
+    if (!schoolId) {
+      res.status(404).json({ error: { code: 'class_not_found', message: 'Sinf topilmadi.' } });
+      return;
+    }
+    res.json({ groups: await repository.listGroups(classId, schoolId) });
+  });
+
+  // Inspectors can remain open while a filtered/paginated list changes.
+  // Always re-read that single account through the same school-scoped service.
+  router.get('/:id', requireRoles('owner'), async (req, res) => {
+    if (managementRequired(res)) return;
+    try {
+      res.json({ user: await management!.getUser(req.actor!, targetId(req.params)) });
+    } catch (error) { if (!managementError(res, error)) throw error; }
   });
 
   router.patch('/:id', requireRoles('owner'), validateBody(updateManagedUserSchema), async (req, res) => {
@@ -210,6 +249,7 @@ export function createAdminUsersRouter(
         res.json({ user: await management.approveUser(req.actor!, targetId(req.params), req.body) });
         return;
       }
+      if (await legacyDenied(req.actor!, res, targetId(req.params))) return;
       const user = await repository.approveUser({
         userId: targetId(req.params),
         role: req.body.role,
@@ -229,6 +269,7 @@ export function createAdminUsersRouter(
         res.json({ user: await management.rejectUser(req.actor!, targetId(req.params), req.body.reason) });
         return;
       }
+      if (await legacyDenied(req.actor!, res, targetId(req.params))) return;
       const user = await repository.rejectUser({
         userId: targetId(req.params), reason: req.body.reason, approvedBy: req.actor!.id,
       });
@@ -245,6 +286,7 @@ export function createAdminUsersRouter(
         res.status(409).json({ error: { code: 'cannot_change_self', message: 'O‘z hisobingiz holatini o‘zgartira olmaysiz.' } });
         return;
       }
+      if (!management && await legacyDenied(req.actor!, res, id)) return;
       const user = management
         ? await management.setStatus(req.actor!, id, req.body.status, req.body.reason)
         : await repository.setUserStatus({ userId: id, status: req.body.status, reason: req.body.reason });
@@ -261,6 +303,7 @@ export function createAdminUsersRouter(
         res.status(409).json({ error: { code: 'cannot_change_self', message: 'O‘z rolingizni o‘zgartira olmaysiz.' } });
         return;
       }
+      if (!management && await legacyDenied(req.actor!, res, id)) return;
       const user = management
         ? await management.setRole(req.actor!, id, req.body.role)
         : await repository.setUserRole({ userId: id, role: req.body.role });
@@ -283,6 +326,7 @@ export function createAdminUsersRouter(
       } catch (error) { if (!managementError(res, error)) throw error; }
       return;
     }
+    if (await legacyDenied(req.actor!, res, id)) return;
     const blockers = await repository.countDependents(id);
     if (blockers.length) {
       res.status(409).json({
@@ -320,6 +364,7 @@ export function createAdminUsersRouter(
         res.json({ user: await management.reinstateUser(req.actor!, targetId(req.params)) });
         return;
       }
+      if (await legacyDenied(req.actor!, res, targetId(req.params))) return;
       res.json({ user: await repository.reinstateUser(targetId(req.params)) });
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;
@@ -330,7 +375,10 @@ export function createAdminUsersRouter(
     try {
       const id = targetId(req.params);
       if (management) await management.verifyEmail(req.actor!, id);
-      else await repository.markEmailVerified(id);
+      else {
+        if (await legacyDenied(req.actor!, res, id)) return;
+        await repository.markEmailVerified(id);
+      }
       res.status(204).end();
     } catch (error) {
       if (!notFound(res, error) && !managementError(res, error)) throw error;

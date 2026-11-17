@@ -22,6 +22,7 @@ export interface AuthUser {
 export interface PendingUser {
   id: string;
   schoolId: string | null;
+  role: AuthUser['role'];
   fullName: string;
   email: string | null;
   username: string | null;
@@ -60,7 +61,7 @@ export interface AuthRepository {
   consumeResetToken(tokenHash: string, passwordHash: string): Promise<{ userId:string } | null>;
 
   listUsers(filter: { status?: UserStatus }): Promise<PendingUser[]>;
-  listGroups(classId: string): Promise<Array<{ id:string; name:string }>>;
+  listGroups(classId: string, schoolId?: string): Promise<Array<{ id:string; name:string }>>;
 
   createVerificationToken(input: { userId:string; tokenHash:string; expiresAt:Date }): Promise<void>;
   consumeVerificationToken(tokenHash: string): Promise<{ userId:string } | null>;
@@ -96,6 +97,7 @@ const mapUser = (row: Record<string, unknown>): AuthUser => ({
 const mapPending = (row: Record<string, unknown>): PendingUser => ({
   id: String(row.id),
   schoolId: row.school_id ? String(row.school_id) : null,
+  role: (row.role as AuthUser['role']) ?? 'student',
   fullName: String(row.full_name),
   email: row.email ? String(row.email) : null,
   username: row.username ? String(row.username) : null,
@@ -307,7 +309,7 @@ export class PgAuthRepository implements AuthRepository {
 
   async listUsers(filter: { status?: UserStatus }) {
     const result = await this.pool.query(
-      `select id, school_id, full_name, email, username, status, status_reason,
+      `select id, school_id, role, full_name, email, username, status, status_reason,
               email_verified_at, registration_note, created_at
        from users
        where is_active = true and ($1::user_status is null or status = $1)
@@ -321,11 +323,13 @@ export class PgAuthRepository implements AuthRepository {
     }));
   }
 
-  async listGroups(classId: string) {
+  async listGroups(classId: string, schoolId?: string) {
     const result = await this.pool.query(
-      `select id, name from groups
-       where class_id = $1 and archived_at is null
-       order by sort_order, name`, [classId]);
+      `select g.id, g.name from groups g
+       join classes c on c.id = g.class_id
+       where g.class_id = $1 and g.archived_at is null
+         and ($2::uuid is null or c.school_id = $2::uuid)
+       order by g.sort_order, g.name`, [classId, schoolId ?? null]);
     return result.rows.map((row) => ({ id: String(row.id), name: String(row.name) }));
   }
 

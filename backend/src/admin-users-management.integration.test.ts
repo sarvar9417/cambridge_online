@@ -150,6 +150,77 @@ describe('complete admin user management routes', () => {
     expect(management.createUser).not.toHaveBeenCalled();
   });
 
+  it('keeps the compatibility management routes scoped to the acting school', async () => {
+    const foreignId = randomUUID();
+    repository.add({
+      id: foreignId, schoolId: randomUUID(), role: 'student', fullName: 'Other School Student',
+      passwordHash: 'unused', email: 'foreign@example.com', username: 'foreign-student',
+      emailVerifiedAt: null,
+    });
+    const legacyApp = createApp(new AuthService(repository), undefined, undefined, repository);
+    const authHeader = `Bearer ${await token()}`;
+
+    const users = await request(legacyApp).get('/api/v1/admin/users').set('authorization', authHeader);
+    expect(users.status).toBe(200);
+    expect(users.body.users.some((user: { id: string }) => user.id === foreignId)).toBe(false);
+
+    const role = await request(legacyApp).post(`/api/v1/admin/users/${foreignId}/role`)
+      .set('authorization', authHeader).send({ role: 'teacher' });
+    expect(role.status).toBe(404);
+    expect(repository.users.get(foreignId)?.role).toBe('student');
+
+    const verify = await request(legacyApp).post(`/api/v1/admin/users/${foreignId}/verify-email`)
+      .set('authorization', authHeader).send({});
+    expect(verify.status).toBe(404);
+    expect(repository.users.get(foreignId)?.emailVerifiedAt).toBeNull();
+  });
+
+  it('does not show another school’s class groups in compatibility mode', async () => {
+    const foreignClassId = randomUUID();
+    const foreignGroupId = randomUUID();
+    const ownGroupId = randomUUID();
+    repository.classes.set(CLASS_ID, { schoolId: SCHOOL_ID });
+    repository.classes.set(foreignClassId, { schoolId: randomUUID() });
+    repository.groups.set(ownGroupId, { classId: CLASS_ID, name: 'Local group' });
+    repository.groups.set(foreignGroupId, { classId: foreignClassId, name: 'Private group' });
+    const legacyApp = createApp(new AuthService(repository), undefined, undefined, repository);
+    const authHeader = `Bearer ${await token()}`;
+
+    const own = await request(legacyApp).get(`/api/v1/admin/users/groups/${CLASS_ID}`)
+      .set('authorization', authHeader);
+    expect(own.status).toBe(200);
+    expect(own.body.groups).toEqual([{ id: ownGroupId, name: 'Local group' }]);
+
+    const foreign = await request(legacyApp).get(`/api/v1/admin/users/groups/${foreignClassId}`)
+      .set('authorization', authHeader);
+    expect(foreign.status).toBe(200);
+    expect(foreign.body.groups).toEqual([]);
+  });
+
+  it('honors search and paging in the compatibility People directory', async () => {
+    const legacyApp = createApp(new AuthService(repository), undefined, undefined, repository);
+    const authHeader = `Bearer ${await token()}`;
+    const matching = await request(legacyApp)
+      .get('/api/v1/admin/users?status=active&q=aziza&limit=1&offset=0')
+      .set('authorization', authHeader);
+    expect(matching.status).toBe(200);
+    expect(matching.body.total).toBe(1);
+    expect(matching.body.users.map((user: { id: string }) => user.id)).toEqual([TARGET_ID]);
+
+    const nextPage = await request(legacyApp)
+      .get('/api/v1/admin/users?status=active&q=aziza&limit=1&offset=1')
+      .set('authorization', authHeader);
+    expect(nextPage.status).toBe(200);
+    expect(nextPage.body.total).toBe(1);
+    expect(nextPage.body.users).toEqual([]);
+
+    const roleFiltered = await request(legacyApp)
+      .get('/api/v1/admin/users?status=active&role=student')
+      .set('authorization', authHeader);
+    expect(roleFiltered.status).toBe(200);
+    expect(roleFiltered.body.users.map((user: { id: string }) => user.id)).toEqual([TARGET_ID]);
+  });
+
   it('creates an active account through the existing People surface', async () => {
     const body = {
       fullName: 'New Student', email: 'new@maktab.uz', username: 'new-student',
@@ -182,6 +253,17 @@ describe('complete admin user management routes', () => {
       .send({});
     expect(revoke.status).toBe(204);
     expect(management.revokeSessions).toHaveBeenCalledWith(expect.objectContaining({ id: OWNER_ID }), TARGET_ID);
+  });
+
+  it('reads an individual selected account through the school-scoped management service', async () => {
+    const response = await request(app)
+      .get(`/api/v1/admin/users/${TARGET_ID}`)
+      .set('authorization', `Bearer ${await token()}`);
+    expect(response.status).toBe(200);
+    expect(response.body.user).toMatchObject({ id: TARGET_ID, fullName: 'Aziza Karimova' });
+    expect(management.getUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: OWNER_ID, schoolId: SCHOOL_ID }), TARGET_ID,
+    );
   });
 
   it('uses the richer service for role, status, class placement and audit', async () => {
