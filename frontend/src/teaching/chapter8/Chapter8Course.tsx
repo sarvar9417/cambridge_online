@@ -556,6 +556,12 @@ function LessonReader({
   const missingCheck = lesson.checks.findIndex(
     (_, i) => !record.checks[i]?.submitted,
   );
+  const missingModel = lesson.checks.findIndex(
+    (task, i) =>
+      task.kind === "written" &&
+      record.checks[i]?.submitted &&
+      !record.checks[i]?.revealed,
+  );
   const choiceCount = lesson.checks.filter((t) => t.kind === "choice").length;
   return (
     <div className="c8-reader-layout c8-linear">
@@ -594,6 +600,9 @@ function LessonReader({
           </span>
           <h1>{lesson.title}</h1>
           <p>{lesson.subtitle}</p>
+          <p className="c8-source-line">
+            Hodder Chapter 8 · pp.{lesson.pages.join(", ")}
+          </p>
         </header>
         <div className="c8-reading-progress">
           <span>{stage}</span>
@@ -607,6 +616,41 @@ function LessonReader({
           />
         </div>
         <div ref={contentRef} tabIndex={-1} className="c8-screen">
+          {step === 0 ? (
+            <section
+              className="c8-lesson-orientation"
+              aria-label="Lesson goals and key terms"
+            >
+              <div className="c8-orientation-question">
+                <span className="c8-kicker">START WITH THIS QUESTION</span>
+                <h2>{lesson.hook}</h2>
+              </div>
+              <div className="c8-orientation-goals">
+                <span className="c8-kicker">BY THE END YOU CAN</span>
+                <ul>
+                  {lesson.objectives.map((objective) => (
+                    <li key={objective}>{objective}</li>
+                  ))}
+                </ul>
+              </div>
+              {lesson.terms.length ? (
+                <div className="c8-orientation-terms">
+                  <span className="c8-kicker">KEY TERMS FROM THE BOOK</span>
+                  <div>
+                    {terms
+                      .filter((term) => lesson.terms.includes(term.name))
+                      .map((term) => (
+                        <details key={term.name}>
+                          <summary>{term.name}</summary>
+                          <p>{term.definition}</p>
+                          <small>{term.example}</small>
+                        </details>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           {step < exampleStep ? (
             <BlockView key={step} block={lesson.blocks[step]} />
           ) : null}
@@ -689,6 +733,12 @@ function LessonReader({
                     This records study, not mastery. Review the explanation for
                     any answer you missed.
                   </p>
+                  <p>
+                    To finish, read every explanation, attempt each question,
+                    compare written responses with the model and review the
+                    recap. A corrected retry is kept separate from your first
+                    answer.
+                  </p>
                   <label className="c8-criterion">
                     <input
                       type="checkbox"
@@ -735,6 +785,15 @@ function LessonReader({
                       onClick={() => setStep(checkStart + missingCheck)}
                     >
                       Try question {missingCheck + 1} →
+                    </button>
+                  ) : null}
+                  {missingModel >= 0 ? (
+                    <button
+                      type="button"
+                      className="c8-link"
+                      onClick={() => setStep(checkStart + missingModel)}
+                    >
+                      Compare written answer {missingModel + 1} with its model →
                     </button>
                   ) : null}
                   {error ? <p role="alert">{error}</p> : null}

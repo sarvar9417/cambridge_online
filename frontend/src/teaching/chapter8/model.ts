@@ -117,7 +117,7 @@ export function taskReady(task: Task, e: Evidence) {
       : e.revealed && task.criteria?.every((_, i) => e.criteria.includes(i))),
   );
 }
-export function readyToComplete(lesson: Lesson, record: RecordState) {
+function attemptedAllChecks(lesson: Lesson, record: RecordState) {
   return (
     record.seen.length === lesson.blocks.length &&
     lesson.checks.every((task, i) =>
@@ -129,6 +129,14 @@ export function readyToComplete(lesson: Lesson, record: RecordState) {
       ),
     ) &&
     record.recap
+  );
+}
+export function readyToComplete(lesson: Lesson, record: RecordState) {
+  return (
+    attemptedAllChecks(lesson, record) &&
+    lesson.checks.every((task, i) =>
+      task.kind !== "written" || record.checks[i]?.revealed === true,
+    )
   );
 }
 export function firstAttemptCorrect(task: Task, e: Evidence) {
@@ -184,7 +192,9 @@ export function loadState(key: string): CourseState {
       };
       clean[lesson.id] = {
         ...record,
-        completed: r.completed === true && readyToComplete(lesson, record),
+        // Preserve lessons completed under the earlier study-only rule. For
+        // NEW completions, written answers must now be compared to the model.
+        completed: r.completed === true && attemptedAllChecks(lesson, record),
       };
     }
     return clean;

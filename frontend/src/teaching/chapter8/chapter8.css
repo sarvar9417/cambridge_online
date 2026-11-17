@@ -1347,10 +1347,68 @@
   margin-top: 18px;
   background: white;
 }
+.c8-lesson-heading .c8-source-line {
+  font-size: 11px;
+  color: var(--c8-green);
+  font-weight: 650;
+  margin-top: 9px;
+}
+.c8-lesson-orientation {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px 28px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #ecf5e9, #f5f7ed);
+  border: 1px solid #c9dcbf;
+  border-radius: 15px;
+}
+.c8-orientation-question h2 {
+  margin-top: 8px;
+  font-size: clamp(19px, 2vw, 25px);
+  line-height: 1.45;
+}
+.c8-orientation-goals ul {
+  margin: 9px 0 0;
+  padding-left: 20px;
+  color: #36584a;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.c8-orientation-goals li + li { margin-top: 5px; }
+.c8-orientation-terms {
+  grid-column: 1 / -1;
+  border-top: 1px solid #cbdcc5;
+  padding-top: 14px;
+}
+.c8-orientation-terms > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.c8-orientation-terms details {
+  flex: 1 1 180px;
+  max-width: 310px;
+  background: #fff;
+  border: 1px solid #cddfc9;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.c8-orientation-terms summary { color: #165c45; }
+.c8-orientation-terms p { margin: 8px 0 0; }
+.c8-orientation-terms small { display: block; margin-top: 6px; color: #536e63; }
 .c8-present .c8-deeper-study {
   font-size: 16px;
 }
 @media (max-width: 780px) {
+  .c8-lesson-orientation {
+    grid-template-columns: 1fr;
+    padding: 18px;
+    gap: 14px;
+  }
+  .c8-orientation-terms details { max-width: none; }
   .c8-reading-progress {
     padding: 16px 20px;
   }
