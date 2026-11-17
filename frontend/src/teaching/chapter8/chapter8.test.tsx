@@ -194,7 +194,7 @@ describe("Chapter 8 source-backed course", () => {
     }
   });
   it("retains the class filter explorer after the SELECT explanation", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=12";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=12&mode=present";
     render();
     for (let i = 0; i < 5; i++) click("Next →");
     const select = host.querySelector(
@@ -220,7 +220,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.querySelector('.c8-screen [role="status"]')?.textContent).toContain("You predicted 2");
   });
   it("shows objectives, a source question and readable definitions at the start", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=8";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=8&mode=present";
     render();
     const orientation = host.querySelector(".c8-lesson-orientation")!;
     expect(orientation.textContent).toContain("Is that a student’s data");
@@ -232,7 +232,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.querySelector(".c8-lesson-orientation")).toBeNull();
   });
   it("makes the GROUP BY results predictable before revealing them", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=13";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=13&mode=present";
     render();
     click("Next →");
     click("Next →");
@@ -249,7 +249,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.querySelector('.c8-screen [aria-label="Expected result"]')).toBeTruthy();
   });
   it("keeps both relations visible when moving from 1NF to 2NF", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=7";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=7&mode=present";
     render();
     for (let i = 0; i < lessons[6].blocks.length - 1; i++) click("Next →");
     expect(host.querySelector('[aria-label="Normal form"]')).toBeTruthy();
@@ -262,7 +262,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.querySelector('.c8-screen [aria-label="2NF · remove a partial dependency"]')).toBeTruthy();
   });
   it("retains the two-table DDL explorer after explaining columns and keys", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=11";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=11&mode=present";
     render();
     for (let i = 0; i < 3; i++) click("Next →");
     click("2 · Student table");
@@ -278,7 +278,7 @@ describe("Chapter 8 source-backed course", () => {
     expect(host.textContent).toContain("Referential integrity");
   });
   it("introduces keys before showing the foreign-key explorer", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=4";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=4&mode=present";
     render();
     expect(host.querySelector("select")).toBeNull();
     expect(host.querySelector(".c8-screen")?.textContent).toContain(
@@ -294,16 +294,11 @@ describe("Chapter 8 source-backed course", () => {
     });
     expect(host.textContent).toContain("No matching parent key");
     for (let i = 0; i < 6; i++) click("Next →");
-    expect(
-      (
-        Array.from(host.querySelectorAll("button")).find(
-          (b) => b.textContent === "Mark as studied",
-        ) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+    expect(host.querySelector(".c8-recap")?.textContent).toContain("What to remember");
+    expect(host.querySelector(".c8-completion")).toBeNull();
   });
   it("starts with the actual table and follows a single linear route through example and feedback", () => {
-    window.location.hash = "oqitish/darslar?chapter=8&lesson=1";
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=1&mode=present";
     render();
     expect(host.querySelector('[aria-label="Lesson stages"]')).toBeNull();
     expect(host.querySelector(".c8-screen table")?.textContent).toContain(
@@ -342,18 +337,47 @@ describe("Chapter 8 source-backed course", () => {
     click("Check my answer");
     click("Next →");
     expect(host.querySelector(".c8-screen")?.textContent).toContain(
-      "1 / 2 choice questions correct on your first independent attempt.",
+      "What to remember",
     );
-    act(() =>
-      (
-        host.querySelector(
-          '.c8-completion input[type="checkbox"]',
-        ) as HTMLInputElement
-      ).click(),
-    );
-    click("Mark as studied");
-    expect(host.querySelector(".c8-completion")?.textContent).toContain(
-      "Lesson studied",
-    );
+    expect(host.querySelector(".c8-completion")).toBeNull();
+  });
+  it("shows the complete coursebook explanation rather than hiding it in extra accordions", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=7";
+    render();
+    expect(host.querySelectorAll(".c8-book-reading > .c8-block")).toHaveLength(lessons[6].details.length);
+    expect(host.querySelector(".c8-deeper-study")).toBeNull();
+    expect(host.querySelector(".c8-book-reading")?.textContent).toContain("partial dependency");
+    expect(host.querySelector(".c8-book-reading")?.textContent).toContain("Final school relations");
+    expect(host.querySelector(".c8-inline-terms")?.textContent).toContain("Third normal form (3NF)");
+    expect(host.querySelectorAll(".c8-full-practice .c8-task")).toHaveLength(lessons[6].checks.length);
+  });
+  it("uses the full SQL definition in the study view with examples and matching key terms", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=11";
+    render();
+    expect(host.querySelector(".c8-book-reading")?.textContent).toContain("PRIMARY KEY (StudentID, SubjectName)");
+    expect(host.querySelector(".c8-book-reading")?.textContent).toContain("FOREIGN KEY (ClassID) REFERENCES Class(ClassID)");
+    expect(host.querySelector(".c8-book-reading")?.textContent).toContain("Source corrections");
+    expect(host.querySelector(".c8-worked-example")?.textContent).toContain(lessons[10].worked.prompt);
+  });
+  it("requires conscious reading and recap confirmations before marking study complete", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=1";
+    render();
+    expect((host.querySelector(".c8-full-completion button.c8-button--primary") as HTMLButtonElement).disabled).toBe(true);
+    const boxes = host.querySelectorAll('.c8-full-completion input[type="checkbox"]');
+    act(() => (boxes[0] as HTMLInputElement).click());
+    act(() => (boxes[1] as HTMLInputElement).click());
+    expect((host.querySelector(".c8-full-completion button.c8-button--primary") as HTMLButtonElement).disabled).toBe(true);
+    expect(host.querySelectorAll(".c8-book-reading .c8-block").length).toBeGreaterThan(4);
+    for (const [i, task] of lessons[0].checks.entries()) {
+      const question = host.querySelectorAll(".c8-full-practice .c8-task")[i];
+      const input = question.querySelector(`input[value="${task.correct}"]`) as HTMLInputElement;
+      act(() => input.click());
+      const submit = question.querySelector(".c8-task-actions button.c8-button--primary") as HTMLButtonElement;
+      act(() => submit.click());
+    }
+    const complete = host.querySelector(".c8-full-completion button.c8-button--primary") as HTMLButtonElement;
+    expect(complete.disabled).toBe(false);
+    act(() => complete.click());
+    expect(host.querySelector(".c8-full-completion")?.textContent).toContain("Lesson studied");
   });
 });

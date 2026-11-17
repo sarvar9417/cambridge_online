@@ -27,6 +27,7 @@ import {
   type Task,
 } from "./model";
 import "./chapter8.css";
+import "./chapter8-platform.css";
 
 type Props = { audience: "teacher" | "student"; userId: string };
 function courseUrl(
@@ -292,8 +293,8 @@ function Glossary({
     <section className="c8-glossary" aria-label="Chapter glossary">
       <header>
         <div>
-          <span className="c8-kicker">33 SOURCE KEY TERMS</span>
-          <h2>Small definitions. Clear examples.</h2>
+          <span className="c8-kicker">HODDER · CHAPTER 8</span>
+          <h2>Key terms and definitions</h2>
         </div>
         <button
           type="button"
@@ -335,11 +336,9 @@ function Glossary({
 }
 function CourseOverview({
   state,
-  audience,
   onOpen,
 }: {
   state: CourseState;
-  audience: Props["audience"];
   onOpen: (n: number) => void;
 }) {
   const done = lessons.filter((l) => state[l.id]?.completed).length;
@@ -347,17 +346,12 @@ function CourseOverview({
     <>
       <header className="c8-hero">
         <div>
-          <span className="c8-kicker">
-            CAMBRIDGE 9618 / AS LEVEL / CHAPTER 08
-          </span>
-          <h1>
-            Databases.
-            <br />
-            <em>Start with one table.</em>
-          </h1>
+          <span className="c8-kicker">CAMBRIDGE 9618 · AS LEVEL · CHAPTER 8</span>
+          <h1>Databases</h1>
           <p>
-            One school example, one idea at a time. Read a simple table, connect
-            related facts, then learn how to design and query a database.
+            Learn how relational databases organise data, how DBMS software
+            manages it, and how SQL defines and queries tables. The lessons
+            follow Hodder Education, Chapter 8 (pp. 196–216).
           </p>
           <button
             type="button"
@@ -370,7 +364,7 @@ function CourseOverview({
           </button>
         </div>
         <div className="c8-hero-art c8-hero-example">
-          <span className="c8-kicker">YOUR FIRST EXAMPLE</span>
+          <span className="c8-kicker">A SIMPLE RELATIONAL TABLE</span>
           <DataTable
             caption="Student"
             headers={["StudentID", "FirstName", "ClassID"]}
@@ -379,39 +373,18 @@ function CourseOverview({
               ["S1277", "Ahmad", "7B"],
             ]}
           />
-          <p>
-            One row. One student.
-            <br />
-            Start here — the rest builds on this.
-          </p>
+          <p>Each row represents one student. Each column stores one attribute.</p>
         </div>
       </header>
-      <div className="c8-metrics">
-        <span>
-          <b>14</b> focused lessons
-        </span>
-        <span>
-          <b>33</b> key terms
-        </span>
-        <span>
-          <b>3</b> connected sections
-        </span>
-        <span>
-          <b>{done}/14</b>{" "}
-          {audience === "student" ? "lessons studied" : "lessons studied"}
-        </span>
-      </div>
+      <p className="c8-course-progress" aria-live="polite">
+        {done} of {lessons.length} lessons studied
+      </p>
       <section className="c8-path">
         <header>
           <div>
-            <span className="c8-kicker">YOUR CHAPTER ROUTE</span>
-            <h2>Understand. Build. Explain.</h2>
+            <span className="c8-kicker">CHAPTER CONTENTS</span>
+            <h2>Lessons</h2>
           </div>
-          <p>
-            Hodder, Chapter 8 · pp.196–216
-            <br />
-            Original explanations and adapted practice
-          </p>
         </header>
         {groups.map((group) => (
           <section className="c8-group" key={group.code}>
@@ -446,6 +419,195 @@ function CourseOverview({
         ))}
       </section>
     </>
+  );
+}
+
+/** The default study view keeps the coursebook explanation visible in order.
+ * Presentation mode retains the shorter, keyboard-driven classroom sequence.
+ */
+function FullLessonReader({
+  lesson,
+  state,
+  setState,
+  audience,
+  onOpen,
+}: {
+  lesson: Lesson;
+  state: CourseState;
+  setState: Dispatch<SetStateAction<CourseState>>;
+  audience: Props["audience"];
+  onOpen: (n: number) => void;
+}) {
+  const record = state[lesson.id] ?? emptyRecord(lesson);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const explanationRead = record.seen.length === lesson.blocks.length;
+  const update = (fn: (r: RecordState) => RecordState) =>
+    setState((current) => ({
+      ...current,
+      [lesson.id]: fn(current[lesson.id] ?? emptyRecord(lesson)),
+    }));
+  const finish = async () => {
+    if (!readyToComplete(lesson, record) || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      if (audience === "student")
+        await api<LessonProgress>("/content/lessons/progress", {
+          method: "PUT",
+          body: JSON.stringify({
+            courseCode: "9618",
+            chapterNo: 8,
+            slideId: lesson.id,
+            completed: true,
+          }),
+        });
+      update((r) => ({ ...r, completed: true }));
+    } catch {
+      setError("Progress could not sync. Your answers are still saved on this device.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const illustrationBlocks = lesson.blocks.filter((block) => block.visual);
+  const lessonTerms = terms.filter((term) => lesson.terms.includes(term.name));
+  return (
+    <div className="c8-reader-layout c8-full-layout">
+      <aside className="c8-outline" aria-label="Chapter lessons">
+        <span className="c8-kicker">CHAPTER CONTENTS</span>
+        {groups.map((group) => (
+          <section key={group.code}>
+            <h3>{group.code} · {group.title}</h3>
+            {lessons
+              .filter((item) => item.number >= group.from && item.number <= group.to)
+              .map((item) => (
+                <button
+                  type="button"
+                  aria-current={item.number === lesson.number ? "page" : undefined}
+                  key={item.id}
+                  onClick={() => onOpen(item.number)}
+                >
+                  <span>{state[item.id]?.completed ? "✓" : String(item.number).padStart(2, "0")}</span>
+                  {item.title}
+                </button>
+              ))}
+          </section>
+        ))}
+      </aside>
+      <main className="c8-reader c8-full-reader">
+        <header className="c8-lesson-heading">
+          <span className="c8-kicker">{lesson.section} · LESSON {lesson.number} OF {lessons.length}</span>
+          <h1>{lesson.title}</h1>
+          <p>{lesson.subtitle}</p>
+          <p className="c8-page-reference">Hodder Education · printed pp. {lesson.pages.join(", ")}</p>
+        </header>
+        <section className="c8-lesson-objectives" aria-label="Learning objectives">
+          <h2>In this lesson</h2>
+          <ul>{lesson.objectives.map((objective) => <li key={objective}>{objective}</li>)}</ul>
+        </section>
+        <section className="c8-book-reading" aria-label="Complete coursebook explanation">
+          <header>
+            <span className="c8-kicker">EXPLANATION</span>
+            <h2>Understand the topic</h2>
+          </header>
+          {lesson.details.map((block, i) => <BlockView block={block} key={`${lesson.id}-detail-${i}`} />)}
+          {illustrationBlocks.length > 0 ? (
+            <section className="c8-illustrations" aria-label="Interactive examples">
+              <h2>Explore the example</h2>
+              {illustrationBlocks.map((block) => (
+                <BlockView block={block} key={`${lesson.id}-${block.visual}`} />
+              ))}
+            </section>
+          ) : null}
+          {lessonTerms.length > 0 ? (
+            <section className="c8-inline-terms" aria-label="Key terms for this lesson">
+              <h2>Key terms</h2>
+              <dl>
+                {lessonTerms.map((term) => (
+                  <div key={term.name}>
+                    <dt>{term.name}</dt>
+                    <dd>{term.definition}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+        </section>
+        <section className="c8-full-practice" aria-label="Practice questions">
+          <header>
+            <span className="c8-kicker">PRACTICE</span>
+            <h2>Check your understanding</h2>
+          </header>
+          <section className="c8-worked-example">
+            <h3>Worked example</h3>
+            <p className="c8-worked-prompt">{lesson.worked.prompt}</p>
+            <div><strong>Explanation</strong><p>{lesson.worked.answer}</p></div>
+          </section>
+          {lesson.checks.map((task, i) => (
+            <TaskCard
+              key={`${lesson.id}-check-${i}`}
+              task={task}
+              label={`QUESTION ${i + 1} OF ${lesson.checks.length}`}
+              evidence={record.checks[i]}
+              onChange={(e) => update((r) => ({
+                ...r,
+                checks: r.checks.map((value, index) => (index === i ? e : value)),
+                completed: false,
+              }))}
+            />
+          ))}
+        </section>
+        <section className="c8-recap c8-full-recap">
+          <span className="c8-kicker">SUMMARY</span>
+          <h2>What to remember</h2>
+          <ul>{lesson.recap.map((item) => <li key={item}>{item}</li>)}</ul>
+        </section>
+        <section className="c8-completion c8-full-completion">
+          <h2>{record.completed ? "Lesson studied" : "Finish this lesson"}</h2>
+          <p>Record completion after reading the explanation, checking your answers and reviewing the summary. This records study, not mastery.</p>
+          <label className="c8-criterion">
+            <input type="checkbox" checked={explanationRead} onChange={(event) => update((r) => ({
+              ...r,
+              seen: event.target.checked ? lesson.blocks.map((_, i) => i) : [],
+              completed: false,
+            }))} />
+            <span>I have read the full explanation and examined the examples.</span>
+          </label>
+          <label className="c8-criterion">
+            <input type="checkbox" checked={record.recap} onChange={(event) => update((r) => ({
+              ...r,
+              recap: event.target.checked,
+              completed: false,
+            }))} />
+            <span>I have reviewed the summary and my answers.</span>
+          </label>
+          <div className="c8-finish-actions">
+            <button className="c8-button c8-button--primary" type="button"
+              disabled={!readyToComplete(lesson, record) || saving || record.completed}
+              onClick={finish}>
+              {record.completed ? "✓ Studied" : saving ? "Saving…" : "Mark as studied"}
+            </button>
+            <button className="c8-button" type="button" onClick={() => lesson.number < lessons.length
+              ? onOpen(lesson.number + 1) : navigate(courseUrl(audience))}>
+              {lesson.number < lessons.length ? "Next lesson →" : "Chapter overview"}
+            </button>
+          </div>
+          {error ? <p role="alert">{error}</p> : null}
+        </section>
+        <details className="c8-additional-practice">
+          <summary>Additional practice</summary>
+          {[lesson.extension.worked, ...lesson.extension.checks].map((task, index) => (
+            <article key={index}>
+              <h3>{task.prompt}</h3>
+              <details><summary>Show the model answer</summary>
+                <p>{task.answer ?? task.options?.[task.correct ?? -1]}</p>
+                {task.why ? <p>{task.why}</p> : null}
+              </details>
+            </article>
+          ))}
+        </details>
+      </main>
+    </div>
   );
 }
 function LessonReader({
@@ -1049,6 +1211,15 @@ export function Chapter8Course({ audience, userId }: Props) {
       ) : null}
       {glossary ? (
         <Glossary onClose={closeGlossary} onOpenLesson={open} />
+      ) : lesson && !present ? (
+        <FullLessonReader
+          key={`${userId}:${lesson.id}:reading`}
+          lesson={lesson}
+          state={state}
+          setState={setState}
+          audience={audience}
+          onOpen={open}
+        />
       ) : lesson ? (
         <LessonReader
           key={`${userId}:${lesson.id}:${present}`}
@@ -1061,7 +1232,7 @@ export function Chapter8Course({ audience, userId }: Props) {
           onOpen={open}
         />
       ) : (
-        <CourseOverview state={state} audience={audience} onOpen={open} />
+        <CourseOverview state={state} onOpen={open} />
       )}
       <footer className="c8-bottom">
         CAMBRIDGE ONLINE{" "}
