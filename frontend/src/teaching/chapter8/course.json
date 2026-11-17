@@ -421,6 +421,7 @@
         {
           "kind": "steps",
           "title": "Look at one part at a time",
+          "visual": "table",
           "items": [
             {
               "title": "Table",
@@ -1242,6 +1243,7 @@
         {
           "kind": "text",
           "title": "Foreign key and referential integrity",
+          "visual": "keys",
           "text": "Student.ClassID is a foreign key (FK) because it refers to Class.ClassID (the primary key). Many students may use the same ClassID. Referential integrity means a non-null FK must match an existing parent key. In our example, 9Z is invalid because Class has only 7A and 7B.",
           "uz": "Foreign key boshqa jadvaldagi primary key bilan bog‘laydi. 9Z mavjud bo‘lmagani uchun mos yozuv topilmaydi."
         },
@@ -1557,6 +1559,7 @@
         {
           "kind": "steps",
           "title": "Make the school diagram in three small moves",
+          "visual": "relationship",
           "items": [
             {
               "title": "Draw Class → Student",
@@ -2194,6 +2197,7 @@
         {
           "kind": "table",
           "title": "Final design — one job for each table",
+          "visual": "schema",
           "headers": [
             "Table",
             "What it stores",
@@ -2230,6 +2234,7 @@
         {
           "kind": "steps",
           "title": "One test for each normal form",
+          "visual": "normalise",
           "items": [
             {
               "title": "1NF",
@@ -3300,6 +3305,7 @@
         {
           "kind": "table",
           "title": "Read each line of that command",
+          "visual": "create-table",
           "headers": [
             "SQL part",
             "Meaning"
@@ -3628,6 +3634,7 @@
         {
           "kind": "table",
           "title": "Check the output before learning JOIN",
+          "visual": "sql-where",
           "headers": [
             "FirstName",
             "SecondName"
@@ -3870,6 +3877,7 @@
         {
           "kind": "code",
           "title": "GROUP BY makes a summary for each subject",
+          "visual": "queries",
           "text": "SELECT SubjectName,\n       COUNT(ExamMark) AS MarksRecorded,\n       AVG(ExamMark) AS Mean\nFROM StudentSubject\nGROUP BY SubjectName\nORDER BY SubjectName;",
           "note": "History: 1 recorded mark, mean 90. Maths: 2 recorded marks, mean 75. GROUP BY forms subject groups before each aggregate is calculated."
         },
@@ -3916,12 +3924,6 @@
           "title": "Before changing real data, check the filter",
           "text": "Use SELECT with your intended WHERE condition first to inspect the rows you plan to change. Hodder p.214 describes DELETE FROM without WHERE as deleting the whole table; strictly, it deletes all rows, not the table definition. This distinction is corrected in our runnable examples.",
           "uz": "UPDATE va DELETE oldidan WHERE yozilganini tekshiring. WHERE bo'lmasa ko'plab qatorlar o'zgarishi yoki o'chishi mumkin."
-        },
-        {
-          "kind": "text",
-          "title": "Compare SQL with its result",
-          "text": "These fixed worked examples include joins and grouped totals from the school dataset.",
-          "visual": "queries"
         }
       ],
       "extension": {

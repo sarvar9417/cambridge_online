@@ -469,7 +469,6 @@ function FullLessonReader({
       setSaving(false);
     }
   };
-  const illustrationBlocks = lesson.blocks.filter((block) => block.visual);
   const lessonTerms = terms.filter((term) => lesson.terms.includes(term.name));
   return (
     <div className="c8-reader-layout c8-full-layout">
@@ -499,7 +498,9 @@ function FullLessonReader({
           <span className="c8-kicker">{lesson.section} · LESSON {lesson.number} OF {lessons.length}</span>
           <h1>{lesson.title}</h1>
           <p>{lesson.subtitle}</p>
-          <p className="c8-page-reference">Hodder Education · printed pp. {lesson.pages.join(", ")}</p>
+          <p className="c8-page-reference">
+            Hodder Education · {lesson.sourceRefs.join(" · ")} · printed pp. {lesson.pages.join(", ")}
+          </p>
         </header>
         <section className="c8-lesson-objectives" aria-label="Learning objectives">
           <h2>In this lesson</h2>
@@ -511,14 +512,6 @@ function FullLessonReader({
             <h2>Understand the topic</h2>
           </header>
           {lesson.details.map((block, i) => <BlockView block={block} key={`${lesson.id}-detail-${i}`} />)}
-          {illustrationBlocks.length > 0 ? (
-            <section className="c8-illustrations" aria-label="Interactive examples">
-              <h2>Explore the example</h2>
-              {illustrationBlocks.map((block) => (
-                <BlockView block={block} key={`${lesson.id}-${block.visual}`} />
-              ))}
-            </section>
-          ) : null}
           {lessonTerms.length > 0 ? (
             <section className="c8-inline-terms" aria-label="Key terms for this lesson">
               <h2>Key terms</h2>
@@ -1010,7 +1003,8 @@ function LessonReader({
             {lesson.details.map((b, i) => (
               <details key={i}>
                 <summary>{b.title}</summary>
-                <BlockView block={b} />
+                <BlockView block={b.visual && lesson.blocks.some((item) => item.visual === b.visual)
+                  ? { ...b, visual: undefined } : b} />
               </details>
             ))}
           </details>

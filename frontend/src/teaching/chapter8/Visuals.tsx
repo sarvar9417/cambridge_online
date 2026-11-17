@@ -648,8 +648,8 @@ export function Visual({ name }: { name: string }) {
             width="180"
             height="90"
             rx="14"
-            fill="#edf5e9"
-            stroke="#22684f"
+            fill="var(--accent-soft)"
+            stroke="var(--accent)"
           />
           <rect
             x="430"
@@ -657,11 +657,11 @@ export function Visual({ name }: { name: string }) {
             width="180"
             height="90"
             rx="14"
-            fill="#edf5e9"
-            stroke="#22684f"
+            fill="var(--accent-soft)"
+            stroke="var(--accent)"
           />
           <g
-            fill="#173c2d"
+            fill="var(--text)"
             fontFamily="inherit"
             textAnchor="middle"
             fontSize="22"
@@ -683,13 +683,13 @@ export function Visual({ name }: { name: string }) {
           <path
             d="M190 85 H430 M205 72 V98 M410 85 L430 70 M410 85 L430 100"
             fill="none"
-            stroke="#22684f"
+            stroke="var(--accent)"
             strokeWidth="2.5"
           />
           <text
             x="310"
             y="155"
-            fill="#52635e"
+            fill="var(--text-muted)"
             textAnchor="middle"
             fontFamily="inherit"
             fontSize="17"
