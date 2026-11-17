@@ -140,11 +140,29 @@
 .c8-table-scroll tr:nth-child(even) { background: var(--surface-soft); }
 .c8-steps li > span { background: var(--accent-soft); color: var(--accent); }
 .c8-uz { background: var(--surface-soft); color: var(--text); border: 1px solid var(--border); }
-.c8-illustrations { margin-top: 8px; padding-top: 22px; border-top: 1px solid var(--border); }
-.c8-illustrations > h2,
 .c8-inline-terms > h2 { font-size: 20px; margin-bottom: 16px; }
-.c8-illustrations .c8-block { border: 1px solid var(--border); padding: 18px; background: var(--surface-soft); }
-.c8-illustrations .c8-block > p { font-family: var(--font-ui); font-size: 14px; }
+/* The interactive example lives beside its explanation, once, rather than
+   repeating the same teaching card in a detached gallery. */
+.c8-book-reading .c8-block > .c8-explorer,
+.c8-book-reading .c8-block > figure { margin: 20px 0 0; }
+.c8-book-reading .c8-block > .c8-explorer { background: var(--surface-soft); }
+.c8-course .c8-table-scroll caption { background: var(--surface-soft); color: var(--text-muted); }
+.c8-course .c8-segments button,
+.c8-course .c8-concept-nav button { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.c8-course .c8-segments button[aria-pressed="true"],
+.c8-course .c8-concept-nav button[aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-contrast); border-color: var(--accent);
+}
+.c8-course .c8-lens-row tbody tr:first-child td,
+.c8-course .c8-lens-column th:nth-child(2),
+.c8-course .c8-lens-column td:nth-child(2),
+.c8-course .c8-lens-value tbody tr:first-child td:nth-child(2) {
+  background: var(--accent-soft); color: var(--text);
+}
+.c8-course select,
+.c8-course input[type="search"] { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.c8-course .c8-feedback { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.c8-course .c8-feedback.is-wrong { background: var(--uncertain-bg); border-color: var(--uncertain); color: var(--uncertain); }
 .c8-inline-terms { padding-top: 20px; margin-top: 12px; border-top: 1px solid var(--border); }
 .c8-inline-terms dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
 .c8-inline-terms dl > div { border-top: 1px solid var(--border); padding: 13px 0; }
