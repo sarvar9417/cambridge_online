@@ -97,6 +97,14 @@ describe("Chapter 8 source-backed course", () => {
     expect(lessons.slice(7, 9).every((l) => l.section === "8.2")).toBe(true);
     expect(lessons.slice(9, 13).every((l) => l.section === "8.3")).toBe(true);
   });
+  it("keeps all presentation visuals in the reading sequence without duplicates", () => {
+    for (const lesson of lessons) {
+      const presentationVisuals = lesson.blocks.flatMap((block) => block.visual ? [block.visual] : []);
+      const readingVisuals = lesson.details.flatMap((block) => block.visual ? [block.visual] : []);
+      for (const visual of presentationVisuals) expect(readingVisuals, `Lesson ${lesson.number}: ${visual}`).toContain(visual);
+      expect(new Set(readingVisuals).size, `Lesson ${lesson.number}`).toBe(readingVisuals.length);
+    }
+  });
   it("records study after reading, attempts and recap without requiring a perfect score", () => {
     const l = lessons[0];
     const r = emptyRecord(l);
@@ -346,10 +354,27 @@ describe("Chapter 8 source-backed course", () => {
     render();
     expect(host.querySelectorAll(".c8-book-reading > .c8-block")).toHaveLength(lessons[6].details.length);
     expect(host.querySelector(".c8-deeper-study")).toBeNull();
+    expect(host.querySelector(".c8-illustrations")).toBeNull();
     expect(host.querySelector(".c8-book-reading")?.textContent).toContain("partial dependency");
     expect(host.querySelector(".c8-book-reading")?.textContent).toContain("Final school relations");
     expect(host.querySelector(".c8-inline-terms")?.textContent).toContain("Third normal form (3NF)");
     expect(host.querySelectorAll(".c8-full-practice .c8-task")).toHaveLength(lessons[6].checks.length);
+    const normalForms = Array.from(host.querySelectorAll(".c8-book-reading > .c8-block")).find((block) =>
+      block.querySelector("h2")?.textContent === "One test for each normal form",
+    );
+    expect(normalForms?.querySelector('[aria-label="Normal form"]')).not.toBeNull();
+    expect(host.querySelector(".c8-page-reference")?.textContent).toContain("8.1.5");
+  });
+  it("keeps each interactive SQL visual next to the relevant explanation exactly once", () => {
+    window.location.hash = "oqitish/darslar?chapter=8&lesson=13";
+    render();
+    const sqlBlocks = Array.from(host.querySelectorAll(".c8-book-reading > .c8-block"));
+    const grouped = sqlBlocks.find((block) =>
+      block.querySelector("h2")?.textContent === "GROUP BY makes a summary for each subject",
+    );
+    expect(grouped?.querySelector('select[aria-label="Choose a SQL example"]')).not.toBeNull();
+    expect(host.querySelectorAll('.c8-book-reading select[aria-label="Choose a SQL example"]')).toHaveLength(1);
+    expect(host.querySelector(".c8-illustrations")).toBeNull();
   });
   it("uses the full SQL definition in the study view with examples and matching key terms", () => {
     window.location.hash = "oqitish/darslar?chapter=8&lesson=11";
@@ -367,7 +392,7 @@ describe("Chapter 8 source-backed course", () => {
     act(() => (boxes[0] as HTMLInputElement).click());
     act(() => (boxes[1] as HTMLInputElement).click());
     expect((host.querySelector(".c8-full-completion button.c8-button--primary") as HTMLButtonElement).disabled).toBe(true);
-    expect(host.querySelectorAll(".c8-book-reading .c8-block").length).toBeGreaterThan(4);
+    expect(host.querySelectorAll(".c8-book-reading > .c8-block")).toHaveLength(lessons[0].details.length);
     for (const [i, task] of lessons[0].checks.entries()) {
       const question = host.querySelectorAll(".c8-full-practice .c8-task")[i];
       const input = question.querySelector(`input[value="${task.correct}"]`) as HTMLInputElement;
