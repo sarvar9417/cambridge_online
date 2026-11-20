@@ -1,34 +1,60 @@
 export interface LiveQuizPlayer {
-  id:string;nickname:string;avatar:string;score:number;answered:boolean;
+  id:string;nickname:string;avatar:string;score:number;answered:boolean|number;
+  correct?:number;
 }
+export type LiveQuizMode='classic'|'treasure';
 export interface LiveQuizQuestion {
   id:string;index:number;prompt:string;options:string[];sourceContext:string;
   correctIndex?:number;explanation?:string;
 }
 export interface LiveQuizSnapshot {
   id:string;pin:string;courseCode:string;status:'waiting'|'active'|'review'|'finished';
+  mode:LiveQuizMode;allowLateJoin?:boolean;showCorrectness?:boolean;randomNames?:boolean;
   questionCount:number;questionIndex:number;questionSeconds:number;
   questionStartedAt:string|null;serverNow:string;players:LiveQuizPlayer[];
+  reviewEndsAt?:string;answerCounts?:number[];
   answeredCount:number;question:LiveQuizQuestion|null;
+  endsAt?:string|null;durationSeconds?:number;treasureGoal?:number;dragonPool?:number;
+  ownScore?:number;ownCorrect?:number;ownTurn?:number;blockedUntil?:string|null;
+  pendingReward?:{turnIndex:number;type:string|null;percent?:number;
+    targets:Array<{id:string;nickname:string;avatar:string;score:number}>}|null;
   ownAnswer?:{choiceIndex:number;correct?:boolean;points?:number}|null;
   selfId?:string;nickname?:string;
+}
+export interface LiveQuizLobby {
+  pin:string;courseCode:string;mode:LiveQuizMode;status:'waiting'|'active';
+  randomNames:boolean;allowLateJoin:boolean;playerCount:number;
+}
+export interface TreasureAnswerResponse {
+  submitted:boolean;turnIndex:number;correct:boolean;rewardPending:boolean;
+  correctIndex?:number;explanation?:string;
+}
+export interface TreasureRewardResponse {
+  rewardType:string;needsTarget:boolean;percent?:number;delta?:number;
+  newScore?:number;gameFinished?:boolean;
 }
 export interface LiveQuizDetail {
   number:number;prompt:string;options:string[];choiceIndex:number|null;correctIndex:number;
   correct:boolean;points:number;explanation:string;sourceContext:string;
   status:'correct'|'wrong'|'skipped';
+  elapsedMs?:number;rewardType?:string|null;bankQuestionNo?:number;
 }
 export interface LiveQuizResult {
   id:string;nickname:string;avatar:string;score:number;correct:number;answered:number;
-  total:number;details:LiveQuizDetail[];
+  total:number;details:LiveQuizDetail[];averageResponseMs?:number;
+}
+export interface LiveQuizQuestionSummary {
+  number:number;prompt:string;sourceContext:string;correct:number;wrong:number;
+  skipped:number;total:number;wrongStudents:Array<{id:string;nickname:string;answer:string;attemptNumber?:number}>;
 }
 export interface LiveQuizReport {
   id:string;pin:string;courseCode:string;totalQuestions:number;finishedAt:string|null;
-  students:LiveQuizResult[];
+  mode?:LiveQuizMode;questionBankSize?:number;students:LiveQuizResult[];
+  questionSummary?:LiveQuizQuestionSummary[];
 }
 export interface LiveQuizHistoryItem {
   id:string;pin:string;courseCode:string;status:string;createdAt:string;
-  finishedAt:string|null;questionCount:number;playerCount:number;
+  finishedAt:string|null;questionCount:number;playerCount:number;mode?:LiveQuizMode;
 }
 export const LIVE_QUIZ_AVATARS=['🦊','🐼','🦁','🐯','🐸','🐨','🐙','🦄'] as const;
 

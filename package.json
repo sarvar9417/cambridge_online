@@ -17,7 +17,8 @@
     "project:state:refresh": "node scripts/project-state.mjs --write",
     "vercel-build": "npm run build -w frontend",
     "verify": "npm run project:state:check && npm run typecheck && npm test && npm run test:inventory && npm run build",
-    "test:live:e2e": "node scripts/browser-live-e2e.mjs"
+    "test:live:e2e": "node scripts/browser-live-e2e.mjs",
+    "test:quiz:browser": "node scripts/browser-live-quiz-smoke.mjs"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
