@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COMPARE_DECKS, compareCategoryFor, compareDeckMatchesScope } from './concept-compare-bank';
+import { COMPARE_MS_EVIDENCE, compareMsFindings } from './concept-compare-ms-evidence';
 
 describe('9618 Concept Compare curated bank', () => {
   it('has distinct chapter-scoped decks and no ambiguous empty or invalid answers', () => {
@@ -115,5 +116,33 @@ describe('Curriculum selections for Concept Compare', () => {
     const sources = find('ssl-tls').cards;
     expect(sources.some(([text, key]) => key === 'AB' && text.includes('handshake'))).toBe(true);
     expect(find('shareware-commercial').cards.some(([text, key]) => key === 'AB' && text.includes('source code'))).toBe(true);
+  });
+});
+
+describe('9618 Chapter 1–8 Cambridge QP/MS provenance', () => {
+  const decks = COMPARE_DECKS.filter(deck => deck.chapterNo <= 8);
+  it('identifies exactly which individual cards have direct marking-point support', () => {
+    expect(decks).toHaveLength(83);
+    expect(decks.reduce((total, deck) => total + deck.cards.length, 0)).toBe(689);
+    let supported = 0;
+    for (const deck of decks) {
+      const entries = COMPARE_MS_EVIDENCE[deck.id] ?? [];
+      const seen = new Set<number>();
+      for (const entry of entries) {
+        expect(entry.question).toMatch(/^9618\/1[123]\/(?:M\/J|O\/N)\/2[1-5] Q\d+(?:\([a-z]\))?(?:\([ivx]+\))?$/);
+        expect(entry.rationale.length).toBeGreaterThan(25);
+        for (const card of entry.cards) {
+          expect(card).toBeGreaterThan(0);
+          expect(card).toBeLessThanOrEqual(deck.cards.length);
+          seen.add(card);
+          expect(compareMsFindings(deck.id, card - 1)).toContainEqual(entry);
+        }
+      }
+      supported += seen.size;
+    }
+    expect(Object.keys(COMPARE_MS_EVIDENCE).every(id => decks.some(deck => deck.id === id))).toBe(true);
+    expect(supported).toBe(245);
+    expect(compareMsFindings('bitmap-vector', 0)[0]?.question).toBe('9618/12/O/N/21 Q5(b)(i)');
+    expect(compareMsFindings('bitmap-vector', 4)).toEqual([]);
   });
 });

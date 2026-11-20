@@ -1,5 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { COMPARE_DECKS, compareCategoryFor, compareDeckMatchesScope, type CompareDeck } from './concept-compare-bank';
+import { compareMsFindings, COMPARE_P1_MARK_SCHEMES, COMPARE_P1_QUESTION_PAPERS } from './concept-compare-ms-evidence';
 import { useGameSignal } from './game-session';
 import type { GameScope } from './remote-games';
 import './concept-compare.css';
@@ -47,6 +48,8 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
   const totalScore = items.reduce((sum, item) => sum + match(placed[item.index], item.expected), 0);
   const fullyCorrect = items.filter(item => match(placed[item.index], item.expected) === 2).length;
   const possible = items.length * 2;
+  const isEarlyChapter = deck !== undefined && deck.chapterNo <= 8;
+  const evidenceCount = deck?.cards.filter((_, index) => compareMsFindings(deck.id, index).length > 0).length ?? 0;
 
   function reset(next?: { deckId?: string; quick?: boolean }) {
     setPlaced({});
@@ -153,6 +156,11 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
             'Correct placement: ' + (item.expected === 'AB' ? deck.a + ' AND ' + deck.b :
               item.expected === 'A' ? deck.a : deck.b)}
             {' · ' + match(chosen, item.expected) + '/2 points'}</p>}
+          {submitted && isEarlyChapter && <p className="ig-compare-provenance">
+            {compareMsFindings(deck.id, item.index).length > 0
+              ? <>QP + published MS support: {compareMsFindings(deck.id, item.index).map(finding => finding.question).join(' · ')}</>
+              : <>Hodder-based practice · no direct matching marking point recorded in the reviewed MS collection.</>}
+          </p>}
         </div>;
       })}
     </div>
@@ -163,10 +171,11 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
       <h3>{totalScore} / {possible} points · {Math.round(totalScore / possible * 100)}%</h3>
       <p>{fullyCorrect} of {items.length} statements fully matched. Each A/B decision is scored separately — incorrectly selecting both cannot earn full marks.</p>
       <p>Source: Hodder 9618, Chapter {deck.chapterNo}, sections {deck.sectionCodes.join(', ')}, {deck.extractPages ? 'chapter extract pages' : 'pp.'} {deck.pages}. Curated textbook statements, not complete official Mark Scheme marking points.</p>
-      {deck.markSchemeExamples?.length ? <p>Checked topic-level Cambridge Mark Scheme examples: {deck.markSchemeExamples.join(' · ')}. These do not independently verify every card.</p> : null}
+      {isEarlyChapter ? <p>QP/MS evidence reviewed for {evidenceCount} of {deck.cards.length} cards. The rest are Hodder-based practice and have no direct MS match recorded. <a href={COMPARE_P1_QUESTION_PAPERS} target="_blank" rel="noreferrer">Open Past Papers (QP)</a> · <a href={COMPARE_P1_MARK_SCHEMES} target="_blank" rel="noreferrer">Open published Mark Schemes (MS)</a>. Citations identify relevant marking points, not original Compare tasks.</p>
+        : deck.markSchemeExamples?.length ? <p>Checked topic-level Cambridge Mark Scheme examples: {deck.markSchemeExamples.join(' · ')}. These do not independently verify every card.</p> : null}
       {deck.extensionOnly ? <p>Supplementary textbook practice: this comparison includes material that Hodder identifies as outside the required syllabus.</p> : null}
       <p>First submission is the assessment. Use the parent “Play this round again” control for a fresh practice run.</p>
     </div>}
-    {!submitted && <p className="ig-compare-provenance">Source: Hodder 9618, Chapter {deck.chapterNo}, sections {deck.sectionCodes.join(', ')}, {deck.extractPages ? 'chapter extract pages' : 'pp.'} {deck.pages}. Source-based formative practice, not official grading. {deck.extensionOnly ? 'Some source material is outside syllabus requirements.' : 'Full per-card MS verification remains pending.'}</p>}
+    {!submitted && <p className="ig-compare-provenance">Source: Hodder 9618, Chapter {deck.chapterNo}, sections {deck.sectionCodes.join(', ')}, {deck.extractPages ? 'chapter extract pages' : 'pp.'} {deck.pages}. Source-based formative practice, not official grading. {isEarlyChapter ? `${evidenceCount}/${deck.cards.length} cards have recorded QP/MS marking-point support; details appear after you submit.` : deck.extensionOnly ? 'Some source material is outside syllabus requirements.' : 'Full per-card MS verification remains pending.'}</p>}
   </div>;
 }
