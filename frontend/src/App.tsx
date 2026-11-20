@@ -41,6 +41,7 @@ import { StudentResults } from './student/StudentResults';
 import { StudentLearning } from './student/StudentLearning';
 import { StudentGames } from './student/StudentGames';
 import { InteractiveGamesPage } from './interactive-games/InteractiveGamesPage';
+import { LiveQuizGuestPage } from './interactive-games/LiveQuizGuestPage';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
@@ -169,7 +170,7 @@ export function App() {
   // following a shared student link should land somewhere they can work, not on
   // a blank page with a working sidebar.
   useEffect(() => {
-    if (!user) return;
+    if (!user || route.surface === 'play') return;
     if (!canAccessRoute(user.role, route)) navigate(HOME_BY_ROLE[user.role]);
   }, [user, route.path]);
 
@@ -444,6 +445,8 @@ export function App() {
     setAssignments((await api<{ data: Assignment[] }>("/assignments")).data);
   };
 
+  // Live classroom links must work for students without an account or login.
+  if (route.surface === 'play') return <LiveQuizGuestPage pin={route.page} />;
   if (loading && !user) return <main className="center">Yuklanmoqda...</main>;
   // The whole signed-out surface -- sign in, register, recover a password --
   // lives in AuthScreens, which owns its own errors and loading state.

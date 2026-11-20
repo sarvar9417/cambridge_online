@@ -70,6 +70,8 @@ import { SupabaseAssetStore, type AssetUrlSigner } from './jobs/asset-store.js';
 import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-service.js';
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
+import { LiveQuizService } from './services/live-quiz-service.js';
+import { createLiveQuizGuestRouter, createLiveQuizHostRouter } from './routes/live-quizzes.js';
 
 export function createApp(
   auth?: AuthService,
@@ -114,6 +116,9 @@ export function createApp(
     mountPublic('/api/v1/auth', unavailableAuth);
   }
 
+  const liveQuizService=pool?new LiveQuizService(pool):undefined;
+  if(liveQuizService)mountPublic('/api/v1/live-quiz-guest',createLiveQuizGuestRouter(liveQuizService,pool!));
+
   app.use('/api/v1', requireAuth(auth));
   const liveExamService=pool&&questionsRepository?new LiveExamService(pool,questionsRepository,assetUrlSigner):undefined;
   const maintenancePool=pool;if(maintenancePool)app.use('/api/v1',opportunisticMaintenance(async()=>{
@@ -147,6 +152,7 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
+  if(liveQuizService)mountPrivate('/api/v1/live-quizzes',createLiveQuizHostRouter(liveQuizService));
   if (pool) mountPrivate('/api/v1/jobs', createJobsRouter(pool));
   // The specific admin paths mount before the general one. Express tries
   // prefixes in order, so a future '/:id' route inside createAdminRouter would
@@ -188,6 +194,21 @@ export function createApp(
   app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof DomainError) {
       const messages:Record<string,string>={score_required:'Natijani chiqarishdan oldin ballni kiriting.',daily_export_limit:'Bir kunda ko‘pi bilan 20 ta PDF tayyorlash mumkin.',invalid_idempotency_key:'Idempotency-Key 8–200 belgidan iborat bo‘lishi kerak.',idempotency_conflict:'Bu Idempotency-Key boshqa so‘rov uchun ishlatilgan.',idempotency_in_progress:'Ayni so‘rov hozir bajarilmoqda. Birozdan keyin qayta urinib ko‘ring.',practice_pool_empty:'Bu mavzu uchun tasdiqlangan mashq savollari hali yo‘q.',appeal_exists:'Bu savol bo‘yicha apellyatsiya yuborilgan.',appeal_limit:'Bir vazifa uchun ko‘pi bilan 3 ta apellyatsiya yuborish mumkin.',selection_dependencies_unresolved:'Tanlovdagi majburiy dependencylar hal qilinmagan.',selection_changed:'Tanlov yaratish vaqtida o‘zgardi. Qayta ko‘rib chiqing.',generator_class_required:'Ko‘rilgan savollarni chiqarish uchun sinfni tanlang.',generator_empty_pool:'Joriy filtrlar uchun generatorga mos tasdiqlangan savollar topilmadi. Filtrlarni kengaytiring.',generator_dependency_cycle:'Tanlangan savollar bog‘liqliklarida sikl topildi. Paper yaratilmadi.',generator_dependency_not_ready:'Kerakli prerequisite savollardan biri paper uchun to‘liq tayyor emas.',generator_selection_too_large:'Generator dependencylar bilan juda katta paper hosil qildi. Filtr yoki maqsad ballni kamaytiring.',generator_selection_failed:'Generator tanlovni xavfsiz yakunlay olmadi. Filtrlarni o‘zgartirib qayta urinib ko‘ring.',online_asset_rendering_unavailable:'Tanlovda student oynasida hali ko‘rsatilmaydigan diagramma yoki rasm bor. Avval asset renderingni yakunlang.',pdf_asset_embedding_unavailable:'Tanlovda PDF ichiga hali embed qilinmaydigan diagramma yoki rasm bor. Incomplete PDF yaratilmadi.',live_topic_required:'Kamida bitta topic yoki subtopic tanlang.',live_question_pool_small:'Tanlangan mavzularda talabga mos yetarli savol topilmadi. Savollar sonini kamaytiring yoki filtrni kengaytiring.',live_question_selection_mismatch:'Qo‘lda tanlangan savollar soni sessiya savollari soniga mos emas.',live_question_not_ready:'Tanlangan savollardan biri live exam uchun to‘liq tasdiqlanmagan.',live_dependency_cycle:'Savol bog‘liqliklarida sikl topildi. Live Challenge yaratilmadi.',live_dependency_target_missing:'Savol uchun kerakli oldingi qism topilmadi. Live Challenge yaratilmadi.',live_dependency_bundle_too_large:'Tanlangan savollar majburiy oldingi qismlar bilan birga juda katta to‘plam hosil qildi. Savollar sonini kamaytiring.',live_assets_unavailable:'Diagrammali savollarni xavfsiz ko‘rsatish uchun asset storage ulanmagan.',live_join_code_conflict:'Xona kodi band bo‘lib qoldi. Yana bir marta yarating.',live_code_not_found:'Bu kodli ochiq xona topilmadi. Kod noto‘g‘ri, xona yopilgan yoki kodning amal qilish muddati tugagan bo‘lishi mumkin.',live_no_participants:'O‘yinni boshlashdan oldin kamida bitta o‘quvchi qo‘shilishi kerak.',live_no_questions:'Sessiyada savol yo‘q.',live_invalid_state:'Bu amal sessiyaning hozirgi bosqichida bajarilmaydi.',live_state_conflict:'Sessiya boshqa ekranda o‘zgargan. Holat yangilanib, amalni qayta bajaring.',live_teacher_override_disabled:'Bu challenge’da teacher override o‘chirilgan.',live_answer_locked:'Javob yopilgan, challenge pauzada yoki savol vaqti tugagan.',live_review_submitted:'Bu baholash allaqachon yuborilgan.',live_invalid_mark_points:'Tanlangan mark point ushbu javobga tegishli emas.',live_reviews_pending:'Baholashlar hali tugamagan.',live_results_not_ready:'Natijalar hali chiqarilmagan. Avval baholash bosqichini yakunlang.'};
+      Object.assign(messages,{
+        quiz_teacher_only:'Faqat o‘qituvchi Live Quiz yaratishi mumkin.',
+        quiz_question_pool_small:'Tanlangan mavzuda kamida to‘rtta tasdiqlangan atama kerak. Boshqa mavzularni ham tanlang.',
+        quiz_pin_unavailable:'Hozir xona kodi yaratib bo‘lmadi. Qayta urinib ko‘ring.',
+        quiz_room_not_found:'Bu koddagi ochiq o‘yin topilmadi yoki xona yopilgan.',
+        quiz_player_not_found:'O‘yin sessiyasi topilmadi. Qayta qo‘shiling.',
+        quiz_name_taken:'Bu ism band. Boshqa ism kiriting.',
+        quiz_room_full:'Bu o‘yinga 60 nafar ishtirokchi qo‘shilgan. Xona to‘lgan.',
+        quiz_invalid_state:'O‘yin bu amal uchun tayyor emas. Holatni yangilang.',
+        quiz_no_players:'O‘yinni boshlash uchun kamida bitta o‘quvchi qo‘shilishi kerak.',
+        quiz_answer_closed:'Savol yopilgan yoki boshqa savolga o‘tildi.',
+        quiz_time_expired:'Bu savolning vaqti tugagan.',
+        quiz_already_answered:'Bu savolga javob allaqachon yuborilgan.',
+        quiz_results_not_ready:'Batafsil natijalar o‘yin tugagach ochiladi.',
+      });
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message, ...(error.details ? { details: error.details } : {}) } });
       return;
     }

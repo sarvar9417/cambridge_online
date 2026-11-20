@@ -9,6 +9,7 @@ import {
 } from './remote-games';
 import { GameScopePicker } from './GameScopePicker';
 import { ClassroomMode } from './ClassroomMode';
+import { LiveQuizHost } from './LiveQuizHost';
 import { missedPracticePairs, practiceAttempts, type PracticeHistory, type SavePracticeRequest } from './practice-history';
 import { Quiz } from './ExtraGames';
 import { OpenBox, type BoxMode } from './OpenBox';
@@ -60,6 +61,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [practiceRunId, setPracticeRunId] = useState(() => randomId());
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [classroomMode, setClassroomMode] = useState(false);
+  const [liveQuizOpen, setLiveQuizOpen] = useState(false);
   const [dueOnly, setDueOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -242,6 +244,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
     setMistakesOnly(false);
     setDueOnly(false);
     setClassroomMode(false);
+    setLiveQuizOpen(false);
     if (next === '0478') setMode('match-up');
     setRound(0);
     setPlaySession((value) => value + 1);
@@ -341,13 +344,16 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
 
   return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
-      {showClock && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
+      {showClock && !liveQuizOpen && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
       {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
-        disabled={!ready} onClick={() => { setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
+        disabled={!ready} onClick={() => { setLiveQuizOpen(false); setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
         {classroomMode ? 'Exit Classroom Mode' : 'Start Classroom Mode'}
       </button>}
-      {!classroomMode && <label className="ig-timer-select">Round time limit
+      <button type="button" className="ig-live-join-link" onClick={() => { window.location.hash = '/play'; }}>
+        Join Live Quiz · PIN
+      </button>
+      {!classroomMode && !liveQuizOpen && <label className="ig-timer-select">Round time limit
         <select aria-label="Time limit" value={!timeLimit && stopwatch ? 'count-up' : timeLimit}
           onChange={(event) => {
             const countUp = event.target.value === 'count-up';
@@ -359,9 +365,9 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
           {GAME_TIMER_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
         </select>
       </label>}
-      {!classroomMode && <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>}
-      {!classroomMode && <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume game' : 'Ⅱ Pause game'}</button>}
-      {!classroomMode && <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>}
+      {!classroomMode && !liveQuizOpen && <button type="button" className="ig-sound-toggle" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>{soundOn ? '🔊 Sound on' : '🔇 Sound off'}</button>}
+      {!classroomMode && !liveQuizOpen && <button type="button" className="ig-pause-button" disabled={!ready || roundEnded || (timeLimit > 0 && !started)} onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume game' : 'Ⅱ Pause game'}</button>}
+      {!classroomMode && !liveQuizOpen && <button type="button" className="ig-finish-button" disabled={!ready || roundEnded} onClick={() => setFinished(true)}>■ Finish game</button>}
      </div>
     <div className="ig-hero">
       <div>
@@ -486,14 +492,22 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       </section>}
       <div className="ig-games" role="group" aria-label="Choose a game">
         {GAME_CATALOG.map((game, i) => <button key={game.id} type="button"
-          disabled={(reviewOnly && game.id !== 'flash-cards') || (game.id === 'concept-compare' && !hasCompareDeck) || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={currentMode === game.id}
-          className={'ig-game-tile' + (currentMode === game.id ? ' is-selected' : '')}
-          onClick={() => resetGame(game.id)}>
+          disabled={(reviewOnly && game.id !== 'flash-cards') || (game.id === 'concept-compare' && !hasCompareDeck) || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={!liveQuizOpen && currentMode === game.id}
+          className={'ig-game-tile' + (currentMode === game.id && !liveQuizOpen ? ' is-selected' : '')}
+          onClick={() => { setLiveQuizOpen(false); resetGame(game.id); }}>
           <span className="ig-game-number">0{i + 1}</span>
           <strong>{game.label}</strong>
           <small>{game.id === 'concept-compare' && !hasCompareDeck ? 'Select a supported 9618 chapter, topic or Hodder section.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
+        {isTeacher && <button type="button" className={'ig-game-tile' + (liveQuizOpen ? ' is-selected' : '')}
+          aria-pressed={liveQuizOpen} onClick={() => { setClassroomMode(false); setLiveQuizOpen(true); }}>
+          <span className="ig-game-number">10</span>
+          <strong>🎮 Live Quiz · Blooket-style</strong>
+          <small>Classroom PIN, QR join, live scoring, leaderboard and individual mistake reports.</small>
+        </button>}
       </div>
+      {liveQuizOpen && isTeacher ? <LiveQuizHost courseCode={courseCode} scopes={scopes}
+        onExit={() => setLiveQuizOpen(false)} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} /> : <>
       <div className="ig-workspace">
         <div className="ig-workspace-head">
           <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
@@ -587,6 +601,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         </div>}
       </div>
       <p className="ig-source">{currentMode === 'concept-compare' ? 'Source: curated Hodder 9618 comparison statements. Full Mark Scheme point-by-point audit is still pending; results stay in this session.' : 'Source: ' + pack.source + '. Pending-review vocabulary is clearly labelled.'}</p>
+      </>}
     </>)}
   </section></GameSignalContext.Provider>;
 }

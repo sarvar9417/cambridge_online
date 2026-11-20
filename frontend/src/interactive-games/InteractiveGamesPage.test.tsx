@@ -213,7 +213,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.querySelector('.ig-practice-save')).toBeNull();
   });
 
-  it('loads chapters, syllabus topics and Hodder sections with the nine game templates', async () => {
+  it('loads chapters, syllabus topics and Hodder sections with the game templates and live quiz', async () => {
     await render(true);
     expect(container.textContent).toContain('Chapter 1');
     expect(container.textContent).toContain('137 terms');
@@ -224,7 +224,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.textContent).toContain('pending review');
     expect([...container.querySelectorAll('.ig-game-tile strong')].map((el) => el.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', '🎮 Live Quiz · Blooket-style',
     ]);
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
@@ -263,7 +263,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
     expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', '🎮 Live Quiz · Blooket-style',
     ]);
     expect(gameTiles.slice(0, 8).every((tile) => !tile.disabled)).toBe(true);
     expect(gameTiles[8]?.disabled).toBe(true);
