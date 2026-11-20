@@ -52,6 +52,23 @@ describe('Live Quiz first-attempt result report',()=>{
     expect(host.textContent).toContain('First definition');
   });
 
+  it('shows the correct answer and distinguishes repeated Treasure attempts in teacher question inspection',async()=>{
+    const detailed:LiveQuizReport={...report,mode:'treasure',questionSummary:[{
+      number:2,prompt:'Second definition',sourceContext:'Chapter 16',
+      correct:0,wrong:1,skipped:0,total:1,
+      wrongStudents:[{id:'student1',nickname:'Aziza',answer:'F',attemptNumber:3}],
+    }]};
+    await act(async()=>root.render(<LiveQuizReportView report={detailed} teacher/>));
+    const breakdown=[...host.querySelectorAll('button')]
+      .find(button=>button.textContent?.includes('Question breakdown'))!;
+    await act(async()=>breakdown.click());
+    expect(host.textContent).toContain('Counts are answer attempts, not unique students');
+    const question=host.querySelector<HTMLButtonElement>('.lq-question-breakdown-list button')!;
+    await act(async()=>question.click());
+    expect(host.querySelector('.lq-question-inspector')?.textContent).toContain('Correct answer: G');
+    expect(host.querySelector('.lq-question-inspector')?.textContent).toContain('Aziza · Attempt 3 — F');
+  });
+
   it('accurately shows 0/0 for a player without any Treasure Quest attempts',async()=>{
     const treasure:LiveQuizReport={...report,mode:'treasure',students:[{
       id:'player2',nickname:'Sardor',avatar:'🐼',score:0,correct:0,answered:0,total:0,details:[],

@@ -45,7 +45,7 @@ export interface LiveQuizResult {
 }
 export interface LiveQuizQuestionSummary {
   number:number;prompt:string;sourceContext:string;correct:number;wrong:number;
-  skipped:number;total:number;wrongStudents:Array<{id:string;nickname:string;answer:string}>;
+  skipped:number;total:number;wrongStudents:Array<{id:string;nickname:string;answer:string;attemptNumber?:number}>;
 }
 export interface LiveQuizReport {
   id:string;pin:string;courseCode:string;totalQuestions:number;finishedAt:string|null;

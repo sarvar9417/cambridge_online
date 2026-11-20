@@ -582,7 +582,7 @@ export class LiveQuizService {
     options:string[];choiceIndex:number|null;correctIndex:number;bankQuestionNo?:number}>}>) {
     const result=new Map<number,{number:number;prompt:string;sourceContext:string;
       correct:number;wrong:number;skipped:number;total:number;
-      wrongStudents:Array<{id:string;nickname:string;answer:string}>}>();
+      wrongStudents:Array<{id:string;nickname:string;answer:string;attemptNumber?:number}>}>();
     for(const student of students)for(const detail of student.details){
       const questionNo=detail.bankQuestionNo??detail.number;
       if(!result.has(questionNo))result.set(questionNo,{number:questionNo,
@@ -594,7 +594,8 @@ export class LiveQuizService {
       else{
         if(detail.status==='skipped')summary.skipped++;else summary.wrong++;
         summary.wrongStudents.push({id:student.id,nickname:student.nickname,
-          answer:detail.choiceIndex===null?'No answer':detail.options[detail.choiceIndex]??'—'});
+          answer:detail.choiceIndex===null?'No answer':detail.options[detail.choiceIndex]??'—',
+          ...(detail.bankQuestionNo===undefined?{}:{attemptNumber:detail.number})});
       }
     }
     return [...result.values()].sort((a,b)=>a.number-b.number);

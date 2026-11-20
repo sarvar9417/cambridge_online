@@ -64,6 +64,8 @@ describe('Blooket-inspired Treasure Quest economics',()=>{
     expect(result.questionSummary).toHaveLength(2);
     expect(result.questionSummary.find(q=>q.number===1)).toMatchObject({correct:2,wrong:1,total:3});
     expect(result.questionSummary.find(q=>q.number===2)?.wrongStudents[0]?.nickname).toBe('Aziza');
+    expect(result.questionSummary.find(q=>q.number===2)?.wrongStudents[0]?.attemptNumber).toBe(2);
+    expect(result.questionSummary.find(q=>q.number===1)?.wrongStudents[0]?.attemptNumber).toBe(1);
   });
 
   it('denies student access to private class reports without reaching the database',async()=>{

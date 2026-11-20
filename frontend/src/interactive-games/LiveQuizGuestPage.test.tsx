@@ -51,6 +51,7 @@ describe('Treasure Quest student interactions',()=>{
 
   it('shows three independent treasure choices and sends only the chosen chest and private token',async()=>{
     await render();
+    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Your treasure hunt starts here.');
     expect(host.textContent).toContain('Choose a treasure chest');
     expect(host.querySelectorAll('.lq-chest-grid button')).toHaveLength(3);
     const chest=host.querySelector<HTMLButtonElement>('[aria-label="Choose treasure chest 2"]')!;
@@ -110,9 +111,42 @@ describe('Treasure Quest student interactions',()=>{
       throw Error('Unexpected request '+url);
     });
     await render();
+    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Think fast. Learn together.');
     expect(host.textContent).toContain('Next question starts automatically in');
     expect(host.textContent).not.toContain('Waiting for the teacher');
     expect(host.querySelector('.lq-option.is-answer .lq-option-label')?.textContent).toBe('Correct');
     expect(host.querySelector('.lq-option.is-wrong .lq-option-label')?.textContent).toBe('Your answer');
+  });
+
+  it('keeps self-paced Treasure time progress valid after cycling past the question bank',async()=>{
+    const ongoing:LiveQuizSnapshot={...snapshot(null),questionIndex:35,questionCount:15,
+      durationSeconds:300,pendingReward:null,
+      endsAt:new Date(Date.now()+180_000).toISOString(),
+      question:{id:'repeated',index:35,prompt:'A repeated definition',
+        options:['A','B','C','D'],sourceContext:'Chapter 17'}};
+    request.mockImplementation(async(url:string)=>{
+      if(url.includes('/lobby/'))return new Response(JSON.stringify({data:{pin:'123456',
+        courseCode:'9618',mode:'treasure',status:'active',randomNames:false,playerCount:2}}));
+      if(url.endsWith(`/${playerId}`))return new Response(JSON.stringify({data:ongoing}));
+      throw Error('Unexpected request '+url);
+    });
+    await render();
+    const bar=host.querySelector<HTMLElement>('.lq-guest-question .lq-progress-track')!;
+    expect(bar.getAttribute('aria-label')).toBe('Game time remaining');
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(300);
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    expect(bar.getAttribute('aria-valuemax')).toBe('300');
+    expect(Number.parseFloat(bar.querySelector<HTMLElement>('span')!.style.width)).toBeLessThanOrEqual(100);
+  });
+
+  it('shows a clear error and a way to change the PIN if the classroom is unavailable',async()=>{
+    request.mockImplementation(async(url:string)=>{
+      if(url.includes('/lobby/'))return new Response(JSON.stringify({error:{message:'Game code not found.'}}),{status:404});
+      throw Error('Unexpected request '+url);
+    });
+    await act(async()=>{root.render(<LiveQuizGuestPage pin="654321"/>);
+      await Promise.resolve();await Promise.resolve();await Promise.resolve();});
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe('Game code not found.');
+    expect(host.querySelector<HTMLAnchorElement>('.lq-change-pin')?.getAttribute('href')).toBe('#/play');
   });
 });

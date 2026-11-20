@@ -56,6 +56,8 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
   const [questionNo,setQuestionNo]=useState<number|null>(null);
   const selected=report.students.find(student=>student.id===chosen)??report.students[0];
   const question=report.questionSummary?.find(item=>item.number===questionNo);
+  const questionDetail=question?report.students.flatMap(student=>student.details)
+    .find(detail=>(detail.bankQuestionNo??detail.number)===question.number):undefined;
   const classAttempts=report.students.reduce((sum,student)=>sum+student.answered,0);
   const classCorrect=report.students.reduce((sum,student)=>sum+student.correct,0);
   return <section className={'lq-final'+(teacher?' is-teacher':' is-student')} aria-label="Live quiz final results">
@@ -97,7 +99,9 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
     </div>}
     {teacher&&tab==='questions'&&<div className="lq-question-breakdown">
       <h3>Question-by-question performance</h3>
-      <p>Select a question to see exactly which students missed it.</p>
+      <p>{report.mode==='treasure'
+        ?'Counts are answer attempts, not unique students. Revisited questions may include the same student more than once.'
+        :'Select a question to see exactly which students missed it.'}</p>
       <div className="lq-question-breakdown-list">{(report.questionSummary??[])
         .slice().sort((a,b)=>(b.wrong+b.skipped)/Math.max(1,b.total)-
           (a.wrong+a.skipped)/Math.max(1,a.total))
@@ -110,9 +114,12 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
       {question&&<div className="lq-question-inspector">
         <h4>Question {question.number}: {question.prompt}</h4>
         <p className="lq-source">{question.sourceContext}</p>
+        {questionDetail&&<p><strong>Correct answer: </strong>
+          {questionDetail.options[questionDetail.correctIndex]}</p>}
         <p>✓ {question.correct} correct · ✕ {question.wrong} wrong · — {question.skipped} unanswered</p>
         {question.wrongStudents.length?<ul>{question.wrongStudents.map((student,index)=><li key={student.id+index}>
-          <b>{student.nickname}</b> — {student.answer}</li>)}</ul>
+          <b>{student.nickname}</b>{student.attemptNumber!==undefined?` · Attempt ${student.attemptNumber}`:''}
+          {' — '}{student.answer}</li>)}</ul>
           :<p>Everyone answered this correctly.</p>}
       </div>}
     </div>}

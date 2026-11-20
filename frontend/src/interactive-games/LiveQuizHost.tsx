@@ -35,6 +35,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const [snapshot,setSnapshot]=useState<LiveQuizSnapshot|null>(null);
   const [report,setReport]=useState<LiveQuizReport|null>(null);
   const [history,setHistory]=useState<LiveQuizHistoryItem[]>([]);
+  const [copied,setCopied]=useState(false);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [clock,setClock]=useState(Date.now());
@@ -86,7 +87,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           durationSeconds,treasureGoal,allowLateJoin,randomNames,showCorrectness,
           questionOrder,incorrectPenaltySeconds}),
       });
-      setReport(null);setSnapshot(null);setRoomId(data.id);
+      setReport(null);setSnapshot(null);setCopied(false);setRoomId(data.id);
     }catch(cause){setError(cause instanceof Error?cause.message:'Unable to create game.');}
     finally{setLoading(false);}
   }
@@ -102,9 +103,16 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     }catch(cause){setError(cause instanceof Error?cause.message:'Could not advance the game.');}
     finally{setLoading(false);}
   }
-  function reopen(item:LiveQuizHistoryItem){setRoomId(item.id);setReport(null);setSnapshot(null);setError('');}
+  function reopen(item:LiveQuizHistoryItem){setRoomId(item.id);setReport(null);setSnapshot(null);setError('');setCopied(false);}
 
   const joinUrl=snapshot?`${window.location.origin}/#/play/${snapshot.pin}`:'';
+  async function copyJoinLink(){
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(joinUrl);
+      setCopied(true);setError('');
+    }catch{setError('Could not copy the join link. Use the displayed URL or scan the QR code.');}
+  }
   const qr=useMemo(()=>{
     if(!joinUrl)return '';
     const code=qrcode(0,'M');code.addData(joinUrl);code.make();return code.createDataURL(5,2);
@@ -192,10 +200,11 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     </>}
     {roomId&&!snapshot&&<p className="lq-loading" role="status">Loading the live room…</p>}
     {snapshot&&!finished&&<>
-      <div className="lq-join-banner">
+      <div className={'lq-join-banner'+(snapshot.status==='waiting'?'':' is-compact')}>
         <div><span>JOIN THE CLASSROOM · GAME PIN</span><strong className="lq-pin">{snapshot.pin}</strong>
           <p>Join at <a href={joinUrl} target="_blank" rel="noopener noreferrer">{joinUrl}</a></p>
-          <button type="button" className="lq-secondary" onClick={()=>{void navigator.clipboard?.writeText(joinUrl);}}>Copy join link</button>
+          <button type="button" className="lq-secondary" onClick={()=>{void copyJoinLink();}}>
+            {copied?'Copied!':'Copy join link'}</button>
         </div>
         {qr&&<img className="lq-qr" src={qr} alt={`QR code to join game ${snapshot.pin}`} />}
         <div className="lq-lobby-count"><strong>{snapshot.players.length}</strong><span>players joined</span></div>
@@ -216,15 +225,17 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           <div><b>{snapshot.answeredCount}</b><span>Questions answered</span></div>
         </div>
         <div className="lq-leaderboard"><h3>Live Gold Leaderboard</h3>
-          {snapshot.players.map((player,index)=><div key={player.id}>
+          {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
             <span>{['🥇','🥈','🥉'][index]??(index+1)+'.'} {player.avatar} {player.nickname}</span>
             <strong>🪙 {player.score.toLocaleString('en')}</strong></div>)}
+          {snapshot.players.length>10&&<p className="lq-small">Top 10 of {snapshot.players.length} players · Full results after the game.</p>}
         </div>
         <button type="button" className="lq-secondary" disabled={loading} onClick={()=>{void command('finish');}}>End game & show reports</button>
       </div>}
       {(active||review)&&question&&<div className={'lq-question-stage'+(review?' is-review':'')}>
         <div className="lq-question-meta"><b>Question {question.index+1} / {snapshot.questionCount}</b>
-          <span className={active&&timeLeft<=5?'lq-countdown is-urgent':'lq-countdown'}>
+          <span role="timer" aria-label={active?'Time remaining':'Next question countdown'}
+            className={active&&timeLeft<=5?'lq-countdown is-urgent':'lq-countdown'}>
             {active?`◷ ${timeLeft}s`:`✓ Results · next in ${reviewLeft}s`}</span>
           <b>{snapshot.answeredCount} / {snapshot.players.length} answered</b></div>
         <div className="lq-progress-track" role="progressbar" aria-label="Question progress"
@@ -261,8 +272,9 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         </div>}
       </div>}
       {review&&<div className="lq-leaderboard"><h3>Leaderboard</h3>
-        {snapshot.players.map((player,index)=><div key={player.id}>
+        {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
           <span>{index+1}. {player.avatar} {player.nickname}</span><strong>{player.score} points</strong></div>)}
+        {snapshot.players.length>10&&<p className="lq-small">Top 10 of {snapshot.players.length} players · Full results after the game.</p>}
       </div>}
     </>}
     {finished&&(report?<LiveQuizReportView report={report} teacher/>:<p role="status">Preparing detailed student reports…</p>)}

@@ -53,6 +53,25 @@ describe('Live quiz Blooket-style host configuration',()=>{
     });
   });
 
+  it('confirms a successful classroom join-link copy',async()=>{
+    const previous=Object.getOwnPropertyDescriptor(navigator,'clipboard');
+    const writeText=vi.fn(async(_url:string)=>{});
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText}});
+    try{
+      await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+        scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+        onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+      await click('Host Now');
+      await act(async()=>{await Promise.resolve();await Promise.resolve();});
+      await click('Copy join link');
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/#/play/123456`);
+      expect(container.textContent).toContain('Copied!');
+    }finally{
+      if(previous)Object.defineProperty(navigator,'clipboard',previous);
+      else Reflect.deleteProperty(navigator,'clipboard');
+    }
+  });
+
   it('switching back to Classic removes the self-paced-only mastery option',async()=>{
     await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
       scopes={[{chapterNo:15,kind:'chapter'}]} onExit={()=>{}}
@@ -97,6 +116,31 @@ describe('Live quiz Blooket-style host configuration',()=>{
       .toBe('✓ Correct');
     expect(container.querySelectorAll('.lq-question-stage.is-review .lq-options')).toHaveLength(0);
     expect(container.querySelector('.lq-progress-track')?.getAttribute('aria-valuenow')).toBe('1');
+    expect(container.querySelector('.lq-join-banner.is-compact')).not.toBeNull();
+    expect(container.querySelector('[role="timer"]')?.getAttribute('aria-label')).toBe('Next question countdown');
+  });
+
+  it('keeps the Treasure projector leaderboard to a readable top ten while preserving the whole room count',async()=>{
+    const players=Array.from({length:14},(_,index)=>({id:String(index),nickname:`Learner ${index+1}`,
+      avatar:'🦊',score:1400-index*100,answered:1}));
+    mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/live-quizzes'&&!options)return {data:[]};
+      if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:15}};
+      if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
+        status:'active',mode:'treasure',questionCount:15,questionIndex:0,
+        questionSeconds:20,questionStartedAt:new Date().toISOString(),serverNow:new Date().toISOString(),
+        endsAt:new Date(Date.now()+180_000).toISOString(),players,answeredCount:14,
+        question:null,ownAnswer:null,treasureGoal:10000}};
+      throw Error('Unexpected request '+path);
+    }) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+      scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+      onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    await click('Host Now');
+    await act(async()=>{await Promise.resolve();await Promise.resolve();});
+    expect(container.querySelectorAll('.lq-treasure-projector .lq-leaderboard > div')).toHaveLength(10);
+    expect(container.textContent).toContain('Top 10 of 14 players');
+    expect(container.textContent).toContain('End game & show reports');
   });
 });
 

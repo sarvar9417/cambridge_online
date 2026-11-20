@@ -19,6 +19,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   const [error,setError]=useState('');
   const [enteredPin,setEnteredPin]=useState('');
   const [lobby,setLobby]=useState<LiveQuizLobby|null>(null);
+  const [lobbyError,setLobbyError]=useState('');
   const [feedback,setFeedback]=useState<(TreasureAnswerResponse&{
     choiceIndex:number;answeredQuestion:LiveQuizQuestion})|null>(null);
   const [rewardReveal,setRewardReveal]=useState<TreasureRewardResponse|null>(null);
@@ -40,8 +41,12 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   useEffect(()=>{
     if(!/^\d{6}$/.test(pin))return;
     let active=true;
-    void quizGuestRequest<LiveQuizLobby>(`/lobby/${pin}`).then(data=>{if(active)setLobby(data);})
-      .catch(()=>{if(active)setLobby(null);});
+    setLobby(null);setLobbyError('');
+    void quizGuestRequest<LiveQuizLobby>(`/lobby/${pin}`).then(data=>{
+      if(active){setLobby(data);setLobbyError('');}
+    }).catch(cause=>{
+      if(active){setLobby(null);setLobbyError(cause instanceof Error?cause.message:'Game code could not be verified.');}
+    });
     return()=>{active=false;};
   },[pin]);
 
@@ -151,10 +156,17 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   const isTreasure=snapshot?.mode==='treasure';
   const gameRemaining=snapshot?.endsAt?Math.max(0,Math.ceil((new Date(snapshot.endsAt).getTime()-clock-serverOffset)/1000)):0;
   const waitRemaining=snapshot?.blockedUntil?Math.max(0,Math.ceil((new Date(snapshot.blockedUntil).getTime()-clock-serverOffset)/1000)):0;
+  // Treasure is self-paced: question.index is a turn counter and can exceed
+  // the fixed bank size. Its progress bar represents remaining game time.
+  const progressMax=Math.max(1,isTreasure?(snapshot?.durationSeconds??420):(snapshot?.questionCount??1));
+  const progressValue=isTreasure?Math.min(progressMax,gameRemaining):
+    Math.max(0,Math.min(progressMax,(question?.index??-1)+1));
   const pending=snapshot?.pendingReward;
   return <main className="lq-guest" aria-label="Join Cambridge Live Quiz">
-    <header className="lq-guest-header"><span>CAMBRIDGE / LIVE QUIZ</span><h1>Think fast. Learn together.</h1>
-      <p>GAME PIN <strong>{pin}</strong></p></header>
+    <header className="lq-guest-header"><span>CAMBRIDGE / LIVE QUIZ</span>
+      <h1>{(snapshot?.mode??lobby?.mode)==='treasure'?'Your treasure hunt starts here.':'Think fast. Learn together.'}</h1>
+      <p>GAME PIN <strong>{pin}</strong>
+        {/^[0-9]{6}$/.test(pin)&&<a className="lq-change-pin" href="#/play">Change code</a>}</p></header>
     {error&&<p className="lq-error" role="alert">{error}</p>}
     {!/^\d{6}$/.test(pin)&&<form className="lq-guest-join" onSubmit={event=>{
       event.preventDefault();if(/^\d{6}$/.test(enteredPin))window.location.hash='/play/'+enteredPin;
@@ -166,7 +178,8 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
       <button type="submit" className="lq-primary" disabled={enteredPin.length!==6}>Continue</button>
     </form>}
     {/^\d{6}$/.test(pin)&&!guest&&<form className="lq-guest-join" onSubmit={e=>{void join(e);}}>
-      <h2>Join the classroom {lobby?.mode==='treasure'?'🏴‍☠️':'⚡'}</h2>
+      <h2>Join the classroom</h2>
+      {lobbyError&&<p className="lq-error" role="alert">{lobbyError}</p>}
       {lobby&&<p className="lq-help">{lobby.mode==='treasure'?'Treasure Quest · self-paced questions and mystery chests':'Classic Challenge · live timed questions'} · {lobby.playerCount} players waiting/playing</p>}
       {!lobby?.randomNames&&<label>Your name <input required minLength={2} maxLength={24} autoComplete="nickname"
         placeholder="Enter your name" value={name} onChange={e=>setName(e.target.value)}/></label>
@@ -222,10 +235,12 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
       </section>}
       {snapshot.status==='active'&&question&&!(isTreasure&&(pending||rewardReveal||feedback&&!feedback.correct))&&<section className="lq-guest-question">
         <div className="lq-question-meta"><b>{isTreasure?'Your question '+(question.index+1):`Question ${question.index+1} / ${snapshot.questionCount}`}</b>
-          <span className={(isTreasure?gameRemaining:timeLeft)<=5?'lq-countdown is-urgent':'lq-countdown'}>◷ {isTreasure?gameRemaining:timeLeft}s</span></div>
-        <div className="lq-progress-track" role="progressbar" aria-label="Question progress"
-          aria-valuenow={question.index+1} aria-valuemin={0} aria-valuemax={snapshot.questionCount}>
-          <span style={{width:`${(question.index+1)/Math.max(1,snapshot.questionCount)*100}%`}}/></div>
+          <span role="timer" aria-label="Time remaining"
+            className={(isTreasure?gameRemaining:timeLeft)<=5?'lq-countdown is-urgent':'lq-countdown'}>◷ {isTreasure?gameRemaining:timeLeft}s</span></div>
+        <div className="lq-progress-track" role="progressbar"
+          aria-label={isTreasure?'Game time remaining':'Question progress'}
+          aria-valuenow={progressValue} aria-valuemin={0} aria-valuemax={progressMax}>
+          <span style={{width:`${progressValue/progressMax*100}%`}}/></div>
         <h2>{question.prompt}</h2><small className="lq-source">{question.sourceContext}</small>
         <div className="lq-options">{question.options.map((option,index)=><button key={index} type="button"
           className={'lq-option lq-option-'+index+(selected===index?' is-selected':'')}
