@@ -3,9 +3,9 @@ import { COMPARE_DECKS, compareCategoryFor, compareDeckMatchesScope } from './co
 
 describe('9618 Concept Compare curated bank', () => {
   it('has distinct chapter-scoped decks and no ambiguous empty or invalid answers', () => {
-    expect(COMPARE_DECKS.length).toBe(24);
+    expect(COMPARE_DECKS.length).toBe(61);
     expect(new Set(COMPARE_DECKS.map(deck => deck.id)).size).toBe(COMPARE_DECKS.length);
-    expect(COMPARE_DECKS.reduce((sum, deck) => sum + deck.cards.length, 0)).toBe(243);
+    expect(COMPARE_DECKS.reduce((sum, deck) => sum + deck.cards.length, 0)).toBe(613);
     for (const deck of COMPARE_DECKS) {
       expect(deck.chapterNo).toBeGreaterThan(0);
       expect(deck.a).not.toBe(deck.b);
@@ -23,10 +23,33 @@ describe('9618 Concept Compare curated bank', () => {
   });
   it('preserves statements that legitimately belong to both concepts', () => {
     const both = COMPARE_DECKS.flatMap(deck => deck.cards).filter(([, answer]) => answer === 'AB');
-    expect(both.length).toBe(58);
+    expect(both.length).toBeGreaterThanOrEqual(120);
     const symmetric = COMPARE_DECKS.find(deck => deck.id === 'symmetric-asymmetric');
     expect(symmetric?.cards.some(([statement, answer]) =>
       answer === 'AB' && statement.includes('keys'))).toBe(true);
+  });
+  it('covers every Hodder Chapter 13–18 and all matching 9618 syllabus topics', () => {
+    const topics: Record<number, string[]> = {
+      13:['13.1','13.2','13.3'], 14:['14.1','14.2'],
+      15:['15.1','15.2'], 16:['16.1','16.2'],
+      17:['17.1'], 18:['18.1'],
+    };
+    for (const [chapter, chapterTopics] of Object.entries(topics)) {
+      const chapterNo = Number(chapter);
+      const decks = COMPARE_DECKS.filter(deck => deck.chapterNo === chapterNo);
+      expect(decks.length).toBeGreaterThanOrEqual(5);
+      for (const code of chapterTopics) {
+        expect(decks.some(deck => compareDeckMatchesScope(deck,
+          {chapterNo,kind:'topic',code}))).toBe(true);
+      }
+      expect(decks.every(deck => deck.cards.some(card => card[1] === 'A') &&
+        deck.cards.some(card => card[1] === 'B') && deck.cards.some(card => card[1] === 'AB'))).toBe(true);
+    }
+    expect(COMPARE_DECKS.find(deck => deck.id === 'sequential-direct')?.extractPages).toBe(true);
+    expect(compareDeckMatchesScope(COMPARE_DECKS.find(deck => deck.id === 'lexical-syntax')!,
+      {chapterNo:16,kind:'section',code:'16.3.2'})).toBe(true);
+    expect(compareDeckMatchesScope(COMPARE_DECKS.find(deck => deck.id === 'lexical-syntax')!,
+      {chapterNo:16,kind:'topic',code:'16.2'})).toBe(true);
   });
 });
 describe('Curriculum selections for Concept Compare', () => {
