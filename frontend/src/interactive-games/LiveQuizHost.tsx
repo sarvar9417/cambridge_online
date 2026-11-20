@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { api } from '../lib/api';
+import { api, type ClassItem } from '../lib/api';
 import type { GameScope } from './remote-games';
 import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
@@ -31,6 +31,10 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const [showCorrectness,setShowCorrectness]=useState(true);
   const [questionOrder,setQuestionOrder]=useState<'random'|'ordered'|'mastery'>('random');
   const [incorrectPenaltySeconds,setIncorrectPenaltySeconds]=useState(2);
+  const [classes,setClasses]=useState<ClassItem[]>([]);
+  const [classId,setClassId]=useState('');
+  const [classesLoading,setClassesLoading]=useState(true);
+  const [classesError,setClassesError]=useState(false);
   const [roomId,setRoomId]=useState<string|null>(null);
   const [snapshot,setSnapshot]=useState<LiveQuizSnapshot|null>(null);
   const [report,setReport]=useState<LiveQuizReport|null>(null);
@@ -41,6 +45,16 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const [clock,setClock]=useState(Date.now());
   const [serverOffset,setServerOffset]=useState(0);
 
+  useEffect(()=>{
+    let mounted=true;
+    void api<{data:ClassItem[]}>('/classes').then(({data})=>{
+      if(!mounted)return;
+      setClasses(data);setClassesError(false);
+      setClassId(current=>data.some(item=>item.id===current)?current:data.length===1?data[0]!.id:'');
+    }).catch(()=>{if(mounted)setClassesError(true);})
+      .finally(()=>{if(mounted)setClassesLoading(false);});
+    return()=>{mounted=false;};
+  },[]);
   useEffect(()=>{let active=true;
     void api<{data:LiveQuizHistoryItem[]}>('/live-quizzes').then(({data})=>{
       if(active)setHistory(data);
@@ -83,7 +97,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     setLoading(true);setError('');
     try{
       const {data}=await api<{data:{id:string;pin:string;questionCount:number}}>('/live-quizzes',{
-        method:'POST',body:JSON.stringify({courseCode,scopes,count,seconds,mode:gameMode,
+        method:'POST',body:JSON.stringify({classId,courseCode,scopes,count,seconds,mode:gameMode,
           durationSeconds,treasureGoal,allowLateJoin,randomNames,showCorrectness,
           questionOrder,incorrectPenaltySeconds}),
       });
@@ -152,7 +166,22 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
             <b>Self-paced · Luck + knowledge</b>
           </button>
         </div>
-        <h3>02 <span className="lq-heading-separator">/</span> Game settings</h3>
+        <h3>02 <span className="lq-heading-separator">/</span> Your classroom</h3>
+        <div className="lq-setup-controls">
+          <label>Class whose students will see the join link automatically
+            <select aria-label="Live Quiz classroom" value={classId}
+              disabled={classesLoading||!classes.length} onChange={event=>setClassId(event.target.value)}>
+              <option value="">Select a class…</option>
+              {classes.map(item=><option key={item.id} value={item.id}>
+                {item.name} · {item.studentCount} students</option>)}
+            </select>
+          </label>
+        </div>
+        {classesLoading?<p className="lq-small" role="status">Loading your classes…</p>:
+          classesError?<p className="lq-error" role="alert">Could not load your classes. Reopen Live Quiz to retry.</p>:
+          !classes.length?<p className="lq-error" role="status">No assigned classes. Ask your school admin to assign a class first.</p>:
+          <p className="lq-small">A join button will appear on enrolled students’ Home and Interactive Games pages, usually within 10 seconds. You can still share the PIN or QR code.</p>}
+        <h3>03 <span className="lq-heading-separator">/</span> Game settings</h3>
         <div className="lq-setup-controls">
           <label>{gameMode==='classic'?'Questions':'Question bank'} <select aria-label="Live quiz question count" value={count}
             onChange={e=>setCount(Number(e.target.value))}>
@@ -187,7 +216,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           <label><input type="checkbox" checked={randomNames} onChange={e=>setRandomNames(e.target.checked)}/> Use random player names</label>
           {gameMode==='treasure'&&<label><input type="checkbox" checked={showCorrectness} onChange={e=>setShowCorrectness(e.target.checked)}/> Reveal correct answer after a wrong answer</label>}
         </div>
-        <button type="button" className="lq-primary" onClick={()=>{void create();}} disabled={loading||!scopes.length}>
+        <button type="button" className="lq-primary" onClick={()=>{void create();}} disabled={loading||!scopes.length||!classId}>
           {loading?'Creating…':'Host Now →'}</button>
         <p className="lq-small">If a narrow topic contains fewer verified questions, the game uses every eligible question (minimum four).</p>
       </div>

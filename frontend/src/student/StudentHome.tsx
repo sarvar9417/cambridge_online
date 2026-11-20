@@ -3,6 +3,7 @@ import type { Assignment, Flashcard, MasteryItem, ResultItem, User } from '../li
 import { navigate } from '../lib/router';
 import { StudentNextAction } from './StudentNextAction';
 import { StudentLiveChallengeCard } from './StudentLiveChallengeCard';
+import { StudentLiveQuizLinks } from '../interactive-games/StudentLiveQuizLinks';
 import './student-home.css';
 
 export interface StudentHomeProps {
@@ -87,6 +88,7 @@ export function StudentHome({
       {average !== null ? <div className="sh-average" title="Chiqarilgan natijalar bo‘yicha o‘rtacha"><span className="sh-average-value">{average}%</span><span className="sh-average-label">o‘rtacha</span></div> : null}
     </header>
 
+    <StudentLiveQuizLinks />
     <StudentNextAction assignments={assignments} results={results} mastery={mastery} flashcards={flashcards} onStart={onStart} onPractice={onPractice} />
     <StudentLiveChallengeCard />
 

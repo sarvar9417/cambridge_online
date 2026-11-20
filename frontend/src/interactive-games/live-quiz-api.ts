@@ -22,7 +22,7 @@ export interface LiveQuizSnapshot {
   selfId?:string;nickname?:string;
 }
 export interface LiveQuizLobby {
-  pin:string;courseCode:string;mode:LiveQuizMode;status:'waiting'|'active';
+  pin:string;courseCode:string;mode:LiveQuizMode;status:'waiting'|'active'|'review';
   randomNames:boolean;allowLateJoin:boolean;playerCount:number;
 }
 export interface TreasureAnswerResponse {
@@ -55,6 +55,10 @@ export interface LiveQuizReport {
 export interface LiveQuizHistoryItem {
   id:string;pin:string;courseCode:string;status:string;createdAt:string;
   finishedAt:string|null;questionCount:number;playerCount:number;mode?:LiveQuizMode;
+}
+export interface AvailableLiveQuiz {
+  id:string;pin:string;className:string;courseCode:string;status:'waiting'|'active'|'review';
+  mode:LiveQuizMode;createdAt:string;playerCount:number;
 }
 export const LIVE_QUIZ_AVATARS=['🦊','🐼','🦁','🐯','🐸','🐨','🐙','🦄'] as const;
 

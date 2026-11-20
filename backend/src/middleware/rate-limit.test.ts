@@ -54,7 +54,8 @@ describe('rate limiter',()=>{
     expect(response.status).toBe(429);
     expect(response.headers['retry-after']).toBe('42');
     expect(query).toHaveBeenCalledWith(expect.stringContaining('on conflict(bucket_key) do update'),[
-      expect.stringContaining('undefined:::ffff:127.0.0.1'),60000,
+      // Node 22/24 and runner network stacks may report loopback as IPv4 or IPv4-mapped IPv6.
+      expect.stringMatching(/^undefined:(?:::ffff:)?127\.0\.0\.1$/),60000,
     ]);
   });
 });

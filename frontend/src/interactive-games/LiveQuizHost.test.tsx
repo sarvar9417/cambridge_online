@@ -7,6 +7,8 @@ import { LiveQuizHost, reviewCountdownSeconds } from './LiveQuizHost';
 vi.mock('../lib/api',()=>({api:vi.fn()}));
 const mockApi=vi.mocked(api);
 const roomId='a8918dd9-6325-4e32-a602-222222222222';
+const classId='88f83723-c77b-45ae-9234-4a1ab2e33b12';
+const classResponse={data:[{id:classId,name:'11-A',grade:11,level:'AS',academicYear:'2026-2027',studentCount:18}]};
 
 describe('Live quiz Blooket-style host configuration',()=>{
   let root:Root,container:HTMLDivElement;
@@ -15,6 +17,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
     container=document.createElement('div');document.body.appendChild(container);root=createRoot(container);
     mockApi.mockReset();
     mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/classes')return classResponse;
       if(path==='/live-quizzes'&&!options)return {data:[]};
       if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:15}};
       if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
@@ -48,9 +51,30 @@ describe('Live quiz Blooket-style host configuration',()=>{
     await click('Host Now');
     const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
     expect(JSON.parse(String(createCall[1]?.body))).toMatchObject({
-      courseCode:'9618',scopes:[{chapterNo:17,kind:'topic',code:'17.1'}],
+      classId,courseCode:'9618',scopes:[{chapterNo:17,kind:'topic',code:'17.1'}],
       mode:'treasure',durationSeconds:300,questionOrder:'mastery',incorrectPenaltySeconds:5,
     });
+  });
+
+  it('does not broadcast a room before the teacher selects one of multiple classes',async()=>{
+    const original=mockApi.getMockImplementation()!;
+    const secondId='01111cc9-315c-4e03-a975-38bc114bd811';
+    mockApi.mockImplementation(((path,options)=>path==='/classes'
+      ? Promise.resolve({data:[...classResponse.data,{...classResponse.data[0],id:secondId,name:'11-B'}]})
+      : original(path,options)) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+      scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+      onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    const classroom=container.querySelector<HTMLSelectElement>('[aria-label="Live Quiz classroom"]')!;
+    const hostButton=[...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find(item=>item.textContent?.includes('Host Now'))!;
+    expect(classroom.value).toBe('');
+    expect(hostButton.disabled).toBe(true);
+    await act(async()=>{classroom.value=secondId;
+      classroom.dispatchEvent(new Event('change',{bubbles:true}));});
+    await click('Host Now');
+    const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
+    expect(JSON.parse(String(createCall[1]?.body)).classId).toBe(secondId);
   });
 
   it('confirms a successful classroom join-link copy',async()=>{
@@ -87,6 +111,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
   it('shows answer-choice distribution and automatic next-question countdown during Classic review',async()=>{
     const now=Date.now();
     mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/classes')return classResponse;
       if(path==='/live-quizzes'&&!options)return {data:[]};
       if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:4}};
       if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
@@ -124,6 +149,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
     const players=Array.from({length:14},(_,index)=>({id:String(index),nickname:`Learner ${index+1}`,
       avatar:'🦊',score:1400-index*100,answered:1}));
     mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/classes')return classResponse;
       if(path==='/live-quizzes'&&!options)return {data:[]};
       if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:15}};
       if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
