@@ -42,4 +42,25 @@ describe('Live Quiz classroom invitation isolation',()=>{
       .rejects.toMatchObject({status:404,code:'quiz_class_not_found'});
     expect(interactiveGameCollection).not.toHaveBeenCalled();
   });
+
+  it('creates a game with a six-digit PIN and no class assignment when the host chooses code-only mode',async()=>{
+    const query=vi.fn(async(sql:string,params?:unknown[])=>{
+      expect(sql).toContain('insert into live_quiz_rooms');
+      expect(params?.[1]).toBeNull();
+      return {rows:[{id:'new-room'}],rowCount:1};
+    });
+    const interactiveGameCollection=vi.fn(async()=>({
+      scopes:[{chapterNo:17,kind:'chapter'}],
+      pairs:Array.from({length:4},(_,index)=>({id:String(index),term:`Term ${index}`,
+        definition:`Definition ${index}`,status:'approved',isOfficialKeyTerm:true,
+        definitionEvidenceStatus:'official_textbook_definition',chapterNo:17})),
+    }));
+    const service=new LiveQuizService({query} as unknown as Pool,
+      {interactiveGameCollection} as unknown as ConstructorParameters<typeof LiveQuizService>[1]);
+    const result=await service.create(staff,{courseCode:'9618',
+      scopes:[{chapterNo:17,kind:'chapter'}],count:4,seconds:20});
+    expect(result).toMatchObject({id:'new-room',questionCount:4});
+    expect(result.pin).toMatch(/^\d{6}$/);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
 });

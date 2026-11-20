@@ -26,19 +26,20 @@ export function StudentLiveQuizLinks(){
     return()=>{mounted=false;window.clearInterval(timer);
       window.removeEventListener('focus',load);document.removeEventListener('visibilitychange',onVisible);};
   },[]);
-  if(!rooms.length)return null;
-  return <section className="lq-student-discovery" aria-label="Active classroom Live Quizzes" aria-live="polite">
+  return <section className="lq-student-discovery" aria-label="Join a Cambridge Live Quiz" aria-live="polite">
     <div className="lq-student-discovery-heading">
       <span className="lq-student-discovery-icon"><GameController size={25} weight="duotone"/></span>
-      <div><span className="lq-student-discovery-kicker">LIVE QUIZ · YOUR CLASS</span>
-        <h2>Sinfingiz uchun o‘yin tayyor!</h2>
-        <p>O‘qituvchi ochgan o‘yinga PIN yozmasdan kiring.</p></div>
+      <div><span className="lq-student-discovery-kicker">CAMBRIDGE · LIVE QUIZ</span>
+        <h2>{rooms.length?'Sinfingiz uchun o‘yin tayyor!':'O‘yin kodini kiritib qo‘shiling'}</h2>
+        <p>O‘qituvchingiz bergan 6 xonali kod orqali istalgan sinf o‘yiniga kiring.</p></div>
+      <a className="lq-student-discovery-code-link" href="#/play" aria-label="O‘yin kodini kiritish">
+        Kodni kiritish <ArrowSquareOut size={18} weight="bold"/></a>
     </div>
-    <div className="lq-student-discovery-rooms">{rooms.map(room=><div className="lq-student-discovery-room" key={room.id}>
+    {!!rooms.length&&<div className="lq-student-discovery-rooms">{rooms.map(room=><div className="lq-student-discovery-room" key={room.id}>
       <div><strong>{room.className} · {room.mode==='treasure'?'Treasure Quest':'Classic Quiz'}</strong>
         <small>{room.courseCode} · {room.status==='waiting'?'O‘yin boshlanishini kutmoqda':room.status==='review'?'Javoblar ko‘rsatilmoqda':'O‘yin davom etmoqda'} · {room.playerCount} o‘quvchi</small></div>
       <a href={`#/play/${room.pin}`} aria-label={`${room.className} Live Quiz o‘yiniga kirish`}>
         O‘yinga kirish <ArrowSquareOut size={18} weight="bold"/></a>
-    </div>)}</div>
+    </div>)}</div>}
   </section>;
 }

@@ -56,7 +56,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
     });
   });
 
-  it('does not broadcast a room before the teacher selects one of multiple classes',async()=>{
+  it('allows code-only hosting with multiple classes without broadcasting a class invitation',async()=>{
     const original=mockApi.getMockImplementation()!;
     const secondId='01111cc9-315c-4e03-a975-38bc114bd811';
     mockApi.mockImplementation(((path,options)=>path==='/classes'
@@ -69,7 +69,22 @@ describe('Live quiz Blooket-style host configuration',()=>{
     const hostButton=[...container.querySelectorAll<HTMLButtonElement>('button')]
       .find(item=>item.textContent?.includes('Host Now'))!;
     expect(classroom.value).toBe('');
-    expect(hostButton.disabled).toBe(true);
+    expect(hostButton.disabled).toBe(false);
+    await click('Host Now');
+    const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
+    expect(JSON.parse(String(createCall[1]?.body))).not.toHaveProperty('classId');
+  });
+
+  it('can optionally select a class and include its ID in the hosted game',async()=>{
+    const original=mockApi.getMockImplementation()!;
+    const secondId='01111cc9-315c-4e03-a975-38bc114bd811';
+    mockApi.mockImplementation(((path,options)=>path==='/classes'
+      ? Promise.resolve({data:[...classResponse.data,{...classResponse.data[0],id:secondId,name:'11-B'}]})
+      : original(path,options)) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+      scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+      onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    const classroom=container.querySelector<HTMLSelectElement>('[aria-label="Live Quiz classroom"]')!;
     await act(async()=>{classroom.value=secondId;
       classroom.dispatchEvent(new Event('change',{bubbles:true}));});
     await click('Host Now');
@@ -90,10 +105,73 @@ describe('Live quiz Blooket-style host configuration',()=>{
       await click('Copy join link');
       expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/#/play/123456`);
       expect(container.textContent).toContain('Copied!');
+      await click('Copy PIN-entry link');
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/#/play`);
+      expect(container.textContent).toContain('Code-entry link copied!');
     }finally{
       if(previous)Object.defineProperty(navigator,'clipboard',previous);
       else Reflect.deleteProperty(navigator,'clipboard');
     }
+  });
+
+  it('ends a waiting game before students join and deletes it only after confirmation',async()=>{
+    let status:'waiting'|'finished'='waiting';
+    const confirm=vi.spyOn(window,'confirm').mockReturnValue(true);
+    mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/classes')return classResponse;
+      if(path==='/live-quizzes'&&!options)return {data:[]};
+      if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:4}};
+      if(path===`/live-quizzes/${roomId}/action`){status='finished';return {data:{status:'finished'}};}
+      if(path===`/live-quizzes/${roomId}`&&options?.method==='DELETE')return {data:{deleted:true}};
+      if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
+        status,mode:'classic',questionCount:4,questionIndex:-1,questionSeconds:20,
+        questionStartedAt:null,serverNow:new Date().toISOString(),players:[],answeredCount:0,
+        question:null,ownAnswer:null}};
+      if(path===`/live-quizzes/${roomId}/report`)return {data:{id:roomId,pin:'123456',
+        courseCode:'9618',mode:'classic',students:[],questionSummary:[],totalQuestions:0,questionBankSize:4}};
+      throw Error('Unexpected request '+path);
+    }) as typeof api);
+    try{
+      await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+        scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+        onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+      await click('Host Now');
+      await act(async()=>{await Promise.resolve();await Promise.resolve();});
+      expect(container.textContent).toContain('End game without starting');
+      await click('End game without starting');
+      expect(mockApi).toHaveBeenCalledWith(`/live-quizzes/${roomId}/action`,expect.objectContaining({method:'POST'}));
+      const finishCall=mockApi.mock.calls.find(([path,options])=>path.endsWith('/action')&&options?.method==='POST')!;
+      expect(JSON.parse(String(finishCall[1]?.body))).toMatchObject({action:'finish',expectedQuestionIndex:-1});
+      expect(container.textContent).toContain('Delete this finished game');
+      await click('Delete this finished game');
+      expect(mockApi).toHaveBeenCalledWith(`/live-quizzes/${roomId}`,{method:'DELETE'});
+      expect(container.textContent).toContain('Host Now');
+      expect(confirm).toHaveBeenCalledTimes(2);
+    }finally{confirm.mockRestore();}
+  });
+
+  it('shows deletion only on finished history entries and leaves them untouched on cancel',async()=>{
+    const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
+    mockApi.mockImplementation((async(path)=>{
+      if(path==='/classes')return classResponse;
+      if(path==='/live-quizzes')return {data:[
+        {id:roomId,pin:'123456',status:'finished',mode:'classic',courseCode:'9618',
+          questionCount:4,playerCount:5,createdAt:new Date().toISOString()},
+        {id:'waiting-room',pin:'654321',status:'waiting',mode:'treasure',courseCode:'9618',
+          questionCount:15,playerCount:2,createdAt:new Date().toISOString()},
+      ]};
+      throw Error('Unexpected request '+path);
+    }) as typeof api);
+    try{
+      await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+        scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+        onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+      expect(container.querySelectorAll('.lq-history-delete')).toHaveLength(1);
+      await click('Delete finished game');
+      expect(mockApi.mock.calls.some(([path,options])=>path===`/live-quizzes/${roomId}`&&options?.method==='DELETE')).toBe(false);
+      expect(container.querySelectorAll('.lq-history-item')).toHaveLength(2);
+      expect(confirm).toHaveBeenCalledOnce();
+    }finally{confirm.mockRestore();}
   });
 
   it('switching back to Classic removes the self-paced-only mastery option',async()=>{

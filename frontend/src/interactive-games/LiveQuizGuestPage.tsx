@@ -165,8 +165,9 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   return <main className="lq-guest" aria-label="Join Cambridge Live Quiz">
     <header className="lq-guest-header"><span>CAMBRIDGE / LIVE QUIZ</span>
       <h1>{(snapshot?.mode??lobby?.mode)==='treasure'?'Your treasure hunt starts here.':'Think fast. Learn together.'}</h1>
-      <p>GAME PIN <strong>{pin}</strong>
-        {/^[0-9]{6}$/.test(pin)&&<a className="lq-change-pin" href="#/play">Change code</a>}</p></header>
+      <p>{/^[0-9]{6}$/.test(pin)?<>GAME PIN <strong>{pin}</strong>{' '}
+        <a className="lq-change-pin" href="#/play">Change code</a></>:
+        'Enter the six-digit PIN your teacher shows on the board.'}</p></header>
     {error&&<p className="lq-error" role="alert">{error}</p>}
     {!/^\d{6}$/.test(pin)&&<form className="lq-guest-join" onSubmit={event=>{
       event.preventDefault();if(/^\d{6}$/.test(enteredPin))window.location.hash='/play/'+enteredPin;

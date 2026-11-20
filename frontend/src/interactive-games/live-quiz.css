@@ -78,6 +78,8 @@
 .lq-primary:hover:not(:disabled) { background: var(--lq-blue-dark); box-shadow: 0 7px 16px #24449d2c; }
 .lq-secondary { background: #fff; color: var(--lq-blue-dark); border-color: #cbd5e5; }
 .lq-secondary:hover:not(:disabled) { background: #f1f5ff; }
+.lq-danger { display: inline-flex;justify-content:center;align-items:center;gap:8px;min-height:44px;padding:10px 15px;border:1px solid #d8a7a2;border-radius:10px;background:#fff4f2;color:#9d332d;font-weight:750 !important; }
+.lq-danger:hover:not(:disabled) { background:#ffe2dd;border-color:#bb655d; }
 .lq-header .lq-secondary { background: #ffffff12; border-color: #ffffff58; color: #fff; }
 .lq-header .lq-secondary:hover:not(:disabled) { background: #ffffff25; }
 .lq-setup, .lq-waiting, .lq-history, .lq-question-stage, .lq-leaderboard,
@@ -124,10 +126,13 @@
 .lq-setup > .lq-small { margin-top: 16px; }
 .lq-history { display: grid; gap: 9px; }
 .lq-history h3 { margin: 0 0 10px; font-size: 22px; }
-.lq-history button { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 15px; text-align: left; border-radius: 10px; border: 1px solid var(--lq-edge); background: #fbfcff; color: var(--lq-ink); }
-.lq-history button:hover { background: #f0f5ff; }
-.lq-history button span { flex: 1 1 190px; }
-.lq-history button small { font-size: 13px; color: var(--lq-blue); }
+.lq-history-item { display:flex;align-items:stretch;flex-wrap:wrap;gap:9px; }
+.lq-history .lq-history-open { display: flex; flex:1 1 340px; flex-wrap: wrap; align-items: center; gap: 12px; padding: 15px; text-align: left; border-radius: 10px; border: 1px solid var(--lq-edge); background: #fbfcff; color: var(--lq-ink); }
+.lq-history .lq-history-open:hover { background: #f0f5ff; }
+.lq-history .lq-history-open span { flex: 1 1 190px; }
+.lq-history .lq-history-open small { font-size: 13px; color: var(--lq-blue); }
+.lq-history .lq-history-delete { align-self:stretch; }
+.lq-finished-actions { display:flex;flex-wrap:wrap;gap:10px; }
 
 /* PIN, QR and classroom lobby */
 .lq-join-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding: clamp(21px, 3vw, 31px); border: 1px solid var(--lq-edge); border-radius: var(--lq-radius); background: #fff; box-shadow: var(--lq-shadow); }

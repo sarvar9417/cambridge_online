@@ -8,7 +8,7 @@ import type { LiveQuizService } from '../services/live-quiz-service.js';
 const id=z.string().uuid();
 const scope=z.object({chapterNo:z.number().int().min(1).max(30),
   kind:z.enum(['chapter','topic','section']),code:z.string().max(30).optional()}).strict();
-const createBody=z.object({classId:id,courseCode:z.enum(['9618','0478']),scopes:z.array(scope).min(1).max(100),
+const createBody=z.object({classId:id.optional(),courseCode:z.enum(['9618','0478']),scopes:z.array(scope).min(1).max(100),
   count:z.number().int().min(4).max(30),seconds:z.union([z.literal(10),z.literal(15),z.literal(20),z.literal(30)]),
   mode:z.enum(['classic','treasure']).optional(),
   durationSeconds:z.number().int().min(60).max(1800).optional(),
@@ -83,6 +83,8 @@ export function createLiveQuizHostRouter(service:LiveQuizService){
     res.json({data:await service.teacherReport(req.actor!,id.parse(req.params.roomId))});});
   router.get('/:roomId',async(req,res)=>{neverCache(res);
     res.json({data:await service.teacherSnapshot(req.actor!,id.parse(req.params.roomId))});});
+  router.delete('/:roomId',async(req,res)=>{neverCache(res);
+    res.json({data:await service.deleteFinished(req.actor!,id.parse(req.params.roomId))});});
   router.post('/:roomId/action',async(req,res)=>{neverCache(res);
     const body=commandBody.parse(req.body);
     res.json({data:await service.command(req.actor!,id.parse(req.params.roomId),

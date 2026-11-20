@@ -23,6 +23,7 @@ function fixture(){
     teacherSnapshot:vi.fn(async()=>({status:'waiting'})),
     teacherReport:vi.fn(async()=>({students:[]})),
     command:vi.fn(async()=>({status:'active'})),
+    deleteFinished:vi.fn(async()=>({deleted:true})),
   };
   const app=express();app.use(express.json());
   app.use('/guest',createLiveQuizGuestRouter(service as unknown as LiveQuizService));
@@ -76,12 +77,12 @@ describe('Live Quiz game mode HTTP validation',()=>{
     expect(service.create).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),payload);
   });
 
-  it('requires an explicit classroom before hosting a discoverable game',async()=>{
+  it('allows a code-only game without assigning a class',async()=>{
     const {app,service}=fixture();
-    const response=await request(app).post('/host').send({courseCode:'9618',
-      scopes:[{chapterNo:17,kind:'chapter'}],count:15,seconds:20});
-    expect(response.status).toBe(400);
-    expect(service.create).not.toHaveBeenCalled();
+    const payload={courseCode:'9618',scopes:[{chapterNo:17,kind:'chapter'}],count:15,seconds:20};
+    const response=await request(app).post('/host').send(payload);
+    expect(response.status).toBe(201);
+    expect(service.create).toHaveBeenCalledWith(expect.objectContaining({role:'teacher'}),payload);
   });
 
   it('returns automatic classroom links through the signed-in student route',async()=>{
@@ -112,5 +113,15 @@ describe('Live Quiz game mode HTTP validation',()=>{
       .send({action:'next',expectedQuestionIndex:2});
     expect(response.status).toBe(200);
     expect(service.command).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),roomId,'next',2);
+  });
+
+  it('routes confirmed deletion of a completed game to the owning host',async()=>{
+    const {app,service}=fixture();
+    const response=await request(app).delete(`/host/${roomId}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({deleted:true});
+    expect(service.deleteFinished).toHaveBeenCalledWith(expect.objectContaining({role:'teacher'}),roomId);
+    const invalid=await request(app).delete('/host/not-a-uuid');
+    expect(invalid.status).toBe(400);
   });
 });

@@ -101,19 +101,21 @@ export class LiveQuizService {
 
   private teacher(actor:Actor){if(actor.role==='student')throw error('quiz_teacher_only',403);}
 
-  async create(actor:Actor,input:{classId:string;courseCode:'9618'|'0478';scopes:Scope[];count:number;seconds:number;
+  async create(actor:Actor,input:{classId?:string;courseCode:'9618'|'0478';scopes:Scope[];count:number;seconds:number;
     mode?:GameMode;durationSeconds?:number;allowLateJoin?:boolean;showCorrectness?:boolean;
     randomNames?:boolean;treasureGoal?:number;questionOrder?:QuestionOrder;
     incorrectPenaltySeconds?:number}) {
     this.teacher(actor);
-    const authorized=await this.pool.query(
-      `select 1 from classes c where c.id=$1 and c.archived_at is null and (
-         ($2='owner' and c.school_id=$3) or
-         ($2='teacher' and (c.owner_id=$4 or exists (
-           select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
-         )))
-       )`,[input.classId,actor.role,actor.schoolId,actor.id]);
-    if(!authorized.rowCount)throw error('quiz_class_not_found',404);
+    if(input.classId){
+      const authorized=await this.pool.query(
+        `select 1 from classes c where c.id=$1 and c.archived_at is null and (
+           ($2='owner' and c.school_id=$3) or
+           ($2='teacher' and (c.owner_id=$4 or exists (
+             select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
+           )))
+         )`,[input.classId,actor.role,actor.schoolId,actor.id]);
+      if(!authorized.rowCount)throw error('quiz_class_not_found',404);
+    }
     const collection=await this.content.interactiveGameCollection(actor,{courseCode:input.courseCode,scopes:input.scopes});
     const questions=buildLiveQuizQuestions(collection.pairs,input.count,input.questionOrder);
     for(let i=0;i<8;i++){
@@ -127,7 +129,7 @@ export class LiveQuizService {
            where not exists(select 1 from live_quiz_rooms
              where pin=$3 and created_at>now()-interval '24 hours')
            returning id`,
-          [actor.id,input.classId,pin,input.courseCode,JSON.stringify(collection.scopes),JSON.stringify(questions),input.seconds,
+          [actor.id,input.classId??null,pin,input.courseCode,JSON.stringify(collection.scopes),JSON.stringify(questions),input.seconds,
             input.mode??'classic',input.durationSeconds??420,input.allowLateJoin??false,
             input.showCorrectness??true,input.randomNames??false,input.treasureGoal??10000,
             input.questionOrder??'random',input.incorrectPenaltySeconds??2],
@@ -148,6 +150,20 @@ export class LiveQuizService {
     return rows.rows.map(row=>({id:row.id,pin:row.pin,courseCode:row.course_code,status:row.status,mode:row.game_mode,
       createdAt:row.created_at,finishedAt:row.finished_at,questionCount:Number(row.question_count),
       playerCount:Number(row.player_count)}));
+  }
+
+  /** Only the host may permanently remove a finished room and its dependent reports. */
+  async deleteFinished(actor:Actor,id:string){
+    this.teacher(actor);
+    const deleted=await this.pool.query<{id:string}>(
+      `delete from live_quiz_rooms where id=$1 and host_id=$2 and status='finished' returning id`,
+      [id,actor.id]);
+    if(!deleted.rowCount){
+      // Do not reveal whether someone else's room exists.
+      await this.hostRoom(actor,id);
+      throw error('quiz_must_finish_before_delete',409);
+    }
+    return {deleted:true};
   }
 
   async availableForStudent(actor:Actor){
@@ -272,7 +288,7 @@ export class LiveQuizService {
         if(index+1>=room.questions.length)status='finished';
         else{status='active';index++;}
       }else if(action==='finish'){
-        if(!['active','review'].includes(status))throw error('quiz_invalid_state',409);
+        if(!['waiting','active','review'].includes(status))throw error('quiz_invalid_state',409);
         status='finished';
       }
       await client.query(`update live_quiz_rooms set status=$2,question_index=$3,

@@ -42,7 +42,7 @@ describeDb('Live Quiz classroom links — real PostgreSQL isolation',()=>{
       return result.rows[0]!.id;
     };
     const roomId=await createRoom(klass.rows[0]!.id,'893411');
-    await createRoom(otherClass.rows[0]!.id,'893412');
+    const otherRoomId=await createRoom(otherClass.rows[0]!.id,'893412');
     const service=new LiveQuizService(client as unknown as pg.Pool);
     const actor={id:student.rows[0]!.id,role:'student' as const,schoolId,fullName:'Quiz Student'};
     expect((await service.availableForStudent(actor)).map(room=>room.pin)).toEqual(['893411']);
@@ -53,5 +53,13 @@ describeDb('Live Quiz classroom links — real PostgreSQL isolation',()=>{
     expect((await service.availableForStudent(actor)).map(room=>room.pin)).toEqual(['893411']);
     await client.query(`update enrollments set left_at=now() where class_id=$1`,[klass.rows[0]!.id]);
     expect(await service.availableForStudent(actor)).toEqual([]);
+
+    const teacherActor={id:teacher.rows[0]!.id,role:'teacher' as const,schoolId,fullName:'Quiz Teacher'};
+    await expect(service.deleteFinished(teacherActor,otherRoomId))
+      .rejects.toMatchObject({code:'quiz_must_finish_before_delete',status:409});
+    await client.query(`update live_quiz_rooms set status='finished',finished_at=now() where id=$1`,[roomId]);
+    expect(await service.deleteFinished(teacherActor,roomId)).toEqual({deleted:true});
+    const remaining=await client.query<{count:number}>(`select count(*)::int count from live_quiz_rooms where id=$1`,[roomId]);
+    expect(Number(remaining.rows[0]?.count)).toBe(0);
   });
 });
