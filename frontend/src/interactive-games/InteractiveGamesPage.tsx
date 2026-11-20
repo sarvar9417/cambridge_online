@@ -37,6 +37,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [catalogError, setCatalogError] = useState('');
   const [packError, setPackError] = useState('');
   const [mode, setMode] = useState<GameKind>('match-up');
+  // Keep the selected comparison when the outer game stage is remounted on replay.
+  const [compareDeckId, setCompareDeckId] = useState('');
   const [boxMode, setBoxMode] = useState<BoxMode>('simple');
   const [round, setRound] = useState(0);
   const [playSession, setPlaySession] = useState(0);
@@ -540,7 +542,8 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
         <fieldset className="ig-game-stage" disabled={stageDisabled}
           key={[scopesKey, questionCount, currentMode, round, playSession, refreshVersion].join(':')}>
           {currentMode === 'match-up' && <MatchUpBoard pairs={pairs} recordAnswer={recordAnswer} />}
-          {currentMode === 'concept-compare' && <ConceptCompareGame courseCode={courseCode} scopes={scopes} />}
+          {currentMode === 'concept-compare' && <ConceptCompareGame courseCode={courseCode}
+            scopes={scopes} selectedDeckId={compareDeckId} onSelectDeck={setCompareDeckId} />}
           {currentMode === 'flash-cards' && <FlashCards
             key={dueOnly ? 'spaced-review' : mistakesOnly ? 'mistake-review' : 'all-cards'}
             pairs={pairs}

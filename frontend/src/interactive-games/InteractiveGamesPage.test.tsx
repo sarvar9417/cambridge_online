@@ -447,6 +447,8 @@ describe('database-backed Interactive Games multi-selection', () => {
     await render(true);
     await choose('Topic 2.1 · Chapter 2');
     await game('Concept Compare');
+    // Chapter 1 now has its own decks, so select the desired Chapter 2 pair.
+    await change('select[aria-label="Comparison pair"]', 'lan-wan');
     expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(10);
     expect([...container.querySelectorAll('.ig-compare-category')].some(element => element.textContent === 'Definition')).toBe(true);
     expect(container.textContent).toContain('sections 2.1.1');
@@ -459,9 +461,10 @@ describe('database-backed Interactive Games multi-selection', () => {
     await render(true);
     const compareTile = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')]
       .find(tile => tile.querySelector('strong')?.textContent === 'Concept Compare')!;
-    expect(compareTile.disabled).toBe(true);
+    expect(compareTile.disabled).toBe(false); // Chapter 1 is supported now.
     await choose('Select entire Chapter 2');
     await game('Concept Compare');
+    await change('select[aria-label="Comparison pair"]', 'lan-wan');
     const deck = COMPARE_DECKS.find(item => item.id === 'lan-wan')!;
     expect(container.querySelectorAll('.ig-compare-card')).toHaveLength(deck.cards.length);
     for (const card of [...container.querySelectorAll<HTMLElement>('.ig-compare-card')]) {

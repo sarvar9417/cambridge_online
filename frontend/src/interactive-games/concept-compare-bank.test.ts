@@ -3,9 +3,9 @@ import { COMPARE_DECKS, compareCategoryFor, compareDeckMatchesScope } from './co
 
 describe('9618 Concept Compare curated bank', () => {
   it('has distinct chapter-scoped decks and no ambiguous empty or invalid answers', () => {
-    expect(COMPARE_DECKS.length).toBe(61);
+    expect(COMPARE_DECKS.length).toBe(130);
     expect(new Set(COMPARE_DECKS.map(deck => deck.id)).size).toBe(COMPARE_DECKS.length);
-    expect(COMPARE_DECKS.reduce((sum, deck) => sum + deck.cards.length, 0)).toBe(613);
+    expect(COMPARE_DECKS.reduce((sum, deck) => sum + deck.cards.length, 0)).toBe(1165);
     for (const deck of COMPARE_DECKS) {
       expect(deck.chapterNo).toBeGreaterThan(0);
       expect(deck.a).not.toBe(deck.b);
@@ -50,6 +50,47 @@ describe('9618 Concept Compare curated bank', () => {
       {chapterNo:16,kind:'section',code:'16.3.2'})).toBe(true);
     expect(compareDeckMatchesScope(COMPARE_DECKS.find(deck => deck.id === 'lexical-syntax')!,
       {chapterNo:16,kind:'topic',code:'16.2'})).toBe(true);
+  });
+  it('covers every in-syllabus Hodder subsection of Chapters 1–8, with usable A/B/Both cards', () => {
+    const required: Record<number, string> = {
+      1: '1.1.1 1.1.2 1.1.3 1.1.4 1.1.5 1.2.1 1.2.2 1.2.3 1.3.1 1.3.2',
+      2: '2.1.1 2.1.2 2.1.3 2.1.4 2.1.5 2.1.6 2.1.7 2.1.8 2.2.1 2.2.2 2.2.3 2.2.4 2.2.5',
+      3: '3.1.1 3.1.2 3.2.1 3.2.2 3.2.3 3.2.4 3.2.5 3.2.6',
+      4: '4.1.1 4.1.2 4.1.3 4.1.4 4.1.5 4.1.6 4.1.7 4.2.1 4.2.2 4.2.3 4.2.4 4.2.5 4.3.1 4.3.2',
+      5: '5.1.1 5.1.2 5.1.3 5.1.4 5.2.1 5.2.2 5.2.3 5.2.4',
+      6: '6.1.1 6.1.2 6.1.3 6.1.4 6.2.1 6.2.2',
+      7: '7.1.1 7.1.2 7.1.3 7.2.1 7.2.2 7.2.3 7.3.1 7.3.2 7.3.3',
+      8: '8.1.1 8.1.2 8.1.3 8.1.4 8.1.5 8.2.1 8.2.2 8.3.1 8.3.2 8.3.3',
+    };
+    const topicCodes: Record<number, string[]> = {
+      1: ['1.1', '1.2', '1.3'], 2: ['2.1'], 3: ['3.1', '3.2'],
+      4: ['4.1', '4.2', '4.3'], 5: ['5.1', '5.2'], 6: ['6.1', '6.2'],
+      7: ['7.1'], 8: ['8.1', '8.2', '8.3'],
+    };
+    for (const [rawChapter, codes] of Object.entries(required)) {
+      const chapterNo = Number(rawChapter);
+      const chapterDecks = COMPARE_DECKS.filter(deck => deck.chapterNo === chapterNo);
+      expect(chapterDecks.length).toBeGreaterThanOrEqual(5);
+      for (const code of codes.split(' ')) {
+        expect(chapterDecks.some(deck => compareDeckMatchesScope(deck, {
+          chapterNo, kind:'section', code,
+        })), `Chapter ${chapterNo} section ${code} has no Compare deck`).toBe(true);
+      }
+      for (const code of topicCodes[chapterNo]!) {
+        expect(chapterDecks.some(deck => compareDeckMatchesScope(deck, {
+          chapterNo, kind:'topic', code,
+        })), `Chapter ${chapterNo} syllabus topic ${code} has no Compare deck`).toBe(true);
+      }
+      for (const deck of chapterDecks) {
+        for (const side of ['A', 'B', 'AB']) {
+          expect(deck.cards.some(([,answer])=>answer===side), `${deck.id} missing ${side}`).toBe(true);
+        }
+      }
+    }
+    expect(compareDeckMatchesScope(COMPARE_DECKS.find(deck => deck.id === 'sql-where-having')!,
+      { chapterNo:8,kind:'section',code:'8.3.2' })).toBe(false);
+    expect(compareDeckMatchesScope(COMPARE_DECKS.find(deck => deck.id === 'bytecode-machinecode')!,
+      { chapterNo:5,kind:'section',code:'5.2.3' })).toBe(true);
   });
 });
 describe('Curriculum selections for Concept Compare', () => {

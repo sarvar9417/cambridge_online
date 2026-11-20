@@ -20,22 +20,23 @@ function shuffled<T,>(items: readonly T[]): T[] {
 }
 
 /** A ninth, independent 9618 game — existing definition Match Up stays unchanged. */
-export function ConceptCompareGame({ courseCode, scopes }: {
+export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelectDeck }: {
   courseCode: '9618' | '0478'; scopes: readonly GameScope[];
+  selectedDeckId: string; onSelectDeck: (id: string) => void;
 }) {
   const signal = useGameSignal();
   // A selected Cambridge topic uses its syllabus code; a Hodder section uses its own book code.
   const available = COMPARE_DECKS
     .filter(deck => scopes.some(scope => compareDeckMatchesScope(deck, scope)))
     .sort((left, right) => left.chapterNo - right.chapterNo);
-  const [deckId, setDeckId] = useState<string>('');
+  const availableChapters = [...new Set(available.map(item => item.chapterNo))];
   const [quick, setQuick] = useState(false);
   const [shuffleRevision, setShuffleRevision] = useState(0);
   const [placed, setPlaced] = useState<Record<number, Selected>>({});
   const [submitted, setSubmitted] = useState(false);
   const [started, setStarted] = useState(false);
   const [activeCard, setActiveCard] = useState<number | null>(null);
-  const deck: CompareDeck | undefined = available.find(item => item.id === deckId) ?? available[0];
+  const deck: CompareDeck | undefined = available.find(item => item.id === selectedDeckId) ?? available[0];
   const items = useMemo<Item[]>(() => {
     if (!deck) return [];
     const original = deck.cards.map(([statement, expected], index) => ({ statement, expected, index }));
@@ -52,7 +53,7 @@ export function ConceptCompareGame({ courseCode, scopes }: {
     setSubmitted(false);
     setStarted(false);
     setActiveCard(null);
-    if (next?.deckId !== undefined) setDeckId(next.deckId);
+    if (next?.deckId !== undefined) onSelectDeck(next.deckId);
     if (next?.quick !== undefined) setQuick(next.quick);
     setShuffleRevision(value => value + 1);
   }
@@ -90,11 +91,15 @@ export function ConceptCompareGame({ courseCode, scopes }: {
 
   return <div className="ig-content ig-compare">
     <p className="ig-instruction">Move each statement to one or BOTH terms. A shared statement stays available for both columns. All answers are checked together at the end.</p>
+    <p className="ig-compare-availability" role="status">{available.length} comparison pairs across {availableChapters.length} selected {availableChapters.length === 1 ? 'chapter' : 'chapters'} · Choose a pair to practise.</p>
     <div className="ig-compare-controls">
       <label>Comparison
         <select aria-label="Comparison pair" value={deck.id} disabled={submitted}
           onChange={event => reset({ deckId: event.target.value })}>
-          {available.map(item => <option key={item.id} value={item.id}>Chapter {item.chapterNo} · {item.a} vs {item.b}</option>)}
+          {availableChapters.map(chapterNo => <optgroup key={chapterNo} label={`Chapter ${chapterNo}`}>
+            {available.filter(item => item.chapterNo === chapterNo).map(item =>
+              <option key={item.id} value={item.id}>{item.a} vs {item.b} · {item.cards.length} cards</option>)}
+          </optgroup>)}
         </select>
       </label>
       <label>Cards

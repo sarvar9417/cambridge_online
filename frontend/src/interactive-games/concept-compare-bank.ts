@@ -1,4 +1,5 @@
 import { EXPANDED_COMPARE_DECKS } from './concept-compare-expansion';
+import { EARLY_CHAPTER_COMPARE_DECKS } from './concept-compare-chapters-1-8';
 
 /** Curated 9618 comparison statements, paraphrased from supplied Hodder chapters.
  * Provisional bank: unlike glossary entries, these have not all been individually
@@ -134,14 +135,14 @@ export const COMPARE_DECKS: CompareDeck[] = [
 ,
 {"id":"dijkstra-astar","chapterNo":18,"a":"Dijkstra’s algorithm","b":"A* algorithm","pages":"425–434",sectionCodes:["18.1.1","18.1.2"],syllabusTopicCode:"18.1","cards":[["Finds shortest paths by systematically exploring the least-cost known distances.","A"],["Combines path cost with a heuristic estimate of distance to the destination.","B"],["Does not use a destination-directed heuristic to prioritise nodes.","A"],["Prioritises promising routes using an estimated remaining cost.","B"],["Can explore nodes that lead away from the target, increasing search effort.","A"],["Uses a heuristic value as part of its route selection.","B"],["Both work on graphs containing nodes and weighted edges.","AB"],["Both can be used to find a shortest route through a network.","AB"],["Both consider accumulated travel cost when evaluating routes.","AB"],["Both can be used in route-planning problems.","AB"]]},
 {"id":"supervised-unsupervised","chapterNo":18,"a":"Supervised learning","b":"Unsupervised learning","pages":"434–439",sectionCodes:["18.2.2"],syllabusTopicCode:"18.1","cards":[["Learns from examples that include known target outputs.","A"],["Identifies structure or patterns without supplied target answers.","B"],["Uses labelled training data.","A"],["Typically uses unlabelled input data.","B"],["Can learn to classify emails as spam or not spam using labelled examples.","A"],["Can group customers with similar purchasing behaviour.","B"],["Predictions can be checked against known expected outputs during training.","A"],["Can reveal clusters, similarities or anomalies in a dataset.","B"],["Both are forms of machine learning.","AB"],["Both use data to identify useful relationships.","AB"]]}
-, ...EXPANDED_COMPARE_DECKS
+, ...EARLY_CHAPTER_COMPARE_DECKS, ...EXPANDED_COMPARE_DECKS
 ];
 
 /** Category sequences were restored from the prior authored deck-data JSON.
  * Each character maps to the statement at the same index, never to a shuffled index.
  */
 export type CompareCategory = 'Definition' | 'Feature' | 'Advantage' | 'Disadvantage' |
-  'Purpose' | 'Method' | 'Use' | 'Example' | 'Measure' | 'Function';
+  'Purpose' | 'Method' | 'Use' | 'Example' | 'Measure' | 'Function' | 'Comparison';
 const COMPARE_CATEGORY_KEYS: Record<string, string> = {
   "lan-wan": "ddffffafff",
   "client-peer": "ddaannfffn",
@@ -173,7 +174,7 @@ const categoryNames: Record<string, CompareCategory> = {
  p: 'Purpose', m: 'Method', u: 'Use', e: 'Example', v: 'Measure', g: 'Function',
 };
 export function compareCategoryFor(deck: CompareDeck, index: number): CompareCategory | undefined {
- return categoryNames[COMPARE_CATEGORY_KEYS[deck.id]?.[index] ?? 'f'];
+ return categoryNames[COMPARE_CATEGORY_KEYS[deck.id]?.[index] ?? ''] ?? 'Comparison';
 }
 export type CompareScope = { chapterNo: number; kind: 'chapter' | 'section' | 'topic'; code?: string };
 /** Book sections and Cambridge syllabus topic codes follow DIFFERENT structures.
