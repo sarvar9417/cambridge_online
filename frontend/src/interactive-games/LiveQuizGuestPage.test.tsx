@@ -70,4 +70,30 @@ describe('Treasure Quest student interactions',()=>{
     const call=request.mock.calls.find(call=>String(call[0]).endsWith('/reward'))!;
     expect(JSON.parse(String(call[1].body))).toEqual({turnIndex:0,targetId:rivalId});
   });
+
+  it('shows the correction for the answered question even after the next question loads',async()=>{
+    let submitted=false;
+    const first:LiveQuizSnapshot={...snapshot(null),pendingReward:null,questionIndex:0,
+      question:{id:'old',index:0,prompt:'Old definition',
+        options:['Old A','Old B','Old C','Old D'],sourceContext:'Chapter 17'}};
+    const next:LiveQuizSnapshot={...first,questionIndex:1,ownTurn:1,
+      question:{id:'new',index:1,prompt:'New definition',
+        options:['New A','New B','New C','New D'],sourceContext:'Chapter 17'}};
+    request.mockImplementation(async(url:string)=>{
+      if(url.includes('/lobby/'))return new Response(JSON.stringify({data:{pin:'123456',
+        courseCode:'9618',mode:'treasure',status:'active',randomNames:false,playerCount:2}}));
+      if(url.endsWith(`/${playerId}`))return new Response(JSON.stringify({data:submitted?next:first}));
+      if(url.endsWith('/answer')){submitted=true;return new Response(JSON.stringify({data:{
+        submitted:true,turnIndex:0,correct:false,rewardPending:false,correctIndex:2}}));}
+      throw new Error('Unexpected request '+url);
+    });
+    await render();
+    const choice=host.querySelector<HTMLButtonElement>('.lq-guest-question .lq-options button')!;
+    await act(async()=>{choice.click();await Promise.resolve();await Promise.resolve();});
+    expect(host.textContent).toContain('Correct answer: Old C');
+    // The next polling cycle replaces the screen question before the feedback expires.
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,1650));});
+    expect(host.textContent).toContain('Correct answer: Old C');
+    expect(host.textContent).not.toContain('Correct answer: New C');
+  });
 });

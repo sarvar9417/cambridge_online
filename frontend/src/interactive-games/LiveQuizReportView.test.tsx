@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LiveQuizReportView } from './LiveQuizReportView';
+import { LiveQuizReportView, liveQuizCsv } from './LiveQuizReportView';
 import type { LiveQuizReport } from './live-quiz-api';
 
 const report:LiveQuizReport={id:'room',pin:'482915',courseCode:'9618',totalQuestions:3,
@@ -48,5 +48,27 @@ describe('Live Quiz first-attempt result report',()=>{
     const expand=[...host.querySelectorAll('button')].find(el=>el.textContent?.includes('Show all 3'))!;
     await act(async()=>expand.click());
     expect(host.textContent).toContain('First definition');
+  });
+
+  it('accurately shows 0/0 for a player without any Treasure Quest attempts',async()=>{
+    const treasure:LiveQuizReport={...report,mode:'treasure',students:[{
+      id:'player2',nickname:'Sardor',avatar:'🐼',score:0,correct:0,answered:0,total:0,details:[],
+    }]};
+    await act(async()=>root.render(<LiveQuizReportView report={treasure} teacher={false}/>));
+    expect(host.textContent).toContain('0 / 0');
+    expect(host.textContent).toContain('No questions attempted during this game.');
+    expect(host.textContent).toContain('Gold');
+    expect(host.textContent).not.toContain('Excellent! All questions were answered correctly.');
+  });
+
+  it('keeps zero-attempt players in CSV and escapes participant-controlled formulas',()=>{
+    const data:LiveQuizReport={...report,mode:'treasure',students:[...report.students,{
+      id:'player2',nickname:'=HYPERLINK("malicious")',avatar:'🐼',score:0,correct:0,
+      answered:0,total:0,details:[],
+    }]};
+    const csv=liveQuizCsv(data);
+    expect(csv).toContain('"not attempted"');
+    expect(csv).toContain('"\'=HYPERLINK(""malicious"")"');
+    expect(csv).toContain('"Aziza"');
   });
 });

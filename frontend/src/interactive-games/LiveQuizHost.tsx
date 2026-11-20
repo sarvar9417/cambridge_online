@@ -57,11 +57,19 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   },[roomId,snapshot?.status==='finished']);
   useEffect(()=>{
     if(!roomId||snapshot?.status!=='finished')return;
-    let active=true;
-    void api<{data:LiveQuizReport}>(`/live-quizzes/${roomId}/report`).then(({data})=>{
-      if(active)setReport(data);
-    }).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Report could not be loaded.');});
-    return()=>{active=false;};
+    let active=true,loaded=false,inFlight=false;
+    const load=async()=>{
+      if(!active||loaded||inFlight)return;
+      inFlight=true;
+      try{
+        const {data}=await api<{data:LiveQuizReport}>(`/live-quizzes/${roomId}/report`);
+        if(active){loaded=true;setReport(data);setError('');}
+      }catch(cause){if(active)setError(cause instanceof Error?cause.message:'Report could not be loaded.');}
+      finally{inFlight=false;}
+    };
+    void load();
+    const interval=window.setInterval(()=>{void load();},3000);
+    return()=>{active=false;window.clearInterval(interval);};
   },[roomId,snapshot?.status]);
   useEffect(()=>{const timer=window.setInterval(()=>setClock(Date.now()),250);return()=>window.clearInterval(timer);},[]);
 

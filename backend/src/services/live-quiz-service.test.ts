@@ -48,7 +48,7 @@ describe('Blooket-inspired Treasure Quest economics',()=>{
       {id:'sardor',room_id:'room',nickname:'Sardor',avatar:'🐼',score:100,correct_count:0,
         turn_index:0,question_index:0,choice_index:1,correct:false,reward_type:'none',reward_amount:0,elapsed_ms:3800},
     ];
-    const query=vi.fn(async(sql:string)=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
       if(sql.includes('from live_quiz_rooms where id'))return {rows:[room],rowCount:1};
       if(sql.includes('left join live_quiz_treasure_attempts'))return {rows,rowCount:rows.length};
       throw new Error('Unexpected SQL in report: '+sql.slice(0,50));
@@ -109,5 +109,92 @@ describe('Cambridge Live Quiz question selection',()=>{
     expect(liveQuizPoints(true,20_000,20,0)).toBe(600);
     expect(liveQuizPoints(true,0,20,12)).toBe(1000);
     expect(liveQuizPoints(true,5_000,20,1)).toBeGreaterThan(liveQuizPoints(true,12_000,20,1));
+  });
+});
+
+describe('Treasure Quest transactional answer and reward protection',()=>{
+  const playerId='2bbcc2fa-38c9-4ebd-8120-111111111111';
+  const rivalId='d01122a2-c3b5-4ac2-a860-333333333333';
+  const token='a'.repeat(64);
+  const question={id:'question-1',prompt:'What does the definition describe?',
+    options:['A','B','C','D'],answerIndex:2,explanation:'C is correct',sourceContext:'Chapter 18'};
+  function fixture(options:{rewardType?:string|null;rewardAmount?:number;
+    score?:number;goal?:number;blockedUntil?:string|null;endsAt?:string|null;
+    noPendingReward?:boolean}={}){
+    const room={id:'room-1',pin:'123456',game_mode:'treasure',status:'active',
+      questions:[question,question,question,question],question_order:'random',
+      treasure_goal:options.goal??10000,dragon_pool:10,
+      show_correctness:true,incorrect_penalty_seconds:2,ends_at:options.endsAt??new Date(Date.now()+300000).toISOString()};
+    const joined={...room,player_id:playerId,room_id:room.id,nickname:'Aziza',avatar:'🦊',
+      score:options.score??100,streak:0,correct_count:0,next_turn:0,
+      player_started_at:new Date(Date.now()-1500).toISOString(),
+      blocked_until:options.blockedUntil??null};
+    const pending={reward_type:options.rewardType??'double',reward_amount:options.rewardAmount??0};
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
+      if(sql==='begin'||sql==='commit'||sql==='rollback')return {rows:[],rowCount:0};
+      if(sql.includes('from live_quiz_players p join live_quiz_rooms'))return {rows:[joined],rowCount:1};
+      if(sql.includes('from live_quiz_treasure_attempts')&&sql.includes('for update'))
+        return options.noPendingReward?{rows:[],rowCount:0}:{rows:[pending],rowCount:1};
+      if(sql.includes('insert into live_quiz_treasure_attempts'))return {rows:[{player_id:playerId}],rowCount:1};
+      if(sql.includes('select * from live_quiz_players where id='))
+        return {rows:[{id:rivalId,score:400}],rowCount:1};
+      if(sql.includes('update live_quiz_players')||sql.includes('update live_quiz_rooms')||
+        sql.includes('update live_quiz_treasure_attempts'))return {rows:[],rowCount:1};
+      throw new Error('Unexpected SQL: '+sql.slice(0,100));
+    });
+    const pool={query,connect:vi.fn(async()=>({query,release:vi.fn()}))} as unknown as Pool;
+    return {service:new LiveQuizService(pool),query};
+  }
+
+  it('validates a guest answer on the server, locks the turn and records the actual chosen option',async()=>{
+    const {service,query}=fixture();
+    const result=await service.answer(playerId,token,0,2);
+    expect(result).toMatchObject({submitted:true,turnIndex:0,correct:true,rewardPending:true,
+      correctIndex:2});
+    const insert=query.mock.calls.find(([sql])=>sql.includes('insert into live_quiz_treasure_attempts'))!;
+    expect(insert[1]?.slice(0,5)).toEqual([playerId,0,0,2,true]);
+    expect(query).toHaveBeenCalledWith('commit');
+  });
+
+  it('rejects an answer during the wrong-answer cooldown without inserting a new attempt',async()=>{
+    const {service,query}=fixture({blockedUntil:new Date(Date.now()+20000).toISOString()});
+    await expect(service.answer(playerId,token,0,2))
+      .rejects.toMatchObject({code:'quiz_penalty_active',status:409});
+    expect(query.mock.calls.some(([sql])=>sql.includes('insert into live_quiz_treasure_attempts'))).toBe(false);
+    expect(query).toHaveBeenCalledWith('rollback');
+  });
+
+  it('settles a sealed double-gold reward exactly once and finishes on the configured goal',async()=>{
+    const {service,query}=fixture({rewardType:'double',score:500,goal:900});
+    const result=await service.treasureReward(playerId,token,{turnIndex:0});
+    expect(result).toEqual({rewardType:'double',needsTarget:false,delta:500,newScore:1000,
+      gameFinished:true});
+    const playerUpdate=query.mock.calls.find(([sql])=>sql.includes('set score=$2,next_turn=next_turn+1'))!;
+    expect(playerUpdate[1]).toEqual([playerId,1000]);
+    expect(query.mock.calls.some(([sql])=>sql.includes("set status='finished'"))).toBe(true);
+    expect(query).toHaveBeenCalledWith('commit');
+  });
+
+  it('subtracts taken gold from the chosen rival and credits the attacker atomically',async()=>{
+    const {service,query}=fixture({rewardType:'take',rewardAmount:25,score:100});
+    const result=await service.treasureReward(playerId,token,{turnIndex:0,targetId:rivalId});
+    expect(result).toMatchObject({rewardType:'take',needsTarget:false,delta:100,newScore:200});
+    const rivalUpdate=query.mock.calls.find(([sql])=>sql.includes('set score=score-$2'))!;
+    expect(rivalUpdate[1]).toEqual([rivalId,100]);
+  });
+
+  it('blocks a second chest claim once the reward has already resolved',async()=>{
+    const {service,query}=fixture({noPendingReward:true});
+    await expect(service.treasureReward(playerId,token,{turnIndex:0}))
+      .rejects.toMatchObject({code:'quiz_reward_closed',status:409});
+    expect(query).toHaveBeenCalledWith('rollback');
+    expect(query.mock.calls.some(([sql])=>sql.includes('set score=$2,next_turn=next_turn+1'))).toBe(false);
+  });
+
+  it('blocks claiming a reward after the server-set game deadline',async()=>{
+    const {service,query}=fixture({endsAt:new Date(Date.now()-1000).toISOString()});
+    await expect(service.treasureReward(playerId,token,{turnIndex:0}))
+      .rejects.toMatchObject({code:'quiz_reward_closed',status:409});
+    expect(query).toHaveBeenCalledWith('rollback');
   });
 });

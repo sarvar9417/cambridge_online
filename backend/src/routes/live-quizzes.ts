@@ -29,17 +29,22 @@ const neverCache=(res:{set:(header:string,value:string)=>unknown})=>res.set('Cac
 
 export function createLiveQuizGuestRouter(service:LiveQuizService,pool?:Pool){
   const router=Router();
-  const limiter=pool?durableRateLimit(pool,{windowMs:60_000,max:100,
-    key:req=>'live-quiz-join:'+req.ip}):rateLimit({windowMs:60_000,max:100,key:req=>'live-quiz-join:'+req.ip});
+  // A whole class may share one school NAT IP. A PIN lookup followed by a join
+  // is two requests per learner, so separate the limits to avoid rejecting the
+  // last students in a 60-player classroom while retaining IP throttling.
+  const limit=(name:string,max:number)=>pool?durableRateLimit(pool,{windowMs:60_000,max,
+    key:req=>name+req.ip}):rateLimit({windowMs:60_000,max,key:req=>name+req.ip});
+  const joinLimiter=limit('live-quiz-join:',180);
+  const lobbyLimiter=limit('live-quiz-lobby:',360);
   const token=(header:string|undefined)=>{
     const match=/^Quiz ([0-9a-f]{64})$/i.exec(header??'');
     return match?.[1]??'';
   };
-  router.post('/join',limiter,async(req,res)=>{
+  router.post('/join',joinLimiter,async(req,res)=>{
     neverCache(res);
     res.status(201).json({data:await service.join(joinBody.parse(req.body))});
   });
-  router.get('/lobby/:pin',limiter,async(req,res)=>{
+  router.get('/lobby/:pin',lobbyLimiter,async(req,res)=>{
     neverCache(res);
     res.json({data:await service.lobby(z.string().regex(/^\d{6}$/).parse(req.params.pin))});
   });

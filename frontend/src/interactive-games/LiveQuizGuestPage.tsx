@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { forgetQuizGuest, LIVE_QUIZ_AVATARS, quizGuestRequest, readQuizGuest,
   saveQuizGuest, type LiveQuizLobby, type LiveQuizReport, type LiveQuizSnapshot,
-  type TreasureAnswerResponse, type TreasureRewardResponse } from './live-quiz-api';
+  type LiveQuizQuestion, type TreasureAnswerResponse, type TreasureRewardResponse } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
 import { countdownSeconds } from './LiveQuizHost';
 import './live-quiz.css';
@@ -19,7 +19,8 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   const [error,setError]=useState('');
   const [enteredPin,setEnteredPin]=useState('');
   const [lobby,setLobby]=useState<LiveQuizLobby|null>(null);
-  const [feedback,setFeedback]=useState<(TreasureAnswerResponse&{choiceIndex:number})|null>(null);
+  const [feedback,setFeedback]=useState<(TreasureAnswerResponse&{
+    choiceIndex:number;answeredQuestion:LiveQuizQuestion})|null>(null);
   const [rewardReveal,setRewardReveal]=useState<TreasureRewardResponse|null>(null);
   const [soundOn,setSoundOn]=useState(false);
   function playTone(correct:boolean){
@@ -70,11 +71,19 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   },[guest?.playerId,guest?.token,pin,snapshot?.status==='finished']);
   useEffect(()=>{
     if(!guest||snapshot?.status!=='finished')return;
-    let active=true;
-    void quizGuestRequest<LiveQuizReport>(`/${guest.playerId}/report`,guest.token)
-      .then(data=>{if(active)setReport(data);})
-      .catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Report unavailable.');});
-    return()=>{active=false;};
+    let active=true,loaded=false,inFlight=false;
+    const load=async()=>{
+      if(!active||loaded||inFlight)return;
+      inFlight=true;
+      try{
+        const data=await quizGuestRequest<LiveQuizReport>(`/${guest.playerId}/report`,guest.token);
+        if(active){loaded=true;setReport(data);setError('');}
+      }catch(cause){if(active)setError(cause instanceof Error?cause.message:'Report unavailable.');}
+      finally{inFlight=false;}
+    };
+    void load();
+    const interval=window.setInterval(()=>{void load();},3000);
+    return()=>{active=false;window.clearInterval(interval);};
   },[guest?.playerId,guest?.token,snapshot?.status]);
   useEffect(()=>{const timer=window.setInterval(()=>setClock(Date.now()),250);return()=>window.clearInterval(timer);},[]);
   useEffect(()=>{setLocalAnswer(null);},[snapshot?.questionIndex]);
@@ -96,7 +105,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
         {questionIndex:snapshot.questionIndex,choiceIndex});
       setLocalAnswer(choiceIndex);
       if(snapshot.mode==='treasure'){
-        setFeedback({...result,choiceIndex});setRewardReveal(null);
+        setFeedback({...result,choiceIndex,answeredQuestion:snapshot.question});setRewardReveal(null);
         playTone(result.correct);
         if(!result.correct)window.setTimeout(()=>setFeedback(current=>current?.turnIndex===result.turnIndex?null:current),2200);
       }
@@ -123,6 +132,12 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
       }else{
         setRewardReveal(result);
         playTone(true);
+        // The resolved turn is authoritative on the server. Refresh immediately
+        // so an old poll cannot leave the already-claimed chest clickable.
+        try{
+          const fresh=await quizGuestRequest<LiveQuizSnapshot>(`/${guest.playerId}`,guest.token);
+          setSnapshot(fresh);
+        }catch{/* The periodic snapshot poll will recover this view. */}
         window.setTimeout(()=>setRewardReveal(current=>current===result?null:current),2200);
       }
     }catch(cause){setError(cause instanceof Error?cause.message:'Could not open the chest.');}
@@ -179,7 +194,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
         <span>⏱ {Math.floor(gameRemaining/60)}:{String(gameRemaining%60).padStart(2,'0')} left</span>
         <span>🎯 {(snapshot.treasureGoal??0).toLocaleString('en')} goal</span>
       </div>}
-      {isTreasure&&snapshot.status==='active'&&pending&&<section className="lq-chest-stage">
+      {isTreasure&&snapshot.status==='active'&&pending&&!rewardReveal&&<section className="lq-chest-stage">
         {pending.type===null?<>
           <h2>🎉 Great answer! Choose a treasure chest</h2>
           <p>One hidden reward. You could gain gold, double it, take from someone, swap, or meet the dragon!</p>
@@ -201,7 +216,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
       </section>}
       {isTreasure&&snapshot.status==='active'&&feedback&&!feedback.correct&&<section className="lq-guest-question lq-wrong-feedback" role="status">
         <h2>❌ Not quite! Keep going.</h2>
-        {feedback.correctIndex!==undefined&&question&&<p>Correct answer: {question.options[feedback.correctIndex]}</p>}
+        {feedback.correctIndex!==undefined&&<p>Correct answer: {feedback.answeredQuestion.options[feedback.correctIndex]}</p>}
         <p>Next question is coming. Every correct answer gives a new chest!</p>
       </section>}
       {snapshot.status==='active'&&question&&!(isTreasure&&(pending||rewardReveal||feedback&&!feedback.correct))&&<section className="lq-guest-question">

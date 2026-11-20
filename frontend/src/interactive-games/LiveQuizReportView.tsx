@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { LiveQuizDetail, LiveQuizReport } from './live-quiz-api';
 
-function downloadCsv(report:LiveQuizReport){
+export function liveQuizCsv(report:LiveQuizReport){
   // A nickname is participant-controlled; don't allow spreadsheet formula injection.
   const csvCell=(value:unknown)=>{
     const raw=String(value??'');const safe=/^[\s]*[=+\-@]/.test(raw)?"'"+raw:raw;
@@ -10,6 +10,11 @@ function downloadCsv(report:LiveQuizReport){
   const rows=[['Name','Correct','Total','Answered','Score','Question','Result','Selected answer',
     'Correct answer','Prompt','Response time ms','Source']];
   for(const student of report.students){
+    if(student.details.length===0){
+      // Keep students who joined but attempted nothing in the teacher export.
+      rows.push([student.nickname,String(student.correct),String(student.total),
+        String(student.answered),String(student.score),'','not attempted','','','','','']);
+    }
     for(const detail of student.details){
       rows.push([student.nickname,String(student.correct),String(student.total),
         String(student.answered),String(student.score),String(detail.number),detail.status,
@@ -18,13 +23,17 @@ function downloadCsv(report:LiveQuizReport){
         String(detail.elapsedMs??''),detail.sourceContext]);
     }
   }
-  const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+  return '\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+}
+
+function downloadCsv(report:LiveQuizReport){
+  const csv=liveQuizCsv(report);
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download=`cambridge-live-quiz-${report.pin}-report.csv`;a.click();
   URL.revokeObjectURL(url);
 }
 
-function Mistake({detail}:{detail:LiveQuizDetail}){
+function Mistake({detail,treasure}:{detail:LiveQuizDetail;treasure:boolean}){
   return <li className={'lq-answer-detail lq-'+detail.status}>
     <div className="lq-detail-heading"><strong>Question {detail.number}</strong>
       <span>{detail.status==='correct'?'✓ Correct':detail.status==='wrong'?'✕ Wrong answer':'— No answer'}</span>
@@ -34,7 +43,9 @@ function Mistake({detail}:{detail:LiveQuizDetail}){
     <p><b>Student answer: </b>{detail.choiceIndex===null?'Not answered':detail.options[detail.choiceIndex]}</p>
     <p><b>Correct answer: </b>{detail.options[detail.correctIndex]}</p>
     {!detail.correct&&<p className="lq-explanation">{detail.explanation}</p>}
-    <small>{detail.points} points</small>
+    <small>{treasure?(detail.rewardType&&detail.rewardType!=='none'
+      ?`Treasure reward: ${detail.rewardType.replaceAll('_',' ')}`:'No treasure reward')
+      :`${detail.points} points`}</small>
   </li>;
 }
 
@@ -64,7 +75,7 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
     {teacher&&<div className="lq-podium">
       {report.students.slice(0,3).map((student,index)=><div key={student.id} className="lq-podium-item">
         <span>{['🥇','🥈','🥉'][index]}</span><strong>{student.avatar} {student.nickname}</strong>
-        <b>{student.score.toLocaleString('en')} points</b>
+        <b>{student.score.toLocaleString('en')} {report.mode==='treasure'?'gold':'points'}</b>
         <small>{student.correct} / {student.total} correct</small>
       </div>)}
     </div>}
@@ -97,7 +108,7 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
       {report.students.map((student,index)=><button key={student.id} type="button"
         aria-pressed={selected?.id===student.id} onClick={()=>{setChosen(student.id);setShowAll(false);}}>
         <span>{index+1}. {student.avatar} {student.nickname}</span>
-        <b>{student.correct}/{student.total}</b><small>{student.score} pts</small>
+        <b>{student.correct}/{student.total}</b><small>{student.score} {report.mode==='treasure'?'gold':'pts'}</small>
       </button>)}
     </div>}
     {selected&&(!teacher||tab==='students')&&<div className="lq-personal-report">
@@ -106,17 +117,18 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
         <div><strong>{selected.correct} / {selected.total}</strong><span>Correct answers</span></div>
         <div><strong>{selected.answered} / {selected.total}</strong><span>Questions answered</span></div>
         <div><strong>{selected.total?Math.round(selected.correct/selected.total*100):0}%</strong><span>Accuracy</span></div>
-        <div><strong>{selected.score}</strong><span>Points</span></div>
+        <div><strong>{selected.score.toLocaleString('en')}</strong><span>{report.mode==='treasure'?'Gold':'Points'}</span></div>
         {selected.averageResponseMs!==undefined&&<div><strong>{(selected.averageResponseMs/1000).toFixed(1)}s</strong><span>Average answer time</span></div>}
       </div>
       <h4>Incorrect and unanswered questions ({selected.details.filter(detail=>!detail.correct).length})</h4>
-      {selected.details.every(detail=>detail.correct)
+      {selected.details.length===0?<p className="lq-help">No questions attempted during this game.</p>
+        :selected.details.every(detail=>detail.correct)
         ? <p className="lq-all-correct">Excellent! All questions were answered correctly.</p>
-        : <ol className="lq-detail-list">{selected.details.filter(detail=>!detail.correct).map(detail=><Mistake key={detail.number} detail={detail}/>)}</ol>}
+        : <ol className="lq-detail-list">{selected.details.filter(detail=>!detail.correct).map(detail=><Mistake key={detail.number} detail={detail} treasure={report.mode==='treasure'}/>)}</ol>}
       <button type="button" className="lq-secondary" onClick={()=>setShowAll(value=>!value)}>
         {showAll?'Hide':'Show'} all {selected.total} questions and answers
       </button>
-      {showAll&&<ol className="lq-detail-list">{selected.details.map(detail=><Mistake key={detail.number} detail={detail}/>)}</ol>}
+      {showAll&&<ol className="lq-detail-list">{selected.details.map(detail=><Mistake key={detail.number} detail={detail} treasure={report.mode==='treasure'}/>)}</ol>}
     </div>}
   </section>;
 }

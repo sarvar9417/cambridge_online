@@ -71,4 +71,17 @@ describe('Live Quiz game mode HTTP validation',()=>{
     expect(response.status).toBe(201);
     expect(service.create).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),payload);
   });
+
+  it('lets a full class behind one school IP check a PIN and join without a shared rate-limit collision',async()=>{
+    const {app,service}=fixture();
+    for(let student=0;student<60;student++){
+      const lobby=await request(app).get('/guest/lobby/123456');
+      expect(lobby.status).toBe(200);
+      const joined=await request(app).post('/guest/join')
+        .send({pin:'123456',nickname:`Student ${student}`,avatar:'🦊'});
+      expect(joined.status).toBe(201);
+    }
+    expect(service.join).toHaveBeenCalledTimes(60);
+    expect(service.lobby).toHaveBeenCalledTimes(60);
+  });
 });
