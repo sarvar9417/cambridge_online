@@ -32,13 +32,13 @@ export function StudentLiveQuizLinks(){
       <div><span className="lq-student-discovery-kicker">CAMBRIDGE · LIVE QUIZ</span>
         <h2>{rooms.length?'Sinfingiz uchun o‘yin tayyor!':'O‘yin kodini kiritib qo‘shiling'}</h2>
         <p>O‘qituvchingiz bergan 6 xonali kod orqali istalgan sinf o‘yiniga kiring.</p></div>
-      <a className="lq-student-discovery-code-link" href="#/play" aria-label="O‘yin kodini kiritish">
+      <a className="lq-student-discovery-code-link" href="#/play">
         Kodni kiritish <ArrowSquareOut size={18} weight="bold"/></a>
     </div>
     {!!rooms.length&&<div className="lq-student-discovery-rooms">{rooms.map(room=><div className="lq-student-discovery-room" key={room.id}>
       <div><strong>{room.className} · {room.mode==='treasure'?'Treasure Quest':'Classic Quiz'}</strong>
         <small>{room.courseCode} · {room.status==='waiting'?'O‘yin boshlanishini kutmoqda':room.status==='review'?'Javoblar ko‘rsatilmoqda':'O‘yin davom etmoqda'} · {room.playerCount} o‘quvchi</small></div>
-      <a href={`#/play/${room.pin}`} aria-label={`${room.className} Live Quiz o‘yiniga kirish`}>
+      <a href={`#/play/${room.pin}`} aria-label={`O‘yinga kirish — ${room.className} Live Quiz`}>
         O‘yinga kirish <ArrowSquareOut size={18} weight="bold"/></a>
     </div>)}</div>}
   </section>;
