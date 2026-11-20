@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import { api } from '../lib/api';
 import type { GameScope } from './remote-games';
-import type { LiveQuizHistoryItem, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
+import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
 import './live-quiz.css';
 
@@ -18,6 +18,14 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
 }){
   const [count,setCount]=useState(15);
   const [seconds,setSeconds]=useState(20);
+  const [gameMode,setGameMode]=useState<LiveQuizMode>('classic');
+  const [durationSeconds,setDurationSeconds]=useState(420);
+  const [treasureGoal,setTreasureGoal]=useState(10000);
+  const [allowLateJoin,setAllowLateJoin]=useState(true);
+  const [randomNames,setRandomNames]=useState(false);
+  const [showCorrectness,setShowCorrectness]=useState(true);
+  const [questionOrder,setQuestionOrder]=useState<'random'|'ordered'|'mastery'>('random');
+  const [incorrectPenaltySeconds,setIncorrectPenaltySeconds]=useState(2);
   const [roomId,setRoomId]=useState<string|null>(null);
   const [snapshot,setSnapshot]=useState<LiveQuizSnapshot|null>(null);
   const [report,setReport]=useState<LiveQuizReport|null>(null);
@@ -61,7 +69,9 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     setLoading(true);setError('');
     try{
       const {data}=await api<{data:{id:string;pin:string;questionCount:number}}>('/live-quizzes',{
-        method:'POST',body:JSON.stringify({courseCode,scopes,count,seconds}),
+        method:'POST',body:JSON.stringify({courseCode,scopes,count,seconds,mode:gameMode,
+          durationSeconds,treasureGoal,allowLateJoin,randomNames,showCorrectness,
+          questionOrder,incorrectPenaltySeconds}),
       });
       setReport(null);setSnapshot(null);setRoomId(data.id);
     }catch(cause){setError(cause instanceof Error?cause.message:'Unable to create game.');}
@@ -86,13 +96,14 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     const code=qrcode(0,'M');code.addData(joinUrl);code.make();return code.createDataURL(5,2);
   },[joinUrl]);
   const timeLeft=countdownSeconds(snapshot,clock,serverOffset);
+  const gameRemaining=snapshot?.endsAt?Math.max(0,Math.ceil((new Date(snapshot.endsAt).getTime()-clock-serverOffset)/1000)):0;
   const active=snapshot?.status==='active',review=snapshot?.status==='review';
   const finished=snapshot?.status==='finished';
   const question=snapshot?.question;
   return <section className="lq-host" aria-label="Cambridge Live Quiz host">
     <div className="lq-header">
       <div><span className="lq-eyebrow">CAMBRIDGE {courseCode} · LIVE CLASSROOM</span>
-        <h2>Live Quiz</h2><p>Students join by PIN or QR code. Every answer is checked on the server.</p></div>
+        <h2>Cambridge Live Games</h2><p>Choose a game mode, invite your class, and review every answer.</p></div>
       <div className="lq-header-actions">
         <button type="button" className="lq-secondary" onClick={onToggleFullscreen}>{isFullscreen?'Exit full screen':'Full screen'}</button>
         <button type="button" className="lq-secondary" onClick={onExit}>Back to games</button>
@@ -101,24 +112,65 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     {error&&<p className="lq-error" role="alert">{error}</p>}
     {!roomId&&<>
       <div className="lq-setup">
-        <h3>Host a new game</h3>
+        <h3>1 · Choose your game mode</h3>
         <p>{scopes.length} selected curriculum scopes · {courseCode}. Questions use the approved, source-verified glossary bank.</p>
+        <div className="lq-mode-grid" role="group" aria-label="Choose live quiz game mode">
+          <button type="button" className={'lq-mode-card'+(gameMode==='classic'?' is-selected':'')}
+            aria-pressed={gameMode==='classic'} onClick={()=>{setGameMode('classic');
+              if(questionOrder==='mastery')setQuestionOrder('random');}}>
+            <span className="lq-mode-icon">⚡</span><strong>Classic Challenge</strong>
+            <small>All players answer the same question at the same time. Speed + accuracy decide the winner.</small>
+            <b>Synced · Teacher-paced</b>
+          </button>
+          <button type="button" className={'lq-mode-card'+(gameMode==='treasure'?' is-selected':'')}
+            aria-pressed={gameMode==='treasure'} onClick={()=>setGameMode('treasure')}>
+            <span className="lq-mode-icon">🏴‍☠️</span><strong>Treasure Quest</strong>
+            <small>Players answer independently, choose mystery chests, grow gold, steal or swap to climb the board.</small>
+            <b>Self-paced · Luck + knowledge</b>
+          </button>
+        </div>
+        <h3>2 · Game settings</h3>
         <div className="lq-setup-controls">
-          <label>Questions <select aria-label="Live quiz question count" value={count}
+          <label>{gameMode==='classic'?'Questions':'Question bank'} <select aria-label="Live quiz question count" value={count}
             onChange={e=>setCount(Number(e.target.value))}>
             {[10,15,20,30].map(n=><option key={n} value={n}>{n} questions</option>)}
           </select></label>
-          <label>Seconds per question <select aria-label="Live quiz seconds per question" value={seconds}
+          {gameMode==='classic'&&<label>Seconds per question <select aria-label="Live quiz seconds per question" value={seconds}
             onChange={e=>setSeconds(Number(e.target.value))}>
             {[10,15,20,30].map(n=><option key={n} value={n}>{n} seconds</option>)}
+          </select></label>}
+          {gameMode==='treasure'&&<>
+            <label>Game duration <select aria-label="Treasure game duration" value={durationSeconds}
+              onChange={e=>setDurationSeconds(Number(e.target.value))}>
+              {[180,300,420,600,900].map(n=><option key={n} value={n}>{n/60} minutes</option>)}
+            </select></label>
+            <label>Gold goal <select aria-label="Treasure gold goal" value={treasureGoal}
+              onChange={e=>setTreasureGoal(Number(e.target.value))}>
+              {[5000,10000,25000,50000].map(n=><option key={n} value={n}>{n.toLocaleString('en')} gold</option>)}
+            </select></label>
+            <label>Wrong-answer cooldown <select aria-label="Wrong-answer cooldown"
+              value={incorrectPenaltySeconds} onChange={e=>setIncorrectPenaltySeconds(Number(e.target.value))}>
+              {[0,2,5,10].map(n=><option key={n} value={n}>{n===0?'No penalty':n+' seconds'}</option>)}
+            </select></label>
+          </>}
+          <label>Question order <select aria-label="Live quiz question ordering" value={questionOrder}
+            onChange={e=>setQuestionOrder(e.target.value as 'random'|'ordered'|'mastery')}>
+            <option value="random">Random</option><option value="ordered">Ordered by topic</option>
+            {gameMode==='treasure'&&<option value="mastery">Mastery · revisit missed questions</option>}
           </select></label>
-          <button type="button" className="lq-primary" onClick={()=>{void create();}} disabled={loading||!scopes.length}>Create Live Quiz</button>
         </div>
+        <div className="lq-host-options">
+          <label><input type="checkbox" checked={allowLateJoin} onChange={e=>setAllowLateJoin(e.target.checked)}/> Allow late joining</label>
+          <label><input type="checkbox" checked={randomNames} onChange={e=>setRandomNames(e.target.checked)}/> Use random player names</label>
+          {gameMode==='treasure'&&<label><input type="checkbox" checked={showCorrectness} onChange={e=>setShowCorrectness(e.target.checked)}/> Reveal correct answer after a wrong answer</label>}
+        </div>
+        <button type="button" className="lq-primary" onClick={()=>{void create();}} disabled={loading||!scopes.length}>
+          {loading?'Creating…':'Host Now →'}</button>
         <p className="lq-small">If a narrow topic contains fewer verified questions, the game uses every eligible question (minimum four).</p>
       </div>
       {!!history.length&&<div className="lq-history"><h3>My recent Live Quizzes</h3>
         {history.map(item=><button key={item.id} type="button" onClick={()=>reopen(item)}>
-          <b>PIN {item.pin}</b><span>{item.courseCode} · {item.questionCount} questions · {item.playerCount} students</span>
+          <b>PIN {item.pin}</b><span>{item.mode==='treasure'?'🏴‍☠️ Treasure Quest':'⚡ Classic'} · {item.courseCode} · {item.questionCount} questions · {item.playerCount} students</span>
           <small>{item.status==='finished'?'View final reports':'Resume game'} · {new Date(item.createdAt).toLocaleDateString('en-GB')}</small>
         </button>)}
       </div>}
@@ -134,11 +186,26 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         <div className="lq-lobby-count"><strong>{snapshot.players.length}</strong><span>players joined</span></div>
       </div>
       {snapshot.status==='waiting'&&<div className="lq-waiting">
-        <h3>Waiting for players</h3>
+        <h3>Waiting for players · {snapshot.mode==='treasure'?'🏴‍☠️ Treasure Quest':'⚡ Classic Challenge'}</h3>
         <p>The names below appear automatically as students join.</p>
         <div className="lq-player-bubbles">{snapshot.players.map(player=><span key={player.id}>{player.avatar} {player.nickname}</span>)}</div>
         <button type="button" className="lq-primary" disabled={loading||!snapshot.players.length}
-          onClick={()=>{void command('start');}}>Start Game · {snapshot.questionCount} questions</button>
+          onClick={()=>{void command('start');}}>Start Game · {snapshot.players.length} players</button>
+      </div>}
+      {snapshot.mode==='treasure'&&active&&<div className="lq-question-stage lq-treasure-projector">
+        <span className="lq-eyebrow">TREASURE QUEST · LIVE</span>
+        <h3>🏴‍☠️ The treasure hunt is on!</h3>
+        <div className="lq-treasure-metrics">
+          <div><b>{Math.floor(gameRemaining/60)}:{String(gameRemaining%60).padStart(2,'0')}</b><span>Time remaining</span></div>
+          <div><b>{snapshot.treasureGoal?.toLocaleString('en')}</b><span>Gold goal</span></div>
+          <div><b>{snapshot.answeredCount}</b><span>Questions answered</span></div>
+        </div>
+        <div className="lq-leaderboard"><h3>Live Gold Leaderboard</h3>
+          {snapshot.players.map((player,index)=><div key={player.id}>
+            <span>{['🥇','🥈','🥉'][index]??(index+1)+'.'} {player.avatar} {player.nickname}</span>
+            <strong>🪙 {player.score.toLocaleString('en')}</strong></div>)}
+        </div>
+        <button type="button" className="lq-secondary" disabled={loading} onClick={()=>{void command('finish');}}>End game & show reports</button>
       </div>}
       {(active||review)&&question&&<div className="lq-question-stage">
         <div className="lq-question-meta"><b>Question {question.index+1} / {snapshot.questionCount}</b>

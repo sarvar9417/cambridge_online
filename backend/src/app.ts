@@ -201,6 +201,7 @@ export function createApp(
         quiz_room_not_found:'Bu koddagi ochiq o‘yin topilmadi yoki xona yopilgan.',
         quiz_player_not_found:'O‘yin sessiyasi topilmadi. Qayta qo‘shiling.',
         quiz_name_taken:'Bu ism band. Boshqa ism kiriting.',
+        quiz_name_required:'O‘yinga kirish uchun ism kiriting.',
         quiz_room_full:'Bu o‘yinga 60 nafar ishtirokchi qo‘shilgan. Xona to‘lgan.',
         quiz_invalid_state:'O‘yin bu amal uchun tayyor emas. Holatni yangilang.',
         quiz_no_players:'O‘yinni boshlash uchun kamida bitta o‘quvchi qo‘shilishi kerak.',
@@ -208,6 +209,10 @@ export function createApp(
         quiz_time_expired:'Bu savolning vaqti tugagan.',
         quiz_already_answered:'Bu savolga javob allaqachon yuborilgan.',
         quiz_results_not_ready:'Batafsil natijalar o‘yin tugagach ochiladi.',
+        quiz_penalty_active:'Xato javobdan keyingi qisqa kutish vaqti hali tugamadi.',
+        quiz_reward_closed:'Bu sandiq mukofoti allaqachon olingan yoki o‘yin tugagan.',
+        quiz_reward_selection_required:'Uchta sandiqdan birini tanlang.',
+        quiz_invalid_target:'Mukofot uchun boshqa ishtirokchini tanlang.',
       });
       res.status(error.status).json({ error: { code: error.code, message: messages[error.code]??error.message, ...(error.details ? { details: error.details } : {}) } });
       return;

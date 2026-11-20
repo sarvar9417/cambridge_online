@@ -2,14 +2,20 @@ import { useState } from 'react';
 import type { LiveQuizDetail, LiveQuizReport } from './live-quiz-api';
 
 function downloadCsv(report:LiveQuizReport){
-  const csvCell=(value:unknown)=>`"${String(value??'').replace(/"/g,'""')}"`;
-  const rows=[['Name','Correct','Total','Answered','Score','Question','Result','Selected answer','Correct answer','Prompt']];
+  // A nickname is participant-controlled; don't allow spreadsheet formula injection.
+  const csvCell=(value:unknown)=>{
+    const raw=String(value??'');const safe=/^[\s]*[=+\-@]/.test(raw)?"'"+raw:raw;
+    return `"${safe.replace(/"/g,'""')}"`;
+  };
+  const rows=[['Name','Correct','Total','Answered','Score','Question','Result','Selected answer',
+    'Correct answer','Prompt','Response time ms','Source']];
   for(const student of report.students){
     for(const detail of student.details){
       rows.push([student.nickname,String(student.correct),String(student.total),
         String(student.answered),String(student.score),String(detail.number),detail.status,
         detail.choiceIndex===null?'—':detail.options[detail.choiceIndex]??'',
-        detail.options[detail.correctIndex]??'',detail.prompt]);
+        detail.options[detail.correctIndex]??'',detail.prompt,
+        String(detail.elapsedMs??''),detail.sourceContext]);
     }
   }
   const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
@@ -35,14 +41,26 @@ function Mistake({detail}:{detail:LiveQuizDetail}){
 export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teacher:boolean}){
   const [chosen,setChosen]=useState<string|null>(null);
   const [showAll,setShowAll]=useState(false);
+  const [tab,setTab]=useState<'students'|'questions'>('students');
+  const [questionNo,setQuestionNo]=useState<number|null>(null);
   const selected=report.students.find(student=>student.id===chosen)??report.students[0];
+  const question=report.questionSummary?.find(item=>item.number===questionNo);
+  const classAttempts=report.students.reduce((sum,student)=>sum+student.answered,0);
+  const classCorrect=report.students.reduce((sum,student)=>sum+student.correct,0);
   return <section className="lq-final" aria-label="Live quiz final results">
     <header className="lq-final-heading">
       <span className="lq-eyebrow">FINAL RESULTS · GAME {report.pin}</span>
       <h2>🏆 Quiz complete!</h2>
-      <p>{report.totalQuestions} questions · {report.students.length} players · detailed first-attempt results</p>
+      <p>{report.questionBankSize??report.totalQuestions} verified questions in the bank · {report.students.length} players
+        {report.mode==='treasure'?' · self-paced Treasure Quest':' · synced Classic Challenge'}</p>
       {teacher&&<button type="button" className="lq-secondary" onClick={()=>downloadCsv(report)}>Download detailed CSV report</button>}
     </header>
+    {teacher&&<div className="lq-class-summary">
+      <div><b>{classCorrect} / {classAttempts}</b><span>Class correct / answered</span></div>
+      <div><b>{classAttempts?Math.round(classCorrect/classAttempts*100):0}%</b><span>Class accuracy</span></div>
+      <div><b>{report.students.length}</b><span>Participants</span></div>
+      <div><b>{report.questionSummary?.length??report.totalQuestions}</b><span>Questions reviewed</span></div>
+    </div>}
     {teacher&&<div className="lq-podium">
       {report.students.slice(0,3).map((student,index)=><div key={student.id} className="lq-podium-item">
         <span>{['🥇','🥈','🥉'][index]}</span><strong>{student.avatar} {student.nickname}</strong>
@@ -50,20 +68,46 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
         <small>{student.correct} / {student.total} correct</small>
       </div>)}
     </div>}
-    {teacher&&<div className="lq-roster" role="group" aria-label="Select student report">
+    {teacher&&<div className="lq-report-tabs" role="group" aria-label="Report view">
+      <button type="button" aria-pressed={tab==='students'} onClick={()=>setTab('students')}>👥 Student results</button>
+      <button type="button" aria-pressed={tab==='questions'} onClick={()=>setTab('questions')}>📊 Question breakdown</button>
+    </div>}
+    {teacher&&tab==='questions'&&<div className="lq-question-breakdown">
+      <h3>Question-by-question performance</h3>
+      <p>Select a question to see exactly which students missed it.</p>
+      <div className="lq-question-breakdown-list">{(report.questionSummary??[])
+        .slice().sort((a,b)=>(b.wrong+b.skipped)/Math.max(1,b.total)-
+          (a.wrong+a.skipped)/Math.max(1,a.total))
+        .map(item=><button type="button" key={item.number} aria-pressed={questionNo===item.number}
+          onClick={()=>setQuestionNo(item.number)}>
+          <b>Q{item.number}</b><span>{item.prompt}</span>
+          <strong>{item.correct}/{item.total} correct</strong>
+          <small>{item.wrong} wrong · {item.skipped} skipped</small>
+        </button>)}</div>
+      {question&&<div className="lq-question-inspector">
+        <h4>Question {question.number}: {question.prompt}</h4>
+        <p className="lq-source">{question.sourceContext}</p>
+        <p>✓ {question.correct} correct · ✕ {question.wrong} wrong · — {question.skipped} unanswered</p>
+        {question.wrongStudents.length?<ul>{question.wrongStudents.map((student,index)=><li key={student.id+index}>
+          <b>{student.nickname}</b> — {student.answer}</li>)}</ul>
+          :<p>Everyone answered this correctly.</p>}
+      </div>}
+    </div>}
+    {teacher&&tab==='students'&&<div className="lq-roster" role="group" aria-label="Select student report">
       {report.students.map((student,index)=><button key={student.id} type="button"
         aria-pressed={selected?.id===student.id} onClick={()=>{setChosen(student.id);setShowAll(false);}}>
         <span>{index+1}. {student.avatar} {student.nickname}</span>
         <b>{student.correct}/{student.total}</b><small>{student.score} pts</small>
       </button>)}
     </div>}
-    {selected&&<div className="lq-personal-report">
+    {selected&&(!teacher||tab==='students')&&<div className="lq-personal-report">
       <h3>{selected.avatar} {selected.nickname} — detailed report</h3>
       <div className="lq-result-numbers">
         <div><strong>{selected.correct} / {selected.total}</strong><span>Correct answers</span></div>
         <div><strong>{selected.answered} / {selected.total}</strong><span>Questions answered</span></div>
         <div><strong>{selected.total?Math.round(selected.correct/selected.total*100):0}%</strong><span>Accuracy</span></div>
         <div><strong>{selected.score}</strong><span>Points</span></div>
+        {selected.averageResponseMs!==undefined&&<div><strong>{(selected.averageResponseMs/1000).toFixed(1)}s</strong><span>Average answer time</span></div>}
       </div>
       <h4>Incorrect and unanswered questions ({selected.details.filter(detail=>!detail.correct).length})</h4>
       {selected.details.every(detail=>detail.correct)
