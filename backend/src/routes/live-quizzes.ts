@@ -22,7 +22,8 @@ const joinBody=z.object({pin:z.string().regex(/^\d{6}$/),
   nickname:z.string().trim().min(2).max(24).optional(),avatar}).strict();
 const answerBody=z.object({questionIndex:z.number().int().min(0).max(499),
   choiceIndex:z.number().int().min(0).max(3)}).strict();
-const commandBody=z.object({action:z.enum(['start','reveal','next','finish'])}).strict();
+const commandBody=z.object({action:z.enum(['start','reveal','next','finish']),
+  expectedQuestionIndex:z.number().int().min(-1).max(29).optional()}).strict();
 const rewardBody=z.object({turnIndex:z.number().int().min(0).max(499),
   chestIndex:z.number().int().min(0).max(2).optional(),targetId:id.optional()}).strict();
 const neverCache=(res:{set:(header:string,value:string)=>unknown})=>res.set('Cache-Control','private, no-store');
@@ -81,7 +82,8 @@ export function createLiveQuizHostRouter(service:LiveQuizService){
   router.get('/:roomId',async(req,res)=>{neverCache(res);
     res.json({data:await service.teacherSnapshot(req.actor!,id.parse(req.params.roomId))});});
   router.post('/:roomId/action',async(req,res)=>{neverCache(res);
+    const body=commandBody.parse(req.body);
     res.json({data:await service.command(req.actor!,id.parse(req.params.roomId),
-      commandBody.parse(req.body).action)});});
+      body.action,body.expectedQuestionIndex)});});
   return router;
 }

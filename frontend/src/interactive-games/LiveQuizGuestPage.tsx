@@ -3,7 +3,7 @@ import { forgetQuizGuest, LIVE_QUIZ_AVATARS, quizGuestRequest, readQuizGuest,
   saveQuizGuest, type LiveQuizLobby, type LiveQuizReport, type LiveQuizSnapshot,
   type LiveQuizQuestion, type TreasureAnswerResponse, type TreasureRewardResponse } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
-import { countdownSeconds } from './LiveQuizHost';
+import { countdownSeconds, reviewCountdownSeconds } from './LiveQuizHost';
 import './live-quiz.css';
 
 export function LiveQuizGuestPage({pin}:{pin:string}){
@@ -145,6 +145,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   }
 
   const timeLeft=countdownSeconds(snapshot,clock,serverOffset);
+  const reviewLeft=reviewCountdownSeconds(snapshot,clock,serverOffset);
   const selected=snapshot?.ownAnswer?.choiceIndex??localAnswer;
   const question=snapshot?.question;
   const isTreasure=snapshot?.mode==='treasure';
@@ -249,7 +250,9 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
         <div className="lq-leaderboard"><h3>Leaderboard</h3>
           {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
             <span>{index+1}. {player.avatar} {player.nickname}</span><b>{player.score} pts</b></div>)}</div>
-        <p className="lq-help">Waiting for the teacher to start the next question…</p>
+        <p className="lq-help" role="status">{question.index+1===snapshot.questionCount
+          ?`Final results appear automatically in ${reviewLeft} seconds.`
+          :`Next question starts automatically in ${reviewLeft} seconds.`}</p>
       </section>}
       {snapshot.status==='finished'&&(report?<LiveQuizReportView report={report} teacher={false}/>
         :<p className="lq-loading" role="status">Calculating your detailed result…</p>)}

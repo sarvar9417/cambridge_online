@@ -15,7 +15,7 @@ type GameMode = 'classic'|'treasure';
 type QuestionOrder = 'random'|'ordered'|'mastery';
 type Room = {id:string;host_id:string;pin:string;course_code:string;scopes:Scope[];
   questions:Question[];status:Status;question_index:number;question_seconds:number;
-  question_started_at:Date|string|null;created_at:string;finished_at:string|null;
+  question_started_at:Date|string|null;created_at:string;updated_at:Date|string;finished_at:string|null;
   game_mode:GameMode;duration_seconds:number;ends_at:Date|string|null;
   allow_late_join:boolean;show_correctness:boolean;random_names:boolean;
   treasure_goal:number;dragon_pool:number;question_order:QuestionOrder;
@@ -28,6 +28,7 @@ type Answer = {player_id:string;question_index:number;choice_index:number;correc
 
 const error=(code:string,status:400|403|404|409|429)=>new DomainError(code,status);
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
+export const CLASSIC_REVIEW_SECONDS=5;
 const randomStudentName=()=>`Player ${randomInt(10000,99999)}`;
 const shuffled=<T,>(values:readonly T[]):T[]=>{
   const result=[...values];
@@ -214,12 +215,14 @@ export class LiveQuizService {
     }finally{client.release();}
   }
 
-  async command(actor:Actor,id:string,action:'start'|'reveal'|'next'|'finish'){
+  async command(actor:Actor,id:string,action:'start'|'reveal'|'next'|'finish',expectedQuestionIndex?:number){
     const client=await this.pool.connect();
     try{
       await client.query('begin');
       const room=await this.hostRoom(actor,id,client);
       let status:Status=room.status,index=room.question_index;
+      if(expectedQuestionIndex!==undefined&&expectedQuestionIndex!==index)
+        throw error('quiz_invalid_state',409);
       if(action==='start'){
         if(status!=='waiting')throw error('quiz_invalid_state',409);
         const count=await client.query(`select 1 from live_quiz_players where room_id=$1 limit 1`,[id]);
@@ -229,6 +232,10 @@ export class LiveQuizService {
           where room_id=$1`,[id]);
       }else if(action==='reveal'){
         if(!['active','review'].includes(status)||room.game_mode==='treasure')throw error('quiz_invalid_state',409);
+        if(status==='review'){
+          await client.query('commit');
+          return {status,questionIndex:index}; // Do not restart the review timer.
+        }
         status='review';
       }else if(action==='next'){
         if(status!=='review'||room.game_mode==='treasure')throw error('quiz_invalid_state',409);
@@ -261,6 +268,21 @@ export class LiveQuizService {
             select 1 from live_quiz_players p where p.room_id=r.id
             and not exists(select 1 from live_quiz_answers a
               where a.player_id=p.id and a.question_index=r.question_index))))`,[id]);
+    // No browser owns the next-question timer. Whichever teacher or student
+    // polls first advances the durable room after the five-second reveal.
+    // This works across reloads, disconnected hosts and concurrent requests.
+    await this.pool.query(`update live_quiz_rooms r set
+        status=case when r.question_index+1>=jsonb_array_length(r.questions)
+          then 'finished' else 'active' end,
+        question_index=case when r.question_index+1>=jsonb_array_length(r.questions)
+          then r.question_index else r.question_index+1 end,
+        question_started_at=case when r.question_index+1>=jsonb_array_length(r.questions)
+          then r.question_started_at else now() end,
+        finished_at=case when r.question_index+1>=jsonb_array_length(r.questions)
+          then now() else r.finished_at end,
+        updated_at=now()
+      where r.id=$1 and r.game_mode='classic' and r.status='review'
+        and r.updated_at<=now()-($2::text||' seconds')::interval`,[id,CLASSIC_REVIEW_SECONDS]);
   }
 
   /** The score is not published during an active question, so a peer cannot
@@ -277,6 +299,11 @@ export class LiveQuizService {
       [room.id,cutoff,room.question_index]);
     const answered=players.rows.filter(row=>Number(row.answered_now)>0).length;
     const canReveal=room.status==='review';
+    const choiceCounts=canReveal?await this.pool.query<{choice_index:number;total:number}>(
+      `select a.choice_index,count(*)::int total from live_quiz_answers a
+       join live_quiz_players p on p.id=a.player_id
+       where p.room_id=$1 and a.question_index=$2 group by a.choice_index`,
+      [room.id,room.question_index]):null;
     const original=room.question_index>=0?room.questions[room.question_index]:undefined;
     const question=room.status==='finished'||!original?null:{id:original.id,index:room.question_index,
       prompt:original.prompt,options:original.options,sourceContext:original.sourceContext,
@@ -293,6 +320,11 @@ export class LiveQuizService {
       allowLateJoin:room.allow_late_join,showCorrectness:room.show_correctness,randomNames:room.random_names,
       questionCount:room.questions.length,questionIndex:room.question_index,
       questionSeconds:room.question_seconds,questionStartedAt:room.question_started_at,
+      ...(canReveal?{
+        reviewEndsAt:new Date(new Date(room.updated_at).getTime()+CLASSIC_REVIEW_SECONDS*1000).toISOString(),
+        answerCounts:Array.from({length:4},(_,index)=>Number(choiceCounts?.rows.find(row=>
+          Number(row.choice_index)===index)?.total??0)),
+      }:{}),
       serverNow:new Date().toISOString(),players:players.rows.map(row=>({id:row.id,nickname:row.nickname,
         avatar:row.avatar,score:Number(row.score),answered:Boolean(Number(row.answered_now))})),
       answeredCount:answered,question,ownAnswer,

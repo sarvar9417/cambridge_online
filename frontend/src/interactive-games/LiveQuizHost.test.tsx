@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/api';
-import { LiveQuizHost } from './LiveQuizHost';
+import { LiveQuizHost, reviewCountdownSeconds } from './LiveQuizHost';
 
 vi.mock('../lib/api',()=>({api:vi.fn()}));
 const mockApi=vi.mocked(api);
@@ -64,4 +64,41 @@ describe('Live quiz Blooket-style host configuration',()=>{
     expect([...container.querySelectorAll('option')].some(option=>option.value==='mastery')).toBe(false);
     expect(container.querySelector('[aria-label="Live quiz seconds per question"]')).not.toBeNull();
   });
+
+  it('shows answer-choice distribution and automatic next-question countdown during Classic review',async()=>{
+    const now=Date.now();
+    mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/live-quizzes'&&!options)return {data:[]};
+      if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:4}};
+      if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
+        status:'review',mode:'classic',questionCount:4,questionIndex:0,
+        questionSeconds:20,questionStartedAt:new Date(now-12000).toISOString(),
+        reviewEndsAt:new Date(now+5000).toISOString(),answerCounts:[1,0,2,0],
+        serverNow:new Date(now).toISOString(),players:[
+          {id:'1',nickname:'Aziza',avatar:'🦊',score:900,answered:true},
+          {id:'2',nickname:'Sardor',avatar:'🐼',score:800,answered:true},
+          {id:'3',nickname:'Sevinch',avatar:'🦁',score:0,answered:true},
+        ],answeredCount:3,question:{id:'question',index:0,prompt:'Question one',
+          options:['A','B','C','D'],correctIndex:2,explanation:'C is right',sourceContext:'Chapter 17'},
+        ownAnswer:null}};
+      throw Error('Unexpected request '+path);
+    }) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="9618"
+      scopes={[{chapterNo:17,kind:'chapter'}]} onExit={()=>{}}
+      onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    await click('Host Now');
+    await act(async()=>{await Promise.resolve();await Promise.resolve();});
+    expect(container.textContent).toContain('How the class answered');
+    expect(container.textContent).toContain('2 · 67%');
+    expect(container.textContent).toContain('Results · next in');
+    expect(container.textContent).toContain('Next now');
+    expect(container.querySelectorAll('.lq-answer-distribution progress')).toHaveLength(4);
+  });
+});
+
+it('counts down to an automatic server-controlled review transition',()=>{
+  const state={status:'review' as const,reviewEndsAt:new Date(5000).toISOString()};
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],0)).toBe(5);
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],4200)).toBe(1);
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],6000)).toBe(0);
 });

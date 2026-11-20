@@ -12,6 +12,7 @@ export interface LiveQuizSnapshot {
   mode:LiveQuizMode;allowLateJoin?:boolean;showCorrectness?:boolean;randomNames?:boolean;
   questionCount:number;questionIndex:number;questionSeconds:number;
   questionStartedAt:string|null;serverNow:string;players:LiveQuizPlayer[];
+  reviewEndsAt?:string;answerCounts?:number[];
   answeredCount:number;question:LiveQuizQuestion|null;
   endsAt?:string|null;durationSeconds?:number;treasureGoal?:number;dragonPool?:number;
   ownScore?:number;ownCorrect?:number;ownTurn?:number;blockedUntil?:string|null;

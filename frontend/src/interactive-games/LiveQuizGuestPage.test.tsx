@@ -96,4 +96,21 @@ describe('Treasure Quest student interactions',()=>{
     expect(host.textContent).toContain('Correct answer: Old C');
     expect(host.textContent).not.toContain('Correct answer: New C');
   });
+
+  it('tells Classic players that the next question starts automatically',async()=>{
+    const state:LiveQuizSnapshot={...snapshot(null),mode:'classic',status:'review',
+      questionCount:4,questionIndex:1,reviewEndsAt:new Date(Date.now()+5000).toISOString(),
+      pendingReward:null,question:{id:'q2',index:1,prompt:'Compiler definition',
+        options:['A','B','C','D'],correctIndex:2,explanation:'C is correct',sourceContext:'Chapter 16'},
+      ownAnswer:{choiceIndex:0,correct:false,points:0}};
+    request.mockImplementation(async(url:string)=>{
+      if(url.endsWith(`/${playerId}`))return new Response(JSON.stringify({data:state}));
+      if(url.includes('/lobby/'))return new Response(JSON.stringify({data:{pin:'123456',
+        courseCode:'9618',mode:'classic',status:'active',randomNames:false,playerCount:2}}));
+      throw Error('Unexpected request '+url);
+    });
+    await render();
+    expect(host.textContent).toContain('Next question starts automatically in');
+    expect(host.textContent).not.toContain('Waiting for the teacher');
+  });
 });

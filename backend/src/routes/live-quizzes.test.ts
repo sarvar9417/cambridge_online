@@ -84,4 +84,12 @@ describe('Live Quiz game mode HTTP validation',()=>{
     expect(service.join).toHaveBeenCalledTimes(60);
     expect(service.lobby).toHaveBeenCalledTimes(60);
   });
+
+  it('sends the expected question index with host controls to reject stale clicks',async()=>{
+    const {app,service}=fixture();
+    const response=await request(app).post(`/host/${roomId}/action`)
+      .send({action:'next',expectedQuestionIndex:2});
+    expect(response.status).toBe(200);
+    expect(service.command).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),roomId,'next',2);
+  });
 });

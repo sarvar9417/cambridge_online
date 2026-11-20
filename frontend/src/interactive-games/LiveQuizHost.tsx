@@ -12,6 +12,11 @@ export function countdownSeconds(snapshot:LiveQuizSnapshot|null,now:number,serve
   return Math.max(0,Math.ceil((deadline-now-serverOffset)/1000));
 }
 
+export function reviewCountdownSeconds(snapshot:LiveQuizSnapshot|null,now:number,serverOffset=0){
+  if(!snapshot||snapshot.status!=='review'||!snapshot.reviewEndsAt)return 0;
+  return Math.max(0,Math.ceil((new Date(snapshot.reviewEndsAt).getTime()-now-serverOffset)/1000));
+}
+
 export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFullscreen}:{
   courseCode:'9618'|'0478';scopes:readonly GameScope[];onExit:()=>void;
   onToggleFullscreen:()=>void;isFullscreen:boolean;
@@ -90,7 +95,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     if(action==='finish'&&!window.confirm('Finish this game early and publish results?'))return;
     setLoading(true);setError('');
     try{
-      await api(`/live-quizzes/${roomId}/action`,{method:'POST',body:JSON.stringify({action})});
+      await api(`/live-quizzes/${roomId}/action`,{method:'POST',
+        body:JSON.stringify({action,expectedQuestionIndex:snapshot?.questionIndex})});
       const {data}=await api<{data:LiveQuizSnapshot}>(`/live-quizzes/${roomId}`);
       setSnapshot(data);setServerOffset(new Date(data.serverNow).getTime()-Date.now());
     }catch(cause){setError(cause instanceof Error?cause.message:'Could not advance the game.');}
@@ -104,6 +110,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     const code=qrcode(0,'M');code.addData(joinUrl);code.make();return code.createDataURL(5,2);
   },[joinUrl]);
   const timeLeft=countdownSeconds(snapshot,clock,serverOffset);
+  const reviewLeft=reviewCountdownSeconds(snapshot,clock,serverOffset);
   const gameRemaining=snapshot?.endsAt?Math.max(0,Math.ceil((new Date(snapshot.endsAt).getTime()-clock-serverOffset)/1000)):0;
   const active=snapshot?.status==='active',review=snapshot?.status==='review';
   const finished=snapshot?.status==='finished';
@@ -128,7 +135,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
               if(questionOrder==='mastery')setQuestionOrder('random');}}>
             <span className="lq-mode-icon">⚡</span><strong>Classic Challenge</strong>
             <small>All players answer the same question at the same time. Speed + accuracy decide the winner.</small>
-            <b>Synced · Teacher-paced</b>
+            <b>Synced · Auto-advance after results</b>
           </button>
           <button type="button" className={'lq-mode-card'+(gameMode==='treasure'?' is-selected':'')}
             aria-pressed={gameMode==='treasure'} onClick={()=>setGameMode('treasure')}>
@@ -218,13 +225,25 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
       {(active||review)&&question&&<div className="lq-question-stage">
         <div className="lq-question-meta"><b>Question {question.index+1} / {snapshot.questionCount}</b>
           <span className={active&&timeLeft<=5?'lq-countdown is-urgent':'lq-countdown'}>
-            {active?`◷ ${timeLeft}s`:'✓ Answer revealed'}</span>
+            {active?`◷ ${timeLeft}s`:`✓ Results · next in ${reviewLeft}s`}</span>
           <b>{snapshot.answeredCount} / {snapshot.players.length} answered</b></div>
         <p className="lq-question-prompt">{question.prompt}</p>
         <p className="lq-source">{question.sourceContext}</p>
         <div className="lq-options">{question.options.map((option,index)=><div key={index}
           className={'lq-option lq-option-'+index+(review&&index===question.correctIndex?' is-answer':'')}>
           <span>{['▲','◆','●','■'][index]}</span><b>{option}</b></div>)}</div>
+        {review&&snapshot.answerCounts&&<section className="lq-answer-distribution" aria-label="Class answer distribution">
+          <h4>📊 How the class answered</h4>
+          {question.options.map((option,index)=>{
+            const total=snapshot.answerCounts?.[index]??0;
+            const percent=snapshot.answeredCount?Math.round(total/snapshot.answeredCount*100):0;
+            return <div key={index} className={index===question.correctIndex?'is-correct':''}>
+              <span>{['▲','◆','●','■'][index]} {option}</span>
+              <progress value={total} max={Math.max(1,snapshot.answeredCount)} aria-label={`${option}: ${total} answers`}/>
+              <b>{total} · {percent}%</b>
+            </div>;
+          })}
+        </section>}
         {active?<div className="lq-stage-actions">
           <button type="button" className="lq-primary" disabled={loading}
             onClick={()=>{void command('reveal');}}>Reveal correct answer</button>
@@ -233,7 +252,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         </div>:<div className="lq-stage-actions">
           <p className="lq-explanation">Correct answer: {question.options[question.correctIndex!]}. {question.explanation}</p>
           <button type="button" className="lq-primary" disabled={loading}
-            onClick={()=>{void command('next');}}>{question.index+1===snapshot.questionCount?'Finish game & show results':'Next question'}</button>
+            onClick={()=>{void command('next');}}>{question.index+1===snapshot.questionCount?'Show final report now':'Next now'} · auto in {reviewLeft}s</button>
         </div>}
       </div>}
       {review&&<div className="lq-leaderboard"><h3>Leaderboard</h3>
