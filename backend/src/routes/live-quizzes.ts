@@ -51,7 +51,8 @@ export function createLiveQuizHostRouter(service:LiveQuizService){
   const router=Router();
   router.get('/',async(req,res)=>{neverCache(res);res.json({data:await service.history(req.actor!)});});
   router.post('/',async(req,res)=>{neverCache(res);
-    res.status(201).json({data:await service.create(req.actor!,createBody.parse(req.body))});});
+    const input=createBody.parse(req.body);
+    res.status(201).json({data:await service.create(req.actor!,{...input,seconds:input.seconds??20})});});
   router.get('/:roomId/report',async(req,res)=>{neverCache(res);
     res.json({data:await service.teacherReport(req.actor!,id.parse(req.params.roomId))});});
   router.get('/:roomId',async(req,res)=>{neverCache(res);
