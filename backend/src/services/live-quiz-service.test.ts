@@ -114,6 +114,56 @@ describe('Cambridge Live Quiz question selection',()=>{
   });
 });
 
+describe('Live Quiz host lifecycle and permanent deletion',()=>{
+  const teacher={id:'teacher-1',role:'teacher' as const,schoolId:'school-1',fullName:'Teacher'};
+
+  it('lets the host finish an unstarted waiting room without any joined players',async()=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
+      if(sql.includes('select * from live_quiz_rooms'))return {rowCount:1,rows:[{
+        id:'room-1',host_id:teacher.id,status:'waiting',question_index:-1,
+        game_mode:'classic',duration_seconds:420,questions:[{},{},{},{}],
+      }]};
+      if(sql.includes('update live_quiz_rooms'))return {rowCount:1,rows:[]};
+      if(['begin','commit','rollback'].includes(sql))return {rowCount:0,rows:[]};
+      throw new Error('Unexpected SQL '+sql);
+    });
+    const client={query,release:vi.fn()};
+    const service=new LiveQuizService({connect:vi.fn(async()=>client)} as unknown as Pool);
+    await expect(service.command(teacher,'room-1','finish',-1)).resolves.toEqual({status:'finished',questionIndex:-1});
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('update live_quiz_rooms'),
+      ['room-1','finished',-1,'classic',420]);
+    expect(query).toHaveBeenCalledWith('commit');
+  });
+
+  it('deletes only finished games owned by the requester',async()=>{
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
+      if(sql.startsWith('delete from live_quiz_rooms'))return {rowCount:1,rows:[{id:'room-1'}]};
+      throw new Error('Unexpected query');
+    });
+    const service=new LiveQuizService({query} as unknown as Pool);
+    await expect(service.deleteFinished(teacher,'room-1')).resolves.toEqual({deleted:true});
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("status='finished'"),['room-1',teacher.id]);
+    await expect(service.deleteFinished({...teacher,role:'student'},'room-1'))
+      .rejects.toMatchObject({code:'quiz_teacher_only',status:403});
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects deletion of an unfinished room and conceals other hosts’ room IDs',async()=>{
+    const query=vi.fn(async(sql:string,params?:unknown[])=>{
+      if(sql.startsWith('delete from live_quiz_rooms'))return {rowCount:0,rows:[]};
+      if(sql.includes('select * from live_quiz_rooms'))return params?.[1]===teacher.id
+        ?{rowCount:1,rows:[{id:'room-1',host_id:teacher.id,status:'active'}]}
+        :{rowCount:0,rows:[]};
+      throw new Error('Unexpected query');
+    });
+    const service=new LiveQuizService({query} as unknown as Pool);
+    await expect(service.deleteFinished(teacher,'room-1'))
+      .rejects.toMatchObject({code:'quiz_must_finish_before_delete',status:409});
+    await expect(service.deleteFinished({...teacher,id:'another-teacher'},'room-1'))
+      .rejects.toMatchObject({code:'quiz_room_not_found',status:404});
+  });
+});
+
 describe('Treasure Quest transactional answer and reward protection',()=>{
   const playerId='2bbcc2fa-38c9-4ebd-8120-111111111111';
   const rivalId='d01122a2-c3b5-4ac2-a860-333333333333';

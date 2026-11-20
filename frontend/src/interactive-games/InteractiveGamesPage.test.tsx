@@ -57,6 +57,7 @@ function pack(scopes: GameScope[]): LiveGamePack {
   };
 }
 async function respond(path: string, init?: RequestInit) {
+  if (path === '/live-quizzes/available') return { data: [] };
   if (path === '/content/interactive-games/practice?courseCode=9618') {
     return { data: mockPracticeHistory };
   }
@@ -510,7 +511,8 @@ describe('database-backed Interactive Games multi-selection', () => {
   });
 
   it('shows an actionable 400-error state, not empty topic controls or fake terms', async () => {
-    mockApi.mockRejectedValueOnce(new Error('HTTP 400: validation_error'));
+    mockApi.mockImplementation(((path: string, init?: RequestInit) =>
+      path.includes('/catalog') ? Promise.reject(new Error('HTTP 400: validation_error')) : respond(path, init)) as typeof api);
     await render();
     expect(container.querySelector('.ig-data-error')?.textContent).toContain('Chapter catalogue failed');
     expect(container.querySelectorAll('.ig-game-tile')).toHaveLength(0);

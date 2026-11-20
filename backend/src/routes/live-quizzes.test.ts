@@ -18,15 +18,20 @@ function fixture(){
     guestSnapshot:vi.fn(async()=>({status:'active'})),
     guestReport:vi.fn(async()=>({students:[]})),
     create:vi.fn(async()=>({id:roomId,pin:'123456'})),
+    availableForStudent:vi.fn(async()=>[{id:roomId,pin:'123456',className:'11-A'}]),
     history:vi.fn(async()=>[]),
     teacherSnapshot:vi.fn(async()=>({status:'waiting'})),
     teacherReport:vi.fn(async()=>({students:[]})),
     command:vi.fn(async()=>({status:'active'})),
+    deleteFinished:vi.fn(async()=>({deleted:true})),
   };
   const app=express();app.use(express.json());
   app.use('/guest',createLiveQuizGuestRouter(service as unknown as LiveQuizService));
   app.use('/host',(req,_res,next)=>{
     req.actor={id:roomId,role:'teacher',schoolId:null,fullName:'Teacher'};next();
+  },createLiveQuizHostRouter(service as unknown as LiveQuizService));
+  app.use('/student',(req,_res,next)=>{
+    req.actor={id:playerId,role:'student',schoolId:roomId,fullName:'Aziza'};next();
   },createLiveQuizHostRouter(service as unknown as LiveQuizService));
   app.use((err:Error,_req:Request,res:Response,_next:NextFunction)=>{
     res.status(400).json({error:{message:err.message}});
@@ -64,12 +69,29 @@ describe('Live Quiz game mode HTTP validation',()=>{
 
   it('accepts both Cambridge modes with host-controlled safety settings',async()=>{
     const {app,service}=fixture();
-    const payload={courseCode:'9618',scopes:[{chapterNo:17,kind:'chapter'}],count:15,
+    const payload={classId:roomId,courseCode:'9618',scopes:[{chapterNo:17,kind:'chapter'}],count:15,
       seconds:20,mode:'treasure',durationSeconds:420,treasureGoal:10000,
       allowLateJoin:true,randomNames:true,showCorrectness:false};
     const response=await request(app).post('/host').send(payload);
     expect(response.status).toBe(201);
     expect(service.create).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),payload);
+  });
+
+  it('allows a code-only game without assigning a class',async()=>{
+    const {app,service}=fixture();
+    const payload={courseCode:'9618',scopes:[{chapterNo:17,kind:'chapter'}],count:15,seconds:20};
+    const response=await request(app).post('/host').send(payload);
+    expect(response.status).toBe(201);
+    expect(service.create).toHaveBeenCalledWith(expect.objectContaining({role:'teacher'}),payload);
+  });
+
+  it('returns automatic classroom links through the signed-in student route',async()=>{
+    const {app,service}=fixture();
+    const response=await request(app).get('/student/available');
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body.data[0]).toMatchObject({pin:'123456',className:'11-A'});
+    expect(service.availableForStudent).toHaveBeenCalledWith(expect.objectContaining({role:'student',id:playerId}));
   });
 
   it('lets a full class behind one school IP check a PIN and join without a shared rate-limit collision',async()=>{
@@ -91,5 +113,15 @@ describe('Live Quiz game mode HTTP validation',()=>{
       .send({action:'next',expectedQuestionIndex:2});
     expect(response.status).toBe(200);
     expect(service.command).toHaveBeenCalledWith(expect.objectContaining({id:roomId}),roomId,'next',2);
+  });
+
+  it('routes confirmed deletion of a completed game to the owning host',async()=>{
+    const {app,service}=fixture();
+    const response=await request(app).delete(`/host/${roomId}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({deleted:true});
+    expect(service.deleteFinished).toHaveBeenCalledWith(expect.objectContaining({role:'teacher'}),roomId);
+    const invalid=await request(app).delete('/host/not-a-uuid');
+    expect(invalid.status).toBe(400);
   });
 });

@@ -101,25 +101,35 @@ export class LiveQuizService {
 
   private teacher(actor:Actor){if(actor.role==='student')throw error('quiz_teacher_only',403);}
 
-  async create(actor:Actor,input:{courseCode:'9618'|'0478';scopes:Scope[];count:number;seconds:number;
+  async create(actor:Actor,input:{classId?:string;courseCode:'9618'|'0478';scopes:Scope[];count:number;seconds:number;
     mode?:GameMode;durationSeconds?:number;allowLateJoin?:boolean;showCorrectness?:boolean;
     randomNames?:boolean;treasureGoal?:number;questionOrder?:QuestionOrder;
     incorrectPenaltySeconds?:number}) {
     this.teacher(actor);
+    if(input.classId){
+      const authorized=await this.pool.query(
+        `select 1 from classes c where c.id=$1 and c.archived_at is null and (
+           ($2='owner' and c.school_id=$3) or
+           ($2='teacher' and (c.owner_id=$4 or exists (
+             select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4
+           )))
+         )`,[input.classId,actor.role,actor.schoolId,actor.id]);
+      if(!authorized.rowCount)throw error('quiz_class_not_found',404);
+    }
     const collection=await this.content.interactiveGameCollection(actor,{courseCode:input.courseCode,scopes:input.scopes});
     const questions=buildLiveQuizQuestions(collection.pairs,input.count,input.questionOrder);
     for(let i=0;i<8;i++){
       const pin=String(randomInt(100000,1000000));
       try{
         const result=await this.pool.query<{id:string}>(
-          `insert into live_quiz_rooms(host_id,pin,course_code,scopes,questions,question_seconds,
+          `insert into live_quiz_rooms(host_id,class_id,pin,course_code,scopes,questions,question_seconds,
              game_mode,duration_seconds,allow_late_join,show_correctness,random_names,treasure_goal,
              question_order,incorrect_penalty_seconds)
-           select $1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14
+           select $1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15
            where not exists(select 1 from live_quiz_rooms
-             where pin=$2 and created_at>now()-interval '24 hours')
+             where pin=$3 and created_at>now()-interval '24 hours')
            returning id`,
-          [actor.id,pin,input.courseCode,JSON.stringify(collection.scopes),JSON.stringify(questions),input.seconds,
+          [actor.id,input.classId??null,pin,input.courseCode,JSON.stringify(collection.scopes),JSON.stringify(questions),input.seconds,
             input.mode??'classic',input.durationSeconds??420,input.allowLateJoin??false,
             input.showCorrectness??true,input.randomNames??false,input.treasureGoal??10000,
             input.questionOrder??'random',input.incorrectPenaltySeconds??2],
@@ -142,12 +152,48 @@ export class LiveQuizService {
       playerCount:Number(row.player_count)}));
   }
 
+  /** Only the host may permanently remove a finished room and its dependent reports. */
+  async deleteFinished(actor:Actor,id:string){
+    this.teacher(actor);
+    const deleted=await this.pool.query<{id:string}>(
+      `delete from live_quiz_rooms where id=$1 and host_id=$2 and status='finished' returning id`,
+      [id,actor.id]);
+    if(!deleted.rowCount){
+      // Do not reveal whether someone else's room exists.
+      await this.hostRoom(actor,id);
+      throw error('quiz_must_finish_before_delete',409);
+    }
+    return {deleted:true};
+  }
+
+  async availableForStudent(actor:Actor){
+    if(actor.role!=='student')throw error('quiz_student_only',403);
+    if(!actor.schoolId)return [];
+    const result=await this.pool.query<{
+      id:string;pin:string;class_name:string;course_code:string;status:'waiting'|'active'|'review';
+      game_mode:GameMode;created_at:Date|string;player_count:number;
+    }>(
+      `select r.id,r.pin,c.name class_name,r.course_code,r.status,r.game_mode,r.created_at,
+        (select count(*)::int from live_quiz_players p where p.room_id=r.id) player_count
+       from live_quiz_rooms r join classes c on c.id=r.class_id
+       where c.school_id=$2 and c.archived_at is null
+         and exists(select 1 from enrollments e where e.class_id=c.id
+           and e.student_id=$1 and e.left_at is null)
+         and r.created_at>now()-interval '24 hours'
+         and (r.status='waiting' or (r.status in ('active','review') and r.allow_late_join=true
+           and (r.ends_at is null or r.ends_at>now())))
+       order by r.created_at desc limit 5`,[actor.id,actor.schoolId]);
+    return result.rows.map(row=>({id:row.id,pin:row.pin,className:row.class_name,
+      courseCode:row.course_code,status:row.status,mode:row.game_mode,
+      createdAt:row.created_at,playerCount:Number(row.player_count)}));
+  }
+
   async lobby(pin:string){
     const result=await this.pool.query<Room&{player_count:number}>(
       `select r.pin,r.status,r.course_code,r.game_mode,r.random_names,r.allow_late_join,
          (select count(*)::int from live_quiz_players p where p.room_id=r.id) player_count
        from live_quiz_rooms r where r.pin=$1 and
-       (r.status='waiting' or (r.status='active' and r.allow_late_join=true
+       (r.status='waiting' or (r.status in ('active','review') and r.allow_late_join=true
          and (r.ends_at is null or r.ends_at>now())))`,[pin]);
     if(!result.rowCount)throw error('quiz_room_not_found',404);
     const room=result.rows[0]!;
@@ -187,7 +233,7 @@ export class LiveQuizService {
       await client.query('begin');
       const room=await client.query<Room>(
         `select * from live_quiz_rooms where pin=$1 and
-          (status='waiting' or (status='active' and allow_late_join=true
+          (status='waiting' or (status in ('active','review') and allow_late_join=true
             and (ends_at is null or ends_at>now()))) for update`,[input.pin]);
       if(!room.rowCount)throw error('quiz_room_not_found',404);
       const capacity=await client.query<{total:number}>(
@@ -242,7 +288,7 @@ export class LiveQuizService {
         if(index+1>=room.questions.length)status='finished';
         else{status='active';index++;}
       }else if(action==='finish'){
-        if(!['active','review'].includes(status))throw error('quiz_invalid_state',409);
+        if(!['waiting','active','review'].includes(status))throw error('quiz_invalid_state',409);
         status='finished';
       }
       await client.query(`update live_quiz_rooms set status=$2,question_index=$3,

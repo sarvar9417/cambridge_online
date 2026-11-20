@@ -10,6 +10,7 @@ import {
 import { GameScopePicker } from './GameScopePicker';
 import { ClassroomMode } from './ClassroomMode';
 import { LiveQuizHost } from './LiveQuizHost';
+import { StudentLiveQuizLinks } from './StudentLiveQuizLinks';
 import { missedPracticePairs, practiceAttempts, type PracticeHistory, type SavePracticeRequest } from './practice-history';
 import { Quiz } from './ExtraGames';
 import { OpenBox, type BoxMode } from './OpenBox';
@@ -345,6 +346,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   }
 
   return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
+    {!isTeacher&&<StudentLiveQuizLinks />}
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && !liveQuizOpen && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>

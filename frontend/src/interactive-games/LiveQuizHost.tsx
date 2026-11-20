@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { api } from '../lib/api';
+import { api, type ClassItem } from '../lib/api';
 import type { GameScope } from './remote-games';
 import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
@@ -31,16 +31,32 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const [showCorrectness,setShowCorrectness]=useState(true);
   const [questionOrder,setQuestionOrder]=useState<'random'|'ordered'|'mastery'>('random');
   const [incorrectPenaltySeconds,setIncorrectPenaltySeconds]=useState(2);
+  const [classes,setClasses]=useState<ClassItem[]>([]);
+  const [classId,setClassId]=useState('');
+  const [classesLoading,setClassesLoading]=useState(true);
+  const [classesError,setClassesError]=useState(false);
   const [roomId,setRoomId]=useState<string|null>(null);
   const [snapshot,setSnapshot]=useState<LiveQuizSnapshot|null>(null);
   const [report,setReport]=useState<LiveQuizReport|null>(null);
   const [history,setHistory]=useState<LiveQuizHistoryItem[]>([]);
   const [copied,setCopied]=useState(false);
+  const [copiedEntry,setCopiedEntry]=useState(false);
+  const [deletingId,setDeletingId]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [clock,setClock]=useState(Date.now());
   const [serverOffset,setServerOffset]=useState(0);
 
+  useEffect(()=>{
+    let mounted=true;
+    void api<{data:ClassItem[]}>('/classes').then(({data})=>{
+      if(!mounted)return;
+      setClasses(data);setClassesError(false);
+      setClassId(current=>data.some(item=>item.id===current)?current:data.length===1?data[0]!.id:'');
+    }).catch(()=>{if(mounted)setClassesError(true);})
+      .finally(()=>{if(mounted)setClassesLoading(false);});
+    return()=>{mounted=false;};
+  },[]);
   useEffect(()=>{let active=true;
     void api<{data:LiveQuizHistoryItem[]}>('/live-quizzes').then(({data})=>{
       if(active)setHistory(data);
@@ -83,17 +99,17 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     setLoading(true);setError('');
     try{
       const {data}=await api<{data:{id:string;pin:string;questionCount:number}}>('/live-quizzes',{
-        method:'POST',body:JSON.stringify({courseCode,scopes,count,seconds,mode:gameMode,
+        method:'POST',body:JSON.stringify({...(classId?{classId}:{}),courseCode,scopes,count,seconds,mode:gameMode,
           durationSeconds,treasureGoal,allowLateJoin,randomNames,showCorrectness,
           questionOrder,incorrectPenaltySeconds}),
       });
-      setReport(null);setSnapshot(null);setCopied(false);setRoomId(data.id);
+      setReport(null);setSnapshot(null);setCopied(false);setCopiedEntry(false);setRoomId(data.id);
     }catch(cause){setError(cause instanceof Error?cause.message:'Unable to create game.');}
     finally{setLoading(false);}
   }
   async function command(action:'start'|'reveal'|'next'|'finish'){
     if(!roomId)return;
-    if(action==='finish'&&!window.confirm('Finish this game early and publish results?'))return;
+    if(action==='finish'&&!window.confirm('End this game now? Students will see the final results.'))return;
     setLoading(true);setError('');
     try{
       await api(`/live-quizzes/${roomId}/action`,{method:'POST',
@@ -103,15 +119,34 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     }catch(cause){setError(cause instanceof Error?cause.message:'Could not advance the game.');}
     finally{setLoading(false);}
   }
-  function reopen(item:LiveQuizHistoryItem){setRoomId(item.id);setReport(null);setSnapshot(null);setError('');setCopied(false);}
+  function reopen(item:LiveQuizHistoryItem){setRoomId(item.id);setReport(null);setSnapshot(null);setError('');setCopied(false);setCopiedEntry(false);}
+
+  async function deleteFinishedGame(id:string,pin:string){
+    if(!window.confirm(`Permanently delete finished game ${pin}? All student answers and detailed reports will be deleted. This cannot be undone.`))return;
+    setDeletingId(id);setError('');
+    try{
+      await api(`/live-quizzes/${id}`,{method:'DELETE'});
+      setHistory(items=>items.filter(item=>item.id!==id));
+      if(roomId===id){setRoomId(null);setSnapshot(null);setReport(null);}
+    }catch(cause){setError(cause instanceof Error?cause.message:'Could not delete the finished game.');}
+    finally{setDeletingId(null);}
+  }
 
   const joinUrl=snapshot?`${window.location.origin}/#/play/${snapshot.pin}`:'';
+  const codeEntryUrl=`${window.location.origin}/#/play`;
   async function copyJoinLink(){
     try{
       if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(joinUrl);
       setCopied(true);setError('');
     }catch{setError('Could not copy the join link. Use the displayed URL or scan the QR code.');}
+  }
+  async function copyCodeEntryLink(){
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(codeEntryUrl);
+      setCopiedEntry(true);setError('');
+    }catch{setError('Could not copy the code-entry link. Use the displayed URL.');}
   }
   const qr=useMemo(()=>{
     if(!joinUrl)return '';
@@ -152,7 +187,22 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
             <b>Self-paced · Luck + knowledge</b>
           </button>
         </div>
-        <h3>02 <span className="lq-heading-separator">/</span> Game settings</h3>
+        <h3>02 <span className="lq-heading-separator">/</span> Classroom invitation (optional)</h3>
+        <div className="lq-setup-controls">
+          <label>Choose a class to show students a direct invitation, or leave blank to use only the game code
+            <select aria-label="Live Quiz classroom" value={classId}
+              disabled={classesLoading||!classes.length} onChange={event=>setClassId(event.target.value)}>
+              <option value="">Code-only game · no class invitation</option>
+              {classes.map(item=><option key={item.id} value={item.id}>
+                {item.name} · {item.studentCount} students</option>)}
+            </select>
+          </label>
+        </div>
+        {classesLoading?<p className="lq-small" role="status">Loading your classes…</p>:
+          classesError?<p className="lq-error" role="alert">Could not load your classes. Reopen Live Quiz to retry.</p>:
+          !classes.length?<p className="lq-small" role="status">No assigned classes. You can still host the game and give students its six-digit PIN.</p>:
+          <p className="lq-small">Every student can use the game PIN at the join page. Selecting a class also shows enrolled students a direct invitation, usually within 10 seconds.</p>}
+        <h3>03 <span className="lq-heading-separator">/</span> Game settings</h3>
         <div className="lq-setup-controls">
           <label>{gameMode==='classic'?'Questions':'Question bank'} <select aria-label="Live quiz question count" value={count}
             onChange={e=>setCount(Number(e.target.value))}>
@@ -192,17 +242,26 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         <p className="lq-small">If a narrow topic contains fewer verified questions, the game uses every eligible question (minimum four).</p>
       </div>
       {!!history.length&&<div className="lq-history"><h3>My recent Live Quizzes</h3>
-        {history.map(item=><button key={item.id} type="button" onClick={()=>reopen(item)}>
-          <b>PIN {item.pin}</b><span>{item.mode==='treasure'?'🏴‍☠️ Treasure Quest':'⚡ Classic'} · {item.courseCode} · {item.questionCount} questions · {item.playerCount} students</span>
-          <small>{item.status==='finished'?'View final reports':'Resume game'} · {new Date(item.createdAt).toLocaleDateString('en-GB')}</small>
-        </button>)}
+        {history.map(item=><div className="lq-history-item" key={item.id}>
+          <button className="lq-history-open" type="button" onClick={()=>reopen(item)}>
+            <b>PIN {item.pin}</b><span>{item.mode==='treasure'?'🏴‍☠️ Treasure Quest':'⚡ Classic'} · {item.courseCode} · {item.questionCount} questions · {item.playerCount} students</span>
+            <small>{item.status==='finished'?'View final reports':'Resume game'} · {new Date(item.createdAt).toLocaleDateString('en-GB')}</small>
+          </button>
+          {item.status==='finished'&&<button type="button" className="lq-danger lq-history-delete"
+            disabled={!!deletingId} aria-label={`Delete finished game ${item.pin}`}
+            onClick={()=>{void deleteFinishedGame(item.id,item.pin);}}>
+            {deletingId===item.id?'Deleting…':'Delete finished game'}</button>}
+        </div>)}
       </div>}
     </>}
     {roomId&&!snapshot&&<p className="lq-loading" role="status">Loading the live room…</p>}
     {snapshot&&!finished&&<>
       <div className={'lq-join-banner'+(snapshot.status==='waiting'?'':' is-compact')}>
         <div><span>JOIN THE CLASSROOM · GAME PIN</span><strong className="lq-pin">{snapshot.pin}</strong>
-          <p>Join at <a href={joinUrl} target="_blank" rel="noopener noreferrer">{joinUrl}</a></p>
+          <p>Enter this PIN at <a href={codeEntryUrl} target="_blank" rel="noopener noreferrer">{codeEntryUrl}</a></p>
+          <p>Or join directly: <a href={joinUrl} target="_blank" rel="noopener noreferrer">{joinUrl}</a></p>
+          <button type="button" className="lq-secondary" onClick={()=>{void copyCodeEntryLink();}}>
+            {copiedEntry?'Code-entry link copied!':'Copy PIN-entry link'}</button>{' '}
           <button type="button" className="lq-secondary" onClick={()=>{void copyJoinLink();}}>
             {copied?'Copied!':'Copy join link'}</button>
         </div>
@@ -215,6 +274,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         <div className="lq-player-bubbles">{snapshot.players.map(player=><span key={player.id}>{player.avatar} {player.nickname}</span>)}</div>
         <button type="button" className="lq-primary" disabled={loading||!snapshot.players.length}
           onClick={()=>{void command('start');}}>Start Game · {snapshot.players.length} players</button>
+        <button type="button" className="lq-danger" disabled={loading}
+          onClick={()=>{void command('finish');}}>End game without starting</button>
       </div>}
       {snapshot.mode==='treasure'&&active&&<div className="lq-question-stage lq-treasure-projector">
         <span className="lq-eyebrow">TREASURE QUEST · LIVE</span>
@@ -269,6 +330,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           <p className="lq-explanation">Correct answer: {question.options[question.correctIndex!]}. {question.explanation}</p>
           <button type="button" className="lq-primary" disabled={loading}
             onClick={()=>{void command('next');}}>{question.index+1===snapshot.questionCount?'Show final report now':'Next now'} · auto in {reviewLeft}s</button>
+          <button type="button" className="lq-danger" disabled={loading}
+            onClick={()=>{void command('finish');}}>End game & show reports</button>
         </div>}
       </div>}
       {review&&<div className="lq-leaderboard"><h3>Leaderboard</h3>
@@ -278,8 +341,13 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
       </div>}
     </>}
     {finished&&(report?<LiveQuizReportView report={report} teacher/>:<p role="status">Preparing detailed student reports…</p>)}
-    {finished&&<button type="button" className="lq-secondary" onClick={()=>{setRoomId(null);setSnapshot(null);setReport(null);
-      void api<{data:LiveQuizHistoryItem[]}>('/live-quizzes').then(({data})=>setHistory(data));}}>
-      Host another quiz</button>}
+    {finished&&<div className="lq-finished-actions">
+      <button type="button" className="lq-secondary" onClick={()=>{setRoomId(null);setSnapshot(null);setReport(null);
+        void api<{data:LiveQuizHistoryItem[]}>('/live-quizzes').then(({data})=>setHistory(data));}}>
+        Host another quiz</button>
+      <button type="button" className="lq-danger" disabled={!!deletingId}
+        onClick={()=>{void deleteFinishedGame(roomId!,snapshot!.pin);}}>
+        {deletingId===roomId?'Deleting…':'Delete this finished game'}</button>
+    </div>}
   </section>;
 }

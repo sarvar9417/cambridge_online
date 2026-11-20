@@ -149,4 +149,14 @@ describe('Treasure Quest student interactions',()=>{
     expect(host.querySelector('[role="alert"]')?.textContent).toBe('Game code not found.');
     expect(host.querySelector<HTMLAnchorElement>('.lq-change-pin')?.getAttribute('href')).toBe('#/play');
   });
+
+  it('offers a six-digit PIN form at the permanent classroom join URL',async()=>{
+    await act(async()=>{root.render(<LiveQuizGuestPage pin=""/>);await Promise.resolve();});
+    const input=host.querySelector<HTMLInputElement>('.lq-guest-join input')!;
+    expect(input.getAttribute('inputmode')).toBe('numeric');
+    expect(input.getAttribute('pattern')).toBe('[0-9]{6}');
+    expect(host.textContent).toContain('Enter your Game PIN');
+    expect(host.textContent).toContain('Enter the six-digit PIN');
+    expect(host.querySelector('.lq-guest-join button[type="submit"]')).not.toBeNull();
+  });
 });
