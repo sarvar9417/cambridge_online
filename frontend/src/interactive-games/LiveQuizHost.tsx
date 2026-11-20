@@ -117,8 +117,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const question=snapshot?.question;
   return <section className="lq-host" aria-label="Cambridge Live Quiz host">
     <div className="lq-header">
-      <div><span className="lq-eyebrow">CAMBRIDGE {courseCode} · LIVE CLASSROOM</span>
-        <h2>Cambridge Live Games</h2><p>Choose a game mode, invite your class, and review every answer.</p></div>
+      <div><span className="lq-eyebrow">CAMBRIDGE / LIVE QUIZ <span className="lq-course-tag">{courseCode}</span></span>
+        <h2>Live Quiz Studio</h2><p>Choose a mode, bring your class together, and understand every answer.</p></div>
       <div className="lq-header-actions">
         <button type="button" className="lq-secondary" onClick={onToggleFullscreen}>{isFullscreen?'Exit full screen':'Full screen'}</button>
         <button type="button" className="lq-secondary" onClick={onExit}>Back to games</button>
@@ -127,24 +127,24 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     {error&&<p className="lq-error" role="alert">{error}</p>}
     {!roomId&&<>
       <div className="lq-setup">
-        <h3>1 · Choose your game mode</h3>
+        <h3>01 <span className="lq-heading-separator">/</span> Choose your game mode</h3>
         <p>{scopes.length} selected curriculum scopes · {courseCode}. Questions use the approved, source-verified glossary bank.</p>
         <div className="lq-mode-grid" role="group" aria-label="Choose live quiz game mode">
           <button type="button" className={'lq-mode-card'+(gameMode==='classic'?' is-selected':'')}
             aria-pressed={gameMode==='classic'} onClick={()=>{setGameMode('classic');
               if(questionOrder==='mastery')setQuestionOrder('random');}}>
-            <span className="lq-mode-icon">⚡</span><strong>Classic Challenge</strong>
+            <span className="lq-mode-icon" aria-hidden="true">01</span><strong>Classic Challenge</strong>
             <small>All players answer the same question at the same time. Speed + accuracy decide the winner.</small>
             <b>Synced · Auto-advance after results</b>
           </button>
           <button type="button" className={'lq-mode-card'+(gameMode==='treasure'?' is-selected':'')}
             aria-pressed={gameMode==='treasure'} onClick={()=>setGameMode('treasure')}>
-            <span className="lq-mode-icon">🏴‍☠️</span><strong>Treasure Quest</strong>
+            <span className="lq-mode-icon" aria-hidden="true">02</span><strong>Treasure Quest</strong>
             <small>Players answer independently, choose mystery chests, grow gold, steal or swap to climb the board.</small>
             <b>Self-paced · Luck + knowledge</b>
           </button>
         </div>
-        <h3>2 · Game settings</h3>
+        <h3>02 <span className="lq-heading-separator">/</span> Game settings</h3>
         <div className="lq-setup-controls">
           <label>{gameMode==='classic'?'Questions':'Question bank'} <select aria-label="Live quiz question count" value={count}
             onChange={e=>setCount(Number(e.target.value))}>
@@ -193,7 +193,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     {roomId&&!snapshot&&<p className="lq-loading" role="status">Loading the live room…</p>}
     {snapshot&&!finished&&<>
       <div className="lq-join-banner">
-        <div><span>GAME PIN</span><strong className="lq-pin">{snapshot.pin}</strong>
+        <div><span>JOIN THE CLASSROOM · GAME PIN</span><strong className="lq-pin">{snapshot.pin}</strong>
           <p>Join at <a href={joinUrl} target="_blank" rel="noopener noreferrer">{joinUrl}</a></p>
           <button type="button" className="lq-secondary" onClick={()=>{void navigator.clipboard?.writeText(joinUrl);}}>Copy join link</button>
         </div>
@@ -222,23 +222,28 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         </div>
         <button type="button" className="lq-secondary" disabled={loading} onClick={()=>{void command('finish');}}>End game & show reports</button>
       </div>}
-      {(active||review)&&question&&<div className="lq-question-stage">
+      {(active||review)&&question&&<div className={'lq-question-stage'+(review?' is-review':'')}>
         <div className="lq-question-meta"><b>Question {question.index+1} / {snapshot.questionCount}</b>
           <span className={active&&timeLeft<=5?'lq-countdown is-urgent':'lq-countdown'}>
             {active?`◷ ${timeLeft}s`:`✓ Results · next in ${reviewLeft}s`}</span>
           <b>{snapshot.answeredCount} / {snapshot.players.length} answered</b></div>
+        <div className="lq-progress-track" role="progressbar" aria-label="Question progress"
+          aria-valuenow={question.index+1} aria-valuemin={0} aria-valuemax={snapshot.questionCount}>
+          <span style={{width:`${(question.index+1)/Math.max(1,snapshot.questionCount)*100}%`}}/></div>
         <p className="lq-question-prompt">{question.prompt}</p>
         <p className="lq-source">{question.sourceContext}</p>
-        <div className="lq-options">{question.options.map((option,index)=><div key={index}
+        {(!review||!snapshot.answerCounts)&&<div className="lq-options">{question.options.map((option,index)=><div key={index}
           className={'lq-option lq-option-'+index+(review&&index===question.correctIndex?' is-answer':'')}>
-          <span>{['▲','◆','●','■'][index]}</span><b>{option}</b></div>)}</div>
+          <span>{['▲','◆','●','■'][index]}</span><b>{option}</b>
+          {review&&index===question.correctIndex&&<small className="lq-option-label">Correct answer</small>}</div>)}</div>}
         {review&&snapshot.answerCounts&&<section className="lq-answer-distribution" aria-label="Class answer distribution">
-          <h4>📊 How the class answered</h4>
+          <h4>How the class answered</h4>
           {question.options.map((option,index)=>{
             const total=snapshot.answerCounts?.[index]??0;
             const percent=snapshot.answeredCount?Math.round(total/snapshot.answeredCount*100):0;
             return <div key={index} className={index===question.correctIndex?'is-correct':''}>
-              <span>{['▲','◆','●','■'][index]} {option}</span>
+              <span>{['▲','◆','●','■'][index]} {option}
+                {index===question.correctIndex&&<small className="lq-distribution-correct">✓ Correct</small>}</span>
               <progress value={total} max={Math.max(1,snapshot.answeredCount)} aria-label={`${option}: ${total} answers`}/>
               <b>{total} · {percent}%</b>
             </div>;

@@ -112,5 +112,7 @@ describe('Treasure Quest student interactions',()=>{
     await render();
     expect(host.textContent).toContain('Next question starts automatically in');
     expect(host.textContent).not.toContain('Waiting for the teacher');
+    expect(host.querySelector('.lq-option.is-answer .lq-option-label')?.textContent).toBe('Correct');
+    expect(host.querySelector('.lq-option.is-wrong .lq-option-label')?.textContent).toBe('Your answer');
   });
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { LiveQuizDetail, LiveQuizReport } from './live-quiz-api';
 
 export function liveQuizCsv(report:LiveQuizReport){
@@ -58,14 +58,26 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
   const question=report.questionSummary?.find(item=>item.number===questionNo);
   const classAttempts=report.students.reduce((sum,student)=>sum+student.answered,0);
   const classCorrect=report.students.reduce((sum,student)=>sum+student.correct,0);
-  return <section className="lq-final" aria-label="Live quiz final results">
+  return <section className={'lq-final'+(teacher?' is-teacher':' is-student')} aria-label="Live quiz final results">
     <header className="lq-final-heading">
       <span className="lq-eyebrow">FINAL RESULTS · GAME {report.pin}</span>
-      <h2>🏆 Quiz complete!</h2>
+      <h2>Quiz complete<span className="lq-finish-mark">.</span></h2>
       <p>{report.questionBankSize??report.totalQuestions} verified questions in the bank · {report.students.length} players
         {report.mode==='treasure'?' · self-paced Treasure Quest':' · synced Classic Challenge'}</p>
       {teacher&&<button type="button" className="lq-secondary" onClick={()=>downloadCsv(report)}>Download detailed CSV report</button>}
     </header>
+    {!teacher&&selected&&<div className="lq-student-overview">
+      <div><span className="lq-eyebrow">YOUR PERSONAL RESULT</span>
+        <h3>{selected.avatar} {selected.nickname}</h3>
+        <p><strong>{selected.correct} / {selected.total}</strong> correct answers</p>
+        <span className="lq-overview-score">{selected.score.toLocaleString('en')} {report.mode==='treasure'?'gold':'points'}</span>
+      </div>
+      <div className="lq-score-ring" role="img"
+        aria-label={`${selected.total?Math.round(selected.correct/selected.total*100):0}% accuracy`}
+        style={{'--lq-accuracy':`${selected.total?Math.round(selected.correct/selected.total*100):0}%`} as CSSProperties}>
+        <strong>{selected.total?Math.round(selected.correct/selected.total*100):0}%</strong><span>accuracy</span>
+      </div>
+    </div>}
     {teacher&&<div className="lq-class-summary">
       <div><b>{classCorrect} / {classAttempts}</b><span>Class correct / answered</span></div>
       <div><b>{classAttempts?Math.round(classCorrect/classAttempts*100):0}%</b><span>Class accuracy</span></div>
@@ -80,8 +92,8 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
       </div>)}
     </div>}
     {teacher&&<div className="lq-report-tabs" role="group" aria-label="Report view">
-      <button type="button" aria-pressed={tab==='students'} onClick={()=>setTab('students')}>👥 Student results</button>
-      <button type="button" aria-pressed={tab==='questions'} onClick={()=>setTab('questions')}>📊 Question breakdown</button>
+      <button type="button" aria-pressed={tab==='students'} onClick={()=>setTab('students')}>Student results</button>
+      <button type="button" aria-pressed={tab==='questions'} onClick={()=>setTab('questions')}>Question breakdown</button>
     </div>}
     {teacher&&tab==='questions'&&<div className="lq-question-breakdown">
       <h3>Question-by-question performance</h3>

@@ -30,6 +30,8 @@ describe('Live Quiz first-attempt result report',()=>{
     expect(host.textContent).toContain('1 / 3');
     expect(host.textContent).toContain('2 / 3');
     expect(host.textContent).toContain('33%');
+    expect(host.querySelector('.lq-score-ring')?.getAttribute('aria-label')).toBe('33% accuracy');
+    expect((host.querySelector('.lq-score-ring') as HTMLElement).style.getPropertyValue('--lq-accuracy')).toBe('33%');
     expect(host.textContent).toContain('Incorrect and unanswered questions (2)');
     expect(host.textContent).toContain('Second definition');
     expect(host.textContent).toContain('Student answer: F');

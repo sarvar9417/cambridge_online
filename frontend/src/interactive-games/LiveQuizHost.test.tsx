@@ -93,6 +93,10 @@ describe('Live quiz Blooket-style host configuration',()=>{
     expect(container.textContent).toContain('Results · next in');
     expect(container.textContent).toContain('Next now');
     expect(container.querySelectorAll('.lq-answer-distribution progress')).toHaveLength(4);
+    expect(container.querySelector('.lq-question-stage.is-review .lq-answer-distribution .is-correct .lq-distribution-correct')?.textContent)
+      .toBe('✓ Correct');
+    expect(container.querySelectorAll('.lq-question-stage.is-review .lq-options')).toHaveLength(0);
+    expect(container.querySelector('.lq-progress-track')?.getAttribute('aria-valuenow')).toBe('1');
   });
 });
 
