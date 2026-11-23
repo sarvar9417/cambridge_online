@@ -65,6 +65,15 @@ try{
   await teacher.page.waitForSelector('.ac-import input[type="file"]',{visible:true});
   const wordInput=await teacher.page.$('.ac-import input[type="file"]');
   await wordInput.uploadFile(path.resolve('scripts/fixtures/Grade 8.docx'));
+  await teacher.page.waitForFunction(
+    ()=>Boolean(document.querySelector('.ac-editor-q')||document.querySelector('.ac-error')),
+    {timeout:15000});
+  const wordImportState=await teacher.page.$eval('.assessment-center',
+    node=>({text:node.innerText.slice(0,1200),uploaded:Boolean(node.querySelector('.ac-editor-q')),
+      alert:node.querySelector('.ac-error')?.textContent}));
+  await qa.check('Compressed Word DOCX import displays one valid question without error',
+    wordImportState.uploaded&&wordImportState.text.includes('Which number system is binary?'),
+    wordImportState);
   await qa.waitText(teacher.page,'Which number system is binary?');
   await qa.check('Real Word DOCX imports Grade 8 as a private unkeyed draft',
     await teacher.page.$eval('.assessment-center',node=>
