@@ -966,6 +966,64 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       .rejects.toMatchObject({code:'live_invalid_state',status:409});
   });
 
+  it('lets late students enter between rounds, never scoring a completed question', async () => {
+
+    // Retained codes may come from other acceptance fixtures, so select a
+    // guaranteed unused code instead of asserting a magic number is free.
+    const availableCode=await client.query<{code:string}>(`
+      select n::text code from generate_series(970000,979999) n
+      where not exists(select 1 from live_exam_sessions s where s.join_code=n::text)
+      order by n limit 1
+    `);
+    const joinCode=availableCode.rows[0]?.code;
+    if(!joinCode)throw new Error('test_join_code_pool_exhausted');
+    const {sessionId,sessionQuestionId}=await makeSession({
+      code:joinCode,markingMode:'teacher',settings:{allowLateJoin:true},participants:[0],
+    });
+    const secondQuestionId=(await client.query<{id:string}>(
+      'insert into questions default values returning id',
+    )).rows[0]!.id;
+    cardFixtureQuestionIds.push(secondQuestionId);
+    const next=await client.query<{id:string}>(`
+      insert into live_exam_questions(
+        session_id,question_id,position,marks,question_snapshot,mark_scheme_snapshot
+      )
+      select session_id,$2,1,marks,question_snapshot,mark_scheme_snapshot
+      from live_exam_questions where id=$1 returning id
+    `,[sessionQuestionId,secondQuestionId]);
+    await service.start(owner(),sessionId);
+    await service.revealMarkScheme(owner(),sessionId);
+    expect((await client.query('select status::text status from live_exam_sessions where id=$1',[sessionId])).rows[0]?.status).toBe('marking');
+
+    await expect(service.join(student(1),joinCode)).resolves.toMatchObject({sessionId});
+    const pastAnswer=await client.query(
+      `select a.id from live_exam_answers a
+       join live_exam_participants p on p.id=a.participant_id
+       where a.session_question_id=$1 and p.student_id=$2`,
+      [sessionQuestionId,studentIds[1]],
+    );
+    expect(pastAnswer.rowCount).toBe(0);
+
+    // Marking completion is independently covered elsewhere. Switch the test
+    // fixture into the review state to exercise its distinct join gate.
+    await client.query("update live_exam_sessions set status='review' where id=$1",[sessionId]);
+    await expect(service.join(student(2),joinCode)).resolves.toMatchObject({sessionId});
+    await service.nextQuestion(owner(),sessionId);
+
+    const nextAnswers=await client.query(
+      `select p.student_id from live_exam_answers a
+       join live_exam_participants p on p.id=a.participant_id
+       where a.session_question_id=$1 and p.student_id=any($2::uuid[])`,
+      [next.rows[0]!.id,[studentIds[1],studentIds[2]]],
+    );
+    expect(nextAnswers.rowCount).toBe(2);
+    await service.revealMarkScheme(owner(),sessionId);
+    // The final question has no successor. A new learner must not enter a
+    // terminal review stage merely to be shown an empty scoreboard.
+    await expect(service.join(sameSchoolGuest(),joinCode))
+      .rejects.toMatchObject({code:'live_code_not_found'});
+  });
+
   it('allows late join only while the question is open and exposes the shared-time fairness policy', async () => {
     const {sessionId}=await makeSession({
       code:'820008',markingMode:'teacher',participants:[0],timeLimit:120,
