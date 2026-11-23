@@ -69,12 +69,15 @@ try{
     ()=>Boolean(document.querySelector('.ac-editor-q')||document.querySelector('.ac-error')),
     {timeout:15000});
   const wordImportState=await teacher.page.$eval('.assessment-center',
-    node=>({text:node.innerText.slice(0,1200),uploaded:Boolean(node.querySelector('.ac-editor-q')),
-      alert:node.querySelector('.ac-error')?.textContent}));
-  await qa.check('Compressed Word DOCX import displays one valid question without error',
-    wordImportState.uploaded&&wordImportState.text.includes('Which number system is binary?'),
+    node=>({prompt:node.querySelector('.ac-editor-q textarea')?.value??null,
+      uploaded:Boolean(node.querySelector('.ac-editor-q')),
+      unkeyed:node.textContent.includes('1 ta javob kaliti hali berilmagan'),
+      alert:node.querySelector('.ac-error')?.textContent??null}));
+  await qa.check('Compressed Word DOCX imports Grade 8 draft with unverified key',
+    wordImportState.uploaded
+      &&wordImportState.prompt==='Which number system is binary?'
+      &&wordImportState.unkeyed&&!wordImportState.alert,
     wordImportState);
-  await qa.waitText(teacher.page,'Which number system is binary?');
   await qa.check('Real Word DOCX imports Grade 8 as a private unkeyed draft',
     await teacher.page.$eval('.assessment-center',node=>
       node.textContent.includes('Grade 8')&&node.textContent.includes('1 ta javob kaliti hali berilmagan')));
