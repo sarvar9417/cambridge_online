@@ -11,9 +11,14 @@ export function perStudentOrder<T>(
   if(version!==1)return [...items];
   const rank=(key:string)=>createHash('sha256')
     .update(JSON.stringify([namespace,playerTokenHash,key])).digest('hex');
-  return items.map((item,index)=>({item,index,key:id(item),hash:rank(id(item))}))
-    .sort((a,b)=>a.hash.localeCompare(b.hash)||a.key.localeCompare(b.key)||a.index-b.index)
-    .map(entry=>entry.item);
+  const permuted=items.map((item,index)=>({item,index,key:id(item),hash:rank(id(item))}))
+    .sort((a,b)=>a.hash.localeCompare(b.hash)||a.key.localeCompare(b.key)||a.index-b.index);
+  // Guarantee an actual rearrangement for tests with two or more items,
+  // even on the rare occasion a random ordering equals the source order.
+  if(permuted.length>1&&permuted.every((item,i)=>item.index===i)){
+    permuted.push(permuted.shift()!);
+  }
+  return permuted.map(entry=>entry.item);
 }
 
 /** Returns the canonical option index for each visible A-D position. */
