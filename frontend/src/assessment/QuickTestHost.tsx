@@ -18,7 +18,11 @@ type Row={id:string;name:string;answered:number;startedAt:string;deadlineAt:stri
 type Report={id:string;code:string;title:string;status:string;students:Row[]};
 const msg=(e:unknown)=>e instanceof Error?e.message:'So‘rov bajarilmadi.';
 const invite=(code:string)=>window.location.origin+'/#/test/'+code;
-const cell=(s:unknown)=>'"'+String(s??'').replaceAll('"','""')+'"';
+const cell=(s:unknown)=>{
+  const value=String(s??'');
+  const safe=/^\s*[=+\-@\t\r]/.test(value)?"'"+value:value;
+  return '"'+safe.replaceAll('"','""')+'"';
+};
 const clock=(s:string|null|undefined)=>s?
   new Intl.DateTimeFormat('uz-UZ',{timeZone:'Asia/Tashkent',year:'numeric',month:'2-digit',
     day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(s)):'—';
