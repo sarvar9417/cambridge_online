@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ClassItem, type User } from '../lib/api';
 import './assessment-center.css';
+import { StudentTestCodeEntry } from './StudentTestCodeEntry';
 import { assessmentCsvCell } from './assessment-csv';
 import { importWordDocx, detectWordAssessmentMetadata } from './word-import';
 
@@ -380,6 +381,7 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
         'Testlarni boshqaring, natijalarni solishtiring va o‘quvchi kesimida zaif mavzularni toping.'}</p>
     </div>{!student&&<button className="ac-primary" type="button" onClick={()=>{setDraft(emptyPackage());setSelected(null);setReport(null);}}>
       + Test yaratish</button>}</header>
+    {student&&<StudentTestCodeEntry />}
     {error&&<p role="alert" className="ac-error">{error}</p>}
     {success&&<p role="status" className="ac-success">{success}</p>}
     {student&&<div className="ac-actions"><button type="button" className="ac-secondary"

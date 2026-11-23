@@ -1,0 +1,16 @@
+.student-test-code{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 20px;padding:25px 27px;border:1px solid #b9d1f4;border-radius:19px;background:linear-gradient(120deg,#eaf3ff 0%,#f7fbff 67%,#fff 100%);box-shadow:0 9px 22px rgba(33,91,166,.07);color:#183452}
+.student-test-code-copy{max-width:550px}
+.student-test-code-kicker{display:block;color:#245caa;font-size:11px;font-weight:850;letter-spacing:.12em}
+.student-test-code h2{font-size:clamp(1.15rem,2.2vw,1.5rem);font-weight:800;letter-spacing:-.025em;margin:8px 0 7px;color:#173b71}
+.student-test-code p{margin:0;line-height:1.5;font-size:.88rem;color:#4b647f}
+.student-test-code-form{min-width:min(100%,315px);max-width:365px;flex:1}
+.student-test-code-form label{display:block;margin:0 0 8px;font-size:.82rem;font-weight:750;color:#234363}
+.student-test-code-row{display:flex;gap:8px}
+.student-test-code-row input{width:140px;min-width:0;flex:1;font:inherit;font-size:1.5rem;font-weight:800;text-align:center;letter-spacing:.12em;line-height:1;background:#fff;border:1.5px solid #92b1d8;border-radius:11px;color:#123a73;padding:12px 5px;font-variant-numeric:tabular-nums}
+.student-test-code-row input:focus-visible{outline:3px solid #a6caff;outline-offset:2px}
+.student-test-code-row button{font:inherit;font-size:.85rem;font-weight:800;color:#fff;background:#205cbb;border:1px solid #205cbb;border-radius:11px;padding:12px 14px;white-space:nowrap;cursor:pointer}
+.student-test-code-row button:hover:not(:disabled){background:#15468e}
+.student-test-code-row button:disabled{opacity:.47;cursor:not-allowed}
+.student-test-code-form small{display:block;margin-top:7px;font-size:.73rem;color:#617994}
+@media(max-width:760px){.student-test-code{flex-direction:column;align-items:stretch;gap:17px;padding:19px 17px}.student-test-code-form{max-width:none;min-width:0}.student-test-code-row button{padding:10px 11px}}
+@media(max-width:370px){.student-test-code-row{flex-wrap:wrap}.student-test-code-row input,.student-test-code-row button{width:100%;flex:auto}}
