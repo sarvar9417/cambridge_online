@@ -102,6 +102,9 @@ try{
   await qa.waitText(student.page,'Assessment E2E Hardware');
   await qa.check('Student main dashboard advertises the class test',
     !!(await student.page.$('.ac-inbox-item')));
+  await student.page.waitForSelector('.student-test-code input',{visible:true});
+  await qa.check('Student home shows six-digit test code field',
+    !!(await student.page.$('.student-test-code input[inputmode="numeric"]')));
   await qa.go(outsider.page,'oquvchi/testlar');
   await outsider.page.waitForSelector('.assessment-center');
   await qa.check('Other class student cannot see class-only assessment',
@@ -109,6 +112,11 @@ try{
 
   await qa.go(student.page,'oquvchi/testlar');
   await qa.waitText(student.page,'Assessment E2E Hardware');
+  await student.page.waitForSelector('.student-test-code-form input',{visible:true});
+  await qa.check('Student Testlarim includes code field and enter button',
+    await student.page.$eval('.student-test-code-form',form=>
+      form.querySelector('input')?.getAttribute('maxlength')==='6'&&
+      form.querySelector('button')?.textContent.includes('Testga kirish')));
   await student.page.setViewport({width:390,height:844,deviceScaleFactor:1});
   const overflow=await student.page.evaluate(()=>({
     viewport:window.innerWidth,
@@ -281,6 +289,14 @@ try{
   await qa.check('Teacher sees guest name and correct test result live',
     teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));
   await qa.screenshot(teacher.page,'teacher-pin-results');
+  await qa.go(student.page,'oquvchi/testlar');
+  await student.page.waitForSelector('.student-test-code-form input',{visible:true});
+  await qa.fill(student.page,'.student-test-code-form input',pin);
+  await qa.clickText(student.page,'Testga kirish');
+  await student.page.waitForFunction(code=>location.hash==='#/test/'+code,{},pin);
+  await student.page.waitForSelector('.qt-guest-card input',{visible:true});
+  await qa.check('Student opens PIN guest test from own Testlarim page',
+    (await student.page.$('input[name="identifier"]'))===null);
   await qa.clickText(teacher.page,'Testni yakunlash');
   await qa.waitText(teacher.page,'Test yakunlangan');
   await guestContext.close();
