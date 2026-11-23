@@ -140,6 +140,54 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     expect(detail.answerChanges).toBeNull();
     expect(detail.lastAnsweredAt).toBeTruthy();
   });
+  it('gives each new learner stable shuffled questions and options, with correct teacher mapping',async()=>{
+    const session=await service.create(actor(teacher),testId,true);
+    const g1=await service.join(session.code,'Variant Alice');
+    const g2=await service.join(session.code,'Variant Bob');
+    const state=await service.snapshot(g1.playerId,g1.token);
+    const other=await service.snapshot(g2.playerId,g2.token);
+    const resumed=await service.snapshot(g1.playerId,g1.token);
+    expect(resumed.questions).toEqual(state.questions);
+    expect(state.questions.map(q=>q.number)).toEqual([1,2]);
+    expect(state.questions.map(q=>q.id)).toEqual(
+      [...other.questions.map(q=>q.id)].reverse());
+    for(const row of state.questions){
+      expect(row).not.toHaveProperty('correctIndex');
+      const originals=row.prompt==='CPU means?'?
+        ['Central Processing Unit','Print Unit','Code','None']:
+        ['Permanent','Volatile','Optical','ROM'];
+      expect([...row.options].sort()).toEqual([...originals].sort());
+      expect(row.options).not.toEqual(originals);
+    }
+    const cpu=state.questions.find(q=>q.prompt==='CPU means?')!;
+    const ram=state.questions.find(q=>q.prompt==='RAM is?')!;
+    await service.answer(g1.playerId,g1.token,cpu.id,cpu.options.indexOf('Central Processing Unit'));
+    await service.answer(g1.playerId,g1.token,ram.id,ram.options.indexOf('Volatile'));
+    const completed=await service.submit(g1.playerId,g1.token);
+    expect(completed.score).toBe(2);
+    const report=await service.report(actor(teacher),session.id);
+    const alice=report.students.find(p=>p.name==='Variant Alice')!;
+    expect(alice.score).toBe(2);
+    expect(alice.details.map(q=>q.prompt)).toEqual(state.questions.map(q=>q.prompt));
+    for(const detail of alice.details){
+      const question=state.questions.find(q=>q.prompt===detail.prompt)!;
+      expect(detail.number).toBe(question.number);
+      expect(detail.choiceIndex).toBe(question.choiceIndex===null?
+        (await service.snapshot(g1.playerId,g1.token)).questions.find(q=>q.id===question.id)!.choiceIndex:
+        question.choiceIndex);
+      expect(detail.correct).toBe(true);
+      expect(detail.options).toEqual(question.options);
+    }
+    const g3=await service.join(session.code,'Historical Charlie');
+    await client.query('UPDATE assessment_code_players SET shuffle_version=0 WHERE id=$1',[g3.playerId]);
+    const historic=await service.snapshot(g3.playerId,g3.token);
+    expect(historic.questions.map(q=>q.prompt)).toEqual(['CPU means?','RAM is?']);
+    expect(historic.questions[0]?.options).toEqual(['Central Processing Unit','Print Unit','Code','None']);
+    await service.answer(g3.playerId,g3.token,historic.questions[0]!.id,0);
+    expect((await service.submit(g3.playerId,g3.token)).score).toBe(1);
+    expect((await service.report(actor(teacher),session.id)).students.find(p=>p.name==='Historical Charlie')?.details[0]?.choiceIndex).toBe(0);
+  });
+
   it('automatically finalizes an expired timer and reports unanswered questions',async()=>{
     const s=await service.create(actor(teacher),testId,true);
     const g=await service.join(s.code,'Zarina Karimova');
