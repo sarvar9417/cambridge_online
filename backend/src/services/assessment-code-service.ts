@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
+import { canonicalChoice, perStudentOrder, studentOptionOrder, visibleChoice } from './assessment-code-shuffle.js';
 
 const deny = (code:string,status:400|403|404|409) => new DomainError(code,status);
 const digest = (token:string) => createHash('sha256').update(token).digest('hex');
@@ -269,8 +270,8 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
       const s=r.rows[0];
       if(!s||s.status!=='open'||new Date(s.expires_at).getTime()<=Date.now())throw deny('test_code_not_found',404);
       const row=await db.query(
-        `INSERT INTO assessment_code_players(session_id,nickname,token_hash,deadline_at)
-         VALUES($1,$2,$3,LEAST(now()+($4::int*interval '1 minute'),$5::timestamptz))
+        `INSERT INTO assessment_code_players(session_id,nickname,token_hash,deadline_at,shuffle_version)
+         VALUES($1,$2,$3,LEAST(now()+($4::int*interval '1 minute'),$5::timestamptz),1)
          RETURNING id`,[s.id,name,digest(token),n(s.duration_minutes),s.expires_at]);
       await db.query('COMMIT');
       return {playerId:row.rows[0].id,token,code,name};
@@ -299,11 +300,17 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
        a.choice_index FROM assessment_center_questions q
        LEFT JOIN assessment_code_answers a ON a.question_id=q.id AND a.player_id=$2
        WHERE q.test_id=$1 ORDER BY q.position`,[p.test_id,playerId]);
+    const order=perStudentOrder(r.rows,fresh.token_hash,n(fresh.shuffle_version),
+      'question',(q:{id:string})=>q.id);
     return {playerId,name:p.nickname,title:p.title,serverNow:new Date().toISOString(),
       deadlineAt:fresh.deadline_at,submittedAt:fresh.submitted_at,
       score:fresh.submitted_at?n(fresh.score):null,maxScore:fresh.submitted_at?n(fresh.max_score):null,
-      questions:r.rows.map(q=>({id:q.id,number:n(q.position),prompt:q.prompt,options:q.options,
-        marks:n(q.marks),choiceIndex:q.choice_index==null?null:n(q.choice_index)}))};
+      questions:order.map((q,i)=>{
+        const permutation=studentOptionOrder(q.id,fresh.token_hash,n(fresh.shuffle_version),q.options.length);
+        return {id:q.id,number:i+1,sourceNumber:n(q.position),prompt:q.prompt,
+          options:permutation.map(option=>q.options[option]),marks:n(q.marks),
+          choiceIndex:visibleChoice(q.choice_index==null?null:n(q.choice_index),permutation)};
+      })};
   }
   async answer(playerId:string,token:string,questionId:string,choiceIndex:number){
     await this.authorizedPlayer(playerId,token);
@@ -311,25 +318,33 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
     try{
       await db.query('BEGIN');
       const r=await db.query(
-        `SELECT p.id,p.session_id,p.submitted_at,p.deadline_at,s.status,s.expires_at
+        `SELECT p.id,p.session_id,p.submitted_at,p.deadline_at,p.token_hash,p.shuffle_version,s.status,s.expires_at
          FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id
          WHERE p.id=$1 AND p.token_hash=$2 FOR UPDATE OF p`,[playerId,digest(token)]);
       const p=r.rows[0];
       if(!p)throw deny('test_player_forbidden',403);
       if(p.submitted_at||p.status!=='open'||Date.now()>=new Date(p.deadline_at).getTime()||
          Date.now()>=new Date(p.expires_at).getTime())throw deny('test_time_expired',409);
-const before=await db.query(
+const question=await db.query(
+        `SELECT q.options FROM assessment_center_questions q
+         JOIN assessment_code_sessions s ON s.test_id=q.test_id
+         WHERE q.id=$1 AND s.id=$2`,[questionId,p.session_id]);
+      if(!question.rowCount)throw deny('test_question_not_found',404);
+      const permutation=studentOptionOrder(questionId,p.token_hash,n(p.shuffle_version),
+        question.rows[0].options.length);
+      const canonicalIndex=canonicalChoice(choiceIndex,permutation);
+      const before=await db.query(
         `SELECT choice_index FROM assessment_code_answers
          WHERE player_id=$1 AND question_id=$2`,[playerId,questionId]);
       const previous=before.rows[0]?.choice_index;
-      const changed=before.rowCount&&n(previous)!==choiceIndex?1:0;
+      const changed=before.rowCount&&n(previous)!==canonicalIndex?1:0;
       const saved=await db.query(
         `INSERT INTO assessment_code_answers(player_id,question_id,choice_index)
          SELECT $1,q.id,$3 FROM assessment_center_questions q
          JOIN assessment_code_sessions s ON s.test_id=q.test_id
          WHERE q.id=$2 AND s.id=$4
          ON CONFLICT(player_id,question_id) DO UPDATE SET choice_index=EXCLUDED.choice_index,answered_at=now()
-         RETURNING question_id`,[playerId,questionId,choiceIndex,p.session_id]);
+         RETURNING question_id`,[playerId,questionId,canonicalIndex,p.session_id]);
       if(!saved.rowCount)throw deny('test_question_not_found',404);
       await db.query(
         `INSERT INTO assessment_code_question_activity(
