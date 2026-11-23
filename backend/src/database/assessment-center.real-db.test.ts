@@ -106,7 +106,8 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     await client.query(`update assessment_center_attempts
       set deadline_at=now()-interval '10 seconds' where id=$1`,[first.id]);
     const list=await service.list(actor(student,'student'));
-    expect(list.find(row=>row.id===draft.id)?.submittedAt).not.toBeNull();
+    const result=list.find(row=>row.id===draft.id);
+    expect(result && 'submittedAt' in result ? result.submittedAt : null).not.toBeNull();
     const report=await service.report(actor(teacher,'teacher'),draft.id);
     expect(report.students.find(row=>row.studentId===student)?.score).toBe(1);
     const stored=await client.query<{submitted_at:Date;deadline_at:Date}>(
