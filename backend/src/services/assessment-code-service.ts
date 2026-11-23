@@ -311,8 +311,9 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
        a.choice_index FROM assessment_center_questions q
        LEFT JOIN assessment_code_answers a ON a.question_id=q.id AND a.player_id=$2
        WHERE q.test_id=$1 ORDER BY q.position`,[p.test_id,playerId]);
-    const order=perStudentOrder(r.rows,fresh.token_hash,n(fresh.shuffle_version),
-      'question',(q:{id:string})=>q.id);
+    const order=perStudentOrder(r.rows as Array<{
+      id:string;position:number;prompt:string;options:string[];marks:number;choice_index:number|null
+    }>,fresh.token_hash,n(fresh.shuffle_version),'question',q=>q.id);
     return {playerId,name:p.nickname,title:p.title,serverNow:new Date().toISOString(),
       deadlineAt:fresh.deadline_at,submittedAt:fresh.submitted_at,
       score:fresh.submitted_at?n(fresh.score):null,maxScore:fresh.submitted_at?n(fresh.max_score):null,
