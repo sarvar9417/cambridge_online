@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import type { ContentService } from './content-service.js';
 import { describe, expect, it, vi } from 'vitest';
 import { buildLiveQuizQuestions, drawTreasureReward, liveQuizPoints,
   LiveQuizService, settleTreasureBalance } from './live-quiz-service.js';
@@ -248,5 +249,30 @@ describe('Treasure Quest transactional answer and reward protection',()=>{
     await expect(service.treasureReward(playerId,token,{turnIndex:0}))
       .rejects.toMatchObject({code:'quiz_reward_closed',status:409});
     expect(query).toHaveBeenCalledWith('rollback');
+  });
+  it('creates 0478 rooms using only 0478 curriculum scopes and verified answers',async()=>{
+    const actor={id:'teacher-0478',role:'teacher' as const,schoolId:'school',fullName:'Teacher'};
+    const selected=[{chapterNo:1,kind:'chapter' as const}];
+    const collection=vi.fn(async()=>({
+      courseCode:'0478',scopes:selected,
+      pairs:Array.from({length:8},(_,i)=>({...verified(i),chapterNo:1,
+        definitionEvidenceStatus:'official_textbook_definition'})),
+    }));
+    const query=vi.fn(async(sql:string,_params?:unknown[])=>{
+      if(sql.includes('insert into live_quiz_rooms'))
+        return {rowCount:1,rows:[{id:'0478-room-id'}]};
+      throw new Error('Unexpected 0478 SQL: '+sql.slice(0,120));
+    });
+    const service=new LiveQuizService({query} as unknown as Pool,
+      {interactiveGameCollection:collection} as unknown as ContentService);
+    const result=await service.create(actor,{courseCode:'0478',scopes:selected,
+      count:15,seconds:20,mode:'classic'});
+    expect(result.questionCount).toBe(8);
+    expect(collection).toHaveBeenCalledWith(actor,{courseCode:'0478',scopes:selected});
+    const insert=query.mock.calls.find(([sql])=>sql.includes('insert into live_quiz_rooms'))!;
+    expect(insert[1]?.[3]).toBe('0478');
+    const questions=JSON.parse(String(insert[1]?.[5])) as Array<{sourceContext:string}>;
+    expect(questions).toHaveLength(8);
+    expect(questions.every(question=>question.sourceContext.includes('Chapter 1'))).toBe(true);
   });
 });

@@ -855,4 +855,27 @@ describe('database-backed Interactive Games multi-selection', () => {
       expect(container.querySelector('.ig-result-panel')?.textContent).toContain('Only student-submitted formative results can be saved');
     } finally { vi.useRealTimers(); }
   });
+  it('opens a bookmarked 0478 teacher Live Quiz without loading a 9618 glossary',async()=>{
+    mockApi.mockImplementation((async(path:string,init?:RequestInit)=>{
+      if(path==='/classes')return {data:[]};
+      if(path==='/live-quizzes')return {data:[]};
+      if(path==='/content/interactive-games/catalog?courseCode=0478')return {data:{...catalog(),courseCode:'0478'}};
+      if(path==='/content/interactive-games/collection'&&init?.method==='POST'){
+        const payload=JSON.parse(String(init.body)) as {courseCode:string;scopes:GameScope[]};
+        return {data:{...pack(payload.scopes),courseCode:payload.courseCode,contentStatus:'approved',
+          pairs:pack(payload.scopes).pairs.map(pair=>({...pair,status:'approved' as const,
+            definitionEvidenceStatus:'official_textbook_definition'}))}};
+      }
+      return respond(path,init);
+    }) as typeof api);
+    await act(async()=>{
+      root.render(<InteractiveGamesPage isTeacher initialCourseCode="0478" startLiveQuiz/>);
+      await Promise.resolve();await Promise.resolve();await Promise.resolve();
+    });
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Syllabus"]')?.value).toBe('0478');
+    expect(container.querySelector('.lq-host')).not.toBeNull();
+    expect(mockApi.mock.calls.some(([path])=>path==='/content/interactive-games/catalog?courseCode=0478')).toBe(true);
+    expect(mockApi.mock.calls.some(([path])=>path==='/content/interactive-games/catalog?courseCode=9618')).toBe(false);
+    expect(lastScopes().courseCode).toBe('0478');
+  });
 });

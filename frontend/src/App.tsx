@@ -652,7 +652,11 @@ export function App() {
                   : route.path === 'oqitish/live' || route.path === 'oquvchi/live'
                     ? <LiveExamPage user={user} classes={classes} />
                   : route.path === 'oqitish/oyinlar' || route.path === 'oquvchi/oyinlar'
-                    ? <InteractiveGamesPage isTeacher={user.role !== 'student'} />
+                    ? <InteractiveGamesPage
+                      key={route.params.get('courseCode') === '0478' ? '0478' : '9618'}
+                      isTeacher={user.role !== 'student'}
+                      initialCourseCode={route.params.get('courseCode') === '0478' ? '0478' : '9618'}
+                      startLiveQuiz={user.role !== 'student' && route.params.get('liveQuiz') === '1'} />
                   : routedSections;
 
   return (

@@ -52,7 +52,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     void api<{data:ClassItem[]}>('/classes').then(({data})=>{
       if(!mounted)return;
       setClasses(data);setClassesError(false);
-      setClassId(current=>data.some(item=>item.id===current)?current:data.length===1?data[0]!.id:'');
+      setClassId(current=>data.some(item=>item.id===current)?current:'');
     }).catch(()=>{if(mounted)setClassesError(true);})
       .finally(()=>{if(mounted)setClassesLoading(false);});
     return()=>{mounted=false;};
@@ -132,6 +132,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
     finally{setDeletingId(null);}
   }
 
+  const historyForCourse=history.filter(item=>item.courseCode===courseCode);
   const joinUrl=snapshot?`${window.location.origin}/#/play/${snapshot.pin}`:'';
   const codeEntryUrl=`${window.location.origin}/#/play`;
   async function copyJoinLink(){
@@ -241,8 +242,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           {loading?'Creating…':'Host Now →'}</button>
         <p className="lq-small">If a narrow topic contains fewer verified questions, the game uses every eligible question (minimum four).</p>
       </div>
-      {!!history.length&&<div className="lq-history"><h3>My recent Live Quizzes</h3>
-        {history.map(item=><div className="lq-history-item" key={item.id}>
+      {!!historyForCourse.length&&<div className="lq-history"><h3>My recent Live Quizzes</h3>
+        {historyForCourse.map(item=><div className="lq-history-item" key={item.id}>
           <button className="lq-history-open" type="button" onClick={()=>reopen(item)}>
             <b>PIN {item.pin}</b><span>{item.mode==='treasure'?'🏴‍☠️ Treasure Quest':'⚡ Classic'} · {item.courseCode} · {item.questionCount} questions · {item.playerCount} students</span>
             <small>{item.status==='finished'?'View final reports':'Resume game'} · {new Date(item.createdAt).toLocaleDateString('en-GB')}</small>
