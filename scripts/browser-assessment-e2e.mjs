@@ -277,8 +277,28 @@ try{
   await qa.clickText(guestPage,'Testni boshlash');
   await guestPage.waitForSelector('.qt-options button',{visible:true});
   await qa.waitText(guestPage,'What is 1010 in denary?');
-  await guestPage.locator('.qt-options button:first-child').click();
+  const shuffledOptions=await guestPage.$eval('.qt-options button span',nodes=>
+    nodes.map(n=>n.textContent?.trim()));
+  await qa.check('Options are shuffled for this learner while retaining original A-D content',
+    shuffledOptions.join('|')!==['10','12','8','2'].join('|')&&
+    [...shuffledOptions].sort().join('|')===[...['10','12','8','2']].sort().join('|'));
+  await guestPage.reload({waitUntil:'networkidle2'});
+  await guestPage.waitForSelector('.qt-options button',{visible:true});
+  const reloadedOptions=await guestPage.$eval('.qt-options button span',nodes=>
+    nodes.map(n=>n.textContent?.trim()));
+  await qa.check('Refreshing a shuffled test does not move the options',
+    shuffledOptions.join('|')===reloadedOptions.join('|'));
+  await guestPage.$eval('.qt-options',node=>{
+    const button=[...node.querySelectorAll('button')].find(el=>
+      el.querySelector('span')?.textContent?.trim()==='10');
+    if(!button)throw Error('Correct option not found');
+    button.click();
+  });
   await guestPage.waitForFunction(()=>document.querySelectorAll('.qt-options .is-selected').length===1);
+  await guestPage.reload({waitUntil:'networkidle2'});
+  await guestPage.waitForSelector('.qt-options button.is-selected',{visible:true});
+  await qa.check('Shuffled answer selection persists after refresh',
+    (await guestPage.$eval('.qt-options button.is-selected span',node=>node.textContent?.trim()))==='10');
   await qa.clickText(guestPage,'Testni topshirish');
   await qa.waitText(guestPage,'Test yakunlandi!');
   const studentScore=await guestPage.$eval('.qt-complete',node=>node.textContent);
