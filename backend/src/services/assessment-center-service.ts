@@ -186,6 +186,23 @@ export class AssessmentCenterService {
       return {saved:true};
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
   }
+  async eligibleClasses(actor:Actor,id:string){
+    const test=await this.ownTest(actor,id);
+    const result=await this.pool.query(
+      `select c.id,c.name,c.grade,sy.code syllabus_code
+       from classes c join syllabi sy on sy.id=c.syllabus_id
+       where c.school_id=$1 and c.archived_at is null
+         and (($2='owner') or ($2='teacher' and
+          (c.owner_id=$3 or exists(select 1 from class_teachers ct
+           where ct.class_id=c.id and ct.teacher_id=$3))))
+       order by c.grade,c.name`,
+      [actor.schoolId,actor.role,actor.id]);
+    const expectedGrade=/^Grade ([5-9])$/i.exec(String(test.grade_label??''))?.[1];
+    return result.rows.filter(r=>test.course_code==='school'
+      ? (expectedGrade ? Number(r.grade)===Number(expectedGrade) : false)
+      : r.syllabus_code===test.course_code)
+      .map(r=>({id:r.id,name:r.name,grade:r.grade}));
+  }
   async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean){
     if(!sourceReviewed)throw fail('test_source_review_required',409);
     const client=await this.pool.connect();

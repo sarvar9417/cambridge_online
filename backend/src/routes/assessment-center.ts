@@ -48,6 +48,9 @@ export function createAssessmentCenterRouter(service:AssessmentCenterService){
     res.json({data:await service.updateQuestion(req.actor!,
       id.parse(req.params.id),id.parse(req.params.questionId),input)});
   });
+  router.get('/tests/:id/eligible-classes',async(req,res)=>{
+    noStore(res);res.json({data:await service.eligibleClasses(req.actor!,id.parse(req.params.id))});
+  });
   router.post('/tests/:id/publish',async(req,res)=>{
     const body=publish.parse(req.body);
     res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed)});

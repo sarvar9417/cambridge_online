@@ -204,6 +204,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   const [attempt,setAttempt]=useState<Attempt|null>(null);
   const [draft,setDraft]=useState<Package|null>(null);
   const [targetIds,setTargetIds]=useState<string[]>([]);
+  const [eligibleClasses,setEligibleClasses]=useState<Array<{id:string;name:string;grade:number|null}>>([]);
   const [releaseAnswers,setReleaseAnswers]=useState(false);
   const [editingQuestion,setEditingQuestion]=useState<Question|null>(null);
   const [sourceReviewed,setSourceReviewed]=useState(false);
@@ -236,8 +237,14 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   }
   async function openTest(id:string){
     setError('');setSelected(null);setReport(null);setDraft(null);setProfileId(null);
-    try{const r=await api<{data:TestDetail}>('/assessment-center/tests/'+id);
-      setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
+    try{
+      const [r,allowed]=await Promise.all([
+        api<{data:TestDetail}>('/assessment-center/tests/'+id),
+        api<{data:Array<{id:string;name:string;grade:number|null}>}>('/assessment-center/tests/'+id+'/eligible-classes'),
+      ]);
+      setSelected(r.data);setEligibleClasses(allowed.data);
+      setTargetIds((r.data.classIds??[]).filter(classId=>allowed.data.some(c=>c.id===classId)));
+      setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
     catch(e){setError(msg(e));}
   }
   async function saveCorrectIndex(question:Question,correctIndex:number|null){
@@ -375,10 +382,13 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
         <h3>Sinfga nashr qilish</h3>
         <p className={pending?'ac-warning':'ac-success'}>
           {pending?pending+' savolda javob kaliti yo‘q. Nashr qilish bloklangan.':'Javob kalitlari to‘liq.'}</p>
-        <div className="ac-class-grid">{classes.map(c=><label key={c.id}>
+        <div className="ac-class-grid">{eligibleClasses.map(c=><label key={c.id}>
           <input type="checkbox" checked={targetIds.includes(c.id)}
             onChange={e=>setTargetIds(ids=>e.target.checked?[...ids,c.id]:ids.filter(x=>x!==c.id))}/>
           {c.name} {c.grade?'· Grade '+c.grade:''}</label>)}</div>
+        {!eligibleClasses.length&&<p className="ac-warning" role="status">
+          Bu kurs yoki Grade uchun mos sinf topilmadi. Avval sinf va o‘quvchilarni ro‘yxatga kiriting.
+        </p>}
         <label><input type="checkbox" checked={sourceReviewed}
           onChange={e=>setSourceReviewed(e.target.checked)}/> Manba fayl, sinf, mavzular va javob kalitlarini tekshirib tasdiqladim</label>
         {selected.grade_label==='Grade 7'&&<p className="ac-warning">Diqqat: Grade 7 nomli fayl ichida “Stage 9” deb yozilgan. Sinfni nashrdan oldin tekshiring.</p>}
