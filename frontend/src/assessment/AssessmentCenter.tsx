@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ClassItem, type User } from '../lib/api';
 import './assessment-center.css';
+import { assessmentCsvCell } from './assessment-csv';
 
 type Answer = number|null;
 type Question = {id?:string;sourceNumber?:number;position?:number;prompt:string;options:string[];
@@ -101,7 +102,8 @@ function StudentProfile({studentId,onBack}:{studentId:string;onBack:()=>void}){
           <td>{item.title}</td><td>{item.kind}</td><td>{item.score}/{item.maxScore}</td>
           <td>{percent(item.percent)}</td><td>{time(item.submittedAt)}</td>
         </tr>)}</tbody></table></div>
-      <p className="ac-muted">Natijalar testlarning birinchi mustaqil urinishlaridan olingan.
+      <p className="ac-muted">Ko‘rsatilgan foiz farqi — turli testlar orasidagi xom farq, u o‘zlashtirish o‘sishini isbotlamaydi.
+        Natijalar testlarning birinchi mustaqil urinishlaridan olingan.
         Turli qiyinchilikdagi testlar orasidagi foiz farqi avtomatik ravishda mastery deb hisoblanmaydi.</p>
     </>}
   </section>;
@@ -179,6 +181,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   const [draft,setDraft]=useState<Package|null>(null);
   const [targetIds,setTargetIds]=useState<string[]>([]);
   const [releaseAnswers,setReleaseAnswers]=useState(false);
+  const [editingQuestion,setEditingQuestion]=useState<Question|null>(null);
   const [sourceReviewed,setSourceReviewed]=useState(false);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
@@ -210,7 +213,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   async function openTest(id:string){
     setError('');setSelected(null);setReport(null);setDraft(null);setProfileId(null);
     try{const r=await api<{data:TestDetail}>('/assessment-center/tests/'+id);
-      setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);}
+      setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
     catch(e){setError(msg(e));}
   }
   async function saveCorrectIndex(question:Question,correctIndex:number|null){
@@ -222,6 +225,22 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
       });
       await openTest(selected.id);
       setSuccess('Javob kaliti saqlandi.');
+    }catch(e){setError(msg(e));}finally{setBusy(false);}
+  }
+  async function saveQuestionChanges(){
+    if(!selected||!editingQuestion?.id)return;
+    setBusy(true);setError('');
+    try{
+      const changes=validatePackage({title:'Review',courseCode:'school',gradeLabel:'',
+        kind:'diagnostic',durationMinutes:20,questions:[editingQuestion]}).questions[0]!;
+      await api('/assessment-center/tests/'+selected.id+'/questions/'+editingQuestion.id,{
+        method:'PATCH',body:JSON.stringify({
+          prompt:changes.prompt,options:changes.options,correctIndex:changes.correctIndex,
+          topic:changes.topic,maxMarks:changes.maxMarks,
+        }),
+      });
+      await openTest(selected.id);
+      setSuccess('Savol tuzatildi. Nashr qilishdan oldin qayta tekshiring.');
     }catch(e){setError(msg(e));}finally{setBusy(false);}
   }
   async function publish(){
@@ -247,7 +266,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   const average=overall.length?Math.round(overall.reduce((s,r)=>s+Number(r.percent),0)/overall.length):null;
   function downloadCsv(){
     if(!report)return;
-    const clean=(v:unknown)=>'"'+String(v??'').replaceAll('"','""')+'"';
+    const clean=assessmentCsvCell;
     const rows=[['O‘quvchi','Holat','Ball','Jami','Foiz','Topshirgan vaqt'],
       ...report.students.map(s=>[s.name,s.status,s.score,s.maxScore,s.percent,s.submittedAt])];
     const csv='\uFEFF'+rows.map(row=>row.map(clean).join(',')).join('\r\n');
@@ -365,12 +384,39 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
         {selected.questions.map(q=><div className="ac-saved-q" key={q.id}>
           <p><b>#{q.position}.</b> {q.prompt}
             <small>{q.topic} · {q.maxMarks} ball · To‘g‘ri: {q.correctIndex===null?'Tekshirilmagan':'ABCD'[q.correctIndex]}</small></p>
-          {selected.status==='draft'&&<label className="ac-key-editor">Javob kalitini tasdiqlash
-            <select value={q.correctIndex??''} disabled={busy}
-              onChange={event=>{void saveCorrectIndex(q,event.target.value===''?null:Number(event.target.value));}}>
-              <option value="">Tekshirilmagan</option>
-              {'ABCD'.split('').map((letter,i)=><option value={i} key={letter}>{letter} — {q.options[i]}</option>)}
-            </select></label>}</div>)}</div>}
+          {selected.status==='draft'&&<div className="ac-saved-actions">
+            <label className="ac-key-editor">Javob kalitini tasdiqlash
+              <select value={q.correctIndex??''} disabled={busy}
+                onChange={event=>{void saveCorrectIndex(q,event.target.value===''?null:Number(event.target.value));}}>
+                <option value="">Tekshirilmagan</option>
+                {'ABCD'.split('').map((letter,i)=><option value={i} key={letter}>{letter} — {q.options[i]}</option>)}
+              </select></label>
+            <button type="button" className="ac-secondary" onClick={()=>setEditingQuestion({...q,options:[...q.options]})}>
+              Savol va variantlarni tahrirlash</button></div>}
+          {editingQuestion?.id===q.id&&<div className="ac-editor-q">
+            <label>Savol matni<textarea value={editingQuestion.prompt} rows={3}
+              onChange={e=>setEditingQuestion({...editingQuestion,prompt:e.target.value})}/></label>
+            <div className="ac-answer-grid">{editingQuestion.options.map((option,i)=><label key={i}>
+              {'ABCD'[i]} javob varianti
+              <input value={option} onChange={e=>setEditingQuestion({...editingQuestion,
+                options:editingQuestion.options.map((v,k)=>k===i?e.target.value:v)})}/></label>)}</div>
+            <div className="ac-form-grid">
+              <label>To‘g‘ri javob<select value={editingQuestion.correctIndex??''}
+                onChange={e=>setEditingQuestion({...editingQuestion,
+                  correctIndex:e.target.value===''?null:Number(e.target.value)})}>
+                <option value="">Tekshirilmagan</option>
+                {'ABCD'.split('').map((letter,i)=><option key={letter} value={i}>{letter}</option>)}
+              </select></label>
+              <label>Mavzu<input value={editingQuestion.topic}
+                onChange={e=>setEditingQuestion({...editingQuestion,topic:e.target.value})}/></label>
+              <label>Ball<input type="number" min={1} max={20} value={editingQuestion.maxMarks}
+                onChange={e=>setEditingQuestion({...editingQuestion,maxMarks:Number(e.target.value)})}/></label>
+            </div>
+            <div className="ac-between"><button type="button" className="ac-link" onClick={()=>setEditingQuestion(null)}>
+              Bekor qilish</button>
+              <button type="button" className="ac-primary" disabled={busy}
+                onClick={()=>{void saveQuestionChanges();}}>Saqlash</button></div>
+          </div>}</div>)}</div>}
     </section>}
     {!selected&&!draft&&<section className="ac-panel">
       <h2>{student?'Menga berilgan testlar':'Testlar kutubxonasi'}</h2>

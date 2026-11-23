@@ -54,3 +54,8 @@
 .ac-complete strong{font-size:2rem}.ac-review{margin-top:18px;border-top:1px solid var(--ac-border);padding-top:12px}
 .ac-actions{margin:0 0 18px}
 @media(max-width:720px){.assessment-center{padding:12px 12px 56px}.ac-header{align-items:flex-start;flex-direction:column}.ac-panel{padding:15px}.ac-options,.ac-answer-grid{grid-template-columns:1fr}.ac-metrics{gap:6px}.ac-metrics>div{padding:11px}.ac-metrics strong{font-size:1.3rem}}
+
+.ac-saved-q{border-bottom:1px solid var(--ac-border);padding:12px 0}
+.ac-saved-actions{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
+.ac-key-editor{display:flex;flex-direction:column;gap:5px;min-width:240px;font-size:12px}
+.ac-key-editor select{border-radius:8px;padding:10px;background:var(--surface,#fff);color:inherit;border:1px solid #97abc4;max-width:100%}
