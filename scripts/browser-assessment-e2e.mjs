@@ -301,6 +301,17 @@ try{
   await student.page.waitForSelector('.qt-guest-card input',{visible:true});
   await qa.check('Student opens PIN guest test from own Testlarim page',
     (await student.page.$('input[name="identifier"]'))===null);
+  // A previously logged-in student must stay on the test URL after the auth
+  // session effect runs; this was redirecting back to /oquvchi/uy.
+  await student.page.waitForFunction(code=>location.hash==='#/test/'+code,{},pin);
+  await student.page.reload({waitUntil:'networkidle2'});
+  await student.page.waitForSelector('.qt-guest-card input',{visible:true});
+  await qa.check('PIN link survives hard refresh while learner is signed in',
+    await student.page.evaluate(code=>location.hash==='#/test/'+code,pin));
+  await student.page.goto((process.env.LIVE_E2E_BASE_URL??'http://localhost:5173')+'/#/test/'+pin,{waitUntil:'networkidle2'});
+  await student.page.waitForSelector('.qt-guest-card input',{visible:true});
+  await qa.check('Signed-in student opens shared PIN URL directly without dashboard redirect',
+    await student.page.evaluate(code=>location.hash==='#/test/'+code,pin));
   await qa.clickText(teacher.page,'Testni yakunlash');
   await qa.waitText(teacher.page,'Test yakunlangan');
   await guestContext.close();
