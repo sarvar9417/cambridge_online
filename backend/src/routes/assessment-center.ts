@@ -71,6 +71,9 @@ export function createAssessmentCenterRouter(service:AssessmentCenterService){
     const body=publish.parse(req.body);
     res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed,body.studentIds)});
   });
+  router.post('/tests/:id/release-answers',async(req,res)=>{
+    noStore(res);res.json({data:await service.releaseAnswers(req.actor!,id.parse(req.params.id))});
+  });
   router.post('/tests/:id/archive',async(req,res)=>{
     noStore(res);res.json({data:await service.archive(req.actor!,id.parse(req.params.id))});
   });

@@ -33,7 +33,11 @@ export class AssessmentCenterService {
     if(actor.role!=='student')throw fail('students_only',403);
     const rows=await db.query(
       `select t.* from assessment_center_tests t
-       where t.id=$1 and t.status='published' and t.school_id=$3
+       where t.id=$1 and t.school_id=$3
+         and (t.status='published' or
+           (t.status='archived' and exists(
+             select 1 from assessment_center_attempts a
+             where a.test_id=t.id and a.student_id=$2)))
        and (exists(
          select 1 from assessment_center_targets at
          join classes c on c.id=at.class_id
@@ -99,7 +103,8 @@ export class AssessmentCenterService {
           a.id attempt_id,a.submitted_at,a.score,a.max_score
          from assessment_center_tests t
          left join assessment_center_attempts a on a.test_id=t.id and a.student_id=$1
-         where t.school_id=$2 and t.status='published'
+         where t.school_id=$2 and (t.status='published' or
+           (t.status='archived' and a.id is not null))
          and (exists(
            select 1 from assessment_center_targets at
            join classes c on c.id=at.class_id
@@ -261,6 +266,9 @@ export class AssessmentCenterService {
         `select count(*)::int total,count(*) filter(where correct_index is null)::int missing
          from assessment_center_questions where test_id=$1`,[id]);
       if(!number(q.rows[0]?.total)||number(q.rows[0]?.missing))throw fail('test_answer_keys_missing',409);
+      // Diagnostic / summative answer keys must not be revealed while peers
+      // may still sit the assessment. Practice can intentionally give feedback.
+      if(releaseAnswers&&t.kind!=='practice')throw fail('answer_release_requires_archive',409);
       const ids=[...new Set(classIds)];
       const authorized=await client.query(
         `select c.id,c.grade,sy.code syllabus_code from classes c
@@ -346,6 +354,21 @@ export class AssessmentCenterService {
     }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   }
 
+  /** Release keys after the assessment has been archived and no learner can start. */
+  async releaseAnswers(actor:Actor,id:string){
+    const client=await this.pool.connect();
+    try{
+      await client.query('BEGIN');
+      const test=await this.ownTest(actor,id,client,true);
+      if(test.status!=='archived')throw fail('test_must_be_archived',409);
+      await client.query(
+        `update assessment_center_tests
+         set release_answers=true where id=$1`,[id]);
+      await client.query('COMMIT');
+      return {id,released:true};
+    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  }
+
   /** Draft-only hard-delete; published results are never destroyed by a UI delete. */
   async deleteDraft(actor:Actor,id:string){
     const client=await this.pool.connect();
@@ -367,6 +390,7 @@ export class AssessmentCenterService {
         `select id from assessment_center_attempts where test_id=$1 and student_id=$2`,
         [testId,actor.id]);
       let attemptId=exists.rows[0]?.id as string|undefined;
+      if(test.status==='archived'&&!attemptId)throw fail('test_closed',409);
       if(!attemptId){
         const gate=await client.query(
           `select (opens_at is not null and now()<opens_at) as upcoming,

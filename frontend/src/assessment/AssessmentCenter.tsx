@@ -278,7 +278,7 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
       setTargetIds((r.data.classIds??[]).filter(classId=>allowed.data.some(c=>c.id===classId)));
       setStudentIds((r.data.studentIds??[]).filter(studentId=>students.data.some(u=>u.id===studentId)));
       setStudentSearch('');
-      setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
+      setReleaseAnswers(r.data.kind==='practice'&&r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
     catch(e){setError(msg(e));}
   }
   async function saveCorrectIndex(question:Question,correctIndex:number|null){
@@ -314,6 +314,16 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
       body:JSON.stringify({classIds:targetIds,studentIds,releaseAnswers,sourceReviewed})});
       setSuccess('Test nashr qilindi — tanlangan sinf va o‘quvchilarning akkauntlarida ko‘rinadi.');
       await openTest(selected.id);await load();
+    }catch(e){setError(msg(e));}finally{setBusy(false);}
+  }
+  async function releaseArchivedAnswers(){
+    if(!selected||!window.confirm('Bu test arxivlangan. Yakunlangan urinishlar uchun javoblarni ochasizmi?'))
+      return;
+    setBusy(true);setError('');
+    try{
+      await api('/assessment-center/tests/'+selected.id+'/release-answers',{method:'POST'});
+      setSuccess('Yakunlangan testning javoblari o‘quvchilar uchun ochildi.');
+      await openTest(selected.id);
     }catch(e){setError(msg(e));}finally{setBusy(false);}
   }
   async function archiveTest(){
@@ -445,6 +455,9 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
             disabled={busy} onClick={()=>{void archiveTest();}}>Arxivlash</button>}
           {selected.status==='draft'&&<button type="button" className="ac-secondary"
             disabled={busy} onClick={()=>{void deleteDraft();}}>Draftni o‘chirish</button>}
+          {selected.status==='archived'&&!selected.release_answers&&<button type="button"
+            className="ac-secondary" disabled={busy}
+            onClick={()=>{void releaseArchivedAnswers();}}>Javoblarni o‘quvchilarga ochish</button>}
         </div></div>
       {selected.status==='draft'&&<div className="ac-publish">
         <h3>Sinfga nashr qilish</h3>
@@ -477,7 +490,12 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
           onChange={e=>setSourceReviewed(e.target.checked)}/> Manba fayl, sinf, mavzular va javob kalitlarini tekshirib tasdiqladim</label>
         {selected.grade_label==='Grade 7'&&<p className="ac-warning">Diqqat: Grade 7 nomli fayl ichida “Stage 9” deb yozilgan. Sinfni nashrdan oldin tekshiring.</p>}
         <label><input type="checkbox" checked={releaseAnswers}
-          onChange={e=>setReleaseAnswers(e.target.checked)}/> Topshirgandan keyin to‘g‘ri javoblar ko‘rinsin</label>
+          disabled={selected.kind!=='practice'}
+          onChange={e=>setReleaseAnswers(e.target.checked)}/>
+          {selected.kind==='practice'
+            ?'Practice: topshirgandan keyin to‘g‘ri javoblar ko‘rinsin'
+            :'Monitoring / Summative: javob kalitlari test arxivlanmaguncha yopiq qoladi'}
+        </label>
         <button type="button" className="ac-primary" disabled={busy||pending>0||(!targetIds.length&&!studentIds.length)||!sourceReviewed}
           onClick={()=>{void publish();}}>Testni nashr qilish</button>
       </div>}
