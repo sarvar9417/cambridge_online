@@ -183,6 +183,33 @@ try{
   await qa.check('Scheduled assessment invitation cannot be started early',
     future.disabled===true&&future.text.includes('Hali ochilmagan'),future);
   await qa.screenshot(direct.page,'scheduled-invitation-disabled');
+
+  // A formal assessment cannot leak keys early. After archival it preserves the
+  // first-attempt score and allows the owner to release answers to completers.
+  const archived=await teacher.page.evaluate(async()=>{
+    const {api}=await import('/src/lib/api.ts');
+    const listing=await api('/assessment-center');
+    const test=listing.data.find(item=>item.title==='Assessment E2E Hardware');
+    if(!test)throw Error('Missing published 10-A test');
+    await api('/assessment-center/tests/'+test.id+'/archive',{method:'POST'});
+    await api('/assessment-center/tests/'+test.id+'/release-answers',{method:'POST'});
+    const report=await api('/assessment-center/tests/'+test.id+'/report');
+    return {id:test.id,rows:report.data.students,
+      status:(await api('/assessment-center/tests/'+test.id)).data.status};
+  });
+  await qa.check('Archived test preserves report and correct student score',
+    archived.status==='archived'&&archived.rows.some(item=>item.name==='Aziz Karimov'&&item.score===1));
+  const historical=await student.page.evaluate(async id=>{
+    const {api}=await import('/src/lib/api.ts');
+    const listing=await api('/assessment-center');
+    const present=listing.data.some(item=>item.id===id&&item.submittedAt);
+    const attempt=await api('/assessment-center/tests/'+id+'/start',{method:'POST'});
+    return {present,score:attempt.data.score,first:attempt.data.questions[0],
+      keys:attempt.data.questions.map(q=>q.correctIndex)};
+  },archived.id);
+  await qa.check('Student retains archived first attempt and sees post-archive released keys',
+    historical.present&&historical.score===1&&historical.keys.length===2
+      &&historical.keys.every(key=>Number.isInteger(key)),historical);
   await qa.check('Teacher and students completed full multi-account assessment browser acceptance',true);
 }catch(error){
   console.error('Assessment E2E diagnostic:',JSON.stringify({
