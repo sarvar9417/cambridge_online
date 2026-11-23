@@ -137,6 +137,7 @@ try{
   await qa.waitText(direct.page,'1/1 ball');
   await qa.check('Directly invited student completes graded test',true);
   await qa.screenshot(direct.page,'direct-student-result');
+  await qa.clickText(direct.page,'Bosh sahifaga qaytish');
 
   // Future publication stays visible but not startable: schedule is authoritative on server.
   const schedule=await teacher.page.evaluate(async()=>{
@@ -159,6 +160,8 @@ try{
       body:JSON.stringify({classIds:[],studentIds:[assigned.id],releaseAnswers:false,sourceReviewed:true})});
     return {id,opensAt,closesAt};
   });
+  await qa.go(direct.page,'oquvchi/uy');
+  await direct.page.waitForSelector('.ac-inbox',{visible:true});
   await qa.go(direct.page,'oquvchi/testlar');
   await qa.waitText(direct.page,'Assessment E2E Scheduled');
   const future=await direct.page.evaluate(title=>{
