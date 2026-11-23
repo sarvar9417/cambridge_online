@@ -45,6 +45,12 @@ export function createAssessmentCodeGuestRouter(service:AssessmentCodeService,po
     noStore(res);
     res.json({data:await service.snapshot(id.parse(req.params.playerId),auth(req.header('authorization')))});
   });
+  router.post('/players/:playerId/focus',async(req,res)=>{
+    noStore(res);
+    const body=z.object({questionId:id.nullable()}).strict().parse(req.body);
+    res.json({data:await service.focus(
+      id.parse(req.params.playerId),auth(req.header('authorization')),body.questionId)});
+  });
   router.post('/players/:playerId/answers/:questionId',async(req,res)=>{
     noStore(res);
     const choice=z.object({choiceIndex:z.number().int().min(0).max(3)}).strict().parse(req.body);
