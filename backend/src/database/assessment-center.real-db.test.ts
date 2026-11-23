@@ -199,6 +199,9 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     expect(historical&&'submittedAt' in historical?historical.submittedAt:null).not.toBeNull();
     const report=await service.report(actor(teacher,'teacher'),draft.id);
     expect(report.students.find(item=>item.studentId===student)?.score).toBe(1);
+    await client.query(
+      `update enrollments set left_at=null where class_id=$1 and student_id=$2`,
+      [klass,student]);
   });
   it('never releases monitoring keys before archived and only hard-deletes unpublished drafts',async()=>{
     const draft=await create();
