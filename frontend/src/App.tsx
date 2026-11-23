@@ -42,6 +42,8 @@ import { StudentLearning } from './student/StudentLearning';
 import { StudentGames } from './student/StudentGames';
 import { InteractiveGamesPage } from './interactive-games/InteractiveGamesPage';
 import { LiveQuizGuestPage } from './interactive-games/LiveQuizGuestPage';
+import { AssessmentCenter } from './assessment/AssessmentCenter';
+import { AssessmentInbox } from './assessment/AssessmentInbox';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
@@ -609,16 +611,19 @@ export function App() {
   const bySection: Record<SectionName, ReactNode> = {
     studentAssignments, studentResults, studentLearning,
     studentHome: (
-      <StudentHome
-        user={user}
-        assignments={assignments}
-        results={results}
-        mastery={mastery}
-        flashcards={flashcards}
-        onStart={start}
-        onPractice={startPractice}
-        practicing={practicing}
-      />
+      <>
+        <AssessmentInbox />
+        <StudentHome
+          user={user}
+          assignments={assignments}
+          results={results}
+          mastery={mastery}
+          flashcards={flashcards}
+          onStart={start}
+          onPractice={startPractice}
+          practicing={practicing}
+        />
+      </>
     ),
     studentProfile,
     classes: (
@@ -651,6 +656,8 @@ export function App() {
                 : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
                   : route.path === 'oqitish/live' || route.path === 'oquvchi/live'
                     ? <LiveExamPage user={user} classes={classes} />
+                  : route.path === 'oqitish/testlar' || route.path === 'oquvchi/testlar'
+                    ? <AssessmentCenter user={user} classes={classes}/>
                   : route.path === 'oqitish/oyinlar' || route.path === 'oquvchi/oyinlar'
                     ? <InteractiveGamesPage
                       key={route.params.get('courseCode') === '0478' ? '0478' : '9618'}

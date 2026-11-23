@@ -56,6 +56,7 @@ CREATE TABLE classes (
   syllabus_id uuid NOT NULL REFERENCES syllabi,
   owner_id uuid NOT NULL REFERENCES users,
   name text NOT NULL DEFAULT 'Acceptance class',
+  grade int,
   archived_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );

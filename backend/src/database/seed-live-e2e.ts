@@ -19,7 +19,19 @@ try {
      set email_verified_at=coalesce(email_verified_at,now()),
          status='active'
      where username=any($1::text[])`,
-    [[process.env.SEED_OWNER_USERNAME ?? 'qa-owner','student01','student02','student03']],
+    [[process.env.SEED_OWNER_USERNAME ?? 'qa-owner','student01','student02','student03','student07']],
+  );
+
+  // Local-only unassigned student verifies direct assessment delivery when
+  // the school has no Grade 5–9 class. Reuse the test password hash.
+  await client.query(
+    `insert into users(school_id,role,full_name,username,password_hash,is_active,status,email_verified_at)
+     select school_id,'student','QA Unassigned Grade 8','student13',password_hash,
+       true,'active',now()
+     from users where username='student07'
+     on conflict(username) do update set
+       password_hash=excluded.password_hash,is_active=true,status='active',
+       email_verified_at=coalesce(users.email_verified_at,now())`,
   );
 
   const topic = await client.query<{ id:string }>(

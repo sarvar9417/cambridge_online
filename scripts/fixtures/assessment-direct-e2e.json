@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "title": "Assessment E2E Direct Grade 8",
+  "sourceFilename": "synthetic-direct-browser-test.json",
+  "courseCode": "school",
+  "gradeLabel": "Grade 8",
+  "kind": "practice",
+  "durationMinutes": 10,
+  "questions": [
+    {
+      "prompt": "What is 1010 in denary?",
+      "options": [
+        "10",
+        "12",
+        "8",
+        "2"
+      ],
+      "correctIndex": 0,
+      "topic": "Number systems",
+      "maxMarks": 1,
+      "sourceNumber": 1
+    }
+  ]
+}
