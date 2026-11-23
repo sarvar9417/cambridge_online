@@ -68,13 +68,13 @@ export function selectRelatedDistractors<T extends RelatedQuizTerm>(
     const sharedDefinitions = intersection(targetDescription, words(other.definition));
     const sharedLabels = intersection(targetLabel, words(other.term));
     const meaning = sharedDefinitions * 2 + sharedLabels;
-    // Same-topic terminology is generally plausible in a classroom quiz.
-    // A broad chapter alone is never sufficient to admit an unrelated answer.
+    // Matching a topic alone is not evidence of conceptual similarity.
+    // Require meaningful shared terminology even within a broad curriculum topic.
     const isRelated = difficulty === 'challenging'
-      ? (sameSection && meaning >= 1) || (sameTopic && meaning >= 1) ||
-        (sameChapter && meaning >= 3) || meaning >= 5
-      : sameSection || sameTopic || (sameChapter && meaning >= 1) ||
-        meaning >= 4;
+      ? ((sameSection || sameTopic) && meaning >= 2) ||
+        (sameChapter && meaning >= 4) || meaning >= 6
+      : ((sameSection || sameTopic) && meaning >= 1) ||
+        (sameChapter && meaning >= 2) || meaning >= 4;
     if (!isRelated) return [];
 
     const score = (sameSection ? 14 : 0) + (sameTopic ? 12 : 0) +
