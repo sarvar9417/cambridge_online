@@ -277,14 +277,40 @@ try{
   await qa.clickText(guestPage,'Testni boshlash');
   await guestPage.waitForSelector('.qt-options button',{visible:true});
   await qa.waitText(guestPage,'What is 1010 in denary?');
-  await guestPage.locator('.qt-options button:first-child').click();
+  const shuffledOptions=await guestPage.$eval('.qt-options',node=>
+    [...node.querySelectorAll('button span')].map(n=>n.textContent?.trim()));
+  await qa.check('Options are shuffled for this learner while retaining original A-D content',
+    shuffledOptions.join('|')!==['10','12','8','2'].join('|')&&
+    [...shuffledOptions].sort().join('|')===[...['10','12','8','2']].sort().join('|'));
+  await guestPage.reload({waitUntil:'networkidle2'});
+  await guestPage.waitForSelector('.qt-options button',{visible:true});
+  const reloadedOptions=await guestPage.$eval('.qt-options',node=>
+    [...node.querySelectorAll('button span')].map(n=>n.textContent?.trim()));
+  await qa.check('Refreshing a shuffled test does not move the options',
+    shuffledOptions.join('|')===reloadedOptions.join('|'));
+  await guestPage.$eval('.qt-options',node=>{
+    const button=[...node.querySelectorAll('button')].find(el=>
+      el.querySelector('span')?.textContent?.trim()==='10');
+    if(!button)throw Error('Correct option not found');
+    button.click();
+  });
   await guestPage.waitForFunction(()=>document.querySelectorAll('.qt-options .is-selected').length===1);
+  await guestPage.reload({waitUntil:'networkidle2'});
+  await guestPage.waitForSelector('.qt-options button.is-selected',{visible:true});
+  await qa.check('Shuffled answer selection persists after refresh',
+    (await guestPage.$eval('.qt-options button.is-selected span',node=>node.textContent?.trim()))==='10');
   await qa.clickText(guestPage,'Testni topshirish');
   await qa.waitText(guestPage,'Test yakunlandi!');
   const studentScore=await guestPage.$eval('.qt-complete',node=>node.textContent);
   await qa.check('PIN learner gets automatically graded score',studentScore.includes('1 / 1'),{studentScore});
   await qa.screenshot(guestPage,'guest-pin-test-finished');
   await qa.waitText(teacher.page,'QA PIN Learner');
+  // Live teacher results poll every 3s. Wait for the submitted score, not just
+  // the student's earlier "joined" row, before asserting the final result.
+  await teacher.page.waitForFunction(()=>{
+    const text=document.querySelector('.qt-table-wrap')?.textContent??'';
+    return text.includes('QA PIN Learner')&&text.includes('1 / 1');
+  },{timeout:15000});
   const teacherScore=await teacher.page.$eval('.qt-table-wrap',node=>node.textContent);
   await qa.check('Teacher sees guest name and correct test result live',
     teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));

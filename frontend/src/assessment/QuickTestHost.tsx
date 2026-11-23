@@ -155,7 +155,7 @@ export function QuickTestHost({user,classes}:{user:User;classes:ClassItem[]}){
             <button type="button" onClick={()=>{void copy(invite(current.code),'link');}}>{copied==='link'?'✓ Nusxalandi':'Havolani nusxalash'}</button>
           </div>
           <a href={invite(current.code)} target="_blank" rel="noreferrer">{invite(current.code)}</a>
-          <p>O‘quvchilar ismi va kodini kiritadi. Login talab qilinmaydi.</p>
+          <p>O‘quvchilar ismi va kodini kiritadi. Login talab qilinmaydi. Savollar va A–D variantlari har bir yangi o‘quvchi uchun alohida aralashtiriladi.</p>
         </div>
         <div className="qt-session-stats">
           <div><b>{report?.students.length??current.joined}</b><span>Qo‘shilgan</span></div>

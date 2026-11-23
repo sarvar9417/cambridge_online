@@ -60,18 +60,23 @@ const live=process.env.LIVE_DB_ACCEPTANCE==='1';
     const first=await service.snapshot(guest.playerId,guest.token);
     expect(first.questions).toHaveLength(2);
     expect(first.questions[0]).not.toHaveProperty('correctIndex');
-    await service.answer(guest.playerId,guest.token,first.questions[0]!.id,0);
-    await service.answer(guest.playerId,guest.token,first.questions[1]!.id,2);
+    const cpu=first.questions.find(q=>q.prompt==='CPU means?')!;
+    const ram=first.questions.find(q=>q.prompt==='RAM is?')!;
+    await service.answer(guest.playerId,guest.token,cpu.id,cpu.options.indexOf('Central Processing Unit'));
+    await service.answer(guest.playerId,guest.token,ram.id,ram.options.indexOf('Optical'));
     const done=await service.submit(guest.playerId,guest.token);
     expect(done).toMatchObject({score:1,maxScore:2});
     expect(done.questions[0]).not.toHaveProperty('correctIndex');
-    await expect(service.answer(guest.playerId,guest.token,first.questions[1]!.id,1))
+    await expect(service.answer(guest.playerId,guest.token,ram.id,ram.options.indexOf('Volatile')))
       .rejects.toMatchObject({status:409});
     expect((await service.submit(guest.playerId,guest.token)).score).toBe(1);
     const teacherReport=await service.report(actor(teacher),s.id);
     expect(teacherReport.students).toHaveLength(1);
     expect(teacherReport.students[0]).toMatchObject({name:'Ali Valiyev',score:1,maxScore:2});
-    expect(teacherReport.students[0]!.details.map(x=>x.correct)).toEqual([true,false]);
+    expect(teacherReport.students[0]!.details.find(x=>x.prompt==='CPU means?')?.correct).toBe(true);
+    expect(teacherReport.students[0]!.details.find(x=>x.prompt==='RAM is?')?.correct).toBe(false);
+    expect(teacherReport.students[0]!.details.find(x=>x.prompt==='CPU means?')?.choiceIndex)
+      .toBe(cpu.options.indexOf('Central Processing Unit'));
     await service.close(actor(teacher),s.id);
     await expect(service.join(s.code,'Zarina Karimova'))
       .rejects.toMatchObject({status:404});
@@ -81,8 +86,10 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     const session=await service.create(actor(teacher),testId,true);
     const guest=await service.join(session.code,'Learning Analyst');
     const questions=(await service.snapshot(guest.playerId,guest.token)).questions;
-    const first=questions[0]!.id;
-    const second=questions[1]!.id;
+    const cpu=questions.find(q=>q.prompt==='CPU means?')!;
+    const ram=questions.find(q=>q.prompt==='RAM is?')!;
+    const first=cpu.id;
+    const second=ram.id;
     await expect(service.focus(guest.playerId,'f'.repeat(64),first))
       .rejects.toMatchObject({status:403});
     await expect(service.focus(guest.playerId,guest.token,'00000000-0000-4000-8000-000000000000'))
@@ -94,9 +101,9 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     await service.focus(guest.playerId,guest.token,first);
     await service.focus(guest.playerId,guest.token,second);
     await service.focus(guest.playerId,guest.token,first);
-    await service.answer(guest.playerId,guest.token,first,1);
-    await service.answer(guest.playerId,guest.token,first,0);
-    await service.answer(guest.playerId,guest.token,first,0);
+    await service.answer(guest.playerId,guest.token,first,cpu.options.indexOf('Print Unit'));
+    await service.answer(guest.playerId,guest.token,first,cpu.options.indexOf('Central Processing Unit'));
+    await service.answer(guest.playerId,guest.token,first,cpu.options.indexOf('Central Processing Unit'));
     await client.query(
       `UPDATE assessment_code_players SET last_focus_at=now()-interval '5 seconds'
        WHERE id=$1`,[guest.playerId]);
@@ -108,12 +115,14 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     expect(learner.submittedAt).toBeTruthy();
     expect(learner.elapsedSeconds).toBeGreaterThanOrEqual(0);
     expect(learner.focusedMs).toBeGreaterThanOrEqual(12000);
-    expect(learner.details[0]).toMatchObject({
-      number:1,visits:2,answerChanges:1,correct:true,choiceIndex:0
+    const cpuDetail=learner.details.find(q=>q.prompt==='CPU means?')!;
+    expect(cpuDetail).toMatchObject({
+      visits:2,answerChanges:1,correct:true,
+      choiceIndex:cpu.options.indexOf('Central Processing Unit')
     });
-    expect(learner.details[0]!.firstOpenedAt).toBeTruthy();
-    expect(learner.details[0]!.firstAnsweredAt).toBeTruthy();
-    expect(learner.details[0]!.lastAnsweredAt).toBeTruthy();
+    expect(cpuDetail.firstOpenedAt).toBeTruthy();
+    expect(cpuDetail.firstAnsweredAt).toBeTruthy();
+    expect(cpuDetail.lastAnsweredAt).toBeTruthy();
     expect((await service.snapshot(guest.playerId,guest.token)).questions[0])
       .not.toHaveProperty('correctIndex');
     expect((await service.focus(guest.playerId,guest.token,first)).tracking).toBe(false);
@@ -131,6 +140,53 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     expect(detail.answerChanges).toBeNull();
     expect(detail.lastAnsweredAt).toBeTruthy();
   });
+  it('gives each new learner stable shuffled questions and options, with correct teacher mapping',async()=>{
+    const session=await service.create(actor(teacher),testId,true);
+    const g1=await service.join(session.code,'Variant Alice');
+    const g2=await service.join(session.code,'Variant Bob');
+    const state=await service.snapshot(g1.playerId,g1.token);
+    const other=await service.snapshot(g2.playerId,g2.token);
+    const resumed=await service.snapshot(g1.playerId,g1.token);
+    expect(resumed.questions).toEqual(state.questions);
+    expect(state.questions.map(q=>q.number)).toEqual([1,2]);
+    expect(other.questions).toHaveLength(2);
+    expect(new Set(other.questions.map(q=>q.id)).size).toBe(2);
+    for(const row of state.questions){
+      expect(row).not.toHaveProperty('correctIndex');
+      const originals=row.prompt==='CPU means?'?
+        ['Central Processing Unit','Print Unit','Code','None']:
+        ['Permanent','Volatile','Optical','ROM'];
+      expect([...row.options].sort()).toEqual([...originals].sort());
+      expect(row.options).not.toEqual(originals);
+    }
+    const cpu=state.questions.find(q=>q.prompt==='CPU means?')!;
+    const ram=state.questions.find(q=>q.prompt==='RAM is?')!;
+    await service.answer(g1.playerId,g1.token,cpu.id,cpu.options.indexOf('Central Processing Unit'));
+    await service.answer(g1.playerId,g1.token,ram.id,ram.options.indexOf('Volatile'));
+    const completed=await service.submit(g1.playerId,g1.token);
+    expect(completed.score).toBe(2);
+    const report=await service.report(actor(teacher),session.id);
+    const alice=report.students.find(p=>p.name==='Variant Alice')!;
+    expect(alice.score).toBe(2);
+    expect(alice.details.map(q=>q.prompt)).toEqual(state.questions.map(q=>q.prompt));
+    const submitted=await service.snapshot(g1.playerId,g1.token);
+    for(const detail of alice.details){
+      const question=submitted.questions.find(q=>q.prompt===detail.prompt)!;
+      expect(detail.number).toBe(question.number);
+      expect(detail.choiceIndex).toBe(question.choiceIndex);
+      expect(detail.correct).toBe(true);
+      expect(detail.options).toEqual(question.options);
+    }
+    const g3=await service.join(session.code,'Historical Charlie');
+    await client.query('UPDATE assessment_code_players SET shuffle_version=0 WHERE id=$1',[g3.playerId]);
+    const historic=await service.snapshot(g3.playerId,g3.token);
+    expect(historic.questions.map(q=>q.prompt)).toEqual(['CPU means?','RAM is?']);
+    expect(historic.questions[0]?.options).toEqual(['Central Processing Unit','Print Unit','Code','None']);
+    await service.answer(g3.playerId,g3.token,historic.questions[0]!.id,0);
+    expect((await service.submit(g3.playerId,g3.token)).score).toBe(1);
+    expect((await service.report(actor(teacher),session.id)).students.find(p=>p.name==='Historical Charlie')?.details[0]?.choiceIndex).toBe(0);
+  });
+
   it('automatically finalizes an expired timer and reports unanswered questions',async()=>{
     const s=await service.create(actor(teacher),testId,true);
     const g=await service.join(s.code,'Zarina Karimova');
@@ -148,7 +204,8 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     const s=await service.create(actor(teacher),testId,true);
     const g=await service.join(s.code,'Malika');
     const state=await service.snapshot(g.playerId,g.token);
-    await service.answer(g.playerId,g.token,state.questions[0]!.id,0);
+    const cpu=state.questions.find(q=>q.prompt==='CPU means?')!;
+    await service.answer(g.playerId,g.token,cpu.id,cpu.options.indexOf('Central Processing Unit'));
     await service.close(actor(teacher),s.id);
     expect((await service.snapshot(g.playerId,g.token)).score).toBe(1);
     expect((await service.report(actor(owner,'owner'),s.id)).students[0]!.score).toBe(1);
