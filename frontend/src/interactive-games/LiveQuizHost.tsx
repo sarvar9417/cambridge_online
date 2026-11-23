@@ -30,6 +30,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const [randomNames,setRandomNames]=useState(false);
   const [showCorrectness,setShowCorrectness]=useState(true);
   const [questionOrder,setQuestionOrder]=useState<'random'|'ordered'|'mastery'>('random');
+  const [questionDifficulty,setQuestionDifficulty]=useState<'standard'|'challenging'>('standard');
   const [incorrectPenaltySeconds,setIncorrectPenaltySeconds]=useState(2);
   const [classes,setClasses]=useState<ClassItem[]>([]);
   const [classId,setClassId]=useState('');
@@ -101,7 +102,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
       const {data}=await api<{data:{id:string;pin:string;questionCount:number}}>('/live-quizzes',{
         method:'POST',body:JSON.stringify({...(classId?{classId}:{}),courseCode,scopes,count,seconds,mode:gameMode,
           durationSeconds,treasureGoal,allowLateJoin,randomNames,showCorrectness,
-          questionOrder,incorrectPenaltySeconds}),
+          questionOrder,questionDifficulty,incorrectPenaltySeconds}),
       });
       setReport(null);setSnapshot(null);setCopied(false);setCopiedEntry(false);setRoomId(data.id);
     }catch(cause){setError(cause instanceof Error?cause.message:'Unable to create game.');}
@@ -232,7 +233,13 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
             <option value="random">Random</option><option value="ordered">Ordered by topic</option>
             {gameMode==='treasure'&&<option value="mastery">Mastery · revisit missed questions</option>}
           </select></label>
+          <label>Answer alternatives <select aria-label="Live quiz answer difficulty"
+            value={questionDifficulty} onChange={event=>setQuestionDifficulty(event.target.value as 'standard'|'challenging')}>
+            <option value="standard">Standard · related concepts</option>
+            <option value="challenging">Challenging · closest concepts</option>
+          </select></label>
         </div>
+        <p className="lq-small">Wrong options come from approved, contextually related terminology rather than unrelated random terms. Challenging requires a closer match. If too few questions qualify, select Standard or a broader topic.</p>
         <div className="lq-host-options">
           <label><input type="checkbox" checked={allowLateJoin} onChange={e=>setAllowLateJoin(e.target.checked)}/> Allow late joining</label>
           <label><input type="checkbox" checked={randomNames} onChange={e=>setRandomNames(e.target.checked)}/> Use random player names</label>
