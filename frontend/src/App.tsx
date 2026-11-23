@@ -49,7 +49,7 @@ import { AssessmentInbox } from './assessment/AssessmentInbox';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
 import { GradingQueue } from './teaching/GradingQueue';
-import { useRoute, navigate, HOME_BY_ROLE, canAccessRoute } from './lib/router';
+import { useRoute, navigate, HOME_BY_ROLE, canAccessRoute, isPublicJoinRoute } from './lib/router';
 import { sectionsFor, type SectionName } from './lib/sections';
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { LiveExamPage } from './live/LiveExamPage';
@@ -174,7 +174,9 @@ export function App() {
   // following a shared student link should land somewhere they can work, not on
   // a blank page with a working sidebar.
   useEffect(() => {
-    if (!user || route.surface === 'play') return;
+    // Classroom join links are public even if a student already has a session.
+    // Otherwise the role guard silently sends /#/test/<pin> back to the dashboard.
+    if (!user || isPublicJoinRoute(route)) return;
     if (!canAccessRoute(user.role, route)) navigate(HOME_BY_ROLE[user.role]);
   }, [user, route.path]);
 
