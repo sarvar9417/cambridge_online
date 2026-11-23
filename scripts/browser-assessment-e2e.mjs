@@ -60,7 +60,17 @@ try{
   const direct=await qa.login('student13',process.env.SEED_STUDENT_PASSWORD,'Assessment unassigned student');
   student.page.on('dialog',dialog=>void dialog.accept());
   direct.page.on('dialog',dialog=>void dialog.accept());
-  // Teacher imports a real JSON review fixture via the visible browser form.
+  // Check a real DEFLATE-compressed DOCX in Chrome, not only XML unit tests.
+  await qa.go(teacher.page,'oqitish/testlar');
+  await teacher.page.waitForSelector('.ac-import input[type="file"]',{visible:true});
+  const wordInput=await teacher.page.$('.ac-import input[type="file"]');
+  await wordInput.uploadFile(path.resolve('scripts/fixtures/Grade 8.docx'));
+  await qa.waitText(teacher.page,'Which number system is binary?');
+  await qa.check('Real Word DOCX imports Grade 8 as a private unkeyed draft',
+    await teacher.page.$eval('.assessment-center',node=>
+      node.textContent.includes('Grade 8')&&node.textContent.includes('1 ta javob kaliti hali berilmagan')));
+  await qa.clickText(teacher.page,'Bekor qilish');
+  // Teacher imports a reviewed JSON question set via the visible browser form.
   await teacherImport(teacher.page,classFixture);
   const teacherTitle=await teacher.page.$eval('.ac-panel h2',node=>node.textContent);
   await qa.check('Teacher importer populated actual A-D question text',teacherTitle.includes('Assessment E2E Hardware'));
