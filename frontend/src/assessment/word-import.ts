@@ -111,7 +111,7 @@ export function detectWordAssessmentMetadata(filename:string){
 
 // Explicit filename-vs-document-title validation prevents silent grade errors.
 export function verifyWordSourceGrade(filename:string,paragraphs:string[]){
-  const grade=/\bGrade[ _-]*([5-9])\\b/i.exec(filename)?.[1];
+  const grade=/\bGrade[ _-]*([5-9])\b/i.exec(filename)?.[1];
   if(!grade)return;
   const title=paragraphs.find(line=>/^Stage\s*\d+/i.test(line));
   const stage=title?(/^Stage\s*(\d+)/i.exec(title)?.[1]):null;
