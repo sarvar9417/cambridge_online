@@ -48,6 +48,9 @@ describe('Live quiz Blooket-style host configuration',()=>{
       const penalty=container.querySelector<HTMLSelectElement>('[aria-label="Wrong-answer cooldown"]')!;
       penalty.value='5';penalty.dispatchEvent(new Event('change',{bubbles:true}));
     });
+    const classroom=container.querySelector<HTMLSelectElement>('[aria-label="Live Quiz classroom"]')!;
+    await act(async()=>{classroom.value=classId;
+      classroom.dispatchEvent(new Event('change',{bubbles:true}));});
     await click('Host Now');
     const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
     expect(JSON.parse(String(createCall[1]?.body))).toMatchObject({
