@@ -246,13 +246,6 @@ describe('Live quiz Blooket-style host configuration',()=>{
     expect(container.textContent).toContain('Top 10 of 14 players');
     expect(container.textContent).toContain('End game & show reports');
   });
-});
-
-it('counts down to an automatic server-controlled review transition',()=>{
-  const state={status:'review' as const,reviewEndsAt:new Date(5000).toISOString()};
-  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],0)).toBe(5);
-  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],4200)).toBe(1);
-  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],6000)).toBe(0);
   it('hosts 0478 directly, keeps 9618 history separate, and leaves class invitation optional',async()=>{
     const original=mockApi.getMockImplementation()!;
     mockApi.mockImplementation(((path,options)=>{
@@ -278,4 +271,12 @@ it('counts down to an automatic server-controlled review transition',()=>{
     expect(payload).toMatchObject({courseCode:'0478',scopes:[{chapterNo:3,kind:'chapter'}],mode:'classic'});
     expect(payload).not.toHaveProperty('classId');
   });
+});
+
+it('counts down to an automatic server-controlled review transition',()=>{
+  const state={status:'review' as const,reviewEndsAt:new Date(5000).toISOString()};
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],0)).toBe(5);
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],4200)).toBe(1);
+  expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],6000)).toBe(0);
+
 });
