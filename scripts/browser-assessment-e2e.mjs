@@ -305,6 +305,12 @@ try{
   await qa.check('PIN learner gets automatically graded score',studentScore.includes('1 / 1'),{studentScore});
   await qa.screenshot(guestPage,'guest-pin-test-finished');
   await qa.waitText(teacher.page,'QA PIN Learner');
+  // Live teacher results poll every 3s. Wait for the submitted score, not just
+  // the student's earlier "joined" row, before asserting the final result.
+  await teacher.page.waitForFunction(()=>{
+    const text=document.querySelector('.qt-table-wrap')?.textContent??'';
+    return text.includes('QA PIN Learner')&&text.includes('1 / 1');
+  },{timeout:15000});
   const teacherScore=await teacher.page.$eval('.qt-table-wrap',node=>node.textContent);
   await qa.check('Teacher sees guest name and correct test result live',
     teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));
