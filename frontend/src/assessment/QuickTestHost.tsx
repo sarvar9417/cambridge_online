@@ -126,6 +126,11 @@ export function QuickTestHost({user,classes}:{user:User;classes:ClassItem[]}){
     <AssessmentCenter user={user} classes={classes}/></section>;
   const current=sessions.find(s=>s.id===active);
   const chosen=report?.students.find(s=>s.id===details);
+  const finished=report?.students.filter(p=>p.submittedAt)??[];
+  const mean=(list:number[])=>list.length?Math.round(list.reduce((a,b)=>a+b,0)/list.length):null;
+  const avgTime=mean(finished.map(p=>p.elapsedSeconds));
+  const avgScore=mean(finished.filter(p=>p.maxScore).map(p=>Math.round((p.score??0)/(p.maxScore??1)*100)));
+  const measured=finished.filter(p=>p.focusedMs!==null).length;
   return <main className="qt-host">
     <header className="qt-header">
       <div><span className="qt-eyebrow">CAMBRIDGE · TEACHER STUDIO</span>
@@ -158,22 +163,70 @@ export function QuickTestHost({user,classes}:{user:User;classes:ClassItem[]}){
           </div>
         </div>
       </div>
-      <div className="qt-between qt-results-head"><h3>Natijalar — avtomatik yangilanadi</h3>
-        <button type="button" className="qt-muted-btn" onClick={exportCsv} disabled={!report?.students.length}>CSV yuklash</button></div>
-      {!report?.students.length?<p className="qt-empty">Hozircha hech kim qo‘shilmadi. Kodni o‘quvchilarga bering.</p>:
-        <div className="qt-table-wrap"><table><thead><tr><th>O‘quvchi</th><th>Jarayon</th><th>To‘g‘ri</th><th>Ball</th><th></th></tr></thead>
-          <tbody>{report.students.map(s=><tr key={s.id}>
-            <td><strong>{s.name}</strong></td><td>{s.submittedAt?'✓ Tugatdi':s.answered+' ta javob'}</td>
-            <td>{s.submittedAt?s.details.filter(d=>d.correct).length:'—'}</td>
-            <td>{s.submittedAt?s.score+' / '+s.maxScore:'—'}</td>
-            <td><button type="button" className="qt-text-btn" onClick={()=>setDetails(s.id===details?null:s.id)}>Batafsil</button></td>
-          </tr>)}</tbody></table></div>}
-      {chosen&&<div className="qt-detail"><h3>{chosen.name} — savollar bo‘yicha natija</h3>
-        {chosen.details.map(q=><p key={q.number}>
-          <b>#{q.number}</b> {q.prompt}
-          <small>{q.choiceIndex===null?'Javob yo‘q':`O‘quvchi: ${'ABCD'[q.choiceIndex]}`} · To‘g‘ri: {'ABCD'[q.correctIndex]}
-            {' '}{q.correct?'✓':'✕'}</small>
-        </p>)}</div>}
+<div className="qt-between qt-results-head"><h3>Natijalar va faoliyat — har 3 soniyada yangilanadi</h3>
+        <div className="qt-code-actions">
+          <button type="button" onClick={()=>exportCsv('students')} disabled={!report?.students.length}>
+            O‘quvchilar CSV</button>
+          <button type="button" onClick={()=>exportCsv('questions')} disabled={!report?.students.length}>
+            Savollar CSV</button>
+        </div>
+      </div>
+      <p className="qt-timing-note">Vaqtlar Toshkent vaqti bilan ko‘rsatiladi. Savolga sarflangan vaqt — savol
+        o‘quvchi ekranida faol ochiq turgan vaqtning taxminiy o‘lchovi; diqqat darajasi emas.
+        Oldingi testlarda qayd etilmagan ko‘rsatkichlar «Ma’lumot yo‘q» deb belgilanadi.</p>
+      <div className="qt-report-kpis">
+        <div><strong>{report?.students.length??0}</strong><span>Qatnashgan</span></div>
+        <div><strong>{finished.length}</strong><span>Tugatgan</span></div>
+        <div><strong>{avgTime===null?'—':duration(avgTime)}</strong><span>O‘rtacha umumiy vaqt</span></div>
+        <div><strong>{avgScore===null?'—':avgScore+'%'}</strong><span>O‘rtacha natija</span></div>
+        <div><strong>{measured}</strong><span>Faol vaqt qayd etilgan</span></div>
+      </div>
+      {!report?.students.length?<p className="qt-empty">Hozircha hech kim qo‘shilmadi.
+        Kodni o‘quvchilarga bering.</p>:
+        <div className="qt-table-wrap"><table><thead><tr>
+          <th>O‘quvchi</th><th>Boshlagan</th><th>Tugatgan</th>
+          <th>Umumiy vaqt</th><th>Faol savol vaqti</th><th>To‘g‘ri</th><th>Ball</th><th>Holat</th><th></th>
+        </tr></thead><tbody>{report.students.map(p=><tr key={p.id}>
+          <td><strong>{p.name}</strong></td>
+          <td>{clock(p.startedAt)}</td>
+          <td>{clock(p.submittedAt)}</td>
+          <td>{duration(p.elapsedSeconds)}</td>
+          <td>{activeTime(p.focusedMs)}</td>
+          <td>{p.submittedAt?p.details.filter(q=>q.correct).length:'—'}</td>
+          <td>{p.submittedAt?p.score+' / '+p.maxScore:'—'}</td>
+          <td>{p.submittedAt?reason(p.finishReason):p.answered+' ta javob'}</td>
+          <td><button type="button" className="qt-text-btn" aria-expanded={details===p.id}
+            onClick={()=>setDetails(p.id===details?null:p.id)}>Batafsil</button></td>
+        </tr>)}</tbody></table></div>}
+      {chosen&&<div className="qt-detail" aria-label={chosen.name+' faoliyat hisoboti'}>
+        <div className="qt-between"><h3>{chosen.name} — batafsil hisobot</h3>
+          <button type="button" className="qt-muted-btn" onClick={()=>setDetails(null)}>Yopish</button></div>
+        <div className="qt-report-kpis">
+          <div><strong>{clock(chosen.startedAt)}</strong><span>Testni boshlagan</span></div>
+          <div><strong>{clock(chosen.submittedAt)}</strong><span>Yakunlagan</span></div>
+          <div><strong>{duration(chosen.elapsedSeconds)}</strong><span>Umumiy davomiylik</span></div>
+          <div><strong>{activeTime(chosen.focusedMs)}</strong><span>Savollardagi faol vaqt</span></div>
+          <div><strong>{chosen.submittedAt?reason(chosen.finishReason):'Ishlamoqda'}</strong>
+            <span>Yakunlash usuli</span></div>
+          <div><strong>{clock(chosen.lastSeenAt)}</strong><span>Oxirgi aloqa</span></div>
+        </div>
+        <div className="qt-table-wrap"><table><thead><tr>
+          <th>Savol</th><th>Javob / To‘g‘risi</th><th>Natija</th><th>Faol vaqt</th>
+          <th>Ochilishlar</th><th>Birinchi ochgan</th><th>Birinchi javob</th>
+          <th>Oxirgi javob</th><th>O‘zgartirish</th>
+        </tr></thead><tbody>{chosen.details.map(q=><tr key={q.number}>
+          <td><strong>#{q.number}</strong><div className="qt-question-name">{q.prompt}</div>
+            <small>{q.topic}</small></td>
+          <td>{q.choiceIndex==null?'Javobsiz':'ABCD'[q.choiceIndex]} / {'ABCD'[q.correctIndex]}</td>
+          <td>{q.choiceIndex==null?'—':q.correct?'✓ To‘g‘ri':'✕ Xato'}</td>
+          <td><strong>{activeTime(q.focusedMs)}</strong></td>
+          <td>{q.visits??'—'}</td>
+          <td>{clock(q.firstOpenedAt)}</td>
+          <td>{clock(q.firstAnsweredAt)}</td>
+          <td>{clock(q.lastAnsweredAt)}</td>
+          <td>{q.answerChanges??'—'}</td>
+        </tr>)}</tbody></table></div>
+      </div>}
     </section>}
     <section className="qt-panel">
       <div className="qt-between"><h2>Testlar</h2><span>{tests.length} ta to‘plam</span></div>
