@@ -45,6 +45,8 @@ describe('Live quiz Blooket-style host configuration',()=>{
       duration.value='300';duration.dispatchEvent(new Event('change',{bubbles:true}));
       const order=container.querySelector<HTMLSelectElement>('[aria-label="Live quiz question ordering"]')!;
       order.value='mastery';order.dispatchEvent(new Event('change',{bubbles:true}));
+      const difficulty=container.querySelector<HTMLSelectElement>('[aria-label="Live quiz answer difficulty"]')!;
+      difficulty.value='challenging';difficulty.dispatchEvent(new Event('change',{bubbles:true}));
       const penalty=container.querySelector<HTMLSelectElement>('[aria-label="Wrong-answer cooldown"]')!;
       penalty.value='5';penalty.dispatchEvent(new Event('change',{bubbles:true}));
     });
@@ -55,7 +57,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
     const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
     expect(JSON.parse(String(createCall[1]?.body))).toMatchObject({
       classId,courseCode:'9618',scopes:[{chapterNo:17,kind:'topic',code:'17.1'}],
-      mode:'treasure',durationSeconds:300,questionOrder:'mastery',incorrectPenaltySeconds:5,
+      mode:'treasure',durationSeconds:300,questionOrder:'mastery',questionDifficulty:'challenging',incorrectPenaltySeconds:5,
     });
   });
 
@@ -76,6 +78,7 @@ describe('Live quiz Blooket-style host configuration',()=>{
     await click('Host Now');
     const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
     expect(JSON.parse(String(createCall[1]?.body))).not.toHaveProperty('classId');
+    expect(JSON.parse(String(createCall[1]?.body)).questionDifficulty).toBe('standard');
   });
 
   it('can optionally select a class and include its ID in the hosted game',async()=>{

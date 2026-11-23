@@ -3,11 +3,13 @@ import type { Pool, PoolClient } from 'pg';
 import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 import { ContentService } from './content-service.js';
+import { selectRelatedDistractors, type QuizDifficulty } from './live-quiz-distractors.js';
 
 type Scope = { chapterNo:number;kind:'chapter'|'topic'|'section';code?:string };
 type Quality = 'official_textbook_definition'|'supplementary_targeted_verified'|string;
 type Term = {id:string;term:string;definition:string;status:string;isOfficialKeyTerm:boolean;
-  definitionEvidenceStatus:Quality;chapterNo?:number;syllabusTopicCode?:string};
+  definitionEvidenceStatus:Quality;chapterNo?:number;syllabusTopicCode?:string;
+  hodderSectionCodes?:string[]};
 type Question = {id:string;prompt:string;options:string[];answerIndex:number;
   explanation:string;sourceContext:string};
 type Status = 'waiting'|'active'|'review'|'finished';
@@ -39,30 +41,51 @@ const shuffled=<T,>(values:readonly T[]):T[]=>{
 /** Answers remain server-only until a round is revealed; the room PIN is never
  * sufficient to read individual answers, reporting data or a participant token.
  */
-export function buildLiveQuizQuestions(terms:readonly Term[], requested:number,order:QuestionOrder='random'):Question[] {
-  const seenTerms=new Set<string>(),seenDefinitions=new Set<string>(),seenIds=new Set<string>();
-  // Normalise invisible whitespace and Unicode variants so options never appear identical.
-  const canonical=(text:string)=>text.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
-  const eligible=terms.filter(term=>{
-    if(term.status!=='approved'||!(term.isOfficialKeyTerm||
-        ['official_textbook_definition','supplementary_targeted_verified'].includes(term.definitionEvidenceStatus)))return false;
-    const label=canonical(term.term),description=canonical(term.definition);
-    if(!label||!description||seenIds.has(term.id)||seenTerms.has(label)||seenDefinitions.has(description))return false;
-    seenIds.add(term.id);seenTerms.add(label);seenDefinitions.add(description);return true;
+export function buildLiveQuizQuestions(
+  terms: readonly Term[], requested: number, order: QuestionOrder = 'random',
+  difficulty: QuizDifficulty = 'standard',
+): Question[] {
+  const seenTerms = new Set<string>(), seenDefinitions = new Set<string>(), seenIds = new Set<string>();
+  // Preserve the pre-existing source verification and distinct-answer gates.
+  const canonical = (text: string) => text.normalize('NFKC').trim()
+    .replace(/\s+/g, ' ').toLocaleLowerCase('en');
+  const eligible = terms.filter(term => {
+    if (term.status !== 'approved' || !(term.isOfficialKeyTerm ||
+        ['official_textbook_definition', 'supplementary_targeted_verified']
+          .includes(term.definitionEvidenceStatus))) return false;
+    const label = canonical(term.term), description = canonical(term.definition);
+    if (!label || !description || seenIds.has(term.id) ||
+      seenTerms.has(label) || seenDefinitions.has(description)) return false;
+    seenIds.add(term.id); seenTerms.add(label); seenDefinitions.add(description);
+    return true;
   });
-  if(eligible.length<4)throw error('quiz_question_pool_small',409);
-  const ordered=order==='ordered'?[...eligible].sort((a,b)=>(a.chapterNo??0)-(b.chapterNo??0)||
-    (a.syllabusTopicCode??'').localeCompare(b.syllabusTopicCode??'')||a.term.localeCompare(b.term)):
-    shuffled(eligible);
-  return ordered.slice(0,requested).map(term=>{
-    const distractors=shuffled(eligible.filter(other=>other.id!==term.id)).slice(0,3);
-    const choices=shuffled([term,...distractors]);
-    const answerIndex=choices.findIndex(candidate=>candidate.id===term.id);
-    return {id:randomUUID(),prompt:term.definition.trim().replace(/\s+/g,' '),
-      options:choices.map(choice=>choice.term.trim().replace(/\s+/g,' ')),answerIndex,
-      explanation:`${term.term.trim().replace(/\s+/g,' ')} — ${term.definition.trim().replace(/\s+/g,' ')}`,
-      sourceContext:`Chapter ${term.chapterNo??'?'}${term.syllabusTopicCode?' · Topic '+term.syllabusTopicCode:''}`};
-  });
+  if (eligible.length < 4) throw error('quiz_question_pool_small', 409);
+
+  const ordered = order === 'ordered' ? [...eligible].sort((a, b) =>
+    (a.chapterNo ?? 0) - (b.chapterNo ?? 0) ||
+    (a.syllabusTopicCode ?? '').localeCompare(b.syllabusTopicCode ?? '') ||
+    a.term.localeCompare(b.term)) : shuffled(eligible);
+  const questions: Question[] = [];
+  for (const term of ordered) {
+    if (questions.length >= requested) break;
+    // Shuffle before ranking so equally plausible alternatives rotate between sessions.
+    const distractors = selectRelatedDistractors(term, shuffled(eligible), difficulty);
+    if (distractors.length < 3) continue; // Never pad with unrelated terms.
+    const choices = shuffled([term, ...distractors]);
+    const answerIndex = choices.findIndex(candidate => candidate.id === term.id);
+    questions.push({
+      id: randomUUID(), prompt: term.definition.trim().replace(/\s+/g, ' '),
+      options: choices.map(choice => choice.term.trim().replace(/\s+/g, ' ')),
+      answerIndex,
+      explanation: term.term.trim().replace(/\s+/g, ' ') + ' — ' +
+        term.definition.trim().replace(/\s+/g, ' '),
+      sourceContext: 'Chapter ' + (term.chapterNo ?? '?') +
+        (term.syllabusTopicCode ? ' · Topic ' + term.syllabusTopicCode : ''),
+    });
+  }
+  // A quiz with 1–3 answerable questions is not a fair 4-option classroom session.
+  if (questions.length < 4) throw error('quiz_distractors_insufficient', 409);
+  return questions;
 }
 
 export function liveQuizPoints(correct:boolean,elapsedMs:number,limitSeconds:number,streak:number) {
@@ -106,6 +129,7 @@ export class LiveQuizService {
   async create(actor:Actor,input:{classId?:string;courseCode:'9618'|'0478';scopes:Scope[];count:number;seconds:number;
     mode?:GameMode;durationSeconds?:number;allowLateJoin?:boolean;showCorrectness?:boolean;
     randomNames?:boolean;treasureGoal?:number;questionOrder?:QuestionOrder;
+    questionDifficulty?:QuizDifficulty;
     incorrectPenaltySeconds?:number}) {
     this.teacher(actor);
     if(input.classId){
@@ -119,7 +143,8 @@ export class LiveQuizService {
       if(!authorized.rowCount)throw error('quiz_class_not_found',404);
     }
     const collection=await this.content.interactiveGameCollection(actor,{courseCode:input.courseCode,scopes:input.scopes});
-    const questions=buildLiveQuizQuestions(collection.pairs,input.count,input.questionOrder);
+    const questions=buildLiveQuizQuestions(collection.pairs,input.count,input.questionOrder,
+      input.questionDifficulty??'standard');
     for(let i=0;i<8;i++){
       const pin=String(randomInt(100000,1000000));
       try{

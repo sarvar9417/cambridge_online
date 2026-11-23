@@ -14,6 +14,7 @@ const createBody=z.object({classId:id.optional(),courseCode:z.enum(['9618','0478
   durationSeconds:z.number().int().min(60).max(1800).optional(),
   treasureGoal:z.number().int().min(1000).max(1000000).optional(),
   questionOrder:z.enum(['random','ordered','mastery']).optional(),
+  questionDifficulty:z.enum(['standard','challenging']).optional(),
   incorrectPenaltySeconds:z.union([z.literal(0),z.literal(2),z.literal(5),z.literal(10)]).optional(),
   allowLateJoin:z.boolean().optional(),showCorrectness:z.boolean().optional(),
   randomNames:z.boolean().optional()}).strict();
