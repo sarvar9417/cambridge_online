@@ -168,4 +168,11 @@ try{
     future.disabled===true&&future.text.includes('Hali ochilmagan'),future);
   await qa.screenshot(direct.page,'scheduled-invitation-disabled');
   await qa.check('Teacher and students completed full multi-account assessment browser acceptance',true);
+}catch(error){
+  console.error('Assessment E2E diagnostic:',JSON.stringify({
+    checks:qa.report.checks.slice(-8),
+    apiErrors:qa.report.httpErrors.slice(-12),
+    pageErrors:qa.report.pageErrors.slice(-8),
+  }));
+  throw error;
 }finally{await qa.finish();}
