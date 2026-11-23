@@ -77,6 +77,60 @@ const live=process.env.LIVE_DB_ACCEPTANCE==='1';
       .rejects.toMatchObject({status:404});
     expect((await service.report(actor(teacher),s.id)).students[0]!.score).toBe(1);
   });
+it('records visible time, revisits, timestamps and answer changes without exposing keys',async()=>{
+    const session=await service.create(actor(teacher),testId,true);
+    const guest=await service.join(session.code,'Learning Analyst');
+    const questions=(await service.snapshot(guest.playerId,guest.token)).questions;
+    const first=questions[0]!.id;
+    const second=questions[1]!.id;
+    await expect(service.focus(guest.playerId,'f'.repeat(64),first))
+      .rejects.toMatchObject({status:403});
+    await expect(service.focus(guest.playerId,guest.token,'00000000-0000-4000-8000-000000000000'))
+      .rejects.toMatchObject({status:404});
+    await service.focus(guest.playerId,guest.token,first);
+    await client.query(
+      `UPDATE assessment_code_players SET last_focus_at=now()-interval '8 seconds'
+       WHERE id=$1`,[guest.playerId]);
+    await service.focus(guest.playerId,guest.token,first);
+    await service.focus(guest.playerId,guest.token,second);
+    await service.focus(guest.playerId,guest.token,first);
+    await service.answer(guest.playerId,guest.token,first,1);
+    await service.answer(guest.playerId,guest.token,first,0);
+    await service.answer(guest.playerId,guest.token,first,0);
+    await client.query(
+      `UPDATE assessment_code_players SET last_focus_at=now()-interval '5 seconds'
+       WHERE id=$1`,[guest.playerId]);
+    await service.submit(guest.playerId,guest.token);
+    const report=await service.report(actor(teacher),session.id);
+    const learner=report.students[0]!;
+    expect(learner.finishReason).toBe('submitted');
+    expect(learner.startedAt).toBeTruthy();
+    expect(learner.submittedAt).toBeTruthy();
+    expect(learner.elapsedSeconds).toBeGreaterThanOrEqual(0);
+    expect(learner.focusedMs).toBeGreaterThanOrEqual(12000);
+    expect(learner.details[0]).toMatchObject({
+      number:1,visits:2,answerChanges:1,correct:true,choiceIndex:0
+    });
+    expect(learner.details[0]!.firstOpenedAt).toBeTruthy();
+    expect(learner.details[0]!.firstAnsweredAt).toBeTruthy();
+    expect(learner.details[0]!.lastAnsweredAt).toBeTruthy();
+    expect((await service.snapshot(guest.playerId,guest.token)).questions[0])
+      .not.toHaveProperty('correctIndex');
+    expect((await service.focus(guest.playerId,guest.token,first)).tracking).toBe(false);
+  });
+  it('distinguishes missing historical question timing from a measured zero',async()=>{
+    const session=await service.create(actor(teacher),testId,true);
+    const guest=await service.join(session.code,'Older Pupil');
+    const q=(await service.snapshot(guest.playerId,guest.token)).questions[0]!.id;
+    await service.answer(guest.playerId,guest.token,q,0);
+    await client.query('DELETE FROM assessment_code_question_activity WHERE player_id=$1',[guest.playerId]);
+    await service.submit(guest.playerId,guest.token);
+    const detail=(await service.report(actor(teacher),session.id)).students[0]!.details[0]!;
+    expect(detail.focusedMs).toBeNull();
+    expect(detail.visits).toBeNull();
+    expect(detail.answerChanges).toBeNull();
+    expect(detail.lastAnsweredAt).toBeTruthy();
+  });
   it('automatically finalizes an expired timer and reports unanswered questions',async()=>{
     const s=await service.create(actor(teacher),testId,true);
     const g=await service.join(s.code,'Zarina Karimova');
@@ -84,6 +138,9 @@ const live=process.env.LIVE_DB_ACCEPTANCE==='1';
                         WHERE id=$1`,[g.playerId]);
     const done=await service.snapshot(g.playerId,g.token);
     expect(done).toMatchObject({score:0,maxScore:2});
+    const timedOut=(await service.report(actor(teacher),s.id)).students[0]!;
+    expect(timedOut.finishReason).toBe('time_expired');
+    expect(new Date(timedOut.submittedAt!).getTime()).toBeLessThanOrEqual(Date.now());
     await expect(service.answer(g.playerId,g.token,done.questions[0]!.id,0))
       .rejects.toMatchObject({status:409});
   });
