@@ -13,7 +13,7 @@ export function StudentTestCodeEntry() {
   function enter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!valid) return;
-    navigate('test/' + code);
+    navigate('/test/' + code);
   }
 
   return <section className="student-test-code" aria-label="Kod bilan testga kirish">
