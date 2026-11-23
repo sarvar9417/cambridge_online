@@ -318,6 +318,11 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
       if(!p)throw deny('test_player_forbidden',403);
       if(p.submitted_at||p.status!=='open'||Date.now()>=new Date(p.deadline_at).getTime()||
          Date.now()>=new Date(p.expires_at).getTime())throw deny('test_time_expired',409);
+const before=await db.query(
+        `SELECT choice_index FROM assessment_code_answers
+         WHERE player_id=$1 AND question_id=$2`,[playerId,questionId]);
+      const previous=before.rows[0]?.choice_index;
+      const changed=before.rowCount&&n(previous)!==choiceIndex?1:0;
       const saved=await db.query(
         `INSERT INTO assessment_code_answers(player_id,question_id,choice_index)
          SELECT $1,q.id,$3 FROM assessment_center_questions q
@@ -326,6 +331,17 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
          ON CONFLICT(player_id,question_id) DO UPDATE SET choice_index=EXCLUDED.choice_index,answered_at=now()
          RETURNING question_id`,[playerId,questionId,choiceIndex,p.session_id]);
       if(!saved.rowCount)throw deny('test_question_not_found',404);
+      await db.query(
+        `INSERT INTO assessment_code_question_activity(
+           player_id,question_id,first_answered_at,last_answered_at,answer_changes)
+         VALUES($1,$2,now(),now(),$3)
+         ON CONFLICT(player_id,question_id) DO UPDATE SET
+           first_answered_at=COALESCE(assessment_code_question_activity.first_answered_at,now()),
+           last_answered_at=now(),
+           answer_changes=assessment_code_question_activity.answer_changes+$3`,
+        [playerId,questionId,changed]);
+      await db.query(
+        `UPDATE assessment_code_players SET last_contact_at=now() WHERE id=$1`,[playerId]);
       await db.query('COMMIT');
       return {saved:true};
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
