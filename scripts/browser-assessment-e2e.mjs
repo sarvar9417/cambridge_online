@@ -44,7 +44,8 @@ try{
   const teacher=await qa.login(process.env.SEED_OWNER_USERNAME,
     process.env.SEED_OWNER_PASSWORD,'Assessment teacher/owner');
   const student=await qa.login('student01',process.env.SEED_STUDENT_PASSWORD,'Assessment student in 10-A');
-  const direct=await qa.login('student07',process.env.SEED_STUDENT_PASSWORD,'Assessment student outside 10-A');
+  const outsider=await qa.login('student07',process.env.SEED_STUDENT_PASSWORD,'Assessment student from 11-A');
+  const direct=await qa.login('student13',process.env.SEED_STUDENT_PASSWORD,'Assessment unassigned student');
   student.page.on('dialog',dialog=>void dialog.accept());
   direct.page.on('dialog',dialog=>void dialog.accept());
   // Teacher imports a real JSON review fixture via the visible browser form.
@@ -60,10 +61,10 @@ try{
   await qa.waitText(student.page,'Assessment E2E Hardware');
   await qa.check('Student main dashboard advertises the class test',
     !!(await student.page.$('.ac-inbox-item')));
-  await qa.go(direct.page,'oquvchi/testlar');
-  await direct.page.waitForSelector('.assessment-center');
+  await qa.go(outsider.page,'oquvchi/testlar');
+  await outsider.page.waitForSelector('.assessment-center');
   await qa.check('Other class student cannot see class-only assessment',
-    !(await direct.page.$eval('.assessment-center',node=>node.textContent.includes('Assessment E2E Hardware'))));
+    !(await outsider.page.$eval('.assessment-center',node=>node.textContent.includes('Assessment E2E Hardware'))));
 
   await qa.go(student.page,'oquvchi/testlar');
   await qa.waitText(student.page,'Assessment E2E Hardware');
@@ -119,7 +120,7 @@ try{
   await teacherImport(teacher.page,directFixture);
   await qa.check('Grade 8 does not falsely show an existing 9618 classroom',
     (await teacher.page.$$('.ac-class-grid input[type=checkbox]')).length===0);
-  await chooseOne(teacher.page,'.ac-student-grid label','Sardor Normurodov');
+  await chooseOne(teacher.page,'.ac-student-grid label','QA Unassigned Grade 8');
   await approveAndPublish(teacher.page);
   await qa.go(direct.page,'oquvchi/uy');
   await qa.waitText(direct.page,'Assessment E2E Direct Grade 8');
@@ -151,7 +152,7 @@ try{
     })});
     const id=created.data.id;
     const students=await api('/assessment-center/tests/'+id+'/eligible-students');
-    const assigned=students.data.find(item=>item.name==='Sardor Normurodov');
+    const assigned=students.data.find(item=>item.name==='QA Unassigned Grade 8');
     if(!assigned)throw Error('Missing direct-assignment browser fixture');
     await api('/assessment-center/tests/'+id+'/publish',{method:'POST',
       body:JSON.stringify({classIds:[],studentIds:[assigned.id],releaseAnswers:false,sourceReviewed:true})});

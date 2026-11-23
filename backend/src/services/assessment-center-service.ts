@@ -269,6 +269,21 @@ export class AssessmentCenterService {
                  select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4))))`,
           [recipients,actor.schoolId,actor.role,actor.id]);
         if(verified.rowCount!==recipients.length)throw fail('test_student_forbidden',403);
+        // An assigned student already has an authoritative course/grade.
+        // The owner can invite an unassigned student, but cannot override
+        // a known mismatched class when publishing an assessment.
+        const grade=/^Grade ([5-9])$/i.exec(String(t.grade_label??''))?.[1];
+        const mismatched=await client.query(
+          `select distinct e.student_id from enrollments e
+           join classes c on c.id=e.class_id
+           join syllabi s on s.id=c.syllabus_id
+           where e.student_id=any($1::uuid[])
+             and e.left_at is null and c.archived_at is null and c.school_id=$2
+             and (case when $3='school' then
+               ($4::int is not null and c.grade<>$4::int)
+               else s.code<>$3 end)`,
+          [recipients,actor.schoolId,t.course_code,grade?Number(grade):null]);
+        if(mismatched.rowCount)throw fail('test_student_course_mismatch',409);
       }
       const expectedGrade=/^Grade ([5-9])$/i.exec(String(t.grade_label??''))?.[1];
       if(authorized.rows.some(row=>(
