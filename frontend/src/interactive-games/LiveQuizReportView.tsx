@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import type { LiveQuizDetail, LiveQuizReport } from './live-quiz-api';
 
 export function liveQuizCsv(report:LiveQuizReport){
@@ -60,13 +61,15 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
     .find(detail=>(detail.bankQuestionNo??detail.number)===question.number):undefined;
   const classAttempts=report.students.reduce((sum,student)=>sum+student.answered,0);
   const classCorrect=report.students.reduce((sum,student)=>sum+student.correct,0);
-  return <section className={'lq-final'+(teacher?' is-teacher':' is-student')} aria-label="Live quiz final results">
+  return <><section className={'lq-final'+(teacher?' is-teacher':' is-student')} aria-label="Live quiz final results">
     <header className="lq-final-heading">
       <span className="lq-eyebrow">FINAL RESULTS · GAME {report.pin}</span>
       <h2>Quiz complete<span className="lq-finish-mark">.</span></h2>
       <p>{report.questionBankSize??report.totalQuestions} verified questions in the bank · {report.students.length} players
         {report.mode==='treasure'?' · self-paced Treasure Quest':' · synced Classic Challenge'}</p>
       {teacher&&<button type="button" className="lq-secondary" onClick={()=>downloadCsv(report)}>Download detailed CSV report</button>}
+      {teacher&&!!report.answerKey?.length&&<button type="button" className="lq-secondary"
+        onClick={()=>window.print()}>Print complete answer key</button>}
     </header>
     {!teacher&&selected&&<div className="lq-student-overview">
       <div><span className="lq-eyebrow">YOUR PERSONAL RESULT</span>
@@ -149,5 +152,22 @@ export function LiveQuizReportView({report,teacher}:{report:LiveQuizReport;teach
       </button>
       {showAll&&<ol className="lq-detail-list">{selected.details.map(detail=><Mistake key={detail.number} detail={detail} treasure={report.mode==='treasure'}/>)}</ol>}
     </div>}
-  </section>;
+  </section>
+  {teacher&&!!report.answerKey?.length&&createPortal(
+    <section className="lq-print-sheet" aria-label="Printable teacher answer key">
+      <header><h1>Cambridge {report.courseCode} · Live Quiz Answer Key</h1>
+        <p>Game PIN {report.pin} · {report.answerKey.length} questions · {report.mode==='treasure'?'Treasure Quest':'Classic Challenge'}</p>
+        <p>Teacher copy · Correct answers are generated from the approved glossary entries used when this game was created.</p>
+      </header>
+      {report.answerKey.map(question=><article key={question.number}>
+        <h2>Question {question.number} <small>{question.sourceContext}</small></h2>
+        <p>{question.prompt}</p>
+        <ol type="A">{question.options.map((option,index)=><li key={index}
+          className={index===question.correctIndex?'lq-print-correct':''}>
+          {option} {index===question.correctIndex&&<strong>✓ Correct</strong>}
+        </li>)}</ol>
+        <p className="lq-print-explanation">{question.explanation}</p>
+      </article>)}
+    </section>,document.body)}
+  </>;
 }

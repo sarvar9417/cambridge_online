@@ -47,9 +47,33 @@ describe('Live Quiz first-attempt result report',()=>{
     await act(async()=>root.render(<LiveQuizReportView report={report} teacher/>));
     expect(host.textContent).toContain('Aziza');
     expect(host.textContent).toContain('Download detailed CSV report');
+    expect(host.textContent).not.toContain('Print complete answer key');
     const expand=[...host.querySelectorAll('button')].find(el=>el.textContent?.includes('Show all 3'))!;
     await act(async()=>expand.click());
     expect(host.textContent).toContain('First definition');
+  });
+
+  it('offers a teacher-only, print-ready complete answer key for unanswered questions',async()=>{
+    const answerKey=report.students[0]!.details.map(detail=>({
+      number:detail.number,prompt:detail.prompt,options:detail.options,
+      correctIndex:detail.correctIndex,explanation:detail.explanation,
+      sourceContext:detail.sourceContext,
+    }));
+    const withKey:LiveQuizReport={...report,answerKey};
+    const print=vi.spyOn(window,'print').mockImplementation(()=>{});
+    await act(async()=>root.render(<LiveQuizReportView report={withKey} teacher/>));
+    expect(host.textContent).toContain('Print complete answer key');
+    const sheet=document.body.querySelector('.lq-print-sheet');
+    expect(sheet?.textContent).toContain('Question 3');
+    expect(sheet?.textContent).toContain('Correct');
+    expect(sheet?.textContent).toContain('L');
+    const button=[...host.querySelectorAll('button')].find(el=>el.textContent?.includes('Print complete answer key'))!;
+    await act(async()=>button.click());
+    expect(print).toHaveBeenCalledTimes(1);
+    await act(async()=>root.render(<LiveQuizReportView report={withKey} teacher={false}/>));
+    expect(document.body.querySelector('.lq-print-sheet')).toBeNull();
+    expect(host.textContent).not.toContain('Print complete answer key');
+    print.mockRestore();
   });
 
   it('shows the correct answer and distinguishes repeated Treasure attempts in teacher question inspection',async()=>{

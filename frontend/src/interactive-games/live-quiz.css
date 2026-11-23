@@ -378,3 +378,25 @@
 @media (prefers-reduced-motion: reduce) {
   .lq-host *, .lq-guest * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* The teacher answer key is kept outside the application root, so Ctrl+P prints
+   only the clean answer sheet rather than the dashboard or student data. */
+.lq-print-sheet { display: none; }
+@media print {
+  @page { size: A4; margin: 16mm; }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  body > :not(.lq-print-sheet) { display: none !important; }
+  body > .lq-print-sheet { display: block !important; font-family: Arial, sans-serif; color: #111; font-size: 11pt; }
+  .lq-print-sheet header { border-bottom: 2px solid #333; margin-bottom: 18px; padding-bottom: 10px; }
+  .lq-print-sheet h1 { font-size: 20pt; margin: 0 0 8px; }
+  .lq-print-sheet header p { margin: 4px 0; }
+  .lq-print-sheet article { break-inside: avoid; padding: 10px 0 12px; border-bottom: 1px solid #ccc; }
+  .lq-print-sheet article h2 { font-size: 12pt; margin: 2px 0 8px; }
+  .lq-print-sheet article h2 small { font-weight: 400; padding-left: 10px; }
+  .lq-print-sheet article p { margin: 6px 0; }
+  .lq-print-sheet article ol { margin: 7px 0 9px; padding-left: 28px; }
+  .lq-print-sheet article li { padding: 2px 0; }
+  .lq-print-sheet .lq-print-correct { font-weight: 700; text-decoration: underline; }
+  .lq-print-sheet .lq-print-correct strong { margin-left: 10px; }
+  .lq-print-sheet .lq-print-explanation { color: #444; font-size: 9pt; }
+}
