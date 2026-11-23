@@ -9,15 +9,17 @@ type Question = {id?:string;sourceNumber?:number;position?:number;prompt:string;
 type Package = {schemaVersion?:number;title:string;sourceFilename?:string;
   courseCode:'school'|'0478'|'9618';gradeLabel:string;
   kind:'practice'|'diagnostic'|'monitoring'|'summative';
-  durationMinutes:number;questions:Question[]};
+  durationMinutes:number;questions:Question[];opensAt?:string|null;closesAt?:string|null;shuffleQuestions?:boolean};
 type TeacherTest = {id:string;title:string;courseCode:string;gradeLabel:string;kind:string;
   status:string;durationMinutes:number;questionCount:number;unkeyedCount:number;
-  submittedCount:number;sourceFilename?:string};
+  submittedCount:number;sourceFilename?:string;opensAt?:string|null;closesAt?:string|null;shuffleQuestions?:boolean};
 type StudentTest = {id:string;title:string;courseCode:string;gradeLabel:string;kind:string;
   durationMinutes:number;questionCount:number;attemptId:string|null;
-  submittedAt:string|null;score:number|null;maxScore:number|null;releaseAnswers:boolean};
+  submittedAt:string|null;score:number|null;maxScore:number|null;releaseAnswers:boolean;
+  opensAt:string|null;closesAt:string|null;shuffleQuestions:boolean;serverNow:string};
 type TestDetail = {id:string;title:string;course_code:string;grade_label:string;
-  kind:string;status:string;release_answers:boolean;questions:Question[];classIds:string[]};
+  kind:string;status:string;release_answers:boolean;questions:Question[];classIds:string[];studentIds:string[];
+  opens_at:string|null;closes_at:string|null;shuffle_questions:boolean};
 type Attempt = {id:string;title:string;testId:string;kind:string;deadlineAt:string;serverNow:string;
   submittedAt:string|null;score:number|null;maxScore:number|null;
   questions:Question[]};
@@ -37,7 +39,8 @@ type Profile = {studentId:string;averagePercent:number|null;
 const KINDS=[['practice','Practice'],['diagnostic','Diagnostic'],['monitoring','Monitoring'],['summative','Summative']] as const;
 const emptyQuestion=():Question=>({prompt:'',options:['','','',''],correctIndex:null,topic:'Unclassified',maxMarks:1});
 const emptyPackage=():Package=>({title:'',courseCode:'school',gradeLabel:'Grade 9',
-  kind:'diagnostic',durationMinutes:20,questions:[emptyQuestion()]});
+  kind:'diagnostic',durationMinutes:20,questions:[emptyQuestion()],
+  opensAt:null,closesAt:null,shuffleQuestions:false});
 const msg=(cause:unknown)=>cause instanceof Error?cause.message:'So‘rov bajarilmadi.';
 function validatePackage(input:unknown):Package{
   if(!input||typeof input!=='object')throw Error('Faylda test ma’lumotlari yo‘q.');
@@ -67,10 +70,21 @@ function validatePackage(input:unknown):Package{
       ?x.kind as Package['kind']:'diagnostic',
     durationMinutes:Number(x.durationMinutes)||30,
     sourceFilename:typeof x.sourceFilename==='string'?x.sourceFilename:undefined,
+    opensAt:typeof x.opensAt==='string'?x.opensAt:null,
+    closesAt:typeof x.closesAt==='string'?x.closesAt:null,
+    shuffleQuestions:x.shuffleQuestions===true,
     questions};
 }
 const percent=(n:number|null)=>n===null?'—':n+'%';
 const time=(date:string)=>new Date(date).toLocaleString('uz-UZ');
+const toLocalInput=(iso:string|null|undefined)=>{
+  if(!iso)return '';
+  const date=new Date(iso);
+  if(Number.isNaN(date.getTime()))return '';
+  const shifted=new Date(date.getTime()-date.getTimezoneOffset()*60000);
+  return shifted.toISOString().slice(0,16);
+};
+const toIso=(localValue:string)=>localValue?new Date(localValue).toISOString():null;
 
 function TopicBars({rows}:{rows:TopicRow[]}){
   return <div className="ac-topic-list">{rows.length?rows.map(row=><div className="ac-topic" key={row.topic}>
@@ -204,6 +218,9 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
   const [attempt,setAttempt]=useState<Attempt|null>(null);
   const [draft,setDraft]=useState<Package|null>(null);
   const [targetIds,setTargetIds]=useState<string[]>([]);
+  const [studentIds,setStudentIds]=useState<string[]>([]);
+  const [eligibleStudents,setEligibleStudents]=useState<Array<{id:string;name:string;hasClass:boolean}>>([]);
+  const [studentSearch,setStudentSearch]=useState('');
   const [eligibleClasses,setEligibleClasses]=useState<Array<{id:string;name:string;grade:number|null}>>([]);
   const [releaseAnswers,setReleaseAnswers]=useState(false);
   const [editingQuestion,setEditingQuestion]=useState<Question|null>(null);
@@ -216,6 +233,11 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
     try{const r=await api<{data:Array<TeacherTest|StudentTest>}>('/assessment-center');setTests(r.data);}
     catch(e){setError(msg(e));}finally{setLoading(false);}},[]);
   useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    if(!student)return;
+    const timer=window.setInterval(()=>{void load();},10000);
+    return()=>window.clearInterval(timer);
+  },[student,load]);
 
   async function importFile(file:File){
     setError('');setSuccess('');
@@ -229,6 +251,8 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
   async function createTest(){
     if(!draft)return;setBusy(true);setError('');
     try{const data=validatePackage(draft);
+      if(data.opensAt&&data.closesAt&&Date.parse(data.closesAt)<=Date.parse(data.opensAt))
+        throw Error('Yopilish vaqti ochilish vaqtidan keyin bo‘lishi kerak.');
       const result=await api<{data:{id:string}}>('/assessment-center',{method:'POST',
         body:JSON.stringify(data)});
       setDraft(null);setSuccess('Test draft holatida saqlandi. Javob kalitlarini tekshirib, sinfga nashr qiling.');
@@ -238,12 +262,15 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
   async function openTest(id:string){
     setError('');setSelected(null);setReport(null);setDraft(null);setProfileId(null);
     try{
-      const [r,allowed]=await Promise.all([
+      const [r,allowed,students]=await Promise.all([
         api<{data:TestDetail}>('/assessment-center/tests/'+id),
         api<{data:Array<{id:string;name:string;grade:number|null}>}>('/assessment-center/tests/'+id+'/eligible-classes'),
+        api<{data:Array<{id:string;name:string;hasClass:boolean}>}>('/assessment-center/tests/'+id+'/eligible-students'),
       ]);
-      setSelected(r.data);setEligibleClasses(allowed.data);
+      setSelected(r.data);setEligibleClasses(allowed.data);setEligibleStudents(students.data);
       setTargetIds((r.data.classIds??[]).filter(classId=>allowed.data.some(c=>c.id===classId)));
+      setStudentIds((r.data.studentIds??[]).filter(studentId=>students.data.some(u=>u.id===studentId)));
+      setStudentSearch('');
       setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);setEditingQuestion(null);}
     catch(e){setError(msg(e));}
   }
@@ -277,8 +304,8 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
   async function publish(){
     if(!selected)return;setBusy(true);setError('');
     try{await api('/assessment-center/tests/'+selected.id+'/publish',{method:'POST',
-      body:JSON.stringify({classIds:targetIds,releaseAnswers,sourceReviewed})});
-      setSuccess('Test nashr qilindi — tanlangan sinf o‘quvchilarida paydo bo‘ladi.');
+      body:JSON.stringify({classIds:targetIds,studentIds,releaseAnswers,sourceReviewed})});
+      setSuccess('Test nashr qilindi — tanlangan sinf va o‘quvchilarning akkauntlarida ko‘rinadi.');
       await openTest(selected.id);await load();
     }catch(e){setError(msg(e));}finally{setBusy(false);}
   }
@@ -338,7 +365,15 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
           </select></label>
         <label>Vaqt (daq.)<input type="number" min={1} max={240} value={draft.durationMinutes}
           onChange={e=>setDraft({...draft,durationMinutes:Number(e.target.value)})}/></label>
+        <label>Ochilish vaqti (ixtiyoriy)<input type="datetime-local" aria-label="Test ochilish vaqti"
+          value={toLocalInput(draft.opensAt)} onChange={e=>setDraft({...draft,opensAt:toIso(e.target.value)})}/></label>
+        <label>Yopilish vaqti (ixtiyoriy)<input type="datetime-local" aria-label="Test yopilish vaqti"
+          value={toLocalInput(draft.closesAt)} onChange={e=>setDraft({...draft,closesAt:toIso(e.target.value)})}/></label>
       </div>
+      <label className="ac-checked"><input type="checkbox" checked={draft.shuffleQuestions??false}
+        onChange={e=>setDraft({...draft,shuffleQuestions:e.target.checked})}/>
+        Har bir o‘quvchiga savollarni boshqacha tartibda chiqarish
+      </label>
       <div className="ac-between"><h3>Savollar ({draft.questions.length})</h3>
         <button type="button" className="ac-secondary" disabled={draft.questions.length>=100}
           onClick={()=>setDraft({...draft,questions:[...draft.questions,emptyQuestion()]})}>+ Savol</button></div>
@@ -386,15 +421,31 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
           <input type="checkbox" checked={targetIds.includes(c.id)}
             onChange={e=>setTargetIds(ids=>e.target.checked?[...ids,c.id]:ids.filter(x=>x!==c.id))}/>
           {c.name} {c.grade?'· Grade '+c.grade:''}</label>)}</div>
-        {!eligibleClasses.length&&<p className="ac-warning" role="status">
-          Bu kurs yoki Grade uchun mos sinf topilmadi. Avval sinf va o‘quvchilarni ro‘yxatga kiriting.
+        {!eligibleClasses.length&&<p className="ac-muted">
+          Bu kurs uchun mos sinf yo‘q. Testni quyidagi alohida o‘quvchilarga berish ham mumkin.
         </p>}
+        <h3>Alohida o‘quvchilarga biriktirish</h3>
+        <p className="ac-muted">Administrator maktabidagi sinfsiz o‘quvchilarni ham tanlashi mumkin.
+          Testning Grade darajasi tanlangan o‘quvchiga mosligini o‘qituvchi tasdiqlaydi.</p>
+        <label className="ac-search">O‘quvchi qidirish
+          <input type="search" aria-label="O‘quvchi qidirish" value={studentSearch}
+            onChange={e=>setStudentSearch(e.target.value)} placeholder="Ism bo‘yicha..." />
+        </label>
+        <div className="ac-student-grid" role="group" aria-label="Alohida o‘quvchilar">
+          {eligibleStudents.filter(item=>item.name.toLowerCase().includes(studentSearch.toLowerCase()))
+            .map(item=><label key={item.id}>
+              <input type="checkbox" checked={studentIds.includes(item.id)}
+                onChange={e=>setStudentIds(ids=>e.target.checked?[...ids,item.id]:ids.filter(id=>id!==item.id))}/>
+              <span>{item.name} {!item.hasClass&&<small>· Sinfsiz</small>}</span>
+            </label>)}
+        </div>
+        <p className="ac-muted">{targetIds.length} ta sinf · {studentIds.length} ta alohida o‘quvchi tanlandi.</p>}
         <label><input type="checkbox" checked={sourceReviewed}
           onChange={e=>setSourceReviewed(e.target.checked)}/> Manba fayl, sinf, mavzular va javob kalitlarini tekshirib tasdiqladim</label>
         {selected.grade_label==='Grade 7'&&<p className="ac-warning">Diqqat: Grade 7 nomli fayl ichida “Stage 9” deb yozilgan. Sinfni nashrdan oldin tekshiring.</p>}
         <label><input type="checkbox" checked={releaseAnswers}
           onChange={e=>setReleaseAnswers(e.target.checked)}/> Topshirgandan keyin to‘g‘ri javoblar ko‘rinsin</label>
-        <button type="button" className="ac-primary" disabled={busy||pending>0||targetIds.length===0||!sourceReviewed}
+        <button type="button" className="ac-primary" disabled={busy||pending>0||(!targetIds.length&&!studentIds.length)||!sourceReviewed}
           onClick={()=>{void publish();}}>Testni nashr qilish</button>
       </div>}
       {report?<div className="ac-report"><div className="ac-between">
@@ -459,12 +510,20 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
       </p>:<div className="ac-test-grid">{tests.map(t=><article className="ac-test-card" key={t.id}>
         <span className="ac-tag">{t.courseCode} · {t.kind}</span><h3>{t.title}</h3>
         <p>{t.gradeLabel} · {t.questionCount} savol · {t.durationMinutes} daqiqa</p>
-        {student?<><p>{(t as StudentTest).submittedAt?'Topshirilgan':
-          (t as StudentTest).attemptId?'Davom ettirish mumkin':'Yangi test'}</p>
-          <button type="button" className="ac-primary" disabled={busy}
+        {'opensAt' in t && t.opensAt&&<p>Ochilish: {time(t.opensAt)}</p>}
+        {'closesAt' in t && t.closesAt&&<p>Yopilish: {time(t.closesAt)}</p>}
+        {student?(()=>{
+          const item=t as StudentTest;
+          const now=Date.now()+(Date.parse(item.serverNow)-Date.now());
+          const upcoming=!item.attemptId&&Boolean(item.opensAt&&now<Date.parse(item.opensAt));
+          const closed=!item.attemptId&&Boolean(item.closesAt&&now>=Date.parse(item.closesAt));
+          return <><p>{item.submittedAt?'Topshirilgan':upcoming?'Hali ochilmagan':
+            closed?'Muddati tugagan':item.attemptId?'Davom ettirish mumkin':'Yangi test'}</p>
+          <button type="button" className="ac-primary" disabled={busy||upcoming||closed}
             onClick={()=>{void start(t.id);}}>
-            {(t as StudentTest).submittedAt?'Natijani ko‘rish':
-              (t as StudentTest).attemptId?'Davom ettirish':'Testni boshlash'}</button></>:
+            {item.submittedAt?'Natijani ko‘rish':upcoming?'Ochilishini kuting':
+              closed?'Test yopilgan':item.attemptId?'Davom ettirish':'Testni boshlash'}</button></>;
+        })():
           <><p>{(t as TeacherTest).status} · {(t as TeacherTest).submittedCount} topshirgan
             · {(t as TeacherTest).unkeyedCount} javobsiz kalit</p>
           <button type="button" className="ac-secondary" onClick={()=>{void openTest(t.id);}}>

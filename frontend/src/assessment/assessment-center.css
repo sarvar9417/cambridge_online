@@ -59,3 +59,10 @@
 .ac-saved-actions{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
 .ac-key-editor{display:flex;flex-direction:column;gap:5px;min-width:240px;font-size:12px}
 .ac-key-editor select{border-radius:8px;padding:10px;background:var(--surface,#fff);color:inherit;border:1px solid #97abc4;max-width:100%}
+
+.ac-student-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;max-height:240px;overflow:auto;padding:10px 0;margin:8px 0}
+.ac-student-grid label{display:flex;gap:9px;align-items:center;border:1px solid var(--ac-border);border-radius:9px;padding:10px;cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.ac-student-grid small{color:var(--text-secondary,#6b7a8c)}
+.ac-search{display:flex;flex-direction:column;gap:5px;max-width:350px}
+.ac-search input{padding:10px;border:1px solid #aebdd0;border-radius:9px;background:var(--surface,#fff);color:inherit}
+.ac-checked{display:flex;align-items:center;gap:9px;margin:8px 0 16px}
