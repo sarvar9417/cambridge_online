@@ -71,6 +71,8 @@ import { LiveExamRoundSummaryService } from './services/live-exam-round-summary-
 import { LiveExamRealtimeService } from './services/live-exam-realtime-service.js';
 import { LiveExamService } from './services/live-exam-service.js';
 import { LiveQuizService } from './services/live-quiz-service.js';
+import { AssessmentCodeService } from './services/assessment-code-service.js';
+import { createAssessmentCodeGuestRouter, createAssessmentCodeTeacherRouter } from './routes/assessment-code.js';
 import { createLiveQuizGuestRouter, createLiveQuizHostRouter } from './routes/live-quizzes.js';
 import { AssessmentCenterService } from './services/assessment-center-service.js';
 import { createAssessmentCenterRouter } from './routes/assessment-center.js';
@@ -120,6 +122,8 @@ export function createApp(
 
   const liveQuizService=pool?new LiveQuizService(pool):undefined;
   if(liveQuizService)mountPublic('/api/v1/live-quiz-guest',createLiveQuizGuestRouter(liveQuizService,pool!));
+  const assessmentCodeService=pool?new AssessmentCodeService(pool):undefined;
+  if(assessmentCodeService)mountPublic('/api/v1/assessment-code-guest',createAssessmentCodeGuestRouter(assessmentCodeService,pool!));
 
   app.use('/api/v1', requireAuth(auth));
   const liveExamService=pool&&questionsRepository?new LiveExamService(pool,questionsRepository,assetUrlSigner):undefined;
@@ -153,6 +157,7 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
   if (pool) mountPrivate('/api/v1/assessment-center', createAssessmentCenterRouter(new AssessmentCenterService(pool)));
+  if (assessmentCodeService) mountPrivate('/api/v1/assessment-code',createAssessmentCodeTeacherRouter(assessmentCodeService));
 
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
