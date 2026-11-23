@@ -46,7 +46,7 @@ export class AssessmentCenterService {
        ) or exists(
          select 1 from assessment_center_student_targets st
          where st.test_id=t.id and st.student_id=$2
-       )))`,[testId,actor.id,actor.schoolId]);
+       ))))`,[testId,actor.id,actor.schoolId]);
     if(!rows.rowCount)throw fail('test_not_found',404);
     return rows.rows[0];
   }
