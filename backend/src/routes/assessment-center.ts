@@ -18,10 +18,14 @@ const create=z.object({
   kind:z.enum(['practice','diagnostic','monitoring','summative']).default('diagnostic'),
   sourceFilename:z.string().max(300).optional(),
   durationMinutes:z.number().int().min(1).max(240),
+  opensAt:z.iso.datetime({offset:true}).nullable().optional(),
+  closesAt:z.iso.datetime({offset:true}).nullable().optional(),
+  shuffleQuestions:z.boolean().default(false),
   questions:z.array(question).min(1).max(100),
 }).strict();
 const publish=z.object({
-  classIds:z.array(id).min(1).max(20),
+  classIds:z.array(id).max(20),
+  studentIds:z.array(id).max(200).default([]),
   releaseAnswers:z.boolean().default(false),
   sourceReviewed:z.literal(true),
 }).strict();
@@ -48,12 +52,15 @@ export function createAssessmentCenterRouter(service:AssessmentCenterService){
     res.json({data:await service.updateQuestion(req.actor!,
       id.parse(req.params.id),id.parse(req.params.questionId),input)});
   });
+  router.get('/tests/:id/eligible-students',async(req,res)=>{
+    noStore(res);res.json({data:await service.eligibleStudents(req.actor!,id.parse(req.params.id))});
+  });
   router.get('/tests/:id/eligible-classes',async(req,res)=>{
     noStore(res);res.json({data:await service.eligibleClasses(req.actor!,id.parse(req.params.id))});
   });
   router.post('/tests/:id/publish',async(req,res)=>{
     const body=publish.parse(req.body);
-    res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed)});
+    res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed,body.studentIds)});
   });
   router.get('/tests/:id/report',async(req,res)=>{
     noStore(res);res.json({data:await service.report(req.actor!,id.parse(req.params.id))});

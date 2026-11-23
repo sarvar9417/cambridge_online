@@ -11,6 +11,12 @@ CREATE TABLE IF NOT EXISTS public.assessment_center_tests (
     CHECK (kind IN ('practice','diagnostic','monitoring','summative')),
   source_filename text,
   duration_minutes int NOT NULL DEFAULT 30 CHECK (duration_minutes BETWEEN 1 AND 240),
+  opens_at timestamptz,
+  closes_at timestamptz,
+  shuffle_questions boolean NOT NULL DEFAULT false,
+  CONSTRAINT assessment_center_schedule_valid CHECK (
+    closes_at IS NULL OR (opens_at IS NULL OR closes_at > opens_at)
+  ),
   status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
   release_answers boolean NOT NULL DEFAULT false,
   published_at timestamptz,
@@ -37,6 +43,13 @@ CREATE TABLE IF NOT EXISTS public.assessment_center_targets (
   class_id uuid NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
   PRIMARY KEY(test_id,class_id)
 );
+CREATE TABLE IF NOT EXISTS public.assessment_center_student_targets (
+  test_id uuid NOT NULL REFERENCES public.assessment_center_tests(id) ON DELETE CASCADE,
+  student_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  PRIMARY KEY (test_id,student_id)
+);
+CREATE INDEX IF NOT EXISTS assessment_center_student_targets_student_idx
+  ON public.assessment_center_student_targets(student_id,test_id);
 CREATE INDEX IF NOT EXISTS assessment_center_targets_class_idx ON public.assessment_center_targets(class_id,test_id);
 CREATE TABLE IF NOT EXISTS public.assessment_center_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,20 +74,24 @@ CREATE TABLE IF NOT EXISTS public.assessment_center_answers (
 ALTER TABLE public.assessment_center_tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assessment_center_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assessment_center_targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessment_center_student_targets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assessment_center_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assessment_center_answers ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.assessment_center_tests,public.assessment_center_questions,
-  public.assessment_center_targets,public.assessment_center_attempts,
+  public.assessment_center_targets,public.assessment_center_student_targets,
+  public.assessment_center_attempts,
   public.assessment_center_answers FROM PUBLIC;
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN
     REVOKE ALL ON public.assessment_center_tests,public.assessment_center_questions,
-      public.assessment_center_targets,public.assessment_center_attempts,
+      public.assessment_center_targets,public.assessment_center_student_targets,
+      public.assessment_center_attempts,
       public.assessment_center_answers FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN
     REVOKE ALL ON public.assessment_center_tests,public.assessment_center_questions,
-      public.assessment_center_targets,public.assessment_center_attempts,
+      public.assessment_center_targets,public.assessment_center_student_targets,
+      public.assessment_center_attempts,
       public.assessment_center_answers FROM authenticated;
   END IF;
 END $$;

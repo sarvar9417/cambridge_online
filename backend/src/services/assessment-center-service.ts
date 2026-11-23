@@ -10,6 +10,7 @@ export type CenterCreateInput = {
   title:string; courseCode:'school'|'0478'|'9618'; gradeLabel:string;
   kind:'practice'|'diagnostic'|'monitoring'|'summative'; sourceFilename?:string;
   durationMinutes:number; questions:CenterQuestionInput[];
+  opensAt?:string|null;closesAt?:string|null;shuffleQuestions?:boolean;
 };
 const fail=(code:string,status:400|403|404|409)=>new DomainError(code,status);
 const number=(value:unknown)=>Number(value??0);
@@ -33,13 +34,16 @@ export class AssessmentCenterService {
     const rows=await db.query(
       `select t.* from assessment_center_tests t
        where t.id=$1 and t.status='published' and t.school_id=$3
-       and exists(
+       and (exists(
          select 1 from assessment_center_targets at
          join classes c on c.id=at.class_id
          join enrollments e on e.class_id=c.id
          where at.test_id=t.id and e.student_id=$2 and e.left_at is null
            and c.school_id=t.school_id and c.archived_at is null
-       )`,[testId,actor.id,actor.schoolId]);
+       ) or exists(
+         select 1 from assessment_center_student_targets st
+         where st.test_id=t.id and st.student_id=$2
+       ))`,[testId,actor.id,actor.schoolId]);
     if(!rows.rowCount)throw fail('test_not_found',404);
     return rows.rows[0];
   }
@@ -90,29 +94,33 @@ export class AssessmentCenterService {
     if(actor.role==='student'){
       const result=await this.pool.query(
         `select t.id,t.title,t.course_code,t.grade_label,t.kind,t.duration_minutes,
-          t.created_at,t.release_answers,
+          t.created_at,t.release_answers,t.opens_at,t.closes_at,t.shuffle_questions,
           (select count(*)::int from assessment_center_questions q where q.test_id=t.id) question_count,
           a.id attempt_id,a.submitted_at,a.score,a.max_score
          from assessment_center_tests t
          left join assessment_center_attempts a on a.test_id=t.id and a.student_id=$1
          where t.school_id=$2 and t.status='published'
-         and exists(
+         and (exists(
            select 1 from assessment_center_targets at
            join classes c on c.id=at.class_id
            join enrollments e on e.class_id=c.id
            where at.test_id=t.id and e.student_id=$1 and e.left_at is null
              and c.archived_at is null and c.school_id=t.school_id)
+           or exists(select 1 from assessment_center_student_targets st
+             where st.test_id=t.id and st.student_id=$1))
          order by t.published_at desc limit 100`,[actor.id,actor.schoolId]);
       return result.rows.map(r=>({id:r.id,title:r.title,courseCode:r.course_code,
         gradeLabel:r.grade_label,kind:r.kind,durationMinutes:number(r.duration_minutes),
         questionCount:number(r.question_count),attemptId:r.attempt_id??null,
         submittedAt:r.submitted_at??null,score:r.score==null?null:number(r.score),
-        maxScore:r.max_score==null?null:number(r.max_score),releaseAnswers:r.release_answers}));
+        maxScore:r.max_score==null?null:number(r.max_score),releaseAnswers:r.release_answers,
+        opensAt:r.opens_at??null,closesAt:r.closes_at??null,shuffleQuestions:r.shuffle_questions,
+        serverNow:new Date().toISOString()}));
     }
     this.staff(actor);
     const result=await this.pool.query(
       `select t.id,t.title,t.course_code,t.grade_label,t.kind,t.duration_minutes,
-         t.source_filename,t.status,t.created_at,t.published_at,
+         t.source_filename,t.status,t.created_at,t.published_at,t.opens_at,t.closes_at,t.shuffle_questions,
          (select count(*)::int from assessment_center_questions q where q.test_id=t.id) question_count,
          (select count(*)::int from assessment_center_questions q where q.test_id=t.id and q.correct_index is null) unkeyed_count,
          (select count(*)::int from assessment_center_attempts a where a.test_id=t.id and a.submitted_at is not null) submitted_count
@@ -122,7 +130,8 @@ export class AssessmentCenterService {
       gradeLabel:r.grade_label,kind:r.kind,durationMinutes:number(r.duration_minutes),
       sourceFilename:r.source_filename,status:r.status,createdAt:r.created_at,publishedAt:r.published_at,
       questionCount:number(r.question_count),unkeyedCount:number(r.unkeyed_count),
-      submittedCount:number(r.submitted_count)}));
+      submittedCount:number(r.submitted_count),
+      opensAt:r.opens_at??null,closesAt:r.closes_at??null,shuffleQuestions:r.shuffle_questions}));
   }
 
   async create(actor:Actor,input:CenterCreateInput){
@@ -132,10 +141,11 @@ export class AssessmentCenterService {
       await client.query('BEGIN');
       const t=await client.query<{id:string}>(
         `insert into assessment_center_tests(school_id,created_by,title,course_code,
-           grade_label,kind,source_filename,duration_minutes)
-         values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
+           grade_label,kind,source_filename,duration_minutes,opens_at,closes_at,shuffle_questions)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id`,
         [actor.schoolId,actor.id,input.title,input.courseCode,input.gradeLabel,
-         input.kind,input.sourceFilename??null,input.durationMinutes]);
+         input.kind,input.sourceFilename??null,input.durationMinutes,
+         input.opensAt??null,input.closesAt??null,input.shuffleQuestions??false]);
       const id=t.rows[0]!.id;
       for(const [position,q] of input.questions.entries()){
         await client.query(
@@ -152,16 +162,17 @@ export class AssessmentCenterService {
   }
   async detail(actor:Actor,id:string){
     const t=await this.ownTest(actor,id);
-    const [qs,target]=await Promise.all([
+    const [qs,target,direct]=await Promise.all([
       this.pool.query(
         `select id,position,prompt,options,correct_index,topic,marks,source_number
          from assessment_center_questions where test_id=$1 order by position`,[id]),
       this.pool.query(`select class_id from assessment_center_targets where test_id=$1`,[id]),
+      this.pool.query(`select student_id from assessment_center_student_targets where test_id=$1`,[id]),
     ]);
     return {...t,questions:qs.rows.map(q=>({
       id:q.id,position:q.position,prompt:q.prompt,options:q.options,
       correctIndex:q.correct_index,topic:q.topic,maxMarks:q.marks,sourceNumber:q.source_number,
-    })),classIds:target.rows.map(r=>r.class_id)};
+    })),classIds:target.rows.map(r=>r.class_id),studentIds:direct.rows.map(r=>r.student_id)};
   }
   /** A row lock serializes draft edits against publication. Never edit a published answer key. */
   async updateQuestion(actor:Actor,testId:string,questionId:string,update:{
@@ -203,7 +214,26 @@ export class AssessmentCenterService {
       : r.syllabus_code===test.course_code)
       .map(r=>({id:r.id,name:r.name,grade:r.grade}));
   }
-  async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean){
+  async eligibleStudents(actor:Actor,id:string){
+    await this.ownTest(actor,id);
+    const result=await this.pool.query(
+      `select u.id,u.full_name,
+         exists(select 1 from enrollments e where e.student_id=u.id and e.left_at is null) has_active_class
+       from users u
+       where u.school_id=$1 and u.role='student'
+         and ($2='owner' or exists(
+           select 1 from enrollments e
+           join classes c on c.id=e.class_id
+           where e.student_id=u.id and e.left_at is null and c.archived_at is null
+             and c.school_id=$1
+             and (c.owner_id=$3 or exists(
+               select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))))
+       order by u.full_name,u.id limit 500`,
+      [actor.schoolId,actor.role,actor.id]);
+    return result.rows.map(r=>({id:r.id,name:r.full_name,hasClass:r.has_active_class}));
+  }
+  async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean,
+    studentIds:string[]=[]){
     if(!sourceReviewed)throw fail('test_source_review_required',409);
     const client=await this.pool.connect();
     try{
@@ -224,7 +254,22 @@ export class AssessmentCenterService {
                (c.owner_id=$4 or exists(select 1 from class_teachers ct
                  where ct.class_id=c.id and ct.teacher_id=$4))))`,
         [ids,actor.schoolId,actor.role,actor.id]);
-      if(!ids.length||authorized.rowCount!==ids.length)throw fail('test_class_forbidden',403);
+      if(authorized.rowCount!==ids.length)throw fail('test_class_forbidden',403);
+      const recipients=[...new Set(studentIds)];
+      if(!ids.length&&!recipients.length)throw fail('test_target_required',409);
+      if(recipients.length){
+        const verified=await client.query(
+          `select u.id from users u where u.id=any($1::uuid[])
+           and u.role='student' and u.school_id=$2
+           and ($3='owner' or exists (
+             select 1 from enrollments e join classes c on c.id=e.class_id
+             where e.student_id=u.id and e.left_at is null and c.archived_at is null
+               and c.school_id=$2 and
+               (c.owner_id=$4 or exists(
+                 select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$4))))`,
+          [recipients,actor.schoolId,actor.role,actor.id]);
+        if(verified.rowCount!==recipients.length)throw fail('test_student_forbidden',403);
+      }
       const expectedGrade=/^Grade ([5-9])$/i.exec(String(t.grade_label??''))?.[1];
       if(authorized.rows.some(row=>(
         (t.course_code!=='school' && row.syllabus_code!==t.course_code) ||
@@ -235,13 +280,18 @@ export class AssessmentCenterService {
           `insert into assessment_center_targets(test_id,class_id)
            values($1,$2) on conflict do nothing`,[id,classId]);
       }
+      for(const studentId of recipients){
+        await client.query(
+          `insert into assessment_center_student_targets(test_id,student_id)
+           values($1,$2) on conflict do nothing`,[id,studentId]);
+      }
       await client.query(
         `update assessment_center_tests
          set status='published',published_at=now(),release_answers=$2,
          reviewed_by=$3,reviewed_at=now() where id=$1`,
         [id,releaseAnswers,actor.id]);
       await client.query('COMMIT');
-      return {id,status:'published',classes:ids.length};
+      return {id,status:'published',classes:ids.length,students:recipients.length};
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
   }
   async start(actor:Actor,testId:string){
@@ -249,16 +299,35 @@ export class AssessmentCenterService {
     try{
       await client.query('BEGIN');
       const test=await this.studentAccess(actor,testId,client);
-      await client.query(
-        `insert into assessment_center_attempts(test_id,student_id,deadline_at)
-         values($1,$2,now()+($3::int*interval '1 minute'))
-         on conflict (test_id,student_id) do nothing`,
-        [testId,actor.id,test.duration_minutes]);
-      const result=await client.query(
+      const exists=await client.query(
         `select id from assessment_center_attempts where test_id=$1 and student_id=$2`,
         [testId,actor.id]);
+      let attemptId=exists.rows[0]?.id as string|undefined;
+      if(!attemptId){
+        const gate=await client.query(
+          `select (opens_at is not null and now()<opens_at) as upcoming,
+             (closes_at is not null and now()>=closes_at) as closed
+           from assessment_center_tests where id=$1`,[testId]);
+        if(gate.rows[0]?.upcoming)throw fail('test_not_open',409);
+        if(gate.rows[0]?.closed)throw fail('test_closed',409);
+        const inserted=await client.query(
+          `insert into assessment_center_attempts(test_id,student_id,deadline_at)
+           values($1,$2,case when $4::timestamptz is null
+             then now()+($3::int*interval '1 minute')
+             else least(now()+($3::int*interval '1 minute'),$4::timestamptz) end)
+           on conflict (test_id,student_id) do nothing returning id`,
+          [testId,actor.id,test.duration_minutes,test.closes_at??null]);
+        attemptId=inserted.rows[0]?.id as string|undefined;
+        if(!attemptId){
+          const concurrent=await client.query(
+            `select id from assessment_center_attempts where test_id=$1 and student_id=$2`,
+            [testId,actor.id]);
+          attemptId=concurrent.rows[0]?.id;
+        }
+      }
       await client.query('COMMIT');
-      return this.attempt(actor,result.rows[0].id);
+      if(!attemptId)throw fail('attempt_not_found',404);
+      return this.attempt(actor,attemptId);
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
   }
   async attempt(actor:Actor,id:string){
@@ -269,7 +338,7 @@ export class AssessmentCenterService {
       [id,actor.id]);
     if(pending.rowCount)await this.finalizeExpired(id);
     const result=await this.pool.query(
-      `select a.*,t.title,t.kind,t.course_code,t.grade_label,t.release_answers
+      `select a.*,t.title,t.kind,t.course_code,t.grade_label,t.release_answers,t.shuffle_questions
        from assessment_center_attempts a
        join assessment_center_tests t on t.id=a.test_id
        where a.id=$1 and a.student_id=$2`,[id,actor.id]);
@@ -280,7 +349,9 @@ export class AssessmentCenterService {
               ans.choice_index,q.correct_index
        from assessment_center_questions q
        left join assessment_center_answers ans on ans.question_id=q.id and ans.attempt_id=$2
-       where q.test_id=$1 order by q.position`,[a.test_id,id]);
+       where q.test_id=$1
+       order by case when $3::boolean
+         then md5(q.id::text || $2::text) else lpad(q.position::text,4,'0') end`,[a.test_id,id,Boolean(a.shuffle_questions)]);
     const reveal=Boolean(a.submitted_at&&a.release_answers);
     return {id:a.id,testId:a.test_id,title:a.title,kind:a.kind,courseCode:a.course_code,
       gradeLabel:a.grade_label,startedAt:a.started_at,deadlineAt:a.deadline_at,
@@ -348,12 +419,19 @@ export class AssessmentCenterService {
       this.pool.query(
         `select u.id student_id,u.full_name student_name,a.id attempt_id,
            a.started_at,a.submitted_at,a.score,a.max_score
-         from users u join enrollments e on e.student_id=u.id and e.left_at is null
-         join assessment_center_targets at on at.class_id=e.class_id and at.test_id=$1
-         join classes c on c.id=e.class_id and c.archived_at is null
+         from users u
          left join assessment_center_attempts a on a.test_id=$1 and a.student_id=u.id
-         where c.school_id=$2
-         group by u.id,u.full_name,a.id,a.started_at,a.submitted_at,a.score,a.max_score
+         where u.role='student' and u.school_id=$2
+           and (exists(
+             select 1 from assessment_center_student_targets st
+             where st.test_id=$1 and st.student_id=u.id
+           ) or exists(
+             select 1 from assessment_center_targets at
+             join classes c on c.id=at.class_id
+             join enrollments e on e.class_id=c.id
+             where at.test_id=$1 and e.student_id=u.id and e.left_at is null
+               and c.school_id=$2 and c.archived_at is null
+           ))
          order by u.full_name`,[testId,actor.schoolId]),
       this.pool.query(
         `select q.topic,count(distinct a.id)::int students,
@@ -393,11 +471,17 @@ export class AssessmentCenterService {
     if(actor.role!=='student'){
       this.staff(actor);
       const visible=await this.pool.query(
-        `select 1 from enrollments e join classes c on c.id=e.class_id
-         where e.student_id=$1 and e.left_at is null and c.archived_at is null
-         and c.school_id=$2 and (c.owner_id=$3 or $4='owner' or
-           exists(select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))
-         limit 1`,[studentId,actor.schoolId,actor.id,actor.role]);
+        `select 1 from users u where u.id=$1 and u.school_id=$2 and u.role='student'
+         and ($4='owner' or exists (
+           select 1 from enrollments e join classes c on c.id=e.class_id
+           where e.student_id=u.id and e.left_at is null and c.archived_at is null
+             and c.school_id=$2 and (c.owner_id=$3 or exists (
+               select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))
+         ) or exists (
+           select 1 from assessment_center_student_targets st
+           join assessment_center_tests t on t.id=st.test_id
+           where st.student_id=u.id and t.school_id=$2 and t.created_by=$3
+         )) limit 1`,[studentId,actor.schoolId,actor.id,actor.role]);
       if(!visible.rowCount)throw fail('not_found',404);
     }
     await this.settleExpired(actor);
