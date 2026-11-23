@@ -12,7 +12,7 @@ function connectPool(impl:(sql:string,params?:unknown[])=>Promise<{rowCount:numb
   const client={query,release:vi.fn()};
   return {query,client,pool:{query,connect:vi.fn(async()=>client)} as unknown as Pool};
 }
-const empty=async()=>({rowCount:1,rows:[]});
+const empty=async()=>({rowCount:0,rows:[]});
 describe('Assessment Center server authorization, import and scoring',()=>{
   it('requires staff permission before creating a test',async()=>{
     const f=connectPool(async()=>{throw Error('DB must not be queried');});
@@ -56,7 +56,7 @@ describe('Assessment Center server authorization, import and scoring',()=>{
         return {rowCount:1,rows:[{status:'draft'}]};
       if(sql.includes('count(*)::int total'))
         return {rowCount:1,rows:[{total:10,missing:0}]};
-      if(sql.includes('select id from classes'))
+      if(sql.includes('from classes c'))
         return {rowCount:0,rows:[]};
       return {rowCount:1,rows:[]};
     });
@@ -65,14 +65,17 @@ describe('Assessment Center server authorization, import and scoring',()=>{
     expect(f.query.mock.calls.some(([sql])=>sql.includes('insert into assessment_center_targets'))).toBe(false);
   });
   it('does not expose answer keys in student test listings',async()=>{
-    const f=connectPool(async()=>({rowCount:1,rows:[{id:'t',title:'Diagnostic',course_code:'9618',
+    const f=connectPool(async sql=>{
+      if(sql.includes('select a.id from assessment_center_attempts a'))return {rowCount:0,rows:[]};
+      return {rowCount:1,rows:[{id:'t',title:'Diagnostic',course_code:'9618',
       grade_label:'Paper 1',kind:'diagnostic',duration_minutes:75,question_count:30,
-      attempt_id:null,submitted_at:null,score:null,max_score:null,release_answers:false}]}));
+      attempt_id:null,submitted_at:null,score:null,max_score:null,release_answers:false}]};
+    });
     const result=await new AssessmentCenterService(f.pool).list(student);
     expect(result).toHaveLength(1);
     expect(result[0]).not.toHaveProperty('correctIndex');
-    expect(f.query.mock.calls[0]?.[0]).toContain("t.status='published'");
-    expect(f.query.mock.calls[0]?.[0]).toContain('e.left_at is null');
+    expect(f.query.mock.calls.some(([sql])=>sql.includes("t.status='published'"))).toBe(true);
+    expect(f.query.mock.calls.some(([sql])=>sql.includes('e.left_at is null'))).toBe(true);
   });
   it('rejects saving answers after the server deadline',async()=>{
     const f=connectPool(async sql=>{
@@ -100,6 +103,57 @@ describe('Assessment Center server authorization, import and scoring',()=>{
     await expect(new AssessmentCenterService(f.pool).profile(student,'another-student'))
       .rejects.toMatchObject({code:'not_found',status:404});
     expect(f.query).not.toHaveBeenCalled();
+  });
+  it('refuses to publish 0478 questions to a 9618 classroom',async()=>{
+    const f=connectPool(async sql=>{
+      if(sql.includes('select t.* from assessment_center_tests'))
+        return {rowCount:1,rows:[{status:'draft',course_code:'0478',grade_label:'Paper 1'}]};
+      if(sql.includes('count(*)::int total'))return {rowCount:1,rows:[{total:10,missing:0}]};
+      if(sql.includes('from classes c'))return {rowCount:1,rows:[{id:'class-1',syllabus_code:'9618',grade:11}]};
+      return {rowCount:1,rows:[]};
+    });
+    await expect(new AssessmentCenterService(f.pool).publish(teacher,'test-1',['class-1'],false,true))
+      .rejects.toMatchObject({code:'test_class_course_mismatch',status:409});
+    expect(f.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+  it('requires a locked test record before editing any draft answer key',async()=>{
+    const f=connectPool(async sql=>{
+      if(sql.includes('select t.* from assessment_center_tests'))
+        return {rowCount:1,rows:[{status:'draft'}]};
+      if(sql.includes('update assessment_center_questions'))
+        return {rowCount:1,rows:[{id:'q-1'}]};
+      return {rowCount:1,rows:[]};
+    });
+    const result=await new AssessmentCenterService(f.pool)
+      .updateQuestion(teacher,'test-1','q-1',{correctIndex:2});
+    expect(result).toEqual({saved:true});
+    const read=f.query.mock.calls.find(([sql])=>sql.includes('select t.* from assessment_center_tests'));
+    expect(read?.[0]).toContain('FOR UPDATE');
+    expect(f.query).toHaveBeenCalledWith('COMMIT');
+  });
+  it('finalizes an expired attempt using the server and preserves the deadline',async()=>{
+    const f=connectPool(async sql=>{
+      if(sql.includes('select id from assessment_center_attempts')&&sql.includes('deadline_at<=now()'))
+        return {rowCount:1,rows:[{id:'expired-attempt'}]};
+      if(sql.includes('from assessment_center_attempts where id=$1 for update'))
+        return {rowCount:1,rows:[{id:'expired-attempt',test_id:'test-1',
+          submitted_at:null,deadline_at:'2026-11-23T00:00:00Z',expired:true}]};
+      if(sql.includes('coalesce(sum(q.marks)'))return {rowCount:1,rows:[{score:3,maximum:5}]};
+      if(sql.includes('from assessment_center_attempts a\n       join assessment_center_tests'))
+        return {rowCount:1,rows:[{id:'expired-attempt',test_id:'test-1',
+          title:'Quiz',kind:'diagnostic',course_code:'9618',grade_label:'Paper 1',
+          release_answers:false,submitted_at:'2026-11-23T00:00:00Z',score:3,max_score:5}]};
+      if(sql.includes('from assessment_center_questions q'))
+        return {rowCount:1,rows:[{id:'q1',position:1,prompt:'Q',options:['A','B','C','D'],
+          topic:'T',marks:1,choice_index:0,correct_index:0}]};
+      return {rowCount:1,rows:[]};
+    });
+    const data=await new AssessmentCenterService(f.pool).attempt(student,'expired-attempt');
+    expect(data.submittedAt).not.toBeNull();
+    expect(data.score).toBe(3);
+    const write=f.query.mock.calls.find(([sql])=>sql.includes('set submitted_at=deadline_at'));
+    expect(write).toBeDefined();
+    expect(write?.[1]).toEqual(['expired-attempt',3,5]);
   });
   it('correct answer key can only change while the test is a draft',async()=>{
     const f=connectPool(async sql=>{
