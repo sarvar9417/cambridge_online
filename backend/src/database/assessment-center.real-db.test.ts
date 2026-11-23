@@ -33,23 +33,23 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
         },
       }),
     } as unknown as pg.Pool);
-    school=(await client.query<{id:string}>(\`insert into schools(name) values('Assessment QA School') returning id\`)).rows[0]!.id;
+    school=(await client.query<{id:string}>(`insert into schools(name) values('Assessment QA School') returning id`)).rows[0]!.id;
     teacher=(await client.query<{id:string}>(
-      \`insert into users(school_id,role,full_name) values($1,'teacher','Assessment Teacher') returning id\`,[school])).rows[0]!.id;
+      `insert into users(school_id,role,full_name) values($1,'teacher','Assessment Teacher') returning id`,[school])).rows[0]!.id;
     student=(await client.query<{id:string}>(
-      \`insert into users(school_id,role,full_name) values($1,'student','Learner One') returning id\`,[school])).rows[0]!.id;
+      `insert into users(school_id,role,full_name) values($1,'student','Learner One') returning id`,[school])).rows[0]!.id;
     otherStudent=(await client.query<{id:string}>(
-      \`insert into users(school_id,role,full_name) values($1,'student','Learner Two') returning id\`,[school])).rows[0]!.id;
-    const c9618=(await client.query<{id:string}>(\`insert into syllabi(code) values('9618') returning id\`)).rows[0]!.id;
-    const c0478=(await client.query<{id:string}>(\`insert into syllabi(code) values('0478') returning id\`)).rows[0]!.id;
+      `insert into users(school_id,role,full_name) values($1,'student','Learner Two') returning id`,[school])).rows[0]!.id;
+    const c9618=(await client.query<{id:string}>(`insert into syllabi(code) values('9618') returning id`)).rows[0]!.id;
+    const c0478=(await client.query<{id:string}>(`insert into syllabi(code) values('0478') returning id`)).rows[0]!.id;
     klass=(await client.query<{id:string}>(
-      \`insert into classes(school_id,syllabus_id,owner_id,name,grade)
-       values($1,$2,$3,'11-A Assessment',11) returning id\`,[school,c9618,teacher])).rows[0]!.id;
+      `insert into classes(school_id,syllabus_id,owner_id,name,grade)
+       values($1,$2,$3,'11-A Assessment',11) returning id`,[school,c9618,teacher])).rows[0]!.id;
     wrongClass=(await client.query<{id:string}>(
-      \`insert into classes(school_id,syllabus_id,owner_id,name,grade)
-       values($1,$2,$3,'IGCSE Assessment',10) returning id\`,[school,c0478,teacher])).rows[0]!.id;
-    await client.query(\`insert into enrollments(class_id,student_id) values($1,$2)\`,[klass,student]);
-    await client.query(\`insert into enrollments(class_id,student_id) values($1,$2)\`,[wrongClass,otherStudent]);
+      `insert into classes(school_id,syllabus_id,owner_id,name,grade)
+       values($1,$2,$3,'IGCSE Assessment',10) returning id`,[school,c0478,teacher])).rows[0]!.id;
+    await client.query(`insert into enrollments(class_id,student_id) values($1,$2)`,[klass,student]);
+    await client.query(`insert into enrollments(class_id,student_id) values($1,$2)`,[wrongClass,otherStudent]);
   });
   afterAll(async()=>{if(client){await client.query('ROLLBACK');await client.end();}});
   const create=async()=>service.create(actor(teacher,'teacher'),{
@@ -103,14 +103,14 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     await service.publish(actor(teacher,'teacher'),draft.id,[klass],false,true);
     const first=await service.start(actor(student,'student'),draft.id);
     await service.saveAnswer(actor(student,'student'),first.id,first.questions[1]!.id,1);
-    await client.query(\`update assessment_center_attempts
-      set deadline_at=now()-interval '10 seconds' where id=$1\`,[first.id]);
+    await client.query(`update assessment_center_attempts
+      set deadline_at=now()-interval '10 seconds' where id=$1`,[first.id]);
     const list=await service.list(actor(student,'student'));
     expect(list.find(row=>row.id===draft.id)?.submittedAt).not.toBeNull();
     const report=await service.report(actor(teacher,'teacher'),draft.id);
     expect(report.students.find(row=>row.studentId===student)?.score).toBe(1);
     const stored=await client.query<{submitted_at:Date;deadline_at:Date}>(
-      \`select submitted_at,deadline_at from assessment_center_attempts where id=$1\`,[first.id]);
+      `select submitted_at,deadline_at from assessment_center_attempts where id=$1`,[first.id]);
     expect(+stored.rows[0]!.submitted_at).toBe(+stored.rows[0]!.deadline_at);
   });
 });
