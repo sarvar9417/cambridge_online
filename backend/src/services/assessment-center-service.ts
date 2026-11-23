@@ -378,6 +378,8 @@ export class AssessmentCenterService {
       await client.query('BEGIN');
       const test=await this.ownTest(actor,id,client,true);
       if(test.status!=='draft')throw fail('published_test_immutable',409);
+      const rooms=await client.query('select 1 from assessment_code_sessions where test_id=$1 limit 1',[id]);
+      if(rooms.rowCount)throw fail('test_has_student_results',409);
       await client.query('delete from assessment_center_tests where id=$1',[id]);
       await client.query('COMMIT');
       return {id,deleted:true};

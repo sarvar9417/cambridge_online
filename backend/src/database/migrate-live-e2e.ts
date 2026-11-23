@@ -61,6 +61,7 @@ const selected=[
   '0220_live_quiz_blooket_modes.sql',
   '0221_live_quiz_classroom_links.sql',
   '0222_assessment_center.sql',
+  '0223_assessment_code_entry.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');
