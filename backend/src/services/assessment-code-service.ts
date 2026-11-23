@@ -190,31 +190,60 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
     const [players,answers]=await Promise.all([
       this.pool.query(
         `SELECT p.id,p.nickname,p.started_at,p.deadline_at,p.submitted_at,p.score,p.max_score,
+           p.finish_reason,p.last_contact_at,
            (SELECT count(*)::int FROM assessment_code_answers a WHERE a.player_id=p.id) answered
          FROM assessment_code_players p WHERE p.session_id=$1 ORDER BY p.started_at,p.nickname`,[id]),
       this.pool.query(
         `SELECT q.position,q.prompt,q.options,q.correct_index,q.marks,q.topic,
-                p.id player_id,a.choice_index
+                p.id player_id,a.choice_index,a.answered_at,
+                activity.focused_ms,activity.visit_count,activity.first_opened_at,
+                activity.last_opened_at,activity.first_answered_at,
+                activity.last_answered_at,activity.answer_changes
          FROM assessment_center_questions q
          JOIN assessment_code_sessions s ON s.test_id=q.test_id
          LEFT JOIN assessment_code_players p ON p.session_id=s.id
          LEFT JOIN assessment_code_answers a ON a.player_id=p.id AND a.question_id=q.id
+         LEFT JOIN assessment_code_question_activity activity
+           ON activity.player_id=p.id AND activity.question_id=q.id
          WHERE s.id=$1 ORDER BY q.position`,[id])
     ]);
-    const details=new Map<string,Array<{number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;topic:string}>>();
+    const details=new Map<string,Array<{
+      number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;
+      topic:string;marks:number;focusedMs:number|null;visits:number|null;
+      firstOpenedAt:string|null;lastOpenedAt:string|null;
+      firstAnsweredAt:string|null;lastAnsweredAt:string|null;
+      answerChanges:number|null
+    }>>();
     for(const row of answers.rows){
       if(!row.player_id)continue;
       const list=details.get(row.player_id)??[];
       list.push({number:n(row.position),prompt:row.prompt,choiceIndex:row.choice_index==null?null:n(row.choice_index),
-        correctIndex:n(row.correct_index),correct:row.choice_index!=null&&n(row.choice_index)===n(row.correct_index),topic:row.topic});
+        correctIndex:n(row.correct_index),correct:row.choice_index!=null&&n(row.choice_index)===n(row.correct_index),
+        topic:row.topic,marks:n(row.marks),
+        focusedMs:row.focused_ms==null?null:n(row.focused_ms),
+        visits:row.visit_count==null?null:n(row.visit_count),
+        firstOpenedAt:row.first_opened_at??null,lastOpenedAt:row.last_opened_at??null,
+        firstAnsweredAt:row.first_answered_at??null,
+        lastAnsweredAt:row.last_answered_at??row.answered_at??null,
+        answerChanges:row.answer_changes==null?null:n(row.answer_changes)});
       details.set(row.player_id,list);
     }
     return {id,code:session.code,title:session.title,status:session.status,
       expiresAt:session.expires_at,questions:new Set(answers.rows.map(q=>q.position)).size,
-      students:players.rows.map(p=>({id:p.id,name:p.nickname,answered:n(p.answered),
-        submittedAt:p.submitted_at,score:p.score==null?null:n(p.score),
-        maxScore:p.max_score==null?null:n(p.max_score),
-        details:details.get(p.id)??[]}))};
+      students:players.rows.map(p=>{
+        const cutoff=p.submitted_at?new Date(p.submitted_at).getTime():
+          Math.min(Date.now(),new Date(p.deadline_at).getTime(),new Date(session.expires_at).getTime());
+        const elapsedSeconds=Math.max(0,Math.floor((cutoff-new Date(p.started_at).getTime())/1000));
+        const items=details.get(p.id)??[];
+        const measured=items.filter(q=>q.focusedMs!=null);
+        return {id:p.id,name:p.nickname,answered:n(p.answered),
+          startedAt:p.started_at,deadlineAt:p.deadline_at,
+          submittedAt:p.submitted_at,finishReason:p.finish_reason??null,
+          elapsedSeconds,lastSeenAt:p.last_contact_at??null,
+          focusedMs:measured.length?measured.reduce((sum,q)=>sum+(q.focusedMs??0),0):null,
+          score:p.score==null?null:n(p.score),maxScore:p.max_score==null?null:n(p.max_score),
+          details:items};
+      })};
   }
   async lobby(code:string){
     const r=await this.pool.query(
