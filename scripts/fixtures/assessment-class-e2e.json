@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "title": "Assessment E2E Hardware",
+  "sourceFilename": "synthetic-browser-test.json",
+  "courseCode": "9618",
+  "gradeLabel": "Paper 1",
+  "kind": "diagnostic",
+  "durationMinutes": 20,
+  "questions": [
+    {
+      "prompt": "Which unit performs arithmetic operations?",
+      "options": [
+        "ALU",
+        "CPU cache",
+        "RAM",
+        "ROM"
+      ],
+      "correctIndex": 0,
+      "topic": "Processor architecture",
+      "maxMarks": 1,
+      "sourceNumber": 1
+    },
+    {
+      "prompt": "Which memory is volatile?",
+      "options": [
+        "ROM",
+        "RAM",
+        "SSD",
+        "Optical disc"
+      ],
+      "correctIndex": 1,
+      "topic": "Memory",
+      "maxMarks": 1,
+      "sourceNumber": 2
+    }
+  ]
+}
