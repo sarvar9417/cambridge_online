@@ -5,7 +5,7 @@ import { buildLiveQuizQuestions, drawTreasureReward, liveQuizPoints,
   LiveQuizService, settleTreasureBalance } from './live-quiz-service.js';
 
 const verified=(number:number)=>({
-  id:String(number),term:'Term '+number,definition:'Source-verified definition '+number,
+  id:String(number),term:'Term '+number,definition:'Source-verified programming algorithm concept '+number,
   chapterNo:17,syllabusTopicCode:'17.1',status:'approved',isOfficialKeyTerm:false,
   definitionEvidenceStatus:'supplementary_targeted_verified',
 });
@@ -89,7 +89,7 @@ describe('Cambridge Live Quiz question selection',()=>{
       {...verified(10),status:'needs_review'},
       {...verified(11),definitionEvidenceStatus:'supplementary_manual_review_required'},
       {...verified(12),term:'Term 1'},
-      {...verified(13),definition:'Source-verified definition 2'},
+      {...verified(13),definition:'Source-verified programming algorithm concept 2'},
     ];
     const questions=buildLiveQuizQuestions(rows,30);
     expect(questions).toHaveLength(9);
