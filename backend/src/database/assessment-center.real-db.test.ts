@@ -67,6 +67,14 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     ],
   });
 
+  it('lets the school owner supervise teacher tests but denies other schools',async()=>{
+    const draft=await create();
+    const own=await service.detail(actor(owner,'owner'),draft.id);
+    expect(own.title).toBe('A Level diagnostic QA');
+    expect((await service.list(actor(owner,'owner'))).some(t=>t.id===draft.id)).toBe(true);
+    await expect(service.detail({...actor(owner,'owner'),schoolId:'00000000-0000-4000-8000-000000000099'},draft.id))
+      .rejects.toMatchObject({code:'test_not_found',status:404});
+  });
   it('blocks wrong course publication and protects draft test from students',async()=>{
     const draft=await create();
     expect((await service.list(actor(student,'student'))).some(t=>t.id===draft.id)).toBe(false);

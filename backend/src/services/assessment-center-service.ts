@@ -24,8 +24,9 @@ export class AssessmentCenterService {
     this.staff(actor);
     const result=await db.query(
       `select t.* from assessment_center_tests t
-       where t.id=$1 and t.school_id=$2 and t.created_by=$3${lock?' FOR UPDATE':''}`,
-      [id,actor.schoolId,actor.id]);
+       where t.id=$1 and t.school_id=$2
+         and (t.created_by=$3 or $4='owner')${lock?' FOR UPDATE':''}`,
+      [id,actor.schoolId,actor.id,actor.role]);
     if(!result.rowCount)throw fail('test_not_found',404);
     return result.rows[0];
   }
@@ -85,7 +86,7 @@ export class AssessmentCenterService {
        where a.submitted_at is null and a.deadline_at<=now()
          and t.school_id=$2
          and (($3='student' and a.student_id=$1) or
-              ($3<>'student' and t.created_by=$1))
+              ($3<>'student' and (t.created_by=$1 or $3='owner')))
          and ($4::uuid is null or a.test_id=$4)
        order by a.deadline_at asc limit 200`,
       [actor.id,actor.schoolId,actor.role,testId??null]);
@@ -128,8 +129,9 @@ export class AssessmentCenterService {
          (select count(*)::int from assessment_center_questions q where q.test_id=t.id) question_count,
          (select count(*)::int from assessment_center_questions q where q.test_id=t.id and q.correct_index is null) unkeyed_count,
          (select count(*)::int from assessment_center_attempts a where a.test_id=t.id and a.submitted_at is not null) submitted_count
-       from assessment_center_tests t where t.created_by=$1 and t.school_id=$2
-       order by t.created_at desc limit 200`,[actor.id,actor.schoolId]);
+       from assessment_center_tests t where t.school_id=$2
+         and (t.created_by=$1 or $3='owner')
+       order by t.created_at desc limit 200`,[actor.id,actor.schoolId,actor.role]);
     return result.rows.map(r=>({id:r.id,title:r.title,courseCode:r.course_code,
       gradeLabel:r.grade_label,kind:r.kind,durationMinutes:number(r.duration_minutes),
       sourceFilename:r.source_filename,status:r.status,createdAt:r.created_at,publishedAt:r.published_at,
@@ -579,7 +581,7 @@ export class AssessmentCenterService {
        join assessment_center_tests t on t.id=a.test_id
        where a.student_id=$1 and a.submitted_at is not null
          and t.school_id=$2
-         and ($3='student' or t.created_by=$4)
+         and ($3='student' or $3='owner' or t.created_by=$4)
        order by a.submitted_at desc limit 100`,
       [studentId,actor.schoolId,actor.role,actor.id]);
     const tests=data.rows.map(r=>({testId:r.test_id,title:r.title,kind:r.kind,
@@ -596,7 +598,7 @@ export class AssessmentCenterService {
        join assessment_center_questions q on q.test_id=t.id
        left join assessment_center_answers ans on ans.attempt_id=a.id and ans.question_id=q.id
        where a.student_id=$1 and a.submitted_at is not null and t.school_id=$2
-         and ($3='student' or t.created_by=$4)
+         and ($3='student' or $3='owner' or t.created_by=$4)
        group by q.topic order by q.topic`,
       [studentId,actor.schoolId,actor.role,actor.id]);
     const missed=actor.role==='student'?[]:(
@@ -608,9 +610,10 @@ export class AssessmentCenterService {
          join assessment_center_questions q on q.test_id=t.id
          left join assessment_center_answers ans on ans.attempt_id=a.id and ans.question_id=q.id
          where a.student_id=$1 and a.submitted_at is not null and t.school_id=$2
-           and t.created_by=$3 and ans.choice_index is distinct from q.correct_index
+           and ($4='owner' or t.created_by=$3)
+           and ans.choice_index is distinct from q.correct_index
          order by a.submitted_at desc,q.position limit 50`,
-        [studentId,actor.schoolId,actor.id])
+        [studentId,actor.schoolId,actor.id,actor.role])
     ).rows.map(row=>({title:row.test_title,questionNumber:row.position,topic:row.topic,
       prompt:row.prompt,selectedOption:row.choice_index===null?null:row.options[row.choice_index],
       correctOption:row.options[row.correct_index],marksLost:number(row.marks)}));
