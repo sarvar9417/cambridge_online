@@ -277,15 +277,15 @@ try{
   await qa.clickText(guestPage,'Testni boshlash');
   await guestPage.waitForSelector('.qt-options button',{visible:true});
   await qa.waitText(guestPage,'What is 1010 in denary?');
-  const shuffledOptions=await guestPage.$eval('.qt-options button span',nodes=>
-    nodes.map(n=>n.textContent?.trim()));
+  const shuffledOptions=await guestPage.$eval('.qt-options',node=>
+    [...node.querySelectorAll('button span')].map(n=>n.textContent?.trim()));
   await qa.check('Options are shuffled for this learner while retaining original A-D content',
     shuffledOptions.join('|')!==['10','12','8','2'].join('|')&&
     [...shuffledOptions].sort().join('|')===[...['10','12','8','2']].sort().join('|'));
   await guestPage.reload({waitUntil:'networkidle2'});
   await guestPage.waitForSelector('.qt-options button',{visible:true});
-  const reloadedOptions=await guestPage.$eval('.qt-options button span',nodes=>
-    nodes.map(n=>n.textContent?.trim()));
+  const reloadedOptions=await guestPage.$eval('.qt-options',node=>
+    [...node.querySelectorAll('button span')].map(n=>n.textContent?.trim()));
   await qa.check('Refreshing a shuffled test does not move the options',
     shuffledOptions.join('|')===reloadedOptions.join('|'));
   await guestPage.$eval('.qt-options',node=>{
