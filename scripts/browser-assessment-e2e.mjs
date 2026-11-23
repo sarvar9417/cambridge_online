@@ -288,6 +288,25 @@ try{
   const teacherScore=await teacher.page.$eval('.qt-table-wrap',node=>node.textContent);
   await qa.check('Teacher sees guest name and correct test result live',
     teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));
+  const telemetry=await teacher.page.evaluate(async code=>{
+    const {api}=await import('/src/lib/api.ts');
+    const sessions=await api('/assessment-code/sessions');
+    const room=sessions.data.find(session=>session.code===code);
+    const report=await api('/assessment-code/sessions/'+room.id+'/report');
+    return report.data.students.find(p=>p.name==='QA PIN Learner');
+  },pin);
+  await qa.check('Teacher report retains server timestamps and measured question telemetry',
+    !!telemetry?.startedAt&&!!telemetry?.submittedAt&&
+    Number.isInteger(telemetry?.elapsedSeconds)&&
+    telemetry?.details?.[0]?.visits>=1&&
+    telemetry?.details?.[0]?.firstAnsweredAt!=null,telemetry);
+  await teacher.page.$eval('.qt-table-wrap .qt-text-btn',node=>node.click());
+  await teacher.page.waitForSelector('.qt-detail .qt-table-wrap',{visible:true});
+  await qa.check('Teacher can inspect per-question timing, opening and answer edits',
+    await teacher.page.$eval('.qt-detail',node=>
+      node.textContent.includes('Faol vaqt')&&
+      node.textContent.includes('Birinchi javob')&&
+      node.textContent.includes('O‘zgartirish')));
   await qa.screenshot(teacher.page,'teacher-pin-results');
   // The earlier student is still on a completed attempt: leave the attempt
   // route before testing the separate student Testlarim entry point.
