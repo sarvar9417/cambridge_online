@@ -20,6 +20,65 @@ export class AssessmentCodeService {
     if(!result.rowCount)throw deny('test_session_not_found',404);
     return result.rows[0];
   }
+private async flushFocus(db:PoolClient,p:{
+    id:string;current_question_id:string|null;last_focus_at:Date|string|null;
+    deadline_at:Date|string;expires_at:Date|string;closed_at:Date|string|null
+  }){
+    if(!p.current_question_id||!p.last_focus_at)return;
+    const cap=Math.min(Date.now(),new Date(p.deadline_at).getTime(),
+      new Date(p.expires_at).getTime(),
+      p.closed_at?new Date(p.closed_at).getTime():Number.POSITIVE_INFINITY);
+    const elapsedMs=Math.min(12000,Math.max(0,Math.round(cap-new Date(p.last_focus_at).getTime())));
+    if(elapsedMs>0){
+      await db.query(
+        `UPDATE assessment_code_question_activity SET focused_ms=focused_ms+$3,
+           last_opened_at=GREATEST(last_opened_at,$4::timestamptz)
+         WHERE player_id=$1 AND question_id=$2`,
+        [p.id,p.current_question_id,elapsedMs,new Date(cap)]);
+    }
+  }
+  async focus(playerId:string,token:string,questionId:string|null){
+    if(!/^[0-9a-f]{64}$/i.test(token))throw deny('test_player_forbidden',403);
+    const db=await this.pool.connect();
+    try{
+      await db.query('BEGIN');
+      const result=await db.query(
+        `SELECT p.*,s.status,s.expires_at,s.closed_at,s.test_id
+         FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id
+         WHERE p.id=$1 AND p.token_hash=$2 FOR UPDATE OF p`,
+        [playerId,digest(token)]);
+      const p=result.rows[0];
+      if(!p)throw deny('test_player_forbidden',403);
+      const now=Date.now();
+      const usable=!p.submitted_at&&p.status==='open'&&
+        now<new Date(p.deadline_at).getTime()&&now<new Date(p.expires_at).getTime();
+      if(!usable){await db.query('COMMIT');return {tracking:false};}
+      if(questionId){
+        const check=await db.query(
+          `SELECT id FROM assessment_center_questions WHERE id=$1 AND test_id=$2`,
+          [questionId,p.test_id]);
+        if(!check.rowCount)throw deny('test_question_not_found',404);
+      }
+      await this.flushFocus(db,p);
+      if(questionId&&p.current_question_id!==questionId){
+        await db.query(
+          `INSERT INTO assessment_code_question_activity(player_id,question_id)
+           VALUES($1,$2)
+           ON CONFLICT(player_id,question_id) DO UPDATE SET
+             visit_count=assessment_code_question_activity.visit_count+1,
+             last_opened_at=now()`,
+          [playerId,questionId]);
+      }
+      await db.query(
+        `UPDATE assessment_code_players
+         SET current_question_id=$2,last_focus_at=CASE WHEN $2::uuid IS NULL THEN NULL ELSE now() END,
+             last_contact_at=now()
+         WHERE id=$1`,[playerId,questionId]);
+      await db.query('COMMIT');
+      return {tracking:true};
+    }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
+  }
+
   async create(actor:Actor,testId:string,sourceReviewed:boolean){
     if(actor.role==='student'||!actor.schoolId)throw deny('teacher_only',403);
     if(!sourceReviewed)throw deny('test_source_review_required',409);
