@@ -63,6 +63,7 @@ const selected=[
   '0222_assessment_center.sql',
   '0223_assessment_code_entry.sql',
   '0224_assessment_code_telemetry.sql',
+  '0225_assessment_code_player_shuffle.sql',
 ] as const;
 
 const migrationsDir=join(dirname(fileURLToPath(import.meta.url)),'migrations');
