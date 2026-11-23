@@ -19,7 +19,7 @@ try {
      set email_verified_at=coalesce(email_verified_at,now()),
          status='active'
      where username=any($1::text[])`,
-    [[process.env.SEED_OWNER_USERNAME ?? 'qa-owner','student01','student02','student03']],
+    [[process.env.SEED_OWNER_USERNAME ?? 'qa-owner','student01','student02','student03','student07']],
   );
 
   const topic = await client.query<{ id:string }>(
