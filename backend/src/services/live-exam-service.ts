@@ -1218,8 +1218,19 @@ export class LiveExamService {
              'infinity'::timestamptz
            ) > now() and (
            les.status='lobby'
-           or (les.status='question_open' and les.settings->>'practiceMode' is null
-             and coalesce((les.settings->>'allowLateJoin')::boolean,false))
+           or (
+             les.status in ('question_open','marking','review')
+             and les.settings->>'practiceMode' is null
+             and coalesce((les.settings->>'allowLateJoin')::boolean,false)
+             -- After a round locks, learners may enter the room for the NEXT
+             -- round. Never create a scored answer for an already revealed
+             -- question, and do not admit learners when no round remains.
+             and (les.status='question_open' or exists(
+               select 1 from live_exam_questions upcoming
+               where upcoming.session_id=les.id
+                 and upcoming.position>les.current_question_index
+             ))
+           )
          )
          -- Concurrent learners may validate the same room together. Start,
          -- cancel and other state transitions still wait for every join to
