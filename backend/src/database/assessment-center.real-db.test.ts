@@ -184,7 +184,8 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     const review=await service.attempt(actor(student,'student'),attempt.id);
     expect(review.questions[0]).toHaveProperty('correctIndex',0);
     const list=await service.list(actor(student,'student'));
-    expect(list.find(item=>item.id===draft.id)?.submittedAt).not.toBeNull();
+    const historical=list.find(item=>item.id===draft.id);
+    expect(historical&&'submittedAt' in historical?historical.submittedAt:null).not.toBeNull();
     const report=await service.report(actor(teacher,'teacher'),draft.id);
     expect(report.students.find(item=>item.studentId===student)?.score).toBe(1);
   });
