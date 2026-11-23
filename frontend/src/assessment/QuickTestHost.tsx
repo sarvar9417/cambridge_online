@@ -5,12 +5,34 @@ import './quick-test.css';
 
 type Test={id:string;title:string;gradeLabel:string;durationMinutes:number;questionCount:number;unkeyedCount:number;status:string;sourceFilename?:string};
 type Session={id:string;testId:string;code:string;title:string;status:string;joined:number;submitted:number;expiresAt:string;durationMinutes:number};
-type Row={id:string;name:string;answered:number;submittedAt:string|null;score:number|null;maxScore:number|null;
-  details:Array<{number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;topic:string}>};
+type QuestionDetail={
+  number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;
+  topic:string;marks:number;focusedMs:number|null;visits:number|null;
+  firstOpenedAt:string|null;lastOpenedAt:string|null;
+  firstAnsweredAt:string|null;lastAnsweredAt:string|null;answerChanges:number|null;
+};
+type Row={id:string;name:string;answered:number;startedAt:string;deadlineAt:string;
+  submittedAt:string|null;finishReason:'submitted'|'time_expired'|'teacher_closed'|null;
+  elapsedSeconds:number;focusedMs:number|null;lastSeenAt:string|null;
+  score:number|null;maxScore:number|null;details:QuestionDetail[]};
 type Report={id:string;code:string;title:string;status:string;students:Row[]};
 const msg=(e:unknown)=>e instanceof Error?e.message:'So‘rov bajarilmadi.';
 const invite=(code:string)=>window.location.origin+'/#/test/'+code;
 const cell=(s:unknown)=>'"'+String(s??'').replaceAll('"','""')+'"';
+const clock=(s:string|null|undefined)=>s?
+  new Intl.DateTimeFormat('uz-UZ',{timeZone:'Asia/Tashkent',year:'numeric',month:'2-digit',
+    day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(s)):'—';
+const duration=(seconds:number|null|undefined)=>{
+  if(seconds==null)return 'Ma’lumot yo‘q';
+  const total=Math.max(0,Math.floor(seconds));
+  return total>=3600?Math.floor(total/3600)+' soat '+Math.floor((total%3600)/60)+' min '+(total%60)+' s':
+    total>=60?Math.floor(total/60)+' min '+total%60+' s':total+' s';
+};
+const activeTime=(ms:number|null)=>ms==null?'Ma’lumot yo‘q':duration(ms/1000);
+const reason=(r:Row['finishReason'])=>r==='submitted'?'O‘zi topshirdi':
+  r==='time_expired'?'Vaqt tugadi':r==='teacher_closed'?'O‘qituvchi tugatdi':'Turi qayd etilmagan';
+const percentage=(score:number|null,total:number|null)=>score==null||!total?'—':
+  Math.round(score/total*100)+'%';
 
 export function QuickTestHost({user,classes}:{user:User;classes:ClassItem[]}){
   const [tests,setTests]=useState<Test[]>([]);
@@ -72,15 +94,32 @@ export function QuickTestHost({user,classes}:{user:User;classes:ClassItem[]}){
     try{await navigator.clipboard.writeText(value);setCopied(kind);}
     catch{setError('Nusxalash bloklangan. Kodni qo‘lda tanlab nusxalang.');}
   };
-  const exportCsv=()=>{
+  const exportCsv=(mode:'students'|'questions')=>{
     if(!report)return;
-    const rows=[['O‘quvchi','Javob berilgan','To‘g‘ri','Ball','Jami ball','Holat'],
-      ...report.students.map(s=>[s.name,s.answered,s.details.filter(d=>d.correct).length,
-        s.score??'',s.maxScore??'',s.submittedAt?'Tugatgan':'Ishlamoqda'])];
+    const rows:unknown[][]=mode==='students'?
+      [['O‘quvchi','Boshlagan (Toshkent)','Tugatgan (Toshkent)','Davomiylik (s)',
+        'Faol savol vaqti (s)','Oxirgi aloqa (Toshkent)','Yakunlash sababi','Javoblar',
+        'To‘g‘ri javoblar','Ball','Jami ball','Foiz'],
+        ...report.students.map(s=>[s.name,clock(s.startedAt),clock(s.submittedAt),
+          s.elapsedSeconds,s.focusedMs==null?'':(s.focusedMs/1000).toFixed(2),
+          clock(s.lastSeenAt),s.submittedAt?reason(s.finishReason):'Ishlamoqda',
+          s.answered,s.details.filter(d=>d.correct).length,s.score??'',s.maxScore??'',
+          percentage(s.score,s.maxScore)])]:
+      [['O‘quvchi','Savol','Mavzu','Savol matni','Tanlangan javob','To‘g‘ri javob',
+        'Natija','Savol ko‘ringan vaqt (s)','Tashrif soni','Birinchi ko‘rgan',
+        'Oxirgi ko‘rgan','Birinchi javob bergan','Oxirgi javob bergan','Javobni o‘zgartirish'],
+        ...report.students.flatMap(s=>s.details.map(q=>[
+          s.name,q.number,q.topic,q.prompt,q.choiceIndex==null?'':'ABCD'[q.choiceIndex],
+          'ABCD'[q.correctIndex],q.choiceIndex==null?'Javobsiz':q.correct?'To‘g‘ri':'Xato',
+          q.focusedMs==null?'':(q.focusedMs/1000).toFixed(2),q.visits??'',
+          clock(q.firstOpenedAt),clock(q.lastOpenedAt),clock(q.firstAnsweredAt),
+          clock(q.lastAnsweredAt),q.answerChanges??''
+        ]))];
     const csv='\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-    const a=document.createElement('a');a.href=url;a.download='test-'+report.code+'-natijalar.csv';a.click();
-    URL.revokeObjectURL(url);
+    const a=document.createElement('a');a.href=url;
+    a.download='test-'+report.code+'-'+(mode==='students'?'oquvchilar':'savollar')+'.csv';
+    a.click();URL.revokeObjectURL(url);
   };
   if(advanced)return <section className="qt-host"><button className="qt-back" type="button"
     onClick={()=>{setAdvanced(false);void reload();}}>← Kod bilan testga qaytish</button>
