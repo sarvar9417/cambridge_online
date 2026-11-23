@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
-import { api, type ClassItem } from '../lib/api';
+import { api, ApiError, type ClassItem } from '../lib/api';
 import type { GameScope } from './remote-games';
 import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
@@ -105,8 +105,11 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           questionOrder,questionDifficulty,incorrectPenaltySeconds}),
       });
       setReport(null);setSnapshot(null);setCopied(false);setCopiedEntry(false);setRoomId(data.id);
-    }catch(cause){setError(cause instanceof Error?cause.message:'Unable to create game.');}
-    finally{setLoading(false);}
+    }catch(cause){
+      if(cause instanceof ApiError && ['quiz_distractors_insufficient','quiz_question_pool_small'].includes(cause.code)){
+        setError('Not enough suitable, source-verified answer choices for this selection. Try Standard difficulty or include more related topics.');
+      }else setError(cause instanceof Error?cause.message:'Unable to create game.');
+    }finally{setLoading(false);}
   }
   async function command(action:'start'|'reveal'|'next'|'finish'){
     if(!roomId)return;
