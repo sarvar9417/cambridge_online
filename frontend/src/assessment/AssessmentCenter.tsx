@@ -394,23 +394,23 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
             <button type="button" className="ac-secondary" onClick={()=>setEditingQuestion({...q,options:[...q.options]})}>
               Savol va variantlarni tahrirlash</button></div>}
           {editingQuestion?.id===q.id&&<div className="ac-editor-q">
-            <label>Savol matni<textarea value={editingQuestion.prompt} rows={3}
-              onChange={e=>setEditingQuestion({...editingQuestion,prompt:e.target.value})}/></label>
-            <div className="ac-answer-grid">{editingQuestion.options.map((option,i)=><label key={i}>
+            <label>Savol matni<textarea value={editingQuestion!.prompt} rows={3}
+              onChange={e=>setEditingQuestion({...editingQuestion!,prompt:e.target.value})}/></label>
+            <div className="ac-answer-grid">{editingQuestion!.options.map((option,i)=><label key={i}>
               {'ABCD'[i]} javob varianti
-              <input value={option} onChange={e=>setEditingQuestion({...editingQuestion,
-                options:editingQuestion.options.map((v,k)=>k===i?e.target.value:v)})}/></label>)}</div>
+              <input value={option} onChange={e=>setEditingQuestion({...editingQuestion!,
+                options:editingQuestion!.options.map((v,k)=>k===i?e.target.value:v)})}/></label>)}</div>
             <div className="ac-form-grid">
-              <label>To‘g‘ri javob<select value={editingQuestion.correctIndex??''}
-                onChange={e=>setEditingQuestion({...editingQuestion,
+              <label>To‘g‘ri javob<select value={editingQuestion!.correctIndex??''}
+                onChange={e=>setEditingQuestion({...editingQuestion!,
                   correctIndex:e.target.value===''?null:Number(e.target.value)})}>
                 <option value="">Tekshirilmagan</option>
                 {'ABCD'.split('').map((letter,i)=><option key={letter} value={i}>{letter}</option>)}
               </select></label>
-              <label>Mavzu<input value={editingQuestion.topic}
-                onChange={e=>setEditingQuestion({...editingQuestion,topic:e.target.value})}/></label>
-              <label>Ball<input type="number" min={1} max={20} value={editingQuestion.maxMarks}
-                onChange={e=>setEditingQuestion({...editingQuestion,maxMarks:Number(e.target.value)})}/></label>
+              <label>Mavzu<input value={editingQuestion!.topic}
+                onChange={e=>setEditingQuestion({...editingQuestion!,topic:e.target.value})}/></label>
+              <label>Ball<input type="number" min={1} max={20} value={editingQuestion!.maxMarks}
+                onChange={e=>setEditingQuestion({...editingQuestion!,maxMarks:Number(e.target.value)})}/></label>
             </div>
             <div className="ac-between"><button type="button" className="ac-link" onClick={()=>setEditingQuestion(null)}>
               Bekor qilish</button>

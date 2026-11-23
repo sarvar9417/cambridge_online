@@ -157,6 +157,7 @@ describe('Assessment Center server authorization, import and scoring',()=>{
   });
   it('correct answer key can only change while the test is a draft',async()=>{
     const f=connectPool(async sql=>{
+      if(sql==='BEGIN'||sql==='ROLLBACK'||sql==='COMMIT')return {rowCount:0,rows:[]};
       if(sql.includes('select t.* from assessment_center_tests'))
         return {rowCount:1,rows:[{status:'published'}]};
       throw Error('Should not update a published test');
