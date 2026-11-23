@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+
 /**
  * Source-bounded distractor ranking for Cambridge Live Quiz.
  *
@@ -81,7 +83,14 @@ export function selectRelatedDistractors<T extends RelatedQuizTerm>(
       (sameChapter ? 3 : 0) + sharedDefinitions * 4 + sharedLabels * 2;
     return [{ other, score }];
   });
-  // Random tie ordering is provided by the caller's shuffled input.
+  // Challenging always picks the three closest alternatives. Standard varies
+  // three among the top five *related* alternatives to keep repeat rounds fresh.
   ranked.sort((a, b) => b.score - a.score);
-  return ranked.slice(0, 3).map(item => item.other);
+  if (difficulty === 'challenging') return ranked.slice(0, 3).map(item => item.other);
+  const shortlist = ranked.slice(0, 5);
+  for (let i = shortlist.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [shortlist[i], shortlist[j]] = [shortlist[j]!, shortlist[i]!];
+  }
+  return shortlist.slice(0, 3).map(item => item.other);
 }
