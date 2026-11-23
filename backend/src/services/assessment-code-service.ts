@@ -133,12 +133,19 @@ private async flushFocus(db:PoolClient,p:{
       await db.query(`UPDATE assessment_code_sessions SET status='closed',closed_at=COALESCE(closed_at,now())
                       WHERE id=$1`,[id]);
       const r=await db.query('SELECT id FROM assessment_code_players WHERE session_id=$1 AND submitted_at IS NULL ORDER BY id FOR UPDATE',[id]);
-      for(const player of r.rows)await this.finalize(player.id,db);
+      for(const player of r.rows)await this.finalize(player.id,db,'teacher_closed');
       await db.query('COMMIT');
       return {closed:true};
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
   }
-  private async finalize(playerId:string,db:PoolClient){
+private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_expired'|'teacher_closed'){
+    const pResult=await db.query(
+      `SELECT p.*,s.expires_at,s.closed_at
+         FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id
+         WHERE p.id=$1`,[playerId]);
+    const player=pResult.rows[0];
+    if(!player||player.submitted_at)return;
+    await this.flushFocus(db,player);
     const r=await db.query(
       `SELECT COALESCE(sum(q.marks) FILTER (WHERE a.choice_index=q.correct_index),0)::int score,
               COALESCE(sum(q.marks),0)::int maximum
@@ -146,10 +153,16 @@ private async flushFocus(db:PoolClient,p:{
          JOIN assessment_center_questions q ON q.test_id=s.test_id
          LEFT JOIN assessment_code_answers a ON a.player_id=p.id AND a.question_id=q.id
         WHERE p.id=$1`,[playerId]);
+    const finishedAt=reason==='submitted'?new Date():
+      new Date(Math.min(Date.now(),new Date(player.deadline_at).getTime(),
+        new Date(player.expires_at).getTime(),
+        player.closed_at?new Date(player.closed_at).getTime():Number.POSITIVE_INFINITY));
     await db.query(
-      `UPDATE assessment_code_players SET submitted_at=now(),score=$2,max_score=$3
+      `UPDATE assessment_code_players
+          SET submitted_at=$4,score=$2,max_score=$3,finish_reason=$5,
+              current_question_id=NULL,last_focus_at=NULL
         WHERE id=$1 AND submitted_at IS NULL`,
-      [playerId,n(r.rows[0]?.score),n(r.rows[0]?.maximum)]);
+      [playerId,n(r.rows[0]?.score),n(r.rows[0]?.maximum),finishedAt,reason]);
   }
   private async settleExpired(id:string){
     const r=await this.pool.query(
@@ -163,7 +176,10 @@ private async flushFocus(db:PoolClient,p:{
       try{
         await db.query('BEGIN');
         const lock=await db.query('SELECT submitted_at FROM assessment_code_players WHERE id=$1 FOR UPDATE',[row.id]);
-        if(lock.rows[0]&&!lock.rows[0].submitted_at)await this.finalize(row.id,db);
+        if(lock.rows[0]&&!lock.rows[0].submitted_at){
+          const state=await db.query(`SELECT s.status FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id WHERE p.id=$1`,[row.id]);
+          await this.finalize(row.id,db,state.rows[0]?.status==='closed'?'teacher_closed':'time_expired');
+        }
         await db.query('COMMIT');
       }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
     }
@@ -292,7 +308,7 @@ private async flushFocus(db:PoolClient,p:{
       await db.query('BEGIN');
       const r=await db.query('SELECT submitted_at FROM assessment_code_players WHERE id=$1 AND token_hash=$2 FOR UPDATE',[playerId,digest(token)]);
       if(!r.rowCount)throw deny('test_player_forbidden',403);
-      if(!r.rows[0].submitted_at)await this.finalize(playerId,db);
+      if(!r.rows[0].submitted_at)await this.finalize(playerId,db,'submitted');
       await db.query('COMMIT');
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
     return this.snapshot(playerId,token);
