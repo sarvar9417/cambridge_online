@@ -47,10 +47,16 @@ export interface LiveQuizQuestionSummary {
   number:number;prompt:string;sourceContext:string;correct:number;wrong:number;
   skipped:number;total:number;wrongStudents:Array<{id:string;nickname:string;answer:string;attemptNumber?:number}>;
 }
+export interface LiveQuizAnswerKeyItem {
+  number:number;prompt:string;options:string[];correctIndex:number;
+  explanation:string;sourceContext:string;
+}
 export interface LiveQuizReport {
   id:string;pin:string;courseCode:string;totalQuestions:number;finishedAt:string|null;
   mode?:LiveQuizMode;questionBankSize?:number;students:LiveQuizResult[];
   questionSummary?:LiveQuizQuestionSummary[];
+  /** Available only in the teacher's finished-game report; never in a guest report. */
+  answerKey?:LiveQuizAnswerKeyItem[];
 }
 export interface LiveQuizHistoryItem {
   id:string;pin:string;courseCode:string;status:string;createdAt:string;

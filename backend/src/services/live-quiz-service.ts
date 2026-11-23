@@ -40,14 +40,15 @@ const shuffled=<T,>(values:readonly T[]):T[]=>{
  * sufficient to read individual answers, reporting data or a participant token.
  */
 export function buildLiveQuizQuestions(terms:readonly Term[], requested:number,order:QuestionOrder='random'):Question[] {
-  const seenTerms=new Set<string>(),seenDefinitions=new Set<string>();
+  const seenTerms=new Set<string>(),seenDefinitions=new Set<string>(),seenIds=new Set<string>();
+  // Normalise invisible whitespace and Unicode variants so options never appear identical.
+  const canonical=(text:string)=>text.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
   const eligible=terms.filter(term=>{
     if(term.status!=='approved'||!(term.isOfficialKeyTerm||
         ['official_textbook_definition','supplementary_targeted_verified'].includes(term.definitionEvidenceStatus)))return false;
-    const label=term.term.trim().toLocaleLowerCase('en');
-    const description=term.definition.trim().toLocaleLowerCase('en');
-    if(!label||!description||seenTerms.has(label)||seenDefinitions.has(description))return false;
-    seenTerms.add(label);seenDefinitions.add(description);return true;
+    const label=canonical(term.term),description=canonical(term.definition);
+    if(!label||!description||seenIds.has(term.id)||seenTerms.has(label)||seenDefinitions.has(description))return false;
+    seenIds.add(term.id);seenTerms.add(label);seenDefinitions.add(description);return true;
   });
   if(eligible.length<4)throw error('quiz_question_pool_small',409);
   const ordered=order==='ordered'?[...eligible].sort((a,b)=>(a.chapterNo??0)-(b.chapterNo??0)||
@@ -57,8 +58,9 @@ export function buildLiveQuizQuestions(terms:readonly Term[], requested:number,o
     const distractors=shuffled(eligible.filter(other=>other.id!==term.id)).slice(0,3);
     const choices=shuffled([term,...distractors]);
     const answerIndex=choices.findIndex(candidate=>candidate.id===term.id);
-    return {id:randomUUID(),prompt:term.definition,options:choices.map(choice=>choice.term),answerIndex,
-      explanation:`${term.term} — ${term.definition}`,
+    return {id:randomUUID(),prompt:term.definition.trim().replace(/\s+/g,' '),
+      options:choices.map(choice=>choice.term.trim().replace(/\s+/g,' ')),answerIndex,
+      explanation:`${term.term.trim().replace(/\s+/g,' ')} — ${term.definition.trim().replace(/\s+/g,' ')}`,
       sourceContext:`Chapter ${term.chapterNo??'?'}${term.syllabusTopicCode?' · Topic '+term.syllabusTopicCode:''}`};
   });
 }
@@ -690,6 +692,17 @@ export class LiveQuizService {
       questionSummary:onlyPlayerId?[]:this.questionBreakdown(students)};
   }
 
-  async teacherReport(actor:Actor,id:string){return this.report(await this.hostRoom(actor,id));}
+  async teacherReport(actor:Actor,id:string){
+    const room=await this.hostRoom(actor,id);
+    const report=await this.report(room);
+    // Server-generated correct indices, shared with the host only after finish.
+    // Include the entire bank, even questions nobody reached or answered.
+    const answerKey=room.questions.map((question,index)=>({
+      number:index+1,prompt:question.prompt,options:question.options,
+      correctIndex:question.answerIndex,explanation:question.explanation,
+      sourceContext:question.sourceContext,
+    }));
+    return {...report,answerKey};
+  }
   async guestReport(id:string,token:string){const {room,player}=await this.playerRoom(id,token);return this.report(room,player.id);}
 }

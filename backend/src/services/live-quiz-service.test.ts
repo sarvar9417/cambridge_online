@@ -57,6 +57,9 @@ describe('Blooket-inspired Treasure Quest economics',()=>{
     const service=new LiveQuizService({query} as unknown as Pool);
     const result=await service.teacherReport({id:'teacher',role:'teacher',schoolId:null,fullName:'Teacher'},'room');
     expect(result.mode).toBe('treasure');
+    expect(result.answerKey).toHaveLength(4);
+    expect(result.answerKey?.[0]).toMatchObject({number:1,correctIndex:2,
+      options:['A','B','C','D'],sourceContext:'Chapter 17'});
     if(result.mode!=='treasure')throw new Error('Treasure report expected');
     expect(result.students[0]?.correct).toBe(2);
     expect(result.students[0]?.total).toBe(3);
@@ -99,6 +102,20 @@ describe('Cambridge Live Quiz question selection',()=>{
       expect(question.sourceContext).toContain('Chapter 17');
     }
     expect(new Set(questions.map(q=>q.prompt)).size).toBe(9);
+  });
+
+  it('does not offer visually duplicate answers, duplicate IDs or whitespace-only variants',()=>{
+    const rows=[...Array.from({length:4},(_,i)=>verified(i)),
+      {...verified(4),term:'  Term \n   1  '},
+      {...verified(5),definition:' Source-verified   definition 2 '},
+      {...verified(6),id:'1'},
+    ];
+    const questions=buildLiveQuizQuestions(rows,30);
+    expect(questions).toHaveLength(4);
+    for(const question of questions){
+      expect(new Set(question.options).size).toBe(4);
+      expect(question.options[question.answerIndex]).toBeTruthy();
+    }
   });
 
   it('blocks games with fewer than four verified options',()=>{
