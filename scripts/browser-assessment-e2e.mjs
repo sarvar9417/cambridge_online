@@ -16,6 +16,7 @@ const classFixture=path.resolve('scripts/fixtures/assessment-class-e2e.json');
 const directFixture=path.resolve('scripts/fixtures/assessment-direct-e2e.json');
 async function teacherImport(page,file){
   await qa.go(page,'oqitish/oyinlar');
+  await page.waitForSelector('.ig-page',{visible:true});
   await qa.go(page,'oqitish/testlar');
   await page.waitForSelector('.ac-import input[type="file"]',{visible:true});
   const upload=await page.$('.ac-import input[type="file"]');
