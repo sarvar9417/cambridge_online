@@ -34,11 +34,10 @@ export class AssessmentCenterService {
     const rows=await db.query(
       `select t.* from assessment_center_tests t
        where t.id=$1 and t.school_id=$3
-         and (t.status='published' or
-           (t.status='archived' and exists(
-             select 1 from assessment_center_attempts a
-             where a.test_id=t.id and a.student_id=$2)))
-       and (exists(
+         and ((t.status='archived' and exists(
+           select 1 from assessment_center_attempts a
+           where a.test_id=t.id and a.student_id=$2))
+         or (t.status='published' and (exists(
          select 1 from assessment_center_targets at
          join classes c on c.id=at.class_id
          join enrollments e on e.class_id=c.id
@@ -47,7 +46,7 @@ export class AssessmentCenterService {
        ) or exists(
          select 1 from assessment_center_student_targets st
          where st.test_id=t.id and st.student_id=$2
-       ))`,[testId,actor.id,actor.schoolId]);
+       )))`,[testId,actor.id,actor.schoolId]);
     if(!rows.rowCount)throw fail('test_not_found',404);
     return rows.rows[0];
   }

@@ -92,15 +92,7 @@ export async function importWordDocx(file:File){
     cursor+=46+nameLength+extraLength+commentLength;
   }
   if(!xml)throw Error('Word faylida document.xml topilmadi.');
-  const grade=/\bGrade[ _-]*([5-9])\b/i.exec(file.name)?.[1];
-  if(grade){
-    const title=parseDocument(xml).find(line=>/^Stage\s*\d+/i.test(line));
-    const stage=title?(/^Stage\s*(\d+)/i.exec(title)?.[1]):null;
-    if(stage&&stage!==grade)
-      throw Error('Word faylining nomi Grade '+grade+
-        ', ichki sarlavhasi esa Stage '+stage+
-        '. Savollarni noto‘g‘ri sinfga tarqatmaslik uchun manbani tekshiring.');
-  }
+  verifyWordSourceGrade(file.name,parseDocument(xml));
   return extractWordMcqs(xml);
 }
 
@@ -115,4 +107,15 @@ export function detectWordAssessmentMetadata(filename:string){
     gradeLabel:/paper[ _-]*3/i.test(filename)?'Paper 3':'Paper 1',
     title:filename.replace(/\.docx$/i,'').replaceAll('_',' ')};
   throw Error('Fayl nomida Grade 5–9 yoki 0478/9618 kodi yo‘q. Avval nomni aniqlang.');
+}
+
+// Explicit filename-vs-document-title validation prevents silent grade errors.
+export function verifyWordSourceGrade(filename:string,paragraphs:string[]){
+  const grade=/\bGrade[ _-]*([5-9])\\b/i.exec(filename)?.[1];
+  if(!grade)return;
+  const title=paragraphs.find(line=>/^Stage\s*\d+/i.test(line));
+  const stage=title?(/^Stage\s*(\d+)/i.exec(title)?.[1]):null;
+  if(stage&&stage!==grade)throw Error(
+    'Word fayli Grade '+grade+', ichki sarlavhasi esa Stage '+stage+
+    '. Savollarni noto‘g‘ri sinfga tarqatmaslik uchun manbani tekshiring.');
 }

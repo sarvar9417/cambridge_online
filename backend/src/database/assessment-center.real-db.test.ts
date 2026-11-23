@@ -165,6 +165,42 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     await expect(service.start(actor(unassignedStudent,'student'),draft.id))
       .rejects.toMatchObject({code:'test_closed',status:409});
   });
+  it('archives after submitted attempts, preserves result history, then releases the key',async()=>{
+    const draft=await create();
+    await service.publish(actor(teacher,'teacher'),draft.id,[klass],false,true);
+    const attempt=await service.start(actor(student,'student'),draft.id);
+    await service.saveAnswer(actor(student,'student'),attempt.id,attempt.questions[0]!.id,0);
+    await expect(service.archive(actor(teacher,'teacher'),draft.id))
+      .rejects.toMatchObject({code:'test_in_progress',status:409});
+    await service.submit(actor(student,'student'),attempt.id);
+    await service.archive(actor(teacher,'teacher'),draft.id);
+    await expect(service.start(actor(otherStudent,'student'),draft.id))
+      .rejects.toMatchObject({code:'test_not_found',status:404});
+    const old=await service.start(actor(student,'student'),draft.id);
+    expect(old.score).toBe(1);
+    expect(old.questions[0]).not.toHaveProperty('correctIndex');
+    const released=await service.releaseAnswers(actor(teacher,'teacher'),draft.id);
+    expect(released.released).toBe(true);
+    const review=await service.attempt(actor(student,'student'),attempt.id);
+    expect(review.questions[0]).toHaveProperty('correctIndex',0);
+    const list=await service.list(actor(student,'student'));
+    expect(list.find(item=>item.id===draft.id)?.submittedAt).not.toBeNull();
+    const report=await service.report(actor(teacher,'teacher'),draft.id);
+    expect(report.students.find(item=>item.studentId===student)?.score).toBe(1);
+  });
+  it('never releases monitoring keys before archived and only hard-deletes unpublished drafts',async()=>{
+    const draft=await create();
+    await expect(service.releaseAnswers(actor(teacher,'teacher'),draft.id))
+      .rejects.toMatchObject({code:'test_must_be_archived',status:409});
+    await expect(service.publish(actor(teacher,'teacher'),draft.id,[klass],true,true))
+      .rejects.toMatchObject({code:'answer_release_requires_archive',status:409});
+    const deleted=await service.deleteDraft(actor(teacher,'teacher'),draft.id);
+    expect(deleted.deleted).toBe(true);
+    const publishable=await create();
+    await service.publish(actor(teacher,'teacher'),publishable.id,[klass],false,true);
+    await expect(service.deleteDraft(actor(teacher,'teacher'),publishable.id))
+      .rejects.toMatchObject({code:'published_test_immutable',status:409});
+  });
   it('server finalizes abandoned expired attempts even if browser never submits',async()=>{
     const draft=await create();
     await service.publish(actor(teacher,'teacher'),draft.id,[klass],false,true);
