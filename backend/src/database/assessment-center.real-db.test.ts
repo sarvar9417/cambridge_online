@@ -135,6 +135,16 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     expect((await service.profile(actor(owner,'owner'),unassignedStudent)).tests)
       .toEqual(expect.arrayContaining([expect.objectContaining({testId:draft.id})]));
   });
+  it('refuses direct Grade 8 assignment to a student already enrolled in Grade 10/11',async()=>{
+    const draft=await service.create(actor(owner,'owner'),{
+      title:'Grade 8 mismatch',courseCode:'school',gradeLabel:'Grade 8',
+      kind:'practice',durationMinutes:10,
+      questions:[{prompt:'What is binary?',options:['Base 2','Base 8','Base 10','Base 16'],
+        correctIndex:0,topic:'Data representation',maxMarks:1}],
+    });
+    await expect(service.publish(actor(owner,'owner'),draft.id,[],false,true,[student]))
+      .rejects.toMatchObject({code:'test_student_course_mismatch',status:409});
+  });
   it('cannot hand a teacher-owned test to an unassigned student outside the teacher roster',async()=>{
     const draft=await create();
     await expect(service.publish(actor(teacher,'teacher'),draft.id,[],false,true,[unassignedStudent]))
