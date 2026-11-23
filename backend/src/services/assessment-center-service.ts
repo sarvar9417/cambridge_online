@@ -571,6 +571,10 @@ export class AssessmentCenterService {
            select 1 from assessment_center_student_targets st
            join assessment_center_tests t on t.id=st.test_id
            where st.student_id=u.id and t.school_id=$2 and t.created_by=$3
+         ) or exists (
+           select 1 from assessment_center_attempts a
+           join assessment_center_tests t on t.id=a.test_id
+           where a.student_id=u.id and t.school_id=$2 and t.created_by=$3
          )) limit 1`,[studentId,actor.schoolId,actor.id,actor.role]);
       if(!visible.rowCount)throw fail('not_found',404);
     }

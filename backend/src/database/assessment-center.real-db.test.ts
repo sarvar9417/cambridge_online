@@ -199,6 +199,8 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
     expect(historical&&'submittedAt' in historical?historical.submittedAt:null).not.toBeNull();
     const report=await service.report(actor(teacher,'teacher'),draft.id);
     expect(report.students.find(item=>item.studentId===student)?.score).toBe(1);
+    expect((await service.profile(actor(teacher,'teacher'),student)).tests)
+      .toEqual(expect.arrayContaining([expect.objectContaining({testId:draft.id})]));
     await client.query(
       `update enrollments set left_at=null where class_id=$1 and student_id=$2`,
       [klass,student]);
