@@ -102,7 +102,7 @@ export function detectWordAssessmentMetadata(filename:string){
   const grade=/\bGrade[ _-]*([5-9])\b/i.exec(filename)?.[1];
   if(grade)return {courseCode:'school' as const,gradeLabel:'Grade '+grade,
     title:filename.replace(/\.docx$/i,'').replaceAll('_',' ')};
-  const course=/\b(0478|9618)\b/.exec(filename)?.[1];
+  const course=/(?<!\d)(0478|9618)(?!\d)/.exec(filename)?.[1];
   if(course)return {courseCode:course as '0478'|'9618',
     gradeLabel:/paper[ _-]*3/i.test(filename)?'Paper 3':'Paper 1',
     title:filename.replace(/\.docx$/i,'').replaceAll('_',' ')};
