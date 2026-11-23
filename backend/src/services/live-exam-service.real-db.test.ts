@@ -813,7 +813,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   it('builds evidence-backed detailed reports, missed mark points and CSV after finish', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
-      code:'820009',
+      code:'826419',
       markingMode:'teacher',
       participants:[0],
     });
@@ -968,7 +968,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   it('lets late students enter between rounds, never scoring a completed question', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
-      code:'820009',markingMode:'teacher',settings:{allowLateJoin:true},participants:[0],
+      code:'826419',markingMode:'teacher',settings:{allowLateJoin:true},participants:[0],
     });
     const secondQuestionId=(await client.query<{id:string}>(
       'insert into questions default values returning id',
@@ -985,7 +985,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await service.revealMarkScheme(owner(),sessionId);
     expect((await client.query('select status::text status from live_exam_sessions where id=$1',[sessionId])).rows[0]?.status).toBe('marking');
 
-    await expect(service.join(student(1),'820009')).resolves.toMatchObject({sessionId});
+    await expect(service.join(student(1),'826419')).resolves.toMatchObject({sessionId});
     const pastAnswer=await client.query(
       `select a.id from live_exam_answers a
        join live_exam_participants p on p.id=a.participant_id
@@ -997,7 +997,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     // Marking completion is independently covered elsewhere. Switch the test
     // fixture into the review state to exercise its distinct join gate.
     await client.query("update live_exam_sessions set status='review' where id=$1",[sessionId]);
-    await expect(service.join(student(2),'820009')).resolves.toMatchObject({sessionId});
+    await expect(service.join(student(2),'826419')).resolves.toMatchObject({sessionId});
     await service.nextQuestion(owner(),sessionId);
 
     const nextAnswers=await client.query(
@@ -1010,7 +1010,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     await service.revealMarkScheme(owner(),sessionId);
     // The final question has no successor. A new learner must not enter a
     // terminal review stage merely to be shown an empty scoreboard.
-    await expect(service.join(sameSchoolGuest(),'820009'))
+    await expect(service.join(sameSchoolGuest(),'826419'))
       .rejects.toMatchObject({code:'live_code_not_found'});
   });
 
