@@ -121,6 +121,25 @@ export class AssessmentCenterService {
       correctIndex:q.correct_index,topic:q.topic,maxMarks:q.marks,sourceNumber:q.source_number,
     })),classIds:target.rows.map(r=>r.class_id)};
   }
+  /** Answer keys may only be corrected while a test is unpublished. */
+  async updateQuestion(actor:Actor,testId:string,questionId:string,update:{
+    prompt?:string;options?:string[];correctIndex?:number|null;topic?:string;maxMarks?:number;
+  }){
+    const t=await this.ownTest(actor,testId);
+    if(t.status!=='draft')throw fail('test_already_published',409);
+    const hasCorrect=Object.prototype.hasOwnProperty.call(update,'correctIndex');
+    const result=await this.pool.query(
+      \`update assessment_center_questions set
+          prompt=coalesce($3,prompt),options=coalesce($4::jsonb,options),
+          correct_index=case when $5 then $6::int else correct_index end,
+          topic=coalesce($7,topic),marks=coalesce($8,marks)
+       where test_id=$1 and id=$2 returning id\`,
+      [testId,questionId,update.prompt??null,update.options?JSON.stringify(update.options):null,
+       hasCorrect,update.correctIndex??null,update.topic??null,update.maxMarks??null]);
+    if(!result.rowCount)throw fail('question_not_found',404);
+    return {saved:true};
+  }
+
   async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean){
     const client=await this.pool.connect();
     try{
@@ -202,11 +221,11 @@ export class AssessmentCenterService {
     try{
       await client.query('BEGIN');
       const a=await client.query(
-        \`select a.id,a.test_id,a.submitted_at,a.deadline_at
+        \`select a.id,a.test_id,a.submitted_at,a.deadline_at,now()>=a.deadline_at expired
          from assessment_center_attempts a
          where a.id=$1 and a.student_id=$2 for update\`,[attemptId,actor.id]);
       if(!a.rowCount)throw fail('attempt_not_found',404);
-      if(a.rows[0].submitted_at||Date.now()>=new Date(a.rows[0].deadline_at).getTime())
+      if(a.rows[0].submitted_at||a.rows[0].expired)
         throw fail('test_time_expired',409);
       const result=await client.query(
         \`insert into assessment_center_answers(attempt_id,question_id,choice_index)

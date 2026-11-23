@@ -37,12 +37,14 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
     // A header shortcut keeps games visible even if the long sidebar scrolls.
     { path: 'oqitish/darslar', label: 'Darslar' },
     { path: 'oqitish/oyinlar', label: 'Interactive Games' },
+    { path: 'oqitish/testlar', label: 'Test & Assessment' },
     { path: 'oqitish/savol-banki', label: 'Savol banki' },
     { path: 'oqitish/live', label: 'Live Challenge' },
     { path: 'oqitish/tanlovlar', label: 'Tanlovlarim' }, { path: 'oqitish/vazifalar', label: 'Topshiriqlar' },
     { path: 'oqitish/tekshirish', label: 'Baholash', badge: badges.openAppeals }, { path: 'oqitish/oquvchilar', label: 'O‘quvchilar' },
   ] }); else groups.push({ label: 'O‘rganish', items: [
     { path: 'oquvchi/oyinlar', label: 'Interactive Games' },
+    { path: 'oquvchi/testlar', label: 'Testlarim' },
     { path: 'oquvchi/uy', label: 'Ish stoli' }, { path: 'oquvchi/darslar', label: 'Darslar' },
     { path: 'oquvchi/live', label: 'Live Challenge' },
     { path: 'oquvchi/vazifalar', label: 'Vazifalar' }, { path: 'oquvchi/natijalar', label: 'Natijalar' },
@@ -54,7 +56,7 @@ export function navigationFor(role: User['role'], classes: ClassItem[], badges: 
 
 const NAV_ICONS: Array<[RegExp, ComponentType<IconProps>]> = [
   [/holat|\/uy$/, House], [/darslar|organish$/, BookOpenText], [/savol-banki/, FolderOpen], [/tanlovlar/, ListChecks],
-  [/\/live$/, Broadcast], [/vazifalar/, ClipboardText], [/tekshirish/, CheckSquare], [/oquvchilar|odamlar/, UsersThree], [/korpus/, Archive], [/sifat/, ChartBar], [/tizim/, GearSix],
+  [/\/testlar$/, ClipboardText], [/\/live$/, Broadcast], [/vazifalar/, ClipboardText], [/tekshirish/, CheckSquare], [/oquvchilar|odamlar/, UsersThree], [/korpus/, Archive], [/sifat/, ChartBar], [/tizim/, GearSix],
 ];
 const iconFor = (path: string) => NAV_ICONS.find(([pattern]) => pattern.test(path))?.[1] ?? SquaresFour;
 
