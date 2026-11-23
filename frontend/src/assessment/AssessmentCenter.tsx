@@ -439,7 +439,7 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
               <span>{item.name} {!item.hasClass&&<small>· Sinfsiz</small>}</span>
             </label>)}
         </div>
-        <p className="ac-muted">{targetIds.length} ta sinf · {studentIds.length} ta alohida o‘quvchi tanlandi.</p>}
+        <p className="ac-muted">{targetIds.length} ta sinf · {studentIds.length} ta alohida o‘quvchi tanlandi.</p>
         <label><input type="checkbox" checked={sourceReviewed}
           onChange={e=>setSourceReviewed(e.target.checked)}/> Manba fayl, sinf, mavzular va javob kalitlarini tekshirib tasdiqladim</label>
         {selected.grade_label==='Grade 7'&&<p className="ac-warning">Diqqat: Grade 7 nomli fayl ichida “Stage 9” deb yozilgan. Sinfni nashrdan oldin tekshiring.</p>}
