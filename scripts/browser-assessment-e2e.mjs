@@ -84,11 +84,11 @@ try{
     return attempt.data.find(item=>item.title==='Assessment E2E Hardware');
   });
   await qa.check('Student sees assessment without teacher answer key',!!beforeAnswer);
-  await student.page.locator('.ac-options input[type="radio"]:first-child').click();
+  await student.page.locator('.ac-options label:first-child input[type="radio"]').click();
   await qa.waitText(student.page,'Javob serverda saqlandi');
   await qa.clickText(student.page,'Keyingi →');
   await qa.waitText(student.page,'Which memory is volatile?');
-  await student.page.locator('.ac-options input[type="radio"]:first-child').click(); // intentionally wrong
+  await student.page.locator('.ac-options label:first-child input[type="radio"]').click(); // intentionally wrong
   await qa.waitText(student.page,'Javob serverda saqlandi');
   await qa.clickText(student.page,'Yakunlash');
   await qa.waitText(student.page,'1/2 ball');
@@ -129,7 +129,7 @@ try{
   await qa.waitText(direct.page,'Assessment E2E Direct Grade 8');
   await qa.clickText(direct.page,'Testni boshlash');
   await qa.waitText(direct.page,'What is 1010 in denary?');
-  await direct.page.locator('.ac-options input[type="radio"]:first-child').click();
+  await direct.page.locator('.ac-options label:first-child input[type="radio"]').click();
   await qa.waitText(direct.page,'Javob serverda saqlandi');
   await qa.clickText(direct.page,'Yakunlash');
   await qa.waitText(direct.page,'1/1 ball');
