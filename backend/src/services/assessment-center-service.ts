@@ -19,11 +19,11 @@ export class AssessmentCenterService {
   private staff(actor:Actor){
     if(actor.role==='student'||!actor.schoolId)throw fail('staff_only',403);
   }
-  private async ownTest(actor:Actor,id:string,db:Pool|PoolClient=this.pool){
+  private async ownTest(actor:Actor,id:string,db:Pool|PoolClient=this.pool,lock=false){
     this.staff(actor);
     const result=await db.query(
       `select t.* from assessment_center_tests t
-       where t.id=$1 and t.school_id=$2 and t.created_by=$3`,
+       where t.id=$1 and t.school_id=$2 and t.created_by=$3${lock?' FOR UPDATE':''}`,
       [id,actor.schoolId,actor.id]);
     if(!result.rowCount)throw fail('test_not_found',404);
     return result.rows[0];
@@ -44,7 +44,49 @@ export class AssessmentCenterService {
     return rows.rows[0];
   }
 
+  /**
+   * Finalize expired attempts on the trusted server, including abandoned browser tabs.
+   * Attempt rows are locked to serialize against the answer-save transaction.
+   * Results are immutable after the first submission; scores never depend on the client's clock.
+   */
+  private async finalizeExpired(id:string){
+    const client=await this.pool.connect();
+    try{
+      await client.query('BEGIN');
+      const found=await client.query(
+        `select id,test_id,submitted_at,deadline_at,now()>=deadline_at expired
+         from assessment_center_attempts where id=$1 for update`,[id]);
+      const a=found.rows[0];
+      if(!a||a.submitted_at||!a.expired){await client.query('COMMIT');return;}
+      const score=await client.query(
+        `select coalesce(sum(q.marks) filter(where ans.choice_index=q.correct_index),0)::int score,
+           coalesce(sum(q.marks),0)::int maximum
+         from assessment_center_questions q
+         left join assessment_center_answers ans on ans.question_id=q.id and ans.attempt_id=$2
+         where q.test_id=$1`,[a.test_id,id]);
+      await client.query(
+        `update assessment_center_attempts set submitted_at=deadline_at,
+          score=$2,max_score=$3 where id=$1 and submitted_at is null`,
+        [id,number(score.rows[0]?.score),number(score.rows[0]?.maximum)]);
+      await client.query('COMMIT');
+    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  }
+  private async settleExpired(actor:Actor,testId?:string){
+    const r=await this.pool.query(
+      `select a.id from assessment_center_attempts a
+         join assessment_center_tests t on t.id=a.test_id
+       where a.submitted_at is null and a.deadline_at<=now()
+         and t.school_id=$2
+         and (($3='student' and a.student_id=$1) or
+              ($3<>'student' and t.created_by=$1))
+         and ($4::uuid is null or a.test_id=$4)
+       order by a.deadline_at asc limit 200`,
+      [actor.id,actor.schoolId,actor.role,testId??null]);
+    for(const row of r.rows)await this.finalizeExpired(row.id);
+  }
+
   async list(actor:Actor){
+    await this.settleExpired(actor);
     if(actor.role==='student'){
       const result=await this.pool.query(
         `select t.id,t.title,t.course_code,t.grade_label,t.kind,t.duration_minutes,
@@ -121,31 +163,35 @@ export class AssessmentCenterService {
       correctIndex:q.correct_index,topic:q.topic,maxMarks:q.marks,sourceNumber:q.source_number,
     })),classIds:target.rows.map(r=>r.class_id)};
   }
-  /** Answer keys may only be corrected while a test is unpublished. */
+  /** A row lock serializes draft edits against publication. Never edit a published answer key. */
   async updateQuestion(actor:Actor,testId:string,questionId:string,update:{
     prompt?:string;options?:string[];correctIndex?:number|null;topic?:string;maxMarks?:number;
   }){
-    const t=await this.ownTest(actor,testId);
-    if(t.status!=='draft')throw fail('test_already_published',409);
-    const hasCorrect=Object.prototype.hasOwnProperty.call(update,'correctIndex');
-    const result=await this.pool.query(
-      `update assessment_center_questions set
+    const client=await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const t=await this.ownTest(actor,testId,client,true);
+      if(t.status!=='draft')throw fail('test_already_published',409);
+      const hasCorrect=Object.prototype.hasOwnProperty.call(update,'correctIndex');
+      const result=await client.query(
+        `update assessment_center_questions set
           prompt=coalesce($3,prompt),options=coalesce($4::jsonb,options),
           correct_index=case when $5 then $6::int else correct_index end,
           topic=coalesce($7,topic),marks=coalesce($8,marks)
-       where test_id=$1 and id=$2 returning id`,
-      [testId,questionId,update.prompt??null,update.options?JSON.stringify(update.options):null,
-       hasCorrect,update.correctIndex??null,update.topic??null,update.maxMarks??null]);
-    if(!result.rowCount)throw fail('question_not_found',404);
-    return {saved:true};
+         where test_id=$1 and id=$2 returning id`,
+        [testId,questionId,update.prompt??null,update.options?JSON.stringify(update.options):null,
+         hasCorrect,update.correctIndex??null,update.topic??null,update.maxMarks??null]);
+      if(!result.rowCount)throw fail('question_not_found',404);
+      await client.query('COMMIT');
+      return {saved:true};
+    }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
   }
-
   async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean){
     if(!sourceReviewed)throw fail('test_source_review_required',409);
     const client=await this.pool.connect();
     try{
       await client.query('BEGIN');
-      const t=await this.ownTest(actor,id,client);
+      const t=await this.ownTest(actor,id,client,true);
       if(t.status!=='draft')throw fail('test_already_published',409);
       const q=await client.query(
         `select count(*)::int total,count(*) filter(where correct_index is null)::int missing
@@ -153,13 +199,20 @@ export class AssessmentCenterService {
       if(!number(q.rows[0]?.total)||number(q.rows[0]?.missing))throw fail('test_answer_keys_missing',409);
       const ids=[...new Set(classIds)];
       const authorized=await client.query(
-        `select id from classes c where c.id=any($1::uuid[]) and c.archived_at is null
+        `select c.id,c.grade,sy.code syllabus_code from classes c
+           join syllabi sy on sy.id=c.syllabus_id
+           where c.id=any($1::uuid[]) and c.archived_at is null
            and c.school_id=$2 and (
              ($3='owner') or ($3='teacher' and
                (c.owner_id=$4 or exists(select 1 from class_teachers ct
                  where ct.class_id=c.id and ct.teacher_id=$4))))`,
         [ids,actor.schoolId,actor.role,actor.id]);
       if(!ids.length||authorized.rowCount!==ids.length)throw fail('test_class_forbidden',403);
+      const expectedGrade=/^Grade ([5-9])$/i.exec(String(t.grade_label??''))?.[1];
+      if(authorized.rows.some(row=>(
+        (t.course_code!=='school' && row.syllabus_code!==t.course_code) ||
+        (t.course_code==='school' && expectedGrade && Number(row.grade)!==Number(expectedGrade))
+      )))throw fail('test_class_course_mismatch',409);
       for(const classId of ids){
         await client.query(
           `insert into assessment_center_targets(test_id,class_id)
@@ -193,6 +246,11 @@ export class AssessmentCenterService {
   }
   async attempt(actor:Actor,id:string){
     if(actor.role!=='student')throw fail('students_only',403);
+    const pending=await this.pool.query(
+      `select id from assessment_center_attempts
+       where id=$1 and student_id=$2 and submitted_at is null and deadline_at<=now()`,
+      [id,actor.id]);
+    if(pending.rowCount)await this.finalizeExpired(id);
     const result=await this.pool.query(
       `select a.*,t.title,t.kind,t.course_code,t.grade_label,t.release_answers
        from assessment_center_attempts a
@@ -268,6 +326,7 @@ export class AssessmentCenterService {
   }
   async report(actor:Actor,testId:string){
     const t=await this.ownTest(actor,testId);
+    await this.settleExpired(actor,testId);
     const [students,topics,items]=await Promise.all([
       this.pool.query(
         `select u.id student_id,u.full_name student_name,a.id attempt_id,
@@ -324,6 +383,7 @@ export class AssessmentCenterService {
          limit 1`,[studentId,actor.schoolId,actor.id,actor.role]);
       if(!visible.rowCount)throw fail('not_found',404);
     }
+    await this.settleExpired(actor);
     const data=await this.pool.query(
       `select t.id test_id,t.title,t.kind,t.course_code,t.grade_label,
          a.submitted_at,a.score,a.max_score
