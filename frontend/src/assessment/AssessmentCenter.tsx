@@ -47,7 +47,7 @@ function validatePackage(input:unknown):Package{
       q.options.some(option=>typeof option!=='string'||!option.trim()))
       throw Error((index+1)+'-savol matni yoki 4 ta variant to‘liq emas.');
     if(q.correctIndex!==null&&q.correctIndex!==undefined&&
-      (!Number.isInteger(q.correctIndex)||Number(q.correctIndex)<0||Number(q.correctIndex)>3))
+      (typeof q.correctIndex!=='number'||!Number.isInteger(q.correctIndex)||q.correctIndex<0||q.correctIndex>3))
       throw Error((index+1)+'-savolda javob kaliti noto‘g‘ri.');
     return {prompt:q.prompt,options:q.options as string[],
       correctIndex:q.correctIndex===undefined?null:q.correctIndex as Answer,
@@ -212,6 +212,17 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
       setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);}
     catch(e){setError(msg(e));}
   }
+  async function saveCorrectIndex(question:Question,correctIndex:number|null){
+    if(!selected||!question.id)return;
+    setBusy(true);setError('');
+    try{
+      await api('/assessment-center/tests/'+selected.id+'/questions/'+question.id,{
+        method:'PATCH',body:JSON.stringify({correctIndex}),
+      });
+      await openTest(selected.id);
+      setSuccess('Javob kaliti saqlandi.');
+    }catch(e){setError(msg(e));}finally{setBusy(false);}
+  }
   async function publish(){
     if(!selected)return;setBusy(true);setError('');
     try{await api('/assessment-center/tests/'+selected.id+'/publish',{method:'POST',
@@ -347,8 +358,15 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
             .slice(0,10).map(q=><p key={q.number}><b>#{q.number}</b> {q.prompt}
               <small>{q.correct}/{q.submitted} to‘g‘ri · {q.topic}</small></p>)}</div>
       </div>:<div className="ac-question-analysis"><h3>Savollar va javob kalitlari</h3>
-        {selected.questions.map(q=><p key={q.id}><b>#{q.position}.</b> {q.prompt}
-          <small>{q.topic} · {q.maxMarks} ball · To‘g‘ri: {q.correctIndex===null?'Tekshirilmagan':'ABCD'[q.correctIndex]}</small></p>)}</div>}
+        {selected.questions.map(q=><div className="ac-saved-q" key={q.id}>
+          <p><b>#{q.position}.</b> {q.prompt}
+            <small>{q.topic} · {q.maxMarks} ball · To‘g‘ri: {q.correctIndex===null?'Tekshirilmagan':'ABCD'[q.correctIndex]}</small></p>
+          {selected.status==='draft'&&<label className="ac-key-editor">Javob kalitini tasdiqlash
+            <select value={q.correctIndex??''} disabled={busy}
+              onChange={event=>{void saveCorrectIndex(q,event.target.value===''?null:Number(event.target.value));}}>
+              <option value="">Tekshirilmagan</option>
+              {'ABCD'.split('').map((letter,i)=><option value={i} key={letter}>{letter} — {q.options[i]}</option>)}
+            </select></label>}</div>)}</div>}
     </section>}
     {!selected&&!draft&&<section className="ac-panel">
       <h2>{student?'Menga berilgan testlar':'Testlar kutubxonasi'}</h2>
