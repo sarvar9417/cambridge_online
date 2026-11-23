@@ -28,7 +28,10 @@ type TopicRow = {topic:string;maxMarks:number;earnedMarks:number;percent:number|
 type Report = {test:{id:string;title:string;kind:string;courseCode:string;gradeLabel:string};
   students:StudentRow[];topics:TopicRow[];
   questions:Array<{number:number;topic:string;prompt:string;submitted:number;answered:number;correct:number}>};
-type Profile = {studentId:string;averagePercent:number|null;tests:Array<{
+type Profile = {studentId:string;averagePercent:number|null;
+  missedQuestions?:Array<{title:string;questionNumber:number;topic:string;prompt:string;
+    selectedOption:string|null;correctOption:string;marksLost:number}>;
+  tests:Array<{
   testId:string;title:string;kind:string;submittedAt:string;score:number;maxScore:number;percent:number|null
 }>;topics:TopicRow[]};
 const KINDS=[['practice','Practice'],['diagnostic','Diagnostic'],['monitoring','Monitoring'],['summative','Summative']] as const;
@@ -96,6 +99,17 @@ function StudentProfile({studentId,onBack}:{studentId:string;onBack:()=>void}){
         <div><strong>{profile.tests.length}</strong><span>Topshirilgan test</span></div>
         <div><strong>{change==null?'—':(change>0?'+':'')+change+' pp'}</strong><span>Birinchi–so‘nggi farq</span></div></div>
       <h3>Mavzu bo‘yicha ko‘rsatkichlar</h3><TopicBars rows={profile.topics}/>
+      {profile.missedQuestions?.length?<>
+        <h3>Xato qilingan savollar · {profile.missedQuestions.length} ta</h3>
+        <div className="ac-question-analysis">
+          {profile.missedQuestions.map((q,i)=><div key={i} className="ac-mistake">
+            <p><strong>{q.title} · #{q.questionNumber}</strong> · {q.topic}</p>
+            <p>{q.prompt}</p>
+            <small>O‘quvchi javobi: {q.selectedOption??'Javob berilmagan'}</small>
+            <small>To‘g‘ri javob: {q.correctOption} · {q.marksLost} yo‘qotilgan ball</small>
+          </div>)}
+        </div>
+      </>:null}
       <h3>Testlar tarixi</h3><div className="ac-table-wrap"><table><thead><tr><th>Test</th><th>Tur</th>
         <th>Ball</th><th>Natija</th><th>Sana</th></tr></thead>
         <tbody>{profile.tests.map(item=><tr key={item.testId}>
@@ -114,6 +128,7 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
   const [clock,setClock]=useState(Date.now());
   const [offset]=useState(()=>new Date(test.serverNow).getTime()-Date.now());
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState('');
+  const [autoSubmitRequested,setAutoSubmitRequested]=useState(false);
   const remaining=Math.max(0,Math.ceil((new Date(attempt.deadlineAt).getTime()-clock-offset)/1000));
   const submitted=Boolean(attempt.submittedAt);
   useEffect(()=>{const id=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(id);},[]);
@@ -124,7 +139,12 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
       {method:'POST'});setAttempt(r.data);}
     catch(e){setError(msg(e));}finally{setBusy(false);}
   },[attempt.id,attempt.submittedAt,busy]);
-  useEffect(()=>{if(!submitted&&!remaining&&!busy)void finish();},[submitted,remaining,busy,finish]);
+  useEffect(()=>{
+    if(!submitted&&!remaining&&!busy&&!autoSubmitRequested){
+      setAutoSubmitRequested(true);
+      void finish();
+    }
+  },[submitted,remaining,busy,autoSubmitRequested,finish]);
   async function choose(q:Question,choiceIndex:number){
     if(busy||submitted||!remaining||!q.id)return;
     setBusy(true);setSaved('');setError('');
@@ -142,6 +162,10 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
     <div className="ac-between"><button type="button" className="ac-link" onClick={onExit}>← Testlar</button>
       {!submitted&&<strong className={'ac-timer'+(remaining<=60?' is-urgent':'')}>⏱ {Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</strong>}</div>
     <p className="ac-eyebrow">{attempt.kind} · TEST</p><h2>{attempt.title}</h2>
+    {!submitted&&!remaining&&<p className="ac-warning" role="status">
+      Vaqt tugadi. Server topshirilgan javoblarni avtomatik yakunlaydi.
+      Natija ko‘rinmasa, «Yakunlash» tugmasini qayta bosing.
+    </p>
     {error&&<p role="alert" className="ac-error">{error}</p>}
     {submitted?<div className="ac-complete"><h3>Test yakunlandi</h3>
       <strong>{attempt.score}/{attempt.maxScore} ball</strong>

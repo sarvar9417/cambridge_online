@@ -411,7 +411,22 @@ export class AssessmentCenterService {
          and ($3='student' or t.created_by=$4)
        group by q.topic order by q.topic`,
       [studentId,actor.schoolId,actor.role,actor.id]);
-    return {studentId,tests,
+    const missed=actor.role==='student'?[]:(
+      await this.pool.query(
+        `select t.title test_title,q.position,q.prompt,q.topic,q.options,q.marks,
+           ans.choice_index,q.correct_index,a.submitted_at
+         from assessment_center_attempts a
+         join assessment_center_tests t on t.id=a.test_id
+         join assessment_center_questions q on q.test_id=t.id
+         left join assessment_center_answers ans on ans.attempt_id=a.id and ans.question_id=q.id
+         where a.student_id=$1 and a.submitted_at is not null and t.school_id=$2
+           and t.created_by=$3 and ans.choice_index is distinct from q.correct_index
+         order by a.submitted_at desc,q.position limit 50`,
+        [studentId,actor.schoolId,actor.id])
+    ).rows.map(row=>({title:row.test_title,questionNumber:row.position,topic:row.topic,
+      prompt:row.prompt,selectedOption:row.choice_index===null?null:row.options[row.choice_index],
+      correctOption:row.options[row.correct_index],marksLost:number(row.marks)}));
+    return {studentId,tests,missedQuestions:missed,
       averagePercent:tests.length?Math.round(tests.reduce((s,t)=>s+(t.percent??0),0)/tests.length):null,
       topics:topicRows.rows.map(r=>({topic:r.topic,questions:number(r.questions),
         maxMarks:number(r.max_marks),earnedMarks:number(r.earned_marks),
