@@ -135,7 +135,7 @@ export class AssessmentCodeService {
       details.set(row.player_id,list);
     }
     return {id,code:session.code,title:session.title,status:session.status,
-      expiresAt:session.expires_at,questions:answers.rows.filter(q=>!q.player_id).length,
+      expiresAt:session.expires_at,questions:new Set(answers.rows.map(q=>q.position)).size,
       students:players.rows.map(p=>({id:p.id,name:p.nickname,answered:n(p.answered),
         submittedAt:p.submitted_at,score:p.score==null?null:n(p.score),
         maxScore:p.max_score==null?null:n(p.max_score),
