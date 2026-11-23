@@ -263,8 +263,8 @@ try{
   const guestUrl=(process.env.LIVE_E2E_BASE_URL??'http://localhost:5173')+'/#/test/'+pin;
   await guestPage.goto(guestUrl,{waitUntil:'networkidle2'});
   await guestPage.waitForSelector('.qt-guest-card input',{visible:true});
-  const guestLoginFields=await guestPage.$('input[name="identifier"]');
-  await qa.check('PIN guest page does not require a student account',guestLoginFields.length===0);
+  const guestLoginField=await guestPage.$('input[name="identifier"]');
+  await qa.check('PIN guest page does not require a student account',guestLoginField===null);
   await qa.fill(guestPage,'.qt-guest-card input','QA PIN Learner');
   await qa.clickText(guestPage,'Testni boshlash');
   await guestPage.waitForSelector('.qt-options button',{visible:true});
