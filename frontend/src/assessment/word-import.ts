@@ -92,6 +92,15 @@ export async function importWordDocx(file:File){
     cursor+=46+nameLength+extraLength+commentLength;
   }
   if(!xml)throw Error('Word faylida document.xml topilmadi.');
+  const grade=/\bGrade[ _-]*([5-9])\b/i.exec(file.name)?.[1];
+  if(grade){
+    const title=parseDocument(xml).find(line=>/^Stage\s*\d+/i.test(line));
+    const stage=title?(/^Stage\s*(\d+)/i.exec(title)?.[1]):null;
+    if(stage&&stage!==grade)
+      throw Error('Word faylining nomi Grade '+grade+
+        ', ichki sarlavhasi esa Stage '+stage+
+        '. Savollarni noto‘g‘ri sinfga tarqatmaslik uchun manbani tekshiring.');
+  }
   return extractWordMcqs(xml);
 }
 
