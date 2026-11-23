@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ClassItem, type User } from '../lib/api';
 import './assessment-center.css';
+import { StudentTestCodeEntry } from './StudentTestCodeEntry';
 import { assessmentCsvCell } from './assessment-csv';
 import { importWordDocx, detectWordAssessmentMetadata } from './word-import';
 
@@ -181,6 +182,7 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
       Vaqt tugadi. Server topshirilgan javoblarni avtomatik yakunlaydi.
       Natija ko‘rinmasa, «Yakunlash» tugmasini qayta bosing.
     </p>}
+    {student&&<StudentTestCodeEntry />}
     {error&&<p role="alert" className="ac-error">{error}</p>}
     {submitted?<div className="ac-complete"><h3>Test yakunlandi</h3>
       <strong>{attempt.score}/{attempt.maxScore} ball</strong>
