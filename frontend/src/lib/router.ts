@@ -42,6 +42,11 @@ const PAGES_BY_SURFACE = {
   oquvchi: new Set(['uy', 'darslar', 'live', 'oyinlar', 'testlar', 'vazifalar', 'natijalar', 'organish']),
 };
 
+/** Classroom join pages are public, including when a teacher or student is already signed in. */
+export function isPublicJoinRoute(route: Route): boolean {
+  return route.surface === 'play' || route.surface === 'test';
+}
+
 export function canAccessRoute(role: keyof typeof HOME_BY_ROLE, route: Route): boolean {
   const { surface, page, path } = route;
   if (path !== `${surface}/${page}`) return false;

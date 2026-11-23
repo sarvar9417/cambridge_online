@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOME_BY_ROLE, canAccessRoute, parseRoute } from './router';
+import { HOME_BY_ROLE, canAccessRoute, isPublicJoinRoute, parseRoute } from './router';
 
 describe('parseRoute', () => {
   it('splits a surface and a page', () => {
@@ -46,6 +46,22 @@ describe('parseRoute', () => {
     expect(canAccessRoute('student', parseRoute('#oqitish/oyinlar'))).toBe(false);
     expect(canAccessRoute('student', parseRoute('#oquvchi/oyinlar'))).toBe(true);
     expect(canAccessRoute('teacher', parseRoute('#oquvchi/oyinlar'))).toBe(false);
+  });
+
+  it('keeps public classroom PIN join links outside signed-in role redirects', () => {
+    const testWithPin = parseRoute('#/test/123456');
+    const testWithoutPin = parseRoute('#/test');
+    const liveQuiz = parseRoute('#/play/654321');
+    expect(testWithPin.surface).toBe('test');
+    expect(testWithPin.page).toBe('123456');
+    expect(isPublicJoinRoute(testWithPin)).toBe(true);
+    expect(isPublicJoinRoute(testWithoutPin)).toBe(true);
+    expect(isPublicJoinRoute(liveQuiz)).toBe(true);
+    // Public pages are exceptions to role routing, NOT private authenticated pages.
+    expect(canAccessRoute('student', testWithPin)).toBe(false);
+    expect(canAccessRoute('teacher', testWithPin)).toBe(false);
+    expect(isPublicJoinRoute(parseRoute('#/oquvchi/testlar'))).toBe(false);
+    expect(isPublicJoinRoute(parseRoute('#/oqitish/testlar'))).toBe(false);
   });
 
   it('keeps a uuid selection id intact through the handoff link', () => {
