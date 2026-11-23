@@ -43,6 +43,8 @@ import { StudentGames } from './student/StudentGames';
 import { InteractiveGamesPage } from './interactive-games/InteractiveGamesPage';
 import { LiveQuizGuestPage } from './interactive-games/LiveQuizGuestPage';
 import { AssessmentCenter } from './assessment/AssessmentCenter';
+import { QuickTestHost } from './assessment/QuickTestHost';
+import { QuickTestGuest } from './assessment/QuickTestGuest';
 import { AssessmentInbox } from './assessment/AssessmentInbox';
 import { ClassesPage } from './teaching/ClassesPage';
 import { TeacherAssignments } from './teaching/TeacherAssignments';
@@ -449,6 +451,7 @@ export function App() {
 
   // Live classroom links must work for students without an account or login.
   if (route.surface === 'play') return <LiveQuizGuestPage pin={route.page} />;
+  if (route.surface === 'test') return <QuickTestGuest key={route.page} pin={route.page} />;
   if (loading && !user) return <main className="center">Yuklanmoqda...</main>;
   // The whole signed-out surface -- sign in, register, recover a password --
   // lives in AuthScreens, which owns its own errors and loading state.
@@ -656,7 +659,9 @@ export function App() {
                 : route.path === 'oqitish/tanlovlar' ? <SelectionHandoffPage user={user} />
                   : route.path === 'oqitish/live' || route.path === 'oquvchi/live'
                     ? <LiveExamPage user={user} classes={classes} />
-                  : route.path === 'oqitish/testlar' || route.path === 'oquvchi/testlar'
+                  : route.path === 'oqitish/testlar'
+                    ? <QuickTestHost user={user} classes={classes}/>
+                  : route.path === 'oquvchi/testlar'
                     ? <AssessmentCenter user={user} classes={classes}/>
                   : route.path === 'oqitish/oyinlar' || route.path === 'oquvchi/oyinlar'
                     ? <InteractiveGamesPage
