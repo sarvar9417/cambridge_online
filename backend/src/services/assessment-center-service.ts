@@ -112,7 +112,8 @@ export class AssessmentCenterService {
            where at.test_id=t.id and e.student_id=$1 and e.left_at is null
              and c.archived_at is null and c.school_id=t.school_id)
            or exists(select 1 from assessment_center_student_targets st
-             where st.test_id=t.id and st.student_id=$1))
+             where st.test_id=t.id and st.student_id=$1)
+           or (t.status='archived' and a.id is not null))
          order by t.published_at desc limit 100`,[actor.id,actor.schoolId]);
       return result.rows.map(r=>({id:r.id,title:r.title,courseCode:r.course_code,
         gradeLabel:r.grade_label,kind:r.kind,durationMinutes:number(r.duration_minutes),
@@ -520,7 +521,7 @@ export class AssessmentCenterService {
              join enrollments e on e.class_id=c.id
              where at.test_id=$1 and e.student_id=u.id and e.left_at is null
                and c.school_id=$2 and c.archived_at is null
-           ))
+           ) or a.id is not null)
          order by u.full_name`,[testId,actor.schoolId]),
       this.pool.query(
         `select q.topic,count(distinct a.id)::int students,
