@@ -165,7 +165,7 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
     {!submitted&&!remaining&&<p className="ac-warning" role="status">
       Vaqt tugadi. Server topshirilgan javoblarni avtomatik yakunlaydi.
       Natija ko‘rinmasa, «Yakunlash» tugmasini qayta bosing.
-    </p>
+    </p>}
     {error&&<p role="alert" className="ac-error">{error}</p>}
     {submitted?<div className="ac-complete"><h3>Test yakunlandi</h3>
       <strong>{attempt.score}/{attempt.maxScore} ball</strong>
