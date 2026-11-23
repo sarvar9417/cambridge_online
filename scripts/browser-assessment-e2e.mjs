@@ -289,6 +289,10 @@ try{
   await qa.check('Teacher sees guest name and correct test result live',
     teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));
   await qa.screenshot(teacher.page,'teacher-pin-results');
+  // The earlier student is still on a completed attempt: leave the attempt
+  // route before testing the separate student Testlarim entry point.
+  await qa.go(student.page,'oquvchi/uy');
+  await student.page.waitForSelector('.student-test-code-form input',{visible:true});
   await qa.go(student.page,'oquvchi/testlar');
   await student.page.waitForSelector('.student-test-code-form input',{visible:true});
   await qa.fill(student.page,'.student-test-code-form input',pin);
