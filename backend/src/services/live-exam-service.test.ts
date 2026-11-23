@@ -124,7 +124,7 @@ describe('LiveExamService source fidelity', () => {
     // Even with a fresh readiness cache, the current source-fidelity guard
     // must run: otherwise a flattened 0478 flowchart can pass pool selection
     // and fail only when the Live room is created.
-    expect(selectionSql.match(/with recursive source_visual_chain as \(/g)).toHaveLength(2);
+    expect((selectionSql ?? '').match(/with recursive source_visual_chain as \(/g)).toHaveLength(2);
     expect(selectionSql).toContain('join live_question_readiness readiness');
     expect(selectionSql).toContain('readiness.target_syllabus_id=readiness_class.syllabus_id');
     expect(selectionSql).toContain('readiness.live_ready');
