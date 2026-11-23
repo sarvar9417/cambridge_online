@@ -72,6 +72,8 @@ import { LiveExamRealtimeService } from './services/live-exam-realtime-service.j
 import { LiveExamService } from './services/live-exam-service.js';
 import { LiveQuizService } from './services/live-quiz-service.js';
 import { createLiveQuizGuestRouter, createLiveQuizHostRouter } from './routes/live-quizzes.js';
+import { AssessmentCenterService } from './services/assessment-center-service.js';
+import { createAssessmentCenterRouter } from './routes/assessment-center.js';
 
 export function createApp(
   auth?: AuthService,
@@ -150,6 +152,8 @@ export function createApp(
   if (pool) mountPrivate('/api/v1/results', createResultsRouter(new ResultsService(pool,assetUrlSigner)));
   if (pool) mountPrivate('/api/v1/ingestion', createIngestionRouter(new IngestionService(pool)));
   if (pool) mountPrivate('/api/v1/analytics', createAnalyticsRouter(new AnalyticsService(pool)));
+  if (pool) mountPrivate('/api/v1/assessment-center', createAssessmentCenterRouter(new AssessmentCenterService(pool)));
+
   if (pool) mountPrivate('/api/v1/exports', createExportsRouter(new ExportService(pool),pool));
   if (pool) mountPrivate('/api/v1/content', createContentRouter(new ContentService(pool)));
   if(liveQuizService)mountPrivate('/api/v1/live-quizzes',createLiveQuizHostRouter(liveQuizService));
