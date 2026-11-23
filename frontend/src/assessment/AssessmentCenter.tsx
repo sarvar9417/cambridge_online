@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ClassItem, type User } from '../lib/api';
 import './assessment-center.css';
 import { assessmentCsvCell } from './assessment-csv';
+import { importWordDocx } from './word-import';
 
 type Answer = number|null;
 type Question = {id?:string;sourceNumber?:number;position?:number;prompt:string;options:string[];
@@ -241,8 +242,14 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
 
   async function importFile(file:File){
     setError('');setSuccess('');
-    try{const data=validatePackage(JSON.parse(await file.text()));
-      setDraft({...data,sourceFilename:data.sourceFilename??file.name});setSelected(null);setReport(null);}
+    try{
+      const data=/\.docx$/i.test(file.name)
+        ?validatePackage({...emptyPackage(),title:file.name.replace(/\.docx$/i,''),
+          sourceFilename:file.name,questions:await importWordDocx(file)})
+        :validatePackage(JSON.parse(await file.text()));
+      setDraft({...data,sourceFilename:data.sourceFilename??file.name});setSelected(null);setReport(null);
+      if(/\.docx$/i.test(file.name))
+        setSuccess('Word matni ajratildi. Barcha javob kalitlari tekshirilmagan — har birini qo‘lda tasdiqlang.');}
     catch(e){setError('Import xatosi: '+msg(e));}
   }
   function editQuestion(index:number,update:Partial<Question>){
@@ -399,11 +406,12 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
           onClick={()=>{void createTest();}}>{busy?'Saqlanmoqda…':'Draft saqlash'}</button></div>
     </section>}
     {!student&&!draft&&!selected&&<section className="ac-panel">
-      <h2>Word’dan tayyorlangan testlarni import qilish</h2>
-      <p>Konvertatsiya qilingan JSON test paketini yuklang yoki testni qo‘lda tuzing. Javob kaliti yo‘q
-        savollar draft bo‘lib qoladi; ularni tekshirmasdan o‘quvchiga chiqarib bo‘lmaydi.</p>
-      <label className="ac-import">📁 JSON test paketi
-        <input type="file" accept=".json,application/json" onChange={e=>{
+      <h2>Word yoki JSON test importi</h2>
+      <p>Oddiy raqamlangan, A–D variantli Word (.docx) yoki tasdiqlangan JSON paketini yuklang.
+        Word importda javob kalitlari avtomatik belgilanmaydi: savollarni va kalitlarni tekshiring.
+        Diagrammali yoki murakkab tuzilgan Word fayllari xavfsizlik uchun rad etiladi.</p>
+      <label className="ac-import">📁 Word / JSON test
+        <input type="file" accept=".json,.docx,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={e=>{
           const file=e.target.files?.[0];if(file)void importFile(file);e.target.value='';}}/></label>
     </section>}
     {!student&&selected&&<section className="ac-panel">
