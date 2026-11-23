@@ -195,7 +195,7 @@ function AttemptWorkspace({test,onExit}:{test:Attempt;onExit:()=>void}){
   </section>;
 }
 
-export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]}){
+export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
   const student=user.role==='student';
   const [tests,setTests]=useState<Array<TeacherTest|StudentTest>>([]);
   const [selected,setSelected]=useState<TestDetail|null>(null);
