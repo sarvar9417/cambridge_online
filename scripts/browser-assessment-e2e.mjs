@@ -15,9 +15,20 @@ const qa=await createBrowserQA({
 const classFixture=path.resolve('scripts/fixtures/assessment-class-e2e.json');
 const directFixture=path.resolve('scripts/fixtures/assessment-direct-e2e.json');
 async function teacherImport(page,file){
-  await qa.go(page,'oqitish/oyinlar');
-  await page.waitForSelector('.ig-page',{visible:true});
   await qa.go(page,'oqitish/testlar');
+  if(await page.$('section[aria-label="O‘zlashtirish profili"]')){
+    await qa.clickText(page,'Testlarga qaytish');
+    await page.waitForSelector('.ac-report',{visible:true});
+  }
+  // Use the real teacher back control, not an unrelated games route that may
+  // trigger absent-glossary API errors in the minimal browser fixture.
+  const backToTests=await page.evaluate(()=>{
+    const control=[...document.querySelectorAll('.ac-panel button')]
+      .find(button=>button.textContent?.includes('Barcha testlar'));
+    if(!control)return false;
+    control.click();return true;
+  });
+  if(backToTests)await page.waitForSelector('.ac-import',{visible:true});
   await page.waitForSelector('.ac-import input[type="file"]',{visible:true});
   const upload=await page.$('.ac-import input[type="file"]');
   await upload.uploadFile(file);
