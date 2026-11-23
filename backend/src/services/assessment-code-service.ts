@@ -191,11 +191,11 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
     const [players,answers]=await Promise.all([
       this.pool.query(
         `SELECT p.id,p.nickname,p.started_at,p.deadline_at,p.submitted_at,p.score,p.max_score,
-           p.finish_reason,p.last_contact_at,
+           p.finish_reason,p.last_contact_at,p.token_hash,p.shuffle_version,
            (SELECT count(*)::int FROM assessment_code_answers a WHERE a.player_id=p.id) answered
          FROM assessment_code_players p WHERE p.session_id=$1 ORDER BY p.started_at,p.nickname`,[id]),
       this.pool.query(
-        `SELECT q.position,q.prompt,q.options,q.correct_index,q.marks,q.topic,
+        `SELECT q.id AS question_id,q.position,q.prompt,q.options,q.correct_index,q.marks,q.topic,
                 p.id player_id,a.choice_index,a.answered_at,
                 activity.focused_ms,activity.visit_count,activity.first_opened_at,
                 activity.last_opened_at,activity.first_answered_at,
@@ -209,7 +209,8 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
          WHERE s.id=$1 ORDER BY q.position`,[id])
     ]);
     const details=new Map<string,Array<{
-      number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;
+      questionId:string;number:number;sourceNumber:number;prompt:string;options:string[];
+      choiceIndex:number|null;correctIndex:number;correct:boolean;
       topic:string;marks:number;focusedMs:number|null;visits:number|null;
       firstOpenedAt:string|null;lastOpenedAt:string|null;
       firstAnsweredAt:string|null;lastAnsweredAt:string|null;
@@ -218,7 +219,9 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
     for(const row of answers.rows){
       if(!row.player_id)continue;
       const list=details.get(row.player_id)??[];
-      list.push({number:n(row.position),prompt:row.prompt,choiceIndex:row.choice_index==null?null:n(row.choice_index),
+      list.push({questionId:row.question_id,number:n(row.position),sourceNumber:n(row.position),
+        prompt:row.prompt,options:row.options,
+        choiceIndex:row.choice_index==null?null:n(row.choice_index),
         correctIndex:n(row.correct_index),correct:row.choice_index!=null&&n(row.choice_index)===n(row.correct_index),
         topic:row.topic,marks:n(row.marks),
         focusedMs:row.focused_ms==null?null:n(row.focused_ms),
@@ -235,7 +238,15 @@ private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_ex
         const cutoff=p.submitted_at?new Date(p.submitted_at).getTime():
           Math.min(Date.now(),new Date(p.deadline_at).getTime(),new Date(session.expires_at).getTime());
         const elapsedSeconds=Math.max(0,Math.floor((cutoff-new Date(p.started_at).getTime())/1000));
-        const items=details.get(p.id)??[];
+        const ordered=perStudentOrder(details.get(p.id)??[],p.token_hash,n(p.shuffle_version),
+          'question',q=>q.questionId);
+        const items=ordered.map((q,i)=>{
+          const permutation=studentOptionOrder(q.questionId,p.token_hash,n(p.shuffle_version),q.options.length);
+          const {questionId:_questionId,...visible}=q;
+          return {...visible,number:i+1,options:permutation.map(j=>q.options[j]),
+            choiceIndex:visibleChoice(q.choiceIndex,permutation),
+            correctIndex:visibleChoice(q.correctIndex,permutation)!};
+        });
         const measured=items.filter(q=>q.focusedMs!=null);
         return {id:p.id,name:p.nickname,answered:n(p.answered),
           startedAt:p.started_at,deadlineAt:p.deadline_at,
