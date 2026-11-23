@@ -20,6 +20,65 @@ export class AssessmentCodeService {
     if(!result.rowCount)throw deny('test_session_not_found',404);
     return result.rows[0];
   }
+private async flushFocus(db:PoolClient,p:{
+    id:string;current_question_id:string|null;last_focus_at:Date|string|null;
+    deadline_at:Date|string;expires_at:Date|string;closed_at:Date|string|null
+  }){
+    if(!p.current_question_id||!p.last_focus_at)return;
+    const cap=Math.min(Date.now(),new Date(p.deadline_at).getTime(),
+      new Date(p.expires_at).getTime(),
+      p.closed_at?new Date(p.closed_at).getTime():Number.POSITIVE_INFINITY);
+    const elapsedMs=Math.min(12000,Math.max(0,Math.round(cap-new Date(p.last_focus_at).getTime())));
+    if(elapsedMs>0){
+      await db.query(
+        `UPDATE assessment_code_question_activity SET focused_ms=focused_ms+$3,
+           last_opened_at=GREATEST(last_opened_at,$4::timestamptz)
+         WHERE player_id=$1 AND question_id=$2`,
+        [p.id,p.current_question_id,elapsedMs,new Date(cap)]);
+    }
+  }
+  async focus(playerId:string,token:string,questionId:string|null){
+    if(!/^[0-9a-f]{64}$/i.test(token))throw deny('test_player_forbidden',403);
+    const db=await this.pool.connect();
+    try{
+      await db.query('BEGIN');
+      const result=await db.query(
+        `SELECT p.*,s.status,s.expires_at,s.closed_at,s.test_id
+         FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id
+         WHERE p.id=$1 AND p.token_hash=$2 FOR UPDATE OF p`,
+        [playerId,digest(token)]);
+      const p=result.rows[0];
+      if(!p)throw deny('test_player_forbidden',403);
+      const now=Date.now();
+      const usable=!p.submitted_at&&p.status==='open'&&
+        now<new Date(p.deadline_at).getTime()&&now<new Date(p.expires_at).getTime();
+      if(!usable){await db.query('COMMIT');return {tracking:false};}
+      if(questionId){
+        const check=await db.query(
+          `SELECT id FROM assessment_center_questions WHERE id=$1 AND test_id=$2`,
+          [questionId,p.test_id]);
+        if(!check.rowCount)throw deny('test_question_not_found',404);
+      }
+      await this.flushFocus(db,p);
+      if(questionId&&p.current_question_id!==questionId){
+        await db.query(
+          `INSERT INTO assessment_code_question_activity(player_id,question_id)
+           VALUES($1,$2)
+           ON CONFLICT(player_id,question_id) DO UPDATE SET
+             visit_count=assessment_code_question_activity.visit_count+1,
+             last_opened_at=now()`,
+          [playerId,questionId]);
+      }
+      await db.query(
+        `UPDATE assessment_code_players
+         SET current_question_id=$2,last_focus_at=CASE WHEN $2::uuid IS NULL THEN NULL ELSE now() END,
+             last_contact_at=now()
+         WHERE id=$1`,[playerId,questionId]);
+      await db.query('COMMIT');
+      return {tracking:true};
+    }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
+  }
+
   async create(actor:Actor,testId:string,sourceReviewed:boolean){
     if(actor.role==='student'||!actor.schoolId)throw deny('teacher_only',403);
     if(!sourceReviewed)throw deny('test_source_review_required',409);
@@ -74,12 +133,19 @@ export class AssessmentCodeService {
       await db.query(`UPDATE assessment_code_sessions SET status='closed',closed_at=COALESCE(closed_at,now())
                       WHERE id=$1`,[id]);
       const r=await db.query('SELECT id FROM assessment_code_players WHERE session_id=$1 AND submitted_at IS NULL ORDER BY id FOR UPDATE',[id]);
-      for(const player of r.rows)await this.finalize(player.id,db);
+      for(const player of r.rows)await this.finalize(player.id,db,'teacher_closed');
       await db.query('COMMIT');
       return {closed:true};
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
   }
-  private async finalize(playerId:string,db:PoolClient){
+private async finalize(playerId:string,db:PoolClient,reason:'submitted'|'time_expired'|'teacher_closed'){
+    const pResult=await db.query(
+      `SELECT p.*,s.expires_at,s.closed_at
+         FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id
+         WHERE p.id=$1`,[playerId]);
+    const player=pResult.rows[0];
+    if(!player||player.submitted_at)return;
+    await this.flushFocus(db,player);
     const r=await db.query(
       `SELECT COALESCE(sum(q.marks) FILTER (WHERE a.choice_index=q.correct_index),0)::int score,
               COALESCE(sum(q.marks),0)::int maximum
@@ -87,10 +153,16 @@ export class AssessmentCodeService {
          JOIN assessment_center_questions q ON q.test_id=s.test_id
          LEFT JOIN assessment_code_answers a ON a.player_id=p.id AND a.question_id=q.id
         WHERE p.id=$1`,[playerId]);
+    const finishedAt=reason==='submitted'?new Date():
+      new Date(Math.min(Date.now(),new Date(player.deadline_at).getTime(),
+        new Date(player.expires_at).getTime(),
+        player.closed_at?new Date(player.closed_at).getTime():Number.POSITIVE_INFINITY));
     await db.query(
-      `UPDATE assessment_code_players SET submitted_at=now(),score=$2,max_score=$3
+      `UPDATE assessment_code_players
+          SET submitted_at=$4,score=$2,max_score=$3,finish_reason=$5,
+              current_question_id=NULL,last_focus_at=NULL
         WHERE id=$1 AND submitted_at IS NULL`,
-      [playerId,n(r.rows[0]?.score),n(r.rows[0]?.maximum)]);
+      [playerId,n(r.rows[0]?.score),n(r.rows[0]?.maximum),finishedAt,reason]);
   }
   private async settleExpired(id:string){
     const r=await this.pool.query(
@@ -104,7 +176,10 @@ export class AssessmentCodeService {
       try{
         await db.query('BEGIN');
         const lock=await db.query('SELECT submitted_at FROM assessment_code_players WHERE id=$1 FOR UPDATE',[row.id]);
-        if(lock.rows[0]&&!lock.rows[0].submitted_at)await this.finalize(row.id,db);
+        if(lock.rows[0]&&!lock.rows[0].submitted_at){
+          const state=await db.query(`SELECT s.status FROM assessment_code_players p JOIN assessment_code_sessions s ON s.id=p.session_id WHERE p.id=$1`,[row.id]);
+          await this.finalize(row.id,db,state.rows[0]?.status==='closed'?'teacher_closed':'time_expired');
+        }
         await db.query('COMMIT');
       }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
     }
@@ -115,31 +190,60 @@ export class AssessmentCodeService {
     const [players,answers]=await Promise.all([
       this.pool.query(
         `SELECT p.id,p.nickname,p.started_at,p.deadline_at,p.submitted_at,p.score,p.max_score,
+           p.finish_reason,p.last_contact_at,
            (SELECT count(*)::int FROM assessment_code_answers a WHERE a.player_id=p.id) answered
          FROM assessment_code_players p WHERE p.session_id=$1 ORDER BY p.started_at,p.nickname`,[id]),
       this.pool.query(
         `SELECT q.position,q.prompt,q.options,q.correct_index,q.marks,q.topic,
-                p.id player_id,a.choice_index
+                p.id player_id,a.choice_index,a.answered_at,
+                activity.focused_ms,activity.visit_count,activity.first_opened_at,
+                activity.last_opened_at,activity.first_answered_at,
+                activity.last_answered_at,activity.answer_changes
          FROM assessment_center_questions q
          JOIN assessment_code_sessions s ON s.test_id=q.test_id
          LEFT JOIN assessment_code_players p ON p.session_id=s.id
          LEFT JOIN assessment_code_answers a ON a.player_id=p.id AND a.question_id=q.id
+         LEFT JOIN assessment_code_question_activity activity
+           ON activity.player_id=p.id AND activity.question_id=q.id
          WHERE s.id=$1 ORDER BY q.position`,[id])
     ]);
-    const details=new Map<string,Array<{number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;topic:string}>>();
+    const details=new Map<string,Array<{
+      number:number;prompt:string;choiceIndex:number|null;correctIndex:number;correct:boolean;
+      topic:string;marks:number;focusedMs:number|null;visits:number|null;
+      firstOpenedAt:string|null;lastOpenedAt:string|null;
+      firstAnsweredAt:string|null;lastAnsweredAt:string|null;
+      answerChanges:number|null
+    }>>();
     for(const row of answers.rows){
       if(!row.player_id)continue;
       const list=details.get(row.player_id)??[];
       list.push({number:n(row.position),prompt:row.prompt,choiceIndex:row.choice_index==null?null:n(row.choice_index),
-        correctIndex:n(row.correct_index),correct:row.choice_index!=null&&n(row.choice_index)===n(row.correct_index),topic:row.topic});
+        correctIndex:n(row.correct_index),correct:row.choice_index!=null&&n(row.choice_index)===n(row.correct_index),
+        topic:row.topic,marks:n(row.marks),
+        focusedMs:row.focused_ms==null?null:n(row.focused_ms),
+        visits:row.visit_count==null?null:n(row.visit_count),
+        firstOpenedAt:row.first_opened_at??null,lastOpenedAt:row.last_opened_at??null,
+        firstAnsweredAt:row.first_answered_at??null,
+        lastAnsweredAt:row.last_answered_at??row.answered_at??null,
+        answerChanges:row.answer_changes==null?null:n(row.answer_changes)});
       details.set(row.player_id,list);
     }
     return {id,code:session.code,title:session.title,status:session.status,
       expiresAt:session.expires_at,questions:new Set(answers.rows.map(q=>q.position)).size,
-      students:players.rows.map(p=>({id:p.id,name:p.nickname,answered:n(p.answered),
-        submittedAt:p.submitted_at,score:p.score==null?null:n(p.score),
-        maxScore:p.max_score==null?null:n(p.max_score),
-        details:details.get(p.id)??[]}))};
+      students:players.rows.map(p=>{
+        const cutoff=p.submitted_at?new Date(p.submitted_at).getTime():
+          Math.min(Date.now(),new Date(p.deadline_at).getTime(),new Date(session.expires_at).getTime());
+        const elapsedSeconds=Math.max(0,Math.floor((cutoff-new Date(p.started_at).getTime())/1000));
+        const items=details.get(p.id)??[];
+        const measured=items.filter(q=>q.focusedMs!=null);
+        return {id:p.id,name:p.nickname,answered:n(p.answered),
+          startedAt:p.started_at,deadlineAt:p.deadline_at,
+          submittedAt:p.submitted_at,finishReason:p.finish_reason??null,
+          elapsedSeconds,lastSeenAt:p.last_contact_at??null,
+          focusedMs:measured.length?measured.reduce((sum,q)=>sum+(q.focusedMs??0),0):null,
+          score:p.score==null?null:n(p.score),maxScore:p.max_score==null?null:n(p.max_score),
+          details:items};
+      })};
   }
   async lobby(code:string){
     const r=await this.pool.query(
@@ -214,6 +318,11 @@ export class AssessmentCodeService {
       if(!p)throw deny('test_player_forbidden',403);
       if(p.submitted_at||p.status!=='open'||Date.now()>=new Date(p.deadline_at).getTime()||
          Date.now()>=new Date(p.expires_at).getTime())throw deny('test_time_expired',409);
+const before=await db.query(
+        `SELECT choice_index FROM assessment_code_answers
+         WHERE player_id=$1 AND question_id=$2`,[playerId,questionId]);
+      const previous=before.rows[0]?.choice_index;
+      const changed=before.rowCount&&n(previous)!==choiceIndex?1:0;
       const saved=await db.query(
         `INSERT INTO assessment_code_answers(player_id,question_id,choice_index)
          SELECT $1,q.id,$3 FROM assessment_center_questions q
@@ -222,6 +331,17 @@ export class AssessmentCodeService {
          ON CONFLICT(player_id,question_id) DO UPDATE SET choice_index=EXCLUDED.choice_index,answered_at=now()
          RETURNING question_id`,[playerId,questionId,choiceIndex,p.session_id]);
       if(!saved.rowCount)throw deny('test_question_not_found',404);
+      await db.query(
+        `INSERT INTO assessment_code_question_activity(
+           player_id,question_id,first_answered_at,last_answered_at,answer_changes)
+         VALUES($1,$2,now(),now(),$3)
+         ON CONFLICT(player_id,question_id) DO UPDATE SET
+           first_answered_at=COALESCE(assessment_code_question_activity.first_answered_at,now()),
+           last_answered_at=now(),
+           answer_changes=assessment_code_question_activity.answer_changes+$3`,
+        [playerId,questionId,changed]);
+      await db.query(
+        `UPDATE assessment_code_players SET last_contact_at=now() WHERE id=$1`,[playerId]);
       await db.query('COMMIT');
       return {saved:true};
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
@@ -233,7 +353,7 @@ export class AssessmentCodeService {
       await db.query('BEGIN');
       const r=await db.query('SELECT submitted_at FROM assessment_code_players WHERE id=$1 AND token_hash=$2 FOR UPDATE',[playerId,digest(token)]);
       if(!r.rowCount)throw deny('test_player_forbidden',403);
-      if(!r.rows[0].submitted_at)await this.finalize(playerId,db);
+      if(!r.rows[0].submitted_at)await this.finalize(playerId,db,'submitted');
       await db.query('COMMIT');
     }catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
     return this.snapshot(playerId,token);

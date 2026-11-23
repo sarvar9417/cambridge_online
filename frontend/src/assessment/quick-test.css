@@ -98,3 +98,18 @@
  .qt-guest-card{margin-top:1vh}
 }
 
+
+/* Classroom assessment activity analytics */
+.qt-report-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:16px 0 24px}
+.qt-report-kpis>div{display:flex;flex-direction:column;gap:7px;padding:13px 14px;background:#f5f8fc;border:1px solid #e2eaf3;border-radius:12px;min-width:0}
+.qt-report-kpis strong{font-size:clamp(.93rem,1.4vw,1.14rem);color:#182e4d;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.qt-report-kpis span{font-size:.75rem;color:#64758a}
+.qt-timing-note{font-size:.8rem;line-height:1.55;color:#536b84;margin:12px 0}
+.qt-table-wrap td{font-variant-numeric:tabular-nums;vertical-align:top}
+.qt-table-wrap th{white-space:nowrap}
+.qt-detail .qt-table-wrap{margin-top:18px}
+.qt-question-name{min-width:195px;max-width:350px;margin:7px 0;white-space:normal;line-height:1.45;font-size:.83rem}
+.qt-detail small{font-size:.72rem;white-space:normal}
+@media(max-width:700px){.qt-report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+.qt-results-head{align-items:flex-start}
+.qt-results-head .qt-code-actions{width:100%;justify-content:flex-start}}

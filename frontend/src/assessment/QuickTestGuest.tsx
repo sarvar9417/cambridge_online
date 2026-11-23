@@ -69,6 +69,38 @@ export function QuickTestGuest({pin}:{pin:string}){
     return()=>{active=false;window.clearInterval(t);};
   },[guest]);
   useEffect(()=>{const t=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(t);},[]);
+const activeQuestionId=snapshot?.questions[index]?.id??null;
+  useEffect(()=>{
+    if(!guest||!snapshot||snapshot.submittedAt||!activeQuestionId)return;
+    const path='/players/'+guest.playerId+'/focus';
+    const send=(questionId:string|null)=>{
+      void request(path,guest.token,{questionId}).catch(()=>{
+        // Timing telemetry is auxiliary. Never interrupt a test or overwrite a saved answer.
+      });
+    };
+    const onVisibility=()=>{
+      send(document.visibilityState==='visible'?activeQuestionId:null);
+    };
+    onVisibility();
+    const interval=window.setInterval(()=>{
+      if(document.visibilityState==='visible')send(activeQuestionId);
+    },5000);
+    const onPageHide=()=>{
+      const url=base+'/assessment-code-guest'+path;
+      void fetch(url,{
+        method:'POST',cache:'no-store',credentials:'omit',keepalive:true,
+        headers:{Authorization:'Test '+guest.token,'Content-Type':'application/json'},
+        body:JSON.stringify({questionId:null}),
+      }).catch(()=>{});
+    };
+    document.addEventListener('visibilitychange',onVisibility);
+    window.addEventListener('pagehide',onPageHide);
+    return()=>{
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange',onVisibility);
+      window.removeEventListener('pagehide',onPageHide);
+    };
+  },[guest?.playerId,guest?.token,activeQuestionId,snapshot?.submittedAt]);
   const remaining=snapshot?Math.max(0,Math.ceil((Date.parse(snapshot.deadlineAt)-now-offset)/1000)):0;
   const submit=async()=>{
     if(!guest||busy||snapshot?.submittedAt)return;
@@ -164,7 +196,7 @@ export function QuickTestGuest({pin}:{pin:string}){
       </div>}
       {error&&<p role="alert" className="qt-error">{error}</p>}
     </section>
-    <p className="qt-guest-footer">Har bir o‘quvchi bir marta kiradi. Javoblar serverda saqlanadi.</p>
+    <p className="qt-guest-footer">Har bir o‘quvchi bir marta kiradi. Javoblar serverda saqlanadi. Savol oynada ochiq turgan vaqt ham o‘qituvchining hisobotiga yoziladi.</p>
   </main>;
 }
 
