@@ -140,7 +140,8 @@ export class AssessmentCenterService {
     return {saved:true};
   }
 
-  async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean){
+  async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean){
+    if(!sourceReviewed)throw fail('test_source_review_required',409);
     const client=await this.pool.connect();
     try{
       await client.query('BEGIN');
@@ -166,8 +167,9 @@ export class AssessmentCenterService {
       }
       await client.query(
         `update assessment_center_tests
-         set status='published',published_at=now(),release_answers=$2 where id=$1`,
-        [id,releaseAnswers]);
+         set status='published',published_at=now(),release_answers=$2,
+         reviewed_by=$3,reviewed_at=now() where id=$1`,
+        [id,releaseAnswers,actor.id]);
       await client.query('COMMIT');
       return {id,status:'published',classes:ids.length};
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}

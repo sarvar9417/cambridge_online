@@ -45,7 +45,7 @@ describe('Assessment Center server authorization, import and scoring',()=>{
         return {rowCount:1,rows:[{total:10,missing:1}]};
       return {rowCount:1,rows:[]};
     });
-    await expect(new AssessmentCenterService(f.pool).publish(teacher,'test-1',['class-1'],false))
+    await expect(new AssessmentCenterService(f.pool).publish(teacher,'test-1',['class-1'],false,true))
       .rejects.toMatchObject({code:'test_answer_keys_missing',status:409});
     expect(f.query).toHaveBeenCalledWith('ROLLBACK');
     expect(f.query.mock.calls.some(([sql])=>sql.includes("set status='published'"))).toBe(false);
@@ -60,7 +60,7 @@ describe('Assessment Center server authorization, import and scoring',()=>{
         return {rowCount:0,rows:[]};
       return {rowCount:1,rows:[]};
     });
-    await expect(new AssessmentCenterService(f.pool).publish(teacher,'test-1',['class-1'],false))
+    await expect(new AssessmentCenterService(f.pool).publish(teacher,'test-1',['class-1'],false,true))
       .rejects.toMatchObject({code:'test_class_forbidden',status:403});
     expect(f.query.mock.calls.some(([sql])=>sql.includes('insert into assessment_center_targets'))).toBe(false);
   });

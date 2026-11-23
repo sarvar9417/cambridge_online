@@ -23,6 +23,7 @@ const create=z.object({
 const publish=z.object({
   classIds:z.array(id).min(1).max(20),
   releaseAnswers:z.boolean().default(false),
+  sourceReviewed:z.literal(true),
 }).strict();
 export function createAssessmentCenterRouter(service:AssessmentCenterService){
   const router=Router();
@@ -49,7 +50,7 @@ export function createAssessmentCenterRouter(service:AssessmentCenterService){
   });
   router.post('/tests/:id/publish',async(req,res)=>{
     const body=publish.parse(req.body);
-    res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers)});
+    res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed)});
   });
   router.get('/tests/:id/report',async(req,res)=>{
     noStore(res);res.json({data:await service.report(req.actor!,id.parse(req.params.id))});

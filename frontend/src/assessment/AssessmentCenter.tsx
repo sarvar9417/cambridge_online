@@ -179,6 +179,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   const [draft,setDraft]=useState<Package|null>(null);
   const [targetIds,setTargetIds]=useState<string[]>([]);
   const [releaseAnswers,setReleaseAnswers]=useState(false);
+  const [sourceReviewed,setSourceReviewed]=useState(false);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -209,7 +210,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   async function openTest(id:string){
     setError('');setSelected(null);setReport(null);setDraft(null);setProfileId(null);
     try{const r=await api<{data:TestDetail}>('/assessment-center/tests/'+id);
-      setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);}
+      setSelected(r.data);setTargetIds(r.data.classIds??[]);setReleaseAnswers(r.data.release_answers);setSourceReviewed(false);}
     catch(e){setError(msg(e));}
   }
   async function saveCorrectIndex(question:Question,correctIndex:number|null){
@@ -226,7 +227,7 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
   async function publish(){
     if(!selected)return;setBusy(true);setError('');
     try{await api('/assessment-center/tests/'+selected.id+'/publish',{method:'POST',
-      body:JSON.stringify({classIds:targetIds,releaseAnswers})});
+      body:JSON.stringify({classIds:targetIds,releaseAnswers,sourceReviewed})});
       setSuccess('Test nashr qilindi — tanlangan sinf o‘quvchilarida paydo bo‘ladi.');
       await openTest(selected.id);await load();
     }catch(e){setError(msg(e));}finally{setBusy(false);}
@@ -335,9 +336,12 @@ export function AssessmentCenter({user,classes}:{user:User;classes:ClassItem[]})
           <input type="checkbox" checked={targetIds.includes(c.id)}
             onChange={e=>setTargetIds(ids=>e.target.checked?[...ids,c.id]:ids.filter(x=>x!==c.id))}/>
           {c.name} {c.grade?'· Grade '+c.grade:''}</label>)}</div>
+        <label><input type="checkbox" checked={sourceReviewed}
+          onChange={e=>setSourceReviewed(e.target.checked)}/> Manba fayl, sinf, mavzular va javob kalitlarini tekshirib tasdiqladim</label>
+        {selected.grade_label==='Grade 7'&&<p className="ac-warning">Diqqat: Grade 7 nomli fayl ichida “Stage 9” deb yozilgan. Sinfni nashrdan oldin tekshiring.</p>}
         <label><input type="checkbox" checked={releaseAnswers}
           onChange={e=>setReleaseAnswers(e.target.checked)}/> Topshirgandan keyin to‘g‘ri javoblar ko‘rinsin</label>
-        <button type="button" className="ac-primary" disabled={busy||pending>0||targetIds.length===0}
+        <button type="button" className="ac-primary" disabled={busy||pending>0||targetIds.length===0||!sourceReviewed}
           onClick={()=>{void publish();}}>Testni nashr qilish</button>
       </div>}
       {report?<div className="ac-report"><div className="ac-between">
