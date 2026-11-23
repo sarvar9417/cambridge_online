@@ -6,7 +6,7 @@ import { buildLiveQuizQuestions, drawTreasureReward, liveQuizPoints,
 
 const verified=(number:number)=>({
   id:String(number),term:'Term '+number,definition:'Source-verified definition '+number,
-  chapterNo:17,status:'approved',isOfficialKeyTerm:false,
+  chapterNo:17,syllabusTopicCode:'17.1',status:'approved',isOfficialKeyTerm:false,
   definitionEvidenceStatus:'supplementary_targeted_verified',
 });
 
@@ -121,6 +121,59 @@ describe('Cambridge Live Quiz question selection',()=>{
   it('blocks games with fewer than four verified options',()=>{
     expect(()=>buildLiveQuizQuestions([verified(1),verified(2),verified(3)],15))
       .toThrowError(expect.objectContaining({code:'quiz_question_pool_small',status:409}));
+  });
+
+  it('prefers near-topic 9618 translator terms over obviously unrelated approved vocabulary',()=>{
+    const item=(id:string,term:string,definition:string,chapterNo:number,syllabusTopicCode:string)=>
+      ({id,term,definition,chapterNo,syllabusTopicCode,status:'approved',
+        isOfficialKeyTerm:true,definitionEvidenceStatus:'official_textbook_definition'});
+    const related=[
+      item('compiler','Compiler','Translates a complete high level program into executable machine code',5,'5.2'),
+      item('interpreter','Interpreter','Translates and executes high level program statements individually',5,'5.2'),
+      item('assembler','Assembler','Translates assembly language source program into machine code',5,'5.2'),
+      item('linker','Linker','Links separately compiled object code into one executable program',5,'5.2'),
+    ];
+    const distant=[
+      item('firewall','Firewall','Filters network traffic using access policies',2,'2.3'),
+      item('database','Primary key','Uniquely identifies a row in a relational database table',8,'8.1'),
+      item('bst','Binary search tree','Hierarchical tree structure organised for ordered searches',18,'18.1'),
+      item('ram','Random access memory','Temporary primary storage for active application data',3,'3.1'),
+    ];
+    for(const difficulty of ['standard','challenging'] as const){
+      const questions=buildLiveQuizQuestions([...related,...distant],4,'ordered',difficulty);
+      expect(questions).toHaveLength(4);
+      for(const question of questions){
+        expect(question.options).toHaveLength(4);
+        expect(question.options.every(answer=>related.some(term=>term.term===answer))).toBe(true);
+        expect(new Set(question.options).size).toBe(4);
+      }
+    }
+  });
+
+  it('skips questions with no three plausible peers instead of filling with random terms',()=>{
+    const rows=[
+      {id:'x1',term:'Compiler',definition:'Translates a high-level computer program',chapterNo:5,syllabusTopicCode:'5.2'},
+      {id:'x2',term:'Firewall',definition:'Restricts network access to trusted hosts',chapterNo:2,syllabusTopicCode:'2.3'},
+      {id:'x3',term:'Primary key',definition:'Uniquely identifies relational database records',chapterNo:8,syllabusTopicCode:'8.1'},
+      {id:'x4',term:'Binary tree',definition:'Tree structure with nodes having two child nodes',chapterNo:18,syllabusTopicCode:'18.1'},
+    ].map(row=>({...row,status:'approved',isOfficialKeyTerm:true,
+      definitionEvidenceStatus:'official_textbook_definition'}));
+    expect(()=>buildLiveQuizQuestions(rows,4,'random','standard'))
+      .toThrowError(expect.objectContaining({code:'quiz_distractors_insufficient',status:409}));
+    expect(()=>buildLiveQuizQuestions(rows,4,'random','challenging'))
+      .toThrowError(expect.objectContaining({code:'quiz_distractors_insufficient',status:409}));
+  });
+
+  it('randomises the A/B/C/D location of the single correct answer',()=>{
+    const terms=Array.from({length:9},(_,n)=>verified(n));
+    const locations=new Set<number>();
+    for(let run=0;run<24;run++){
+      for(const question of buildLiveQuizQuestions(terms,9,'random','standard')){
+        locations.add(question.answerIndex);
+        expect(question.options.filter(option=>option===question.options[question.answerIndex])).toHaveLength(1);
+      }
+    }
+    expect(locations.size).toBe(4);
   });
 
   it('awards no points for wrong answers and rewards fast correct first attempts',()=>{
