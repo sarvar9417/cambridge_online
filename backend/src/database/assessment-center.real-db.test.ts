@@ -9,7 +9,7 @@ describeReal('Assessment Center real PostgreSQL — deadlines, isolation and imm
   let client:pg.Client;
   let service:AssessmentCenterService;
   let school:string,teacher:string,owner:string,student:string,otherStudent:string,unassignedStudent:string,klass:string,wrongClass:string;
-  const actor=(id:string,role:'teacher'|'student')=>({id,role,schoolId:school,fullName:'Assessment user'});
+  const actor=(id:string,role:'owner'|'teacher'|'student')=>({id,role,schoolId:school,fullName:'Assessment user'});
 
   beforeAll(async()=>{
     const raw=process.env.DATABASE_URL;
