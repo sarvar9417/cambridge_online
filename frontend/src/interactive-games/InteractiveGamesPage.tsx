@@ -25,8 +25,10 @@ import './remote-games.css';
 import './game-polish.css';
 
 /** Source-backed multi-chapter practice, with session-only feedback. */
-export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
-  const [courseCode, setCourseCode] = useState<'9618' | '0478'>('9618');
+export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', startLiveQuiz = false }: {
+  isTeacher: boolean; initialCourseCode?: '9618' | '0478'; startLiveQuiz?: boolean;
+}) {
+  const [courseCode, setCourseCode] = useState<'9618' | '0478'>(initialCourseCode);
   const [catalog, setCatalog] = useState<LiveGameCatalog | null>(null);
   const [pack, setPack] = useState<LiveGamePack | null>(null);
   const [vocabularyQuality, setVocabularyQuality] = useState<GameVocabularyQuality>('core');
@@ -64,7 +66,7 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
   const [practiceRunId, setPracticeRunId] = useState(() => randomId());
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [classroomMode, setClassroomMode] = useState(false);
-  const [liveQuizOpen, setLiveQuizOpen] = useState(false);
+  const [liveQuizOpen, setLiveQuizOpen] = useState(isTeacher && startLiveQuiz);
   const [dueOnly, setDueOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -353,6 +355,10 @@ export function InteractiveGamesPage({ isTeacher }: { isTeacher: boolean }) {
       {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
         disabled={!ready} onClick={() => { setLiveQuizOpen(false); setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
         {classroomMode ? 'Exit Classroom Mode' : 'Start Classroom Mode'}
+      </button>}
+      {isTeacher && courseCode === '9618' && <button type="button" className="ig-live-join-link"
+        onClick={() => { changeCourseCode('0478'); setClassroomMode(false); setLiveQuizOpen(true); }}>
+        Host 0478 Live Quiz
       </button>}
       <button type="button" className="ig-live-join-link" onClick={() => { window.location.hash = '/play'; }}>
         Join Live Quiz · PIN

@@ -163,7 +163,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
     Math.max(0,Math.min(progressMax,(question?.index??-1)+1));
   const pending=snapshot?.pendingReward;
   return <main className="lq-guest" aria-label="Join Cambridge Live Quiz">
-    <header className="lq-guest-header"><span>CAMBRIDGE / LIVE QUIZ</span>
+    <header className="lq-guest-header"><span>CAMBRIDGE {snapshot?.courseCode ?? lobby?.courseCode ?? ''} / LIVE QUIZ</span>
       <h1>{(snapshot?.mode??lobby?.mode)==='treasure'?'Your treasure hunt starts here.':'Think fast. Learn together.'}</h1>
       <p>{/^[0-9]{6}$/.test(pin)?<>GAME PIN <strong>{pin}</strong>{' '}
         <a className="lq-change-pin" href="#/play">Change code</a></>:

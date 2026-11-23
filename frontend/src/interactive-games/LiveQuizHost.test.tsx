@@ -48,6 +48,9 @@ describe('Live quiz Blooket-style host configuration',()=>{
       const penalty=container.querySelector<HTMLSelectElement>('[aria-label="Wrong-answer cooldown"]')!;
       penalty.value='5';penalty.dispatchEvent(new Event('change',{bubbles:true}));
     });
+    const classroom=container.querySelector<HTMLSelectElement>('[aria-label="Live Quiz classroom"]')!;
+    await act(async()=>{classroom.value=classId;
+      classroom.dispatchEvent(new Event('change',{bubbles:true}));});
     await click('Host Now');
     const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
     expect(JSON.parse(String(createCall[1]?.body))).toMatchObject({
@@ -246,6 +249,31 @@ describe('Live quiz Blooket-style host configuration',()=>{
     expect(container.textContent).toContain('Top 10 of 14 players');
     expect(container.textContent).toContain('End game & show reports');
   });
+  it('hosts 0478 directly, keeps 9618 history separate, and leaves class invitation optional',async()=>{
+    const original=mockApi.getMockImplementation()!;
+    mockApi.mockImplementation(((path,options)=>{
+      if(path==='/live-quizzes'&&!options)return Promise.resolve({data:[
+        {id:'9618-room',pin:'333333',courseCode:'9618',status:'finished',mode:'classic',
+          questionCount:10,playerCount:9,createdAt:new Date().toISOString()},
+        {id:'0478-room',pin:'444444',courseCode:'0478',status:'finished',mode:'classic',
+          questionCount:10,playerCount:10,createdAt:new Date().toISOString()},
+      ]});
+      return original(path,options);
+    }) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="0478"
+      scopes={[{chapterNo:3,kind:'chapter'}]} onExit={()=>{}}
+      onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    expect(container.querySelector('.lq-course-tag')?.textContent).toBe('0478');
+    expect(container.querySelectorAll('.lq-history-item')).toHaveLength(1);
+    expect(container.textContent).toContain('PIN 444444');
+    expect(container.textContent).not.toContain('PIN 333333');
+    expect(container.querySelector<HTMLSelectElement>('[aria-label="Live Quiz classroom"]')?.value).toBe('');
+    await click('Host Now');
+    const createCall=mockApi.mock.calls.find(([path,options])=>path==='/live-quizzes'&&options?.method==='POST')!;
+    const payload=JSON.parse(String(createCall[1]?.body)) as Record<string,unknown>;
+    expect(payload).toMatchObject({courseCode:'0478',scopes:[{chapterNo:3,kind:'chapter'}],mode:'classic'});
+    expect(payload).not.toHaveProperty('classId');
+  });
 });
 
 it('counts down to an automatic server-controlled review transition',()=>{
@@ -253,4 +281,5 @@ it('counts down to an automatic server-controlled review transition',()=>{
   expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],0)).toBe(5);
   expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],4200)).toBe(1);
   expect(reviewCountdownSeconds(state as Parameters<typeof reviewCountdownSeconds>[0],6000)).toBe(0);
+
 });
