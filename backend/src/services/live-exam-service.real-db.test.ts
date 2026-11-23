@@ -813,7 +813,7 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
 
   it('builds evidence-backed detailed reports, missed mark points and CSV after finish', async () => {
     const {sessionId,sessionQuestionId}=await makeSession({
-      code:'826419',
+      code:'820009',
       markingMode:'teacher',
       participants:[0],
     });
