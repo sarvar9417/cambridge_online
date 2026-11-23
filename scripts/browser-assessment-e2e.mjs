@@ -15,6 +15,7 @@ const qa=await createBrowserQA({
 const classFixture=path.resolve('scripts/fixtures/assessment-class-e2e.json');
 const directFixture=path.resolve('scripts/fixtures/assessment-direct-e2e.json');
 async function teacherImport(page,file){
+  await qa.go(page,'oqitish/oyinlar');
   await qa.go(page,'oqitish/testlar');
   await page.waitForSelector('.ac-import input[type="file"]',{visible:true});
   const upload=await page.$('.ac-import input[type="file"]');
@@ -101,7 +102,14 @@ try{
   const row=await teacher.page.$eval('.ac-report',node=>node.innerText);
   await qa.check('Teacher report shows submitted first-attempt 50 percent result',
     row.includes('50%'),{score:row.match(/50%/)?.[0]});
-  await qa.clickText(teacher.page,'Ko‘rish');
+  const profileOpened=await teacher.page.evaluate(()=>{
+    const row=[...document.querySelectorAll('.ac-report tbody tr')]
+      .find(item=>item.textContent?.includes('Aziz Karimov'));
+    const control=row?.querySelector('button');
+    if(!control)return false;
+    control.click();return true;
+  });
+  await qa.check('Teacher opened the student whose first attempt was graded',profileOpened);
   await qa.waitText(teacher.page,'Xato qilingan savollar');
   await qa.check('Individual profile identifies wrong option and correct key',
     await teacher.page.$eval('.ac-mistake',node=>node.textContent.includes('RAM')));
