@@ -52,7 +52,8 @@ describe('Live Quiz classroom invitation isolation',()=>{
     const interactiveGameCollection=vi.fn(async()=>({
       scopes:[{chapterNo:17,kind:'chapter'}],
       pairs:Array.from({length:4},(_,index)=>({id:String(index),term:`Term ${index}`,
-        definition:`Definition ${index}`,status:'approved',isOfficialKeyTerm:true,
+        definition:`Cryptographic encryption method using a secret key variant ${index}`,
+        status:'approved',isOfficialKeyTerm:true,syllabusTopicCode:'17.1',
         definitionEvidenceStatus:'official_textbook_definition',chapterNo:17})),
     }));
     const service=new LiveQuizService({query} as unknown as Pool,
