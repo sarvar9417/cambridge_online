@@ -2,7 +2,7 @@
 -- Existing Assessment Center tests and enrolled student attempts are preserved.
 CREATE TABLE IF NOT EXISTS public.assessment_code_sessions (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
- test_id uuid NOT NULL REFERENCES public.assessment_center_tests(id) ON DELETE CASCADE,
+ test_id uuid NOT NULL REFERENCES public.assessment_center_tests(id) ON DELETE RESTRICT,
  school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
  host_id uuid NOT NULL REFERENCES public.users(id),
  code text NOT NULL UNIQUE CHECK (code ~ '^[0-9]{6}$'),
