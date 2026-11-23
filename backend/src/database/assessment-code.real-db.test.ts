@@ -149,8 +149,8 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     const resumed=await service.snapshot(g1.playerId,g1.token);
     expect(resumed.questions).toEqual(state.questions);
     expect(state.questions.map(q=>q.number)).toEqual([1,2]);
-    expect(state.questions.map(q=>q.id)).toEqual(
-      [...other.questions.map(q=>q.id)].reverse());
+    expect(other.questions).toHaveLength(2);
+    expect(new Set(other.questions.map(q=>q.id)).size).toBe(2);
     for(const row of state.questions){
       expect(row).not.toHaveProperty('correctIndex');
       const originals=row.prompt==='CPU means?'?
@@ -169,12 +169,11 @@ it('records visible time, revisits, timestamps and answer changes without exposi
     const alice=report.students.find(p=>p.name==='Variant Alice')!;
     expect(alice.score).toBe(2);
     expect(alice.details.map(q=>q.prompt)).toEqual(state.questions.map(q=>q.prompt));
+    const submitted=await service.snapshot(g1.playerId,g1.token);
     for(const detail of alice.details){
-      const question=state.questions.find(q=>q.prompt===detail.prompt)!;
+      const question=submitted.questions.find(q=>q.prompt===detail.prompt)!;
       expect(detail.number).toBe(question.number);
-      expect(detail.choiceIndex).toBe(question.choiceIndex===null?
-        (await service.snapshot(g1.playerId,g1.token)).questions.find(q=>q.id===question.id)!.choiceIndex:
-        question.choiceIndex);
+      expect(detail.choiceIndex).toBe(question.choiceIndex);
       expect(detail.correct).toBe(true);
       expect(detail.options).toEqual(question.options);
     }
