@@ -240,6 +240,51 @@ try{
   await qa.check('Student retains archived first attempt and sees post-archive released keys',
     historical.present&&historical.score===1&&historical.keys.length===2
       &&historical.keys.every(key=>Number.isInteger(key)),historical);
+
+  // Fast classroom workflow: no student login or class assignment, just PIN and name.
+  await qa.go(teacher.page,'oqitish/testlar');
+  await qa.clickText(teacher.page,'Kod bilan testga qaytish');
+  await teacher.page.waitForSelector('.qt-test',{visible:true});
+  teacher.page.on('dialog',dialog=>void dialog.accept());
+  const selected=await teacher.page.evaluate(()=>{
+    const card=[...document.querySelectorAll('.qt-test')]
+      .find(node=>node.textContent?.includes('Assessment E2E Direct Grade 8'));
+    const button=card?.querySelector('button');
+    if(button)button.click();
+    return Boolean(button);
+  });
+  await qa.check('Teacher chooses a prepared test without creating a class',selected);
+  await teacher.page.waitForSelector('.qt-code',{visible:true});
+  const pin=await teacher.page.$eval('.qt-code',node=>node.textContent.trim());
+  await qa.check('Teacher sees six-digit entry code',/^\d{6}$/.test(pin),{pin});
+
+  const guestContext=await qa.browser.createBrowserContext();
+  const guestPage=await guestContext.newPage();
+  guestPage.on('dialog',dialog=>void dialog.accept());
+  const guestUrl=(process.env.LIVE_E2E_BASE_URL??'http://localhost:5173')+'/#/test/'+pin;
+  await guestPage.goto(guestUrl,{waitUntil:'networkidle2'});
+  await guestPage.waitForSelector('.qt-guest-card input',{visible:true});
+  const guestLoginFields=await guestPage.$('input[name="identifier"]');
+  await qa.check('PIN guest page does not require a student account',guestLoginFields.length===0);
+  await qa.fill(guestPage,'.qt-guest-card input','QA PIN Learner');
+  await qa.clickText(guestPage,'Testni boshlash');
+  await guestPage.waitForSelector('.qt-options button',{visible:true});
+  await qa.waitText(guestPage,'What is 1010 in denary?');
+  await guestPage.locator('.qt-options button:first-child').click();
+  await guestPage.waitForFunction(()=>document.querySelectorAll('.qt-options .is-selected').length===1);
+  await qa.clickText(guestPage,'Testni topshirish');
+  await qa.waitText(guestPage,'Test yakunlandi!');
+  const studentScore=await guestPage.$eval('.qt-complete',node=>node.textContent);
+  await qa.check('PIN learner gets automatically graded score',studentScore.includes('1 / 1'),{studentScore});
+  await qa.screenshot(guestPage,'guest-pin-test-finished');
+  await qa.waitText(teacher.page,'QA PIN Learner');
+  const teacherScore=await teacher.page.$eval('.qt-table-wrap',node=>node.textContent);
+  await qa.check('Teacher sees guest name and correct test result live',
+    teacherScore.includes('QA PIN Learner')&&teacherScore.includes('1 / 1'));
+  await qa.screenshot(teacher.page,'teacher-pin-results');
+  await qa.clickText(teacher.page,'Testni yakunlash');
+  await qa.waitText(teacher.page,'Test yakunlangan');
+  await guestContext.close();
   await qa.check('Teacher and students completed full multi-account assessment browser acceptance',true);
 }catch(error){
   console.error('Assessment E2E diagnostic:',JSON.stringify({
