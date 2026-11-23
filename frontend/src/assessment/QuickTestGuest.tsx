@@ -154,7 +154,7 @@ const activeQuestionId=snapshot?.questions[index]?.id??null;
       {code&&!guest&&<form onSubmit={e=>{void join(e);}}>
         <span className="qt-eyebrow">2-QADAM · KOD {code}</span>
         <h1>{lobby?.title??'Testga kirish'}</h1>
-        {lobby&&<p>{lobby.questionCount} ta savol · {lobby.durationMinutes} daqiqa</p>}
+        {lobby&&<p>{lobby.questionCount} ta savol · {lobby.durationMinutes} daqiqa · Savollar va javob variantlari aralash tartibda beriladi.</p>}
         <label>Ism va familiyangiz<input required autoFocus minLength={2} maxLength={48}
           value={name} placeholder="Masalan: Ali Valiyev" onChange={e=>setName(e.target.value)}/></label>
         <button type="submit" className="qt-primary" disabled={!lobby||busy||name.trim().length<2}>
