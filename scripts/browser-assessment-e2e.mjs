@@ -78,9 +78,10 @@ try{
       &&wordImportState.prompt==='Which number system is binary?'
       &&wordImportState.unkeyed&&!wordImportState.alert,
     wordImportState);
-  await qa.check('Real Word DOCX imports Grade 8 as a private unkeyed draft',
-    await teacher.page.$eval('.assessment-center',node=>
-      node.textContent.includes('Grade 8')&&node.textContent.includes('1 ta javob kaliti hali berilmagan')));
+  const inferredGrade=await teacher.page.$eval('.ac-form-grid > label:nth-child(3) input',
+    field=>field.value);
+  await qa.check('Real Word DOCX infers Grade 8 from its filename',inferredGrade==='Grade 8',
+    {grade:inferredGrade});
   await qa.clickText(teacher.page,'Bekor qilish');
   // Teacher imports a reviewed JSON question set via the visible browser form.
   await teacherImport(teacher.page,classFixture);
