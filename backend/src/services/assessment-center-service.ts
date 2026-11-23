@@ -3,7 +3,7 @@ import type { Actor } from '../lib/actor.js';
 import { DomainError } from './assignments-service.js';
 
 export type CenterQuestionInput = {
-  prompt:string; options:string[]; correctIndex:number|null; topic:string;
+  prompt:string; options:string[]; correctIndex?:number|null; topic:string;
   maxMarks:number; sourceNumber?:number;
 };
 export type CenterCreateInput = {
@@ -100,12 +100,12 @@ export class AssessmentCenterService {
           `insert into assessment_center_questions(test_id,position,prompt,options,
              correct_index,topic,marks,source_number)
            values($1,$2,$3,$4::jsonb,$5,$6,$7,$8)`,
-          [id,position+1,q.prompt,JSON.stringify(q.options),q.correctIndex,q.topic,
+          [id,position+1,q.prompt,JSON.stringify(q.options),q.correctIndex??null,q.topic,
            q.maxMarks,q.sourceNumber??position+1]);
       }
       await client.query('COMMIT');
       return {id,status:'draft',questionCount:input.questions.length,
-        unkeyedCount:input.questions.filter(q=>q.correctIndex===null).length};
+        unkeyedCount:input.questions.filter(q=>q.correctIndex==null).length};
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
   }
   async detail(actor:Actor,id:string){
