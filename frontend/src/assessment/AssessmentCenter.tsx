@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ClassItem, type User } from '../lib/api';
 import './assessment-center.css';
 import { assessmentCsvCell } from './assessment-csv';
-import { importWordDocx } from './word-import';
+import { importWordDocx, detectWordAssessmentMetadata } from './word-import';
 
 type Answer = number|null;
 type Question = {id?:string;sourceNumber?:number;position?:number;prompt:string;options:string[];
@@ -244,7 +244,7 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
     setError('');setSuccess('');
     try{
       const data=/\.docx$/i.test(file.name)
-        ?validatePackage({...emptyPackage(),title:file.name.replace(/\.docx$/i,''),
+        ?validatePackage({...emptyPackage(),...detectWordAssessmentMetadata(file.name),
           sourceFilename:file.name,questions:await importWordDocx(file)})
         :validatePackage(JSON.parse(await file.text()));
       setDraft({...data,sourceFilename:data.sourceFilename??file.name});setSelected(null);setReport(null);
@@ -314,6 +314,25 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
       body:JSON.stringify({classIds:targetIds,studentIds,releaseAnswers,sourceReviewed})});
       setSuccess('Test nashr qilindi — tanlangan sinf va o‘quvchilarning akkauntlarida ko‘rinadi.');
       await openTest(selected.id);await load();
+    }catch(e){setError(msg(e));}finally{setBusy(false);}
+  }
+  async function archiveTest(){
+    if(!selected||!window.confirm('Test arxivlanadi. Natijalar saqlanadi, ammo yangi urinishlar yopiladi. Davom etasizmi?'))
+      return;
+    setBusy(true);setError('');
+    try{
+      await api('/assessment-center/tests/'+selected.id+'/archive',{method:'POST'});
+      setSuccess('Test arxivlandi. O‘quvchilarning natijalari saqlab qolindi.');
+      setSelected(null);setReport(null);await load();
+    }catch(e){setError(msg(e));}finally{setBusy(false);}
+  }
+  async function deleteDraft(){
+    if(!selected||!window.confirm('Draft va uning savollari o‘chiriladi. Bu amalni qaytarib bo‘lmaydi.'))
+      return;
+    setBusy(true);setError('');
+    try{
+      await api('/assessment-center/tests/'+selected.id,{method:'DELETE'});
+      setSuccess('Draft o‘chirildi.');setSelected(null);await load();
     }catch(e){setError(msg(e));}finally{setBusy(false);}
   }
   async function openReport(){
@@ -419,8 +438,14 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
         ← Barcha testlar</button>
       <div className="ac-between"><div><p className="ac-eyebrow">{selected.course_code} · {selected.kind}</p>
         <h2>{selected.title}</h2><p>{selected.questions.length} savol · {selected.status}</p></div>
-        {selected.status==='published'&&<button type="button" className="ac-primary"
-          onClick={()=>{void openReport();}}>Natijalarni ko‘rish</button>}</div>
+        <div className="ac-saved-actions">
+          {selected.status!=='draft'&&<button type="button" className="ac-primary"
+            onClick={()=>{void openReport();}}>Natijalarni ko‘rish</button>}
+          {selected.status==='published'&&<button type="button" className="ac-secondary"
+            disabled={busy} onClick={()=>{void archiveTest();}}>Arxivlash</button>}
+          {selected.status==='draft'&&<button type="button" className="ac-secondary"
+            disabled={busy} onClick={()=>{void deleteDraft();}}>Draftni o‘chirish</button>}
+        </div></div>
       {selected.status==='draft'&&<div className="ac-publish">
         <h3>Sinfga nashr qilish</h3>
         <p className={pending?'ac-warning':'ac-success'}>
@@ -514,7 +539,7 @@ export function AssessmentCenter({user}:{user:User;classes:ClassItem[]}){
     {!selected&&!draft&&<section className="ac-panel">
       <h2>{student?'Menga berilgan testlar':'Testlar kutubxonasi'}</h2>
       {loading?<p>Yuklanmoqda…</p>:!tests.length?<p className="ac-muted">
-        {student?'Hozircha sizga test biriktirilmagan.':'Test hali kiritilmagan. JSON paketni import qiling yoki yangi test yarating.'}
+        {student?'Hozircha sizga test biriktirilmagan.':'Test hali kiritilmagan. Word yoki JSON paketni import qiling yoki yangi test yarating.'}
       </p>:<div className="ac-test-grid">{tests.map(t=><article className="ac-test-card" key={t.id}>
         <span className="ac-tag">{t.courseCode} · {t.kind}</span><h3>{t.title}</h3>
         <p>{t.gradeLabel} · {t.questionCount} savol · {t.durationMinutes} daqiqa</p>

@@ -215,12 +215,15 @@ export class AssessmentCenterService {
       .map(r=>({id:r.id,name:r.name,grade:r.grade}));
   }
   async eligibleStudents(actor:Actor,id:string){
-    await this.ownTest(actor,id);
+    const test=await this.ownTest(actor,id);
     const result=await this.pool.query(
       `select u.id,u.full_name,
-         exists(select 1 from enrollments e where e.student_id=u.id and e.left_at is null) has_active_class
+         exists(select 1 from enrollments e
+           join classes c on c.id=e.class_id
+           where e.student_id=u.id and e.left_at is null
+             and c.archived_at is null and c.school_id=$1) has_active_class
        from users u
-       where u.school_id=$1 and u.role='student'
+       where u.school_id=$1 and u.role='student' and u.is_active=true
          and ($2='owner' or exists(
            select 1 from enrollments e
            join classes c on c.id=e.class_id
@@ -230,7 +233,21 @@ export class AssessmentCenterService {
                select 1 from class_teachers ct where ct.class_id=c.id and ct.teacher_id=$3))))
        order by u.full_name,u.id limit 500`,
       [actor.schoolId,actor.role,actor.id]);
-    return result.rows.map(r=>({id:r.id,name:r.full_name,hasClass:r.has_active_class}));
+    const grade=/^Grade ([5-9])$/.exec(String(test.grade_label??''))?.[1];
+    const rows=result.rows;
+    if(!rows.length)return [];
+    const eligible=await this.pool.query(
+      `select distinct e.student_id from enrollments e
+       join classes c on c.id=e.class_id
+       join syllabi s on s.id=c.syllabus_id
+       where e.student_id=any($1::uuid[]) and e.left_at is null
+         and c.archived_at is null and c.school_id=$2
+         and (case when $3='school' then c.grade=$4::int
+                   else s.code=$3 end)`,
+      [rows.map(u=>u.id),actor.schoolId,test.course_code,grade?Number(grade):null]);
+    const allowed=new Set(eligible.rows.map(u=>u.student_id));
+    return rows.filter(u=>(actor.role==='owner'&&!u.has_active_class)||allowed.has(u.id))
+      .map(u=>({id:u.id,name:u.full_name,hasClass:u.has_active_class}));
   }
   async publish(actor:Actor,id:string,classIds:string[],releaseAnswers:boolean,sourceReviewed:boolean,
     studentIds:string[]=[]){
@@ -286,6 +303,7 @@ export class AssessmentCenterService {
         if(mismatched.rowCount)throw fail('test_student_course_mismatch',409);
       }
       const expectedGrade=/^Grade ([5-9])$/i.exec(String(t.grade_label??''))?.[1];
+      if(t.course_code==='school'&&!expectedGrade)throw fail('test_grade_invalid',409);
       if(authorized.rows.some(row=>(
         (t.course_code!=='school' && row.syllabus_code!==t.course_code) ||
         (t.course_code==='school' && expectedGrade && Number(row.grade)!==Number(expectedGrade))
@@ -308,6 +326,37 @@ export class AssessmentCenterService {
       await client.query('COMMIT');
       return {id,status:'published',classes:ids.length,students:recipients.length};
     }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+  }
+  /** End classroom delivery without destroying the first-attempt evidence. */
+  async archive(actor:Actor,id:string){
+    await this.settleExpired(actor,id);
+    const client=await this.pool.connect();
+    try{
+      await client.query('BEGIN');
+      const test=await this.ownTest(actor,id,client,true);
+      if(test.status!=='published')throw fail('test_not_published',409);
+      const pending=await client.query(
+        `select count(*)::int pending from assessment_center_attempts
+         where test_id=$1 and submitted_at is null`,[id]);
+      if(number(pending.rows[0]?.pending))throw fail('test_in_progress',409);
+      await client.query(
+        `update assessment_center_tests set status='archived' where id=$1`,[id]);
+      await client.query('COMMIT');
+      return {id,status:'archived'};
+    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  }
+
+  /** Draft-only hard-delete; published results are never destroyed by a UI delete. */
+  async deleteDraft(actor:Actor,id:string){
+    const client=await this.pool.connect();
+    try{
+      await client.query('BEGIN');
+      const test=await this.ownTest(actor,id,client,true);
+      if(test.status!=='draft')throw fail('published_test_immutable',409);
+      await client.query('delete from assessment_center_tests where id=$1',[id]);
+      await client.query('COMMIT');
+      return {id,deleted:true};
+    }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   }
   async start(actor:Actor,testId:string){
     const client=await this.pool.connect();

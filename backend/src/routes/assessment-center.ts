@@ -22,7 +22,16 @@ const create=z.object({
   closesAt:z.iso.datetime({offset:true}).nullable().optional(),
   shuffleQuestions:z.boolean().default(false),
   questions:z.array(question).min(1).max(100),
-}).strict();
+}).strict().superRefine((value,ctx)=>{
+  if(value.courseCode==='school'&&!/^Grade [5-9]$/.test(value.gradeLabel)){
+    ctx.addIssue({code:'custom',path:['gradeLabel'],
+      message:'Grade 5–9 is required for school assessments'});
+  }
+  if(value.opensAt&&value.closesAt&&Date.parse(value.closesAt)<=Date.parse(value.opensAt)){
+    ctx.addIssue({code:'custom',path:['closesAt'],
+      message:'Closing time must be after opening time'});
+  }
+});
 const publish=z.object({
   classIds:z.array(id).max(20),
   studentIds:z.array(id).max(200).default([]),
@@ -61,6 +70,12 @@ export function createAssessmentCenterRouter(service:AssessmentCenterService){
   router.post('/tests/:id/publish',async(req,res)=>{
     const body=publish.parse(req.body);
     res.json({data:await service.publish(req.actor!,id.parse(req.params.id),body.classIds,body.releaseAnswers,body.sourceReviewed,body.studentIds)});
+  });
+  router.post('/tests/:id/archive',async(req,res)=>{
+    noStore(res);res.json({data:await service.archive(req.actor!,id.parse(req.params.id))});
+  });
+  router.delete('/tests/:id',async(req,res)=>{
+    noStore(res);res.json({data:await service.deleteDraft(req.actor!,id.parse(req.params.id))});
   });
   router.get('/tests/:id/report',async(req,res)=>{
     noStore(res);res.json({data:await service.report(req.actor!,id.parse(req.params.id))});
