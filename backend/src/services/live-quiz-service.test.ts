@@ -106,14 +106,14 @@ describe('Cambridge Live Quiz question selection',()=>{
 
   it('does not offer visually duplicate answers, duplicate IDs or whitespace-only variants',()=>{
     const rows=[...Array.from({length:4},(_,i)=>verified(i)),
-      {...verified(4),term:'  Term \\n   1  '},
+      {...verified(4),term:'  Term \n   1  '},
       {...verified(5),definition:' Source-verified   definition 2 '},
       {...verified(6),id:'1'},
     ];
     const questions=buildLiveQuizQuestions(rows,30);
     expect(questions).toHaveLength(4);
     for(const question of questions){
-      expect(new Set(question.options)).toHaveSize(4);
+      expect(new Set(question.options).size).toBe(4);
       expect(question.options[question.answerIndex]).toBeTruthy();
     }
   });
