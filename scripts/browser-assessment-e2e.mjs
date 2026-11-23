@@ -16,11 +16,6 @@ const classFixture=path.resolve('scripts/fixtures/assessment-class-e2e.json');
 const directFixture=path.resolve('scripts/fixtures/assessment-direct-e2e.json');
 async function teacherImport(page,file){
   await qa.go(page,'oqitish/testlar');
-  if(!(await page.$('.ac-import'))) {
-    const open=await page.$('.qt-header button');
-    if(open)await open.click();
-    await page.waitForSelector('.ac-import input[type="file"]',{visible:true});
-  }
   if(await page.$('section[aria-label="O‘zlashtirish profili"]')){
     await qa.clickText(page,'Testlarga qaytish');
     await page.waitForSelector('.ac-report',{visible:true});
@@ -34,6 +29,10 @@ async function teacherImport(page,file){
     control.click();return true;
   });
   if(backToTests)await page.waitForSelector('.ac-import',{visible:true});
+  if(!(await page.$('.ac-import'))) {
+    await page.waitForSelector('.qt-header button',{visible:true});
+    await page.$eval('.qt-header button',node=>node.click());
+  }
   await page.waitForSelector('.ac-import input[type="file"]',{visible:true});
   const upload=await page.$('.ac-import input[type="file"]');
   await upload.uploadFile(file);
