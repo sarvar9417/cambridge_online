@@ -5,6 +5,8 @@ import type { GameScope } from './remote-games';
 import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
 import './live-quiz.css';
+import './neon-arena.css';
+import { ArenaLeaderboard, ArenaCountdown } from './ArenaLiveWidgets';
 
 export function countdownSeconds(snapshot:LiveQuizSnapshot|null,now:number,serverOffset=0){
   if(!snapshot||snapshot.status!=='active'||!snapshot.questionStartedAt)return 0;
@@ -163,10 +165,10 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const active=snapshot?.status==='active',review=snapshot?.status==='review';
   const finished=snapshot?.status==='finished';
   const question=snapshot?.question;
-  return <section className="lq-host" aria-label="Cambridge Live Quiz host">
+  return <section className={'lq-host lq-neon'+(roomId?' is-playing':'')} aria-label="Cambridge Live Quiz host">
     <div className="lq-header">
       <div><span className="lq-eyebrow">CAMBRIDGE / LIVE QUIZ <span className="lq-course-tag">{courseCode}</span></span>
-        <h2>Live Quiz Studio</h2><p>Choose a mode, bring your class together, and understand every answer.</p></div>
+        <h2>{roomId?'Live Quiz':'Live Quiz Studio'}</h2></div>
       <div className="lq-header-actions">
         <button type="button" className="lq-secondary" onClick={onToggleFullscreen}>{isFullscreen?'Exit full screen':'Full screen'}</button>
         <button type="button" className="lq-secondary" onClick={onExit}>Back to games</button>
@@ -304,7 +306,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         </div>
         <button type="button" className="lq-secondary" disabled={loading} onClick={()=>{void command('finish');}}>End game & show reports</button>
       </div>}
-      {(active||review)&&question&&<div className={'lq-question-stage'+(review?' is-review':'')}>
+      {(active||review)&&question&&<div className="lq-arena-layout">
+      <div className={'lq-question-stage'+(review?' is-review':'')}>
         <div className="lq-question-meta"><b>Question {question.index+1} / {snapshot.questionCount}</b>
           <span role="timer" aria-label={active?'Time remaining':'Next question countdown'}
             className={active&&timeLeft<=5?'lq-countdown is-urgent':'lq-countdown'}>
@@ -313,8 +316,9 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
         <div className="lq-progress-track" role="progressbar" aria-label="Question progress"
           aria-valuenow={question.index+1} aria-valuemin={0} aria-valuemax={snapshot.questionCount}>
           <span style={{width:`${(question.index+1)/Math.max(1,snapshot.questionCount)*100}%`}}/></div>
-        <p className="lq-question-prompt">{question.prompt}</p>
-        <p className="lq-source">{question.sourceContext}</p>
+        <div className="lq-arena-question-frame"><p className="lq-question-prompt">{question.prompt}</p>
+          {active&&<ArenaCountdown remaining={timeLeft} total={snapshot.questionSeconds}/>}</div>
+        {review&&<p className="lq-source">{question.sourceContext}</p>}
         {(!review||!snapshot.answerCounts)&&<div className="lq-options">{question.options.map((option,index)=><div key={index}
           className={'lq-option lq-option-'+index+(review&&index===question.correctIndex?' is-answer':'')}>
           <span>{['▲','◆','●','■'][index]}</span><b>{option}</b>
@@ -344,11 +348,8 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           <button type="button" className="lq-danger" disabled={loading}
             onClick={()=>{void command('finish');}}>End game & show reports</button>
         </div>}
-      </div>}
-      {review&&<div className="lq-leaderboard"><h3>Leaderboard</h3>
-        {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
-          <span>{index+1}. {player.avatar} {player.nickname}</span><strong>{player.score} points</strong></div>)}
-        {snapshot.players.length>10&&<p className="lq-small">Top 10 of {snapshot.players.length} players · Full results after the game.</p>}
+      </div>
+      <ArenaLeaderboard players={snapshot.players} limit={10} />
       </div>}
     </>}
     {finished&&(report?<LiveQuizReportView report={report} teacher/>:<p role="status">Preparing detailed student reports…</p>)}

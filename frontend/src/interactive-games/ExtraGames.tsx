@@ -133,7 +133,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   }
 
   return <div className="ig-content ig-quiz">
-    <p className="ig-instruction">Each question has 30 seconds. Choose an answer before time runs out; unanswered questions count as incorrect. Review your first answers at the end.</p>
+    <details className="ig-arena-help"><summary>Quiz rules</summary><p>30 seconds per question. Unanswered questions count as incorrect. First answers are recorded for review.</p></details>
     <div className="ig-template-options" role="group" aria-label="Quiz options">
       <label><input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Automatically proceed</label>
       <label><input type="checkbox" disabled={!configuring} checked={retry} onChange={(event) => setRetry(event.target.checked)} /> Allow one retry</label>
@@ -141,14 +141,24 @@ export function Quiz({ questions, blocked, recordAnswer }: {
       <label><input type="checkbox" disabled={!configuring} checked={shuffleAnswers} onChange={(event) => setShuffleAnswers(event.target.checked)} /> Shuffle answers</label>
     </div>
     <div className="ig-score">Question {index + 1} / {questions.length} · {correct} correct on first attempt</div>
-    <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
-      role="timer" aria-label="Quiz question countdown">
-      <span>⏱ Time per question · 30 seconds</span>
-      <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
+    <div className="ig-arena-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={index+1}>
+      {questions.length<=20 ? ordered.map((item,i)=><span key={item.id} className={i===index?'is-current':i<index?(responses[item.id]?.first===item.answerIndex?'is-correct':'is-past'):''}/>) : <span className="ig-arena-progress-fill" style={{width:`${(index+1)/questions.length*100}%`}}/>}
     </div>
-    <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
-      aria-label="Question time remaining" />
-    <div className="ig-question" aria-live="polite">{question.prompt}</div>
+    <div className="ig-quiz-play-layout"><div className="ig-quiz-play-main">
+    <div className="ig-quiz-question-frame">
+      <div className="ig-question" aria-live="polite">{question.prompt}</div>
+      <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
+        role="timer" aria-label="Quiz question countdown">
+        <svg className="ig-countdown-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#3d4878" strokeWidth="7"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round"
+            pathLength="100" strokeDasharray={`${remainingMs/QUIZ_QUESTION_MS*100} 100`} transform="rotate(-90 50 50)"/>
+        </svg>
+        <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
+      </div>
+      <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
+        aria-label="Question time remaining" />
+    </div>
     <AnswerCards options={question.options} order={options} answer={answer} correctIndex={question.answerIndex}
       firstWrong={firstChoice !== null && firstChoice !== question.answerIndex ? firstChoice : null}
       blocked={blocked || remainingMs === 0} onChoose={choose} />
@@ -163,6 +173,14 @@ export function Quiz({ questions, blocked, recordAnswer }: {
       <button type="button" disabled={index === 0} onClick={() => setIndex((previous) => previous - 1)}>← Previous question</button>
       <button type="button" disabled={answer === null} onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
     </div>}
+    </div><aside className="ig-arena-personal" aria-label="Personal quiz progress">
+      <h3>Round progress</h3>
+      <div className="ig-arena-trophy" aria-hidden="true">🏆</div>
+      <strong className="ig-arena-points">{correct}<small> / {questions.length}</small></strong>
+      <p>Correct first attempts</p>
+      <progress max={questions.length} value={Object.keys(responses).length} aria-label="Questions attempted"/>
+      <p>{Object.keys(responses).length} / {questions.length} attempted</p>
+    </aside></div>
   </div>;
 }
 
