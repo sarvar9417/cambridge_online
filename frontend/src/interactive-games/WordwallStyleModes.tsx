@@ -185,7 +185,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
   }
 
   return <div className="ig-content">
-    <details className="ig-arena-help"><summary>Speaking rules</summary><p>Deal a card. Explain aloud before revealing. Audio is not recorded or assessed.</p></details>
+    <details className="ig-arena-help"><summary>Speaking rules</summary><p>Deal a card. Explain aloud in your own words before revealing. Audio is not recorded or assessed.</p></details>
     <div className="ig-template-options" role="group" aria-label="Speaking Cards options">
       <label>Cards per deal <select value={dealSize} onChange={(event) => setDealSize(Number(event.target.value))}>
         <option value="1">1</option><option value="2">2</option><option value="3">3</option>

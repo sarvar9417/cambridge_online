@@ -144,14 +144,20 @@ export function Quiz({ questions, blocked, recordAnswer }: {
     <div className="ig-arena-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={index+1}>
       {questions.length<=20 ? ordered.map((item,i)=><span key={item.id} className={i===index?'is-current':i<index?(responses[item.id]?.first===item.answerIndex?'is-correct':'is-past'):''}/>) : <span className="ig-arena-progress-fill" style={{width:`${(index+1)/questions.length*100}%`}}/>}
     </div>
-    <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
-      role="timer" aria-label="Quiz question countdown">
-      <span>⏱ 30 sec</span>
-      <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
+    <div className="ig-quiz-question-frame">
+      <div className="ig-question" aria-live="polite">{question.prompt}</div>
+      <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
+        role="timer" aria-label="Quiz question countdown">
+        <svg className="ig-countdown-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#3d4878" strokeWidth="7"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round"
+            pathLength="100" strokeDasharray={`${remainingMs/QUIZ_QUESTION_MS*100} 100`} transform="rotate(-90 50 50)"/>
+        </svg>
+        <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
+      </div>
+      <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
+        aria-label="Question time remaining" />
     </div>
-    <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
-      aria-label="Question time remaining" />
-    <div className="ig-question" aria-live="polite">{question.prompt}</div>
     <AnswerCards options={question.options} order={options} answer={answer} correctIndex={question.answerIndex}
       firstWrong={firstChoice !== null && firstChoice !== question.answerIndex ? firstChoice : null}
       blocked={blocked || remainingMs === 0} onChoose={choose} />

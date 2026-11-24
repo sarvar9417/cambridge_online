@@ -107,3 +107,21 @@
 .lq-neon.is-playing .lq-join-banner a{color:#bcd6ff}
 @media(max-width:640px){.ig-neon .ig-hero-mark{display:none}.ig-neon .ig-workspace-head{padding:14px;flex-wrap:wrap}.ig-neon .ig-content{padding:14px}.ig-neon.is-arena,.ig-neon:fullscreen{padding:8px}.ig-neon .ig-session-metrics{padding:12px 14px 0}.ig-neon:is(.is-arena,:fullscreen) .ig-quiz .ig-choice-card{padding:12px;min-height:90px;flex-direction:column;text-align:center}.lq-neon.is-playing.lq-host{padding:7px}.lq-neon.is-playing .lq-option{padding:12px;min-height:88px}}
 @media(prefers-reduced-motion:reduce){.ig-neon *,.lq-neon *{scroll-behavior:auto!important}.ig-neon .ig-choice-card,.lq-neon .lq-option{transition:none!important}}
+
+/* Question and countdown share one visual stage, preserving the semantic timer. */
+.ig-neon .ig-quiz-question-frame{display:grid;grid-template-columns:minmax(0,1fr) clamp(82px,12vw,145px);align-items:center;gap:clamp(12px,2.5vw,28px);background:radial-gradient(ellipse at 100% 100%,#6b38bc55,transparent 64%),radial-gradient(ellipse at 5% 10%,#234c9b55,transparent 65%),var(--arena-panel);border:1px solid #8d9af0;border-radius:20px;padding:clamp(16px,3vw,36px);box-shadow:inset 0 1px #c6d0ff55,0 0 28px #7766f330,0 12px 32px #03061f99;margin:12px 0 18px}
+.ig-neon .ig-quiz-question-frame .ig-question{background:transparent;border:0;box-shadow:none;margin:0;padding:0;text-align:left}
+.ig-neon .ig-quiz-question-frame .ig-quiz-clock{position:relative;display:grid;place-items:center;aspect-ratio:1;padding:0;border:0;border-radius:50%;background:#101a35;color:#77dfff;box-shadow:0 0 21px #6c8cfc38}
+.ig-neon .ig-quiz-question-frame .ig-countdown-ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;filter:drop-shadow(0 0 4px currentColor)}
+.ig-neon .ig-quiz-question-frame .ig-quiz-clock strong{position:relative;font-size:clamp(17px,2.6vw,32px);color:#fff}
+.ig-neon .ig-quiz-question-frame .ig-quiz-clock.is-low{color:#ff9bab;background:#33203c}
+.ig-neon .ig-quiz-question-frame .ig-quiz-time-progress{grid-column:1/-1;margin:0;height:5px;border-radius:10px;accent-color:#77dfff}
+.ig-neon .ig-workspace .ig-choice-card.is-correct,.lq-neon.is-playing .lq-option.is-answer{animation:ig-arena-win .38s ease-out both}
+@keyframes ig-arena-win{0%{transform:scale(.98);box-shadow:0 0 0 #58f0ad00}60%{transform:scale(1.015);box-shadow:0 0 32px #58f0ad99}100%{transform:scale(1);box-shadow:0 0 24px #58f0ad55}}
+.ig-neon .ig-workspace :is(.ig-wheel-result h3,.ig-wheel-answer-status,.ig-wheel-caption h3,.ig-anagram-slot,.ig-anagram-separator,.ig-box span){color:#f3f6ff}
+.lq-neon.is-playing .lq-score-ring{background:radial-gradient(closest-side,#17213f 77%,transparent 79%),conic-gradient(#58e9af var(--lq-accuracy),#3f4e79 0)}
+.lq-neon.is-playing .lq-guest-waiting{background:var(--arena-panel);border-color:#7689ce;color:#f5f7ff}
+.lq-neon.is-playing .lq-roster button[aria-pressed="true"],.lq-neon.is-playing .lq-report-tabs button[aria-pressed="true"],.lq-neon.is-playing .lq-question-breakdown-list button[aria-pressed="true"]{background:#4a407f;color:#fff;border-color:#b7a5ff}
+.lq-neon.is-playing .lq-guest-question .lq-option:hover:not(:disabled){background:linear-gradient(145deg,var(--choice-tint),#18264b);border-color:var(--choice-glow)}
+@media(max-width:640px){.ig-neon .ig-quiz-question-frame{grid-template-columns:minmax(0,1fr) 76px;padding:14px;gap:10px}.ig-neon .ig-quiz-question-frame .ig-question{font-size:clamp(17px,5vw,24px)}}
+@media(prefers-reduced-motion:reduce){.ig-neon .ig-workspace .ig-choice-card.is-correct,.lq-neon.is-playing .lq-option.is-answer{animation:none!important}}
