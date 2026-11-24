@@ -681,6 +681,11 @@ export class LiveExamService {
          join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
          join components source_component on source_component.id=sp.component_id
          where ${readinessCacheFresh}
+           -- Cache freshness only proves that its materialized status matches
+           -- the corpus revision. Re-check the current visual-fidelity rule:
+           -- the runtime portable snapshot rejects stale OCR flowcharts that
+           -- an older cache build may have classified as display-ready.
+           and ${questionVisualIntegritySql('q')}
            and ${cachedReadiness}
            ${filters.length ? `and ${filters.join(' and ')}` : ''}
          union all
