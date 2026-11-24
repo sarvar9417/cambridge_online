@@ -6,6 +6,7 @@ import { LiveQuizReportView } from './LiveQuizReportView';
 import { countdownSeconds, reviewCountdownSeconds } from './LiveQuizHost';
 import './live-quiz.css';
 import './neon-arena.css';
+import { ArenaLeaderboard, ArenaCountdown } from './ArenaLiveWidgets';
 
 export function LiveQuizGuestPage({pin}:{pin:string}){
   const [name,setName]=useState('');
@@ -210,6 +211,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
         <span>⏱ {Math.floor(gameRemaining/60)}:{String(gameRemaining%60).padStart(2,'0')} left</span>
         <span>🎯 {(snapshot.treasureGoal??0).toLocaleString('en')} goal</span>
       </div>}
+      {(snapshot.status==='active'||snapshot.status==='review')&&<div className="lq-arena-layout"><div className="lq-arena-main">
       {isTreasure&&snapshot.status==='active'&&pending&&!rewardReveal&&<section className="lq-chest-stage">
         {pending.type===null?<>
           <h2>🎉 Great answer! Choose a treasure chest</h2>
@@ -243,7 +245,8 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
           aria-label={isTreasure?'Game time remaining':'Question progress'}
           aria-valuenow={progressValue} aria-valuemin={0} aria-valuemax={progressMax}>
           <span style={{width:`${progressValue/progressMax*100}%`}}/></div>
-        <h2>{question.prompt}</h2>
+        <div className="lq-arena-question-frame"><h2>{question.prompt}</h2>
+          <ArenaCountdown remaining={isTreasure?gameRemaining:timeLeft} total={isTreasure?progressMax:snapshot.questionSeconds}/></div>
         <div className="lq-options">{question.options.map((option,index)=><button key={index} type="button"
           className={'lq-option lq-option-'+index+(selected===index?' is-selected':'')}
           disabled={selected!==null||(!isTreasure&&timeLeft<=0)||waitRemaining>0||sending} onClick={()=>{void answer(index);}}>
@@ -254,10 +257,6 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
           :!isTreasure&&timeLeft===0?<p className="lq-sent" role="status">Time is up. Wait for the result.</p>
           :<p className="lq-help">Choose one · First choice is final</p>}
       </section>}
-      {isTreasure&&snapshot.status==='active'&&<div className="lq-leaderboard lq-mini-board"><h3>🏆 Live gold standings</h3>
-        {snapshot.players.slice(0,5).map((player,index)=><div key={player.id}>
-          <span>{index+1}. {player.avatar} {player.nickname}</span><b>{player.score.toLocaleString('en')} 🪙</b></div>)}
-      </div>}
       {snapshot.status==='review'&&question&&<section className="lq-reveal">
         <span className="lq-eyebrow">QUESTION {question.index+1} RESULT</span>
         <h2>{snapshot.ownAnswer?.correct?'✅ Correct answer!':selected===null?'⏳ No answer submitted':'❌ Review your answer'}</h2>
@@ -270,13 +269,11 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
           {index===selected&&index!==question.correctIndex&&<small className="lq-option-label">Your answer</small>}</div>)}</div>
         <p className="lq-explanation"><strong>Correct: {question.options[question.correctIndex!]}</strong><br/>{question.explanation}</p><small className="lq-source">{question.sourceContext}</small>
         <p>{snapshot.ownAnswer?.points??0} points this question</p>
-        <div className="lq-leaderboard"><h3>Leaderboard</h3>
-          {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
-            <span>{index+1}. {player.avatar} {player.nickname}</span><b>{player.score} pts</b></div>)}</div>
         <p className="lq-help" role="status">{question.index+1===snapshot.questionCount
           ?`Final results appear automatically in ${reviewLeft} seconds.`
           :`Next question starts automatically in ${reviewLeft} seconds.`}</p>
       </section>}
+      </div><ArenaLeaderboard players={snapshot.players} selfId={snapshot.selfId} gold={isTreasure} limit={isTreasure?5:10}/></div>}
       {snapshot.status==='finished'&&(report?<LiveQuizReportView report={report} teacher={false}/>
         :<p className="lq-loading" role="status">Calculating your detailed result…</p>)}
     </>}

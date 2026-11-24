@@ -144,6 +144,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
     <div className="ig-arena-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={index+1}>
       {questions.length<=20 ? ordered.map((item,i)=><span key={item.id} className={i===index?'is-current':i<index?(responses[item.id]?.first===item.answerIndex?'is-correct':'is-past'):''}/>) : <span className="ig-arena-progress-fill" style={{width:`${(index+1)/questions.length*100}%`}}/>}
     </div>
+    <div className="ig-quiz-play-layout"><div className="ig-quiz-play-main">
     <div className="ig-quiz-question-frame">
       <div className="ig-question" aria-live="polite">{question.prompt}</div>
       <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
@@ -172,6 +173,14 @@ export function Quiz({ questions, blocked, recordAnswer }: {
       <button type="button" disabled={index === 0} onClick={() => setIndex((previous) => previous - 1)}>← Previous question</button>
       <button type="button" disabled={answer === null} onClick={next}>{last ? 'See results →' : 'Next question →'}</button>
     </div>}
+    </div><aside className="ig-arena-personal" aria-label="Personal quiz progress">
+      <h3>Round progress</h3>
+      <div className="ig-arena-trophy" aria-hidden="true">🏆</div>
+      <strong className="ig-arena-points">{correct}<small> / {questions.length}</small></strong>
+      <p>Correct first attempts</p>
+      <progress max={questions.length} value={Object.keys(responses).length} aria-label="Questions attempted"/>
+      <p>{Object.keys(responses).length} / {questions.length} attempted</p>
+    </aside></div>
   </div>;
 }
 
