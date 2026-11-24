@@ -206,8 +206,7 @@ export function CorpusPage() {
                 <p className="cp-hint">{reviewIndex+1} / {review.length} · Tasdiqlashdan oldin asl manba va mavzuni tekshiring.</p>
               </article>
             ) : null}
-          </>
-        )}
+          </>}
       </section>
 
       {summary.findings.length ? (
