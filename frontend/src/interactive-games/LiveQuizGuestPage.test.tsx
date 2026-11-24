@@ -98,6 +98,22 @@ describe('Treasure Quest student interactions',()=>{
     expect(host.textContent).not.toContain('Correct answer: New C');
   });
 
+  it('shows the player’s actual rank and score below the top ten without changing the quiz controls',async()=>{
+    const now=Date.now();
+    const leaders=Array.from({length:12},(_,i)=>({id:`leader-${i}`,nickname:`Player ${i+1}`,avatar:'🐼',score:1000-i*10,answered:false}));
+    const state:LiveQuizSnapshot={...snapshot(null),mode:'classic',status:'active',
+      pendingReward:null,players:[{id:playerId,nickname:'Aziza',avatar:'🦊',score:50,answered:false},...leaders],
+      questionStartedAt:new Date(now).toISOString(),serverNow:new Date(now).toISOString(),
+      question:{id:'q',index:0,prompt:'Question one',options:['A','B','C','D'],sourceContext:'Chapter 17'}};
+    request.mockImplementation(async()=>new Response(JSON.stringify({data:state})));
+    await act(async()=>{root.render(<LiveQuizGuestPage pin="123456"/>);await Promise.resolve();await Promise.resolve();});
+    expect(host.querySelectorAll('.lq-arena-board > div')).toHaveLength(11);
+    expect(host.querySelector('.lq-arena-board .is-self .lq-rank')?.textContent).toBe('13');
+    expect(host.querySelector('.lq-arena-board .is-self strong')?.textContent).toBe('50 pts');
+    expect(host.querySelectorAll('.lq-guest-question .lq-option')).toHaveLength(4);
+    expect(host.querySelectorAll('.lq-option.is-answer')).toHaveLength(0);
+  });
+
   it('tells Classic players that the next question starts automatically',async()=>{
     const state:LiveQuizSnapshot={...snapshot(null),mode:'classic',status:'review',
       questionCount:4,questionIndex:1,reviewEndsAt:new Date(Date.now()+5000).toISOString(),

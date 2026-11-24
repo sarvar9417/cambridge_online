@@ -187,3 +187,8 @@
 .ig-neon .ig-arena-personal progress{width:100%;height:7px;accent-color:#55d9ff}
 @container (min-width:850px){.ig-neon:is(.is-arena,:fullscreen) .ig-quiz-play-layout{grid-template-columns:minmax(0,1fr) minmax(210px,25%)}}
 @media(max-width:640px){.lq-neon.is-playing .lq-arena-question-frame{padding:13px;gap:10px}.lq-neon.is-playing .lq-arena-question-frame>:is(h2,.lq-question-prompt){font-size:clamp(18px,5vw,24px)}.lq-neon.is-playing .lq-arena-board{padding:13px}.ig-neon:is(.is-arena,:fullscreen) .ig-arena-personal{padding:14px;grid-template-columns:auto 1fr;justify-items:start;text-align:left}.ig-neon .ig-arena-personal h3,.ig-neon .ig-arena-personal progress,.ig-neon .ig-arena-personal p:last-child{grid-column:1/-1}.ig-neon .ig-arena-trophy{grid-row:2/4}.ig-neon .ig-arena-personal p{align-self:center}}
+
+.lq-neon.is-playing .lq-arena-layout:has(.lq-arena-countdown) .lq-question-meta .lq-countdown{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;padding:0;border:0}
+.lq-neon.is-playing .lq-arena-board>div:nth-of-type(1) .lq-rank{background:#f3c76b;color:#2a1b08}
+.lq-neon.is-playing .lq-arena-board>div:nth-of-type(2) .lq-rank{background:#c0cee5;color:#17243e}
+.lq-neon.is-playing .lq-arena-board>div:nth-of-type(3) .lq-rank{background:#edb189;color:#2b1c16}

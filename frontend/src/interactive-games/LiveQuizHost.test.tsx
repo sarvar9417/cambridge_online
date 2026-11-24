@@ -192,6 +192,33 @@ describe('Live quiz Blooket-style host configuration',()=>{
     expect(container.querySelector('[aria-label="Live quiz seconds per question"]')).not.toBeNull();
   });
 
+  it('shows a real ranked sidebar and a decorative clock without revealing active answers',async()=>{
+    const now=Date.now();
+    const players=[{id:'1',nickname:'Low',avatar:'🦊',score:100,answered:false},
+      {id:'2',nickname:'High',avatar:'🐼',score:900,answered:true}];
+    mockApi.mockImplementation((async(path,options)=>{
+      if(path==='/classes')return classResponse;
+      if(path==='/live-quizzes'&&!options)return {data:[]};
+      if(path==='/live-quizzes'&&options?.method==='POST')return {data:{id:roomId,pin:'123456',questionCount:4}};
+      if(path===`/live-quizzes/${roomId}`)return {data:{id:roomId,pin:'123456',courseCode:'9618',
+        status:'active',mode:'classic',questionCount:4,questionIndex:0,questionSeconds:20,
+        questionStartedAt:new Date(now-2000).toISOString(),serverNow:new Date(now).toISOString(),
+        players,answeredCount:1,question:{id:'q',index:0,prompt:'Question one',options:['A','B','C','D'],sourceContext:'Chapter 17'}}};
+      throw Error('Unexpected request '+path);
+    }) as typeof api);
+    await act(async()=>{root.render(<LiveQuizHost courseCode="9618" scopes={[{chapterNo:17,kind:'chapter'}]}
+      onExit={()=>{}} onToggleFullscreen={()=>{}} isFullscreen={false}/>);await Promise.resolve();});
+    await click('Host Now');
+    await act(async()=>{await Promise.resolve();await Promise.resolve();});
+    const layout=container.querySelector('.lq-arena-layout')!;
+    expect(layout.querySelectorAll('.lq-arena-board > div')).toHaveLength(2);
+    expect(layout.querySelector('.lq-arena-board > div')?.textContent).toContain('High');
+    expect(layout.querySelector('.lq-arena-board > div strong')?.textContent).toBe('900 pts');
+    expect(layout.querySelector('.lq-arena-countdown')?.getAttribute('aria-hidden')).toBe('true');
+    expect(layout.querySelectorAll('[role="timer"]')).toHaveLength(1);
+    expect(layout.querySelectorAll('.lq-option.is-answer')).toHaveLength(0);
+  });
+
   it('shows answer-choice distribution and automatic next-question countdown during Classic review',async()=>{
     const now=Date.now();
     mockApi.mockImplementation((async(path,options)=>{
