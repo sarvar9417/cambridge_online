@@ -64,10 +64,10 @@ export function LiveCardBoard({ snapshot, refresh, interactive = false }: LiveCa
       </div>
       <span className="live-card-count">{remaining} / {cards.length} karta qoldi</span>
     </header>
-    <div className="live-card-scroll">
+    <div className="live-card-scroll" role="region" aria-label="Ball ustunlari" tabIndex={0}>
       <div className="live-card-columns" style={{
-        gridTemplateColumns: `repeat(${columns}, minmax(112px, 1fr))`,
-        minWidth: columns * 124,
+        gridTemplateColumns: `repeat(${columns}, minmax(104px, 1fr))`,
+        minWidth: columns * 116,
       }}>
         {Array.from({ length: columns }, (_, index) => index + 1).map((points) => {
           const group = cards.filter((card) => card.marks === points).sort((a,b) => a.id.localeCompare(b.id));
@@ -78,6 +78,7 @@ export function LiveCardBoard({ snapshot, refresh, interactive = false }: LiveCa
                 <button type="button" key={card.id}
                   className={`live-card-tile${card.used ? ' is-used' : ''}`}
                   aria-label={`${points} ballik karta ${index + 1}${card.used ? ' — ishlatilgan' : ''}`}
+                  aria-busy={choosing===card.id}
                   disabled={!canPick || card.used || choosing !== null}
                   onClick={() => void pick(card.id)}>
                   <span>#{index + 1}</span>

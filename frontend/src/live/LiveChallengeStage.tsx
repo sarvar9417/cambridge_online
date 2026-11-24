@@ -128,9 +128,14 @@ export function LiveProjectorSoundControl({enabled}:{enabled:boolean}){
 }
 
 export function LiveNeonArenaHeader({questionIndex,questionCount}:{questionIndex:number;questionCount:number}){
-  return <div className="live-neon-arena-strip" aria-label="Neon Arena progress">
-    <span><Sparkle weight="fill"/> NEON ARENA</span>
-    <div className="live-neon-arena-progress"><i style={{width:`${Math.min(100,Math.max(0,100*(questionIndex+1)/Math.max(1,questionCount)))}%`}}/></div>
-    <small><Lightning weight="fill"/> ROUND {Math.min(questionIndex+1,Math.max(1,questionCount))} / {Math.max(1,questionCount)}</small>
+  const total=Math.max(1,questionCount);
+  const current=Math.max(0,Math.min(questionIndex+1,questionCount));
+  return <div className="live-neon-arena-strip">
+    <span><Sparkle weight="fill"/> LIVE CHALLENGE</span>
+    <div className="live-neon-arena-progress" role="progressbar" aria-label="Savollar bo‘yicha progress"
+      aria-valuemin={0} aria-valuemax={total} aria-valuenow={current} aria-valuetext={`Savol ${current}, jami ${questionCount}`}>
+      <i style={{width:`${current/total*100}%`}}/>
+    </div>
+    <small><Lightning weight="fill"/> {current} / {questionCount}</small>
   </div>;
 }

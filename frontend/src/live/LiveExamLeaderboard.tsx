@@ -47,7 +47,7 @@ function StandingList({items,emptyText}:{items:Standing[];emptyText:string}) {
       const last=previous.current.get(id);
       return <li key={`${id}:${item.rank}:${item.score}`} className={last!==undefined&&item.rank<last?'is-rank-up':last!==undefined&&item.rank>last?'is-rank-down':''}>
       <span className={`live-leaderboard-rank live-leaderboard-rank--${Math.min(item.rank,4)}`}>{item.rank<=3?<Medal weight="fill"/>:item.rank}</span>
-      <strong>{item.studentName}{last!==undefined&&item.rank<last?<span className="live-rank-change" aria-label="Rank improved"> ↑</span>:null}</strong>
+      <strong title={item.studentName}>{item.studentName}{last!==undefined&&item.rank<last?<span className="live-rank-change" aria-label="Rank improved"> ↑</span>:null}</strong>
       <b>{scoreText(item.score,item.possible)}</b>
     </li>})}
   </ol>;
