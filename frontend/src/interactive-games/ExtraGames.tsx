@@ -133,7 +133,7 @@ export function Quiz({ questions, blocked, recordAnswer }: {
   }
 
   return <div className="ig-content ig-quiz">
-    <p className="ig-instruction">Each question has 30 seconds. Choose an answer before time runs out; unanswered questions count as incorrect. Review your first answers at the end.</p>
+    <details className="ig-arena-help"><summary>Quiz rules</summary><p>30 seconds per question. Unanswered questions count as incorrect. First answers are recorded for review.</p></details>
     <div className="ig-template-options" role="group" aria-label="Quiz options">
       <label><input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Automatically proceed</label>
       <label><input type="checkbox" disabled={!configuring} checked={retry} onChange={(event) => setRetry(event.target.checked)} /> Allow one retry</label>
@@ -141,9 +141,12 @@ export function Quiz({ questions, blocked, recordAnswer }: {
       <label><input type="checkbox" disabled={!configuring} checked={shuffleAnswers} onChange={(event) => setShuffleAnswers(event.target.checked)} /> Shuffle answers</label>
     </div>
     <div className="ig-score">Question {index + 1} / {questions.length} · {correct} correct on first attempt</div>
+    <div className="ig-arena-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={index+1}>
+      {questions.length<=20 ? ordered.map((item,i)=><span key={item.id} className={i===index?'is-current':i<index?(responses[item.id]?.first===item.answerIndex?'is-correct':'is-past'):''}/>) : <span className="ig-arena-progress-fill" style={{width:`${(index+1)/questions.length*100}%`}}/>}
+    </div>
     <div className={'ig-quiz-clock' + (remainingMs <= 10000 ? ' is-low' : '') + (answer === -1 ? ' is-expired' : '')}
       role="timer" aria-label="Quiz question countdown">
-      <span>⏱ Time per question · 30 seconds</span>
+      <span>⏱ 30 sec</span>
       <strong>{formatClock(Math.ceil(remainingMs / 1000))}</strong>
     </div>
     <progress className="ig-quiz-time-progress" max={QUIZ_QUESTION_MS} value={remainingMs}
