@@ -195,3 +195,5 @@
   overflow-wrap: anywhere;
   max-width: 32ch;
 }
+
+.cp-review-summary{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px}.cp-review-summary>span{background:var(--surface-soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px}.cp-review-tools{flex-wrap:wrap}.cp-review-tools select{min-width:0;max-width:100%}.cp-review .cp-finding{white-space:normal;overflow-wrap:anywhere;border-radius:8px}.cp-review .cp-stem{white-space:pre-wrap;overflow-wrap:anywhere}.cp-review-actions button,.cp-review-tools button{min-height:40px}.cp-review-meta a{color:var(--accent);font-weight:700}
