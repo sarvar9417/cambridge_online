@@ -9,6 +9,9 @@ export async function snapshot(page, id, projector = false) {
 
 export async function markVisibleAnswer(qa, page, scope, feedback) {
   await page.bringToFront();
+  // Wait for the assigned review form before inspecting optional controls.
+  // The teacher's reveal does not synchronously update every learner tab.
+  await page.waitForSelector(`${scope} textarea`, { visible: true, timeout: 45000 });
   const band = await page.$(`${scope} select`);
   if (band) {
     const value = await band.evaluate(el => el.options[el.options.length - 1].value);
@@ -17,10 +20,27 @@ export async function markVisibleAnswer(qa, page, scope, feedback) {
   for (const box of await page.$$(`${scope} input[type="checkbox"]`)) {
     if (!await box.evaluate(el => el.checked)) await box.click();
   }
-  const number = await page.$(`${scope} input[type="number"]`);
-  if (number) await qa.fill(page, `${scope} input[type="number"]`, await number.evaluate(el => el.max));
+  const numberSelector = `${scope} input[type="number"]`;
+  const number = await page.$(numberSelector);
+  const requestedScore = number ? await number.evaluate(el => Number(el.max)) : null;
+  if (requestedScore !== null) {
+    if (!Number.isFinite(requestedScore) || requestedScore <= 0) throw new Error('Manual review has invalid max marks');
+    await qa.fill(page, numberSelector, String(requestedScore));
+  }
   await qa.fill(page, `${scope} textarea`, feedback);
+  if (requestedScore !== null) {
+    await qa.check('Live manual review: selected score is retained before submit',
+      await page.$eval(numberSelector, el => Number(el.value)) === requestedScore);
+  }
+  const response = page.waitForResponse(res =>
+    res.request().method() === 'POST' && /\/reviews\/[^/]+\/submit$/.test(new URL(res.url()).pathname),
+    { timeout: 45000 });
   await qa.clickText(page, scope === '.live-teacher-marker' ? 'Bahoni tasdiqlash' : 'Baholashni yuborish', `${scope} button`);
+  const saved = await response;
+  await qa.check('Live review submission succeeded', saved.ok(), {status:saved.status()});
+  const body = await saved.json();
+  if (requestedScore !== null) await qa.check('Live manual review: server awards selected score',
+    body.score === requestedScore, {requestedScore, awardedScore:body.score});
 }
 
 export async function finishRound(qa, teacher, students, id, mode, beforeFinish) {
@@ -33,7 +53,13 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
     for (const [i, student] of students.entries()) {
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
       try {
-        await qa.waitText(student.page, i===students.length?'SAVOL NATIJASI':'Baholash yuborildi');
+        if (i===students.length) {
+          await student.page.waitForSelector('.live-student-result:not(.live-finished)', {visible:true,timeout:45000});
+        } else {
+          await student.page.waitForFunction(() =>
+            document.querySelector('.live-review-card h2')?.textContent === 'Baholash yuborildi',
+            {timeout:45000,polling:100});
+        }
       } catch (error) {
         // Log only state, not learner answers, credentials or PINs.
         const [staffState, learnerState] = await Promise.all([
@@ -73,7 +99,13 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
     await qa.clickText(teacher.page, 'Natijalarni ochish');
   }
   await qa.waitText(teacher.page, 'SAVOL YAKUNI');
-  await Promise.all(students.map(s => qa.waitText(s.page, 'SAVOL NATIJASI')));
+  await Promise.all(students.map(async s => {
+    await s.page.waitForSelector('.live-student-result:not(.live-finished)', {visible:true,timeout:45000});
+    const learner = await snapshot(s.page,id);
+    await qa.check('Live result: released score matches student result panel',
+      learner.session.status==='review' && typeof learner.ownAnswer?.score==='number'
+      && await s.page.$eval('.live-student-result > h1', el => Number(el.firstChild?.textContent?.trim())) === learner.ownAnswer.score);
+  }));
   const marked = await snapshot(teacher.page, id);
   await qa.check(`Live ${mode}: all reviews completed and scores capped`,
     marked.teacherAnswers.length === students.length && marked.teacherAnswers.every(a => a.score >= 0 && a.score <= marked.question.marks));
