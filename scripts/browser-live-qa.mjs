@@ -43,6 +43,34 @@ export async function markVisibleAnswer(qa, page, scope, feedback) {
     body.score === requestedScore, {requestedScore, awardedScore:body.score});
 }
 
+// Chrome can throttle renderer-side Puppeteer polling after switching among
+// isolated student contexts. Poll from Node and inspect the actual painted
+// result element in the page's main world, not just a cached text selector.
+async function waitForVisibleReviewState(page,selector,expectedText) {
+  const deadline=Date.now()+45000;
+  let observed=null;
+  do {
+    observed=await page.evaluate(({selector,expectedText})=>{
+      const element=document.querySelector(selector);
+      if(!element)return {present:false,visible:false,textMatches:false};
+      const rect=element.getBoundingClientRect();
+      const style=getComputedStyle(element);
+      return {
+        present:true,
+        visible:rect.width>0&&rect.height>0&&style.visibility==='visible'&&style.display!=='none',
+        textMatches:expectedText===null||element.textContent?.trim()===expectedText,
+      };
+    },{selector,expectedText});
+    if(observed.visible&&observed.textMatches)return;
+    await new Promise(resolve=>setTimeout(resolve,120));
+  }while(Date.now()<deadline);
+  throw new Error(`Review UI did not reach ${selector}: ${JSON.stringify(observed)}`);
+}
+const waitForLearnerResult=page=>waitForVisibleReviewState(page,
+  '.live-student-result:not(.live-finished) > .live-eyebrow','SAVOL NATIJASI');
+const waitForLearnerFinished=page=>waitForVisibleReviewState(page,
+  '.live-student-result.live-finished > .live-eyebrow','SESSIYA YAKUNLANDI');
+
 export async function finishRound(qa, teacher, students, id, mode, beforeFinish) {
   if (mode === 'teacher') {
     for (let i = 1; i <= students.length; i++) {
@@ -54,11 +82,9 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
       try {
         if (i===students.length) {
-          await student.page.waitForSelector('.live-student-result:not(.live-finished)', {visible:true,timeout:45000});
+          await waitForLearnerResult(student.page);
         } else {
-          await student.page.waitForFunction(() =>
-            document.querySelector('.live-review-card h2')?.textContent === 'Baholash yuborildi',
-            {timeout:45000,polling:100});
+          await waitForVisibleReviewState(student.page,'.live-review-card h2','Baholash yuborildi');
         }
       } catch (error) {
         // Log only state, not learner answers, credentials or PINs.
@@ -100,7 +126,7 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   }
   await qa.waitText(teacher.page, 'SAVOL YAKUNI');
   await Promise.all(students.map(async s => {
-    await s.page.waitForSelector('.live-student-result:not(.live-finished)', {visible:true,timeout:45000});
+    await waitForLearnerResult(s.page);
     const learner = await snapshot(s.page,id);
     await qa.check('Live result: released score matches student result panel',
       learner.session.status==='review' && typeof learner.ownAnswer?.score==='number'
@@ -112,7 +138,8 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   if (beforeFinish) await beforeFinish(marked);
   await qa.screenshot(teacher.page, `live-${mode}-review`);
   await qa.clickText(teacher.page, 'Sessiyani yakunlash');
-  await Promise.all([teacher, ...students].map(s => qa.waitText(s.page, 'SESSIYA YAKUNLANDI')));
+  await qa.waitText(teacher.page, 'SESSIYA YAKUNLANDI');
+  await Promise.all(students.map(s => waitForLearnerFinished(s.page)));
   const final = await snapshot(teacher.page, id);
   const learnerReports = await Promise.all(students.map(s => snapshot(s.page, id)));
   await qa.check(`Live ${mode}: student report includes only personal answers and scores`,
@@ -124,7 +151,7 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
     final.report.earned === learnerReports.reduce((sum, s) => sum + s.report.earned, 0)
       && final.report.possible === learnerReports.reduce((sum, s) => sum + s.report.possible, 0));
   await students[0].page.reload({ waitUntil: 'networkidle2' });
-  await qa.waitText(students[0].page, 'SESSIYA YAKUNLANDI');
+  await waitForLearnerFinished(students[0].page);
   await qa.check(`Live ${mode}: finished report survives reload`, true);
   return final;
 }
