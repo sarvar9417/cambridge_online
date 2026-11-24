@@ -16,6 +16,10 @@ describe('Live Challenge coursebook chapter taxonomy',()=>{
   it('sends textbook section codes to both availability and session creation',()=>{
     expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes.join(','):''");
     expect(page).toContain("coursebookSectionCodes:syllabusCode==='9618'?coursebookSectionCodes:[]");
-    expect(page).toContain('!coursebookSectionCodes.length');
+    expect(page).toContain("igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes.join(','):''");
+    expect(page).toContain("igcseBookSectionCodes:syllabusCode==='0478'?selected0478BookSectionCodes:[]");
+    expect(page).toContain('const scopeReady=coursebookSections.length>0');
+    expect(page).toContain('<option value="all">Barcha boblar / savollar</option>');
+    expect(page).not.toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
   });
 });
