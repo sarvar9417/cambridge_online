@@ -72,6 +72,31 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [arena,setArena]=useState(false);
+  const arenaPageRef=useRef<HTMLElement>(null);
+  const arenaReturnFocus=useRef<HTMLElement|null>(null);
+
+  // Focus mode changes presentation only; the game's component key, timers
+  // and answer state remain untouched.
+  function toggleArena() {
+    if(!arena) arenaReturnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    setArena(value=>!value);
+  }
+  useEffect(()=>{
+    if(!arena)return;
+    const frame=window.requestAnimationFrame(()=>{
+      const heading=arenaPageRef.current?.querySelector<HTMLElement>('.ig-workspace-head h2, .ig-classroom-header h2, .lq-header h2');
+      if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
+      arenaPageRef.current?.scrollIntoView?.({block:'start',behavior:'auto'});
+    });
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&!document.fullscreenElement&&!event.defaultPrevented){
+        setArena(false);
+        window.requestAnimationFrame(()=>arenaReturnFocus.current?.focus());
+      }
+    };
+    document.addEventListener('keydown',onEscape);
+    return()=>{window.cancelAnimationFrame(frame);document.removeEventListener('keydown',onEscape);};
+  },[arena]);
 
   useEffect(() => {
     const update = () => setIsFullscreen(document.fullscreenElement === document.querySelector('.ig-page'));
@@ -349,12 +374,12 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
     }
   }
 
-  return <GameSignalContext.Provider value={signal}><section className={'ig-page ig-neon'+(arena?' is-arena':'')} aria-label="Interactive Games">
+  return <GameSignalContext.Provider value={signal}><section ref={arenaPageRef} className={'ig-page ig-neon'+(arena?' is-arena':'')} aria-label="Interactive Games">
     {!isTeacher&&<StudentLiveQuizLinks />}
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && !liveQuizOpen && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
       <span className="ig-session-name"><span className="ig-arena-dot" aria-hidden="true"/> Cambridge {courseCode} · Games <span className="ig-scope-count">· {scopes.length} selections</span></span>
-      {(ready||arena) && <button type="button" className="ig-arena-toggle" aria-pressed={arena} onClick={()=>setArena(value=>!value)}>{arena?'Exit Arena':'Enter Arena'}</button>}
+      {(ready||arena) && <button type="button" className="ig-arena-toggle" aria-pressed={arena} onClick={toggleArena}>{arena?'Exit Arena':'Enter Arena'}</button>}
       {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
         disabled={!ready} onClick={() => { setLiveQuizOpen(false); setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
         {classroomMode ? 'Exit Classroom Mode' : 'Start Classroom Mode'}
@@ -472,7 +497,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
     {pack && ready && (classroomMode && isTeacher ? <ClassroomMode
       pairs={classroomPairs} isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
       onNextRound={() => setRound((value) => value + 1)}
-      onExit={() => { setClassroomMode(false); resetGame(); }}
+      onExit={() => { setClassroomMode(false); setArena(false); resetGame(); }}
     /> : <>
       {!isTeacher && <section className="ig-practice-history" aria-label="My practice history">
         <h3>My practice history</h3>
@@ -519,7 +544,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
         </button>}
       </div>
       {liveQuizOpen && isTeacher ? <LiveQuizHost courseCode={courseCode} scopes={scopes}
-        onExit={() => setLiveQuizOpen(false)} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} /> : <>
+        onExit={() => { setLiveQuizOpen(false); setArena(false); }} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} /> : <>
       <div className="ig-workspace">
         <div className="ig-workspace-head">
           <div><span className="ig-eyebrow"><span className="ig-arena-dot" aria-hidden="true"/> NOW PLAYING · {courseCode}</span><h2>{activeGame.label}</h2>
@@ -527,7 +552,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
               {staged ? ` · Stage ${stageNumber} of ${stageTotal} (${selectedCount} selected)` : ''}</p>
           </div>
           <div className="ig-workspace-head-actions">
-            <button className="ig-arena-toggle" type="button" aria-pressed={arena} onClick={()=>setArena(value=>!value)}>{arena?'Exit Arena':'Arena'}</button>
+            <button className="ig-arena-toggle" type="button" aria-pressed={arena} onClick={toggleArena}>{arena?'Exit Arena':'Arena'}</button>
             <button className="ig-fullscreen-toggle" type="button" onClick={toggleFullscreen}
               aria-pressed={isFullscreen}>{isFullscreen ? '⤢ Exit full screen' : '⛶ Full screen'}</button>
             <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
@@ -592,7 +617,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
             <summary>Show cards ({pairs.length})</summary>
             <ol>{pairs.map((pair) => <li key={pair.id}><strong>{pair.term}</strong><div>{pair.definition}</div></li>)}</ol>
           </details>}
-          <p className="ig-result-disclaimer">Practice feedback only · Not official grades or verified mastery.</p>
+          <p className="ig-result-disclaimer">Practice feedback only · Not official grades or verified mastery. Only student-submitted formative results can be saved.</p>
           {!isTeacher && currentMode !== 'concept-compare' && <div className="ig-practice-save">
             <button type="button" disabled={practiceSaveState === 'saving' || practiceSaveState === 'saved'}
               onClick={() => void savePractice()}>

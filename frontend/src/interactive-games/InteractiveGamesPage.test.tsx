@@ -225,7 +225,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     expect(container.textContent).toContain('pending review');
     expect([...container.querySelectorAll('.ig-game-tile strong')].map((el) => el.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', '🎮 Live Quiz · Blooket-style',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', 'Live Quiz',
     ]);
     expect(lastScopes()).toEqual({ courseCode: '9618', scopes: [{ chapterNo: 1, kind: 'chapter' }] });
   });
@@ -264,7 +264,7 @@ describe('database-backed Interactive Games multi-selection', () => {
     const gameTiles = [...container.querySelectorAll<HTMLButtonElement>('.ig-game-tile')];
     expect(gameTiles.map((tile) => tile.querySelector('strong')?.textContent)).toEqual([
       'Match Up', 'Flash Cards', 'Speaking Cards', 'Spin the Wheel',
-      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', '🎮 Live Quiz · Blooket-style',
+      'Open the Box', 'Quiz', 'Find the Match', 'Anagram', 'Concept Compare', 'Live Quiz',
     ]);
     expect(gameTiles.slice(0, 8).every((tile) => !tile.disabled)).toBe(true);
     expect(gameTiles[8]?.disabled).toBe(true);
@@ -291,6 +291,26 @@ describe('database-backed Interactive Games multi-selection', () => {
     await click(button);
     expect(request).toHaveBeenCalledTimes(1);
     expect(button.textContent).toContain('Exit full screen');
+  });
+
+  it('keeps a placed Match Up term and the same stage mounted when toggling Arena', async () => {
+    await render(true);
+    const stage=container.querySelector('fieldset.ig-game-stage');
+    const term=container.querySelector<HTMLButtonElement>('.ig-bank-term')!;
+    const target=container.querySelector<HTMLButtonElement>('.ig-drop-target button')!;
+    await click(term);await click(target);
+    const before=container.querySelector('.ig-score')?.textContent;
+    expect(before).toContain('1 of');
+    const toggle=container.querySelector<HTMLButtonElement>('.ig-workspace-head-actions .ig-arena-toggle')!;
+    await click(toggle);
+    expect(container.querySelector('.ig-page')?.classList.contains('is-arena')).toBe(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('fieldset.ig-game-stage')).toBe(stage);
+    expect(container.querySelector('.ig-score')?.textContent).toBe(before);
+    await click(toggle);
+    expect(container.querySelector('.ig-page')?.classList.contains('is-arena')).toBe(false);
+    expect(container.querySelector('fieldset.ig-game-stage')).toBe(stage);
+    expect(container.querySelector('.ig-score')?.textContent).toBe(before);
   });
 
   it('searches within chapter sections instead of showing unrelated subtopics', async () => {

@@ -117,7 +117,7 @@
 .ig-neon .ig-quiz-question-frame .ig-quiz-clock.is-low{color:#ff9bab;background:#33203c}
 .ig-neon .ig-quiz-question-frame .ig-quiz-time-progress{grid-column:1/-1;margin:0;height:5px;border-radius:10px;accent-color:#77dfff}
 .ig-neon .ig-workspace .ig-choice-card.is-correct,.lq-neon.is-playing .lq-option.is-answer{animation:ig-arena-win .38s ease-out both}
-@keyframes ig-arena-win{0%{transform:scale(.98);box-shadow:0 0 0 #58f0ad00}60%{transform:scale(1.015);box-shadow:0 0 32px #58f0ad99}100%{transform:scale(1);box-shadow:0 0 24px #58f0ad55}}
+@keyframes ig-arena-win{0%{transform:scale(.985)}60%{transform:scale(1.012)}100%{transform:scale(1)}}
 .ig-neon .ig-workspace :is(.ig-wheel-result h3,.ig-wheel-answer-status,.ig-wheel-caption h3,.ig-anagram-slot,.ig-anagram-separator,.ig-box span){color:#f3f6ff}
 .lq-neon.is-playing .lq-score-ring{background:radial-gradient(closest-side,#17213f 77%,transparent 79%),conic-gradient(#58e9af var(--lq-accuracy),#3f4e79 0)}
 .lq-neon.is-playing .lq-guest-waiting{background:var(--arena-panel);border-color:#7689ce;color:#f5f7ff}
@@ -129,3 +129,23 @@
 .ig-neon:is(.is-arena,:fullscreen) .ig-scope-count{display:none}
 .ig-neon .ig-workspace :is(.ig-match-actions,.ig-box-actions,.ig-deck-controls,.ig-card-controls,.ig-anagram-form,.ig-answer-feedback,.ig-wheel-controls,.ig-wheel-settings,.ig-wheel-caption,.ig-find-status){color:#edf2ff}
 .ig-neon .ig-workspace :is(.ig-wheel-settings label,.ig-wheel-switch button,.ig-wheel-settings select,.ig-wheel-caption p,.ig-wheel-result .ig-eyebrow,.ig-dealt-card .ig-eyebrow,.ig-answer-review summary,.ig-start-panel p){color:#e6edff}
+
+/* Focus-mode hierarchy: configuration is never a competing game control.
+   Warnings and errors stay available, and Exit Arena restores all options. */
+.ig-neon:is(.is-arena,:fullscreen) :is(.lq-student-discovery,.ig-session-bar .ig-timer-select,.ig-session-bar .ig-classroom-toggle,.ig-session-bar .ig-live-join-link){display:none}
+.ig-neon:is(.is-arena,:fullscreen) .ig-session-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 14px;position:static}
+.ig-neon:is(.is-arena,:fullscreen) .ig-session-name{flex:1 1 160px;font-weight:750}
+.ig-neon:is(.is-arena,:fullscreen) .ig-session-bar button{min-height:44px;background:#263257;color:#fff;border:1px solid #7284ba;border-radius:10px;padding:8px 12px}
+.ig-neon:is(.is-arena,:fullscreen) .ig-session-bar .ig-arena-toggle{background:#463991;border-color:#b5a1ff}
+.ig-neon:is(.is-arena,:fullscreen) .ig-workspace-head p{font-size:12px}
+.ig-neon:is(.is-arena,:fullscreen) .ig-workspace-head .ig-eyebrow{font-size:10px}
+.ig-neon:is(.is-arena,:fullscreen) .ig-workspace{margin-top:8px;min-height:0}
+.ig-neon:is(.is-arena,:fullscreen) .ig-session-metrics{padding-top:10px}
+.ig-neon:is(.is-arena,:fullscreen) .ig-content{padding-top:16px}
+.ig-neon:is(.is-arena,:fullscreen) .ig-quiz .ig-template-options{display:none}
+.ig-neon:is(.is-arena,:fullscreen) .ig-quiz .ig-arena-help{margin:0 0 8px}
+.ig-neon .ig-workspace-head h2:focus,.ig-neon .ig-classroom-header h2:focus,.lq-neon .lq-header h2:focus{outline:none}
+.ig-neon .ig-workspace :is(.ig-card-controls button,.ig-primary-button,.ig-reset,.ig-fullscreen-toggle,.ig-deck-controls button){min-height:44px}
+.ig-neon .ig-workspace .ig-quiz .ig-choice-card{transition:transform .16s ease}
+.ig-neon .ig-workspace .ig-quiz .ig-choice-card:focus-visible{outline:3px solid #ffe19a;outline-offset:3px}
+@media(max-width:480px){.ig-neon:is(.is-arena,:fullscreen) .ig-session-name{flex-basis:100%}.ig-neon:is(.is-arena,:fullscreen) .ig-session-bar{padding:8px;gap:6px}.ig-neon:is(.is-arena,:fullscreen) .ig-workspace-head-actions{gap:6px}.ig-neon:is(.is-arena,:fullscreen) .ig-workspace-head-actions button{flex:1 1 90px;padding:7px 8px;font-size:12px}.ig-neon:is(.is-arena,:fullscreen) .ig-quiz .ig-choice-card strong{font-size:clamp(14px,4vw,19px)}}

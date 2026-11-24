@@ -51,7 +51,7 @@ describe('Treasure Quest student interactions',()=>{
 
   it('shows three independent treasure choices and sends only the chosen chest and private token',async()=>{
     await render();
-    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Your treasure hunt starts here.');
+    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Treasure Quest');
     expect(host.textContent).toContain('Choose a treasure chest');
     expect(host.querySelectorAll('.lq-chest-grid button')).toHaveLength(3);
     const chest=host.querySelector<HTMLButtonElement>('[aria-label="Choose treasure chest 2"]')!;
@@ -111,7 +111,7 @@ describe('Treasure Quest student interactions',()=>{
       throw Error('Unexpected request '+url);
     });
     await render();
-    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Think fast. Learn together.');
+    expect(host.querySelector('.lq-guest-header h1')?.textContent).toBe('Live Quiz');
     expect(host.textContent).toContain('Next question starts automatically in');
     expect(host.textContent).not.toContain('Waiting for the teacher');
     expect(host.querySelector('.lq-option.is-answer .lq-option-label')?.textContent).toBe('Correct');
