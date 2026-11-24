@@ -5,6 +5,7 @@ import type { GameScope } from './remote-games';
 import type { LiveQuizHistoryItem, LiveQuizMode, LiveQuizReport, LiveQuizSnapshot } from './live-quiz-api';
 import { LiveQuizReportView } from './LiveQuizReportView';
 import './live-quiz.css';
+import './neon-arena.css';
 
 export function countdownSeconds(snapshot:LiveQuizSnapshot|null,now:number,serverOffset=0){
   if(!snapshot||snapshot.status!=='active'||!snapshot.questionStartedAt)return 0;
@@ -163,10 +164,10 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
   const active=snapshot?.status==='active',review=snapshot?.status==='review';
   const finished=snapshot?.status==='finished';
   const question=snapshot?.question;
-  return <section className="lq-host" aria-label="Cambridge Live Quiz host">
+  return <section className={'lq-host lq-neon'+(roomId?' is-playing':'')} aria-label="Cambridge Live Quiz host">
     <div className="lq-header">
       <div><span className="lq-eyebrow">CAMBRIDGE / LIVE QUIZ <span className="lq-course-tag">{courseCode}</span></span>
-        <h2>Live Quiz Studio</h2><p>Choose a mode, bring your class together, and understand every answer.</p></div>
+        <h2>{roomId?'Live Quiz':'Live Quiz Studio'}</h2></div>
       <div className="lq-header-actions">
         <button type="button" className="lq-secondary" onClick={onToggleFullscreen}>{isFullscreen?'Exit full screen':'Full screen'}</button>
         <button type="button" className="lq-secondary" onClick={onExit}>Back to games</button>
@@ -314,7 +315,7 @@ export function LiveQuizHost({courseCode,scopes,onExit,onToggleFullscreen,isFull
           aria-valuenow={question.index+1} aria-valuemin={0} aria-valuemax={snapshot.questionCount}>
           <span style={{width:`${(question.index+1)/Math.max(1,snapshot.questionCount)*100}%`}}/></div>
         <p className="lq-question-prompt">{question.prompt}</p>
-        <p className="lq-source">{question.sourceContext}</p>
+        {review&&<p className="lq-source">{question.sourceContext}</p>}
         {(!review||!snapshot.answerCounts)&&<div className="lq-options">{question.options.map((option,index)=><div key={index}
           className={'lq-option lq-option-'+index+(review&&index===question.correctIndex?' is-answer':'')}>
           <span>{['▲','◆','●','■'][index]}</span><b>{option}</b>
